@@ -110,6 +110,18 @@ describe('renderAiCreditTooltip', () => {
         expect(html).not.toContain('Compaction');
     });
 
+    it('totals a day that has more than one series', () => {
+        expect(
+            render([
+                { label: 'Ask AI', credits: 2 },
+                { label: 'Data App', credits: 9 },
+            ]),
+        ).toMatch(/Total<\/span><b>11 credits/);
+        expect(render([{ label: 'Ask AI', credits: 2 }])).not.toContain(
+            'Total',
+        );
+    });
+
     it('never renders a name as markup', () => {
         const html = render([
             { label: '<img src=x onerror=alert(1)>', credits: 1 },

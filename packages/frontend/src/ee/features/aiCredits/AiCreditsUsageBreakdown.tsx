@@ -6,20 +6,23 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Divider,
     Group,
     Paper,
     SegmentedControl,
+    Skeleton,
     Stack,
     Text,
     Title,
+    VisuallyHidden,
 } from '@mantine/core';
 import { type EChartsOption } from 'echarts';
 import { useMemo, useState, type FC } from 'react';
-import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { AiCreditSeriesIcon } from './AiCreditSeriesIcon';
 import classes from './AiCreditsUsageBreakdown.module.css';
+import { dropFutureDays, formatCredits } from './creditUsage';
 import {
     findTopSeriesIndex,
     getAiCreditRowShare,
@@ -29,10 +32,6 @@ import {
 } from './dailyUsageChart';
 import { useAiCreditDailyUsage } from './hooks/useAiCreditDailyUsage';
 import { getAiCreditBreakdownLabel, getAiCreditSeriesLabel } from './labels';
-
-const creditFormat = new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 2,
-});
 
 const CHART_HEIGHT = 200;
 const BAR_TOP_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
@@ -59,7 +58,10 @@ const UsageChart: FC<{
     series: LabelledSeries[];
 }> = ({ usage, series }) => {
     const option = useMemo<EChartsOption>(() => {
-        const buckets = toAiCreditChartBuckets(usage);
+        const buckets = toAiCreditChartBuckets({
+            series: usage.series,
+            days: dropFutureDays(usage.days, new Date()),
+        });
         return {
             animation: false,
             grid: { left: 4, right: 4, top: 8, bottom: 4, containLabel: true },
@@ -101,7 +103,7 @@ const UsageChart: FC<{
                                 ? []
                                 : [{ ...item, credits: Number(point.value) }];
                         }),
-                        (credits) => creditFormat.format(credits),
+                        formatCredits,
                     );
                 },
             },
@@ -145,6 +147,7 @@ const UsageRows: FC<{
     <Stack gap="sm">
         {series.map((item) => (
             <Box key={item.id}>
+                {item.series.type === 'other' && <Divider mb="sm" />}
                 <Group justify="space-between" gap="xs" mb={4}>
                     <Group gap="xs" wrap="nowrap">
                         <AiCreditSeriesIcon
@@ -155,13 +158,13 @@ const UsageRows: FC<{
                         <Text fz="sm">{item.label}</Text>
                     </Group>
                     <Text fz="sm" c="dimmed">
-                        {creditFormat.format(item.credits)} credits
+                        {formatCredits(item.credits)} credits
                     </Text>
                 </Group>
                 <Box
                     className={classes.segments}
                     role="img"
-                    aria-label={`${item.label}: ${creditFormat.format(item.credits)} credits`}
+                    aria-label={`${item.label}: ${formatCredits(item.credits)} credits`}
                 >
                     <Box
                         className={classes.fill}
@@ -215,8 +218,13 @@ export const AiCreditsUsageBreakdown: FC<{
                         }))}
                     />
                 </Group>
+                <VisuallyHidden aria-live="polite">
+                    {isInitialLoading
+                        ? ''
+                        : `Showing usage by ${getAiCreditBreakdownLabel(breakdown).toLowerCase()}`}
+                </VisuallyHidden>
                 {isInitialLoading ? (
-                    <EmptyStateLoader />
+                    <Skeleton h={200} />
                 ) : isError || usage === undefined ? (
                     <InlineErrorState
                         message="Daily AI credit usage could not be loaded."

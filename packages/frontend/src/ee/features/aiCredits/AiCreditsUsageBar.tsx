@@ -1,15 +1,22 @@
+import { AI_CREDIT_ALLOWANCE_ALERT_THRESHOLDS } from '@lightdash/common';
 import { Box, Text, useComputedColorScheme } from '@mantine/core';
 import { useEffect, useRef, type FC } from 'react';
 import classes from './AiCreditsUsageBar.module.css';
+import { formatAllowance, formatCredits } from './creditUsage';
 
 const BLEND_FROM = 50;
-const ACCENT_FROM = 80;
-const MARKERS = [BLEND_FROM, ACCENT_FROM] as const;
+const WARN_FROM = 80;
+const ALLOWANCE = 100;
+// Marked where admins get notified.
+const MARKERS = AI_CREDIT_ALLOWANCE_ALERT_THRESHOLDS.filter(
+    (threshold) => threshold < ALLOWANCE,
+);
 
 const PIXEL_SIZE = 3;
-// Higher values keep the accent sparse until usage nears the accent marker.
+// Higher values keep the warning colour sparse until usage nears the warning marker.
 const BLEND_CURVE = 4;
-const SHIMMER_INTERVAL_MS = 125;
+// Overage turns to the over colour quickly, so it never reads as more warning.
+const OVERAGE_CURVE = 0.5;
 const BAYER = [
     [0, 8, 2, 10],
     [12, 4, 14, 6],
@@ -17,7 +24,9 @@ const BAYER = [
     [15, 7, 13, 5],
 ] as const;
 
-type Palette = { ink: string; track: string; accent: string };
+const SHIMMER_INTERVAL_MS = 125;
+
+type Palette = { ink: string; track: string; warn: string; over: string };
 
 // Canvas can't take CSS variables, so resolve the theme tokens declared in the CSS module.
 const readPalette = (element: HTMLElement): Palette => {
@@ -26,7 +35,8 @@ const readPalette = (element: HTMLElement): Palette => {
     return {
         ink: read('--bar-ink'),
         track: read('--bar-track'),
-        accent: read('--bar-accent'),
+        warn: read('--bar-warn'),
+        over: read('--bar-over'),
     };
 };
 
@@ -73,6 +83,16 @@ const drawDitheredSegment = (
     }
 };
 
+// Overage takes at most this share past the allowance, so a large overage can't crush the markers.
+const MAX_SCALE = 125;
+
+// Past the allowance the bar rescales, so the allowance sits inside it and the overage stays visible.
+const getScaleMax = (percent: number) =>
+    Math.min(Math.max(percent, ALLOWANCE), MAX_SCALE);
+
+const getMarkers = (percent: number): number[] =>
+    percent > ALLOWANCE ? [...MARKERS, ALLOWANCE] : [...MARKERS];
+
 const drawBar = (
     canvas: HTMLCanvasElement,
     percent: number,
@@ -91,9 +111,12 @@ const drawBar = (
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    const fillX = (width * Math.min(Math.max(percent, 0), 100)) / 100;
-    const blendX = (width * BLEND_FROM) / 100;
-    const accentX = (width * ACCENT_FROM) / 100;
+    const scaleMax = getScaleMax(percent);
+    const toX = (value: number) => (width * value) / scaleMax;
+    const fillX = toX(Math.min(Math.max(percent, 0), scaleMax));
+    const blendX = toX(BLEND_FROM);
+    const warnX = toX(WARN_FROM);
+    const allowanceX = toX(ALLOWANCE);
 
     ctx.fillStyle = palette.track;
     ctx.fillRect(0, 0, width, height);
@@ -102,27 +125,41 @@ const drawBar = (
 
     drawDitheredSegment(ctx, {
         from: blendX,
-        to: accentX,
+        to: warnX,
         fillX,
         height,
         base: palette.ink,
-        target: palette.accent,
+        target: palette.warn,
         curve: BLEND_CURVE,
         frame,
     });
-    if (fillX > accentX) {
-        ctx.fillStyle = palette.accent;
-        ctx.fillRect(accentX, 0, fillX - accentX, height);
+    if (fillX > warnX) {
+        ctx.fillStyle = palette.warn;
+        ctx.fillRect(warnX, 0, Math.min(fillX, allowanceX) - warnX, height);
     }
+    drawDitheredSegment(ctx, {
+        from: allowanceX,
+        to: fillX,
+        fillX,
+        height,
+        base: palette.warn,
+        target: palette.over,
+        curve: OVERAGE_CURVE,
+        frame,
+    });
 
-    MARKERS.forEach((marker) =>
-        ctx.clearRect((width * marker) / 100 - 1, 0, 2, height),
+    getMarkers(percent).forEach((marker) =>
+        ctx.clearRect(toX(marker) - 1, 0, 2, height),
     );
 };
 
-export const AiCreditsUsageBar: FC<{ percent: number }> = ({ percent }) => {
+export const AiCreditsUsageBar: FC<{
+    usedCredits: number;
+    allowanceCredits: number;
+}> = ({ usedCredits, allowanceCredits }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const colorScheme = useComputedColorScheme('light');
+    const percent = (usedCredits / allowanceCredits) * 100;
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -156,6 +193,8 @@ export const AiCreditsUsageBar: FC<{ percent: number }> = ({ percent }) => {
         };
     }, [percent, colorScheme]);
 
+    const scaleMax = getScaleMax(percent);
+
     return (
         <Box>
             <Box
@@ -165,17 +204,18 @@ export const AiCreditsUsageBar: FC<{ percent: number }> = ({ percent }) => {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(Math.min(percent, 100))}
+                aria-valuetext={`${formatCredits(usedCredits)} of ${formatAllowance(allowanceCredits)} credits used, ${Math.round(percent)}%`}
             >
                 <canvas ref={canvasRef} className={classes.canvas} />
             </Box>
             <Box className={classes.markerLabels}>
-                {MARKERS.map((marker) => (
+                {getMarkers(percent).map((marker) => (
                     <Text
                         key={marker}
                         fz="xs"
                         c="dimmed"
                         className={classes.markerLabel}
-                        left={`${marker}%`}
+                        left={`${(marker / scaleMax) * 100}%`}
                     >
                         {marker}%
                     </Text>
