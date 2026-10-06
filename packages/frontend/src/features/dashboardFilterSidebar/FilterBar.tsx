@@ -32,6 +32,7 @@ import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import { AddFilter } from './AddFilter';
 import { FilterPills } from './FilterPills';
+import { ParameterValuesButton } from './ParameterValuesButton';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
 
@@ -175,6 +176,7 @@ export const FilterBar: FC<Props> = ({
                                         }
                                     />
                                     <PinnedParameters isEditMode={isEditMode} />
+                                    <ParameterValuesButton />
                                 </>
                             )}
                         </Group>

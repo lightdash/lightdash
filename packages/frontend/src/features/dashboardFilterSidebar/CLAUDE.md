@@ -27,6 +27,12 @@ seam in `features/dashboardTabs/index.tsx`.
 - `openNew` opens with no field; `addFirstField` appends a draft rule (no
   value, empty label) so it previews; `cancel` drops it with the snapshot.
 
+## Parameters (read only)
+
+- `ParameterValuesButton` on the bar calls `openParameters`; `ParameterSidebar` and `ParameterOverlays` show where each chart's parameter value comes from. Nothing is edited.
+- `parameterSources.ts` resolves 'dashboard' or 'default' from the dashboard context; chart-saved values are not exposed by the context, so the rest shows as "chart value".
+- `isParametersOpen` is separate from `editing` and is false while a filter is being edited.
+
 ## Peer fields on today's saved shape
 
 - The first field is the rule's `target`.

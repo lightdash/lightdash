@@ -32,6 +32,9 @@ vi.mock(
 vi.mock('./AddFilter', () => ({
     AddFilter: () => <button>Add filter (edit)</button>,
 }));
+vi.mock('./ParameterValuesButton', () => ({
+    ParameterValuesButton: () => <button>Parameter values</button>,
+}));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));

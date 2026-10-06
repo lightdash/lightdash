@@ -36,6 +36,9 @@ export type FilterSidebarContextValue = {
     cancel: () => void;
     apply: () => void;
     isDirty: boolean;
+    isParametersOpen: boolean;
+    openParameters: () => void;
+    closeParameters: () => void;
 };
 
 export const FilterSidebarContext =

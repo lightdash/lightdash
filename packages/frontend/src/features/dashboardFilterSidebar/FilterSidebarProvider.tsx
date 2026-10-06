@@ -68,6 +68,11 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const [sessionSettings, setSessionSettings] =
         useState<SessionSettingsByFilterId>({});
 
+    const [isParametersOpen, setIsParametersOpen] = useState(false);
+    // Only opens while no filter is being edited
+    const openParameters = useCallback(() => setIsParametersOpen(true), []);
+    const closeParameters = useCallback(() => setIsParametersOpen(false), []);
+
     const getSessionSettings = useCallback(
         (filterId: string) =>
             getFilterSessionSettings(sessionSettings, filterId),
@@ -196,6 +201,9 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
 
     const value = useMemo<FilterSidebarContextValue>(
         () => ({
+            isParametersOpen: isParametersOpen && state === null,
+            openParameters,
+            closeParameters,
             editing: state === null ? null : { filterId: state.filterId },
             isNew: state?.isNew ?? false,
             originalFilterRule:
@@ -257,6 +265,9 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             listedFieldIds,
             listFieldId,
             unlistFieldId,
+            isParametersOpen,
+            openParameters,
+            closeParameters,
         ],
     );
 
