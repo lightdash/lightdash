@@ -51,7 +51,7 @@ describe('AI access callout', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Sign in for AI' }));
         expect(mocks.login).toHaveBeenCalled();
     });
-    it('links project updaters to settings', () => {
+    it('links project managers to settings', () => {
         mocks.can.mockReturnValue(true);
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
@@ -61,7 +61,7 @@ describe('AI access callout', () => {
             '/generalSettings/projectManagement/project/aiAccess',
         );
         expect(mocks.can).toHaveBeenCalledWith(
-            'update',
+            'manage',
             expect.objectContaining({ projectUuid: 'project' }),
         );
     });
