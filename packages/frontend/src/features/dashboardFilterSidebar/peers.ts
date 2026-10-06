@@ -181,7 +181,9 @@ export const removeField = (
     );
     return tiles.reduce((next, tile) => {
         const effective = getTileField(rule, tile, fieldsByTile);
-        if (effective?.fieldId === fieldId) return next;
+        if (effective?.fieldId === fieldId) {
+            return setTileField(next, tile, null, fieldsByTile);
+        }
         return setTileField(next, tile, effective, fieldsByTile);
     }, base);
 };

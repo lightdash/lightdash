@@ -170,11 +170,11 @@ describe('peers', () => {
         const before = rule({ c: PAYMENTS });
         const r = removeField(before, 'orders_status', tiles, fieldsByTile);
         expect(r.target).toEqual(PAYMENTS);
-        // c keeps payments (now the default), a has nothing left, b used the
-        // removed field so it falls back to the new default.
-        expect(r).not.toHaveProperty('tileTargets');
+        // c keeps payments (now the default); a and b used the removed field
+        // so they stop being filtered, even though b offers the new target.
+        expect(r.tileTargets).toEqual({ b: false });
         expect(getTileField(r, a, fieldsByTile)).toBeNull();
-        expect(getTileField(r, b, fieldsByTile)).toEqual(PAYMENTS);
+        expect(getTileField(r, b, fieldsByTile)).toBeNull();
         expect(getTileField(r, c, fieldsByTile)).toEqual(PAYMENTS);
     });
 

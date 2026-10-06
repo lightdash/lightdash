@@ -24,10 +24,9 @@ vi.mock('../dashboardFilters', () => ({
     ),
 }));
 
-vi.mock(
-    '../dashboardFilters/FilterRequirements/FilterRequirementsButton',
-    () => ({ default: () => <button>Required</button> }),
-);
+vi.mock('./RequirementsButton', () => ({
+    RequirementsButton: () => <button>Required</button>,
+}));
 
 vi.mock('./AddFilter', () => ({
     AddFilter: () => <button>Add filter (edit)</button>,

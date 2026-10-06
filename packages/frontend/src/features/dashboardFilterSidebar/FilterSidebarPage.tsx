@@ -25,7 +25,7 @@ const PageWithFilterSidebar: FC<Props> = (props) => {
                     <ParameterSidebar />
                 </>
             }
-            sidebarTitle="Edit filter"
+            sidebarTitle={isParametersOpen ? 'Parameter values' : 'Edit filter'}
             isSidebarOpen={editing !== null || isParametersOpen}
             noSidebarPadding
             sidebarWidthProps={SIDEBAR_WIDTH}

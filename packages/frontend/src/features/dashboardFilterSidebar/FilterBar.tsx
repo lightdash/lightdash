@@ -27,12 +27,12 @@ import DashboardFilters from '../dashboardFilters';
 import { type DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import classes from '../dashboardFilters/DashboardFiltersBar.module.css';
 import FilterGroupSeparator from '../dashboardFilters/FilterGroupSeparator';
-import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import { AddFilter } from './AddFilter';
 import { FilterPills } from './FilterPills';
 import { ParameterValuesButton } from './ParameterValuesButton';
+import { RequirementsButton } from './RequirementsButton';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
 
@@ -144,7 +144,7 @@ export const FilterBar: FC<Props> = ({
                                 />
                             )}
 
-                            {isEditMode && <FilterRequirementsButton />}
+                            {isEditMode && <RequirementsButton />}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>

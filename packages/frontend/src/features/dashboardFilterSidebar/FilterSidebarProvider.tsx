@@ -7,11 +7,13 @@ import {
 } from '@lightdash/common';
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     getFilterSessionSettings,
@@ -193,11 +195,22 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const apply = resetSession;
 
     const editingFilterId = state?.filterId ?? null;
+    // Starts from the snapshot so edits made to other filters are not kept
     const removeFilter = useCallback(() => {
-        if (editingFilterId === null) return;
-        removeFilterById(editingFilterId);
+        if (state === null || state.filterId === null) return;
+        setDashboardFilters(
+            removeFilterRule(state.snapshot.dashboardFilters, state.filterId),
+        );
+        setHaveFiltersChanged(true);
         resetSession();
-    }, [editingFilterId, removeFilterById, resetSession]);
+    }, [state, setDashboardFilters, setHaveFiltersChanged, resetSession]);
+
+    // The dashboard's own Save or Cancel ends the edit; nothing is restored
+    const { mode } = useParams<{ mode?: string }>();
+    const isEditMode = mode === 'edit';
+    useEffect(() => {
+        if (!isEditMode) resetSession();
+    }, [isEditMode, resetSession]);
 
     const value = useMemo<FilterSidebarContextValue>(
         () => ({
