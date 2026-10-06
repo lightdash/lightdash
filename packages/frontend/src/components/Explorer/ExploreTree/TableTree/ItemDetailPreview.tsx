@@ -24,6 +24,7 @@ import { IconArrowRight, IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
+import useCanViewEmbedCompiledSql from '../../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
 import {
     explorerActions,
     useExplorerDispatch,
@@ -132,6 +133,8 @@ export const ItemDetailPreview: FC<{
         (description && description.split('\n').length > 2);
 
     const [showCompiled, setShowCompiled] = useState(false);
+    const canViewSql = useCanViewEmbedCompiledSql();
+    const hasFilters = !!metricInfo?.filters && metricInfo.filters.length > 0;
 
     return (
         <Stack gap="sm">
@@ -199,51 +202,59 @@ export const ItemDetailPreview: FC<{
                     </Button>
                 </Box>
             )}
-            {metricInfo && (
+            {metricInfo && (canViewSql || hasFilters) && (
                 <>
                     <Divider color="ldGray.2" />
                     <Stack gap="xs">
-                        <Group gap="xs" align="center" justify="space-between">
-                            <Text fz="xs" fw={500} c="ldDark.7">
-                                SQL
-                            </Text>
-                            <Tooltip
-                                position="right"
-                                label={
-                                    showCompiled
-                                        ? 'Show original SQL'
-                                        : 'Show compiled SQL'
-                                }
-                            >
-                                <Button
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={(
-                                        e: React.MouseEvent<HTMLButtonElement>,
-                                    ) => {
-                                        e.stopPropagation();
-                                        setShowCompiled(!showCompiled);
-                                    }}
-                                    size="compact-xs"
-                                    leftSection={
-                                        <MantineIcon icon={IconCode} />
-                                    }
+                        {canViewSql && (
+                            <>
+                                <Group
+                                    gap="xs"
+                                    align="center"
+                                    justify="space-between"
                                 >
+                                    <Text fz="xs" fw={500} c="ldDark.7">
+                                        SQL
+                                    </Text>
+                                    <Tooltip
+                                        position="right"
+                                        label={
+                                            showCompiled
+                                                ? 'Show original SQL'
+                                                : 'Show compiled SQL'
+                                        }
+                                    >
+                                        <Button
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLButtonElement>,
+                                            ) => {
+                                                e.stopPropagation();
+                                                setShowCompiled(!showCompiled);
+                                            }}
+                                            size="compact-xs"
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                        >
+                                            {showCompiled
+                                                ? 'Original SQL'
+                                                : 'Compiled SQL'}
+                                        </Button>
+                                    </Tooltip>
+                                </Group>
+                                <Code maw={400}>
                                     {showCompiled
-                                        ? 'Original SQL'
-                                        : 'Compiled SQL'}
-                                </Button>
-                            </Tooltip>
-                        </Group>
-                        <Code maw={400}>
-                            {showCompiled
-                                ? metricInfo.compiledSql
-                                : metricInfo.sql}
-                        </Code>
+                                        ? metricInfo.compiledSql
+                                        : metricInfo.sql}
+                                </Code>
+                            </>
+                        )}
                         {metricInfo.filters &&
                             metricInfo.filters.length > 0 && (
                                 <>
-                                    <Divider color="ldGray.2" />
+                                    {canViewSql && <Divider color="ldGray.2" />}
                                     <Text fz="xs" fw={500} c="ldDark.7">
                                         Filters
                                     </Text>
