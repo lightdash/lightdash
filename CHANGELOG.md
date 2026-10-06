@@ -1,3 +1,10 @@
+## [2.440.2](https://github.com/lightdash/lightdash/compare/2.440.1...2.440.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* **clickhouse:** avoid ambiguous dimension sorts for distinct metrics ([#30540](https://github.com/lightdash/lightdash/issues/30540)) ([7158488](https://github.com/lightdash/lightdash/commit/7158488c01c35903a3f76da592d6e073badc2dfb))
+
 ## [2.440.1](https://github.com/lightdash/lightdash/compare/2.440.0...2.440.1) (2026-10-06)
 
 
