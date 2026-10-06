@@ -190,6 +190,50 @@ export class AiIdentityController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
+    @Post(
+        'accounts/{aiIdentityAccountUuid}/provisioning/provisioner/start-waiting',
+    )
+    @OperationId('startWaitingForAiIdentitySetup')
+    async startWaitingForSetup(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .startWaitingForSetup(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('accounts/{aiIdentityAccountUuid}/provisioning/provisioner/check')
+    @OperationId('pollAiIdentitySetupCheck')
+    async pollSetupCheck(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .pollSetupCheck(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
     @Put('accounts/{aiIdentityAccountUuid}/provisioning/mappings')
     @OperationId('replaceAiIdentityRoleMappings')
     async replaceProvisioningMappings(

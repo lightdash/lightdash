@@ -22,6 +22,7 @@ import {
     resolveAiTwinName,
     type AiIdentityAiRoleDefinition,
     type AiIdentityProvisionerFinding,
+    type AiIdentitySetupCheck,
     type AiIdentityUngrantedSchemas,
     type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
@@ -769,6 +770,7 @@ export class AiIdentityModel {
     }
 
     async getProvisioner(aiIdentityAccountUuid: string): Promise<{
+        setupCheck: AiIdentitySetupCheck | null;
         aiIdentityAccountUuid: string;
         userName: string;
         roleName: string;
@@ -803,6 +805,7 @@ export class AiIdentityModel {
             .first();
         if (!row) return null;
         return {
+            setupCheck: row.setup_check ?? null,
             aiIdentityAccountUuid: row.ai_identity_account_uuid,
             userName: row.user_name,
             roleName: row.role_name,
@@ -1040,19 +1043,35 @@ export class AiIdentityModel {
         });
     }
 
+    async saveProvisionerSetupCheck(
+        aiIdentityAccountUuid: string,
+        update: Parameters<AiIdentityModel['updateProvisioner']>[1],
+        event: Parameters<AiIdentityModel['addEvent']>[0],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await this.updateProvisioner(aiIdentityAccountUuid, update, trx);
+            await this.addEvent(event, trx);
+        });
+    }
+
     async updateProvisioner(
         aiIdentityAccountUuid: string,
         update: {
+            setupCheck?: AiIdentitySetupCheck;
             status?: AiIdentityProvisionerStatus;
             statusMessage?: string | null;
             findings?: AiIdentityProvisionerFinding[];
             ungrantedSchemas?: AiIdentityUngrantedSchemas[];
             approvedBy?: string;
         },
+        database = this.database,
     ): Promise<void> {
-        await this.database('ai_identity_provisioners')
+        await database('ai_identity_provisioners')
             .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
             .update({
+                ...(update.setupCheck === undefined
+                    ? {}
+                    : { setup_check: JSON.stringify(update.setupCheck) }),
                 ...(update.status === undefined
                     ? {}
                     : { status: update.status, checked_at: new Date() }),
@@ -1282,19 +1301,22 @@ export class AiIdentityModel {
             : null;
     }
 
-    async addEvent(event: {
-        aiIdentityJobUuid?: string | null;
-        organizationUuid: string;
-        aiIdentityAccountUuid: string | null;
-        aiIdentityUuid: string | null;
-        actorType: AiIdentityEventActorType;
-        actorUserUuid: string | null;
-        action: string;
-        targetCount: number;
-        status: 'success' | 'error';
-        detail: string | null;
-    }): Promise<void> {
-        await this.database('ai_identity_events').insert({
+    async addEvent(
+        event: {
+            aiIdentityJobUuid?: string | null;
+            organizationUuid: string;
+            aiIdentityAccountUuid: string | null;
+            aiIdentityUuid: string | null;
+            actorType: AiIdentityEventActorType;
+            actorUserUuid: string | null;
+            action: string;
+            targetCount: number;
+            status: 'success' | 'error';
+            detail: string | null;
+        },
+        database = this.database,
+    ): Promise<void> {
+        await database('ai_identity_events').insert({
             organization_uuid: event.organizationUuid,
             ai_identity_account_uuid: event.aiIdentityAccountUuid,
             ai_identity_uuid: event.aiIdentityUuid,

@@ -190,7 +190,7 @@ export const AiIdentitiesPage: FC = () => {
                             onJob={startJob}
                         />
                     </Tabs.Panel>
-                    <Tabs.Panel value="setup" pt="lg">
+                    <Tabs.Panel value="setup" pt="lg" keepMounted={false}>
                         <AiIdentityCreationSetup
                             key={account.aiIdentityAccountUuid}
                             account={account}

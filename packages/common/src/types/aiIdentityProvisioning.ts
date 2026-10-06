@@ -27,7 +27,35 @@ export const DEFAULT_AI_IDENTITY_PROVISIONER_USER = 'LIGHTDASH_PROVISIONER';
 export const DEFAULT_AI_IDENTITY_PROVISIONER_ROLE =
     'LIGHTDASH_PROVISIONER_ROLE';
 
+export type AiIdentitySetupCheckItem = {
+    key: string;
+    label: string;
+    status: 'passed' | 'failed' | 'pending';
+    detail: string | null;
+};
+
+export type AiIdentitySetupCheck = {
+    waitingSince: string | null;
+    nextCheckAt: string | null;
+    signedInAt: string | null;
+    checkedByName: string | null;
+    automatic: boolean;
+    checks: AiIdentitySetupCheckItem[];
+};
+
+export const getAiIdentitySetupCheckInterval = (
+    waitingSince: string | null,
+    now: number = Date.now(),
+): number | false => {
+    if (waitingSince === null) return false;
+    const elapsed = now - new Date(waitingSince).getTime();
+    if (!Number.isFinite(elapsed) || elapsed >= 2 * 60 * 60 * 1000)
+        return false;
+    return elapsed >= 15 * 60 * 1000 ? 60_000 : 10_000;
+};
+
 export type AiIdentityProvisioner = {
+    setupCheck: AiIdentitySetupCheck | null;
     aiIdentityAccountUuid: string;
     userName: string;
     roleName: string;

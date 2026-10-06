@@ -6,6 +6,8 @@ const actionLabels: Record<string, string> = {
     ai_role_exclusions_changed: 'Exclusions changed',
     provision: 'Provisioning run',
     provision_statement: 'Ran in Snowflake',
+    setup_waiting: 'Waiting for setup',
+    setup_check_result: 'Setup checked',
     provisioner_verify: 'Provisioner checked',
     tested: 'Tested',
     test: 'Tested',

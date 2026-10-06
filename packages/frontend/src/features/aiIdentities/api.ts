@@ -104,6 +104,14 @@ export const aiIdentityProvisioningApi = {
             body: JSON.stringify(body),
             version: 'v2',
         }),
+    startWaiting: (uuid: string) =>
+        post<AiIdentityProvisioningSettings>(
+            `${provisioningPath(uuid)}/provisioner/start-waiting`,
+        ),
+    check: (uuid: string) =>
+        post<AiIdentityProvisioningSettings>(
+            `${provisioningPath(uuid)}/provisioner/check`,
+        ),
     verify: (uuid: string) =>
         post<AiIdentityProvisioningSettings>(
             `${provisioningPath(uuid)}/provisioner/verify`,

@@ -2,6 +2,10 @@ import {
     AI_IDENTITY_PROVISIONER_WORST_CASE,
     AI_IDENTITY_SHOW_USERS_NOTICE,
     AiIdentityCreationMode,
+    assertUnreachable,
+    getAiIdentitySetupCheckInterval,
+    type AiIdentitySetupCheckItem,
+    type AiIdentityProvisioner,
     AiIdentityProvisionerStatus,
     type AiIdentityAiRoleExpansion,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
@@ -18,9 +22,11 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import { IconCheck, IconClock, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { SchemaNames } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
 import { RelativeTime } from './AiIdentityEventDisplay';
@@ -31,7 +37,7 @@ import { AiIdentityRoleMappings } from './AiIdentityRoleMappings';
 import { AiIdentityUngrantedSchemas } from './AiIdentityUngrantedSchemas';
 import { aiIdentityProvisioningApi } from './api';
 import { provisionerStatusLabels } from './provisioning';
-import { useProvisioningChange } from './useProvisioning';
+import { useProvisioningChange, useSetupCheck } from './useProvisioning';
 
 const aiRoleExpansionSummary = (
     expansion: AiIdentityAiRoleExpansion,
@@ -39,6 +45,19 @@ const aiRoleExpansionSummary = (
     if (!expansion.catalogLoaded)
         return `${expansion.roleName}: the schema catalog is not loaded yet, so the script grants no schemas.`;
     return `${expansion.roleName}: ${expansion.allowed.length} ${expansion.allowed.length === 1 ? 'schema' : 'schemas'} allowed, ${expansion.excluded.length} excluded.`;
+};
+
+const checklistIcon = (status: AiIdentitySetupCheckItem['status']) => {
+    switch (status) {
+        case 'passed':
+            return <MantineIcon icon={IconCheck} color="green" />;
+        case 'failed':
+            return <MantineIcon icon={IconX} color="red" />;
+        case 'pending':
+            return <MantineIcon icon={IconClock} color="dimmed" />;
+        default:
+            return assertUnreachable(status, 'Unknown setup check status');
+    }
 };
 
 const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
@@ -53,6 +72,12 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
         DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
     );
     const [confirmStartAgain, setConfirmStartAgain] = useState(false);
+    const state = settings.provisioner?.setupCheck;
+    const interval = state?.nextCheckAt
+        ? getAiIdentitySetupCheckInterval(state.waitingSince)
+        : false;
+    const startWaiting = () =>
+        change.mutate(() => aiIdentityProvisioningApi.startWaiting(uuid));
     return (
         <Paper p="md">
             <Stack gap="sm">
@@ -176,19 +201,93 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                             for example SECURITYADMIN, or ACCOUNTADMIN for the
                             future grants.
                         </Text>
-                        <CodeBlock code={settings.setupSql} language="sql" />
+                        <CodeBlock
+                            code={settings.setupSql}
+                            language="sql"
+                            onCopy={startWaiting}
+                        />
                         <Button
                             component="a"
                             variant="default"
                             href={`data:application/sql;charset=utf-8,${encodeURIComponent(settings.setupSql)}`}
                             download="ai-identity-provisioner.sql"
+                            onClick={startWaiting}
                         >
                             Download .sql
                         </Button>
+                        {interval !== false && (
+                            <Callout variant="info">
+                                Waiting for the setup script. Run it in
+                                Snowflake. Lightdash checks every{' '}
+                                {interval === 10_000 ? '10' : '60'} seconds. You
+                                can leave this page.
+                            </Callout>
+                        )}
                     </>
                 )}
             </Stack>
         </Paper>
+    );
+};
+
+const SetupCheckResults: FC<{ provisioner: AiIdentityProvisioner | null }> = ({
+    provisioner,
+}) => {
+    const state = provisioner?.setupCheck;
+    const status =
+        provisioner?.status ?? AiIdentityProvisionerStatus.NOT_SET_UP;
+    return (
+        <>
+            {state?.checks.map((check) => (
+                <Group key={check.key} align="flex-start" wrap="nowrap">
+                    {checklistIcon(check.status)}
+                    <Stack gap={2}>
+                        <Text size="sm">{check.label}</Text>
+                        {check.detail && (
+                            <Text
+                                size="sm"
+                                c={check.status === 'failed' ? 'red' : 'dimmed'}
+                            >
+                                {check.detail}
+                            </Text>
+                        )}
+                    </Stack>
+                </Group>
+            ))}
+            <Group>
+                <Badge
+                    color={
+                        status === AiIdentityProvisionerStatus.READY
+                            ? 'green'
+                            : status === AiIdentityProvisionerStatus.FAILING ||
+                                status === AiIdentityProvisionerStatus.REVOKED
+                              ? 'red'
+                              : 'gray'
+                    }
+                >
+                    {provisionerStatusLabels[status]}
+                </Badge>
+                {state?.automatic &&
+                status !== AiIdentityProvisionerStatus.WAITING_FOR_SETUP &&
+                provisioner?.checkedAt ? (
+                    <Text size="sm" c="dimmed">
+                        Checked automatically
+                    </Text>
+                ) : (
+                    <>
+                        <RelativeTime value={provisioner?.checkedAt ?? null} />
+                        {state?.checkedByName && (
+                            <Text size="sm" c="dimmed">
+                                Checked by {state.checkedByName}
+                            </Text>
+                        )}
+                    </>
+                )}
+            </Group>
+            {!state && provisioner?.statusMessage && (
+                <Text fz="sm">{provisioner.statusMessage}</Text>
+            )}
+        </>
     );
 };
 
@@ -198,6 +297,12 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
     const uuid = settings.aiIdentityAccountUuid;
     const change = useProvisioningChange(uuid);
     const [confirmTurnOff, setConfirmTurnOff] = useState(false);
+    const state = settings.provisioner?.setupCheck;
+    const timedOut =
+        state?.waitingSince !== null &&
+        state?.waitingSince !== undefined &&
+        state.checks.every((item) => item.status === 'pending') &&
+        getAiIdentitySetupCheckInterval(state.waitingSince) === false;
     const status =
         settings.provisioner?.status ?? AiIdentityProvisionerStatus.NOT_SET_UP;
     return (
@@ -236,31 +341,10 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                         Create the provisioner first.
                     </Text>
                 )}
-                <Group>
-                    <Badge
-                        color={
-                            status === AiIdentityProvisionerStatus.READY
-                                ? 'green'
-                                : status ===
-                                        AiIdentityProvisionerStatus.FAILING ||
-                                    status ===
-                                        AiIdentityProvisionerStatus.REVOKED
-                                  ? 'red'
-                                  : 'gray'
-                        }
-                    >
-                        {provisionerStatusLabels[status]}
-                    </Badge>
-                    <RelativeTime
-                        value={settings.provisioner?.checkedAt ?? null}
-                    />
-                </Group>
-                {settings.provisioner?.statusMessage && (
-                    <Text fz="sm">{settings.provisioner.statusMessage}</Text>
-                )}
+                <SetupCheckResults provisioner={settings.provisioner} />
                 <Group>
                     <Button
-                        variant="default"
+                        variant={timedOut ? 'filled' : 'default'}
                         disabled={!settings.provisioner}
                         loading={change.isLoading}
                         onClick={() =>
@@ -324,6 +408,7 @@ export const AiIdentityAutomaticSetup: FC<{
     settings: AiIdentityProvisioningSettings;
     onJob: (uuid: string) => void;
 }> = ({ settings, onJob }) => {
+    useSetupCheck(settings);
     const [mappingsDirty, setMappingsDirty] = useState(false);
     const status =
         settings.provisioner?.status ?? AiIdentityProvisionerStatus.NOT_SET_UP;

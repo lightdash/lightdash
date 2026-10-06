@@ -1,4 +1,5 @@
 import {
+    getAiIdentitySetupCheckInterval,
     type AiIdentityProvisioningSettings,
     type ApiError,
 } from '@lightdash/common';
@@ -30,6 +31,34 @@ export const useProvisioningChange = (uuid: string) => {
                 'ai-identity-provisioning-plan',
                 uuid,
             ]);
+        },
+    });
+};
+
+export const useSetupCheck = (settings: AiIdentityProvisioningSettings) => {
+    const client = useQueryClient();
+    const state = settings.provisioner?.setupCheck;
+    const interval = state?.nextCheckAt
+        ? getAiIdentitySetupCheckInterval(state.waitingSince)
+        : false;
+    return useQuery({
+        queryKey: ['ai-identity-setup-check', settings.aiIdentityAccountUuid],
+        queryFn: () =>
+            aiIdentityProvisioningApi.check(settings.aiIdentityAccountUuid),
+        enabled: interval !== false,
+        refetchInterval: (data) => {
+            const check = data?.provisioner?.setupCheck ?? state;
+            return check?.nextCheckAt
+                ? getAiIdentitySetupCheckInterval(check.waitingSince)
+                : false;
+        },
+        onSuccess: (data) => {
+            client.setQueryData(
+                ['ai-identity-provisioning', settings.aiIdentityAccountUuid],
+                data,
+            );
+            if (!data.provisioner?.setupCheck?.nextCheckAt)
+                void client.invalidateQueries(['ai-identity-request-log']);
         },
     });
 };

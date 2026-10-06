@@ -231,6 +231,7 @@ export const EE_SCHEDULER_TASKS = {
 } as const;
 
 export const SCHEDULER_TASKS = {
+    AI_IDENTITY_SETUP_CHECK: 'aiIdentitySetupCheck',
     AI_IDENTITY_JOB: 'aiIdentityJob',
     AI_IDENTITY_DAILY_CHECK: 'aiIdentityDailyCheck',
     AI_IDENTITY_SIGN_IN: 'aiIdentitySignIn',
@@ -294,6 +295,9 @@ export type AiIdentityTaskPayload = {
 
 // Map each task to its payload type
 export interface TaskPayloadMap {
+    [SCHEDULER_TASKS.AI_IDENTITY_SETUP_CHECK]: AiIdentityTaskPayload & {
+        aiIdentityAccountUuid: string;
+    };
     [SCHEDULER_TASKS.AI_IDENTITY_JOB]: AiIdentityTaskPayload & {
         jobUuid: string;
     };

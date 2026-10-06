@@ -50,3 +50,29 @@ describe('ProvisionerConnection', () => {
         expect(created.has('ALICE_AI')).toBe(true);
     });
 });
+
+it('does not select the setup role during the sign-in probe', async () => {
+    const options: Array<SnowflakeWarehouseClient['connectionOptions']> = [];
+    vi.spyOn(SnowflakeWarehouseClient.prototype, 'runQuery').mockImplementation(
+        async function captureProbe(this: SnowflakeWarehouseClient) {
+            options.push(this.connectionOptions);
+            return {
+                rows: [{ CURRENT_USER: 'PROVISIONER', CURRENT_ROLE: 'PUBLIC' }],
+                fields: {},
+            };
+        },
+    );
+    const probe = new ProvisionerConnection(
+        credentials,
+        'PROVISIONER',
+        null,
+        'PRIVATE',
+        { mappedRoles: new Set(), lightdashCreatedUsers: new Set() },
+    );
+    await expect(probe.currentIdentity()).resolves.toEqual({
+        user: 'PROVISIONER',
+        role: 'PUBLIC',
+    });
+    expect(options[0].role).toBeUndefined();
+    expect(options[0].username).toBe('PROVISIONER');
+});

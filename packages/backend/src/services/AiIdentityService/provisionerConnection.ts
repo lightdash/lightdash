@@ -14,7 +14,7 @@ export class ProvisionerConnection {
     constructor(
         projectCredentials: CreateSnowflakeCredentials,
         userName: string,
-        roleName: string,
+        roleName: string | null,
         privateKey: string,
         private readonly context: {
             mappedRoles: ReadonlySet<string>;
@@ -27,7 +27,7 @@ export class ProvisionerConnection {
             schema: '',
             warehouse: '',
             user: userName,
-            role: roleName,
+            role: roleName ?? undefined,
             authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
             privateKey,
             privateKeyPass: undefined,

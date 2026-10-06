@@ -1539,6 +1539,24 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async scheduleAiIdentitySetupCheck(
+        aiIdentityAccountUuid: string,
+        runAt: Date,
+    ): Promise<void> {
+        const client = await this.graphileUtils;
+        await client.addJob(
+            SCHEDULER_TASKS.AI_IDENTITY_SETUP_CHECK,
+            { aiIdentityAccountUuid },
+            {
+                runAt,
+                jobKey: `ai-identity-setup:${aiIdentityAccountUuid}`,
+                queueName: `ai-identity-setup:${aiIdentityAccountUuid}`,
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
     async scheduleTask<T extends SchedulerTaskName>(
         task: SchedulerTaskName,
         payload: TaskPayloadMap[T],

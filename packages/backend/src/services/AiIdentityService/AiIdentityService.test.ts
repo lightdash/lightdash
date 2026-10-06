@@ -13,6 +13,7 @@ import {
     PossibleAbilities,
     WarehouseTypes,
     type AiIdentity,
+    type AiIdentitySetupCheck,
 } from '@lightdash/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account/account';
@@ -105,6 +106,7 @@ const model = {
         .fn()
         .mockResolvedValue({ status: 'ready', firstRunApprovedAt: null }),
     updateProvisioner: vi.fn(),
+    saveProvisionerSetupCheck: vi.fn(),
     getProvisioningMode: vi
         .fn()
         .mockResolvedValue(AiIdentityCreationMode.GUIDED),
@@ -194,6 +196,7 @@ const flags = {
     }),
 };
 const scheduler = {
+    scheduleAiIdentitySetupCheck: vi.fn().mockResolvedValue(undefined),
     scheduleTask: vi.fn().mockResolvedValue({ jobId: 'queued' }),
 };
 const storage = {
@@ -207,6 +210,15 @@ const service = new AiIdentityService({
     userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
     schedulerClient: scheduler as unknown as SchedulerClient,
     fileStorageClient: storage as unknown as FileStorageClient,
+});
+
+beforeEach(() => {
+    model.saveProvisionerSetupCheck.mockImplementation(
+        async (uuid, update, event) => {
+            await model.updateProvisioner(uuid, update);
+            await model.addEvent(event);
+        },
+    );
 });
 
 afterEach(() => {
@@ -553,7 +565,7 @@ describe('AiIdentityService', () => {
             expect.objectContaining({
                 status: AiIdentityProvisionerStatus.FAILING,
                 statusMessage:
-                    'The provisioner is missing OWNERSHIP on AI role ANALYST_AI.',
+                    'The setup role needs OWNERSHIP on AI role ANALYST_AI.',
             }),
         );
     });
@@ -1501,7 +1513,7 @@ describe('schema grant check failure', () => {
         );
     });
 
-    it('keeps a previous finding without an error when no ready identity has the role', async () => {
+    it('keeps a previous finding when no ready identity has the role', async () => {
         model.getAiRoles.mockResolvedValue([
             {
                 aiIdentityAiRoleUuid: 'role',
@@ -1550,7 +1562,7 @@ describe('schema grant check failure', () => {
         expect(model.updateProvisioner).toHaveBeenCalledWith(
             'account',
             expect.objectContaining({
-                statusMessage: null,
+                statusMessage: 'The AI role cannot read all allowed schemas.',
                 ungrantedSchemas: [
                     {
                         roleName: 'ANALYST_AI',
@@ -1610,7 +1622,7 @@ describe('schema grant check failure', () => {
         );
     });
 
-    it('keeps the previous finding without failing a ready provisioner', async () => {
+    it('keeps the previous finding and fails the schema checklist item', async () => {
         model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
         model.getAiRoles.mockResolvedValue([
             {
@@ -1672,7 +1684,7 @@ describe('schema grant check failure', () => {
         expect(model.updateProvisioner).toHaveBeenCalledWith(
             'account',
             expect.objectContaining({
-                status: AiIdentityProvisionerStatus.READY,
+                status: AiIdentityProvisionerStatus.FAILING,
                 ungrantedSchemas: [
                     {
                         roleName: 'ANALYST_AI',
@@ -1680,9 +1692,212 @@ describe('schema grant check failure', () => {
                         fixSql: 'old',
                     },
                 ],
-                statusMessage:
-                    'Could not check schema grants for ANALYST_AI: Snowflake unavailable',
+                statusMessage: 'The schema check for ANALYST_AI failed.',
             }),
+        );
+    });
+});
+
+describe('background setup checks', () => {
+    let provisioner: NonNullable<
+        Awaited<ReturnType<AiIdentityModel['getProvisioner']>>
+    >;
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-10-06T10:00:00Z'));
+        provisioner = {
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+            ungrantedSchemas: [],
+            setupCheck: null,
+        };
+        model.getProvisioner.mockImplementation(async () => provisioner);
+        model.updateProvisioner.mockImplementation(async (_uuid, update) => {
+            Object.assign(provisioner, update);
+        });
+        model.getAiRoles.mockResolvedValue([]);
+        model.getProvisioningIdentities.mockResolvedValue([]);
+        model.getRoleMappings.mockResolvedValue([]);
+        model.listProvisioningDrops.mockResolvedValue([]);
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockRejectedValue(new Error('User does not exist'));
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        model.updateProvisioner.mockReset();
+    });
+    it('starts waiting once and schedules one keyed account task', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        await service.startWaitingForSetup(admin, 'account');
+        expect(
+            model.addEvent.mock.calls.filter(
+                ([event]) => event.action === 'setup_waiting',
+            ),
+        ).toHaveLength(1);
+        expect(scheduler.scheduleAiIdentitySetupCheck).toHaveBeenLastCalledWith(
+            'account',
+            new Date('2026-10-06T10:00:10Z'),
+        );
+        expect(provisioner.setupCheck?.waitingSince).toBe(
+            '2026-10-06T10:00:00.000Z',
+        );
+    });
+    it('keeps failed probes out of errors and the request log', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        await vi.advanceTimersByTimeAsync(10_000);
+        await service.runSetupCheck('account');
+        await service.runSetupCheck('account');
+        expect(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            ProvisionerConnection.prototype.grantsToRole,
+        ).not.toHaveBeenCalled();
+        expect(model.getProvisioningIdentities).toHaveBeenCalledTimes(1);
+        expect(provisioner.status).toBe(
+            AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+        );
+        expect(model.addEvent).toHaveBeenCalledTimes(1);
+        expect(scheduler.scheduleAiIdentitySetupCheck).toHaveBeenLastCalledWith(
+            'account',
+            new Date('2026-10-06T10:00:20Z'),
+        );
+    });
+    it('slows down after fifteen minutes and stops after two hours', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        await vi.advanceTimersByTimeAsync(15 * 60_000);
+        await service.runSetupCheck('account');
+        expect(scheduler.scheduleAiIdentitySetupCheck).toHaveBeenLastCalledWith(
+            'account',
+            new Date('2026-10-06T10:16:00Z'),
+        );
+        await vi.advanceTimersByTimeAsync(105 * 60_000);
+        scheduler.scheduleAiIdentitySetupCheck.mockClear();
+        await service.runSetupCheck('account');
+        await service.runSetupCheck('account');
+        expect(scheduler.scheduleAiIdentitySetupCheck).not.toHaveBeenCalled();
+        expect(provisioner.setupCheck?.nextCheckAt).toBeNull();
+        expect(provisioner.status).toBe(
+            AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+        );
+        expect(
+            model.addEvent.mock.calls.filter(
+                ([event]) => event.action === 'setup_check_result',
+            ),
+        ).toHaveLength(1);
+    });
+    it('runs the full check once after sign-in succeeds and returns a typed checklist', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockResolvedValue({ user: 'PROVISIONER', role: 'PROVISIONER_ROLE' });
+        await vi.advanceTimersByTimeAsync(10_000);
+        const result = await service.pollSetupCheck(admin, 'account');
+        await service.runSetupCheck('account');
+        expect(
+            result.provisioner?.setupCheck?.checks.map(({ key, status }) => ({
+                key,
+                status,
+            })),
+        ).toEqual([
+            { key: 'sign_in', status: 'passed' },
+            { key: 'create_identities', status: 'passed' },
+            { key: 'exclusions', status: 'pending' },
+        ]);
+        expect(
+            ProvisionerConnection.prototype.grantsToRole,
+        ).toHaveBeenCalledTimes(1);
+        expect(provisioner.status).toBe(AiIdentityProvisionerStatus.READY);
+        expect(
+            model.addEvent.mock.calls.map(([event]) => event.action),
+        ).toEqual(['setup_waiting', 'setup_check_result']);
+    });
+    it('reports missing privileges after the setup user signs in', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockResolvedValue({ user: 'PROVISIONER', role: 'PROVISIONER_ROLE' });
+        vi.mocked(
+            ProvisionerConnection.prototype.grantsToRole,
+        ).mockResolvedValue([]);
+        await vi.advanceTimersByTimeAsync(10_000);
+        await service.runSetupCheck('account');
+        expect(provisioner.setupCheck?.checks[1]).toMatchObject({
+            status: 'failed',
+            detail: 'The setup role needs CREATE USER on the account.',
+        });
+        expect(provisioner.status).toBe(AiIdentityProvisionerStatus.FAILING);
+    });
+    it('reports a role failure when key sign-in succeeds but selecting the setup role fails', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        vi.mocked(ProvisionerConnection.prototype.currentIdentity)
+            .mockResolvedValueOnce({ user: 'PROVISIONER', role: 'PUBLIC' })
+            .mockRejectedValueOnce(new Error('Role does not exist'));
+        await vi.advanceTimersByTimeAsync(10_000);
+        await service.runSetupCheck('account');
+        expect(provisioner.setupCheck?.checks[0].status).toBe('passed');
+        expect(provisioner.setupCheck?.checks[1]).toMatchObject({
+            status: 'failed',
+            detail: 'The setup role cannot create AI identities.',
+        });
+        expect(
+            model.addEvent.mock.calls.map(([event]) => event.action),
+        ).toEqual(['setup_waiting', 'setup_check_result']);
+    });
+
+    it('records the stop once when a failed probe finishes after the deadline', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        vi.setSystemTime(new Date('2026-10-06T11:59:59Z'));
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockImplementation(async () => {
+            vi.setSystemTime(new Date('2026-10-06T12:00:01Z'));
+            throw new Error('User does not exist');
+        });
+        await service.runSetupCheck('account');
+        await service.runSetupCheck('account');
+        expect(provisioner.setupCheck?.nextCheckAt).toBeNull();
+        expect(
+            model.addEvent.mock.calls.map(([event]) => event.action),
+        ).toEqual(['setup_waiting', 'setup_check_result']);
+    });
+
+    it('keeps a manual failed sign-in pending until the setup user has existed', async () => {
+        await service.verifyProvisioner(admin, 'account');
+        expect(provisioner.status).toBe(
+            AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+        );
+        expect(model.addEvent).not.toHaveBeenCalled();
+        const state = provisioner.setupCheck as AiIdentitySetupCheck;
+        provisioner.setupCheck = {
+            ...state,
+            signedInAt: new Date().toISOString(),
+        };
+        await service.verifyProvisioner(admin, 'account');
+        expect(provisioner.status).toBe(AiIdentityProvisionerStatus.FAILING);
+        expect(provisioner.setupCheck.checks[0].detail).toBe(
+            'The setup user cannot sign in with its key.',
         );
     });
 });

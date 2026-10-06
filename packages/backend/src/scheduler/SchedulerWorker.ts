@@ -812,6 +812,11 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected getFullTaskList(): TypedTaskList {
         return {
+            [SCHEDULER_TASKS.AI_IDENTITY_SETUP_CHECK]: async (payload) => {
+                await this.aiIdentityService.runSetupCheck(
+                    payload.aiIdentityAccountUuid,
+                );
+            },
             [SCHEDULER_TASKS.AI_IDENTITY_JOB]: async (payload) => {
                 await this.aiIdentityService.runJob(payload.jobUuid);
             },

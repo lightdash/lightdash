@@ -62,6 +62,7 @@ const settings: AiIdentityProvisioningSettings = {
         checkedAt: null,
         firstRunApprovedAt: null,
         firstRunApprovedByName: null,
+        setupCheck: null,
     },
     setupSql: null,
     cleanupSql: null,
@@ -428,4 +429,37 @@ it('shows ungranted schemas with admin SQL and a download in triage', async () =
         'href',
         `data:application/sql;charset=utf-8,${encodeURIComponent('GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;')}`,
     );
+});
+
+it('shows the background setup result on the next visit before automatic creation is enabled', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
+        ...settings,
+        mode: AiIdentityCreationMode.GUIDED,
+        effectiveMode: AiIdentityCreationMode.GUIDED,
+        provisioner: {
+            ...settings.provisioner!,
+            setupCheck: {
+                waitingSince: new Date().toISOString(),
+                nextCheckAt: null,
+                signedInAt: new Date().toISOString(),
+                automatic: true,
+                checkedByName: null,
+                checks: [],
+            },
+        },
+    });
+    renderWithClient(
+        <AiIdentityCreationSetup
+            account={
+                { aiIdentityAccountUuid: 'account' } as Parameters<
+                    typeof AiIdentityCreationSetup
+                >[0]['account']
+            }
+            onJob={vi.fn()}
+            onProvisioningJob={vi.fn()}
+        />,
+    );
+    expect(await screen.findByText('Automatic setup')).toBeInTheDocument();
+    expect(screen.queryByText('Guided export')).not.toBeInTheDocument();
+    expect(aiIdentityProvisioningApi.update).not.toHaveBeenCalled();
 });

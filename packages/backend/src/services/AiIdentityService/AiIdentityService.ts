@@ -23,6 +23,7 @@ import {
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
+    assertRegisteredAccount,
     buildAiIdentityFixSql,
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
@@ -36,6 +37,7 @@ import {
     fillAiTwinName,
     ForbiddenError,
     getAiIdentityPersonMessage,
+    getAiIdentitySetupCheckInterval,
     isValidSchemaPattern,
     normalizeSnowflakeAccount,
     NotFoundError,
@@ -49,6 +51,8 @@ import {
     type AiIdentityProvisioningPlan,
     type AiIdentityProvisioningSettings,
     type AiIdentitySchemaRule,
+    type AiIdentitySetupCheck,
+    type AiIdentitySetupCheckItem,
     type AiIdentityUngrantedSchemas,
     type CreateAiIdentityProvisioner,
     type UpdateAiIdentityAiRoleDefinition,
@@ -93,7 +97,10 @@ export class AiIdentityService extends BaseService {
             projectModel: ProjectModel;
             featureFlagModel: FeatureFlagModel;
             userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
-            schedulerClient: Pick<SchedulerClient, 'scheduleTask'>;
+            schedulerClient: Pick<
+                SchedulerClient,
+                'scheduleTask' | 'scheduleAiIdentitySetupCheck'
+            >;
             fileStorageClient: FileStorageClient;
         },
     ) {
@@ -209,6 +216,7 @@ export class AiIdentityService extends BaseService {
                           status: provisioner.status,
                           statusMessage: provisioner.statusMessage,
                           checkedAt: provisioner.checkedAt,
+                          setupCheck: provisioner.setupCheck ?? null,
                           firstRunApprovedAt: provisioner.firstRunApprovedAt,
                           firstRunApprovedByName:
                               provisioner.firstRunApprovedByName,
@@ -451,12 +459,21 @@ export class AiIdentityService extends BaseService {
                 status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
                 statusMessage:
                     'Run the updated setup script and check the provisioner again.',
+                setupCheck: {
+                    waitingSince: null,
+                    nextCheckAt: null,
+                    signedInAt: provisioner.setupCheck?.signedInAt ?? null,
+                    checkedByName: null,
+                    automatic: true,
+                    checks: [],
+                },
             },
         );
     }
 
     private async provisionerConnection(
         aiIdentityAccountUuid: string,
+        probe = false,
     ): Promise<ProvisionerConnection> {
         const identityAccount = await this.args.aiIdentityModel.getAccount(
             aiIdentityAccountUuid,
@@ -470,20 +487,25 @@ export class AiIdentityService extends BaseService {
             identityAccount.organizationUuid,
             identityAccount.snowflakeAccount,
         );
-        const mappings = await this.args.aiIdentityModel.getRoleMappings(
-            aiIdentityAccountUuid,
-        );
-        const identities =
-            await this.args.aiIdentityModel.getProvisioningIdentities(
-                aiIdentityAccountUuid,
-            );
-        const drops = await this.args.aiIdentityModel.listProvisioningDrops(
-            aiIdentityAccountUuid,
-        );
+        const mappings = probe
+            ? []
+            : await this.args.aiIdentityModel.getRoleMappings(
+                  aiIdentityAccountUuid,
+              );
+        const identities = probe
+            ? []
+            : await this.args.aiIdentityModel.getProvisioningIdentities(
+                  aiIdentityAccountUuid,
+              );
+        const drops = probe
+            ? []
+            : await this.args.aiIdentityModel.listProvisioningDrops(
+                  aiIdentityAccountUuid,
+              );
         return new ProvisionerConnection(
             credentials,
             provisioner.userName,
-            provisioner.roleName,
+            probe ? null : provisioner.roleName,
             provisioner.privateKey,
             {
                 mappedRoles: new Set(mappings.map((mapping) => mapping.aiRole)),
@@ -504,12 +526,14 @@ export class AiIdentityService extends BaseService {
         previous: AiIdentityUngrantedSchemas[],
     ): Promise<{
         results: AiIdentityUngrantedSchemas[];
+        checkedRoles: number;
         error: string | null;
     }> {
         const patternRoles = aiRoles.filter(
             (role) => role.schemaRule.database !== '',
         );
-        if (patternRoles.length === 0) return { results: [], error: null };
+        if (patternRoles.length === 0)
+            return { results: [], checkedRoles: 0, error: null };
         const account = await this.args.aiIdentityModel.getAccount(
             aiIdentityAccountUuid,
         );
@@ -529,6 +553,7 @@ export class AiIdentityService extends BaseService {
         const mappings = await this.args.aiIdentityModel.getRoleMappings(
             aiIdentityAccountUuid,
         );
+        let checkedRoles = 0;
         const results: AiIdentityUngrantedSchemas[] = [];
         let error: string | null = null;
         const previousFor = (roleName: string) =>
@@ -601,11 +626,7 @@ export class AiIdentityService extends BaseService {
                     throw new Error(
                         'The ready AI identity has no private key or user name',
                     );
-                const databases = [
-                    ...new Set(
-                        expansion.allowed.map((schema) => schema.split('.')[0]),
-                    ),
-                ];
+                const databases = [role.schemaRule.database];
                 const visible = await listAiTwinSchemas(
                     buildAiTwinCredentials({
                         projectCredentials: credentials,
@@ -614,6 +635,16 @@ export class AiIdentityService extends BaseService {
                     }),
                     databases,
                 );
+                checkedRoles += 1;
+                if (
+                    expansion.excluded.some((schema) =>
+                        visible.some(
+                            (name) =>
+                                name.toUpperCase() === schema.toUpperCase(),
+                        ),
+                    )
+                )
+                    error = `The AI role ${role.roleName} can read an excluded schema.`;
                 const schemas = missingSchemas(expansion.allowed, visible);
                 if (schemas.length > 0)
                     results.push({
@@ -624,16 +655,16 @@ export class AiIdentityService extends BaseService {
                             schemas,
                         ),
                     });
-            } catch (cause) {
+            } catch {
                 const prior = previousFor(role.roleName);
                 if (prior) results.push(prior);
-                error = `Could not check schema grants for ${role.roleName}: ${cause instanceof Error ? cause.message : String(cause)}`;
+                error = `The schema check for ${role.roleName} failed.`;
             }
         });
-        return { results, error };
+        return { results, checkedRoles, error };
     }
 
-    async verifyProvisioner(
+    async startWaitingForSetup(
         account: Account,
         aiIdentityAccountUuid: string,
     ): Promise<AiIdentityProvisioningSettings> {
@@ -641,40 +672,223 @@ export class AiIdentityService extends BaseService {
             account,
             aiIdentityAccountUuid,
         );
+        await this.args.aiIdentityModel.withProvisioningLock(
+            aiIdentityAccountUuid,
+            async () => {
+                const provisioner =
+                    await this.args.aiIdentityModel.getProvisioner(
+                        aiIdentityAccountUuid,
+                    );
+                if (!provisioner)
+                    throw new NotFoundError(
+                        'AI identity provisioner not found',
+                    );
+                if (
+                    !provisioner.setupCheck?.waitingSince &&
+                    provisioner.status ===
+                        AiIdentityProvisionerStatus.WAITING_FOR_SETUP
+                ) {
+                    const now = new Date().toISOString();
+                    await this.args.aiIdentityModel.saveProvisionerSetupCheck(
+                        aiIdentityAccountUuid,
+                        {
+                            setupCheck: {
+                                waitingSince: now,
+                                nextCheckAt: new Date(
+                                    Date.now() + 10_000,
+                                ).toISOString(),
+                                signedInAt:
+                                    provisioner.setupCheck?.signedInAt ?? null,
+                                checkedByName: null,
+                                automatic: true,
+                                checks: [],
+                            },
+                        },
+                        {
+                            organizationUuid,
+                            aiIdentityAccountUuid,
+                            aiIdentityUuid: null,
+                            actorType: 'user',
+                            actorUserUuid: account.user.id,
+                            action: 'setup_waiting',
+                            targetCount: 1,
+                            status: 'success',
+                            detail: 'Waiting for setup.',
+                        },
+                    );
+                }
+            },
+        );
+        await this.scheduleSetupCheck(aiIdentityAccountUuid);
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private async scheduleSetupCheck(
+        aiIdentityAccountUuid: string,
+    ): Promise<void> {
         const provisioner = await this.args.aiIdentityModel.getProvisioner(
             aiIdentityAccountUuid,
         );
-        if (!provisioner)
+        const next = provisioner?.setupCheck?.nextCheckAt;
+        if (next)
+            await this.args.schedulerClient.scheduleAiIdentitySetupCheck(
+                aiIdentityAccountUuid,
+                new Date(next),
+            );
+    }
+
+    async pollSetupCheck(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningSettings> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        await this.runSetupCheck(aiIdentityAccountUuid);
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    async runSetupCheck(aiIdentityAccountUuid: string): Promise<void> {
+        await this.args.aiIdentityModel.withProvisioningLock(
+            aiIdentityAccountUuid,
+            async () => {
+                const provisioner =
+                    await this.args.aiIdentityModel.getProvisioner(
+                        aiIdentityAccountUuid,
+                    );
+                const state = provisioner?.setupCheck;
+                if (!state?.nextCheckAt) return;
+                const interval = getAiIdentitySetupCheckInterval(
+                    state.waitingSince,
+                );
+                if (interval === false) {
+                    const identityAccount =
+                        await this.args.aiIdentityModel.getAccount(
+                            aiIdentityAccountUuid,
+                        );
+                    if (identityAccount)
+                        await this.args.aiIdentityModel.saveProvisionerSetupCheck(
+                            aiIdentityAccountUuid,
+                            { setupCheck: { ...state, nextCheckAt: null } },
+                            {
+                                organizationUuid:
+                                    identityAccount.organizationUuid,
+                                aiIdentityAccountUuid,
+                                aiIdentityUuid: null,
+                                actorType: 'scheduler',
+                                actorUserUuid: null,
+                                action: 'setup_check_result',
+                                targetCount: 1,
+                                status: 'success',
+                                detail: 'The setup check stopped after two hours.',
+                            },
+                        );
+                    return;
+                }
+                if (new Date(state.nextCheckAt).getTime() > Date.now()) return;
+                await this.checkProvisionerSetup(aiIdentityAccountUuid, null);
+            },
+        );
+        await this.scheduleSetupCheck(aiIdentityAccountUuid);
+    }
+
+    async verifyProvisioner(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningSettings> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        await this.args.aiIdentityModel.withProvisioningLock(
+            aiIdentityAccountUuid,
+            () => this.checkProvisionerSetup(aiIdentityAccountUuid, account),
+        );
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private async checkProvisionerSetup(
+        aiIdentityAccountUuid: string,
+        actor: Account | null,
+    ): Promise<void> {
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        if (!provisioner || !identityAccount)
             throw new NotFoundError('AI identity provisioner not found');
+        if (actor !== null) assertRegisteredAccount(actor);
+        const previous = provisioner.setupCheck;
+        const state: AiIdentitySetupCheck = {
+            waitingSince: previous?.waitingSince ?? null,
+            nextCheckAt: null,
+            signedInAt: previous?.signedInAt ?? null,
+            checkedByName: actor
+                ? `${actor.user.firstName} ${actor.user.lastName}`.trim()
+                : null,
+            automatic: actor === null,
+            checks: [
+                {
+                    key: 'sign_in',
+                    label: 'The setup user signs in with its key',
+                    status: 'pending',
+                    detail: null,
+                },
+                {
+                    key: 'create_identities',
+                    label: 'The setup role can create AI identities',
+                    status: 'pending',
+                    detail: null,
+                },
+                {
+                    key: 'exclusions',
+                    label: 'The exclusions are applied',
+                    status: 'pending',
+                    detail: null,
+                },
+            ],
+        };
+        const [signInCheck, createCheck, exclusionsCheck] = state.checks;
+        let active: AiIdentitySetupCheckItem = signInCheck;
+        let { findings, ungrantedSchemas } = provisioner;
         try {
+            const probe = await this.provisionerConnection(
+                aiIdentityAccountUuid,
+                true,
+            );
+            const current = await probe.currentIdentity();
+            state.signedInAt = state.signedInAt ?? new Date().toISOString();
+            if (
+                current.user.toUpperCase() !==
+                provisioner.userName.toUpperCase()
+            )
+                throw new Error('The key signs in as a different setup user.');
+            active.status = 'passed';
+            active = createCheck;
             const connection = await this.provisionerConnection(
                 aiIdentityAccountUuid,
             );
-            const current = await connection.currentIdentity();
+            const setupIdentity = await connection.currentIdentity();
             if (
-                current.user.toUpperCase() !==
-                    provisioner.userName.toUpperCase() ||
-                current.role.toUpperCase() !==
-                    provisioner.roleName.toUpperCase()
-            ) {
-                throw new Error(
-                    `Snowflake signed in as ${current.user} with role ${current.role}, rather than the provisioner.`,
-                );
-            }
+                setupIdentity.role.toUpperCase() !==
+                provisioner.roleName.toUpperCase()
+            )
+                throw new Error('The setup user cannot use the setup role.');
             const mappings = await this.args.aiIdentityModel.getRoleMappings(
                 aiIdentityAccountUuid,
             );
             const aiRoles = await this.args.aiIdentityModel.getAiRoles(
                 aiIdentityAccountUuid,
             );
-            const grants = await connection.grantsToRole(provisioner.roleName);
             const missing = missingProvisionerGrants(
-                grants,
+                await connection.grantsToRole(provisioner.roleName),
                 new Set([
                     ...mappings.map((mapping) => mapping.aiRole),
                     ...aiRoles.map((role) => role.roleName),
                 ]),
             );
+            active.status = missing.length === 0 ? 'passed' : 'failed';
+            active.detail =
+                missing.length === 0
+                    ? null
+                    : `The setup role needs ${missing.join(', ')}.`;
             const identities =
                 await this.args.aiIdentityModel.getProvisioningIdentities(
                     aiIdentityAccountUuid,
@@ -689,75 +903,125 @@ export class AiIdentityService extends BaseService {
                     .filter((name): name is string => name !== null),
                 ...drops.map((drop) => drop.userName),
             ]);
-            const findings = classifyProvisionerUsers(
+            findings = classifyProvisionerUsers(
                 await connection.users(),
                 provisioner.roleName,
                 created,
             );
-            const message =
-                missing.length === 0
-                    ? null
-                    : `The provisioner is missing ${missing.join(', ')}.`;
+            active = exclusionsCheck;
+            const patterns = [
+                ...new Set(
+                    aiRoles.flatMap((role) => role.schemaRule.excludePatterns),
+                ),
+            ];
+            active.label = `The exclusions are applied: ${patterns.length > 0 ? patterns.join(', ') : 'none'}`;
             const schemaCheck = await this.checkUngrantedSchemas(
                 aiIdentityAccountUuid,
                 aiRoles,
                 provisioner.ungrantedSchemas ?? [],
             );
-            await this.args.aiIdentityModel.updateProvisioner(
-                aiIdentityAccountUuid,
-                {
-                    status:
-                        missing.length === 0
-                            ? AiIdentityProvisionerStatus.READY
-                            : AiIdentityProvisionerStatus.FAILING,
-                    statusMessage:
-                        [message, schemaCheck.error]
-                            .filter(Boolean)
-                            .join(' ') || null,
-                    findings,
-                    ungrantedSchemas: schemaCheck.results,
-                },
-            );
-            await this.args.aiIdentityModel.addEvent({
-                organizationUuid,
-                aiIdentityAccountUuid,
-                aiIdentityUuid: null,
-                actorType: 'user',
-                actorUserUuid: account.user.id,
-                action: 'provisioner_verify',
-                targetCount: findings.length,
-                status: missing.length === 0 ? 'success' : 'error',
-                detail: message,
-            });
-        } catch (error) {
-            const message =
-                error instanceof Error ? error.message : String(error);
-            const revoked =
-                /JWT token is invalid|user.*(does not exist|not found)/i.test(
-                    message,
+            ungrantedSchemas = schemaCheck.results;
+            if (schemaCheck.error !== null || schemaCheck.results.length > 0) {
+                active.status = 'failed';
+                active.detail =
+                    schemaCheck.error ??
+                    'The AI role cannot read all allowed schemas.';
+            } else if (
+                aiRoles.some((role) => role.schemaRule.database !== '') &&
+                schemaCheck.checkedRoles ===
+                    aiRoles.filter((role) => role.schemaRule.database !== '')
+                        .length
+            ) {
+                active.status = 'passed';
+            } else {
+                active.detail =
+                    'The schema check waits for an AI role with a database and a ready AI identity.';
+            }
+        } catch {
+            if (
+                state.signedInAt === null &&
+                provisioner.status !== AiIdentityProvisionerStatus.READY
+            ) {
+                const interval = getAiIdentitySetupCheckInterval(
+                    state.waitingSince,
                 );
-            await this.args.aiIdentityModel.updateProvisioner(
-                aiIdentityAccountUuid,
-                {
-                    status: revoked
-                        ? AiIdentityProvisionerStatus.REVOKED
+                if (interval === false && previous?.nextCheckAt) {
+                    await this.args.aiIdentityModel.saveProvisionerSetupCheck(
+                        aiIdentityAccountUuid,
+                        { setupCheck: state },
+                        {
+                            organizationUuid: identityAccount.organizationUuid,
+                            aiIdentityAccountUuid,
+                            aiIdentityUuid: null,
+                            actorType: 'scheduler',
+                            actorUserUuid: null,
+                            action: 'setup_check_result',
+                            targetCount: 1,
+                            status: 'success',
+                            detail: 'The setup check stopped after two hours.',
+                        },
+                    );
+                    return;
+                }
+                await this.args.aiIdentityModel.updateProvisioner(
+                    aiIdentityAccountUuid,
+                    {
+                        setupCheck: {
+                            ...state,
+                            nextCheckAt:
+                                interval === false
+                                    ? null
+                                    : new Date(
+                                          Math.min(
+                                              Date.now() + interval,
+                                              new Date(
+                                                  state.waitingSince!,
+                                              ).getTime() +
+                                                  2 * 60 * 60 * 1000,
+                                          ),
+                                      ).toISOString(),
+                        },
+                    },
+                );
+                return;
+            }
+            active.status = 'failed';
+            active.detail =
+                'The schema check could not confirm the exclusions.';
+            if (active.key === 'sign_in')
+                active.detail = 'The setup user cannot sign in with its key.';
+            if (active.key === 'create_identities')
+                active.detail = 'The setup role cannot create AI identities.';
+        }
+        const failed = state.checks.filter((item) => item.status === 'failed');
+        await this.args.aiIdentityModel.saveProvisionerSetupCheck(
+            aiIdentityAccountUuid,
+            {
+                setupCheck: state,
+                status:
+                    failed.length === 0
+                        ? AiIdentityProvisionerStatus.READY
                         : AiIdentityProvisionerStatus.FAILING,
-                    statusMessage: message,
-                },
-            );
-            await this.args.aiIdentityModel.addEvent({
-                organizationUuid,
+                statusMessage:
+                    failed.map((item) => item.detail).join(' ') || null,
+                findings,
+                ungrantedSchemas,
+            },
+            {
+                organizationUuid: identityAccount.organizationUuid,
                 aiIdentityAccountUuid,
                 aiIdentityUuid: null,
-                actorType: 'user',
-                actorUserUuid: account.user.id,
-                action: 'provisioner_verify',
-                targetCount: 0,
-                status: 'error',
-                detail: message,
-            });
-        }
-        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+                actorType: actor === null ? 'scheduler' : 'user',
+                actorUserUuid: actor?.user.id ?? null,
+                action:
+                    actor === null
+                        ? 'setup_check_result'
+                        : 'provisioner_verify',
+                targetCount: 1,
+                status: failed.length === 0 ? 'success' : 'error',
+                detail: failed.map((item) => item.detail).join(' ') || null,
+            },
+        );
     }
 
     async replaceProvisioningMappings(

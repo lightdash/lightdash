@@ -21,8 +21,10 @@ export const AiIdentityCreationSetup: FC<{
     const change = useProvisioningChange(uuid);
     const [selectedMode, setSelectedMode] =
         useState<AiIdentityCreationMode | null>(null);
-    const mode =
-        selectedMode ?? query.data?.mode ?? AiIdentityCreationMode.GUIDED;
+    const savedMode = query.data?.provisioner?.setupCheck?.waitingSince
+        ? AiIdentityCreationMode.AUTOMATIC
+        : (query.data?.mode ?? AiIdentityCreationMode.GUIDED);
+    const mode = selectedMode ?? savedMode;
     return (
         <Stack gap="lg">
             <Paper p="md">

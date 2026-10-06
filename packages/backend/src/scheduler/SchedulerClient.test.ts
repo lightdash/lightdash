@@ -266,3 +266,23 @@ describe('SchedulerClient learn sandbox command queue', () => {
         ).toBe(1);
     });
 });
+
+describe('setup check scheduling', () => {
+    it('uses a stable account key, a serial queue and the requested time', async () => {
+        graphileAddJob.mockClear();
+        const client = makeClient(false, vi.fn());
+        const runAt = new Date('2026-10-06T10:00:10Z');
+        await client.scheduleAiIdentitySetupCheck('account', runAt);
+        await client.scheduleAiIdentitySetupCheck('account', runAt);
+        expect(graphileAddJob).toHaveBeenCalledTimes(2);
+        expect(graphileAddJob).toHaveBeenLastCalledWith(
+            'aiIdentitySetupCheck',
+            { aiIdentityAccountUuid: 'account' },
+            expect.objectContaining({
+                runAt,
+                jobKey: 'ai-identity-setup:account',
+                queueName: 'ai-identity-setup:account',
+            }),
+        );
+    });
+});

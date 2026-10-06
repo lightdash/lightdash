@@ -23,6 +23,9 @@ const getTagsForTask: {
         payload: TaskPayloadMap[K],
     ) => Record<string, string>;
 } = {
+    [SCHEDULER_TASKS.AI_IDENTITY_SETUP_CHECK]: (payload) => ({
+        aiIdentityAccountUuid: payload.aiIdentityAccountUuid,
+    }),
     [SCHEDULER_TASKS.AI_IDENTITY_JOB]: (payload) => ({
         'ai_identity_job.uuid': payload.jobUuid,
     }),
