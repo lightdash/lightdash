@@ -1,3 +1,10 @@
+# [2.445.0](https://github.com/lightdash/lightdash/compare/2.444.2...2.445.0) (2026-10-06)
+
+
+### Features
+
+* **data-apps:** make coding-agent cost optimizations the default ([#30543](https://github.com/lightdash/lightdash/issues/30543)) ([0032385](https://github.com/lightdash/lightdash/commit/003238540294b5dd5fc5791ab939979c32101d2b))
+
 ## [2.444.2](https://github.com/lightdash/lightdash/compare/2.444.1...2.444.2) (2026-10-06)
 
 
