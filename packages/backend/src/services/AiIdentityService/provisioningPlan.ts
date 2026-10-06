@@ -46,6 +46,14 @@ export const missingProvisionerGrants = (
     ];
 };
 
+export const missingSchemas = (
+    allowed: readonly string[],
+    visible: readonly string[],
+): string[] => {
+    const visibleNames = new Set(visible.map((schema) => schema.toUpperCase()));
+    return allowed.filter((schema) => !visibleNames.has(schema.toUpperCase()));
+};
+
 export const classifyProvisionerUsers = (
     rows: SnowflakeProvisionerRow[],
     provisionerRole: string,

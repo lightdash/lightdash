@@ -1,4 +1,5 @@
 import {
+    aiIdentitySnowflakeIdentifier,
     CreateSnowflakeCredentials,
     getErrorMessage,
     SnowflakeAuthenticationType,
@@ -27,6 +28,39 @@ export const buildAiTwinCredentials = ({
     requireAgentSession: true,
     expectedCurrentUser: twinName,
 });
+
+export const listAiTwinSchemas = async (
+    credentials: CreateSnowflakeCredentials,
+    databases: string[],
+): Promise<string[]> => {
+    const client = new SnowflakeWarehouseClient(credentials);
+    const results = await Promise.all(
+        databases.map(async (database) => {
+            const name = aiIdentitySnowflakeIdentifier(database);
+            try {
+                const result = await client.runQuery(
+                    `SHOW SCHEMAS IN DATABASE ${name}`,
+                );
+                return result.rows.map((row) => {
+                    const schemaName = Object.entries(row).find(
+                        ([field]) => field.toUpperCase() === 'NAME',
+                    )?.[1];
+                    return `${name}.${String(schemaName ?? '')}`;
+                });
+            } catch (cause) {
+                if (
+                    cause instanceof Error &&
+                    /database .* does not exist or not authorized/i.test(
+                        cause.message,
+                    )
+                )
+                    return [];
+                throw cause;
+            }
+        }),
+    );
+    return results.flat();
+};
 
 export const checkAiTwinConnection = async (
     credentials: CreateSnowflakeCredentials,

@@ -8,6 +8,7 @@ import {
     buildProvisioningPlan,
     classifyProvisionerUsers,
     missingProvisionerGrants,
+    missingSchemas,
 } from './provisioningPlan';
 
 const identity: AiIdentity & {
@@ -186,5 +187,13 @@ describe('buildProvisioningPlan', () => {
             'drop_user',
             'drop_user',
         ]);
+    });
+});
+
+describe('missingSchemas', () => {
+    it('compares visible schemas case insensitively and keeps allowed spelling', () => {
+        expect(
+            missingSchemas(['DB.PUBLIC', 'Db.Sales'], ['db.public']),
+        ).toEqual(['Db.Sales']);
     });
 });

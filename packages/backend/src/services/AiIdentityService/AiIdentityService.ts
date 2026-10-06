@@ -19,21 +19,26 @@ import {
     AiIdentityListResult,
     AiIdentityProvisionerFindingReason,
     AiIdentityProvisionerStatus,
+    AiIdentitySchemaRuleMode,
     aiIdentitySnowflakeIdentifier,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
+    assertUnreachable,
     buildAiIdentityFixSql,
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
+    buildAiIdentityRoleSchemaGrantSql,
     buildAiTwinProvisioningSql,
     classifyAiIdentityFailure,
     DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
+    expandAiIdentitySchemaRule,
     FeatureFlags,
     fillAiTwinName,
     ForbiddenError,
     getAiIdentityPersonMessage,
+    isValidSchemaPattern,
     normalizeSnowflakeAccount,
     NotFoundError,
     ParameterError,
@@ -42,8 +47,11 @@ import {
     SNOWFLAKE_LOGIN_PLACEHOLDER,
     validateAiIdentityRoleTemplate,
     WarehouseTypes,
+    type AiIdentityAiRoleDefinition,
     type AiIdentityProvisioningPlan,
     type AiIdentityProvisioningSettings,
+    type AiIdentitySchemaRule,
+    type AiIdentityUngrantedSchemas,
     type CreateAiIdentityProvisioner,
     type UpdateAiIdentityAiRoleDefinition,
     type UpdateAiIdentityRoleMapping,
@@ -59,12 +67,14 @@ import { BaseService } from '../BaseService';
 import {
     buildAiTwinCredentials,
     checkAiTwinConnection,
+    listAiTwinSchemas,
 } from './aiTwinConnection';
 import { ProvisionerConnection } from './provisionerConnection';
 import {
     buildProvisioningPlan,
     classifyProvisionerUsers,
     missingProvisionerGrants,
+    missingSchemas,
 } from './provisioningPlan';
 import { getSnowflakeLogin } from './snowflakeLogin';
 
@@ -164,6 +174,15 @@ export class AiIdentityService extends BaseService {
             organizationUuid,
             identityAccount.snowflakeAccount,
         );
+        const catalog =
+            await this.args.aiIdentityModel.getCachedCatalogSchemas(
+                projectUuid,
+            );
+        const aiRoleExpansions = aiRoles.map((aiRole) => ({
+            roleName: aiRole.roleName,
+            ...expandAiIdentitySchemaRule(aiRole.schemaRule, catalog.schemas),
+            catalogLoaded: catalog.loaded,
+        }));
         const effectiveMode =
             mode === AiIdentityCreationMode.AUTOMATIC &&
             provisioner?.status === AiIdentityProvisionerStatus.READY
@@ -203,7 +222,12 @@ export class AiIdentityService extends BaseService {
                           userName: provisioner.userName,
                           roleName: provisioner.roleName,
                           publicKey: provisioner.publicKey,
-                          aiRoles,
+                          aiRoles: aiRoles.map((aiRole, index) => ({
+                              ...aiRole,
+                              allowedSchemas: aiRoleExpansions[index].allowed,
+                              excludedSchemas: aiRoleExpansions[index].excluded,
+                          })),
+                          catalogLoaded: catalog.loaded,
                           existingAiRoles: mappings.map(
                               (mapping) => mapping.aiRole,
                           ),
@@ -235,6 +259,17 @@ export class AiIdentityService extends BaseService {
             defaultWarehouse: credentials.warehouse,
             mappings,
             findings: provisioner?.findings ?? [],
+            aiRoleExpansions,
+            ungrantedSchemas: (provisioner?.ungrantedSchemas ?? []).map(
+                (item) => ({
+                    roleName: item.roleName,
+                    schemas: item.schemas,
+                    fixSql: buildAiIdentityRoleSchemaGrantSql(
+                        item.roleName,
+                        item.schemas,
+                    ),
+                }),
+            ),
             worstCaseNotice: AI_IDENTITY_PROVISIONER_WORST_CASE,
             showUsersNotice: AI_IDENTITY_SHOW_USERS_NOTICE,
         };
@@ -316,14 +351,7 @@ export class AiIdentityService extends BaseService {
             warehouse: aiIdentitySnowflakeIdentifier(
                 role.warehouse || credentials.warehouse,
             ),
-            schemas: role.schemas.map((schema) => {
-                const parts = schema.split('.');
-                if (parts.length !== 2)
-                    throw new ParameterError(
-                        'Schemas must use DATABASE.SCHEMA.',
-                    );
-                return parts.map(aiIdentitySnowflakeIdentifier).join('.');
-            }),
+            schemaRule: this.normalizeSchemaRule(role.schemaRule),
         }));
         if (
             new Set(normalized.map((role) => role.roleName.toUpperCase()))
@@ -342,6 +370,63 @@ export class AiIdentityService extends BaseService {
             before,
         );
         return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private normalizeSchemaRule(
+        rule: AiIdentitySchemaRule,
+    ): AiIdentitySchemaRule {
+        switch (rule.mode) {
+            case AiIdentitySchemaRuleMode.EXISTING_ROLE:
+                return { mode: rule.mode };
+            case AiIdentitySchemaRuleMode.LIST:
+                if (rule.schemas.length === 0)
+                    throw new ParameterError('Select at least one schema.');
+                return {
+                    mode: rule.mode,
+                    schemas: [
+                        ...new Set(
+                            rule.schemas.map((schema) => {
+                                const parts = schema.split('.');
+                                if (parts.length !== 2)
+                                    throw new ParameterError(
+                                        'Schemas must use DATABASE.SCHEMA.',
+                                    );
+                                return parts
+                                    .map(aiIdentitySnowflakeIdentifier)
+                                    .join('.')
+                                    .toUpperCase();
+                            }),
+                        ),
+                    ].sort(),
+                };
+            case AiIdentitySchemaRuleMode.ALL_EXCEPT:
+            case AiIdentitySchemaRuleMode.ONLY_MATCHING:
+                if (!rule.database)
+                    throw new ParameterError('Select a database.');
+                if (rule.patterns.length === 0)
+                    throw new ParameterError(
+                        'Enter at least one schema pattern.',
+                    );
+                return {
+                    mode: rule.mode,
+                    database: aiIdentitySnowflakeIdentifier(
+                        rule.database,
+                    ).toUpperCase(),
+                    patterns: [
+                        ...new Set(
+                            rule.patterns.map((pattern) => {
+                                if (!isValidSchemaPattern(pattern))
+                                    throw new ParameterError(
+                                        'Invalid schema pattern.',
+                                    );
+                                return pattern.trim().toUpperCase();
+                            }),
+                        ),
+                    ].sort(),
+                };
+            default:
+                return assertUnreachable(rule, 'Unknown schema rule');
+        }
     }
 
     private async provisionerRequirements(
@@ -363,9 +448,7 @@ export class AiIdentityService extends BaseService {
                     JSON.stringify([
                         role.roleName.toUpperCase(),
                         role.warehouse.toUpperCase(),
-                        role.schemas
-                            .map((schema) => schema.toUpperCase())
-                            .sort(),
+                        this.normalizeSchemaRule(role.schemaRule),
                     ]),
                 ),
             ),
@@ -440,6 +523,143 @@ export class AiIdentityService extends BaseService {
         );
     }
 
+    private async checkUngrantedSchemas(
+        aiIdentityAccountUuid: string,
+        aiRoles: AiIdentityAiRoleDefinition[],
+        previous: AiIdentityUngrantedSchemas[],
+    ): Promise<{
+        results: AiIdentityUngrantedSchemas[];
+        error: string | null;
+    }> {
+        const patternRoles = aiRoles.filter(
+            (role) =>
+                role.schemaRule.mode === AiIdentitySchemaRuleMode.ALL_EXCEPT ||
+                role.schemaRule.mode === AiIdentitySchemaRuleMode.ONLY_MATCHING,
+        );
+        if (patternRoles.length === 0) return { results: [], error: null };
+        const account = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        if (!account) throw new NotFoundError('AI identity account not found');
+        const { projectUuid, credentials } = await this.projectForAccount(
+            account.organizationUuid,
+            account.snowflakeAccount,
+        );
+        const catalog =
+            await this.args.aiIdentityModel.getCachedCatalogSchemas(
+                projectUuid,
+            );
+        const identities =
+            await this.args.aiIdentityModel.getProvisioningIdentities(
+                aiIdentityAccountUuid,
+            );
+        const mappings = await this.args.aiIdentityModel.getRoleMappings(
+            aiIdentityAccountUuid,
+        );
+        const results: AiIdentityUngrantedSchemas[] = [];
+        let error: string | null = null;
+        const previousFor = (roleName: string) =>
+            previous.find(
+                (item) =>
+                    item.roleName.toUpperCase() === roleName.toUpperCase(),
+            );
+        await forEachSequential(patternRoles, async (role) => {
+            if (!catalog.loaded) {
+                const prior = previousFor(role.roleName);
+                if (prior) results.push(prior);
+                return;
+            }
+            const expansion = expandAiIdentitySchemaRule(
+                role.schemaRule,
+                catalog.schemas,
+            );
+            const ready = identities.filter(
+                (identity) =>
+                    identity.state === AiIdentityState.READY &&
+                    identity.twinName !== null,
+            );
+            const matches = (name: string | null): boolean =>
+                name?.toUpperCase() === role.roleName.toUpperCase();
+            const selected =
+                ready.find((identity) => matches(identity.provisionedRole)) ??
+                ready.find((identity) => {
+                    if (identity.provisionedRole !== null) return false;
+                    const templateRole =
+                        account.roleTemplate !== null &&
+                        (!account.roleTemplate.includes(
+                            SNOWFLAKE_LOGIN_PLACEHOLDER,
+                        ) ||
+                            identity.snowflakeLogin !== null) &&
+                        (!account.roleTemplate.includes(
+                            AI_IDENTITY_NAME_PLACEHOLDER,
+                        ) ||
+                            identity.twinName !== null)
+                            ? resolveAiIdentityRole(
+                                  account.roleTemplate,
+                                  identity.snowflakeLogin,
+                                  identity.twinName,
+                              )
+                            : null;
+                    const mapping = mappings
+                        .filter((item) =>
+                            identity.groupUuids.includes(item.groupUuid),
+                        )
+                        .sort(
+                            (a, b) =>
+                                a.priority - b.priority ||
+                                a.groupUuid.localeCompare(b.groupUuid),
+                        )[0];
+                    return (
+                        matches(templateRole) ||
+                        matches(mapping?.aiRole ?? null)
+                    );
+                });
+            if (!selected) {
+                const prior = previousFor(role.roleName);
+                if (prior) results.push(prior);
+                return;
+            }
+            try {
+                const privateIdentity =
+                    await this.args.aiIdentityModel.findByUuidWithPrivateKey(
+                        selected.aiIdentityUuid,
+                    );
+                if (!privateIdentity?.privateKey || !privateIdentity.twinName)
+                    throw new Error(
+                        'The ready AI identity has no private key or user name',
+                    );
+                const databases = [
+                    ...new Set(
+                        expansion.allowed.map((schema) => schema.split('.')[0]),
+                    ),
+                ];
+                const visible = await listAiTwinSchemas(
+                    buildAiTwinCredentials({
+                        projectCredentials: credentials,
+                        twinName: privateIdentity.twinName,
+                        privateKey: privateIdentity.privateKey,
+                    }),
+                    databases,
+                );
+                const schemas = missingSchemas(expansion.allowed, visible);
+                if (schemas.length > 0)
+                    results.push({
+                        roleName: role.roleName,
+                        schemas,
+                        fixSql: buildAiIdentityRoleSchemaGrantSql(
+                            role.roleName,
+                            schemas,
+                        ),
+                    });
+            } catch (cause) {
+                const prior = previousFor(role.roleName);
+                if (prior) results.push(prior);
+                error = `Could not check schema grants for ${role.roleName}: ${cause instanceof Error ? cause.message : String(cause)}`;
+            }
+        });
+        return { results, error };
+    }
+
     async verifyProvisioner(
         account: Account,
         aiIdentityAccountUuid: string,
@@ -505,6 +725,11 @@ export class AiIdentityService extends BaseService {
                 missing.length === 0
                     ? null
                     : `The provisioner is missing ${missing.join(', ')}.`;
+            const schemaCheck = await this.checkUngrantedSchemas(
+                aiIdentityAccountUuid,
+                aiRoles,
+                provisioner.ungrantedSchemas ?? [],
+            );
             await this.args.aiIdentityModel.updateProvisioner(
                 aiIdentityAccountUuid,
                 {
@@ -512,8 +737,12 @@ export class AiIdentityService extends BaseService {
                         missing.length === 0
                             ? AiIdentityProvisionerStatus.READY
                             : AiIdentityProvisionerStatus.FAILING,
-                    statusMessage: message,
+                    statusMessage:
+                        [message, schemaCheck.error]
+                            .filter(Boolean)
+                            .join(' ') || null,
                     findings,
+                    ungrantedSchemas: schemaCheck.results,
                 },
             );
             await this.args.aiIdentityModel.addEvent({
@@ -592,6 +821,7 @@ export class AiIdentityService extends BaseService {
             publicKey: 'YWJj',
             aiRoles: [],
             existingAiRoles: mappings.map((mapping) => mapping.aiRole),
+            catalogLoaded: true,
         });
         const before = await this.provisionerRequirements(
             aiIdentityAccountUuid,
@@ -1635,7 +1865,13 @@ export class AiIdentityService extends BaseService {
             if (job.kind === AiIdentityJobKind.SYNC) await this.runSync(job);
             if (job.kind === AiIdentityJobKind.PROVISION)
                 peopleAffected = await this.runProvisioningJob(job);
-            if (job.kind === AiIdentityJobKind.TEST) await this.runTest(job);
+            if (job.kind === AiIdentityJobKind.TEST) {
+                await this.runTest(job);
+                if (job.createdByUserUuid === null)
+                    await this.checkScheduledProvisionerSchemas(
+                        job.aiIdentityAccountUuid,
+                    );
+            }
             if (job.kind === AiIdentityJobKind.EXPORT)
                 await this.runExport(job);
             await this.args.aiIdentityModel.updateJob(jobUuid, {
@@ -2020,6 +2256,45 @@ export class AiIdentityService extends BaseService {
             )) === AiIdentityCreationMode.AUTOMATIC
         ) {
             await this.scheduleProvisioning(job.aiIdentityAccountUuid);
+        }
+    }
+
+    private async checkScheduledProvisionerSchemas(
+        aiIdentityAccountUuid: string,
+    ): Promise<void> {
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (!provisioner) return;
+        try {
+            const roles = await this.args.aiIdentityModel.getAiRoles(
+                aiIdentityAccountUuid,
+            );
+            const check = await this.checkUngrantedSchemas(
+                aiIdentityAccountUuid,
+                roles,
+                provisioner.ungrantedSchemas ?? [],
+            );
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                {
+                    ungrantedSchemas: check.results,
+                    ...(check.error !== null &&
+                    check.error !== provisioner.statusMessage
+                        ? { statusMessage: check.error }
+                        : {}),
+                },
+            );
+        } catch (cause) {
+            const message =
+                cause instanceof Error ? cause.message : String(cause);
+            if (message !== provisioner.statusMessage)
+                await this.args.aiIdentityModel.updateProvisioner(
+                    aiIdentityAccountUuid,
+                    {
+                        statusMessage: message,
+                    },
+                );
         }
     }
 

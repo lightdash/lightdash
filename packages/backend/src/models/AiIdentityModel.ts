@@ -12,6 +12,7 @@ import {
     AiIdentityJobStatus,
     AiIdentityListResult,
     AiIdentityProvisionerStatus,
+    AiIdentitySchemaRuleMode,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStateCounts,
@@ -21,6 +22,7 @@ import {
     resolveAiTwinName,
     type AiIdentityAiRoleDefinition,
     type AiIdentityProvisionerFinding,
+    type AiIdentityUngrantedSchemas,
     type UpdateAiIdentityAiRoleDefinition,
     type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
@@ -58,6 +60,8 @@ const emptyCounts = (): AiIdentityStateCounts => ({
 });
 const nameSql = `COALESCE(ai_identities.twin_name_override, CASE WHEN ai_identities.snowflake_login IS NOT NULL THEN REPLACE(COALESCE(ai_identity_accounts.twin_name_template, '${DEFAULT_AI_TWIN_NAME_TEMPLATE}'), '{snowflake_login}', ai_identities.snowflake_login) END)`;
 const stateSql = `CASE WHEN ${nameSql} IS NULL THEN 'needs_sign_in' ELSE ai_identities.status END`;
+
+const SAFE_SNOWFLAKE_NAME = /^[A-Za-z_][A-Za-z0-9_$]*$/;
 
 export class AiIdentityModel {
     constructor(
@@ -721,6 +725,7 @@ export class AiIdentityModel {
         firstRunApprovedAt: Date | null;
         firstRunApprovedByName: string | null;
         findings: AiIdentityProvisionerFinding[];
+        ungrantedSchemas: AiIdentityUngrantedSchemas[];
     } | null> {
         const row = await this.database(
             'ai_identity_provisioners as provisioner',
@@ -758,6 +763,7 @@ export class AiIdentityModel {
                 ? `${row.first_name} ${row.last_name ?? ''}`.trim()
                 : null,
             findings: row.findings ?? [],
+            ungrantedSchemas: row.ungranted_schemas ?? [],
         };
     }
 
@@ -793,6 +799,63 @@ export class AiIdentityModel {
         });
     }
 
+    async getCachedCatalogSchemas(
+        projectUuid: string,
+    ): Promise<{ schemas: string[]; loaded: boolean }> {
+        const projectCredentialIds = this.database('warehouse_credentials')
+            .join(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .select('warehouse_credentials.warehouse_credentials_id');
+        const memberSnowflakeCredentialUuids = this.database(
+            'user_warehouse_credentials',
+        )
+            .join(
+                'users',
+                'users.user_uuid',
+                'user_warehouse_credentials.user_uuid',
+            )
+            .join(
+                'organization_memberships',
+                'organization_memberships.user_id',
+                'users.user_id',
+            )
+            .join(
+                'projects',
+                'projects.organization_id',
+                'organization_memberships.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .where('user_warehouse_credentials.warehouse_type', 'snowflake')
+            .select(
+                'user_warehouse_credentials.user_warehouse_credentials_uuid',
+            );
+        const rows: { database: string; schema: string }[] =
+            await this.database('warehouse_credentials_available_tables')
+                .whereIn(
+                    'project_warehouse_credentials_id',
+                    projectCredentialIds,
+                )
+                .orWhereIn(
+                    'user_warehouse_credentials_uuid',
+                    memberSnowflakeCredentialUuids,
+                )
+                .distinct('database', 'schema');
+        return {
+            schemas: rows
+                .filter(
+                    (row) =>
+                        SAFE_SNOWFLAKE_NAME.test(row.database) &&
+                        SAFE_SNOWFLAKE_NAME.test(row.schema),
+                )
+                .map((row) => `${row.database}.${row.schema}`),
+            loaded: rows.length > 0,
+        };
+    }
+
     async getAiRoles(
         aiIdentityAccountUuid: string,
     ): Promise<AiIdentityAiRoleDefinition[]> {
@@ -803,7 +866,14 @@ export class AiIdentityModel {
             aiIdentityAiRoleUuid: row.ai_identity_ai_role_uuid,
             roleName: row.role_name,
             warehouse: row.warehouse,
-            schemas: row.schemas,
+            schemaRule:
+                row.schema_rule ??
+                (row.schemas.length === 0
+                    ? { mode: AiIdentitySchemaRuleMode.EXISTING_ROLE }
+                    : {
+                          mode: AiIdentitySchemaRuleMode.LIST,
+                          schemas: row.schemas,
+                      }),
         }));
     }
 
@@ -821,7 +891,13 @@ export class AiIdentityModel {
                         ai_identity_account_uuid: aiIdentityAccountUuid,
                         role_name: role.roleName,
                         warehouse: role.warehouse,
-                        schemas: JSON.stringify(role.schemas),
+                        schemas: JSON.stringify(
+                            role.schemaRule.mode ===
+                                AiIdentitySchemaRuleMode.LIST
+                                ? role.schemaRule.schemas
+                                : [],
+                        ),
+                        schema_rule: JSON.stringify(role.schemaRule),
                     })),
                 );
         });
@@ -833,6 +909,7 @@ export class AiIdentityModel {
             status?: AiIdentityProvisionerStatus;
             statusMessage?: string | null;
             findings?: AiIdentityProvisionerFinding[];
+            ungrantedSchemas?: AiIdentityUngrantedSchemas[];
             approvedBy?: string;
         },
     ): Promise<void> {
@@ -848,6 +925,13 @@ export class AiIdentityModel {
                 ...(update.findings === undefined
                     ? {}
                     : { findings: JSON.stringify(update.findings) }),
+                ...(update.ungrantedSchemas === undefined
+                    ? {}
+                    : {
+                          ungranted_schemas: JSON.stringify(
+                              update.ungrantedSchemas,
+                          ),
+                      }),
                 ...(update.approvedBy === undefined
                     ? {}
                     : {

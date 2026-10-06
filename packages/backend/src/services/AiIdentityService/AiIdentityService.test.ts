@@ -5,6 +5,7 @@ import {
     AiIdentityJobKind,
     AiIdentityJobStatus,
     AiIdentityProvisionerStatus,
+    AiIdentitySchemaRuleMode,
     AiIdentitySort,
     AiIdentityState,
     FeatureFlags,
@@ -14,7 +15,7 @@ import {
     WarehouseTypes,
     type AiIdentity,
 } from '@lightdash/common';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -24,13 +25,17 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { AiIdentityService } from './AiIdentityService';
-import { checkAiTwinConnection } from './aiTwinConnection';
+import { checkAiTwinConnection, listAiTwinSchemas } from './aiTwinConnection';
 import { ProvisionerConnection } from './provisionerConnection';
 
 vi.mock('./aiTwinConnection', async (importOriginal) => {
     const original =
         await importOriginal<typeof import('./aiTwinConnection')>();
-    return { ...original, checkAiTwinConnection: vi.fn() };
+    return {
+        ...original,
+        checkAiTwinConnection: vi.fn(),
+        listAiTwinSchemas: vi.fn(),
+    };
 });
 
 const { organizationUuid } = defaultSessionUser;
@@ -108,7 +113,11 @@ const model = {
         .fn()
         .mockImplementation((_accountUuid, run) => run()),
     getRoleMappings: vi.fn().mockResolvedValue([]),
+    getCachedCatalogSchemas: vi
+        .fn()
+        .mockResolvedValue({ schemas: ['ANALYTICS.PUBLIC'], loaded: true }),
     getAiRoles: vi.fn().mockResolvedValue([]),
+    replaceAiRoles: vi.fn(),
     getProvisioningIdentities: vi.fn().mockResolvedValue([]),
     listProvisioningDrops: vi.fn().mockResolvedValue([]),
     getProjectMemberIds: vi.fn().mockResolvedValue(['user']),
@@ -221,6 +230,10 @@ afterEach(() => {
     });
     model.getProvisioningMode.mockResolvedValue(AiIdentityCreationMode.GUIDED);
     model.getRoleMappings.mockResolvedValue([]);
+    model.getCachedCatalogSchemas.mockResolvedValue({
+        schemas: ['ANALYTICS.PUBLIC'],
+        loaded: true,
+    });
     model.getAiRoles.mockResolvedValue([]);
     model.getProvisioningIdentities.mockResolvedValue([]);
     model.listProvisioningDrops.mockResolvedValue([]);
@@ -421,7 +434,10 @@ describe('AiIdentityService', () => {
                 aiIdentityAiRoleUuid: 'role',
                 roleName: 'ANALYST_AI',
                 warehouse: 'COMPUTE_WH',
-                schemas: ['ANALYTICS.PUBLIC'],
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.LIST,
+                    schemas: ['ANALYTICS.PUBLIC'],
+                },
             },
         ]);
         await service.replaceProvisioningMappings(admin, 'account', [
@@ -495,7 +511,10 @@ describe('AiIdentityService', () => {
                 aiIdentityAiRoleUuid: 'role',
                 roleName: 'ANALYST_AI',
                 warehouse: 'COMPUTE_WH',
-                schemas: ['ANALYTICS.PUBLIC'],
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.LIST,
+                    schemas: ['ANALYTICS.PUBLIC'],
+                },
             },
         ]);
         model.getProvisioner.mockResolvedValue({
@@ -1242,5 +1261,364 @@ describe('personal AI identities', () => {
                 message: null,
             }),
         ]);
+    });
+});
+
+describe('AI role rule validation', () => {
+    const role = (schemaRule: {
+        mode:
+            | AiIdentitySchemaRuleMode.ALL_EXCEPT
+            | AiIdentitySchemaRuleMode.ONLY_MATCHING;
+        database: string;
+        patterns: string[];
+    }) => ({ roleName: 'ANALYST_AI', warehouse: 'WH', schemaRule });
+    it.each([
+        [
+            'invalid pattern',
+            {
+                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
+                database: 'DB',
+                patterns: ['A-B'],
+            },
+        ],
+        [
+            'missing pattern',
+            {
+                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
+                database: 'DB',
+                patterns: [],
+            },
+        ],
+        [
+            'missing database',
+            {
+                mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
+                database: '',
+                patterns: ['A*'],
+            },
+        ],
+    ] as const)('rejects %s', async (_name, rule) => {
+        await expect(
+            service.replaceAiRoles(admin, 'account', [
+                role({ ...rule, patterns: [...rule.patterns] }),
+            ]),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(model.replaceAiRoles).not.toHaveBeenCalled();
+    });
+});
+
+describe('schema grant check failure', () => {
+    const readyIdentity = {
+        ...identity,
+        state: AiIdentityState.READY,
+        createdByProvisioner: true,
+        provisionedRole: 'analyst_ai',
+        provisionedUserName: 'PERSON_AI',
+        provisionedPublicKeyFingerprint: 'SHA256:KEY',
+        groupUuids: [],
+    };
+
+    beforeEach(() => {
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.READY,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+            ungrantedSchemas: [],
+        });
+    });
+
+    const stubProvisioner = () => {
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+    };
+
+    it('lists only schemas that the rule allows and the AI identity cannot see', async () => {
+        model.getCachedCatalogSchemas.mockResolvedValue({
+            loaded: true,
+            schemas: [
+                'ANALYTICS.PUBLIC',
+                'ANALYTICS.SALES',
+                'ANALYTICS.HR_RESTRICTED',
+            ],
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
+                    database: 'ANALYTICS',
+                    patterns: ['*_RESTRICTED'],
+                },
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        vi.mocked(listAiTwinSchemas).mockResolvedValueOnce([
+            'analytics.public',
+        ]);
+        stubProvisioner();
+        await service.verifyProvisioner(admin, 'account');
+        expect(listAiTwinSchemas).toHaveBeenCalledWith(
+            expect.objectContaining({
+                user: 'PERSON_AI',
+                privateKey: 'PRIVATE',
+                role: undefined,
+            }),
+            ['ANALYTICS'],
+        );
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                ungrantedSchemas: [
+                    {
+                        roleName: 'ANALYST_AI',
+                        schemas: ['ANALYTICS.SALES'],
+                        fixSql: expect.stringContaining(
+                            'GRANT USAGE ON SCHEMA ANALYTICS.SALES TO ROLE ANALYST_AI',
+                        ),
+                    },
+                ],
+            }),
+        );
+        const { ungrantedSchemas } = model.updateProvisioner.mock.calls.find(
+            ([, update]) => update.ungrantedSchemas !== undefined,
+        )![1];
+        expect(JSON.stringify(ungrantedSchemas)).not.toContain('HR_RESTRICTED');
+    });
+
+    it('never flags schemas for an explicit list', async () => {
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.LIST,
+                    schemas: ['ANALYTICS.PUBLIC', 'ANALYTICS.SALES'],
+                },
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        vi.mocked(listAiTwinSchemas).mockResolvedValue([]);
+        stubProvisioner();
+        await service.verifyProvisioner(admin, 'account');
+        expect(listAiTwinSchemas).not.toHaveBeenCalled();
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({ ungrantedSchemas: [] }),
+        );
+    });
+
+    it('keeps a previous finding without an error when no ready identity has the role', async () => {
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
+                    database: 'SALES',
+                    patterns: ['PUBLIC'],
+                },
+            },
+        ]);
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            privateKey: 'key',
+            publicKey: 'YWJj',
+            publicKeyFingerprint: 'fingerprint',
+            ungrantedSchemas: [
+                {
+                    roleName: 'ANALYST_AI',
+                    schemas: ['SALES.PUBLIC'],
+                    fixSql: 'old',
+                },
+            ],
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        await service.verifyProvisioner(admin, 'account');
+        expect(listAiTwinSchemas).not.toHaveBeenCalled();
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                statusMessage: null,
+                ungrantedSchemas: [
+                    {
+                        roleName: 'ANALYST_AI',
+                        schemas: ['SALES.PUBLIC'],
+                        fixSql: 'old',
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('never reports schemas excluded by the role rule', async () => {
+        model.getCachedCatalogSchemas.mockResolvedValueOnce({
+            loaded: true,
+            schemas: ['ANALYTICS.PUBLIC', 'ANALYTICS.SECRET'],
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
+                    database: 'ANALYTICS',
+                    patterns: ['SECRET'],
+                },
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        vi.mocked(listAiTwinSchemas).mockResolvedValueOnce([
+            'ANALYTICS.SECRET',
+        ]);
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                ungrantedSchemas: [
+                    expect.objectContaining({ schemas: ['ANALYTICS.PUBLIC'] }),
+                ],
+            }),
+        );
+    });
+
+    it('keeps the previous finding without failing a ready provisioner', async () => {
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: {
+                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
+                    database: 'ANALYTICS',
+                    patterns: ['PUBLIC'],
+                },
+            },
+        ]);
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.READY,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+            ungrantedSchemas: [
+                {
+                    roleName: 'ANALYST_AI',
+                    schemas: ['ANALYTICS.PUBLIC'],
+                    fixSql: 'old',
+                },
+            ],
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            {
+                privilege: 'CREATE USER',
+                granted_on: 'ACCOUNT',
+                name: 'ACCOUNT',
+            },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.mocked(listAiTwinSchemas).mockRejectedValueOnce(
+            new Error('Snowflake unavailable'),
+        );
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                status: AiIdentityProvisionerStatus.READY,
+                ungrantedSchemas: [
+                    {
+                        roleName: 'ANALYST_AI',
+                        schemas: ['ANALYTICS.PUBLIC'],
+                        fixSql: 'old',
+                    },
+                ],
+                statusMessage:
+                    'Could not check schema grants for ANALYST_AI: Snowflake unavailable',
+            }),
+        );
     });
 });

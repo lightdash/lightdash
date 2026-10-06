@@ -4,6 +4,7 @@ import {
     type AiIdentityProvisioningOperation,
     type UpdateAiIdentityAiRoleDefinition,
 } from '../types/aiIdentityProvisioning';
+import { AiIdentitySchemaRuleMode } from '../types/aiIdentitySchemaRule';
 import { ParameterError } from '../types/errors';
 
 export const aiIdentitySnowflakeIdentifier = (value: string): string => {
@@ -25,6 +26,35 @@ const key = (value: string): string => {
 
 const string = (value: string): string =>
     `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
+
+export const buildAiIdentityRoleSchemaGrantSql = (
+    roleName: string,
+    schemas: readonly string[],
+): string => {
+    const role = identifier(roleName);
+    const databases = new Set<string>();
+    return schemas
+        .flatMap((schema) => {
+            const parts = schema.split('.');
+            if (parts.length !== 2)
+                throw new ParameterError('Schemas must use DATABASE.SCHEMA.');
+            const database = identifier(parts[0]);
+            const qualified = `${database}.${identifier(parts[1])}`;
+            const databaseGrant = databases.has(database.toUpperCase())
+                ? []
+                : [`GRANT USAGE ON DATABASE ${database} TO ROLE ${role};`];
+            databases.add(database.toUpperCase());
+            return [
+                ...databaseGrant,
+                `GRANT USAGE ON SCHEMA ${qualified} TO ROLE ${role};`,
+                `GRANT SELECT ON ALL TABLES IN SCHEMA ${qualified} TO ROLE ${role};`,
+                `GRANT SELECT ON ALL VIEWS IN SCHEMA ${qualified} TO ROLE ${role};`,
+                `GRANT SELECT ON FUTURE TABLES IN SCHEMA ${qualified} TO ROLE ${role};`,
+                `GRANT SELECT ON FUTURE VIEWS IN SCHEMA ${qualified} TO ROLE ${role};`,
+            ];
+        })
+        .join('\n');
+};
 
 export const renderProvisioningOperation = (
     op: AiIdentityProvisioningOperation,
@@ -82,12 +112,17 @@ export const buildAiIdentityProvisionerSetupSql = ({
     publicKey,
     aiRoles,
     existingAiRoles,
+    catalogLoaded,
 }: {
     userName: string;
     roleName: string;
     publicKey: string;
-    aiRoles: readonly UpdateAiIdentityAiRoleDefinition[];
+    aiRoles: readonly (UpdateAiIdentityAiRoleDefinition & {
+        allowedSchemas: string[];
+        excludedSchemas: string[];
+    })[];
     existingAiRoles?: readonly string[];
+    catalogLoaded: boolean;
 }): string => {
     const user = identifier(userName);
     const role = identifier(roleName);
@@ -102,33 +137,31 @@ export const buildAiIdentityProvisionerSetupSql = ({
         `GRANT ROLE ${role} TO USER ${user};`,
         ...aiRoles.flatMap((aiRole) => {
             const name = identifier(aiRole.roleName);
-            if (aiRole.schemas.length === 0)
+            const summary = `-- ${name}: ${aiRole.allowedSchemas.length} ${aiRole.allowedSchemas.length === 1 ? 'schema' : 'schemas'} allowed, ${aiRole.excludedSchemas.length} excluded by the rule.`;
+            if (
+                aiRole.schemaRule.mode ===
+                AiIdentitySchemaRuleMode.EXISTING_ROLE
+            )
                 return [
+                    summary,
                     `-- Transfer the existing AI role ${name}.`,
                     `GRANT OWNERSHIP ON ROLE ${name} TO ROLE ${role} COPY CURRENT GRANTS;`,
                 ];
             const warehouse = identifier(aiRole.warehouse);
+            const catalogNote =
+                !catalogLoaded &&
+                aiRole.schemaRule.mode !== AiIdentitySchemaRuleMode.LIST
+                    ? [
+                          '-- The schema catalog is not loaded, so this rule grants no schemas yet. Refresh the catalog and copy the script again.',
+                      ]
+                    : [];
             return [
+                summary,
+                ...catalogNote,
                 `-- Create ${name} with access only to its selected schemas.`,
                 `CREATE ROLE IF NOT EXISTS ${name};`,
                 `GRANT USAGE ON WAREHOUSE ${warehouse} TO ROLE ${name};`,
-                ...aiRole.schemas.flatMap((schema) => {
-                    const parts = schema.split('.');
-                    if (parts.length !== 2)
-                        throw new ParameterError(
-                            'Schemas must use DATABASE.SCHEMA.',
-                        );
-                    const database = identifier(parts[0]);
-                    const qualified = `${database}.${identifier(parts[1])}`;
-                    return [
-                        `GRANT USAGE ON DATABASE ${database} TO ROLE ${name};`,
-                        `GRANT USAGE ON SCHEMA ${qualified} TO ROLE ${name};`,
-                        `GRANT SELECT ON ALL TABLES IN SCHEMA ${qualified} TO ROLE ${name};`,
-                        `GRANT SELECT ON ALL VIEWS IN SCHEMA ${qualified} TO ROLE ${name};`,
-                        `GRANT SELECT ON FUTURE TABLES IN SCHEMA ${qualified} TO ROLE ${name};`,
-                        `GRANT SELECT ON FUTURE VIEWS IN SCHEMA ${qualified} TO ROLE ${name};`,
-                    ];
-                }),
+                buildAiIdentityRoleSchemaGrantSql(name, aiRole.allowedSchemas),
                 `GRANT OWNERSHIP ON ROLE ${name} TO ROLE ${role} COPY CURRENT GRANTS;`,
             ];
         }),

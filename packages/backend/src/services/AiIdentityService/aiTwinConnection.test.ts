@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     buildAiTwinCredentials,
     checkAiTwinConnection,
+    listAiTwinSchemas,
 } from './aiTwinConnection';
 
 const runQuery = vi.fn();
@@ -120,5 +121,42 @@ describe('AI twin connection', () => {
             ok: false,
             message: 'Snowflake signed in as OTHER, not TWIN.',
         });
+    });
+
+    it('lists visible schemas across databases with case-insensitive row names', async () => {
+        runQuery.mockResolvedValueOnce({ rows: [{ name: 'PUBLIC' }] });
+        runQuery.mockResolvedValueOnce({ rows: [{ NAME: 'SALES' }] });
+        await expect(
+            listAiTwinSchemas(projectCredentials, ['DB', 'OTHER']),
+        ).resolves.toEqual(['DB.PUBLIC', 'OTHER.SALES']);
+        expect(runQuery).toHaveBeenNthCalledWith(
+            1,
+            'SHOW SCHEMAS IN DATABASE DB',
+        );
+        expect(runQuery).toHaveBeenNthCalledWith(
+            2,
+            'SHOW SCHEMAS IN DATABASE OTHER',
+        );
+    });
+
+    it('treats an inaccessible database as empty and propagates other errors', async () => {
+        runQuery.mockRejectedValueOnce(
+            new Error("Database 'DB' does not exist or not authorized."),
+        );
+        runQuery.mockResolvedValueOnce({ rows: [{ name: 'PUBLIC' }] });
+        await expect(
+            listAiTwinSchemas(projectCredentials, ['DB', 'OTHER']),
+        ).resolves.toEqual(['OTHER.PUBLIC']);
+        runQuery.mockRejectedValueOnce(new Error('Connection refused'));
+        await expect(
+            listAiTwinSchemas(projectCredentials, ['DB']),
+        ).rejects.toThrow('Connection refused');
+    });
+
+    it('rejects invalid database identifiers before querying', async () => {
+        await expect(
+            listAiTwinSchemas(projectCredentials, ['BAD-NAME']),
+        ).rejects.toThrow();
+        expect(runQuery).not.toHaveBeenCalled();
     });
 });
