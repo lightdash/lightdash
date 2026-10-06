@@ -741,6 +741,28 @@ type AiAccessAuditContext = {
     surface: AiAccessSurface;
 };
 
+type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    userWarehouseCredentialsUuid: string | undefined;
+    organizationWarehouseCredentialsUuid?: string;
+};
+
+type CredentialsWithAiAccessAudit = {
+    credentials: ResolvedWarehouseCredentials;
+    aiAccessAudit: AiAccessAuditContext | null;
+};
+
+type ExtraConnectionCredentialsArgs = {
+    projectUuid: string;
+    warehouseConnectionUuid: string;
+    userId: string;
+    isRegisteredUser: boolean;
+    isServiceAccount?: boolean;
+    purpose?: 'query' | 'compile';
+    context?: QueryExecutionContext;
+    rawSql?: boolean;
+    aiSurface?: AiAccessSurface;
+};
+
 type AiAccessAuditReason =
     | 'no_ai_sign_in'
     | 'ai_sign_in_not_set_up'
@@ -2513,7 +2535,15 @@ export class ProjectService extends BaseService {
         }
     }
 
-    protected async getExtraConnectionWarehouseCredentials({
+    protected async getExtraConnectionWarehouseCredentials(
+        args: ExtraConnectionCredentialsArgs,
+    ): Promise<ResolvedWarehouseCredentials> {
+        const { credentials } =
+            await this.getExtraConnectionWarehouseCredentialsWithAudit(args);
+        return credentials;
+    }
+
+    private async getExtraConnectionWarehouseCredentialsWithAudit({
         projectUuid,
         warehouseConnectionUuid,
         userId,
@@ -2523,17 +2553,7 @@ export class ProjectService extends BaseService {
         context,
         rawSql,
         aiSurface,
-    }: {
-        projectUuid: string;
-        warehouseConnectionUuid: string;
-        userId: string;
-        isRegisteredUser: boolean;
-        isServiceAccount?: boolean;
-        purpose?: 'query' | 'compile';
-        context?: QueryExecutionContext;
-        rawSql?: boolean;
-        aiSurface?: AiAccessSurface;
-    }) {
+    }: ExtraConnectionCredentialsArgs): Promise<CredentialsWithAiAccessAudit> {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const source =
@@ -3104,7 +3124,7 @@ export class ProjectService extends BaseService {
             }
             case 'extra': {
                 const resolved =
-                    await this.getExtraConnectionWarehouseCredentials({
+                    await this.getExtraConnectionWarehouseCredentialsWithAudit({
                         projectUuid: args.projectUuid,
                         warehouseConnectionUuid: target.warehouseConnectionUuid,
                         userId: args.userId,
@@ -8082,7 +8102,7 @@ export class ProjectService extends BaseService {
                 return sourceAdapter.getDbtManifest();
             },
             loadExtraCredentials: async (warehouseConnectionUuid) => {
-                const { credentials } =
+                const credentials =
                     await this.getExtraConnectionWarehouseCredentials({
                         projectUuid,
                         warehouseConnectionUuid,

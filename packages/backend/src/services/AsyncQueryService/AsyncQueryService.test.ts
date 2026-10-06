@@ -10224,7 +10224,7 @@ describe('saved chart query result access', () => {
                 getExploreForMetricQueryExecution: () => Promise<unknown>;
                 getExploreWithUserAccessControls: () => Promise<unknown>;
                 prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
-                getExtraConnectionWarehouseCredentials: () => Promise<unknown>;
+                getExtraConnectionWarehouseCredentialsWithAudit: () => Promise<unknown>;
                 executeAsyncQuery: (
                     args: unknown,
                     parameters: ExecuteAsyncQueryRequestParams,
@@ -10257,7 +10257,7 @@ describe('saved chart query result access', () => {
                 });
             vi.spyOn(
                 execution,
-                'getExtraConnectionWarehouseCredentials',
+                'getExtraConnectionWarehouseCredentialsWithAudit',
             ).mockResolvedValue({
                 credentials: {
                     ...warehouseClientMock.credentials,
