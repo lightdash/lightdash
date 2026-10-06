@@ -1,6 +1,6 @@
 import { Box, Highlight, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
-import { useLocation } from 'react-router';
+import { matchPath, useLocation } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import {
     type SettingsNavigationItem,
@@ -62,7 +62,11 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                 onClick={item.onClick}
                 leftSection={leftSection}
                 defaultOpened={
-                    isFiltering || location.pathname.includes(item.to)
+                    isFiltering ||
+                    !!matchPath(
+                        { path: item.to, end: false },
+                        location.pathname,
+                    )
                 }
             >
                 {item.children.map(renderItem)}
