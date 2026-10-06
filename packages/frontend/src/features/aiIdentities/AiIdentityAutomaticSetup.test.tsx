@@ -408,3 +408,17 @@ it('keeps Check now secondary after two hours', () => {
         screen.queryByText(/Waiting for the setup script/),
     ).not.toBeInTheDocument();
 });
+
+it('hides the grant sync card before a provisioner exists', () => {
+    renderSetup({ ...settings, provisioner: null });
+    expect(
+        screen.queryByText('Keep AI role grants in sync'),
+    ).not.toBeInTheDocument();
+});
+
+it('shows Not set up before the first grant sync run', () => {
+    renderSetup(settings);
+    expect(screen.getByText('Keep AI role grants in sync')).toBeInTheDocument();
+    expect(screen.getByText('Not set up')).toBeInTheDocument();
+    expect(screen.queryByText('UNSAFE')).not.toBeInTheDocument();
+});

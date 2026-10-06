@@ -92,12 +92,16 @@ const AiIdentityGrantSyncStatus: FC<{
             <Group>
                 <Badge
                     color={
-                        sync.status === AiIdentitySyncStatus.OK
-                            ? 'green'
-                            : 'yellow'
+                        sync.lastRunAt === null
+                            ? 'gray'
+                            : sync.status === AiIdentitySyncStatus.OK
+                              ? 'green'
+                              : 'yellow'
                     }
                 >
-                    {sync.status ?? 'No run'}
+                    {sync.lastRunAt === null
+                        ? 'Not set up'
+                        : (sync.status ?? 'No run')}
                 </Badge>
                 <RelativeTime value={sync.lastRunAt} />
             </Group>
@@ -465,7 +469,9 @@ export const AiIdentityAutomaticSetup: FC<{
                 accountUuid={settings.aiIdentityAccountUuid}
             />
             <CreateProvisioner settings={settings} />
-            <AiIdentityGrantSyncSetup settings={settings} />
+            {settings.provisioner !== null && (
+                <AiIdentityGrantSyncSetup settings={settings} />
+            )}
             <CheckProvisioner settings={settings} />
             <fieldset
                 disabled={status !== AiIdentityProvisionerStatus.READY}
