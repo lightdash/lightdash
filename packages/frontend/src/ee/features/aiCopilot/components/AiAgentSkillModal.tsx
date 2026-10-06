@@ -166,7 +166,8 @@ const SkillForm = ({
         <MantineModal
             opened
             onClose={onClose}
-            size="lg"
+            size="xl"
+            modalRootProps={{ closeOnClickOutside: false }}
             icon={IconLicense}
             title={isEditing ? `Edit /${skill.name}` : 'New skill'}
             onConfirm={() => void handleSave()}
@@ -210,8 +211,8 @@ const SkillForm = ({
                         <Textarea
                             variant="unstyled"
                             autosize
-                            minRows={10}
-                            maxRows={24}
+                            minRows={16}
+                            maxRows={32}
                             placeholder={INSTRUCTIONS_PLACEHOLDER}
                             classNames={{ input: styles.editorInput }}
                             aria-label="Instructions"
