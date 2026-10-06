@@ -74,6 +74,13 @@ export enum FeatureFlags {
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
 
     /**
+     * Enable the new dashboard filter bar and sidebar. Frontend only;
+     * rolled out per organization. Temporary: remove once the new bar
+     * replaces the shipped one.
+     */
+    DashboardFilterSidebar = 'dashboard-filter-sidebar',
+
+    /**
      * Enable creating and editing metric filters on dashboards.
      * When enabled, the "Add filter" UI includes metrics alongside dimensions.
      * Existing metric filters are always displayed regardless of this flag.

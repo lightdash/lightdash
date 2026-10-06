@@ -50,6 +50,7 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import { FilterBar } from '../dashboardFilterSidebar/FilterBar';
 import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
@@ -271,6 +272,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardTabsInMemory,
     );
     const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
+
+    const { data: dashboardFilterSidebarFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardFilterSidebar,
+    );
+    const FiltersBar =
+        dashboardFilterSidebarFlag?.enabled === true
+            ? FilterBar
+            : DashboardFiltersBar;
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
@@ -1088,7 +1097,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     }
                                                 />
                                             ) : (
-                                                <DashboardFiltersBar
+                                                <FiltersBar
                                                     isEditMode={isEditMode}
                                                     activeTabUuid={
                                                         activeTab?.uuid
