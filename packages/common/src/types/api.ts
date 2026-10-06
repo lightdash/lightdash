@@ -1,12 +1,3 @@
-import type {
-    ApiAiAccessForUserResponse,
-    ApiAiAccessPolicyResponse,
-    ApiAiPrincipalResponse,
-    ApiAiPrincipalsResponse,
-    ApiAiQueryAuditResponse,
-    ApiAiSetupScriptResponse,
-    ApiAiWarehouseCapabilitiesResponse,
-} from './aiPrincipal';
 import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
@@ -136,6 +127,15 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
+import type {
+    ApiAiAccessForUserResponse,
+    ApiAiAccessPolicyResponse,
+    ApiAiPrincipalResponse,
+    ApiAiPrincipalsResponse,
+    ApiAiQueryAuditResponse,
+    ApiAiSetupScriptResponse,
+    ApiAiWarehouseCapabilitiesResponse,
+} from './aiPrincipal';
 import {
     type ApiUserActivityDownloadCsv,
     type QueryExecutionContext,
