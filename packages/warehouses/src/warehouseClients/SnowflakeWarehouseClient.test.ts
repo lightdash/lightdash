@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
+    ForbiddenError,
     SnowflakeAuthenticationType,
 } from '@lightdash/common';
 import {
@@ -223,6 +224,35 @@ describe('SnowflakeWarehouseClient', () => {
             ),
         ).toHaveLength(2);
         expect(createConnection).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses the next session after agent activation is disabled', async () => {
+        let activated = true;
+        executeMock.mockImplementation((options) => {
+            if (options.sqlText.includes('IS_AGENT_ACTIVATED')) {
+                options.complete(undefined, {}, [
+                    { IS_AGENT_ACTIVATED: activated },
+                ]);
+            } else {
+                defaultExecute(options);
+            }
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        activated = false;
+        await expect(
+            warehouse.streamQuery('SELECT 2', () => {}, {}),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(createConnection).toHaveBeenCalledTimes(2);
+        expect(
+            vi.mocked(createConnection).mock.results[1]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            executeMock.mock.calls.map(([options]) => options.sqlText),
+        ).not.toContain('SELECT 2');
     });
 
     it('returns the agent session role and scopes', async () => {

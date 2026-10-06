@@ -302,10 +302,12 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
+    checkSnowflakeAgentSessionWithToken,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
+    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     SshTunnel,
     warehouseSqlBuilderFromType,
     type WarehouseClientOptions,
@@ -1574,6 +1576,17 @@ export class ProjectService extends BaseService {
                         : await UserService.generateSnowflakeAccessToken(
                               refreshToken,
                           );
+                if (credentialPurpose === UserWarehouseCredentialPurpose.AI) {
+                    const session = await checkSnowflakeAgentSessionWithToken(
+                        args.account,
+                        accessToken,
+                    ).catch(() => null);
+                    if (!session?.agentActivated) {
+                        throw new ForbiddenError(
+                            SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                        );
+                    }
+                }
                 return {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
