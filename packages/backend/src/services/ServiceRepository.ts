@@ -976,6 +976,8 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     userModel: this.models.getUserModel(),
                 }),
         );
