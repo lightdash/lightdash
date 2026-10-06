@@ -1,8 +1,7 @@
-import { getDocumentUrl, type Document } from '@lightdash/common';
+import { getDocumentUrl } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    Button,
     Center,
     Group,
     Loader,
@@ -10,13 +9,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconExternalLink, IconFolderShare, IconX } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconExternalLink, IconX } from '@tabler/icons-react';
+import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import DocumentRenderer from '../../../../../features/documents/DocumentRenderer';
-import SaveDocumentToSpaceModal from '../../../../../features/documents/SaveDocumentToSpaceModal';
-import { useCanEditDocument } from '../../../../../features/documents/useCanEditDocument';
+import SaveDocumentToSpaceButton from '../../../../../features/documents/SaveDocumentToSpaceButton';
 import { useDocument } from '../../../../../features/documents/useDocument';
 import {
     clearPreview,
@@ -27,32 +25,6 @@ import artifactStyles from './AiArtifactPanel.module.css';
 
 type Props = {
     documentPreview: DocumentPreviewData;
-};
-
-const SaveToSpaceButton: FC<{ document: Document }> = ({ document }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const canEdit = useCanEditDocument(document);
-    if (document.spaceUuid !== null || !canEdit) {
-        return null;
-    }
-    return (
-        <>
-            <Button
-                size="xs"
-                leftSection={<MantineIcon icon={IconFolderShare} />}
-                onClick={() => setIsOpen(true)}
-            >
-                Save to space
-            </Button>
-            {isOpen && (
-                <SaveDocumentToSpaceModal
-                    document={document}
-                    opened
-                    onClose={() => setIsOpen(false)}
-                />
-            )}
-        </>
-    );
 };
 
 export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
@@ -106,7 +78,10 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                 showContents={false}
                 actions={
                     <Group gap={2} wrap="nowrap">
-                        <SaveToSpaceButton document={document} />
+                        <SaveDocumentToSpaceButton
+                            document={document}
+                            size="xs"
+                        />
                         <Tooltip label="Open Document">
                             <ActionIcon
                                 component={Link}

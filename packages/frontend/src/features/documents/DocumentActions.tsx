@@ -7,7 +7,7 @@ import {
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconDatabaseExport,
@@ -15,7 +15,6 @@ import {
     IconCopy,
     IconDots,
     IconFileTypePdf,
-    IconFolderShare,
     IconTrash,
     IconPin,
     IconPinnedOff,
@@ -48,7 +47,6 @@ import {
 import DocumentAsCodeModal from './DocumentAsCodeModal';
 import DocumentDuplicateModal from './DocumentDuplicateModal';
 import DocumentOwnerModal from './DocumentOwnerModal';
-import SaveDocumentToSpaceModal from './SaveDocumentToSpaceModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
 import { useCanEditDocument } from './useCanEditDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
@@ -87,7 +85,6 @@ const DocumentActions = ({
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
     const [isOwnerOpen, setOwnerOpen] = useState(false);
     const [isRequestReviewOpen, setRequestReviewOpen] = useState(false);
-    const [isSaveOpen, setSaveOpen] = useState(false);
     const canEdit = useCanEditDocument(document);
     // Pinning, favorites, sharing, promotion and as-code need a Space first
     const isPersonal = document.spaceUuid === null;
@@ -112,14 +109,6 @@ const DocumentActions = ({
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
         <>
-            {isPersonal && canEdit && (
-                <Button
-                    leftSection={<MantineIcon icon={IconFolderShare} />}
-                    onClick={() => setSaveOpen(true)}
-                >
-                    Save to space
-                </Button>
-            )}
             {!isPersonal && (
                 <FavoriteActionIcon
                     variant="default"
@@ -327,13 +316,6 @@ const DocumentActions = ({
                     document={document}
                     opened
                     onClose={() => setOwnerOpen(false)}
-                />
-            )}
-            {isSaveOpen && (
-                <SaveDocumentToSpaceModal
-                    document={document}
-                    opened
-                    onClose={() => setSaveOpen(false)}
                 />
             )}
             {isDuplicateOpen && (
