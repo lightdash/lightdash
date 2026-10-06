@@ -5,6 +5,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // user's timezone and attributes, the org results cache flag, and the seeded
 // dashboard. They run one at a time, after the parallel group has finished.
 const serialFiles = [
+    'tests/aiPrincipalsPostgres.test.ts',
     'tests/dataTimezone.test.ts',
     'tests/queryTimezone.test.ts',
     'tests/queryTimezoneBoundary.test.ts',
