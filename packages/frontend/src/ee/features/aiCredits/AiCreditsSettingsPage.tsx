@@ -1,21 +1,35 @@
-import { type AiCreditUsageSummary } from '@lightdash/common';
-import { Group, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+    type AiCreditHold,
+    type AiCreditUsageSummary,
+} from '@lightdash/common';
+import {
+    Group,
+    Paper,
+    Skeleton,
+    Stack,
+    Text,
+    ThemeIcon,
+    Title,
+} from '@mantine/core';
+import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { type FC } from 'react';
-import Callout from '../../../components/common/Callout';
-import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { findBlockingAiCreditHold } from './aiCreditHolds';
-import { AiCreditsPausedCallout } from './AiCreditsPausedCallout';
+import classes from './AiCreditsSettingsPage.module.css';
 import { AiCreditsUsageBar } from './AiCreditsUsageBar';
 import { AiCreditsUsageBreakdown } from './AiCreditsUsageBreakdown';
+import { formatAllowance, formatCredits } from './creditUsage';
 import { useAiCreditUsage } from './hooks/useAiCreditUsage';
-
-const creditFormat = new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 2,
-});
+import {
+    getAllowanceUsedNotice,
+    getPausedNotice,
+    type UsageNotice,
+    type UsageNoticeSeverity,
+} from './usageNotice';
 
 dayjs.extend(utc);
 
@@ -33,67 +47,151 @@ const describePeriodLength = (months: number): string => {
     return `Every ${months} months`;
 };
 
+// When the contract ends with this period, the allowance doesn't reset.
+const isContractEndingThisPeriod = ({
+    period,
+    contract,
+}: Pick<AiCreditUsageSummary, 'period' | 'contract'>): boolean =>
+    contract?.endsAt !== null &&
+    contract?.endsAt !== undefined &&
+    dayjs(contract.endsAt).isSame(period.periodEnd);
+
+const getResumeDate = (
+    usage: AiCreditUsageSummary,
+    hold: AiCreditHold,
+): string | null => {
+    if (hold.reason === 'allowance_exhausted') {
+        return isContractEndingThisPeriod(usage)
+            ? null
+            : formatDate(usage.period.periodEnd);
+    }
+    return hold.expiresAt === null ? null : formatDate(hold.expiresAt);
+};
+
+// Only a hold pauses AI, so without one the notice states the numbers and never claims a pause.
+const getUsageNotice = (usage: AiCreditUsageSummary): UsageNotice | null => {
+    const blockingHold = findBlockingAiCreditHold(usage);
+    if (blockingHold !== null) {
+        return getPausedNotice(
+            blockingHold.reason,
+            getResumeDate(usage, blockingHold),
+        );
+    }
+    const allowance = usage.contract?.allowanceCredits ?? null;
+    const overage = allowance === null ? 0 : usage.billable.credits - allowance;
+    // Usage can pass the allowance without a hold, e.g. after the allowance is lowered.
+    const isAllowanceUsed =
+        overage > 0 ||
+        usage.activeHolds.some((hold) => hold.reason === 'allowance_exhausted');
+    if (!isAllowanceUsed) return null;
+    return getAllowanceUsedNotice({
+        keepsWorking: usage.contract?.allowanceMode === 'warn',
+        overageCredits: overage > 0 ? formatCredits(overage) : null,
+        endsOrResets: isContractEndingThisPeriod(usage)
+            ? `Your contract ends on ${formatDate(usage.period.periodEnd)}.`
+            : `It resets on ${formatDate(usage.period.periodEnd)}.`,
+    });
+};
+
+const NOTICE_STYLE = {
+    paused: { color: 'orange', icon: IconPlayerPause, role: 'alert' },
+    // The theme's primary colour is the ink: black in light mode, white in dark.
+    attention: { color: 'primary', icon: IconInfoCircle, role: 'status' },
+} as const satisfies Record<UsageNoticeSeverity, unknown>;
+
 const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
     const { period, contract, billable } = usage;
     const allowance = contract?.allowanceCredits ?? null;
-    const isContractEnd =
-        contract?.endsAt !== null &&
-        contract?.endsAt !== undefined &&
-        dayjs(contract.endsAt).isSame(period.periodEnd);
+    const notice = getUsageNotice(usage);
+    const noticeStyle = notice === null ? null : NOTICE_STYLE[notice.severity];
 
     return (
-        <Paper p="md">
+        <Paper
+            p="md"
+            className={classes.summary}
+            data-severity={notice?.severity}
+        >
             <Stack gap="sm">
                 <Group justify="space-between" align="baseline">
-                    <Title order={5}>This period</Title>
-                    <Text fz="sm" c="dimmed">
+                    <Title order={5} fz="sm" fw={500} c="ldGray.7">
                         {formatDate(period.periodStart)} –{' '}
-                        {formatLastDay(period.periodEnd)} ·{' '}
+                        {formatLastDay(period.periodEnd)}
+                    </Title>
+                    <Text fz="sm" c="dimmed">
                         {describePeriodLength(
                             contract?.resetIntervalMonths ?? 1,
                         )}
                     </Text>
                 </Group>
-                <Text fz="xl" fw={600}>
-                    {creditFormat.format(billable.credits)}
-                    {allowance !== null &&
-                        ` of ${creditFormat.format(allowance)}`}{' '}
-                    credits used
-                </Text>
+                <Group gap="xs" wrap="nowrap">
+                    {noticeStyle !== null && (
+                        <ThemeIcon
+                            variant="light"
+                            color={noticeStyle.color}
+                            radius="md"
+                        >
+                            <MantineIcon icon={noticeStyle.icon} />
+                        </ThemeIcon>
+                    )}
+                    <Text fz="xl" fw={600}>
+                        {formatCredits(billable.credits)}{' '}
+                        <Text span inherit fw={400} c="dimmed">
+                            {allowance !== null &&
+                                `of ${formatAllowance(allowance)} `}
+                            credits used
+                        </Text>
+                    </Text>
+                </Group>
                 {allowance !== null && allowance > 0 && (
                     <AiCreditsUsageBar
-                        percent={(billable.credits / allowance) * 100}
+                        usedCredits={billable.credits}
+                        allowanceCredits={allowance}
                     />
                 )}
-                {isContractEnd && (
+                {contract !== null && allowance === null && (
                     <Text fz="sm" c="dimmed">
-                        Your contract ends on {formatDate(period.periodEnd)}
+                        No allowance is set for this contract yet, so usage
+                        isn&apos;t measured against one.
                     </Text>
+                )}
+                {notice !== null && noticeStyle !== null ? (
+                    <Stack gap={2} role={noticeStyle.role}>
+                        <Text fz="sm" fw={500}>
+                            {notice.title}
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            {notice.body}
+                        </Text>
+                    </Stack>
+                ) : (
+                    isContractEndingThisPeriod(usage) && (
+                        <Text fz="sm" c="dimmed">
+                            Your contract ends on {formatDate(period.periodEnd)}
+                        </Text>
+                    )
                 )}
             </Stack>
         </Paper>
     );
 };
 
-// Usage past the allowance is never blocked, so this is a heads-up, not an alert.
-const AllowanceUsedBanner: FC<{ usage: AiCreditUsageSummary }> = ({
-    usage,
-}) => {
-    const blockingHold = findBlockingAiCreditHold(usage);
-    if (blockingHold !== null) {
-        return <AiCreditsPausedCallout hold={blockingHold} />;
-    }
-    const isAllowanceUsed = usage.activeHolds.some(
-        (hold) => hold.reason === 'allowance_exhausted',
-    );
-    if (!isAllowanceUsed) return null;
-    return (
-        <Callout variant="neutral" title="You've used this period's allowance">
-            No worries, your usage isn&apos;t blocked. Your allowance resets on{' '}
-            {formatDate(usage.period.periodEnd)}.
-        </Callout>
-    );
-};
+const AiCreditsPageSkeleton: FC = () => (
+    <Stack gap="lg" aria-busy="true" aria-label="Loading AI credit usage">
+        <Paper p="md">
+            <Stack gap="sm">
+                <Skeleton h={16} w="30%" />
+                <Skeleton h={24} w="45%" />
+                <Skeleton h={8} radius="xl" />
+            </Stack>
+        </Paper>
+        <Paper p="md">
+            <Stack gap="md">
+                <Skeleton h={16} w="25%" />
+                <Skeleton h={200} />
+            </Stack>
+        </Paper>
+    </Stack>
+);
 
 export const AiCreditsSettingsPage: FC = () => {
     const {
@@ -109,7 +207,7 @@ export const AiCreditsSettingsPage: FC = () => {
             description="Credits your organization has used on AI features in the current period."
         >
             {isInitialLoading ? (
-                <EmptyStateLoader />
+                <AiCreditsPageSkeleton />
             ) : isError || usage === undefined ? (
                 <InlineErrorState
                     message="AI credit usage could not be loaded."
@@ -117,7 +215,6 @@ export const AiCreditsSettingsPage: FC = () => {
                 />
             ) : (
                 <Stack gap="lg">
-                    <AllowanceUsedBanner usage={usage} />
                     <UsageSummary usage={usage} />
                     <AiCreditsUsageBreakdown
                         allowanceCredits={

@@ -119,5 +119,12 @@ export const renderAiCreditTooltip = (
                 `<b>${escape(formatCredits(row.credits))} credits</b></div>`,
         )
         .join('');
-    return `<div style="margin-bottom:4px">${escape(title)}</div>${items}`;
+    const credited = rows.filter((row) => row.credits > 0);
+    const total =
+        credited.length > 1
+            ? `<div style="display:flex;justify-content:space-between;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid var(--mantine-color-default-border)">` +
+              `<span>Total</span>` +
+              `<b>${escape(formatCredits(credited.reduce((sum, row) => sum + row.credits, 0)))} credits</b></div>`
+            : '';
+    return `<div style="margin-bottom:4px">${escape(title)}</div>${items}${total}`;
 };
