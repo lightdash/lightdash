@@ -158,7 +158,7 @@ export const AiIdentitiesPage: FC = () => {
                 </Callout>
             )}
             {actionError && <Callout variant="danger">{actionError}</Callout>}
-            <AiIdentityJobCallout job={jobQuery.data} />
+            {tab === 'triage' && <AiIdentityJobCallout job={jobQuery.data} />}
             {account && filter && (
                 <Tabs
                     value={tab}
@@ -194,8 +194,14 @@ export const AiIdentitiesPage: FC = () => {
                         <AiIdentityCreationSetup
                             key={account.aiIdentityAccountUuid}
                             account={account}
-                            onJob={startJob}
-                            onProvisioningJob={(uuid) => setParam('job', uuid)}
+                            onProvisioningJob={(uuid) => {
+                                const next = new URLSearchParams(params);
+                                next.set('job', uuid);
+                                next.set('tab', 'triage');
+                                next.delete('review');
+                                setParams(next);
+                            }}
+                            reviewPlan={params.get('review') === '1'}
                         />
                     </Tabs.Panel>
                     <Tabs.Panel value="automation" pt="lg">

@@ -14,6 +14,93 @@ const context = {
 };
 
 describe('renderProvisioningOperation', () => {
+    it('writes only rules for mapped roles and calls the fixed procedure', () => {
+        const sql = renderProvisioningOperation(
+            {
+                kind: 'write_rule',
+                roleName: 'ANALYST_AI',
+                warehouse: 'COMPUTE_WH',
+                schemaRule: {
+                    database: 'ANALYTICS',
+                    excludePatterns: ['PII_*'],
+                },
+            },
+            context,
+        );
+        expect(sql).toContain(
+            'INSERT INTO LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_GRANT_RULES',
+        );
+        expect(sql).toContain("AI_ROLE = ''ANALYST_AI''");
+        expect(sql).toContain("'^PII_.*$'");
+        expect(
+            renderProvisioningOperation({ kind: 'sync_grants' }, context),
+        ).toBe('CALL LIGHTDASH_GOVERNANCE.AI_GRANTS.SYNC_AI_GRANTS();');
+    });
+
+    it('rejects rule writes for unmapped roles and unsafe schema input', () => {
+        expect(() =>
+            renderProvisioningOperation(
+                {
+                    kind: 'write_rule',
+                    roleName: 'OTHER',
+                    warehouse: 'COMPUTE_WH',
+                    schemaRule: {
+                        database: 'ANALYTICS',
+                        excludePatterns: [],
+                    },
+                },
+                context,
+            ),
+        ).toThrow();
+        expect(() =>
+            renderProvisioningOperation(
+                {
+                    kind: 'write_rule',
+                    roleName: 'ANALYST_AI',
+                    warehouse: 'COMPUTE_WH',
+                    schemaRule: {
+                        database: 'ANALYTICS; DROP TABLE X',
+                        excludePatterns: [],
+                    },
+                },
+                context,
+            ),
+        ).toThrow();
+    });
+
+    it('disables only a mapped role in named databases', () => {
+        expect(
+            renderProvisioningOperation(
+                {
+                    kind: 'disable_rule',
+                    roleName: 'ANALYST_AI',
+                    databases: ['ANALYTICS'],
+                },
+                context,
+            ),
+        ).toContain("DATABASE_NAME IN ('ANALYTICS')");
+        expect(() =>
+            renderProvisioningOperation(
+                {
+                    kind: 'disable_rule',
+                    roleName: 'OTHER',
+                    databases: ['ANALYTICS'],
+                },
+                context,
+            ),
+        ).toThrow();
+        expect(() =>
+            renderProvisioningOperation(
+                {
+                    kind: 'disable_rule',
+                    roleName: 'ANALYST_AI',
+                    databases: ['ANALYTICS; DROP ROLE X'],
+                },
+                context,
+            ),
+        ).toThrow();
+    });
+
     it('creates only service-agent AI users with mapped roles', () => {
         expect(
             renderProvisioningOperation(

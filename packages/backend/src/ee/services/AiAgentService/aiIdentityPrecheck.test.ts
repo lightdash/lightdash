@@ -26,6 +26,7 @@ const access: AiAccessForUser = {
     restrictionsOn: true,
     warehouseType: 'snowflake',
     aiIdentityRequired: true,
+    automaticSyncRefusal: false,
     state: AiIdentityState.PENDING,
     aiIdentityName: null,
     lastCheckedAt: null,

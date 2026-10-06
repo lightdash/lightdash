@@ -120,6 +120,10 @@ describe('buildProvisioningPlan', () => {
             'grant_role',
         ]);
         expect(plan.items[0].sql).toContain('TYPE = SERVICE_AGENT');
+        expect(plan.items[0]).toMatchObject({
+            firstName: 'Alice',
+            lastName: 'A',
+        });
     });
 
     it('skips people without a name or mapped role', () => {
@@ -141,6 +145,10 @@ describe('buildProvisioningPlan', () => {
             'no Snowflake login recorded; ask them to sign in to Snowflake or set an AI identity name',
             'no group mapped to an AI role',
         ]);
+        expect(plan.skipped[0]).toMatchObject({
+            firstName: 'Alice',
+            lastName: 'A',
+        });
     });
 
     it('reconciles a role change and a rotated key', () => {

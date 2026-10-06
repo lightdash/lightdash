@@ -1,3 +1,4 @@
+import { type AiIdentityAutomaticSync } from './aiIdentityAutomaticSync';
 import {
     type AiIdentitySchemaRule,
     type AiIdentityUngrantedSchemas,
@@ -102,7 +103,7 @@ export type UpdateAiIdentityRoleMapping = {
     priority: number;
 };
 
-export type AiIdentityProvisioningOperation =
+export type AiIdentityUserProvisioningOperation =
     | {
           kind: 'create_user';
           userName: string;
@@ -116,16 +117,34 @@ export type AiIdentityProvisioningOperation =
     | { kind: 'revoke_role'; userName: string; role: string }
     | { kind: 'drop_user'; userName: string };
 
+export type AiIdentityProvisioningOperation =
+    | AiIdentityUserProvisioningOperation
+    | {
+          kind: 'write_rule';
+          roleName: string;
+          warehouse: string;
+          schemaRule: AiIdentitySchemaRule;
+      }
+    | { kind: 'disable_rule'; roleName: string; databases: string[] }
+    | { kind: 'sync_grants' };
+
 export type AiIdentityProvisioningPlanItem = {
     aiIdentityUuid: string | null;
     email: string | null;
-    operation: AiIdentityProvisioningOperation;
+    firstName?: string;
+    lastName?: string;
+    operation: AiIdentityUserProvisioningOperation;
     sql: string;
 };
 
 export type AiIdentityProvisioningPlan = {
     items: AiIdentityProvisioningPlanItem[];
-    skipped: { email: string; reason: string }[];
+    skipped: {
+        email: string;
+        firstName?: string;
+        lastName?: string;
+        reason: string;
+    }[];
 };
 
 export enum AiIdentityProvisionerFindingReason {
@@ -157,6 +176,16 @@ export type AiIdentityProvisioningSettings = {
     ungrantedSchemas: AiIdentityUngrantedSchemas[];
     worstCaseNotice: string;
     showUsersNotice: string;
+    automaticSync: AiIdentityAutomaticSync;
+    beyondOwnAccessWarnings: AiIdentityBeyondOwnAccessWarning[];
+};
+
+export type AiIdentityBeyondOwnAccessWarning = {
+    roleName: string;
+    userUuid: string;
+    email: string;
+    groupName?: string;
+    schemas: string[];
 };
 
 export type AiIdentityAiRoleExpansion = {
@@ -169,6 +198,10 @@ export type AiIdentityAiRoleExpansion = {
 
 export type UpdateAiIdentityProvisioningSettings = {
     mode: AiIdentityCreationMode;
+};
+
+export type UpdateAiIdentityAutomaticSync = {
+    enabled: boolean;
 };
 
 export type RunAiIdentityProvisioningRequest = {

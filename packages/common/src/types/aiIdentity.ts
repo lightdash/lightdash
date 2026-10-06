@@ -188,6 +188,7 @@ export type AiAccessForUser = {
     restrictionsOn: boolean;
     warehouseType: string | null;
     aiIdentityRequired: boolean;
+    automaticSyncRefusal: boolean;
     state: AiIdentityState | null;
     aiIdentityName: string | null;
     lastCheckedAt: Date | null;

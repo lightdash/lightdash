@@ -2,6 +2,9 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AI_IDENTITY_NOT_READY_CODE,
+    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
+    AI_IDENTITY_SYNC_UNSAFE_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiAgentWithContext,
     AiIdentityNotReadyError,
     AiIdentityState,
@@ -2842,11 +2845,15 @@ export class McpService extends BaseService {
                                           },
                                       );
                                   return access.aiIdentityRequired &&
-                                      access.state !== AiIdentityState.READY
+                                      (access.automaticSyncRefusal ||
+                                          access.state !==
+                                              AiIdentityState.READY)
                                       ? {
                                             ...project,
                                             aiAccess: {
-                                                state: access.state,
+                                                state: access.automaticSyncRefusal
+                                                    ? AiIdentityState.PENDING
+                                                    : access.state,
                                                 action: access.action,
                                             },
                                         }
@@ -4604,6 +4611,21 @@ export class McpService extends BaseService {
         };
     }
 
+    private aiAutomaticSyncErrorResult(
+        message = AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+    ): CallToolResult {
+        return {
+            isError: true,
+            content: [{ type: 'text', text: message }],
+            structuredContent: {
+                error: {
+                    code: AI_IDENTITY_SYNC_UNSAFE_CODE,
+                    message,
+                },
+            },
+        };
+    }
+
     private async checkToolAiAccess(
         toolName: string,
         toolArgs: unknown,
@@ -4631,6 +4653,12 @@ export class McpService extends BaseService {
             account,
             projectUuid,
         });
+        if (access.aiIdentityRequired && access.automaticSyncRefusal)
+            return this.aiAutomaticSyncErrorResult(
+                access.message === AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
+                    ? access.message
+                    : undefined,
+            );
         return access.aiIdentityRequired &&
             access.state !== AiIdentityState.READY
             ? this.aiIdentityErrorResult(

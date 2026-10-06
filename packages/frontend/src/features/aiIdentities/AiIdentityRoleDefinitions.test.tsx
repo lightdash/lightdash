@@ -46,6 +46,17 @@ const settings: AiIdentityProvisioningSettings = {
     ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
+    automaticSync: {
+        enabled: false,
+        pending: false,
+        setupSql: null,
+        status: null,
+        lastRunAt: null,
+        managedScope: [],
+        issues: [],
+        progress: 0,
+    },
+    beyondOwnAccessWarnings: [],
 };
 it('requires a name, warehouse and valid rule before saving a new role', async () => {
     vi.mocked(aiIdentityProvisioningApi.aiRoles).mockImplementation(
@@ -68,7 +79,12 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
     );
     render(
         <MantineProvider env="test">
-            <AiIdentityRoleDefinitions settings={settings} />
+            <AiIdentityRoleDefinitions
+                settings={{
+                    ...settings,
+                    automaticSync: { ...settings.automaticSync, enabled: true },
+                }}
+            />
         </MantineProvider>,
     );
     await userEvent.click(screen.getByRole('button', { name: 'Add AI role' }));
@@ -123,7 +139,7 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
         },
     ]);
     expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Saved. 1 schema matches PII_*.',
+        'Saved. The change applies in 10 minutes or less. 1 schema matches PII_*.',
     );
 });
 

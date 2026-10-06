@@ -1,5 +1,7 @@
 import {
     AI_IDENTITY_NOT_READY_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiIdentityState,
     type AiAccessForUser,
 } from '@lightdash/common';
@@ -11,6 +13,7 @@ const access: AiAccessForUser = {
     restrictionsOn: true,
     warehouseType: 'snowflake',
     aiIdentityRequired: true,
+    automaticSyncRefusal: false,
     state: AiIdentityState.PENDING,
     aiIdentityName: null,
     lastCheckedAt: null,
@@ -36,6 +39,19 @@ describe('AI identity prompt refusal', () => {
         expect(
             getAiIdentityRefusal({ ...access, state: AiIdentityState.READY }),
         ).toBeNull();
+    });
+    it('refuses a ready identity when automatic grants are unsafe', () => {
+        expect(
+            getAiIdentityRefusal({
+                ...access,
+                state: AiIdentityState.READY,
+                automaticSyncRefusal: true,
+            }),
+        ).toEqual({
+            code: AI_IDENTITY_SYNC_UNSAFE_CODE,
+            state: AiIdentityState.PENDING,
+            message: AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+        });
     });
     it('allows projects that do not require an identity', () => {
         expect(

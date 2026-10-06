@@ -3,7 +3,7 @@ import {
     AiIdentityProvisionerFindingReason,
     AiIdentityProvisionerStatus,
     type AiIdentityProvisioningSettings,
-    type AiIdentityProvisioningOperation,
+    type AiIdentityUserProvisioningOperation,
     type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
 
@@ -25,7 +25,7 @@ export const findingLabels: Record<AiIdentityProvisionerFindingReason, string> =
             'Not created by Lightdash',
     };
 export const operationLabels: Record<
-    AiIdentityProvisioningOperation['kind'],
+    AiIdentityUserProvisioningOperation['kind'],
     string
 > = {
     create_user: 'Create AI user',

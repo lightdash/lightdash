@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AiIdentity,
+    AiIdentityAutomaticSyncRefusalError,
     AiIdentityState,
     AiIdentityStatus,
     AthenaAuthenticationType,
@@ -9396,6 +9397,11 @@ describe('Snowflake AI twin query routing', () => {
         getOrCreateAccount: vi.fn(async () => ({
             aiIdentityAccountUuid: 'account-uuid',
         })),
+        getAutomaticSync: vi.fn(async () => ({
+            enabled: false,
+            pending: false,
+        })),
+        getProvisioner: vi.fn(async () => null),
         find: vi.fn(async () => readyIdentity),
         findWithPrivateKey: vi.fn(
             async (): Promise<typeof readyIdentity | null> => readyIdentity,
@@ -9484,6 +9490,29 @@ describe('Snowflake AI twin query routing', () => {
             });
         },
     );
+
+    it('refuses an AI query when automatic sync has no provisioner', async () => {
+        identityModel.getAutomaticSync.mockResolvedValueOnce({
+            enabled: true,
+            pending: false,
+        });
+        await expect(resolve(makeService(), true)).rejects.toBeInstanceOf(
+            AiIdentityAutomaticSyncRefusalError,
+        );
+        expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
+    });
+
+    it('refuses an AI query while a saved rule is pending sync', async () => {
+        identityModel.getProvisioner.mockClear();
+        identityModel.getAutomaticSync.mockResolvedValueOnce({
+            enabled: true,
+            pending: true,
+        });
+        await expect(resolve(makeService(), true)).rejects.toBeInstanceOf(
+            AiIdentityAutomaticSyncRefusalError,
+        );
+        expect(identityModel.getProvisioner).not.toHaveBeenCalled();
+    });
 
     it('creates a missing identity and refuses the query', async () => {
         identityModel.findWithPrivateKey

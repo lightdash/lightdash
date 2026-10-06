@@ -13,6 +13,7 @@ import Callout from '../../components/common/Callout';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import MantineModal from '../../components/common/MantineModal';
 import { AiIdentityUngrantedSchemas } from './AiIdentityUngrantedSchemas';
+import { beyondOwnAccessMessages } from './beyondOwnAccessWarnings';
 import { findingLabels, isProvisioningFallback } from './provisioning';
 import { useProvisioning } from './useProvisioning';
 
@@ -33,10 +34,43 @@ export const AiIdentityProvisioningTriage: FC<{
     return (
         <>
             <AiIdentityUngrantedSchemas entries={settings.ungrantedSchemas} />
+            {settings.beyondOwnAccessWarnings.length > 0 && (
+                <Callout
+                    variant="warning"
+                    title="AI roles exceed personal access"
+                >
+                    {beyondOwnAccessMessages(
+                        settings.beyondOwnAccessWarnings,
+                    ).map((message) => (
+                        <Text key={message} fz="sm">
+                            {message}
+                        </Text>
+                    ))}
+                </Callout>
+            )}
+            {settings.automaticSync.enabled &&
+                settings.automaticSync.issues.length > 0 && (
+                    <Callout variant="warning" title="Grant sync warnings">
+                        {[
+                            ...new Map(
+                                settings.automaticSync.issues.map((issue) => [
+                                    JSON.stringify(issue),
+                                    issue,
+                                ]),
+                            ).entries(),
+                        ].map(([key, issue]) => (
+                            <Text key={key} fz="sm">
+                                {issue.code}: {issue.message}
+                                {issue.roleName ? ` (${issue.roleName})` : ''}
+                                {issue.schema ? ` ${issue.schema}` : ''}
+                            </Text>
+                        ))}
+                    </Callout>
+                )}
             {isProvisioningFallback(settings) && (
                 <Callout variant="warning">
                     {settings.fallbackReason ??
-                        'Automatic creation is unavailable. Your team can create AI identities with the guided setup.'}{' '}
+                        'Automatic creation is paused. Check the setup to resume it.'}{' '}
                     <Anchor component="button" onClick={onSetup}>
                         Open Setup
                     </Anchor>

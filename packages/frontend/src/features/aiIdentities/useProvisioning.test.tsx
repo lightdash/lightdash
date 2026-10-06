@@ -49,6 +49,17 @@ const settings: AiIdentityProvisioningSettings = {
     ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
+    automaticSync: {
+        enabled: false,
+        pending: false,
+        setupSql: null,
+        status: null,
+        lastRunAt: null,
+        managedScope: [],
+        issues: [],
+        progress: 0,
+    },
+    beyondOwnAccessWarnings: [],
 };
 
 beforeEach(() => {

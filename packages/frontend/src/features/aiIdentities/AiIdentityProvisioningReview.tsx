@@ -130,50 +130,69 @@ export const AiIdentityProvisioningReview: FC<{
 
 const ProvisioningPlan: FC<{ plan: AiIdentityProvisioningPlan }> = ({
     plan,
-}) => (
-    <>
-        <Table>
-            <Table.Thead>
-                <Table.Tr>
-                    <Table.Th>Person</Table.Th>
-                    <Table.Th>What</Table.Th>
-                    <Table.Th>SQL</Table.Th>
-                </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-                {plan.items.map((item) => (
-                    <Table.Tr key={`${item.aiIdentityUuid}-${item.sql}`}>
-                        <Table.Td>
-                            {item.email ?? item.operation.userName}
-                        </Table.Td>
-                        <Table.Td>
-                            {operationLabels[item.operation.kind]}
-                        </Table.Td>
-                        <Table.Td>
-                            <Text
-                                fz="sm"
-                                ff="monospace"
-                                style={{
-                                    whiteSpace: 'pre-wrap',
-                                    overflowWrap: 'anywhere',
-                                }}
-                            >
-                                {item.sql}
-                            </Text>
-                        </Table.Td>
+}) => {
+    const personName = (person: {
+        email: string | null;
+        firstName?: string;
+        lastName?: string;
+    }) =>
+        [person.firstName, person.lastName].filter(Boolean).join(' ') ||
+        person.email ||
+        'Unknown person';
+    return (
+        <>
+            <Table>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Person</Table.Th>
+                        <Table.Th>Statements</Table.Th>
                     </Table.Tr>
-                ))}
-            </Table.Tbody>
-        </Table>
-        {plan.items.length === 0 && (
-            <Text fz="sm" c="dimmed">
-                No statements to run.
-            </Text>
-        )}
-        {plan.skipped.map((person) => (
-            <Text key={person.email} fz="sm">
-                {person.email}: Skipped — {person.reason}
-            </Text>
-        ))}
-    </>
-);
+                </Table.Thead>
+                <Table.Tbody>
+                    {plan.items.map((item) => (
+                        <Table.Tr key={`${item.aiIdentityUuid}-${item.sql}`}>
+                            <Table.Td>{personName(item)}</Table.Td>
+                            <Table.Td>
+                                <Text fz="sm">
+                                    {operationLabels[item.operation.kind]}
+                                </Text>
+                                <Text
+                                    fz="sm"
+                                    ff="monospace"
+                                    style={{
+                                        whiteSpace: 'pre-wrap',
+                                        overflowWrap: 'anywhere',
+                                    }}
+                                >
+                                    {item.sql}
+                                </Text>
+                            </Table.Td>
+                        </Table.Tr>
+                    ))}
+                    {plan.skipped.map((person) => {
+                        const name = personName(person);
+                        return (
+                            <Table.Tr key={person.email}>
+                                <Table.Td>{name}</Table.Td>
+                                <Table.Td>
+                                    <Text fz="sm">
+                                        {person.reason.startsWith(
+                                            'no Snowflake login recorded',
+                                        )
+                                            ? `Not in this run. ${name} has not signed in to Snowflake. Lightdash creates the AI identity after ${person.firstName || name} signs in.`
+                                            : `Not in this run. ${name}: ${person.reason}.`}
+                                    </Text>
+                                </Table.Td>
+                            </Table.Tr>
+                        );
+                    })}
+                </Table.Tbody>
+            </Table>
+            {plan.items.length === 0 && plan.skipped.length === 0 && (
+                <Text fz="sm" c="dimmed">
+                    No statements to run.
+                </Text>
+            )}
+        </>
+    );
+};

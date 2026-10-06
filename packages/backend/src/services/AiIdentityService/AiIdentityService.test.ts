@@ -7,6 +7,7 @@ import {
     AiIdentityProvisionerStatus,
     AiIdentitySort,
     AiIdentityState,
+    AiIdentitySyncStatus,
     FeatureFlags,
     ForbiddenError,
     ParameterError,
@@ -117,6 +118,15 @@ const model = {
     getCachedCatalogSchemas: vi
         .fn()
         .mockResolvedValue({ schemas: ['ANALYTICS.PUBLIC'], loaded: true }),
+    getCachedCatalogSchemasForPeople: vi.fn().mockResolvedValue(new Map()),
+    getAutomaticSync: vi.fn().mockResolvedValue({
+        enabled: false,
+        pending: false,
+        status: null,
+        lastRunAt: null,
+    }),
+    setAutomaticSyncPending: vi.fn(),
+    recordAutomaticSync: vi.fn(),
     getAiRoles: vi.fn().mockResolvedValue([]),
     replaceAiRoles: vi.fn(),
     getProvisioningIdentities: vi.fn().mockResolvedValue([]),
@@ -246,6 +256,12 @@ afterEach(() => {
         loaded: true,
     });
     model.getAiRoles.mockResolvedValue([]);
+    model.getAutomaticSync.mockResolvedValue({
+        enabled: false,
+        pending: false,
+        status: null,
+        lastRunAt: null,
+    });
     model.getProvisioningIdentities.mockResolvedValue([]);
     model.listProvisioningDrops.mockResolvedValue([]);
     model.find.mockResolvedValue(identity);
@@ -522,10 +538,15 @@ describe('AiIdentityService', () => {
                 aiIdentityAiRoleUuid: 'role',
                 roleName: 'ANALYST_AI',
                 warehouse: 'COMPUTE_WH',
-                schemaRule: {
-                    database: 'ANALYTICS',
-                    excludePatterns: [],
-                },
+                schemaRule: { database: 'ANALYTICS', excludePatterns: [] },
+            },
+        ]);
+        model.getAiRoles.mockResolvedValueOnce([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'COMPUTE_WH',
+                schemaRule: { database: 'ANALYTICS', excludePatterns: [] },
             },
         ]);
         model.getProvisioner.mockResolvedValue({
@@ -1212,6 +1233,26 @@ describe('AiIdentityService', () => {
             rawSqlAllowed: true,
         });
     });
+
+    it('refuses person access when automatic grant sync cannot be read', async () => {
+        model.getAutomaticSync.mockResolvedValueOnce({
+            enabled: true,
+            pending: false,
+            status: null,
+            lastRunAt: null,
+        });
+        model.getProvisioner.mockResolvedValueOnce(null);
+        await expect(
+            service.getAiAccessForUser({
+                account: projectViewer,
+                projectUuid: 'project',
+            }),
+        ).resolves.toMatchObject({
+            automaticSyncRefusal: true,
+            action: 'ask_admin',
+            rawSqlAllowed: false,
+        });
+    });
 });
 
 describe('personal AI identities', () => {
@@ -1823,7 +1864,9 @@ describe('background setup checks', () => {
         ).toEqual([
             { key: 'sign_in', status: 'passed' },
             { key: 'create_identities', status: 'passed' },
+            { key: 'sync_installed', status: 'pending' },
             { key: 'exclusions', status: 'pending' },
+            { key: 'first_sync', status: 'pending' },
         ]);
         expect(
             ProvisionerConnection.prototype.grantsToRole,
@@ -1833,6 +1876,75 @@ describe('background setup checks', () => {
             model.addEvent.mock.calls.map(([event]) => event.action),
         ).toEqual(['setup_waiting', 'setup_check_result']);
     });
+    it('shows the grant sync as installed and the first run as complete', async () => {
+        model.getAutomaticSync.mockResolvedValue({
+            enabled: true,
+            pending: false,
+            status: AiIdentitySyncStatus.OK,
+            lastRunAt: new Date(),
+            progress: 2,
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                roleName: 'AI_ROLE',
+                schemaRule: { database: 'ANALYTICS', excludePatterns: [] },
+            },
+        ]);
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        await service.verifyProvisioner(admin, 'account');
+        expect(provisioner.setupCheck?.checks.map(({ key }) => key)).toEqual([
+            'sign_in',
+            'create_identities',
+            'sync_installed',
+            'exclusions',
+            'first_sync',
+        ]);
+        expect(provisioner.setupCheck?.checks[2]).toMatchObject({
+            label: 'The grant sync is installed and scheduled',
+            status: 'passed',
+        });
+        expect(provisioner.setupCheck?.checks[4]).toMatchObject({
+            label: 'The first grant sync is complete: AI_ROLE can read 1 schema',
+            status: 'passed',
+        });
+    });
+
+    it('shows first grant sync progress while it runs', async () => {
+        model.getAutomaticSync.mockResolvedValue({
+            enabled: true,
+            pending: true,
+            status: AiIdentitySyncStatus.RUNNING,
+            lastRunAt: null,
+            progress: 1,
+        });
+        model.getCachedCatalogSchemas.mockResolvedValue({
+            schemas: ['ANALYTICS.PUBLIC', 'ANALYTICS.OTHER'],
+            loaded: true,
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                roleName: 'AI_ROLE',
+                schemaRule: { database: 'ANALYTICS', excludePatterns: [] },
+            },
+        ]);
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockResolvedValue({
+            user: 'PROVISIONER',
+            role: 'PROVISIONER_ROLE',
+        });
+        await service.verifyProvisioner(admin, 'account');
+        expect(provisioner.setupCheck?.checks[4]).toMatchObject({
+            status: 'pending',
+            detail: '1 of 2 schemas',
+        });
+    });
+
     it('reports missing privileges after the setup user signs in', async () => {
         await service.startWaitingForSetup(admin, 'account');
         vi.mocked(

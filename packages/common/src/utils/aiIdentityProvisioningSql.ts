@@ -5,16 +5,19 @@ import {
     type AiIdentityProvisioningOperation,
 } from '../types/aiIdentityProvisioning';
 import { ParameterError } from '../types/errors';
+import {
+    AI_IDENTITY_GOVERNANCE_DATABASE,
+    AI_IDENTITY_GOVERNANCE_SCHEMA,
+    globToAiIdentityRegex,
+} from './aiIdentityAutomaticSyncSql';
+import { isValidSchemaPattern } from './aiIdentitySchemaRule';
+import {
+    aiIdentitySnowflakeIdentifier,
+    aiIdentitySnowflakeString,
+} from './aiIdentitySnowflakeSql';
 import assertUnreachable from './assertUnreachable';
 
-export const aiIdentitySnowflakeIdentifier = (value: string): string => {
-    if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)) {
-        throw new ParameterError(
-            'Snowflake names must use letters, digits, _ and $.',
-        );
-    }
-    return value;
-};
+export { aiIdentitySnowflakeIdentifier } from './aiIdentitySnowflakeSql';
 const identifier = aiIdentitySnowflakeIdentifier;
 
 const key = (value: string): string => {
@@ -24,8 +27,7 @@ const key = (value: string): string => {
     return value;
 };
 
-const string = (value: string): string =>
-    `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
+const string = aiIdentitySnowflakeString;
 
 export const buildAiIdentityRoleSchemaGrantSql = (
     roleName: string,
@@ -63,8 +65,7 @@ export const renderProvisioningOperation = (
         lightdashCreatedUsers: ReadonlySet<string>;
     },
 ): string => {
-    const userName = identifier(op.userName);
-    const requireCreated = (): void => {
+    const requireCreated = (userName: string): void => {
         if (!context.lightdashCreatedUsers.has(userName)) {
             throw new ParameterError('The user was not created by Lightdash.');
         }
@@ -77,28 +78,71 @@ export const renderProvisioningOperation = (
         return checked;
     };
     switch (op.kind) {
-        case 'create_user':
+        case 'create_user': {
+            const userName = identifier(op.userName);
             if (!userName.toUpperCase().endsWith('_AI')) {
                 throw new ParameterError('AI user names must end in _AI.');
             }
             return `CREATE USER ${userName} TYPE = SERVICE_AGENT RSA_PUBLIC_KEY = ${string(key(op.publicKey))} DEFAULT_ROLE = ${mappedRole(op.defaultRole)} COMMENT = ${string(op.comment)};`;
-        case 'set_public_key':
-            requireCreated();
+        }
+        case 'set_public_key': {
+            const userName = identifier(op.userName);
+            requireCreated(userName);
             return `ALTER USER ${userName} SET RSA_PUBLIC_KEY = ${string(key(op.publicKey))};`;
-        case 'set_default_role':
-            requireCreated();
+        }
+        case 'set_default_role': {
+            const userName = identifier(op.userName);
+            requireCreated(userName);
             return `ALTER USER ${userName} SET DEFAULT_ROLE = ${mappedRole(op.role)};`;
-        case 'grant_role':
-            requireCreated();
+        }
+        case 'grant_role': {
+            const userName = identifier(op.userName);
+            requireCreated(userName);
             return `GRANT ROLE ${mappedRole(op.role)} TO USER ${userName};`;
-        case 'revoke_role':
-            requireCreated();
+        }
+        case 'revoke_role': {
+            const userName = identifier(op.userName);
+            requireCreated(userName);
             return `REVOKE ROLE ${mappedRole(op.role)} FROM USER ${userName};`;
-        case 'drop_user':
-            requireCreated();
+        }
+        case 'drop_user': {
+            const userName = identifier(op.userName);
+            requireCreated(userName);
             return `DROP USER ${userName};`;
+        }
+        case 'write_rule': {
+            const role = mappedRole(op.roleName);
+            identifier(op.warehouse);
+            const database = identifier(op.schemaRule.database).toUpperCase();
+            if (
+                op.schemaRule.excludePatterns.some(
+                    (pattern) => !isValidSchemaPattern(pattern),
+                )
+            )
+                throw new ParameterError('Invalid schema pattern.');
+            const table = `${AI_IDENTITY_GOVERNANCE_DATABASE}.${AI_IDENTITY_GOVERNANCE_SCHEMA}.AI_GRANT_RULES`;
+            const rows = (
+                op.schemaRule.excludePatterns.length > 0
+                    ? op.schemaRule.excludePatterns.map(globToAiIdentityRegex)
+                    : ['^$']
+            ).map(
+                (pattern) =>
+                    `(${string(database)}, ${string(role)}, 'EXCLUDE', ${string(pattern)}, 'SCHEMA')`,
+            );
+            return `EXECUTE IMMEDIATE ${string(`BEGIN DELETE FROM ${table} WHERE AI_ROLE = ${string(role)}; INSERT INTO ${table} (DATABASE_NAME, AI_ROLE, MODE, PATTERN_REGEX, FUTURE_MODE) VALUES ${rows.join(', ')}; END;`)};`;
+        }
+        case 'disable_rule': {
+            const role = mappedRole(op.roleName);
+            if (op.databases.length === 0)
+                throw new ParameterError('A managed rule needs a database.');
+            const databases = [...new Set(op.databases.map(identifier))];
+            const table = `${AI_IDENTITY_GOVERNANCE_DATABASE}.${AI_IDENTITY_GOVERNANCE_SCHEMA}.AI_GRANT_RULES`;
+            return `DELETE FROM ${table} WHERE AI_ROLE = ${string(role)} AND DATABASE_NAME IN (${databases.map(string).join(', ')});`;
+        }
+        case 'sync_grants':
+            return `CALL ${AI_IDENTITY_GOVERNANCE_DATABASE}.${AI_IDENTITY_GOVERNANCE_SCHEMA}.SYNC_AI_GRANTS();`;
         default:
-            return assertUnreachable(op, 'Unsupported provisioning operation');
+            return assertUnreachable(op, 'Unknown provisioning operation');
     }
 };
 

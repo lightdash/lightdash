@@ -53,7 +53,7 @@ export const AiIdentityRoleMappings: FC<{
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>4. Map groups to AI roles</Title>
+                <Title order={5}>4. Connect groups to AI roles</Title>
                 {hint && (
                     <Text fz="sm" c="dimmed">
                         {hint}

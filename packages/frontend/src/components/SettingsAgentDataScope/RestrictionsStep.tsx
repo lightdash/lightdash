@@ -1,5 +1,5 @@
 import { type SnowflakeAiBoundaryGuideConfig } from '@lightdash/common';
-import { Anchor, Stack, Switch, Text } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import InlineErrorState from '../common/InlineErrorState';
@@ -56,18 +56,30 @@ const RestrictionsContent = ({
                     else update(enabled);
                 }}
             />
-            <Text size="xs" c="dimmed">
-                {consequence}{' '}
-                {config.aiIdentitiesEnabled && (
-                    <Anchor
+            {restrictions?.enabled && (
+                <Group justify="flex-end">
+                    <Button
                         component={Link}
-                        to={`/generalSettings/aiIdentities?project=${projectUuid}&account=${config.aiIdentityAccountUuid ?? ''}`}
-                        size="xs"
+                        to={`/generalSettings/aiIdentities?project=${projectUuid}&account=${config.aiIdentityAccountUuid ?? ''}&tab=setup&review=1`}
                     >
-                        Review AI identities
-                    </Anchor>
-                )}
-            </Text>
+                        Review the plan
+                    </Button>
+                </Group>
+            )}
+            {!restrictions?.enabled && (
+                <Text size="xs" c="dimmed">
+                    {consequence}{' '}
+                    {config.aiIdentitiesEnabled && (
+                        <Anchor
+                            component={Link}
+                            to={`/generalSettings/aiIdentities?project=${projectUuid}&account=${config.aiIdentityAccountUuid ?? ''}&tab=setup&review=1`}
+                            size="xs"
+                        >
+                            Review AI identities
+                        </Anchor>
+                    )}
+                </Text>
+            )}
             {updateRestrictions.isError && (
                 <InlineErrorState message="Could not update AI access restrictions." />
             )}

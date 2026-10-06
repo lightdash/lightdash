@@ -15,6 +15,7 @@ import { useForm } from '@mantine/form';
 import { IconFilter } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, type FC } from 'react';
+import { Link } from 'react-router';
 import { useTables } from '../../features/sqlRunner/hooks/useTables';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -313,6 +314,16 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                             }
                         }}
                     />
+                    {aiAccessRestrictions?.enabled && (
+                        <Group mt="sm" justify="flex-end">
+                            <Button
+                                component={Link}
+                                to="/generalSettings/aiIdentities?tab=setup&review=1"
+                            >
+                                Review the plan
+                            </Button>
+                        </Group>
+                    )}
                     {rawSqlUnavailable && aiAccessRestrictions?.enabled && (
                         <Text size="xs" c="dimmed" mt="sm">
                             Raw SQL from AI is off on this connection.

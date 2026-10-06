@@ -14,6 +14,7 @@ const access: AiAccessForUser = {
     restrictionsOn: true,
     warehouseType: 'snowflake',
     aiIdentityRequired: true,
+    automaticSyncRefusal: false,
     state: AiIdentityState.PENDING,
     aiIdentityName: null,
     lastCheckedAt: null,
@@ -53,4 +54,11 @@ it('allows ready identities and unrestricted projects', () => {
     expect(isAiIdentityBlocked({ ...access, aiIdentityRequired: false })).toBe(
         false,
     );
+    expect(
+        isAiIdentityBlocked({
+            ...access,
+            state: AiIdentityState.READY,
+            automaticSyncRefusal: true,
+        }),
+    ).toBe(true);
 });

@@ -16,11 +16,13 @@ import {
     AiIdentityState,
     AiIdentityStateCounts,
     AiIdentityStatus,
+    AiIdentitySyncStatus,
     assertUnreachable,
     DEFAULT_AI_TWIN_NAME_TEMPLATE,
     getAiIdentityFailureGroupCopy,
     resolveAiTwinName,
     type AiIdentityAiRoleDefinition,
+    type AiIdentityAutomaticSync,
     type AiIdentityProvisionerFinding,
     type AiIdentitySetupCheck,
     type AiIdentityUngrantedSchemas,
@@ -129,6 +131,89 @@ export class AiIdentityModel {
     ) {}
     private get database(): Knex {
         return this.args.database;
+    }
+
+    async getAutomaticSync(
+        aiIdentityAccountUuid: string,
+    ): Promise<Omit<AiIdentityAutomaticSync, 'setupSql'>> {
+        const row: {
+            enabled: boolean;
+            pending: boolean;
+            status: AiIdentitySyncStatus | null;
+            last_run_at: Date | null;
+            managed_scope: AiIdentityAutomaticSync['managedScope'];
+            issues: AiIdentityAutomaticSync['issues'];
+            progress: number;
+        } | null =
+            (await this.database('ai_identity_automatic_sync')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .first()) ?? null;
+        return {
+            enabled: row?.enabled ?? false,
+            pending: row?.pending ?? false,
+            status: row?.status ?? null,
+            lastRunAt: row?.last_run_at ?? null,
+            managedScope: row?.managed_scope ?? [],
+            issues: row?.issues ?? [],
+            progress: row?.progress ?? 0,
+        };
+    }
+
+    async setAutomaticSync(
+        aiIdentityAccountUuid: string,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.database('ai_identity_automatic_sync')
+            .insert({
+                ai_identity_account_uuid: aiIdentityAccountUuid,
+                enabled,
+                pending: enabled,
+            })
+            .onConflict('ai_identity_account_uuid')
+            .merge({
+                enabled,
+                pending: enabled,
+                updated_at: new Date(),
+            });
+    }
+
+    async setAutomaticSyncPending(
+        aiIdentityAccountUuid: string,
+        pending: boolean,
+    ): Promise<void> {
+        await this.database('ai_identity_automatic_sync')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .update({ pending, updated_at: new Date() });
+    }
+
+    async recordAutomaticSync(
+        aiIdentityAccountUuid: string,
+        run: {
+            status: AiIdentitySyncStatus;
+            lastRunAt: Date;
+            managedScope: AiIdentityAutomaticSync['managedScope'];
+            issues: AiIdentityAutomaticSync['issues'];
+            progress: number;
+        },
+    ): Promise<void> {
+        await this.database('ai_identity_automatic_sync')
+            .insert({
+                ai_identity_account_uuid: aiIdentityAccountUuid,
+                status: run.status,
+                last_run_at: run.lastRunAt,
+                managed_scope: JSON.stringify(run.managedScope),
+                issues: JSON.stringify(run.issues),
+                progress: run.progress,
+            })
+            .onConflict('ai_identity_account_uuid')
+            .merge({
+                status: run.status,
+                last_run_at: run.lastRunAt,
+                managed_scope: JSON.stringify(run.managedScope),
+                issues: JSON.stringify(run.issues),
+                progress: run.progress,
+                updated_at: new Date(),
+            });
     }
 
     private async toAccount(
@@ -913,6 +998,100 @@ export class AiIdentityModel {
                 .map((row) => `${row.database}.${row.schema}`),
             loaded: rows.length > 0,
         };
+    }
+
+    async getCachedCatalogSchemasForPeople(
+        projectUuid: string,
+        people: { userUuid: string; snowflakeLogin: string }[],
+    ): Promise<Map<string, string[]>> {
+        if (people.length === 0) return new Map();
+        const credentials: {
+            user_warehouse_credentials_uuid: string;
+            user_uuid: string;
+            encrypted_credentials: Buffer;
+        }[] = await this.database('user_warehouse_credentials')
+            .whereIn(
+                'user_uuid',
+                people.map((person) => person.userUuid),
+            )
+            .where('warehouse_type', 'snowflake')
+            .where((query) =>
+                query
+                    .whereNull('project_uuid')
+                    .orWhere('project_uuid', projectUuid),
+            )
+            .select(
+                'user_warehouse_credentials_uuid',
+                'user_uuid',
+                'encrypted_credentials',
+            );
+        const loginByUser = new Map(
+            people.map((person) => [
+                person.userUuid,
+                person.snowflakeLogin.toUpperCase(),
+            ]),
+        );
+        const matched = credentials.filter((credential) => {
+            try {
+                const parsed = z
+                    .object({ user: z.string() })
+                    .parse(
+                        JSON.parse(
+                            this.args.encryptionUtil.decrypt(
+                                credential.encrypted_credentials,
+                            ),
+                        ),
+                    );
+                return (
+                    parsed.user.toUpperCase() ===
+                    loginByUser.get(credential.user_uuid)
+                );
+            } catch {
+                return false;
+            }
+        });
+        if (matched.length === 0) return new Map();
+        const userByCredential = new Map(
+            matched.map((credential) => [
+                credential.user_warehouse_credentials_uuid,
+                credential.user_uuid,
+            ]),
+        );
+        const rows: {
+            user_warehouse_credentials_uuid: string;
+            database: string;
+            schema: string;
+        }[] = await this.database('warehouse_credentials_available_tables')
+            .whereIn('user_warehouse_credentials_uuid', [
+                ...userByCredential.keys(),
+            ])
+            .distinct('user_warehouse_credentials_uuid', 'database', 'schema');
+        const schemas = new Map<string, Set<string>>(
+            matched.map((credential) => [
+                credential.user_uuid,
+                new Set<string>(),
+            ]),
+        );
+        rows.forEach((row) => {
+            if (
+                !SAFE_SNOWFLAKE_NAME.test(row.database) ||
+                !SAFE_SNOWFLAKE_NAME.test(row.schema)
+            )
+                return;
+            const userUuid = userByCredential.get(
+                row.user_warehouse_credentials_uuid,
+            );
+            if (!userUuid) return;
+            const userSchemas = schemas.get(userUuid) ?? new Set<string>();
+            userSchemas.add(`${row.database}.${row.schema}`.toUpperCase());
+            schemas.set(userUuid, userSchemas);
+        });
+        return new Map(
+            [...schemas].map(([userUuid, values]) => [
+                userUuid,
+                [...values].sort(),
+            ]),
+        );
     }
 
     async getAiRoles(

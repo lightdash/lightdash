@@ -9,7 +9,6 @@ import {
     Button,
     Checkbox,
     Group,
-    Menu,
     MultiSelect,
     Select,
     Text,
@@ -157,29 +156,6 @@ export const AiIdentityTriageToolbar: FC<Props> = ({
                     >
                         Re-test selected
                     </Button>
-                    <Menu>
-                        <Menu.Target>
-                            <Button size="xs" variant="default">
-                                Export selected
-                            </Button>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            {(['json', 'sql', 'csv'] as const).map((format) => (
-                                <Menu.Item
-                                    key={format}
-                                    onClick={() =>
-                                        void onJob(
-                                            'export',
-                                            effectiveFilter,
-                                            format,
-                                        )
-                                    }
-                                >
-                                    {format.toUpperCase()}
-                                </Menu.Item>
-                            ))}
-                        </Menu.Dropdown>
-                    </Menu>
                 </Group>
             )}
         </Stack>

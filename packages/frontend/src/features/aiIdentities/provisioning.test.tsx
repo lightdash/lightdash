@@ -31,9 +31,7 @@ vi.mock('./api', () => ({
         run: vi.fn(),
     },
 }));
-vi.mock('./AiIdentitySetup', () => ({
-    AiIdentitySetup: () => <div>Guided export</div>,
-}));
+
 vi.mock('./AiIdentityAutomaticSetup', () => ({
     AiIdentityAutomaticSetup: () => <div>Automatic setup</div>,
 }));
@@ -75,6 +73,17 @@ const settings: AiIdentityProvisioningSettings = {
     ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
+    automaticSync: {
+        enabled: false,
+        pending: false,
+        setupSql: null,
+        status: null,
+        lastRunAt: null,
+        managedScope: [],
+        issues: [],
+        progress: 0,
+    },
+    beyondOwnAccessWarnings: [],
 };
 const renderWithClient = (component: React.ReactNode) =>
     render(
@@ -117,7 +126,12 @@ beforeEach(() => {
             },
         ],
         skipped: [
-            { email: 'skipped@example.com', reason: 'No matching group' },
+            {
+                email: 'jane@example.com',
+                firstName: 'Jane',
+                lastName: 'Smith',
+                reason: 'no Snowflake login recorded; ask them to sign in to Snowflake or set an AI identity name',
+            },
         ],
     });
 });
@@ -197,19 +211,32 @@ it('shows fallback and navigates to setup', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Setup' }));
     expect(onSetup).toHaveBeenCalledOnce();
 });
-it('shows all plan statements and skipped people, and waits for explicit approval', async () => {
+it('shows people and statements without row status, then waits for approval', async () => {
+    const onJob = vi.fn();
     renderWithClient(
         <AiIdentityProvisioningReview
             settings={settings}
             hint={null}
             mappingsDirty={false}
-            onJob={vi.fn()}
+            onJob={onJob}
         />,
     );
     expect(await screen.findByText('DROP USER PERSON_AI;')).toBeInTheDocument();
-    expect(screen.getByText(/skipped@example.com: Skipped/)).toHaveTextContent(
-        'No matching group',
-    );
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2);
+    expect(
+        screen.getByRole('columnheader', { name: 'Statements' }),
+    ).toBeInTheDocument();
+    expect(
+        screen.queryByRole('columnheader', { name: 'Status' }),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.getByText(
+            'Not in this run. Jane Smith has not signed in to Snowflake. Lightdash creates the AI identity after Jane signs in.',
+        ),
+    ).toBeInTheDocument();
+    expect(
+        screen.queryByText(/Waiting|Done|Skipped|Running in the background/),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Approve and run' }));
     expect(await screen.findByRole('dialog')).toHaveTextContent(
         'Run 1 statements in Snowflake',
@@ -223,6 +250,7 @@ it('shows all plan statements and skipped people, and waits for explicit approva
             approveStatements: true,
         }),
     );
+    await waitFor(() => expect(onJob).toHaveBeenCalledWith('job'));
 });
 it('runs directly after approval has been recorded', async () => {
     renderWithClient(
@@ -260,13 +288,8 @@ it('blocks runs while mappings are unsaved', () => {
     ).toBeDisabled();
     expect(aiIdentityProvisioningApi.plan).not.toHaveBeenCalled();
 });
-it('opens automatic setup without saving the mode before the provisioner is verified', async () => {
-    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
-        ...settings,
-        mode: AiIdentityCreationMode.GUIDED,
-        effectiveMode: AiIdentityCreationMode.GUIDED,
-        provisioner: null,
-    });
+it('opens automatic setup without a creation mode choice', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue(settings);
     renderWithClient(
         <AiIdentityCreationSetup
             account={
@@ -274,61 +297,13 @@ it('opens automatic setup without saving the mode before the provisioner is veri
                     typeof AiIdentityCreationSetup
                 >[0]['account']
             }
-            onJob={vi.fn()}
             onProvisioningJob={vi.fn()}
         />,
-    );
-    await waitFor(() =>
-        expect(
-            screen.getByRole('radio', { name: 'Lightdash creates them' }),
-        ).toBeEnabled(),
-    );
-    fireEvent.click(
-        screen.getByRole('radio', { name: 'Lightdash creates them' }),
     );
     expect(await screen.findByText('Automatic setup')).toBeInTheDocument();
-    expect(screen.queryByText('Guided export')).not.toBeInTheDocument();
-    expect(aiIdentityProvisioningApi.update).not.toHaveBeenCalled();
-});
-
-it('shows a rejected mode change inline', async () => {
-    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
-        ...settings,
-        mode: AiIdentityCreationMode.GUIDED,
-        effectiveMode: AiIdentityCreationMode.GUIDED,
-        provisioner: {
-            ...settings.provisioner!,
-            status: AiIdentityProvisionerStatus.READY,
-        },
-    });
-    vi.mocked(aiIdentityProvisioningApi.update).mockRejectedValue({
-        error: { message: 'Check the provisioner first.' },
-    });
-    renderWithClient(
-        <AiIdentityCreationSetup
-            account={
-                { aiIdentityAccountUuid: 'account' } as Parameters<
-                    typeof AiIdentityCreationSetup
-                >[0]['account']
-            }
-            onJob={vi.fn()}
-            onProvisioningJob={vi.fn()}
-        />,
-    );
-    await waitFor(() =>
-        expect(
-            screen.getByRole('radio', { name: 'Lightdash creates them' }),
-        ).toBeEnabled(),
-    );
-    fireEvent.click(
-        screen.getByRole('radio', { name: 'Lightdash creates them' }),
-    );
     expect(
-        await screen.findByText('Check the provisioner first.'),
-    ).toBeInTheDocument();
-    expect(aiIdentityProvisioningApi.update).toHaveBeenCalledWith('account', {
-        mode: AiIdentityCreationMode.AUTOMATIC,
-    });
+        screen.queryByText('Your team creates them'),
+    ).not.toBeInTheDocument();
 });
 
 it('shows each owned-user finding and its fix SQL', async () => {
@@ -455,11 +430,54 @@ it('shows the background setup result on the next visit before automatic creatio
                     typeof AiIdentityCreationSetup
                 >[0]['account']
             }
-            onJob={vi.fn()}
             onProvisioningJob={vi.fn()}
         />,
     );
     expect(await screen.findByText('Automatic setup')).toBeInTheDocument();
     expect(screen.queryByText('Guided export')).not.toBeInTheDocument();
     expect(aiIdentityProvisioningApi.update).not.toHaveBeenCalled();
+});
+
+it('shows beyond-own-access and grant warnings in triage', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
+        ...settings,
+        automaticSync: {
+            ...settings.automaticSync,
+            enabled: true,
+            issues: [
+                {
+                    code: 'view_dependency',
+                    message:
+                        'Allowed view DB.PUBLIC.SUMMARY references an excluded schema.',
+                    roleName: 'AI_ROLE',
+                    database: 'DB',
+                    schema: 'PUBLIC',
+                },
+            ],
+        },
+        beyondOwnAccessWarnings: [
+            {
+                roleName: 'AI_ROLE',
+                userUuid: 'person',
+                email: 'person@example.com',
+                groupName: 'Finance',
+                schemas: ['DB.PUBLIC'],
+            },
+        ],
+    });
+    renderWithClient(
+        <AiIdentityProvisioningTriage
+            accountUuid="account"
+            onSetup={vi.fn()}
+        />,
+    );
+    expect(
+        await screen.findByText('AI roles exceed personal access'),
+    ).toBeInTheDocument();
+    expect(
+        screen.getByText(
+            /1 person in Finance cannot read DB.PUBLIC with their own Snowflake login/,
+        ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/view_dependency:/)).toBeInTheDocument();
 });

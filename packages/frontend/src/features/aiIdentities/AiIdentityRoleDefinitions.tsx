@@ -9,6 +9,7 @@ import { isValidSchemaSelection } from '../../components/common/SchemaRuleInput/
 import { useTables } from '../sqlRunner/hooks/useTables';
 import { AiIdentityRoleEditor } from './AiIdentityRoleEditor';
 import { aiIdentityProvisioningApi } from './api';
+import { beyondOwnAccessMessages } from './beyondOwnAccessWarnings';
 import { useProvisioningChange } from './useProvisioning';
 
 type RoleRow = Pick<
@@ -19,8 +20,8 @@ type RoleRow = Pick<
 export const AiIdentityRoleDefinitions: FC<{
     settings: AiIdentityProvisioningSettings;
 }> = ({ settings }) => {
-    const [savedMessage, setSavedMessage] = useState<string | null>(null);
     const [draft, setDraft] = useState<RoleRow[] | null>(null);
+    const [savedMessage, setSavedMessage] = useState<string | null>(null);
     const rows =
         draft ??
         settings.aiRoles.map(
@@ -47,7 +48,7 @@ export const AiIdentityRoleDefinitions: FC<{
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>1. Define AI roles</Title>
+                <Title order={5}>1. AI roles</Title>
                 <Text fz="sm">
                     Set a database for each AI role. Exclude schemas that
                     contain personal data.
@@ -79,6 +80,17 @@ export const AiIdentityRoleDefinitions: FC<{
                                     update(index, { ...row, ...value });
                                 }}
                             />
+                            {beyondOwnAccessMessages(
+                                settings.beyondOwnAccessWarnings.filter(
+                                    (warning) =>
+                                        warning.roleName.toUpperCase() ===
+                                        row.roleName.toUpperCase(),
+                                ),
+                            ).map((message) => (
+                                <Callout key={message} variant="warning">
+                                    {message}
+                                </Callout>
+                            ))}
                             <Group justify="flex-end">
                                 <Button
                                     variant="subtle"
@@ -187,18 +199,19 @@ export const AiIdentityRoleDefinitions: FC<{
                                                     );
                                                 },
                                             );
+                                        const counts = matches.map(
+                                            ({ pattern, count }) =>
+                                                `${count} ${count === 1 ? 'schema matches' : 'schemas match'} ${pattern}.`,
+                                        );
+                                        const timing = settings.automaticSync
+                                            .enabled
+                                            ? 'The change applies in 10 minutes or less.'
+                                            : null;
                                         setSavedMessage(
-                                            matches.length > 0
-                                                ? matches
-                                                      .map(
-                                                          ({
-                                                              pattern,
-                                                              count,
-                                                          }) =>
-                                                              `${count} ${count === 1 ? 'schema matches' : 'schemas match'} ${pattern}.`,
-                                                      )
-                                                      .join(' ')
-                                                : 'AI roles updated.',
+                                            [timing, ...counts]
+                                                .filter(Boolean)
+                                                .join(' ') ||
+                                                'AI roles updated.',
                                         );
                                         setDraft(null);
                                     },

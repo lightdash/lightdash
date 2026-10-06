@@ -1,8 +1,15 @@
-import { AI_IDENTITY_NOT_READY_CODE, AiIdentityState } from '@lightdash/common';
+import {
+    AI_IDENTITY_NOT_READY_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_CODE,
+    AiIdentityState,
+} from '@lightdash/common';
 import { z } from 'zod';
 
 const refusalSchema = z.object({
-    code: z.literal(AI_IDENTITY_NOT_READY_CODE),
+    code: z.union([
+        z.literal(AI_IDENTITY_NOT_READY_CODE),
+        z.literal(AI_IDENTITY_SYNC_UNSAFE_CODE),
+    ]),
     state: z.enum([
         AiIdentityState.NEEDS_SIGN_IN,
         AiIdentityState.PENDING,

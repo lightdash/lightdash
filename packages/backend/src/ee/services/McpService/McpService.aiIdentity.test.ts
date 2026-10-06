@@ -1,4 +1,6 @@
 import {
+    AI_IDENTITY_SYNC_UNSAFE_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiIdentityNotReadyError,
     AiIdentityState,
     FeatureFlags,
@@ -63,6 +65,7 @@ const access: AiAccessForUser = {
     restrictionsOn: true,
     warehouseType: 'snowflake',
     aiIdentityRequired: true,
+    automaticSyncRefusal: false,
     state: AiIdentityState.PENDING,
     aiIdentityName: 'PERSON_AI',
     lastCheckedAt: null,
@@ -235,6 +238,27 @@ it.each([
         extra,
     );
     expect(handler).toHaveBeenCalledOnce();
+});
+
+it('refuses a ready identity when grant sync is unsafe', async () => {
+    const { internals, aiIdentityService } = makeService();
+    aiIdentityService.getAiAccessForUser.mockResolvedValue({
+        ...access,
+        state: AiIdentityState.READY,
+        automaticSyncRefusal: true,
+    });
+    const handler = vi.fn<Callback>();
+    const result = await internals.wrapToolCallback(
+        McpToolName.RUN_SQL,
+        handler,
+    )({ projectUuid: 'project' }, extra);
+    expect(handler).not.toHaveBeenCalled();
+    expect(result.content).toEqual([
+        { type: 'text', text: AI_IDENTITY_SYNC_UNSAFE_MESSAGE },
+    ]);
+    expect(result.structuredContent).toMatchObject({
+        error: { code: AI_IDENTITY_SYNC_UNSAFE_CODE },
+    });
 });
 
 it('does not check identity for metadata tools', async () => {

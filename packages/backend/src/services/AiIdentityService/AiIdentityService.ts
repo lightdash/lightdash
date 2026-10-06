@@ -3,10 +3,14 @@ import {
     Account,
     AI_IDENTITY_NAME_PLACEHOLDER,
     AI_IDENTITY_PROVISIONER_WORST_CASE,
+    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
     AI_IDENTITY_SHOW_USERS_NOTICE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiAccessForUser,
     AiIdentity,
     AiIdentityAccount,
+    aiIdentityAutomaticSyncGate,
+    aiIdentityAutomaticSyncUnsafeReason,
     AiIdentityBulkTestRequest,
     AiIdentityCreationMode,
     AiIdentityDetail,
@@ -23,7 +27,10 @@ import {
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
+    AiIdentitySyncStatus,
     assertRegisteredAccount,
+    assertUnreachable,
+    buildAiIdentityAutomaticSyncSetupSql,
     buildAiIdentityFixSql,
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
@@ -39,6 +46,7 @@ import {
     getAiIdentityPersonMessage,
     getAiIdentitySetupCheckInterval,
     isValidSchemaPattern,
+    matchesSchemaPattern,
     normalizeSnowflakeAccount,
     NotFoundError,
     ParameterError,
@@ -56,6 +64,7 @@ import {
     type AiIdentityUngrantedSchemas,
     type CreateAiIdentityProvisioner,
     type UpdateAiIdentityAiRoleDefinition,
+    type UpdateAiIdentityAutomaticSync,
     type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
 import { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -89,6 +98,14 @@ const forEachSequential = async <T>(
         Promise.resolve(),
     );
 };
+
+const managedScopeFor = (roles: AiIdentityAiRoleDefinition[]) =>
+    roles
+        .filter((role) => role.schemaRule.database)
+        .map((role) => ({
+            roleName: role.roleName,
+            database: role.schemaRule.database,
+        }));
 
 export class AiIdentityService extends BaseService {
     constructor(
@@ -158,7 +175,7 @@ export class AiIdentityService extends BaseService {
             account,
             aiIdentityAccountUuid,
         );
-        const [mode, provisioner, mappings, aiRoles, identities, drops] =
+        const [mode, provisioner, mappings, aiRoles, identities, drops, sync] =
             await Promise.all([
                 this.args.aiIdentityModel.getProvisioningMode(
                     aiIdentityAccountUuid,
@@ -174,11 +191,88 @@ export class AiIdentityService extends BaseService {
                 this.args.aiIdentityModel.listProvisioningDrops(
                     aiIdentityAccountUuid,
                 ),
+                this.args.aiIdentityModel.getAutomaticSync(
+                    aiIdentityAccountUuid,
+                ),
             ]);
         const { projectUuid, credentials } = await this.projectForAccount(
             organizationUuid,
             identityAccount.snowflakeAccount,
         );
+        let automaticSync = sync;
+        if (sync.enabled && provisioner === null)
+            automaticSync = { ...sync, status: AiIdentitySyncStatus.UNSAFE };
+        if (sync.enabled && provisioner !== null) {
+            try {
+                const connection = new ProvisionerConnection(
+                    credentials,
+                    provisioner.userName,
+                    provisioner.roleName,
+                    provisioner.privateKey,
+                    {
+                        mappedRoles: new Set(),
+                        lightdashCreatedUsers: new Set(),
+                    },
+                );
+                const run = await connection.readAutomaticSync();
+                if (!run.hasLog && sync.lastRunAt)
+                    run.lastRunAt = sync.lastRunAt;
+                run.issues.push(
+                    ...(await connection.readViewDependencyWarnings()),
+                );
+                if (run.hasLog)
+                    await this.args.aiIdentityModel.recordAutomaticSync(
+                        aiIdentityAccountUuid,
+                        run,
+                    );
+                if (
+                    sync.pending &&
+                    run.status === AiIdentitySyncStatus.OK &&
+                    (sync.lastRunAt === null || run.lastRunAt > sync.lastRunAt)
+                ) {
+                    await this.args.aiIdentityModel.setAutomaticSyncPending(
+                        aiIdentityAccountUuid,
+                        false,
+                    );
+                }
+                const gate = aiIdentityAutomaticSyncGate(run, new Date());
+                automaticSync = {
+                    ...sync,
+                    ...run,
+                    status: {
+                        PROGRESS: AiIdentitySyncStatus.RUNNING,
+                        UNSAFE: AiIdentitySyncStatus.UNSAFE,
+                        OK: AiIdentitySyncStatus.OK,
+                    }[gate.status],
+                    unsafeReason: gate.reason,
+                    pending:
+                        sync.pending &&
+                        !(
+                            run.status === AiIdentitySyncStatus.OK &&
+                            (sync.lastRunAt === null ||
+                                run.lastRunAt > sync.lastRunAt)
+                        ),
+                };
+            } catch {
+                automaticSync = {
+                    ...sync,
+                    status:
+                        sync.pending && sync.lastRunAt === null
+                            ? AiIdentitySyncStatus.RUNNING
+                            : AiIdentitySyncStatus.UNSAFE,
+                    unsafeReason: 'no_ok_run',
+                };
+            }
+        }
+        if (automaticSync.pending)
+            automaticSync = {
+                ...automaticSync,
+                status:
+                    automaticSync.status === AiIdentitySyncStatus.RUNNING ||
+                    automaticSync.lastRunAt === null
+                        ? AiIdentitySyncStatus.RUNNING
+                        : AiIdentitySyncStatus.UNSAFE,
+            };
         const catalog =
             await this.args.aiIdentityModel.getCachedCatalogSchemas(
                 projectUuid,
@@ -188,6 +282,61 @@ export class AiIdentityService extends BaseService {
             ...expandAiIdentitySchemaRule(aiRole.schemaRule, catalog.schemas),
             catalogLoaded: catalog.loaded,
         }));
+        const mappedPeople = identities.flatMap((identity) => {
+            if (identity.snowflakeLogin === null) return [];
+            const mapping = mappings
+                .filter((item) => identity.groupUuids.includes(item.groupUuid))
+                .sort(
+                    (left, right) =>
+                        left.priority - right.priority ||
+                        left.groupUuid.localeCompare(right.groupUuid),
+                )[0];
+            if (!mapping) return [];
+            return [
+                {
+                    identity,
+                    snowflakeLogin: identity.snowflakeLogin,
+                    roleName: mapping.aiRole,
+                    groupName: mapping.groupName,
+                },
+            ];
+        });
+        const ownSchemas =
+            await this.args.aiIdentityModel.getCachedCatalogSchemasForPeople(
+                projectUuid,
+                mappedPeople.map(({ identity, snowflakeLogin }) => ({
+                    userUuid: identity.userUuid,
+                    snowflakeLogin,
+                })),
+            );
+        const beyondOwnAccessWarnings = mappedPeople.flatMap(
+            ({ identity, roleName, groupName }) => {
+                const own = ownSchemas.get(identity.userUuid);
+                if (!own) return [];
+                const expansion = aiRoleExpansions.find(
+                    (item) =>
+                        item.roleName.toUpperCase() === roleName.toUpperCase(),
+                );
+                if (!expansion) return [];
+                const ownNames = new Set(
+                    own.map((schema) => schema.toUpperCase()),
+                );
+                const schemas = expansion.allowed.filter(
+                    (schema) => !ownNames.has(schema.toUpperCase()),
+                );
+                return schemas.length === 0
+                    ? []
+                    : [
+                          {
+                              roleName,
+                              userUuid: identity.userUuid,
+                              email: identity.email,
+                              groupName,
+                              schemas,
+                          },
+                      ];
+            },
+        );
         const effectiveMode =
             mode === AiIdentityCreationMode.AUTOMATIC &&
             provisioner?.status === AiIdentityProvisionerStatus.READY
@@ -198,6 +347,51 @@ export class AiIdentityService extends BaseService {
             effectiveMode === AiIdentityCreationMode.GUIDED
                 ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.statusMessage ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
                 : null;
+        const setupCheck = provisioner?.setupCheck ?? null;
+        const syncTotal = aiRoleExpansions.reduce(
+            (count, expansion) => count + expansion.allowed.length,
+            0,
+        );
+        const syncRoleNames = aiRoles.map((role) => role.roleName).join(', ');
+        const currentSetupCheck = setupCheck && {
+            ...setupCheck,
+            checks: setupCheck.checks.map((check): AiIdentitySetupCheckItem => {
+                if (check.key === 'sync_installed')
+                    return {
+                        ...check,
+                        status: automaticSync.enabled ? 'passed' : 'pending',
+                        detail: null,
+                    };
+                if (check.key === 'first_sync') {
+                    let status: AiIdentitySetupCheckItem['status'] = 'pending';
+                    let detail: string | null = null;
+                    if (automaticSync.enabled) {
+                        if (
+                            automaticSync.status === AiIdentitySyncStatus.OK &&
+                            automaticSync.lastRunAt !== null
+                        )
+                            status = 'passed';
+                        else if (
+                            automaticSync.status === AiIdentitySyncStatus.UNSAFE
+                        ) {
+                            status = 'failed';
+                            detail = 'Check the latest grant sync run.';
+                        } else if (
+                            automaticSync.status ===
+                            AiIdentitySyncStatus.RUNNING
+                        )
+                            detail = `${Math.min(automaticSync.progress, syncTotal)} of ${syncTotal} schemas`;
+                    }
+                    return {
+                        ...check,
+                        label: `The first grant sync is complete: ${syncRoleNames || 'the AI role'} can read ${syncTotal} ${syncTotal === 1 ? 'schema' : 'schemas'}`,
+                        status,
+                        detail,
+                    };
+                }
+                return check;
+            }),
+        };
         return {
             aiIdentityAccountUuid,
             mode,
@@ -216,7 +410,7 @@ export class AiIdentityService extends BaseService {
                           status: provisioner.status,
                           statusMessage: provisioner.statusMessage,
                           checkedAt: provisioner.checkedAt,
-                          setupCheck: provisioner.setupCheck ?? null,
+                          setupCheck: currentSetupCheck,
                           firstRunApprovedAt: provisioner.firstRunApprovedAt,
                           firstRunApprovedByName:
                               provisioner.firstRunApprovedByName,
@@ -278,7 +472,132 @@ export class AiIdentityService extends BaseService {
             ),
             worstCaseNotice: AI_IDENTITY_PROVISIONER_WORST_CASE,
             showUsersNotice: AI_IDENTITY_SHOW_USERS_NOTICE,
+            automaticSync: {
+                ...automaticSync,
+                setupSql:
+                    provisioner === null
+                        ? null
+                        : buildAiIdentityAutomaticSyncSetupSql({
+                              managedScope: managedScopeFor(aiRoles),
+                              provisionerRole: provisioner.roleName,
+                              warehouse: credentials.warehouse,
+                          }),
+            },
+            beyondOwnAccessWarnings,
         };
+    }
+
+    async updateAutomaticSync(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        update: UpdateAiIdentityAutomaticSync,
+    ): Promise<AiIdentityProvisioningSettings> {
+        const { organizationUuid, identityAccount } = await this.checkAccount(
+            account,
+            aiIdentityAccountUuid,
+        );
+        const { credentials } = await this.projectForAccount(
+            organizationUuid,
+            identityAccount.snowflakeAccount,
+        );
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (update.enabled && !provisioner)
+            throw new ParameterError('Create the provisioner first.');
+        buildAiIdentityAutomaticSyncSetupSql({
+            managedScope: managedScopeFor(
+                await this.args.aiIdentityModel.getAiRoles(
+                    aiIdentityAccountUuid,
+                ),
+            ),
+            provisionerRole:
+                provisioner?.roleName ?? DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
+            warehouse: credentials.warehouse,
+        });
+        let verifiedConnection: ProvisionerConnection | null = null;
+        let verifiedRun: Awaited<
+            ReturnType<ProvisionerConnection['readAutomaticSync']>
+        > | null = null;
+        if (update.enabled) {
+            verifiedConnection = await this.provisionerConnection(
+                aiIdentityAccountUuid,
+            );
+            verifiedRun = await verifiedConnection.readAutomaticSync();
+            const expectedScope = managedScopeFor(
+                await this.args.aiIdentityModel.getAiRoles(
+                    aiIdentityAccountUuid,
+                ),
+            )
+                .map(
+                    (entry) =>
+                        `${entry.roleName.toUpperCase()}.${entry.database.toUpperCase()}`,
+                )
+                .sort();
+            const actualScope = verifiedRun.managedScope
+                .map(
+                    (entry) =>
+                        `${entry.roleName.toUpperCase()}.${entry.database.toUpperCase()}`,
+                )
+                .sort();
+            if (JSON.stringify(expectedScope) !== JSON.stringify(actualScope))
+                throw new ParameterError(
+                    'The Snowflake managed scope does not match the setup script.',
+                );
+        }
+        await this.args.aiIdentityModel.setAutomaticSync(
+            aiIdentityAccountUuid,
+            update.enabled,
+        );
+        if (verifiedConnection !== null && verifiedRun !== null) {
+            await this.args.aiIdentityModel.recordAutomaticSync(
+                aiIdentityAccountUuid,
+                verifiedRun,
+            );
+            await this.syncAutomaticRules(
+                aiIdentityAccountUuid,
+                verifiedConnection,
+            );
+        }
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private async syncAutomaticRules(
+        aiIdentityAccountUuid: string,
+        connection: ProvisionerConnection,
+        previousRoles: AiIdentityAiRoleDefinition[] = [],
+    ): Promise<void> {
+        const roles = await this.args.aiIdentityModel.getAiRoles(
+            aiIdentityAccountUuid,
+        );
+        const changedRoles = previousRoles.filter(
+            (previous) =>
+                !roles.some(
+                    (current) =>
+                        current.roleName.toUpperCase() ===
+                            previous.roleName.toUpperCase() &&
+                        current.warehouse.toUpperCase() ===
+                            previous.warehouse.toUpperCase() &&
+                        JSON.stringify(current.schemaRule) ===
+                            JSON.stringify(previous.schemaRule),
+                ),
+        );
+        await forEachSequential(changedRoles, async (role) => {
+            if (!role.schemaRule.database) return;
+            await connection.execute({
+                kind: 'disable_rule',
+                roleName: role.roleName,
+                databases: [role.schemaRule.database],
+            });
+        });
+        await forEachSequential(roles, async (role) => {
+            await connection.execute({
+                kind: 'write_rule',
+                roleName: role.roleName,
+                warehouse: role.warehouse,
+                schemaRule: role.schemaRule,
+            });
+        });
     }
 
     async updateProvisioningMode(
@@ -353,7 +672,9 @@ export class AiIdentityService extends BaseService {
             identityAccount.snowflakeAccount,
         );
         const normalized = roles.map((role) => ({
-            roleName: aiIdentitySnowflakeIdentifier(role.roleName),
+            roleName: aiIdentitySnowflakeIdentifier(
+                role.roleName,
+            ).toUpperCase(),
             warehouse: aiIdentitySnowflakeIdentifier(
                 role.warehouse || credentials.warehouse,
             ),
@@ -367,6 +688,17 @@ export class AiIdentityService extends BaseService {
         const before = await this.provisionerRequirements(
             aiIdentityAccountUuid,
         );
+        const previousRoles = await this.args.aiIdentityModel.getAiRoles(
+            aiIdentityAccountUuid,
+        );
+        const sync = await this.args.aiIdentityModel.getAutomaticSync(
+            aiIdentityAccountUuid,
+        );
+        if (sync.enabled)
+            await this.args.aiIdentityModel.setAutomaticSyncPending(
+                aiIdentityAccountUuid,
+                true,
+            );
         await this.args.aiIdentityModel.replaceAiRoles(
             aiIdentityAccountUuid,
             normalized,
@@ -379,10 +711,21 @@ export class AiIdentityService extends BaseService {
                 actorUserUuid: account.user.id ?? null,
             },
         );
-        await this.markProvisionerForSetupIfNeeded(
-            aiIdentityAccountUuid,
-            before,
-        );
+        if (sync.enabled)
+            await this.syncAutomaticRules(
+                aiIdentityAccountUuid,
+                await this.provisionerConnection(
+                    aiIdentityAccountUuid,
+                    false,
+                    previousRoles.map((role) => role.roleName),
+                ),
+                previousRoles,
+            );
+        else
+            await this.markProvisionerForSetupIfNeeded(
+                aiIdentityAccountUuid,
+                before,
+            );
         return this.getProvisioningSettings(account, aiIdentityAccountUuid);
     }
 
@@ -474,6 +817,7 @@ export class AiIdentityService extends BaseService {
     private async provisionerConnection(
         aiIdentityAccountUuid: string,
         probe = false,
+        previousRoles: string[] = [],
     ): Promise<ProvisionerConnection> {
         const identityAccount = await this.args.aiIdentityModel.getAccount(
             aiIdentityAccountUuid,
@@ -492,6 +836,9 @@ export class AiIdentityService extends BaseService {
             : await this.args.aiIdentityModel.getRoleMappings(
                   aiIdentityAccountUuid,
               );
+        const aiRoles = probe
+            ? []
+            : await this.args.aiIdentityModel.getAiRoles(aiIdentityAccountUuid);
         const identities = probe
             ? []
             : await this.args.aiIdentityModel.getProvisioningIdentities(
@@ -508,7 +855,11 @@ export class AiIdentityService extends BaseService {
             probe ? null : provisioner.roleName,
             provisioner.privateKey,
             {
-                mappedRoles: new Set(mappings.map((mapping) => mapping.aiRole)),
+                mappedRoles: new Set([
+                    ...mappings.map((mapping) => mapping.aiRole),
+                    ...aiRoles.map((role) => role.roleName),
+                    ...previousRoles,
+                ]),
                 lightdashCreatedUsers: new Set([
                     ...identities
                         .filter((identity) => identity.createdByProvisioner)
@@ -816,6 +1167,12 @@ export class AiIdentityService extends BaseService {
             throw new NotFoundError('AI identity provisioner not found');
         if (actor !== null) assertRegisteredAccount(actor);
         const previous = provisioner.setupCheck;
+        const sync = await this.args.aiIdentityModel.getAutomaticSync(
+            aiIdentityAccountUuid,
+        );
+        const aiRoles = await this.args.aiIdentityModel.getAiRoles(
+            aiIdentityAccountUuid,
+        );
         const state: AiIdentitySetupCheck = {
             waitingSince: previous?.waitingSince ?? null,
             nextCheckAt: null,
@@ -838,14 +1195,32 @@ export class AiIdentityService extends BaseService {
                     detail: null,
                 },
                 {
+                    key: 'sync_installed',
+                    label: 'The grant sync is installed and scheduled',
+                    status: 'pending',
+                    detail: null,
+                },
+                {
                     key: 'exclusions',
                     label: 'The exclusions are applied',
                     status: 'pending',
                     detail: null,
                 },
+                {
+                    key: 'first_sync',
+                    label: 'The first grant sync is complete',
+                    status: 'pending',
+                    detail: null,
+                },
             ],
         };
-        const [signInCheck, createCheck, exclusionsCheck] = state.checks;
+        const [
+            signInCheck,
+            createCheck,
+            installedCheck,
+            exclusionsCheck,
+            firstSyncCheck,
+        ] = state.checks;
         let active: AiIdentitySetupCheckItem = signInCheck;
         let { findings, ungrantedSchemas } = provisioner;
         try {
@@ -872,9 +1247,6 @@ export class AiIdentityService extends BaseService {
             )
                 throw new Error('The setup user cannot use the setup role.');
             const mappings = await this.args.aiIdentityModel.getRoleMappings(
-                aiIdentityAccountUuid,
-            );
-            const aiRoles = await this.args.aiIdentityModel.getAiRoles(
                 aiIdentityAccountUuid,
             );
             const missing = missingProvisionerGrants(
@@ -908,6 +1280,7 @@ export class AiIdentityService extends BaseService {
                 provisioner.roleName,
                 created,
             );
+            installedCheck.status = sync.enabled ? 'passed' : 'pending';
             active = exclusionsCheck;
             const patterns = [
                 ...new Set(
@@ -936,6 +1309,42 @@ export class AiIdentityService extends BaseService {
             } else {
                 active.detail =
                     'The schema check waits for an AI role with a database and a ready AI identity.';
+            }
+            const catalog =
+                await this.args.aiIdentityModel.getCachedCatalogSchemas(
+                    (
+                        await this.projectForAccount(
+                            identityAccount.organizationUuid,
+                            identityAccount.snowflakeAccount,
+                        )
+                    ).projectUuid,
+                );
+            const total = aiRoles.reduce(
+                (count, role) =>
+                    count +
+                    expandAiIdentitySchemaRule(role.schemaRule, catalog.schemas)
+                        .allowed.length,
+                0,
+            );
+            const roleNames = aiRoles.map((role) => role.roleName).join(', ');
+            firstSyncCheck.label = `The first grant sync is complete: ${roleNames || 'the AI role'} can read ${total} ${total === 1 ? 'schema' : 'schemas'}`;
+            if (
+                sync.enabled &&
+                sync.status === AiIdentitySyncStatus.OK &&
+                sync.lastRunAt !== null
+            ) {
+                firstSyncCheck.status = 'passed';
+            } else if (
+                sync.enabled &&
+                sync.status === AiIdentitySyncStatus.RUNNING
+            ) {
+                firstSyncCheck.detail = `${Math.min(sync.progress, total)} of ${total} schemas`;
+            } else if (
+                sync.enabled &&
+                sync.status === AiIdentitySyncStatus.UNSAFE
+            ) {
+                firstSyncCheck.status = 'failed';
+                firstSyncCheck.detail = 'Check the latest grant sync run.';
             }
         } catch {
             if (
@@ -2053,6 +2462,8 @@ export class AiIdentityService extends BaseService {
             credentials.type === WarehouseTypes.SNOWFLAKE &&
             twinFlag.enabled;
         let identity: AiIdentity | null = null;
+        let automaticSyncRefusal = false;
+        let automaticSyncReason = AI_IDENTITY_SYNC_UNSAFE_MESSAGE;
         if (
             aiIdentityRequired &&
             credentials.type === WarehouseTypes.SNOWFLAKE
@@ -2066,30 +2477,76 @@ export class AiIdentityService extends BaseService {
                 aiIdentityAccountUuid: identityAccount.aiIdentityAccountUuid,
                 userUuid: account.user.id,
             });
+            const sync = await this.args.aiIdentityModel.getAutomaticSync(
+                identityAccount.aiIdentityAccountUuid,
+            );
+            if (sync.enabled) {
+                automaticSyncRefusal = sync.pending;
+                try {
+                    const connection = await this.provisionerConnection(
+                        identityAccount.aiIdentityAccountUuid,
+                    );
+                    const run = await connection.readAutomaticSync();
+                    if (!run.hasLog && sync.lastRunAt)
+                        run.lastRunAt = sync.lastRunAt;
+                    if (run.hasLog)
+                        await this.args.aiIdentityModel.recordAutomaticSync(
+                            identityAccount.aiIdentityAccountUuid,
+                            run,
+                        );
+                    const completedAfterChange =
+                        run.status === AiIdentitySyncStatus.OK &&
+                        (sync.lastRunAt === null ||
+                            run.lastRunAt > sync.lastRunAt);
+                    if (sync.pending && completedAfterChange)
+                        await this.args.aiIdentityModel.setAutomaticSyncPending(
+                            identityAccount.aiIdentityAccountUuid,
+                            false,
+                        );
+                    const unsafeReason = aiIdentityAutomaticSyncUnsafeReason(
+                        run,
+                        new Date(),
+                    );
+                    automaticSyncRefusal =
+                        (sync.pending && !completedAfterChange) ||
+                        unsafeReason !== null;
+                    if (unsafeReason === 'schema_changed')
+                        automaticSyncReason =
+                            AI_IDENTITY_SCHEMA_CHANGED_MESSAGE;
+                } catch {
+                    automaticSyncRefusal = true;
+                }
+            }
         }
         const state = !aiIdentityRequired
             ? null
             : (identity?.state ?? AiIdentityState.NEEDS_SIGN_IN);
         let action: AiAccessForUser['action'] = null;
-        if (state === AiIdentityState.NEEDS_SIGN_IN) action = 'sign_in';
+        if (automaticSyncRefusal) action = 'ask_admin';
+        else if (state === AiIdentityState.NEEDS_SIGN_IN) action = 'sign_in';
         else if (state !== null && state !== AiIdentityState.READY)
             action = 'ask_admin';
+        let message: string | null;
+        if (automaticSyncRefusal) message = automaticSyncReason;
+        else if (state === null || state === AiIdentityState.READY)
+            message = null;
+        else message = getAiIdentityPersonMessage(state);
         return {
             projectUuid,
             restrictionsOn,
             warehouseType: credentials.type,
             aiIdentityRequired,
+            automaticSyncRefusal,
             state,
             aiIdentityName: identity?.twinName ?? null,
             lastCheckedAt: identity?.checkedAt ?? null,
             action,
-            message:
-                state === null || state === AiIdentityState.READY
-                    ? null
-                    : getAiIdentityPersonMessage(state),
+            message,
             rawSqlAllowed:
                 !restrictionsOn ||
-                (aiIdentityRequired && state === AiIdentityState.READY),
+                (aiIdentityRequired &&
+                    state === AiIdentityState.READY &&
+                    !automaticSyncRefusal),
         };
     }
     async runJob(jobUuid: string): Promise<void> {

@@ -11,7 +11,7 @@ export const aiIdentityPersonQueryKey = ['ai-identity-person'];
 
 export const isAiIdentityBlocked = (access: AiAccessForUser | undefined) =>
     access?.aiIdentityRequired === true &&
-    access.state !== AiIdentityState.READY;
+    (access.automaticSyncRefusal || access.state !== AiIdentityState.READY);
 
 export const useAiIdentityAccess = (projectUuid: string | undefined) =>
     useQuery<AiAccessForUser, ApiError>({

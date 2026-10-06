@@ -3,6 +3,7 @@ import {
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
+    AiIdentitySyncStatus,
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
@@ -56,6 +57,95 @@ const filter = {
 };
 
 describe('AiIdentityModel', () => {
+    it('returns a disabled automatic sync before setup', async () => {
+        tracker.on.select('ai_identity_automatic_sync').responseOnce([]);
+        await expect(model.getAutomaticSync('account')).resolves.toEqual({
+            enabled: false,
+            pending: false,
+            status: null,
+            lastRunAt: null,
+            managedScope: [],
+            issues: [],
+            progress: 0,
+        });
+    });
+
+    it('returns the saved run status', async () => {
+        const lastRunAt = new Date('2026-10-06T10:00:00Z');
+        tracker.on.select('ai_identity_automatic_sync').responseOnce([
+            {
+                enabled: true,
+                pending: false,
+                status: AiIdentitySyncStatus.UNSAFE,
+                last_run_at: lastRunAt,
+            },
+        ]);
+        await expect(model.getAutomaticSync('account')).resolves.toMatchObject({
+            enabled: true,
+            status: AiIdentitySyncStatus.UNSAFE,
+            lastRunAt,
+        });
+    });
+
+    it('holds rule changes pending until Lightdash completes a sync', async () => {
+        tracker.on.update('ai_identity_automatic_sync').responseOnce(1);
+        await model.setAutomaticSyncPending('account', true);
+        expect(tracker.history.update[0].bindings).toContain(true);
+        expect(tracker.history.update[0].bindings).toContain('account');
+    });
+
+    it('compares cached schemas for the matching Snowflake sign-in', async () => {
+        tracker.on.select('user_warehouse_credentials').responseOnce([
+            {
+                user_warehouse_credentials_uuid: 'matching',
+                user_uuid: 'person',
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({ user: 'PERSON' }),
+                ),
+            },
+            {
+                user_warehouse_credentials_uuid: 'other',
+                user_uuid: 'person',
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({ user: 'OTHER' }),
+                ),
+            },
+        ]);
+        tracker.on
+            .select('warehouse_credentials_available_tables')
+            .responseOnce([
+                {
+                    user_warehouse_credentials_uuid: 'matching',
+                    database: 'DB',
+                    schema: 'PUBLIC',
+                },
+            ]);
+        await expect(
+            model.getCachedCatalogSchemasForPeople('project', [
+                { userUuid: 'person', snowflakeLogin: 'PERSON' },
+            ]),
+        ).resolves.toEqual(new Map([['person', ['DB.PUBLIC']]]));
+    });
+
+    it('keeps a matching sign-in with no cached schemas for access warnings', async () => {
+        tracker.on.select('user_warehouse_credentials').responseOnce([
+            {
+                user_warehouse_credentials_uuid: 'matching',
+                user_uuid: 'person',
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({ user: 'PERSON' }),
+                ),
+            },
+        ]);
+        tracker.on
+            .select('warehouse_credentials_available_tables')
+            .responseOnce([]);
+        await expect(
+            model.getCachedCatalogSchemasForPeople('project', [
+                { userUuid: 'person', snowflakeLogin: 'PERSON' },
+            ]),
+        ).resolves.toEqual(new Map([['person', []]]));
+    });
     it('returns the saved role template with the account', async () => {
         tracker.on.select('ai_identity_accounts').responseOnce([
             {

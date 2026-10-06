@@ -3,9 +3,9 @@ import {
     renderProvisioningOperation,
     type AiIdentity,
     type AiIdentityProvisionerFinding,
-    type AiIdentityProvisioningOperation,
     type AiIdentityProvisioningPlan,
     type AiIdentityRoleMapping,
+    type AiIdentityUserProvisioningOperation,
 } from '@lightdash/common';
 import type { SnowflakeProvisionerRow } from './provisionerConnection';
 
@@ -107,7 +107,7 @@ export const buildProvisioningPlan = ({
     const skipped: AiIdentityProvisioningPlan['skipped'] = [];
     const add = (
         identity: ProvisioningIdentity | null,
-        operation: AiIdentityProvisioningOperation,
+        operation: AiIdentityUserProvisioningOperation,
     ): void => {
         const sql = renderProvisioningOperation(operation, {
             mappedRoles,
@@ -116,6 +116,8 @@ export const buildProvisioningPlan = ({
         items.push({
             aiIdentityUuid: identity?.aiIdentityUuid ?? null,
             email: identity?.email ?? null,
+            firstName: identity?.firstName,
+            lastName: identity?.lastName,
             operation,
             sql,
         });
@@ -158,6 +160,8 @@ export const buildProvisioningPlan = ({
         if (desiredName === null) {
             skipped.push({
                 email: identity.email,
+                firstName: identity.firstName,
+                lastName: identity.lastName,
                 reason: 'no Snowflake login recorded; ask them to sign in to Snowflake or set an AI identity name',
             });
             return;
@@ -165,6 +169,8 @@ export const buildProvisioningPlan = ({
         if (desiredRole === null) {
             skipped.push({
                 email: identity.email,
+                firstName: identity.firstName,
+                lastName: identity.lastName,
                 reason: 'no group mapped to an AI role',
             });
             return;
@@ -172,6 +178,8 @@ export const buildProvisioningPlan = ({
         if (identity.publicKey === null) {
             skipped.push({
                 email: identity.email,
+                firstName: identity.firstName,
+                lastName: identity.lastName,
                 reason: 'no AI identity public key is available',
             });
             return;

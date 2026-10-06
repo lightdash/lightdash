@@ -1,6 +1,7 @@
 import {
     AiIdentityCreationMode,
     AiIdentityProvisionerStatus,
+    AiIdentitySyncStatus,
     type AiIdentityProvisioningSettings,
     type AiIdentitySetupCheck,
 } from '@lightdash/common';
@@ -30,16 +31,16 @@ vi.mock('./api', () => ({
     },
 }));
 vi.mock('./AiIdentityRoleDefinitions', () => ({
-    AiIdentityRoleDefinitions: () => <div>Role definitions</div>,
+    AiIdentityRoleDefinitions: () => <div>1. AI roles</div>,
 }));
 vi.mock('./AiIdentityRoleMappings', () => ({
     AiIdentityRoleMappings: ({ hint }: { hint: string | null }) => (
-        <div>Mappings {hint}</div>
+        <div>4. Connect groups to AI roles {hint}</div>
     ),
 }));
 vi.mock('./AiIdentityProvisioningReview', () => ({
     AiIdentityProvisioningReview: ({ hint }: { hint: string | null }) => (
-        <div>Review {hint}</div>
+        <div>5. Review and run {hint}</div>
     ),
 }));
 
@@ -72,6 +73,17 @@ const settings: AiIdentityProvisioningSettings = {
     ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
+    automaticSync: {
+        enabled: false,
+        pending: false,
+        setupSql: null,
+        status: null,
+        lastRunAt: null,
+        managedScope: [],
+        issues: [],
+        progress: 0,
+    },
+    beyondOwnAccessWarnings: [],
 };
 
 const renderSetup = (value: AiIdentityProvisioningSettings) =>
@@ -92,25 +104,67 @@ beforeEach(() => {
     });
 });
 
-it('shows that automatic creation is on and lets an admin turn it off', async () => {
+it('shows the setup steps in order with no guided option', () => {
     renderSetup(settings);
-    expect(screen.getByText('Automatic creation is on')).toBeInTheDocument();
+    const titles = [
+        '1. AI roles',
+        '2. Setup script',
+        '3. Check the setup',
+        '4. Connect groups to AI roles',
+        '5. Review and run',
+    ];
+    const steps = titles.map((title) =>
+        screen.getByText(title, { exact: false }),
+    );
+    steps.slice(1).forEach((step, index) => {
+        expect(
+            steps[index].compareDocumentPosition(step) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
     expect(
-        screen.queryByRole('button', { name: 'Enable automatic creation' }),
+        screen.queryByText('Your team creates them'),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Turn off' }));
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(
-        Array.from(dialog.querySelectorAll('button')).find(
-            (button) => button.textContent === 'Turn off',
-        )!,
-    );
-    await waitFor(() =>
-        expect(aiIdentityProvisioningApi.update).toHaveBeenCalledWith(
-            'account',
-            { mode: AiIdentityCreationMode.GUIDED },
-        ),
-    );
+});
+
+it('shows an unsafe sync warning', () => {
+    renderSetup({
+        ...settings,
+        automaticSync: {
+            ...settings.automaticSync,
+            enabled: true,
+            status: AiIdentitySyncStatus.UNSAFE,
+            lastRunAt: new Date(),
+        },
+    });
+    expect(screen.getByText(/AI queries are paused/)).toBeInTheDocument();
+});
+
+it('shows admin scope, first-sync progress and typed warnings', () => {
+    renderSetup({
+        ...settings,
+        automaticSync: {
+            ...settings.automaticSync,
+            enabled: true,
+            status: AiIdentitySyncStatus.RUNNING,
+            lastRunAt: new Date(),
+            managedScope: [{ roleName: 'ANALYST_AI', database: 'DATA' }],
+            progress: 12,
+            issues: [
+                {
+                    code: 'view_dependency',
+                    message:
+                        'Allowed view DATA.PUBLIC.SUMMARY references an excluded schema.',
+                    roleName: 'ANALYST_AI',
+                    database: 'DATA',
+                    schema: 'PUBLIC',
+                },
+            ],
+        },
+    });
+    expect(screen.getByText('ANALYST_AI: DATA')).toBeInTheDocument();
+    expect(screen.getByText(/12 schemas processed/)).toBeInTheDocument();
+    expect(screen.getByText(/view_dependency:/)).toBeInTheDocument();
 });
 
 it('shows why automatic creation is paused', () => {
@@ -127,15 +181,18 @@ it('shows why automatic creation is paused', () => {
     ).toBeInTheDocument();
 });
 
-it('offers to enable automatic creation once the provisioner is ready', () => {
+it('has no success callout or turn-off action in step 3', () => {
     renderSetup({
         ...settings,
         mode: AiIdentityCreationMode.GUIDED,
         effectiveMode: AiIdentityCreationMode.GUIDED,
     });
     expect(
-        screen.getByRole('button', { name: 'Enable automatic creation' }),
-    ).toBeEnabled();
+        screen.queryByRole('button', { name: 'Turn off' }),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.queryByRole('button', { name: 'Enable automatic creation' }),
+    ).not.toBeInTheDocument();
     expect(
         screen.queryByText('Automatic creation is on'),
     ).not.toBeInTheDocument();
@@ -150,10 +207,12 @@ it('puts each step hint inside its own step', () => {
         },
     });
     expect(
-        screen.getByText('Mappings Check the provisioner first.'),
+        screen.getByText(
+            '4. Connect groups to AI roles Check the provisioner first.',
+        ),
     ).toBeInTheDocument();
     expect(
-        screen.getByText('Review Check the provisioner first.'),
+        screen.getByText('5. Review and run Check the provisioner first.'),
     ).toBeInTheDocument();
 });
 
@@ -201,7 +260,7 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
 
 it('shows the exclusion history next to the roles and warns about broader access', async () => {
     renderSetup(settings);
-    expect(screen.getByText('Role definitions')).toBeInTheDocument();
+    expect(screen.getByText('1. AI roles')).toBeInTheDocument();
     expect(screen.getByText('Change log')).toBeInTheDocument();
     expect(
         await screen.findByText('No changes to exclusions yet.'),
@@ -330,7 +389,7 @@ it('shows a failed item and the manual check name', () => {
     expect(screen.queryByText('Checked automatically')).not.toBeInTheDocument();
 });
 
-it('makes Check now the main action after two hours', () => {
+it('keeps Check now secondary after two hours', () => {
     renderSetup({
         ...settings,
         setupSql: 'SELECT 1;',
@@ -348,7 +407,7 @@ it('makes Check now the main action after two hours', () => {
     });
     expect(screen.getByRole('button', { name: 'Check now' })).toHaveAttribute(
         'data-variant',
-        'filled',
+        'default',
     );
     expect(
         screen.queryByText(/Waiting for the setup script/),

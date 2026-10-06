@@ -1,12 +1,15 @@
 import {
     AI_IDENTITY_PROVISIONER_WORST_CASE,
     AI_IDENTITY_SHOW_USERS_NOTICE,
+    AI_IDENTITY_SYNC_MAX_AGE_MINUTES,
     AiIdentityCreationMode,
     assertUnreachable,
     getAiIdentitySetupCheckInterval,
     type AiIdentitySetupCheckItem,
     type AiIdentityProvisioner,
     AiIdentityProvisionerStatus,
+    AiIdentitySyncStatus,
+    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
     type AiIdentityAiRoleExpansion,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
     DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
@@ -64,6 +67,123 @@ const checklistIcon = (status: AiIdentitySetupCheckItem['status']) => {
     }
 };
 
+const AiIdentityGrantSyncStatus: FC<{
+    sync: AiIdentityProvisioningSettings['automaticSync'];
+}> = ({ sync }) => {
+    const lastRunAge =
+        sync.lastRunAt === null
+            ? NaN
+            : Date.now() - new Date(sync.lastRunAt).getTime();
+    const syncSafe =
+        sync.status === AiIdentitySyncStatus.OK &&
+        lastRunAge >= 0 &&
+        lastRunAge <= AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000;
+    const runningWithinWindow =
+        sync.status === AiIdentitySyncStatus.RUNNING &&
+        lastRunAge >= 0 &&
+        lastRunAge < AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000;
+    const issues = [
+        ...new Map(
+            sync.issues.map((issue) => [JSON.stringify(issue), issue]),
+        ).entries(),
+    ];
+    return (
+        <>
+            <Group>
+                <Badge
+                    color={
+                        sync.status === AiIdentitySyncStatus.OK
+                            ? 'green'
+                            : 'yellow'
+                    }
+                >
+                    {sync.status ?? 'No run'}
+                </Badge>
+                <RelativeTime value={sync.lastRunAt} />
+            </Group>
+            {!syncSafe && (
+                <Callout variant="warning">
+                    {runningWithinWindow
+                        ? `Grant sync is running. ${sync.progress} schemas processed. AI queries resume after a successful scheduled run.`
+                        : sync.unsafeReason === 'schema_changed'
+                          ? AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
+                          : 'AI queries are paused. Check the latest Snowflake grant sync run.'}
+                </Callout>
+            )}
+            {issues.length > 0 && (
+                <Callout variant="warning" title="Grant sync warnings">
+                    {issues.map(([key, issue]) => (
+                        <Text key={key} fz="sm">
+                            {issue.code}: {issue.message}
+                            {issue.roleName ? ` (${issue.roleName})` : ''}
+                            {issue.schema ? ` ${issue.schema}` : ''}
+                        </Text>
+                    ))}
+                </Callout>
+            )}
+        </>
+    );
+};
+
+const AiIdentityGrantSyncSetup: FC<{
+    settings: AiIdentityProvisioningSettings;
+}> = ({ settings }) => {
+    const change = useProvisioningChange(settings.aiIdentityAccountUuid);
+    const sync = settings.automaticSync;
+    return (
+        <Paper p="md">
+            <Stack gap="sm">
+                <Title order={5}>Keep AI role grants in sync</Title>
+                <Text fz="sm">
+                    A Snowflake admin runs this script to set the managed roles
+                    and databases. Ask them to run it again when the managed
+                    scope changes. Snowflake checks grants every 10 minutes.
+                </Text>
+                <Callout variant="neutral" title="Managed scope">
+                    Set in Snowflake by your admin.
+                    {sync.managedScope.length === 0
+                        ? ' No roles or databases are in scope.'
+                        : sync.managedScope.map((entry) => (
+                              <Text
+                                  key={entry.roleName + '.' + entry.database}
+                                  fz="sm"
+                              >
+                                  {entry.roleName}: {entry.database}
+                              </Text>
+                          ))}
+                </Callout>
+                {sync.setupSql && (
+                    <CodeBlock code={sync.setupSql} language="sql" />
+                )}
+                {change.error && (
+                    <Callout variant="danger">
+                        {change.error.error.message}
+                    </Callout>
+                )}
+                {!sync.enabled && (
+                    <Button
+                        disabled={!settings.provisioner}
+                        loading={change.isLoading}
+                        onClick={() =>
+                            change.mutate(() =>
+                                aiIdentityProvisioningApi.automaticSync(
+                                    settings.aiIdentityAccountUuid,
+                                    {
+                                        enabled: true,
+                                    },
+                                ),
+                            )
+                        }
+                    >
+                        Enable automatic sync
+                    </Button>
+                )}
+                {sync.enabled && <AiIdentityGrantSyncStatus sync={sync} />}
+            </Stack>
+        </Paper>
+    );
+};
+
 const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
     settings,
 }) => {
@@ -85,7 +205,7 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>2. Create the provisioner</Title>
+                <Title order={5}>2. Setup script</Title>
                 {change.error && (
                     <Callout variant="danger">
                         {change.error.error.message}
@@ -300,41 +420,24 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
 }) => {
     const uuid = settings.aiIdentityAccountUuid;
     const change = useProvisioningChange(uuid);
-    const [confirmTurnOff, setConfirmTurnOff] = useState(false);
-    const state = settings.provisioner?.setupCheck;
-    const timedOut =
-        state?.waitingSince !== null &&
-        state?.waitingSince !== undefined &&
-        state.checks.every((item) => item.status === 'pending') &&
-        getAiIdentitySetupCheckInterval(state.waitingSince) === false;
-    const status =
-        settings.provisioner?.status ?? AiIdentityProvisionerStatus.NOT_SET_UP;
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>3. Check the provisioner</Title>
+                <Title order={5}>3. Check the setup</Title>
                 <AiIdentityUngrantedSchemas
                     entries={settings.ungrantedSchemas}
                 />
                 {settings.mode === AiIdentityCreationMode.AUTOMATIC &&
-                    (settings.effectiveMode ===
-                    AiIdentityCreationMode.AUTOMATIC ? (
-                        <Callout
-                            variant="success"
-                            title="Automatic creation is on"
-                        >
-                            Lightdash creates, updates and drops AI identities
-                            when people join, leave or change groups.
-                        </Callout>
-                    ) : (
+                    settings.effectiveMode !==
+                        AiIdentityCreationMode.AUTOMATIC && (
                         <Callout
                             variant="warning"
                             title="Automatic creation is paused"
                         >
                             {settings.fallbackReason ??
-                                'Check the provisioner to resume.'}
+                                'Check the setup to resume.'}
                         </Callout>
-                    ))}
+                    )}
                 {change.error && (
                     <Callout variant="danger">
                         {change.error.error.message}
@@ -348,7 +451,7 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                 <SetupCheckResults provisioner={settings.provisioner} />
                 <Group>
                     <Button
-                        variant={timedOut ? 'filled' : 'default'}
+                        variant="default"
                         disabled={!settings.provisioner}
                         loading={change.isLoading}
                         onClick={() =>
@@ -359,50 +462,7 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                     >
                         Check now
                     </Button>
-                    {settings.mode !== AiIdentityCreationMode.AUTOMATIC && (
-                        <Button
-                            disabled={
-                                status !== AiIdentityProvisionerStatus.READY
-                            }
-                            loading={change.isLoading}
-                            onClick={() =>
-                                change.mutate(() =>
-                                    aiIdentityProvisioningApi.update(uuid, {
-                                        mode: AiIdentityCreationMode.AUTOMATIC,
-                                    }),
-                                )
-                            }
-                        >
-                            Enable automatic creation
-                        </Button>
-                    )}
-                    {settings.mode === AiIdentityCreationMode.AUTOMATIC && (
-                        <Button
-                            variant="subtle"
-                            loading={change.isLoading}
-                            onClick={() => setConfirmTurnOff(true)}
-                        >
-                            Turn off
-                        </Button>
-                    )}
                 </Group>
-                <MantineModal
-                    opened={confirmTurnOff}
-                    onClose={() => setConfirmTurnOff(false)}
-                    title="Turn off automatic creation?"
-                    description="Lightdash stops creating and dropping AI identities. Existing AI identities and the provisioner stay in Snowflake."
-                    confirmLabel="Turn off"
-                    confirmLoading={change.isLoading}
-                    onConfirm={() =>
-                        change.mutate(
-                            () =>
-                                aiIdentityProvisioningApi.update(uuid, {
-                                    mode: AiIdentityCreationMode.GUIDED,
-                                }),
-                            { onSuccess: () => setConfirmTurnOff(false) },
-                        )
-                    }
-                />
             </Stack>
         </Paper>
     );
@@ -429,6 +489,7 @@ export const AiIdentityAutomaticSetup: FC<{
                 accountUuid={settings.aiIdentityAccountUuid}
             />
             <CreateProvisioner settings={settings} />
+            <AiIdentityGrantSyncSetup settings={settings} />
             <CheckProvisioner settings={settings} />
             <fieldset
                 disabled={status !== AiIdentityProvisionerStatus.READY}
@@ -445,6 +506,7 @@ export const AiIdentityAutomaticSetup: FC<{
                 />
             </fieldset>
             <fieldset
+                id="review-and-run"
                 disabled={
                     status !== AiIdentityProvisionerStatus.READY ||
                     settings.mappings.length === 0 ||

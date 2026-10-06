@@ -3,6 +3,11 @@ import {
     getAiIdentityPersonMessage,
     type AiIdentityState,
 } from './aiIdentity';
+import {
+    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
+    AI_IDENTITY_SYNC_UNSAFE_CODE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+} from './aiIdentityAutomaticSync';
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
@@ -70,6 +75,20 @@ export class AiIdentityNotReadyError extends ForbiddenError {
             state,
             settingsUrl: '/generalSettings/myWarehouseConnections',
         });
+    }
+}
+
+export class AiIdentityAutomaticSyncRefusalError extends ForbiddenError {
+    constructor(reason?: 'schema_changed' | 'no_ok_run' | 'stale_run') {
+        super(
+            reason === 'schema_changed'
+                ? AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
+                : AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+            {
+                code: AI_IDENTITY_SYNC_UNSAFE_CODE,
+                reason,
+            },
+        );
     }
 }
 
