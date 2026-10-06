@@ -937,7 +937,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiCreditService: ({ models, context }) =>
                 new AiCreditService({
-                    featureFlagModel: models.getFeatureFlagModel(),
                     aiCreditUsageModel:
                         models.getAiCreditUsageModel<AiCreditUsageModel>(),
                     aiCreditContractModel:
@@ -1788,7 +1787,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         context.models.getAiCreditAllowanceAlertModel<AiCreditAllowanceAlertModel>(),
                     contractModel:
                         context.models.getAiCreditContractModel<AiCreditContractModel>(),
-                    featureFlagModel: context.models.getFeatureFlagModel(),
                     organizationMemberProfileModel:
                         context.models.getOrganizationMemberProfileModel(),
                     notificationsModel: context.models.getNotificationsModel(),

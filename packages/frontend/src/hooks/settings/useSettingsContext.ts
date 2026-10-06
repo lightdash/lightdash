@@ -164,8 +164,6 @@ export const useSettingsContext = (): SettingsContext => {
             subject('Organization', { organizationUuid }),
         ) ??
             false);
-    const { data: aiCreditsFlag, isInitialLoading: isAiCreditsFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.AiCredits);
     const isOrganizationAdmin =
         !!organizationUuid &&
         (user?.ability.can(
@@ -175,9 +173,7 @@ export const useSettingsContext = (): SettingsContext => {
             false);
     // The page only exists for an organization with a contract in force.
     const { data: aiCreditUsage, isInitialLoading: isAiCreditUsageLoading } =
-        useAiCreditUsage({
-            enabled: aiCreditsFlag?.enabled === true && isOrganizationAdmin,
-        });
+        useAiCreditUsage({ enabled: isOrganizationAdmin });
     const canAccessAiCredits = aiCreditUsage?.canShowCredits === true;
     const canManageOrgAiAgent =
         user?.ability?.can(
@@ -236,7 +232,7 @@ export const useSettingsContext = (): SettingsContext => {
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
-        isAiCreditsLoading: isAiCreditsFlagLoading || isAiCreditUsageLoading,
+        isAiCreditsLoading: isAiCreditUsageLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,

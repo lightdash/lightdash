@@ -42,11 +42,9 @@ const admin = (email: string, isActive = true) =>
 
 const setup = ({
     pending,
-    flagEnabled = true,
     currentContract = contract,
 }: {
     pending: AiCreditAllowanceAlert[];
-    flagEnabled?: boolean;
     currentContract?: AiCreditContract;
 }) => {
     const delivered: string[] = [];
@@ -59,9 +57,6 @@ const setup = ({
             },
         },
         contractModel: { find: async () => currentContract },
-        featureFlagModel: {
-            get: async () => ({ id: 'ai-credits', enabled: flagEnabled }),
-        },
         organizationMemberProfileModel: {
             getOrganizationAdmins: async () => [
                 admin('a@example.com'),
@@ -115,17 +110,6 @@ describe('sendAiCreditAllowanceAlerts', () => {
             'Reached 100% of your AI credit allowance',
         );
         expect(delivered).toEqual(['alert-50', 'alert-80', 'alert-100']);
-    });
-
-    test('sends nothing while the ai-credits flag is off, and does not retry later', async () => {
-        const { run, delivered, inApp } = setup({
-            pending: [alert({ thresholdPercent: 50 })],
-            flagEnabled: false,
-        });
-        await run();
-
-        expect(inApp).toEqual([]);
-        expect(delivered).toEqual(['alert-50']);
     });
 
     test('sends nothing when the allowance changed after the threshold was reached', async () => {
