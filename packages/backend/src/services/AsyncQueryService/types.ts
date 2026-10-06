@@ -8,6 +8,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    type AiAccessSurface,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
@@ -52,6 +53,7 @@ export type CommonAsyncQueryArgs = {
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
     context: QueryExecutionContext;
+    aiSurface?: AiAccessSurface;
     parameters?: ParametersValuesMap;
     userAttributeOverrides?: UserAttributeValueMap;
 };
@@ -193,7 +195,7 @@ export type PreAggregationRoute = {
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
-    aiSurface?: 'ai_agent' | 'slack_agent';
+    aiSurface?: AiAccessSurface;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
     warehouseConnectionUuid?: string | null;

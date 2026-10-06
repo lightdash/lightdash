@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AiAccessSurface,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
@@ -352,12 +353,14 @@ import type { AppGenerateService } from '../../ee/services/AppGenerateService/Ap
 import { seedTrainingCopyDocuments } from '../../ee/services/ProjectService/seedPlaygroundDocuments';
 import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { errorHandler } from '../../errors';
+import { createAuditLogEvent } from '../../logging/auditLog';
 import {
     newExploreCacheReadContext,
     summarizeExploreCacheRead,
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { getAppContext, logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -709,7 +712,7 @@ type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
 
 export class AiAccessRestrictionsError extends ForbiddenError {
     constructor(
-        message: string = 'AI access restrictions are on for this project. Sign in to Snowflake for AI in My warehouse connections to use the AI agent and MCP here.',
+        message: string = 'Connect Snowflake for AI to use AI in this project. Open My warehouse connections and sign in to Snowflake for AI.',
     ) {
         super(message);
     }
@@ -723,17 +726,65 @@ type AiAccessIdentity =
           kind: 'snowflake_ai_sign_in';
           credentials: CreateWarehouseCredentials;
           credentialUuid: string;
+          aiAccessAudit: AiAccessAuditContext;
       }
     | {
           kind: 'databricks_ai_app_sign_in';
           credentials: CreateWarehouseCredentials;
           credentialUuid: string;
-      }
-    | {
-          kind: 'ai_service_account';
-          credentials: CreateWarehouseCredentials;
-          credentialUuid: string;
+          aiAccessAudit: AiAccessAuditContext;
       };
+
+type AiAccessAuditContext = {
+    organizationUuid: string;
+    userUuid: string;
+    surface: AiAccessSurface;
+};
+
+type AiAccessAuditReason =
+    | 'no_ai_sign_in'
+    | 'ai_sign_in_not_set_up'
+    | 'raw_sql_off'
+    | 'agent_session_rejected';
+
+const logAiAccessRefusal = ({
+    projectUuid,
+    organizationUuid,
+    userUuid,
+    isServiceAccount,
+    reason,
+    surface,
+    warehouseType,
+}: {
+    projectUuid: string;
+    organizationUuid: string;
+    userUuid: string;
+    isServiceAccount: boolean;
+    reason: AiAccessAuditReason;
+    surface: AiAccessSurface;
+    warehouseType: WarehouseTypes;
+}) => {
+    logAuditEvent(
+        createAuditLogEvent(
+            {
+                type: isServiceAccount ? 'service-account' : 'session',
+                uuid: userUuid,
+                organizationUuid,
+                organizationRole: 'unknown',
+            },
+            'ai_access.query_refused',
+            {
+                type: 'Project',
+                organizationUuid,
+                projectUuid,
+                metadata: { reason, surface, warehouseType },
+            },
+            {},
+            'denied',
+            reason,
+        ),
+    );
+};
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -2285,7 +2336,7 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         credentials: CreateWarehouseCredentials;
         rawSql?: boolean;
-        aiSurface?: 'ai_agent' | 'slack_agent';
+        aiSurface?: AiAccessSurface;
     }): Promise<AiAccessIdentity | null> {
         if (context === undefined || !isAiAccessQueryContext(context)) {
             return null;
@@ -2304,44 +2355,63 @@ export class ProjectService extends BaseService {
         const restrictionsEnabled =
             restrictionsFlag.enabled &&
             (await this.projectModel.getAiAccessRestrictions(projectUuid));
-        const surface =
+        let surface: AiAccessSurface = aiSurface ?? 'ai_agent';
+        if (
             context === QueryExecutionContext.MCP_RUN_SQL ||
             context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
             context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                ? 'mcp'
-                : (aiSurface ?? 'ai_agent');
-        if (restrictionsEnabled && rawSql === true) {
-            this.logger.warn('AI access query refused', {
-                projectUuid,
-                userUuid: userId,
-                reason: 'raw_sql_off',
-                surface,
-                warehouseType: credentials.type,
-            });
-            throw new AiAccessRestrictionsError(AI_RAW_SQL_OFF_MESSAGE);
+        ) {
+            surface = 'mcp';
+        } else if (
+            context === QueryExecutionContext.DATA_APP_SAMPLE ||
+            context === QueryExecutionContext.DATA_APP
+        ) {
+            surface = 'data_app';
         }
-        const snowflakeSso =
-            credentials.type === WarehouseTypes.SNOWFLAKE &&
-            credentials.authenticationType === SnowflakeAuthenticationType.SSO;
-        const needsLimitingIdentity =
-            restrictionsEnabled && (rawSql === true || snowflakeSso);
-        const refuse = (): never => {
+        const refuse = (
+            reason: 'no_ai_sign_in' | 'ai_sign_in_not_set_up' | 'raw_sql_off',
+            message?: string,
+        ): never => {
             this.logger.warn('AI access query refused', {
                 projectUuid,
                 userUuid: userId,
-                reason: 'no_limiting_identity',
+                reason,
                 surface,
                 warehouseType: credentials.type,
             });
-            throw new AiAccessRestrictionsError();
+            logAiAccessRefusal({
+                projectUuid,
+                organizationUuid: resolvedOrganizationUuid,
+                userUuid: userId,
+                isServiceAccount,
+                reason,
+                surface,
+                warehouseType: credentials.type,
+            });
+            throw new AiAccessRestrictionsError(message);
         };
-        if (needsLimitingIdentity && !credentials.requireUserCredentials) {
-            const aiServiceAccount =
-                await this.resolveAiServiceAccountIdentity();
-            if (aiServiceAccount !== null) return aiServiceAccount;
+        if (restrictionsEnabled && rawSql === true) {
+            refuse('raw_sql_off', AI_RAW_SQL_OFF_MESSAGE);
         }
-        if (!isRegisteredUser || isServiceAccount || !snowflakeSso) {
-            if (needsLimitingIdentity) refuse();
+        if (
+            !restrictionsEnabled &&
+            (context === QueryExecutionContext.DATA_APP_SAMPLE ||
+                context === QueryExecutionContext.DATA_APP)
+        ) {
+            return null;
+        }
+        if (
+            credentials.type !== WarehouseTypes.SNOWFLAKE ||
+            rawSql === true ||
+            (!restrictionsEnabled &&
+                credentials.authenticationType !==
+                    SnowflakeAuthenticationType.SSO)
+        ) {
+            return null;
+        }
+        const needsAiSignIn = restrictionsEnabled;
+        if (!isRegisteredUser || isServiceAccount) {
+            if (needsAiSignIn) refuse('no_ai_sign_in');
             return null;
         }
 
@@ -2353,7 +2423,11 @@ export class ProjectService extends BaseService {
             featureFlagId: FeatureFlags.SnowflakeAiSignIn,
         });
         if (!flag.enabled) {
-            if (needsLimitingIdentity) refuse();
+            if (needsAiSignIn)
+                refuse(
+                    'ai_sign_in_not_set_up',
+                    'AI access restrictions are on, but Snowflake for AI is not set up. Ask an admin to set it up.',
+                );
             return null;
         }
 
@@ -2365,7 +2439,7 @@ export class ProjectService extends BaseService {
                 },
             );
         if (!aiCredential) {
-            if (needsLimitingIdentity) refuse();
+            if (needsAiSignIn) refuse('no_ai_sign_in');
             return null;
         }
 
@@ -2400,15 +2474,13 @@ export class ProjectService extends BaseService {
                 ...refreshedCredentials,
                 requireAgentSession: true,
             },
+            aiAccessAudit: {
+                organizationUuid: resolvedOrganizationUuid,
+                userUuid: userId,
+                surface,
+            },
             credentialUuid: aiCredential.uuid,
         };
-    }
-
-    private async resolveAiServiceAccountIdentity(): Promise<Extract<
-        AiAccessIdentity,
-        { kind: 'ai_service_account' }
-    > | null> {
-        return null;
     }
 
     async canUseAiRawSql(
@@ -2460,7 +2532,7 @@ export class ProjectService extends BaseService {
         purpose?: 'query' | 'compile';
         context?: QueryExecutionContext;
         rawSql?: boolean;
-        aiSurface?: 'ai_agent' | 'slack_agent';
+        aiSurface?: AiAccessSurface;
     }) {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
@@ -2498,17 +2570,20 @@ export class ProjectService extends BaseService {
 
         if (purpose === 'compile') {
             return {
-                ...(await this.refreshCredentialsAndPersistRotation(
-                    credentials,
-                    userId,
-                    organizationWarehouseCredentialsUuid
-                        ? {
-                              kind: 'organization',
-                              organizationWarehouseCredentialsUuid,
-                          }
-                        : connectionRotationSource,
-                )),
-                userWarehouseCredentialsUuid,
+                credentials: {
+                    ...(await this.refreshCredentialsAndPersistRotation(
+                        credentials,
+                        userId,
+                        organizationWarehouseCredentialsUuid
+                            ? {
+                                  kind: 'organization',
+                                  organizationWarehouseCredentialsUuid,
+                              }
+                            : connectionRotationSource,
+                    )),
+                    userWarehouseCredentialsUuid,
+                },
+                aiAccessAudit: null,
             };
         }
 
@@ -2525,11 +2600,14 @@ export class ProjectService extends BaseService {
         });
         if (aiAccessCredentials) {
             return {
-                ...aiAccessCredentials.credentials,
-                userWarehouseCredentialsUuid:
-                    aiAccessCredentials.credentialUuid,
-                organizationWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid ?? undefined,
+                credentials: {
+                    ...aiAccessCredentials.credentials,
+                    userWarehouseCredentialsUuid:
+                        aiAccessCredentials.credentialUuid,
+                    organizationWarehouseCredentialsUuid:
+                        organizationWarehouseCredentialsUuid ?? undefined,
+                },
+                aiAccessAudit: aiAccessCredentials.aiAccessAudit,
             };
         }
 
@@ -2651,8 +2729,8 @@ export class ProjectService extends BaseService {
         }
 
         return {
-            ...credentials,
-            userWarehouseCredentialsUuid,
+            credentials: { ...credentials, userWarehouseCredentialsUuid },
+            aiAccessAudit: null,
         };
     }
 
@@ -3004,32 +3082,41 @@ export class ProjectService extends BaseService {
                 args.projectUuid,
                 binding,
             );
+        const appContext = getAppContext().app_uuid
+            ? QueryExecutionContext.DATA_APP
+            : args.context;
         const connectionRoute: ConnectionRouteWithOriginal = {
             route,
             originalWarehouseConnectionUuid,
         };
         switch (target.kind) {
-            case 'original':
+            case 'original': {
+                const resolved = await this.getSingleRouteWarehouseCredentials({
+                    ...args,
+                    context: appContext,
+                });
                 return {
-                    warehouseCredentials:
-                        await this.getSingleRouteWarehouseCredentials(args),
+                    warehouseCredentials: resolved.credentials,
+                    aiAccessAudit: resolved.aiAccessAudit,
                     warehouseConnectionUuid: null,
                     connectionRoute,
                 };
+            }
             case 'extra': {
+                const resolved =
+                    await this.getExtraConnectionWarehouseCredentials({
+                        projectUuid: args.projectUuid,
+                        warehouseConnectionUuid: target.warehouseConnectionUuid,
+                        userId: args.userId,
+                        isRegisteredUser: args.isRegisteredUser,
+                        isServiceAccount: args.isServiceAccount,
+                        context: appContext,
+                        rawSql: args.rawSql,
+                        aiSurface: args.aiSurface,
+                    });
                 return {
-                    warehouseCredentials:
-                        await this.getExtraConnectionWarehouseCredentials({
-                            projectUuid: args.projectUuid,
-                            warehouseConnectionUuid:
-                                target.warehouseConnectionUuid,
-                            userId: args.userId,
-                            isRegisteredUser: args.isRegisteredUser,
-                            isServiceAccount: args.isServiceAccount,
-                            context: args.context,
-                            rawSql: args.rawSql,
-                            aiSurface: args.aiSurface,
-                        }),
+                    warehouseCredentials: resolved.credentials,
+                    aiAccessAudit: resolved.aiAccessAudit,
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
                 };
@@ -3200,7 +3287,7 @@ export class ProjectService extends BaseService {
         preloadedOrgWarehouseCredentialsUuid?: string | null;
         context?: QueryExecutionContext;
         rawSql?: boolean;
-        aiSurface?: 'ai_agent' | 'slack_agent';
+        aiSurface?: AiAccessSurface;
     }) {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
@@ -3233,7 +3320,10 @@ export class ProjectService extends BaseService {
                 project.organizationUuid,
             );
             await this.assertAnalyticsProjectAccess(user, project);
-            return { ...credentials, userWarehouseCredentialsUuid };
+            return {
+                credentials: { ...credentials, userWarehouseCredentialsUuid },
+                aiAccessAudit: null,
+            };
         }
 
         const aiAccessCredentials = await this.resolveAiAccessIdentity({
@@ -3248,11 +3338,14 @@ export class ProjectService extends BaseService {
         });
         if (aiAccessCredentials) {
             return {
-                ...aiAccessCredentials.credentials,
-                userWarehouseCredentialsUuid:
-                    aiAccessCredentials.credentialUuid,
-                organizationWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid ?? undefined,
+                credentials: {
+                    ...aiAccessCredentials.credentials,
+                    userWarehouseCredentialsUuid:
+                        aiAccessCredentials.credentialUuid,
+                    organizationWarehouseCredentialsUuid:
+                        organizationWarehouseCredentialsUuid ?? undefined,
+                },
+                aiAccessAudit: aiAccessCredentials.aiAccessAudit,
             };
         }
 
@@ -3379,8 +3472,8 @@ export class ProjectService extends BaseService {
         }
 
         return {
-            ...credentials,
-            userWarehouseCredentialsUuid,
+            credentials: { ...credentials, userWarehouseCredentialsUuid },
+            aiAccessAudit: null,
         };
     }
 
@@ -3413,6 +3506,7 @@ export class ProjectService extends BaseService {
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
         },
+        aiAccessAudit: AiAccessAuditContext | null = null,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -3479,6 +3573,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     credentials,
                     existingClient,
+                    aiAccessAudit,
                 ),
                 sshTunnel,
                 tunnelConnectMs,
@@ -3574,6 +3669,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 credentials,
                 client,
+                aiAccessAudit,
             ),
             sshTunnel,
             tunnelConnectMs,
@@ -3584,7 +3680,34 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         client: T,
+        aiAccessAudit: AiAccessAuditContext | null,
     ): T {
+        if (aiAccessAudit !== null) {
+            return attributeClientErrors(client, async (error) => {
+                if (
+                    error instanceof ForbiddenError &&
+                    error.message === SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE
+                ) {
+                    this.logger.warn('AI access query refused', {
+                        projectUuid,
+                        userUuid: aiAccessAudit.userUuid,
+                        reason: 'agent_session_rejected',
+                        surface: aiAccessAudit.surface,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                    logAiAccessRefusal({
+                        projectUuid,
+                        organizationUuid: aiAccessAudit.organizationUuid,
+                        userUuid: aiAccessAudit.userUuid,
+                        isServiceAccount: false,
+                        reason: 'agent_session_rejected',
+                        surface: aiAccessAudit.surface,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                }
+                throw error;
+            });
+        }
         if (!getPersonSignIn(credentials)) return client;
         return attributeClientErrors(client, (error) =>
             this.attributeSharedSignInExpiry(projectUuid, credentials, error),
@@ -7959,7 +8082,7 @@ export class ProjectService extends BaseService {
                 return sourceAdapter.getDbtManifest();
             },
             loadExtraCredentials: async (warehouseConnectionUuid) => {
-                const { userWarehouseCredentialsUuid, ...credentials } =
+                const { credentials } =
                     await this.getExtraConnectionWarehouseCredentials({
                         projectUuid,
                         warehouseConnectionUuid,
@@ -7967,7 +8090,11 @@ export class ProjectService extends BaseService {
                         isRegisteredUser: true,
                         purpose: 'compile',
                     });
-                return credentials;
+                const {
+                    userWarehouseCredentialsUuid,
+                    ...warehouseCredentials
+                } = credentials;
+                return warehouseCredentials;
             },
             trackingParams,
             analytics: this.analytics,
@@ -11169,6 +11296,7 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
         context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
+        aiSurface?: AiAccessSurface,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -11221,19 +11349,20 @@ export class ProjectService extends BaseService {
         }
 
         const [
-            warehouseCredentials,
+            { warehouseCredentials, aiAccessAudit },
             { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             combinedParameters,
             projectTimezone,
             useTimezoneAwareDateTrunc,
         ] = await Promise.all([
-            this.getWarehouseCredentials({
+            this.getWarehouseCredentialsWithConnection({
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
                 isRegisteredUser: true,
                 context,
+                aiSurface,
             }),
             this.getUserAttributes({ user }),
             this.getAvailableParameters(projectUuid, explore),
@@ -11249,6 +11378,7 @@ export class ProjectService extends BaseService {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
             },
+            aiAccessAudit,
         );
 
         const mergedUserAttributes = userAttributeOverrides

@@ -121,6 +121,7 @@ import {
     WarehouseClient,
     WarehouseQueryError,
     WarehouseTypes,
+    type AiAccessSurface,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -3772,7 +3773,7 @@ export class AsyncQueryService extends ProjectService {
                     isServiceAccount,
                     context: queryTags.query_context,
                 });
-            const { warehouseCredentials } = resolvedCredentials;
+            const { warehouseCredentials, aiAccessAudit } = resolvedCredentials;
 
             warehouseConnectionUuid =
                 resolvedCredentials.warehouseConnectionUuid;
@@ -3783,6 +3784,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 warehouseCredentials,
                 warehouseCredentialsOverrides,
+                aiAccessAudit,
             );
             sshTunnel = warehouseConnection.sshTunnel;
             tunnelConnectMs = warehouseConnection.tunnelConnectMs;
@@ -5741,6 +5743,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             totalConfiguration,
             documentQueryContext,
+            aiSurface,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -5793,6 +5796,7 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
                 context,
+                aiSurface,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -6673,6 +6677,7 @@ export class AsyncQueryService extends ProjectService {
         chartUuid,
         versionUuid,
         context,
+        aiSurface,
         invalidateCache,
         limit,
         parameters,
@@ -6842,6 +6847,7 @@ export class AsyncQueryService extends ProjectService {
                 savedChart,
                 merge: savedChart.merge,
                 context,
+                aiSurface,
                 invalidateCache,
                 limit,
                 parameters,
@@ -6922,6 +6928,7 @@ export class AsyncQueryService extends ProjectService {
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
             context,
+            aiSurface,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7288,6 +7295,7 @@ export class AsyncQueryService extends ProjectService {
         savedChart,
         merge,
         context,
+        aiSurface,
         invalidateCache,
         limit,
         parameters,
@@ -7301,6 +7309,7 @@ export class AsyncQueryService extends ProjectService {
         | 'account'
         | 'projectUuid'
         | 'context'
+        | 'aiSurface'
         | 'invalidateCache'
         | 'limit'
         | 'parameters'
@@ -7349,6 +7358,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery,
             context,
+            aiSurface,
             invalidateCache,
             parameters: { ...savedChart.parameters, ...parameters },
             userAttributeOverrides,
@@ -7379,6 +7389,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         dashboardFilters,
         context,
+        aiSurface,
         invalidateCache,
         limit,
         parameters,
@@ -7392,6 +7403,7 @@ export class AsyncQueryService extends ProjectService {
         | 'dashboardUuid'
         | 'dashboardFilters'
         | 'context'
+        | 'aiSurface'
         | 'invalidateCache'
         | 'limit'
         | 'parameters'
@@ -7451,6 +7463,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery,
             context,
+            aiSurface,
             invalidateCache,
             parameters: tileParameters,
             userAttributeOverrides,
@@ -7493,6 +7506,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts,
         dateZoom,
         context,
+        aiSurface,
         invalidateCache,
         limit,
         parameters,
@@ -7596,6 +7610,7 @@ export class AsyncQueryService extends ProjectService {
                 dashboardUuid: resolvedDashboardUuid,
                 dashboardFilters: resolvedDashboardFilters,
                 context,
+                aiSurface,
                 invalidateCache,
                 limit,
                 parameters,
@@ -7697,6 +7712,7 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
                 context,
+                aiSurface,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -10153,6 +10169,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         mergeQuery,
         context,
+        aiSurface,
         invalidateCache,
         parameters,
         mode,
@@ -10221,6 +10238,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             mergeQuery: effectiveMergeQuery,
             context,
+            aiSurface,
             invalidateCache,
             parameters,
             userAttributeOverrides,
@@ -10249,6 +10267,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         mergeQuery,
         context,
+        aiSurface,
         invalidateCache,
         parameters,
         userAttributeOverrides,
@@ -10262,6 +10281,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string;
         mergeQuery: MergeQuery;
         context: QueryExecutionContext;
+        aiSurface?: AiAccessSurface;
         invalidateCache: boolean | undefined;
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
@@ -10441,6 +10461,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     context,
+                    aiSurface,
                     queries: [...legNodes, joinNode],
                     parameters: parameters ?? {},
                     userAttributeOverrides: userAttributeOverrides ?? {},
@@ -10665,7 +10686,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
         requestedConnectionUuid?: string | null;
-        aiSurface?: 'ai_agent' | 'slack_agent';
+        aiSurface?: AiAccessSurface;
     }) {
         const startTime = performance.now();
 
@@ -10673,7 +10694,12 @@ export class AsyncQueryService extends ProjectService {
         // These are independent, so load them in parallel.
         const sectionStartWarehouse = performance.now();
         const [
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                aiAccessAudit,
+            },
             { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
@@ -10699,6 +10725,8 @@ export class AsyncQueryService extends ProjectService {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            undefined,
+            aiAccessAudit,
         );
 
         const baseQueryTags: RunQueryTags = {

@@ -6120,8 +6120,12 @@ describe('AsyncQueryService', () => {
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
-                    originalCredentials,
+                    {
+                        ...originalCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
                     undefined,
+                    null,
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
@@ -10255,8 +10259,11 @@ describe('saved chart query result access', () => {
                 execution,
                 'getExtraConnectionWarehouseCredentials',
             ).mockResolvedValue({
-                ...warehouseClientMock.credentials,
-                userWarehouseCredentialsUuid: undefined,
+                credentials: {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                },
+                aiAccessAudit: null,
             });
             const persist = vi
                 .spyOn(execution, 'executeAsyncQuery')

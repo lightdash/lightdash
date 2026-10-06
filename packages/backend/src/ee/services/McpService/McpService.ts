@@ -144,7 +144,10 @@ import { ContentVerificationService } from '../../../services/ContentVerificatio
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -3461,7 +3464,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running metric query: ${errorMessage}`,
+                                    text:
+                                        e instanceof AiAccessRestrictionsError
+                                            ? errorMessage
+                                            : `Error running metric query: ${errorMessage}`,
                                 },
                             ],
                             isError: true,
@@ -3748,7 +3754,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running SQL query: ${errorMessage}`,
+                                    text:
+                                        e instanceof AiAccessRestrictionsError
+                                            ? errorMessage
+                                            : `Error running SQL query: ${errorMessage}`,
                                 },
                             ],
                             isError: true,

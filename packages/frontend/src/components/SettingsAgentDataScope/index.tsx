@@ -264,7 +264,7 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 <SettingsCard p="xl">
                     <Switch
                         label="AI access restrictions"
-                        description="When on, AI agents and MCP use only each person's sign-in for AI, and raw SQL from AI is off. Without that sign-in, AI is refused."
+                        description="When on, AI uses only each person's sign-in for AI, and raw SQL from AI is off. This includes AI agents, the Slack agent, MCP and data apps. Without that sign-in, AI is refused."
                         checked={aiAccessRestrictions?.enabled ?? false}
                         disabled={
                             !aiAccessRestrictions || aiAccessMutation.isLoading

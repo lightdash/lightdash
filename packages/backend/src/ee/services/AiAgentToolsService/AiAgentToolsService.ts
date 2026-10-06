@@ -47,6 +47,7 @@ import {
     UserAttributeValueMap,
     WarehouseQueryError,
     type AgentSqlScope,
+    type AiAccessSurface,
     type AiAgentDocumentSummary,
     type AppChartReference,
     type AppDashboardReference,
@@ -207,7 +208,7 @@ export type AiAgentToolsRuntimeContext = {
     enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
-    aiSurface?: 'ai_agent' | 'slack_agent';
+    aiSurface?: AiAccessSurface;
     tags: string[] | null;
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
@@ -2889,6 +2890,7 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.aiSurface,
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
@@ -2937,6 +2939,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.aiSurface,
                             parameters,
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
@@ -2990,6 +2993,7 @@ export class AiAgentToolsService extends BaseService {
                             chartUuid: args.chartUuid,
                             limit,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.aiSurface,
                             ...(context.invalidateQueryCache
                                 ? { invalidateCache: true }
                                 : {}),
@@ -3039,6 +3043,7 @@ export class AiAgentToolsService extends BaseService {
                         dashboardSorts: [],
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        aiSurface: context.aiSurface,
                         ...(context.invalidateQueryCache
                             ? { invalidateCache: true }
                             : {}),
@@ -3219,6 +3224,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.aiSurface,
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
@@ -3725,6 +3731,7 @@ export class AiAgentToolsService extends BaseService {
                         context.source === 'mcp'
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                             : QueryExecutionContext.AI,
+                        context.source === 'mcp' ? 'mcp' : context.aiSurface,
                     );
                 const output =
                     context.source === 'mcp' ? results : results.results;
