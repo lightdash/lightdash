@@ -49,6 +49,8 @@ export const useAppReach = (
         };
     };
     const [current, setCurrent] = useState(() => createNavigation(src, null));
+    // Guarded render-time adjustment keeps the new navigation and its view ID
+    // together before commit. An effect would first commit the previous source.
     if (current.source !== src)
         setCurrent(createNavigation(src, current.appPath));
     const navigation = current.capture;

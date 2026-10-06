@@ -89,7 +89,17 @@ describe('Data app reach', () => {
             `INSERT INTO data_app_reach_events (${columns.join(',')}) VALUES (${columns
                 .map(() => '?')
                 .join(',')})`,
-            columns.map((key) => projected[key] ?? null),
+            columns.map((key) => {
+                const value = projected[key];
+                if (value == null) return null;
+                if (
+                    typeof value === 'string' ||
+                    typeof value === 'number' ||
+                    typeof value === 'boolean'
+                )
+                    return value;
+                throw new Error(`Unsupported reach fixture value for ${key}`);
+            }),
         );
     };
     const view = async (
