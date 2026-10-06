@@ -3,6 +3,16 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AiAccessPoliciesTable,
+    AiAccessPoliciesTableName,
+    AiPrincipalGroupMappingsTable,
+    AiPrincipalGroupMappingsTableName,
+    AiPrincipalsTable,
+    AiPrincipalsTableName,
+    AiQueryAuditTable,
+    AiQueryAuditTableName,
+} from '../database/entities/aiPrincipals';
+import {
     AiUsageLedgerTable,
     AiUsageLedgerTableName,
 } from '../database/entities/aiUsageLedger';
@@ -708,6 +718,11 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [AiAccessPoliciesTableName]: AiAccessPoliciesTable;
+        [AiPrincipalGroupMappingsTableName]: AiPrincipalGroupMappingsTable;
+        [AiPrincipalsTableName]: AiPrincipalsTable;
+        [AiQueryAuditTableName]: AiQueryAuditTable;
+
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
         [InviteLinkTableName]: InviteLinkTable;

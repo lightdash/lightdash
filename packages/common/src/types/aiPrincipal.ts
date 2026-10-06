@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { type AnyType } from './any';
 import {
     type CreateWarehouseCredentials,
@@ -38,6 +39,15 @@ export type AiTransport =
 export const AI_DIRECT_TRANSPORT: AiTransport = {
     kind: AiTransportKind.DIRECT,
 };
+
+export const aiTransportSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal(AiTransportKind.DIRECT) }),
+    z.object({
+        kind: z.literal(AiTransportKind.PROCEDURE),
+        name: z.string().min(1),
+        rights: z.nativeEnum(AiProcedureRights),
+    }),
+]);
 
 export enum AiPrincipalStatus {
     PENDING = 'pending',
@@ -83,6 +93,25 @@ export type AiProbeResult =
           message: string;
           observed: AiProbeObserved;
       };
+
+const aiProbeObservedSchema = z.record(z.string(), z.string().nullable());
+const aiProbeCheckedAtSchema = z
+    .union([z.date(), z.string().datetime()])
+    .transform((value) => (value instanceof Date ? value : new Date(value)));
+export const aiProbeResultSchema = z.discriminatedUnion('ok', [
+    z.object({
+        ok: z.literal(true),
+        checkedAt: aiProbeCheckedAtSchema,
+        observed: aiProbeObservedSchema,
+    }),
+    z.object({
+        ok: z.literal(false),
+        checkedAt: aiProbeCheckedAtSchema,
+        reason: z.nativeEnum(AiPrincipalFailureReason),
+        message: z.string(),
+        observed: aiProbeObservedSchema,
+    }),
+]);
 
 export enum AiCredentialMethod {
     BROKER = 'broker',
@@ -187,7 +216,7 @@ export type AiQueryAudit = {
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     userUuid: string | null;
-    aiPrincipalUuid: string;
+    aiPrincipalUuid: string | null;
     principalKind: AiPrincipalKind;
     principalRef: string;
     transport: AiTransport;
