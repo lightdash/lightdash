@@ -4383,7 +4383,9 @@ export class AiAgentToolsService extends BaseService {
         }
         const project = await this.projectModel.getSummary(context.projectUuid);
         return documents.map((item): FindContentResult => {
-            const space = spacesByUuid.get(item.space.uuid);
+            const space = item.space
+                ? spacesByUuid.get(item.space.uuid)
+                : undefined;
             return {
                 contentType: 'document',
                 uuid: item.uuid,
@@ -4410,6 +4412,7 @@ export class AiAgentToolsService extends BaseService {
         chartId: string | null = null,
     ): Promise<DocumentContentResult> {
         if (
+            document.spaceUuid === null ||
             !AiAgentToolsService.hasAgentSpaceAccess(
                 context.spaceAccess,
                 document.spaceUuid,

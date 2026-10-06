@@ -38,7 +38,8 @@ import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel'
 
 export type CreateDocument = {
     projectUuid: string;
-    spaceUuid: string;
+    /** Null creates a personal Document. */
+    spaceUuid: string | null;
     name: string;
     slug?: string;
     description: string;
@@ -85,7 +86,7 @@ const getStoredContent = (version: DbDocumentVersion): unknown => {
 
 type DocumentRow = DbDocument & {
     organization_uuid: string;
-    space_uuid: string;
+    space_uuid: string | null;
 };
 
 export type DocumentLifecycleState = DocumentSummary & {
@@ -152,7 +153,7 @@ export class DocumentModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .join(SpaceTableName, 'spaces.space_id', 'documents.space_id')
+            .leftJoin(SpaceTableName, 'spaces.space_id', 'documents.space_id')
             .where('documents.project_uuid', projectUuid)
             .select(
                 'documents.*',
@@ -190,7 +191,7 @@ export class DocumentModel {
         projectUuid: string,
         documentUuid: string,
         userUuid: string,
-        expectedSpaceUuid: string,
+        expectedSpaceUuid: string | null,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const document = await this.documents(trx, projectUuid)
@@ -235,12 +236,15 @@ export class DocumentModel {
             if (!owner) {
                 throw new NotFoundError('Deleted Document not found');
             }
-            const space = await trx(SpaceTableName)
-                .where('space_id', owner.space_id)
-                .whereNull('deleted_at')
-                .forShare()
-                .first();
-            if (!space) {
+            const space =
+                owner.space_id === null
+                    ? null
+                    : await trx(SpaceTableName)
+                          .where('space_id', owner.space_id)
+                          .whereNull('deleted_at')
+                          .forShare()
+                          .first();
+            if (owner.space_id !== null && !space) {
                 throw new ConflictError(
                     'Restore the owning Space before restoring this Document',
                 );
@@ -277,7 +281,10 @@ export class DocumentModel {
         {
             expectedSpaceUuid,
             requireDeleted = true,
-        }: { expectedSpaceUuid?: string; requireDeleted?: boolean } = {},
+        }: {
+            expectedSpaceUuid?: string | null;
+            requireDeleted?: boolean;
+        } = {},
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const document = await this.documents(trx, projectUuid)
@@ -308,6 +315,7 @@ export class DocumentModel {
 
     async listSpaceUuids(projectUuid: string): Promise<string[]> {
         const rows = await this.activeDocuments(this.database, projectUuid)
+            .whereNotNull('documents.space_id')
             .clearSelect()
             .distinct('spaces.space_uuid');
         return rows.map((row) => row.space_uuid);
@@ -451,7 +459,8 @@ export class DocumentModel {
         }: {
             projectUuid: string;
             documentUuid: string;
-            sourceSpaceUuid: string;
+            /** Null moves a personal Document into its first Space. */
+            sourceSpaceUuid: string | null;
             targetSpaceUuid: string;
         },
         { tx = this.database }: { tx?: Knex } = {},
@@ -464,10 +473,12 @@ export class DocumentModel {
                     'spaces.project_id',
                 )
                 .where('projects.project_uuid', projectUuid)
-                .whereIn('spaces.space_uuid', [
-                    sourceSpaceUuid,
-                    targetSpaceUuid,
-                ])
+                .whereIn(
+                    'spaces.space_uuid',
+                    sourceSpaceUuid === null
+                        ? [targetSpaceUuid]
+                        : [sourceSpaceUuid, targetSpaceUuid],
+                )
                 .whereNull('spaces.deleted_at')
                 .orderBy('spaces.space_uuid')
                 .select('spaces.space_id', 'spaces.space_uuid')
@@ -477,7 +488,10 @@ export class DocumentModel {
             );
             if (
                 !target ||
-                !spaces.some((space) => space.space_uuid === sourceSpaceUuid)
+                (sourceSpaceUuid !== null &&
+                    !spaces.some(
+                        (space) => space.space_uuid === sourceSpaceUuid,
+                    ))
             ) {
                 throw new NotFoundError('Space not found');
             }
@@ -606,21 +620,28 @@ export class DocumentModel {
             1,
         );
         return this.database.transaction(async (transaction) => {
-            const space = await transaction(SpaceTableName)
-                .join(
-                    ProjectTableName,
-                    'projects.project_id',
-                    'spaces.project_id',
-                )
-                .where('projects.project_uuid', input.projectUuid)
-                .where('spaces.space_uuid', input.spaceUuid)
-                .whereNull('spaces.deleted_at')
-                .select('spaces.space_id')
-                .forShare('spaces')
-                .first();
-            if (!space) {
-                throw new NotFoundError('Space not found');
-            }
+            const findSpaceId = async (spaceUuid: string) => {
+                const space = await transaction(SpaceTableName)
+                    .join(
+                        ProjectTableName,
+                        'projects.project_id',
+                        'spaces.project_id',
+                    )
+                    .where('projects.project_uuid', input.projectUuid)
+                    .where('spaces.space_uuid', spaceUuid)
+                    .whereNull('spaces.deleted_at')
+                    .select('spaces.space_id')
+                    .forShare('spaces')
+                    .first();
+                if (!space) {
+                    throw new NotFoundError('Space not found');
+                }
+                return space.space_id;
+            };
+            const spaceId =
+                input.spaceUuid === null
+                    ? null
+                    : await findSpaceId(input.spaceUuid);
             const slug =
                 input.slug ??
                 (await generateUniqueSlugScopedToProject(
@@ -647,7 +668,7 @@ export class DocumentModel {
             const [document] = await transaction(DocumentsTableName)
                 .insert({
                     project_uuid: input.projectUuid,
-                    space_id: space.space_id,
+                    space_id: spaceId,
                     name: input.name,
                     slug,
                     description: input.description,
@@ -678,7 +699,7 @@ export class DocumentModel {
         projectUuid: string,
         documentUuid: string,
         input: DocumentContentUpdate & {
-            expectedSpaceUuid: string;
+            expectedSpaceUuid: string | null;
         },
         createdByUserUuid: string,
     ): Promise<Document> {
@@ -737,7 +758,7 @@ export class DocumentModel {
         projectUuid: string,
         documentUuid: string,
         input: {
-            expectedSpaceUuid: string;
+            expectedSpaceUuid: string | null;
             name?: string;
             slug?: string;
             description?: string;

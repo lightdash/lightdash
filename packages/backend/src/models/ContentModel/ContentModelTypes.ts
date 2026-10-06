@@ -19,7 +19,15 @@ export enum ContentTypePriority {
 
 export type ContentFilters = {
     /** Server-resolved visibility; absent means Documents are disabled. */
-    documents?: { allowedSpaceUuids: string[]; grantedUuids?: string[] };
+    documents?: {
+        allowedSpaceUuids: string[];
+        grantedUuids?: string[];
+        /** Personal Documents the caller may see; omitted hides them all. */
+        personal?: {
+            forUserUuid: string;
+            adminProjectUuids: string[];
+        };
+    };
     projectUuids?: string[];
     spaceUuids?: string[];
     /** Restrict to specific content uuids (e.g. resolving curated collections) */
@@ -56,6 +64,9 @@ export type ContentFilters = {
     // Client opt-in (set by the "All data apps" browse) to surface personal
     // (space-less) apps. The service resolves it into `dataApps` below.
     includePersonalDataApps?: boolean;
+    // Client opt-in (set by the "All documents" browse) to surface personal
+    // (space-less) Documents. The service resolves it into `documents`.
+    includePersonalDocuments?: boolean;
     // Split the app listing surfaces: 'exclude' hides data app vizs (the
     // "All data apps" browse), 'only' returns just them (the "Custom chart
     // types" listing; vizs are spaceless and project-global, so space and

@@ -5,6 +5,7 @@ import {
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     PromotionAction,
     type Document,
     type DocumentChartContent,
@@ -349,6 +350,22 @@ describe('Document promotion', () => {
         );
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
         expect(documentService.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('refuses to promote a personal Document', async () => {
+        const { service, documentService } = setup({
+            sourceDocument: { ...source, spaceUuid: null },
+        });
+
+        await expect(
+            service.promoteDocument(
+                developer,
+                previewProjectUuid,
+                source.documentUuid,
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(documentService.create).not.toHaveBeenCalled();
+        expect(documentService.updateContent).not.toHaveBeenCalled();
     });
 
     it('refuses to create upstream spaces for members who cannot create spaces', async () => {

@@ -60,6 +60,13 @@ export type SpaceAccessContextForCasl = {
 export type AccessTarget =
     | { type: 'space'; spaceUuid: string }
     | { type: 'document'; documentUuid: string; spaceUuid: string }
+    | {
+          type: 'personalDocument';
+          organizationUuid: string;
+          projectUuid: string;
+          createdByUserUuid: string | null;
+          spaceUuid: null;
+      }
     | { type: 'dashboard'; dashboardUuid: string; spaceUuid: string }
     | {
           type: 'chart';
@@ -254,7 +261,10 @@ export class SpacePermissionService extends BaseService {
 
     async getDocumentDeleteAccessContext(
         userUuid: string,
-        target: Extract<AccessTarget, { type: 'document' }>,
+        target: Extract<
+            AccessTarget,
+            { type: 'document' | 'personalDocument' }
+        >,
     ): Promise<AccessContextForCasl> {
         const context = await this.resolveAccess(userUuid, target);
         return { ...context, access: getDocumentDeleteAccess(context.access) };
@@ -338,6 +348,7 @@ export class SpacePermissionService extends BaseService {
     ): DirectGrantTarget | undefined {
         switch (target.type) {
             case 'space':
+            case 'personalDocument':
                 return undefined;
             case 'document':
                 return {
@@ -475,17 +486,7 @@ export class SpacePermissionService extends BaseService {
         );
         const baselineOnly = (target: T): AccessContextForCasl | undefined => {
             if (target.spaceUuid === null) {
-                if (target.type !== 'app') {
-                    return undefined;
-                }
-                return {
-                    organizationUuid: target.organizationUuid,
-                    projectUuid: target.projectUuid,
-                    inheritsFromOrgOrProject: false,
-                    access: [],
-                    admins: [],
-                    directOnly: false,
-                };
+                return SpacePermissionService.getSpacelessContext(target);
             }
             const { spaceUuid } = target;
             const context = spaceContexts[spaceUuid];
@@ -613,6 +614,50 @@ export class SpacePermissionService extends BaseService {
                 ),
             );
         });
+    }
+
+    /**
+     * Personal apps rely on their creator rule in CASL. A personal Document
+     * instead acts like a private space whose only member is its creator, as
+     * admin, so the space-based Document rules apply unchanged.
+     */
+    private static getSpacelessContext(
+        target: AccessTarget,
+    ): AccessContextForCasl | undefined {
+        switch (target.type) {
+            case 'app':
+                return {
+                    organizationUuid: target.organizationUuid,
+                    projectUuid: target.projectUuid,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                };
+            case 'personalDocument':
+                return {
+                    organizationUuid: target.organizationUuid,
+                    projectUuid: target.projectUuid,
+                    inheritsFromOrgOrProject: false,
+                    access:
+                        target.createdByUserUuid === null
+                            ? []
+                            : [
+                                  {
+                                      userUuid: target.createdByUserUuid,
+                                      role: SpaceMemberRole.ADMIN,
+                                      hasDirectAccess: true,
+                                      projectRole: undefined,
+                                      inheritedRole: undefined,
+                                      inheritedFrom: undefined,
+                                  },
+                              ],
+                    admins: [],
+                    directOnly: false,
+                };
+            default:
+                return undefined;
+        }
     }
 
     private static withGrantAccess(

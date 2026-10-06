@@ -11,7 +11,7 @@ import { useDocumentChartQuery } from './useDocument';
 
 type Props = {
     projectUuid: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     documentUuid: string;
     versionUuid: string;
     chartId: string;

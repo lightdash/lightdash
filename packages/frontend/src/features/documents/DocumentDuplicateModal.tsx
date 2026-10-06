@@ -20,7 +20,7 @@ type Props = {
     documentUuid: string;
     name: string;
     description: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     opened: boolean;
     onClose: () => void;
 };
@@ -42,11 +42,11 @@ const DocumentDuplicateModal = ({
         initialValues: {
             name: `Copy of ${name}`,
             description,
-            spaceUuid: spaces.writableSpaces.some(
-                (space) => space.uuid === spaceUuid,
-            )
-                ? spaceUuid
-                : '',
+            spaceUuid:
+                spaceUuid !== null &&
+                spaces.writableSpaces.some((space) => space.uuid === spaceUuid)
+                    ? spaceUuid
+                    : '',
         },
         validate: {
             name: (value) => (value.trim() ? null : 'Enter a document name'),

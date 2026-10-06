@@ -25,7 +25,7 @@ import ReportChartFrame from './presentation/ReportChartFrame';
 
 type Props = {
     projectUuid: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     chart: SemanticChartAsCode;
     query: Pick<
         UseQueryResult<ApiExecuteAsyncMetricQueryResults, ApiError>,
@@ -50,7 +50,9 @@ const DocumentChartVisualization = ({
         () => getDocumentRuntimeChartConfig(chart.chartConfig),
         [chart.chartConfig],
     );
-    const palette = useProjectColorPalette(projectUuid, { spaceUuid });
+    const palette = useProjectColorPalette(projectUuid, {
+        spaceUuid: spaceUuid ?? undefined,
+    });
     const results = useInfiniteQueryResults(
         projectUuid,
         query.data?.queryUuid,

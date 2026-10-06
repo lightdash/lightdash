@@ -1,14 +1,15 @@
-import { Ability } from '@casl/ability';
+import { Ability, subject } from '@casl/ability';
 import {
     DirectSpaceAccessOrigin,
+    getUserAbilityBuilder,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     ProjectSpaceAccessOrigin,
     SpaceMemberRole,
     type DirectSpaceAccess,
-    type OrganizationMemberRole,
     type PossibleAbilities,
-    type ProjectMemberRole,
     type SessionUser,
     type SpaceAccess,
     type SpaceInheritanceChain,
@@ -2195,6 +2196,122 @@ describe('resolveAccess', () => {
             directOnly: false,
         });
         expect(appAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    describe('personal Documents', () => {
+        const creatorUuid = 'creator-uuid';
+        const otherUuid = 'other-uuid';
+        const personalDocument = {
+            type: 'personalDocument' as const,
+            organizationUuid: 'organization-uuid',
+            projectUuid: 'project-uuid',
+            createdByUserUuid: creatorUuid,
+            spaceUuid: null,
+        };
+        const abilityFor = (userUuid: string, role: ProjectMemberRole) =>
+            getUserAbilityBuilder({
+                user: {
+                    userUuid,
+                    organizationUuid: 'organization-uuid',
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: 'project-uuid',
+                        userUuid,
+                        role,
+                        roleUuid: undefined,
+                    },
+                ],
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+            }).builder.build();
+
+        test('act as a private space owned by the creator, without grant lookups', async () => {
+            const { service, directAccessFeatureGate } = createService({
+                enabled: true,
+            });
+
+            await expect(
+                service.resolveAccess(otherUuid, personalDocument),
+            ).resolves.toEqual({
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: creatorUuid,
+                        role: SpaceMemberRole.ADMIN,
+                        hasDirectAccess: true,
+                        projectRole: undefined,
+                        inheritedRole: undefined,
+                        inheritedFrom: undefined,
+                    },
+                ],
+                admins: [],
+                directOnly: false,
+            });
+            expect(
+                directAccessFeatureGate.isEnabledForUser,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('leave only admins with access once the creator is gone', async () => {
+            const { service } = createService({ enabled: false });
+
+            await expect(
+                service.resolveAccess(otherUuid, {
+                    ...personalDocument,
+                    createdByUserUuid: null,
+                }),
+            ).resolves.toMatchObject({ access: [] });
+        });
+
+        test.each([
+            {
+                name: 'the interactive viewer who created it can edit it',
+                userUuid: creatorUuid,
+                role: ProjectMemberRole.INTERACTIVE_VIEWER,
+                canView: true,
+                canManage: true,
+            },
+            {
+                name: 'a viewer who created it can only read it',
+                userUuid: creatorUuid,
+                role: ProjectMemberRole.VIEWER,
+                canView: true,
+                canManage: false,
+            },
+            {
+                name: 'another editor cannot see it',
+                userUuid: otherUuid,
+                role: ProjectMemberRole.EDITOR,
+                canView: false,
+                canManage: false,
+            },
+            {
+                name: 'a project admin can manage it',
+                userUuid: otherUuid,
+                role: ProjectMemberRole.ADMIN,
+                canView: true,
+                canManage: true,
+            },
+        ])('$name', async ({ userUuid, role, canView, canManage }) => {
+            const { service } = createService({ enabled: false });
+            const context = await service.resolveAccess(
+                userUuid,
+                personalDocument,
+            );
+            const ability = abilityFor(userUuid, role);
+
+            expect(ability.can('view', subject('Document', context))).toBe(
+                canView,
+            );
+            expect(ability.can('manage', subject('Document', context))).toBe(
+                canManage,
+            );
+        });
     });
 
     test('rejects app references whose resolved location does not match', async () => {

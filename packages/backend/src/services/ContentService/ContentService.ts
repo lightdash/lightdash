@@ -292,10 +292,37 @@ export class ContentService extends BaseService {
                   allowedProjectUuids,
               )
             : undefined;
+        // Like personal data apps: the caller sees their own, and project
+        // admins see everyone's in that project.
+        const includePersonalDocuments =
+            isAllDocuments && filters.includePersonalDocuments === true;
+        const personalDocumentAdminResults = includePersonalDocuments
+            ? auditedAbility.canBulk(
+                  'manage',
+                  allowedProjectUuids.map((projectUuid) =>
+                      subject('Document', {
+                          organizationUuid,
+                          projectUuid,
+                          metadata: { projectUuid },
+                      }),
+                  ),
+              )
+            : [];
         const documents = documentsEnabled
             ? {
                   ...(grantedDocumentUuids !== undefined
                       ? { grantedUuids: grantedDocumentUuids }
+                      : {}),
+                  ...(includePersonalDocuments
+                      ? {
+                            personal: {
+                                forUserUuid: user.userUuid,
+                                adminProjectUuids: allowedProjectUuids.filter(
+                                    (_, index) =>
+                                        personalDocumentAdminResults[index],
+                                ),
+                            },
+                        }
                       : {}),
                   allowedSpaceUuids: documentSpaces.flatMap(
                       ({ target, context }) =>
