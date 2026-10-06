@@ -35888,6 +35888,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    requireAgentSession: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     authenticationType: {
                         dataType: 'union',
                         subSchemas: [
@@ -37785,6 +37792,7 @@ const models: TsoaRoute.Models = {
                 authenticationType: { ref: 'SnowflakeAuthenticationType' },
                 privateKeyPass: { dataType: 'string' },
                 privateKey: { dataType: 'string' },
+                requireAgentSession: { dataType: 'boolean' },
                 requireUserCredentials: { dataType: 'boolean' },
                 password: { dataType: 'string' },
                 user: { dataType: 'string', required: true },
@@ -48313,6 +48321,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserWarehouseCredentialPurpose: {
+        dataType: 'refEnum',
+        enums: ['default', 'ai'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_':
         {
             dataType: 'refAlias',
@@ -48482,6 +48495,10 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
+                purpose: {
+                    ref: 'UserWarehouseCredentialPurpose',
+                    required: true,
+                },
                 uuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -48694,6 +48711,13 @@ const models: TsoaRoute.Models = {
                     },
                     account: { dataType: 'string', required: true },
                     requireUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    requireAgentSession: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },

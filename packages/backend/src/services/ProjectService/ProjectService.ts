@@ -2276,7 +2276,6 @@ export class ProjectService extends BaseService {
         context,
         isServiceAccount = false,
         purpose = 'query',
-        context,
     }: {
         projectUuid: string;
         warehouseConnectionUuid: string;
@@ -2285,7 +2284,6 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
-        context?: QueryExecutionContext;
     }) {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
@@ -3025,7 +3023,6 @@ export class ProjectService extends BaseService {
         context,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
-        context,
     }: {
         projectUuid: string;
         userId: string;
@@ -3033,7 +3030,6 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
-        context?: QueryExecutionContext;
     }) {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
@@ -11094,7 +11090,6 @@ export class ProjectService extends BaseService {
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
                 isRegisteredUser: true,
-                context,
             }),
             this.getAvailableParameters(projectUuid, explore),
             this.combineParameters(projectUuid, explore, parameters),

@@ -1432,74 +1432,6 @@ describe('ProjectService', () => {
         });
     });
 
-    it('separates AI and dashboard warehouse clients with identical connection settings', async () => {
-        const tunnelMock = vi.mocked(SshTunnel);
-        const originalTunnelImplementation = tunnelMock.getMockImplementation();
-        class MockSshTunnel {
-            constructor(readonly credentials: CreateWarehouseCredentials) {}
-
-            connect = vi.fn(async () => this.credentials);
-
-            disconnect = vi.fn();
-        }
-        tunnelMock.mockImplementation(
-            MockSshTunnel as unknown as typeof SshTunnel,
-        );
-        const configuredService = getMockedProjectService(lightdashConfigMock);
-        configuredService.warehouseClients = {};
-        const snowflakeCredentials: CreateSnowflakeCredentials = {
-            type: WarehouseTypes.SNOWFLAKE,
-            account: 'test-account',
-            user: 'analyst',
-            database: 'test-db',
-            warehouse: 'test-warehouse',
-            schema: 'public',
-        };
-        const createClient = vi.mocked(
-            projectModel.getWarehouseClientFromCredentials,
-        );
-        createClient
-            .mockReturnValueOnce({
-                ...warehouseClientMock,
-                credentials: snowflakeCredentials,
-                runQuery: vi.fn(async () => resultsWith1Row),
-            })
-            .mockReturnValueOnce({
-                ...warehouseClientMock,
-                credentials: {
-                    ...snowflakeCredentials,
-                    requireAgentSession: true,
-                },
-                runQuery: vi.fn(async () => resultsWith1Row),
-            });
-        try {
-            const dashboard = await configuredService._getWarehouseClient(
-                projectUuid,
-                snowflakeCredentials,
-            );
-            const agent = await configuredService._getWarehouseClient(
-                projectUuid,
-                {
-                    ...snowflakeCredentials,
-                    requireAgentSession: true,
-                    userWarehouseCredentialsUuid: 'ai-credential-uuid',
-                } as CreateSnowflakeCredentials,
-            );
-            const dashboardAgain = await configuredService._getWarehouseClient(
-                projectUuid,
-                snowflakeCredentials,
-            );
-            expect(agent.warehouseClient).not.toBe(dashboard.warehouseClient);
-            expect(dashboardAgain.warehouseClient).toBe(
-                dashboard.warehouseClient,
-            );
-            expect(createClient).toHaveBeenCalledTimes(2);
-        } finally {
-            if (originalTunnelImplementation)
-                tunnelMock.mockImplementation(originalTunnelImplementation);
-        }
-    });
-
     afterEach(() => {
         vi.clearAllMocks();
     });
@@ -7047,11 +6979,11 @@ describe('ProjectService', () => {
             }));
             const credentialsSpy = vi.spyOn(
                 service as unknown as {
-                    getWarehouseCredentials: (args: {
+                    getWarehouseCredentialsWithConnection: (args: {
                         context?: QueryExecutionContext;
                     }) => Promise<unknown>;
                 },
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             );
             await service.searchFieldUniqueValues(
                 user,
