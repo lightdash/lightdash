@@ -46,6 +46,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import {
     useContentBulkAction,
     useInfiniteContent,
@@ -95,6 +96,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         | 'spaceUuids'
         | 'contentTypes'
         | 'includePersonalDataApps'
+        | 'includePersonalDocuments'
         | 'dataAppVizsFilter'
         | 'sharedWithMe'
     > & {
@@ -311,6 +313,14 @@ const InfiniteResourceTable = ({
                         >
                             {space.name}
                         </Anchor>
+                    );
+                }
+
+                if (isResourceViewDocumentItem(item) && !item.data.spaceUuid) {
+                    return (
+                        <Text fz="xs" fw={500} c="dimmed">
+                            Personal
+                        </Text>
                     );
                 }
 
@@ -572,6 +582,7 @@ const InfiniteResourceTable = ({
             sortBy: sortBy?.sortBy,
             sortDirection: sortBy?.sortDirection,
             includePersonalDataApps: filters.includePersonalDataApps,
+            includePersonalDocuments: filters.includePersonalDocuments,
             dataAppVizsFilter: filters.dataAppVizsFilter,
             sharedWithMe: filters.sharedWithMe,
             ownerUserUuids: selectedOwnerUserUuid
@@ -1148,9 +1159,10 @@ const InfiniteResourceTable = ({
                               projectUuid: item.data.projectUuid,
                               inheritsFromOrgOrProject:
                                   space?.inheritsFromOrgOrProject ?? false,
-                              access: space?.userAccess
-                                  ? [space.userAccess]
-                                  : [],
+                              access: getListedDocumentAccess(
+                                  item.data,
+                                  space?.userAccess,
+                              ),
                           }),
                       ) === true
                   );

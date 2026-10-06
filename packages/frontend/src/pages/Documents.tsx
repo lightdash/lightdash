@@ -63,6 +63,7 @@ const Documents = () => {
                             filters={{
                                 projectUuid,
                                 contentTypes: [ContentType.DOCUMENT],
+                                includePersonalDocuments: true,
                             }}
                             ownerFilter
                             columnVisibility={{

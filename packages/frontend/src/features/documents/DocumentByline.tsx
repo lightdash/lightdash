@@ -1,7 +1,9 @@
 import { type Document } from '@lightdash/common';
-import { Group, Text } from '@mantine/core';
+import { Badge, Group, Text, Tooltip } from '@mantine/core';
+import { IconLock } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
+import MantineIcon from '../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 
 /** Original creator and assigned owner beside an independent last-edited time; never attributes the edit to the creator. */
@@ -34,6 +36,16 @@ const DocumentByline = ({
             data-tour-label="See who wrote it and when"
             data-tour-docs="explore/documents.mdx#read-a-document:3"
         >
+            {document.spaceUuid === null && (
+                <Tooltip label="Only its creator and admins can see this document until it's saved to a space">
+                    <Badge
+                        size="sm"
+                        leftSection={<MantineIcon icon={IconLock} size={12} />}
+                    >
+                        Personal
+                    </Badge>
+                </Tooltip>
+            )}
             {document.createdBy && (
                 <>
                     <Group

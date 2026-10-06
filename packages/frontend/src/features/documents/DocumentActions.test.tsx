@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
     promote: vi.fn(),
     canRequestReview: false,
     reviewModal: vi.fn(),
+    saveModal: vi.fn(),
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -77,6 +78,12 @@ vi.mock('./DocumentDuplicateModal', () => ({
     default: (props: unknown) => {
         mocks.duplicateModal(props);
         return <div>Duplicate document form</div>;
+    },
+}));
+vi.mock('./SaveDocumentToSpaceModal', () => ({
+    default: (props: unknown) => {
+        mocks.saveModal(props);
+        return <div>Save to a space form</div>;
     },
 }));
 vi.mock('./DocumentAsCodeModal', () => ({
@@ -203,6 +210,7 @@ describe('Document actions', () => {
         mocks.promote.mockReset();
         mocks.canRequestReview = false;
         mocks.reviewModal.mockReset();
+        mocks.saveModal.mockReset();
     });
     const renderActions = () =>
         render(
@@ -250,6 +258,63 @@ describe('Document actions', () => {
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
     });
+    describe('a personal Document', () => {
+        const personal = { ...document, spaceUuid: null };
+        const renderPersonal = () =>
+            render(
+                <MantineProvider>
+                    <DocumentActions
+                        document={personal}
+                        canRequestReview={false}
+                    />
+                </MantineProvider>,
+            );
+
+        it('can be saved to a space by someone who can edit it', async () => {
+            mocks.canEdit = true;
+            renderPersonal();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Save to space' }),
+            );
+            expect(
+                await screen.findByText('Save to a space form'),
+            ).toBeVisible();
+            expect(mocks.saveModal).toHaveBeenCalledWith(
+                expect.objectContaining({ document: personal }),
+            );
+        });
+
+        it('hides actions that need a space first', async () => {
+            mocks.canEdit = true;
+            mocks.upstreamProjectUuid = 'upstream';
+            renderPersonal();
+            expect(
+                screen.queryByRole('button', { name: /favorites/ }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+            await screen.findByRole('menuitem', { name: 'Export PDF' });
+            [
+                'Share',
+                'Pin to homepage',
+                'Promote document',
+                'View as code',
+            ].forEach((name) =>
+                expect(
+                    screen.queryByRole('menuitem', { name }),
+                ).not.toBeInTheDocument(),
+            );
+        });
+
+        it('cannot be saved by a reader', () => {
+            renderPersonal();
+            expect(
+                screen.queryByRole('button', { name: 'Save to space' }),
+            ).not.toBeInTheDocument();
+        });
+    });
+
     it('exports this Document as a PDF', async () => {
         renderActions();
         fireEvent.click(

@@ -8,7 +8,7 @@ import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import { usePersonalSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
@@ -74,6 +74,14 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     );
 
     const isMovingSingleItem = items.length === 1;
+    const isSavingPersonalDocument =
+        isMovingSingleItem &&
+        items[0].type === ResourceViewItemType.DOCUMENT &&
+        items[0].data.spaceUuid === null;
+    // A personal Document is first saved to the user's own Space when they have one
+    const { data: personalSpace } = usePersonalSpace(projectUuid, {
+        enabled: opened && isSavingPersonalDocument,
+    });
 
     const defaultSpaceUuid = useMemo(() => {
         // return space uuid only if there's a single item (i.e. not a bulk transfer)
@@ -88,12 +96,13 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
             case ResourceViewItemType.DASHBOARD:
                 return item.data.spaceUuid;
             case ResourceViewItemType.DOCUMENT:
+                return item.data.spaceUuid ?? personalSpace?.uuid;
             case ResourceViewItemType.DATA_APP:
                 return item.data.spaceUuid ?? undefined;
             default:
                 return assertUnreachable(item, 'Invalid item type');
         }
-    }, [isMovingSingleItem, items]);
+    }, [isMovingSingleItem, items, personalSpace?.uuid]);
 
     const singleItemType = useMemo(() => {
         if (items.some((item) => item.type === ResourceViewItemType.DOCUMENT)) {

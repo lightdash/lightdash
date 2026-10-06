@@ -23,6 +23,7 @@ import {
     useDirectAccessAvailability,
 } from '../../../features/directAccess';
 import DocumentDuplicateModal from '../../../features/documents/DocumentDuplicateModal';
+import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import { useCanDeleteDocument } from '../../../features/documents/useCanDeleteDocument';
 import { useDocumentCreationSpaces } from '../../../features/documents/useDocumentCreationSpaces';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -66,6 +67,9 @@ const DocumentResourceActionMenu = ({
         grantRoles: directAccessRoles,
     });
     const space = spaces.find(({ uuid }) => uuid === spaceUuid);
+    // Pinning, favorites and sharing need a Space first
+    const isPersonal = spaceUuid === null;
+    const access = getListedDocumentAccess(item.data, space?.userAccess);
     const canMove =
         user.data?.ability.can(
             'update',
@@ -74,10 +78,11 @@ const DocumentResourceActionMenu = ({
                 projectUuid,
                 inheritsFromOrgOrProject:
                     space?.inheritsFromOrgOrProject ?? false,
-                access: space?.userAccess ? [space.userAccess] : [],
+                access,
             }),
         ) === true;
     const canPin =
+        !isPersonal &&
         user.data?.ability.can(
             'manage',
             subject('PinnedItems', {
@@ -86,8 +91,12 @@ const DocumentResourceActionMenu = ({
             }),
         ) === true;
     const isPinned = !!item.data.pinnedListUuid;
-    const canShare = availability.isAvailable && canManageAccess;
-    const hasDeleteAccess = useCanDeleteDocument(item.data);
+    const canShare = !isPersonal && availability.isAvailable && canManageAccess;
+    const favorites = isPersonal ? null : favoritesContext;
+    const hasDeleteAccess = useCanDeleteDocument({
+        ...item.data,
+        access: isPersonal ? access : [],
+    });
     const canDelete = allowDelete && hasDeleteAccess;
     if (
         flag.isError ||
@@ -97,7 +106,7 @@ const DocumentResourceActionMenu = ({
             !canShare &&
             !canDelete &&
             !canDuplicate &&
-            !favoritesContext)
+            !favorites)
     ) {
         return null;
     }
@@ -140,7 +149,7 @@ const DocumentResourceActionMenu = ({
                                 : 'Pin to homepage'}
                         </Menu.Item>
                     )}
-                    {favoritesContext && (
+                    {favorites && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon
@@ -151,7 +160,7 @@ const DocumentResourceActionMenu = ({
                                 />
                             }
                             onClick={() =>
-                                favoritesContext.toggleFavorite(
+                                favorites.toggleFavorite(
                                     item.type,
                                     item.data.uuid,
                                 )
@@ -182,7 +191,7 @@ const DocumentResourceActionMenu = ({
                                 })
                             }
                         >
-                            Move
+                            {isPersonal ? 'Save to space' : 'Move'}
                         </Menu.Item>
                     )}
                     {canShare && (

@@ -7,6 +7,7 @@ import { IconChevronRight, IconFileText } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useDocument } from '../../../../../features/documents/useDocument';
 import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
@@ -30,6 +31,22 @@ type Props = {
 };
 
 type DocumentCard = { uuid: string; name: string; href: string };
+
+const DocumentCardLabel: FC<{
+    projectUuid: string;
+    documentUuid: string;
+    isEmbed: boolean;
+}> = ({ projectUuid, documentUuid, isEmbed }) => {
+    // Embeds can't read Documents directly, so they keep the plain label
+    const { data: document } = useDocument(projectUuid, documentUuid, {
+        enabled: !isEmbed,
+    });
+    return (
+        <Text size="xs" c="dimmed">
+            {document?.spaceUuid === null ? 'Personal document' : 'Document'}
+        </Text>
+    );
+};
 
 const getDocumentCard = (
     metadata: unknown,
@@ -174,9 +191,11 @@ const AiDocumentCards: FC<Props> = ({
                             />
                         </Box>
                         <Box className={styles.content}>
-                            <Text size="xs" c="dimmed">
-                                Document
-                            </Text>
+                            <DocumentCardLabel
+                                projectUuid={projectUuid}
+                                documentUuid={document.uuid}
+                                isEmbed={isEmbed}
+                            />
                             <Text className={styles.title}>
                                 {document.name}
                             </Text>

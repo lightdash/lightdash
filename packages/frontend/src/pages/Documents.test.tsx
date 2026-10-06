@@ -96,6 +96,7 @@ describe('Documents page', () => {
             filters: {
                 projectUuid: 'project-uuid',
                 contentTypes: [ContentType.DOCUMENT],
+                includePersonalDocuments: true,
             },
             ownerFilter: true,
             columnVisibility: {
