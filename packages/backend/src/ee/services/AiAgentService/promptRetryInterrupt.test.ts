@@ -44,6 +44,9 @@ const buildService = (promptState: {
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },
         },
+        projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+        },
         aiAgentModel: {
             getThread: vi.fn().mockResolvedValue({
                 agentUuid: 'agent-uuid',

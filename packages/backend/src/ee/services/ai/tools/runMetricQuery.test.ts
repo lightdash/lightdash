@@ -200,7 +200,11 @@ describe('getRunMetricQuery', () => {
 
         expect(output).toEqual({
             result: ['```csv', 'dim1,met1\none,1\ntwo,\n', '```'].join('\n'),
-            metadata: { status: 'success', queryCacheHit: false },
+            metadata: {
+                status: 'success',
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                queryCacheHit: false,
+            },
             structuredContent: {
                 columns: [{ label: 'dim1' }, { label: 'met1' }],
                 rows: [
@@ -228,7 +232,11 @@ describe('getRunMetricQuery', () => {
 
         expect(output).toEqual({
             result: NO_RESULTS_RETRY_PROMPT,
-            metadata: { status: 'success', queryCacheHit: false },
+            metadata: {
+                status: 'success',
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                queryCacheHit: false,
+            },
             structuredContent: {
                 columns: [],
                 rows: [],

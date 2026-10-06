@@ -1,6 +1,10 @@
 import { type UUID } from '@lightdash/common';
 import { stripMemoryCitations } from '../ai/utils/memoryCitation';
 import {
+    isSavedRowResult,
+    withholdSavedRows,
+} from '../ai/utils/savedResultEgress';
+import {
     transformToolForDistill,
     type DistillToolOutput,
 } from './transcriptToolPolicy';
@@ -73,7 +77,10 @@ const sanitizeUnknown = (value: unknown): unknown => {
 
 export const sanitizeThread = async (
     thread: TranscriptThread,
-    options: { onUnknownTool?: (toolName: string) => void } = {},
+    options: {
+        onUnknownTool?: (toolName: string) => void;
+        restrictionsEnabled?: boolean;
+    } = {},
 ): Promise<DistillTranscript> => ({
     createdFrom: thread.createdFrom,
     turns: await Promise.all(
@@ -87,11 +94,25 @@ export const sanitizeThread = async (
             const tools = (
                 await Promise.all(
                     turn.tools.map((tool) =>
-                        transformToolForDistill(tool, {
-                            sanitizeText,
-                            sanitizeUnknown,
-                            onUnknownTool: options.onUnknownTool,
-                        }),
+                        options.restrictionsEnabled
+                            ? (tool.result !== null &&
+                              isSavedRowResult(tool.name)
+                                  ? withholdSavedRows(tool.name, tool.result)
+                                  : Promise.resolve(
+                                        '[tool result withheld under AI access restrictions]',
+                                    )
+                              ).then(
+                                  (result): DistillToolOutput => ({
+                                      name: tool.name,
+                                      args: {},
+                                      result,
+                                  }),
+                              )
+                            : transformToolForDistill(tool, {
+                                  sanitizeText,
+                                  sanitizeUnknown,
+                                  onUnknownTool: options.onUnknownTool,
+                              }),
                     ),
                 )
             ).filter((tool): tool is DistillToolOutput => tool !== null);
@@ -112,10 +133,18 @@ export const sanitizeThread = async (
                 ...(delivery ? { delivery } : {}),
                 ...(tools.length > 0 ? { tools } : {}),
                 ...(turn.assistantText
-                    ? { assistant: sanitizeText(turn.assistantText) }
+                    ? {
+                          assistant: options.restrictionsEnabled
+                              ? '[earlier answer withheld under AI access restrictions]'
+                              : sanitizeText(turn.assistantText),
+                      }
                     : {}),
                 ...(turn.errorMessage
-                    ? { error: sanitizeText(turn.errorMessage) }
+                    ? {
+                          error: options.restrictionsEnabled
+                              ? '[error text withheld under AI access restrictions]'
+                              : sanitizeText(turn.errorMessage),
+                      }
                     : {}),
                 ...(feedback ? { feedback } : {}),
                 ...(steers.length > 0 ? { steers } : {}),

@@ -11946,6 +11946,11 @@ Input modes:
                     "queryCacheHit": {
                       "type": "boolean",
                     },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -12323,6 +12328,11 @@ Input modes:
                   "properties": {
                     "queryCacheHit": {
                       "type": "boolean",
+                    },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
                     },
                     "status": {
                       "enum": [
@@ -14103,6 +14113,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                     "queryReuseHit": {
                       "type": "boolean",
                     },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -14604,6 +14619,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                     "queryReuseHit": {
                       "type": "boolean",
                     },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -14704,6 +14724,11 @@ custom metrics are applied automatically.
                   "properties": {
                     "queryCacheHit": {
                       "type": "boolean",
+                    },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
                     },
                     "status": {
                       "enum": [
@@ -15033,6 +15058,11 @@ custom metrics are applied automatically.
                     "queryCacheHit": {
                       "type": "boolean",
                     },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -15131,6 +15161,14 @@ Do not invent SQL Runner links.",
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -15241,6 +15279,14 @@ Do not invent SQL Runner links.",
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "queryUuid": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -18087,6 +18133,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                   "queryReuseHit": {
                     "type": "boolean",
                   },
+                  "queryUuid": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
                   "status": {
                     "enum": [
                       "success",
@@ -18587,6 +18638,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                   },
                   "queryReuseHit": {
                     "type": "boolean",
+                  },
+                  "queryUuid": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
                   },
                   "status": {
                     "enum": [

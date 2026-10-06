@@ -8811,6 +8811,10 @@ export class AiAgentModel {
                 | AgentToolOutput['metadata']
                 | Record<string, unknown>
                 | null;
+            aiSignInProvenance?: {
+                userUuid: string;
+                aiSignInCredentialUuid: string;
+            } | null;
         }>,
     ): Promise<string[]> {
         if (data.length === 0) return [];
@@ -8823,7 +8827,17 @@ export class AiAgentModel {
                         tool_call_id: item.toolCallId,
                         tool_name: item.toolName,
                         result: item.result,
-                        ...(item.metadata && { metadata: item.metadata }),
+                        metadata: {
+                            ...item.metadata,
+                            aiSignInFetchedRows: !!item.aiSignInProvenance,
+                            ...(item.aiSignInProvenance && {
+                                aiSignInUserUuid:
+                                    item.aiSignInProvenance.userUuid,
+                                aiSignInCredentialUuid:
+                                    item.aiSignInProvenance
+                                        .aiSignInCredentialUuid,
+                            }),
+                        },
                     })),
                 )
                 .returning('ai_agent_tool_result_uuid');
@@ -10208,6 +10222,8 @@ export class AiAgentModel {
     }
 
     async getEvalResultDataForAssessment(resultUuid: string): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
         query: string;
         response: string;
         expectedAnswer: string | null;
@@ -10218,9 +10234,17 @@ export class AiAgentModel {
             title: string | null;
             description: string | null;
         } | null;
-        toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[];
+        toolResults: Pick<
+            AiAgentToolResult,
+            'toolName' | 'result' | 'metadata'
+        >[];
     }> {
         const result = await this.database(AiEvalRunResultTableName)
+            .join(
+                AiThreadTableName,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
             .leftJoin(
                 AiEvalPromptTableName,
                 `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
@@ -10256,6 +10280,8 @@ export class AiAgentModel {
                 title: string | null;
                 description: string | null;
                 ai_prompt_uuid: string | null;
+                project_uuid: string;
+                organization_uuid: string;
             }>(
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.response`,
@@ -10266,6 +10292,8 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.title`,
                 `${AiArtifactVersionsTableName}.description`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiThreadTableName}.project_uuid`,
+                `${AiThreadTableName}.organization_uuid`,
             )
             .first();
 
@@ -10288,7 +10316,10 @@ export class AiAgentModel {
         }
 
         // Fetch tool calls and results if there's a prompt UUID
-        let toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[] = [];
+        let toolResults: Pick<
+            AiAgentToolResult,
+            'toolName' | 'result' | 'metadata'
+        >[] = [];
 
         if (result.ai_prompt_uuid) {
             toolResults = await this.getToolResultsForPrompt(
@@ -10297,6 +10328,8 @@ export class AiAgentModel {
         }
 
         return {
+            projectUuid: result.project_uuid,
+            organizationUuid: result.organization_uuid,
             query: result.prompt,
             response: result.response,
             expectedAnswer: result.expected_response,

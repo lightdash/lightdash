@@ -314,8 +314,8 @@ export const getRunSql = ({
                 }
 
                 const effectiveLimit = Math.min(limit, maxQueryLimit);
-                const [{ rows, columns, rowCount }, review] = await Promise.all(
-                    [
+                const [{ queryUuid, rows, columns, rowCount }, review] =
+                    await Promise.all([
                         runSqlJob({ sql, limit: effectiveLimit }),
                         enableDataAccess
                             ? (reviewQuery?.({
@@ -324,8 +324,7 @@ export const getRunSql = ({
                                   limit: effectiveLimit,
                               }) ?? '')
                             : '',
-                    ],
-                );
+                    ]);
 
                 if (!isSlack) {
                     await createOrUpdateArtifact({
@@ -369,7 +368,12 @@ export const getRunSql = ({
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
                         }${emptyReview !== null ? ` ${emptyReview}` : ''}`,
-                        metadata: { status: 'success', rowCount: 0 },
+                        metadata: {
+                            status: 'success',
+                            rowCount: 0,
+                            queryUuid,
+                            queryCacheHit: false,
+                        },
                         structuredContent: emptyContent,
                     });
                 }
@@ -403,7 +407,12 @@ export const getRunSql = ({
                     };
                     return await persistResumeResult({
                         result: resultSummary,
-                        metadata: { status: 'success', rowCount },
+                        metadata: {
+                            status: 'success',
+                            rowCount,
+                            queryUuid,
+                            queryCacheHit: false,
+                        },
                         structuredContent: summaryContent,
                     });
                 }
@@ -433,7 +442,12 @@ export const getRunSql = ({
                         previewCsv,
                         'csv',
                     )}${review}`,
-                    metadata: { status: 'success', rowCount },
+                    metadata: {
+                        status: 'success',
+                        rowCount,
+                        queryUuid,
+                        queryCacheHit: false,
+                    },
                     structuredContent: previewContent,
                 });
             } catch (e) {

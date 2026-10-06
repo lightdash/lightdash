@@ -3421,7 +3421,11 @@ export class AsyncQueryService extends ProjectService {
         };
         const enriched = {
             ...history,
-            requestParameters: { ...history.requestParameters, queryUsage },
+            requestParameters: {
+                ...history.requestParameters,
+                queryUsage,
+                aiSignInCredentialUuid: undefined,
+            },
         };
         const result = binding
             ? await this.queryHistoryModel.create(account, enriched, binding)
@@ -3781,6 +3785,20 @@ export class AsyncQueryService extends ProjectService {
                     rawSql,
                 });
             const { warehouseCredentials, aiAccessAudit } = resolvedCredentials;
+
+            if (
+                queryTags.query_context === QueryExecutionContext.AI &&
+                aiAccessAudit !== null &&
+                warehouseCredentials.type === WarehouseTypes.SNOWFLAKE &&
+                warehouseCredentials.userWarehouseCredentialsUuid
+            ) {
+                await this.queryHistoryModel.recordAiSignInCredential(
+                    queryUuid,
+                    projectUuid,
+                    userUuid,
+                    warehouseCredentials.userWarehouseCredentialsUuid,
+                );
+            }
 
             warehouseConnectionUuid =
                 resolvedCredentials.warehouseConnectionUuid;

@@ -1,11 +1,15 @@
 import { type SessionUser } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/agents/embeddingGenerator', () => ({
     generateEmbedding: vi.fn(),
+}));
+vi.mock('../../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
 }));
 
 const candidate = (artifactVersionUuid: string, similarity: number) => ({
@@ -42,6 +46,9 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         recordArtifactReferences: vi.fn().mockResolvedValue(undefined),
         getArtifactVersionsByUuids: vi.fn().mockResolvedValue([baseline]),
     };
+    const projectModel = {
+        getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+    };
     const request = vi.fn<typeof fetch>().mockImplementation(async () =>
         Response.json({
             model: 'test',
@@ -57,6 +64,7 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: lightdashConfigMock,
         aiAgentModel,
+        projectModel,
         analytics: { track: vi.fn() },
         orgAiCopilotConfigResolver: {
             isOrgBedrockRouted: vi
@@ -80,7 +88,15 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         agentUuid: 'agent',
         searchQuery: 'Count orders by status',
     };
-    return { service, aiAgentModel, request, authorize, getDecisions, args };
+    return {
+        service,
+        aiAgentModel,
+        projectModel,
+        request,
+        authorize,
+        getDecisions,
+        args,
+    };
 };
 
 describe('verified answer retrieval', () => {
@@ -194,6 +210,7 @@ describe('verified answer retrieval', () => {
 });
 
 describe('verified examples in conversation history', () => {
+    beforeEach(() => vi.clearAllMocks());
     afterEach(() => vi.restoreAllMocks());
     const history = [
         {
@@ -213,9 +230,132 @@ describe('verified examples in conversation history', () => {
         agentUuid: 'agent',
         currentPromptUuid: 'current',
         threadUuid: 'thread-uuid',
-        userUuid: 'user',
+        userUuid: '11111111-1111-4111-8111-111111111111',
         retrieveRelevantArtifacts: true,
     };
+
+    it.each([true, false])(
+        'replays saved rows according to restrictions (%s)',
+        async (restrictionsEnabled) => {
+            const { service, aiAgentModel, projectModel } = setup();
+            projectModel.getAiAccessRestrictions.mockResolvedValue(
+                restrictionsEnabled,
+            );
+            aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([
+                {
+                    toolCall: {
+                        toolCallId: 'call',
+                        toolName: 'runQuery',
+                        toolArgs: {},
+                    },
+                    toolResult: {
+                        toolCallId: 'call',
+                        toolName: 'runQuery',
+                        result: '```csv\nName,Count\nWAREHOUSE_ROW_SECRET,1\n```',
+                        metadata: null,
+                    },
+                    approvalDecision: null,
+                },
+            ]);
+
+            const messages = await service.getChatHistoryFromThreadMessages(
+                history,
+                { ...options, retrieveRelevantArtifacts: false },
+            );
+            const payload = JSON.stringify(messages);
+            expect(payload.includes('WAREHOUSE_ROW_SECRET')).toBe(
+                !restrictionsEnabled,
+            );
+            if (restrictionsEnabled) {
+                expect(payload).toContain('rowCount');
+                expect(logAiEgressBlock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        surface: 'agent_thread_history',
+                        reason: 'rows_not_fetched_by_ai_sign_in',
+                    }),
+                );
+            } else {
+                expect(logAiEgressBlock).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it('replays AI sign-in fetched rows from an earlier turn for the same person', async () => {
+        const { service, aiAgentModel, projectModel } = setup();
+        projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
+            async (promptUuid: string) => [
+                {
+                    toolCall: {
+                        toolCallId: promptUuid,
+                        toolName: 'runQuery',
+                        toolArgs: {},
+                    },
+                    toolResult: {
+                        toolCallId: promptUuid,
+                        toolName: 'runQuery',
+                        result: `\`\`\`csv\nName\n${promptUuid}_ROW\n\`\`\``,
+                        metadata: {
+                            aiSignInFetchedRows: true,
+                            aiSignInUserUuid:
+                                '11111111-1111-4111-8111-111111111111',
+                            aiSignInCredentialUuid:
+                                '22222222-2222-4222-8222-222222222222',
+                        },
+                    },
+                    approvalDecision: null,
+                },
+            ],
+        );
+
+        const messages = await service.getChatHistoryFromThreadMessages(
+            history,
+            { ...options, retrieveRelevantArtifacts: false },
+        );
+        const payload = JSON.stringify(messages);
+        expect(payload).toContain('first_ROW');
+        expect(payload).toContain('current_ROW');
+    });
+
+    it.each(['other credential', 'other person'])(
+        'withholds rows fetched by %s',
+        async (source) => {
+            const { service, aiAgentModel, projectModel } = setup();
+            projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+            aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([
+                {
+                    toolCall: {
+                        toolCallId: 'call',
+                        toolName: 'runQuery',
+                        toolArgs: {},
+                    },
+                    toolResult: {
+                        toolCallId: 'call',
+                        toolName: 'runQuery',
+                        result: '```csv\nName\nWAREHOUSE_ROW_SECRET\n```',
+                        metadata:
+                            source === 'other credential'
+                                ? { aiSignInFetchedRows: false }
+                                : {
+                                      aiSignInFetchedRows: true,
+                                      aiSignInUserUuid:
+                                          '33333333-3333-4333-8333-333333333333',
+                                      aiSignInCredentialUuid:
+                                          '22222222-2222-4222-8222-222222222222',
+                                  },
+                    },
+                    approvalDecision: null,
+                },
+            ]);
+            const messages = await service.getChatHistoryFromThreadMessages(
+                history,
+                { ...options, retrieveRelevantArtifacts: false },
+            );
+            expect(JSON.stringify(messages)).not.toContain(
+                'WAREHOUSE_ROW_SECRET',
+            );
+        },
+    );
 
     it.each([false, true])(
         'selects examples for the appropriate question (fast=%s)',
@@ -232,7 +372,7 @@ describe('verified examples in conversation history', () => {
                 organizationUuid: 'org',
                 projectUuid: 'project',
                 agentUuid: 'agent',
-                userUuid: 'user',
+                userUuid: options.userUuid,
                 promptUuid: fastDecisionsEnabled ? 'current' : 'first',
                 searchQuery: fastDecisionsEnabled
                     ? 'Now show customer retention'
@@ -493,6 +633,9 @@ describe('battle profile response preparation', () => {
                 },
                 lightdashConfig: lightdashConfigMock,
                 aiAgentModel,
+                projectModel: {
+                    getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+                },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             vi.spyOn(
                 service as unknown as {

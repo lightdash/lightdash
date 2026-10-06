@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import {
     aiAgentReviewClassifierJudgeCallOutputSchema,
+    AiEgressBlockReason,
+    AiEgressSurface,
     assertUnreachable,
     CatalogType,
     FeatureFlags,
@@ -46,6 +48,7 @@ import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
+import { logAiEgressBlock } from '../../utils/aiEgress/logAiEgressBlock';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
@@ -93,7 +96,10 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
-    projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'findExploresFromCache' | 'getAiAccessRestrictions'
+    >;
     lightdashConfig: LightdashConfig;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
@@ -281,7 +287,7 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly projectModel: Pick<
         ProjectModel,
-        'getSummary' | 'findExploresFromCache'
+        'getSummary' | 'findExploresFromCache' | 'getAiAccessRestrictions'
     >;
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -368,6 +374,22 @@ export class AiAgentReviewClassifierService extends BaseService {
         return Promise.all(
             candidates.map((candidate) =>
                 limit(async () => {
+                    if (
+                        await this.projectModel.getAiAccessRestrictions(
+                            candidate.subject.projectUuid,
+                        )
+                    ) {
+                        logAiEgressBlock({
+                            surface: AiEgressSurface.AGENT_JUDGE,
+                            reason: AiEgressBlockReason.METADATA_ONLY,
+                            organizationUuid:
+                                candidate.subject.organizationUuid,
+                            projectUuid: candidate.subject.projectUuid,
+                            userUuid: null,
+                            detail: 'reviewEvidenceRanking',
+                        });
+                        return candidate;
+                    }
                     const supportingEvidence = await rankReviewEvidence(
                         decisions,
                         candidate,
@@ -1589,6 +1611,57 @@ export class AiAgentReviewClassifierService extends BaseService {
         candidate: AiAgentReviewClassifierTurnCandidate,
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(
+                candidate.subject.projectUuid,
+            );
+        const judgeEvidence = restrictionsEnabled
+            ? {
+                  ...evidencePacket,
+                  targetTurn: {
+                      ...evidencePacket.targetTurn,
+                      assistantResponse:
+                          '[answer withheld under AI access restrictions]',
+                      errorMessage: null,
+                  },
+                  previousTurns: evidencePacket.previousTurns.map((turn) => ({
+                      ...turn,
+                      assistantResponse: null,
+                      errorMessage: null,
+                  })),
+                  queryHistory: evidencePacket.queryHistory.map((query) => ({
+                      ...query,
+                      error: null,
+                      metricQuery: {
+                          ...query.metricQuery,
+                          filters: {},
+                      },
+                  })),
+                  supportingEvidence: evidencePacket.supportingEvidence.map(
+                      (evidence) => ({
+                          ...evidence,
+                          resultPreview: null,
+                          toolArgsPreview: null,
+                          summary:
+                              '[tool result withheld under AI access restrictions]',
+                      }),
+                  ),
+                  suggestedEvidenceExcerpts:
+                      evidencePacket.suggestedEvidenceExcerpts.filter(
+                          (excerpt) => excerpt.source === 'user_prompt',
+                      ),
+              }
+            : evidencePacket;
+        if (restrictionsEnabled) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.AGENT_JUDGE,
+                reason: AiEgressBlockReason.METADATA_ONLY,
+                organizationUuid: candidate.subject.organizationUuid,
+                projectUuid: candidate.subject.projectUuid,
+                userUuid: null,
+                detail: 'reviewJudge',
+            });
+        }
         // Run the judge on the org's own key when they have a BYO Anthropic key
         // that can serve the review model — never fall back to the instance
         // provider for their turn data.
@@ -1740,7 +1813,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                 },
                 {
                     role: 'user',
-                    content: JSON.stringify(evidencePacket, null, 2),
+                    content: JSON.stringify(judgeEvidence, null, 2),
                 },
             ],
         });
@@ -1751,7 +1824,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             result.output.primaryRootCause === 'project_context'
                 ? await this.emitProjectContextEntry({
                       candidate,
-                      evidencePacket,
+                      evidencePacket: judgeEvidence,
                       model,
                       judgeOutput: result.output,
                   })
@@ -1802,6 +1875,10 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             const currentEntries = await this.projectContextModel.getDocument(
                 candidate.subject.projectUuid,
             );
+            const restrictionsEnabled =
+                await this.projectModel.getAiAccessRestrictions(
+                    candidate.subject.projectUuid,
+                );
             return await authorProjectContextEntry({
                 evidence: {
                     type: 'turn',
@@ -1814,7 +1891,14 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                         recommendation: judgeOutput.recommendation,
                     },
                 },
-                currentEntries,
+                currentEntries: restrictionsEnabled
+                    ? currentEntries.map((entry) => ({
+                          ...entry,
+                          content:
+                              '[project context content withheld under AI access restrictions]',
+                          terms: [],
+                      }))
+                    : currentEntries,
                 model,
                 telemetry,
             });

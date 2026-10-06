@@ -91,6 +91,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'
+        | 'request_parameters'
     >
 >;
 

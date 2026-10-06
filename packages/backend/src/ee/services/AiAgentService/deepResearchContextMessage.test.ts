@@ -89,6 +89,9 @@ describe('AiAgentService deep research conversation history', () => {
                 getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
                 getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
             },
+            projectModel: {
+                getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+            },
             lightdashConfig: {},
         } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 

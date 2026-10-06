@@ -146,6 +146,9 @@ describe('rejected Slack SQL approval resume', () => {
         const service = new AiAgentService({
             lightdashConfig: lightdashConfigMock,
             slackClient: { postMessage },
+            projectModel: {
+                getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+            },
             userModel: {
                 findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
                     userUuid: 'user-1',

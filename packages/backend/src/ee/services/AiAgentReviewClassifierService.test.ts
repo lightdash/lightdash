@@ -272,6 +272,7 @@ describe('AiAgentReviewClassifierService', () => {
     const projectModel = {
         getSummary: vi.fn(),
         findExploresFromCache: vi.fn(),
+        getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
     };
     const projectContextModel = {
         getDocument: vi.fn(),

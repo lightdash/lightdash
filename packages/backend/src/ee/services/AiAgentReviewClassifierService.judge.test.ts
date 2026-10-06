@@ -3,6 +3,7 @@ import {
     type AiAgentReviewClassifierTurnCandidate,
 } from '@lightdash/common';
 import { generateText } from 'ai';
+import { logAiEgressBlock } from '../../utils/aiEgress/logAiEgressBlock';
 import { getModel } from './ai/models';
 import {
     AiAgentReviewClassifierService,
@@ -14,6 +15,9 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
+vi.mock('../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
+}));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
     // Must mirror the real return shape, or the usage path this exercises
@@ -136,7 +140,7 @@ const judgeOutput = (
     ...overrides,
 });
 
-const makeService = () =>
+const makeService = (restrictionsEnabled = false) =>
     new AiAgentReviewClassifierService({
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
@@ -155,6 +159,9 @@ const makeService = () =>
         projectModel: {
             getSummary: vi.fn(),
             findExploresFromCache: vi.fn(),
+            getAiAccessRestrictions: vi
+                .fn()
+                .mockResolvedValue(restrictionsEnabled),
         } as never,
         projectContextModel: { getDocument: vi.fn().mockResolvedValue([]) },
         lightdashConfig: {
@@ -202,6 +209,71 @@ describe('single-tier judge', () => {
         expect(result.judgeOutput).toEqual(output);
     });
 
+    it('sends metadata only and logs the block under restrictions', async () => {
+        generateTextMock.mockResolvedValueOnce({
+            output: judgeOutput({ promotedToFinding: false }),
+        } as never);
+        const secret = 'WAREHOUSE_ROW_SECRET';
+        const input = {
+            ...replayInput,
+            evidencePacket: {
+                ...replayInput.evidencePacket,
+                targetTurn: {
+                    ...replayInput.evidencePacket.targetTurn,
+                    assistantResponse: secret,
+                },
+                supportingEvidence: [
+                    {
+                        source: 'tool_trace' as const,
+                        toolCallId: 'call',
+                        toolName: 'runQuery',
+                        parentToolCallId: null,
+                        createdAt: new Date(),
+                        relevanceScore: 1,
+                        toolArgsPreview: null,
+                        resultPreview: secret,
+                        summary: secret,
+                    },
+                ],
+            },
+        };
+
+        await makeService(true).replayJudge(input);
+
+        expect(
+            JSON.stringify(generateTextMock.mock.calls[0][0].messages),
+        ).not.toContain(secret);
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: 'agent_judge',
+                reason: 'metadata_only',
+            }),
+        );
+    });
+
+    it('keeps review evidence with restrictions off', async () => {
+        generateTextMock.mockResolvedValueOnce({
+            output: judgeOutput({ promotedToFinding: false }),
+        } as never);
+        const input = {
+            ...replayInput,
+            evidencePacket: {
+                ...replayInput.evidencePacket,
+                targetTurn: {
+                    ...replayInput.evidencePacket.targetTurn,
+                    assistantResponse: 'WAREHOUSE_ROW_SECRET',
+                },
+            },
+        };
+
+        await makeService().replayJudge(input);
+
+        expect(
+            JSON.stringify(generateTextMock.mock.calls[0][0].messages),
+        ).toContain('WAREHOUSE_ROW_SECRET');
+        expect(logAiEgressBlock).not.toHaveBeenCalled();
+    });
+
     it('routes project-context findings through the authoring call', async () => {
         const output = judgeOutput({ primaryRootCause: 'project_context' });
         const projectContextEntry = {
@@ -226,6 +298,33 @@ describe('single-tier judge', () => {
         );
         expect(result.judgeOutput?.projectContextEntry).toEqual(
             projectContextEntry,
+        );
+    });
+
+    it('keeps saved row text out of the review follow-up call', async () => {
+        generateTextMock
+            .mockResolvedValueOnce({
+                output: judgeOutput({ primaryRootCause: 'project_context' }),
+            } as never)
+            .mockResolvedValueOnce({
+                output: { projectContextEntry: null },
+            } as never);
+        const input = {
+            ...replayInput,
+            evidencePacket: {
+                ...replayInput.evidencePacket,
+                targetTurn: {
+                    ...replayInput.evidencePacket.targetTurn,
+                    assistantResponse: 'WAREHOUSE_ROW_SECRET',
+                },
+            },
+        };
+
+        await makeService(true).replayJudge(input);
+
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
+        expect(JSON.stringify(generateTextMock.mock.calls)).not.toContain(
+            'WAREHOUSE_ROW_SECRET',
         );
     });
 });

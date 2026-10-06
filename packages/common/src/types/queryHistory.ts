@@ -89,6 +89,7 @@ export type QueryHistory = {
     requestParameters: ExecuteAsyncQueryRequestParams & {
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
+        aiSignInCredentialUuid?: string;
     };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */

@@ -88,6 +88,8 @@ export const toolRunSqlStructuredContentSchema = z.object({
 export const toolRunSqlOutputSchema = structuredToolOutputSchema({
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
+        queryUuid: z.string().uuid().optional(),
+        queryCacheHit: z.boolean().optional(),
     }),
     structuredContent: toolRunSqlStructuredContentSchema,
     // Rejection and timeout are failures for this tool: they carry an error,

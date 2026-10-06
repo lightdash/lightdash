@@ -13,12 +13,17 @@ import {
 } from '@lightdash/common';
 import { vi } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import type { AiAgentMemoryThread } from '../../models/AiAgentMemoryModel';
 import { createReviewJudgeConfigResolverMock } from '../ai/reviewJudgeModel.mock';
 import {
     AiAgentMemoryService,
     validateMemoryObjects,
 } from './AiAgentMemoryService';
+
+vi.mock('../../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
+}));
 
 const distillableThread = (
     activity: Date,
@@ -202,6 +207,7 @@ describe('AiAgentMemoryService', () => {
             rejected: [],
         });
         const findExploresFromCache = vi.fn().mockResolvedValue({});
+        const getAiAccessRestrictions = vi.fn().mockResolvedValue(false);
         const aiAgentMemoryDistill = vi.fn();
         const aiAgentMemoryConsolidatePartition = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
@@ -275,6 +281,7 @@ describe('AiAgentMemoryService', () => {
             projectModel: {
                 getSummary: getProjectSummary,
                 findExploresFromCache,
+                getAiAccessRestrictions,
             } as AnyType,
             projectContextModel: { getDocument: vi.fn() },
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
@@ -318,6 +325,7 @@ describe('AiAgentMemoryService', () => {
             recordDryRunConsolidation,
             applyConsolidation,
             findExploresFromCache,
+            getAiAccessRestrictions,
             aiAgentMemoryDistill,
             aiAgentMemoryConsolidatePartition,
             getAgent,
@@ -997,6 +1005,81 @@ describe('AiAgentMemoryService', () => {
             distillPromptHash: null,
             distilledUpTo: activity,
         });
+    });
+
+    it('passes only row metadata to an unattended distill job under restrictions', async () => {
+        vi.mocked(logAiEgressBlock).mockClear();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const {
+            service,
+            findThreadForDistill,
+            getAiAccessRestrictions,
+            distillCall,
+        } = build();
+        getAiAccessRestrictions.mockResolvedValue(true);
+        const source = distillableThread(activity);
+        source.turns[0].assistantText = 'WAREHOUSE_ROW_SECRET';
+        source.turns[0].tools = [
+            {
+                toolCallId: 'call',
+                name: 'runQuery',
+                args: {},
+                result: '```csv\nName,Count\nWAREHOUSE_ROW_SECRET,1\n```',
+                resultIsError: false,
+                source: 'lightdash',
+            },
+        ];
+        findThreadForDistill.mockResolvedValue(source);
+        distillCall.mockResolvedValue({
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        });
+
+        await service.distillThread({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        });
+
+        const { transcript } = distillCall.mock.calls[0][0];
+        expect(transcript).toContain('rowCount');
+        expect(transcript).not.toContain('WAREHOUSE_ROW_SECRET');
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: 'agent_memory',
+                reason: 'metadata_only',
+            }),
+        );
+    });
+
+    it('skips consolidation before the provider under restrictions', async () => {
+        vi.mocked(logAiEgressBlock).mockClear();
+        const { service, getAiAccessRestrictions } = build();
+        getAiAccessRestrictions.mockResolvedValue(true);
+
+        const result = await (
+            service as unknown as {
+                consolidateWithLlm: (args: unknown) => Promise<{
+                    operations: unknown[];
+                }>;
+            }
+        ).consolidateWithLlm({
+            partition: {
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                ownerUserUuid: 'user',
+            },
+            input: [{ memory: 'WAREHOUSE_ROW_SECRET' }],
+        });
+
+        expect(result).toEqual({ operations: [] });
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: 'agent_memory',
+                reason: 'off_under_restrictions',
+            }),
+        );
     });
 
     it('distills a thread whose memory is still active or absent', async () => {
