@@ -16,7 +16,6 @@ describe('walkthrough catalogue', () => {
         'manage:SpotlightTableConfig',
         'manage:VirtualView',
         'delete:VirtualView',
-        'view:AiAgentDocument',
         'manage:AiAgentDocument',
     ])('starts %s as a hands-on walkthrough, not reading', (scope) => {
         expect(
@@ -68,6 +67,7 @@ describe('walkthrough catalogue', () => {
     it.each([
         ['manage:ContentVerification', 'view:ContentVerification'],
         ['manage:SqlRunner', 'manage:CustomSql'],
+        ['manage:AiAgentDocument', 'view:AiAgentDocument'],
     ])('shows the lesson for %s once, covering %s', (primary, covered) => {
         const modules = buildLearnCatalogue();
         expect(modules.find((m) => m.scope === covered)).toBeUndefined();

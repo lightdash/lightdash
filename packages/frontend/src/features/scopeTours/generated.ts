@@ -3695,6 +3695,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        covers: ['view:AiAgentDocument'],
     },
     'create:AiAgentThread': {
         scope: 'create:AiAgentThread',
@@ -5958,6 +5959,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        coveredBy: 'manage:AiAgentDocument',
     },
     'manage:CustomSql': {
         scope: 'manage:CustomSql',

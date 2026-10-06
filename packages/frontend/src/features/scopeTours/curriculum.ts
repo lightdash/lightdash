@@ -44,7 +44,6 @@ export const CURRICULUM: string[] = [
     'create:DataApp',
     'view:DataApp',
     'manage:DataApp',
-    'view:AiAgentDocument',
     'manage:Validation',
     'manage:SpotlightTableConfig',
     'manage:MetricsTree',
