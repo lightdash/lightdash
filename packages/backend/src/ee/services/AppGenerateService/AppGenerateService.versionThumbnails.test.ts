@@ -16,6 +16,10 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
+import {
+    buildAppThumbnailClientMock,
+    createInMemoryAppThumbnailStorage,
+} from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -26,13 +30,6 @@ vi.mock('e2b', () => ({
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
     generateText: vi.fn(),
-}));
-// A signed URL here is just an address the scenario's bucket can resolve.
-vi.mock('../../../clients/Aws/ObjectUrlSigner', () => ({
-    createObjectUrlSigner: () => ({
-        getSignedDownloadUrl: async (bucket: string, key: string) =>
-            `signed://${bucket}/${key}`,
-    }),
 }));
 
 const BUCKET = 'test-bucket';
@@ -117,7 +114,6 @@ function buildScenario({
     promotedBefore?: boolean;
 }) {
     const state = {
-        automaticCaptureEnabled: true,
         renderFails: false,
         queueIsDown: false,
         buildFails: false,
@@ -325,6 +321,7 @@ function buildScenario({
         recordBuildNarration: async () => undefined,
     };
 
+    const thumbnailStorage = createInMemoryAppThumbnailStorage();
     const queuedCaptures: AppCaptureThumbnailJobPayload[] = [];
     const projectSummary = (projectUuid: string) => ({
         projectUuid,
@@ -415,19 +412,22 @@ function buildScenario({
         } as never,
         sandboxManager: null,
         appRuntimeS3: { client: s3Client as never, bucket: BUCKET },
-        thumbnailCapture: {
-            isAvailable: () => true,
-            render: async ({ app, version, asUserUuid }) => {
+        appThumbnailClient: buildAppThumbnailClientMock({
+            appModel: appModel as never,
+            storage: thumbnailStorage.storage,
+            headlessBrowserConfigured: true,
+            captureDataAppVersion: async ({
+                appUuid,
+                version,
+                projectUuid,
+                authUserUuid,
+            }) => {
                 if (state.renderFails) throw new Error('Render timed out');
                 return Buffer.from(
-                    renderOf(app.appUuid, version, app.projectUuid, asUserUuid),
+                    renderOf(appUuid, version, projectUuid, authUserUuid),
                 );
             },
-        },
-        thumbnailSettings: {
-            isAutomaticCaptureEnabled: async () =>
-                state.automaticCaptureEnabled,
-        },
+        }),
     });
 
     /** Runs the capture jobs the scheduler worker would have picked up. */
@@ -449,10 +449,7 @@ function buildScenario({
                 projectUuid,
                 appUuid,
             );
-            const stored = objects.get(
-                thumbnailUrl.replace(`signed://${BUCKET}/`, ''),
-            );
-            return stored ? stored.toString() : null;
+            return thumbnailStorage.download(thumbnailUrl);
         } catch (error) {
             if (error instanceof NotFoundError) return null;
             throw error;
@@ -480,9 +477,10 @@ function buildScenario({
         );
 
     const loseStoredImage = (image: string) => {
-        [...objects.entries()]
+        const { objects: images } = thumbnailStorage;
+        [...images.entries()]
             .filter(([, value]) => value.toString() === image)
-            .forEach(([key]) => objects.delete(key));
+            .forEach(([key]) => images.delete(key));
     };
 
     /** The build an uploaded version goes through, with the sandbox stubbed. */
@@ -563,10 +561,9 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             );
         });
 
-        it('copies a manual thumbnail, even with automatic capture turned off', async () => {
+        it('copies a manual thumbnail', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
             await s.captureManually(1);
-            s.state.automaticCaptureEnabled = false;
 
             await restoreFirstVersion(s);
 
@@ -604,7 +601,6 @@ describe('AppGenerateService thumbnails for versions created without a build', (
         it("gives the duplicate's first version the source version's thumbnail", async () => {
             const s = buildScenario({ versions: twoReadyVersions });
             await s.captureAutomatically(2);
-            s.state.automaticCaptureEnabled = false;
 
             const copy = await duplicate(s);
 
@@ -710,20 +706,6 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             );
         });
 
-        it('captures nothing while automatic capture is turned off', async () => {
-            const s = buildScenario({
-                versions: [{ version: 3, status: 'ready' }],
-            });
-            s.state.automaticCaptureEnabled = false;
-
-            const promoted = await promote(s);
-            await s.runQueuedCaptures();
-
-            expect(
-                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
-            ).toBeNull();
-        });
-
         it.each([
             ['the capture fails', { renderFails: true }],
             ['the capture cannot be queued', { queueIsDown: true }],
@@ -773,17 +755,6 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             expect(await s.thumbnailOf(APP_UUID)).toBe(
                 renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
             );
-        });
-
-        it('captures nothing while automatic capture is turned off', async () => {
-            const s = buildScenario({ versions: uploadedVersion });
-            s.state.automaticCaptureEnabled = false;
-
-            const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
-
-            expect(status).toBe('ready');
-            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
         });
 
         it('leaves the upload ready when the app is deleted while it builds', async () => {

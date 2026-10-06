@@ -2594,7 +2594,7 @@ export class AppGenerateService extends BaseService {
         to: { appUuid: string; version: number },
     ): Promise<void> {
         try {
-            await this.appThumbnails.copyThumbnail({ from, to });
+            await this.appThumbnailClient.copyThumbnail({ from, to });
         } catch (error) {
             this.logger.warn(
                 `App ${to.appUuid}: could not copy thumbnail of app ${from.appUuid} version ${from.version} to version ${to.version}: ${getErrorMessage(error)}`,
