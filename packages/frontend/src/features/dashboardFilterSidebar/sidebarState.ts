@@ -1,4 +1,5 @@
 import {
+    isFilterLockedOnTab,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -27,6 +28,18 @@ export const replaceFilterRule = (
     ),
     metrics: filters.metrics.map((rule) => (rule.id === next.id ? next : rule)),
 });
+
+export const toggleFilterLockOnTab = (
+    rule: DashboardFilterRule,
+    lockKey: string,
+    hasTabs: boolean,
+): DashboardFilterRule => {
+    const existing = rule.lockedTabUuids ?? [];
+    const next = isFilterLockedOnTab(rule, lockKey, hasTabs)
+        ? existing.filter((uuid) => uuid !== lockKey)
+        : [...existing, lockKey];
+    return { ...rule, lockedTabUuids: next.length > 0 ? next : undefined };
+};
 
 export const removeFilterRule = (
     filters: DashboardFilters,

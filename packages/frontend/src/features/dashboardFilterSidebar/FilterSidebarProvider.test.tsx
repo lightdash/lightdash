@@ -117,6 +117,26 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.isDirty).toBe(false);
     });
 
+    it('restores session settings on cancel and keeps them on apply', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateSessionSettings('a', { placement: 'more' }),
+        );
+        expect(result.current.getSessionSettings('a').placement).toBe('more');
+        act(() => result.current.cancel());
+        expect(result.current.getSessionSettings('a').placement).toBe('bar');
+
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateSessionSettings('a', { placement: 'more' }),
+        );
+        act(() => result.current.apply());
+        expect(result.current.getSessionSettings('a').placement).toBe('more');
+    });
+
     it('opens a new filter with no field and drops the draft on cancel', () => {
         const { result } = renderHook(() => useFilterSidebar(), {
             wrapper: Wrapper,

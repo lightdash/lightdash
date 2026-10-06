@@ -1,16 +1,26 @@
 import {
     getConditionalRuleLabelFromItem,
+    isFilterLockedOnTab,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Text, Tooltip } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import {
+    IconEye,
+    IconEyeOff,
+    IconLock,
+    IconLockOpen,
+    IconX,
+} from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { getTabsForFilterRule } from '../dashboardFilters/FilterConfiguration/utils';
+import pillActionClasses from './FilterPills.module.css';
 import classes from './FilterSidebar.module.css';
+import { isHiddenOnTab, toggleHiddenOnTab } from './sessionSettings';
+import { replaceFilterRule, toggleFilterLockOnTab } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
 
 type Props = {
@@ -19,7 +29,21 @@ type Props = {
 
 export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
-    const { editing, isNew, open, removeFilterById } = useFilterSidebar();
+    const {
+        editing,
+        isNew,
+        open,
+        removeFilterById,
+        getSessionSettings,
+        updateSessionSettings,
+    } = useFilterSidebar();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -38,6 +62,19 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         [dashboardTabs],
     );
     const tabsEnabled = dashboardTabs.length > 1;
+    const hasTabs = dashboardTabs.length > 0;
+    // Dashboards without tabs store the dashboard uuid as a sentinel
+    const tabKey = hasTabs ? activeTabUuid : dashboardUuid;
+
+    const toggleLock = (filter: DashboardFilterRule, lockKey: string) => {
+        setDashboardFilters((filters) =>
+            replaceFilterRule(
+                filters,
+                toggleFilterLockOnTab(filter, lockKey, hasTabs),
+            ),
+        );
+        setHaveFiltersChanged(true);
+    };
 
     const pills = [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
         .map((filter: DashboardFilterRule) => {
@@ -74,6 +111,17 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 const name = isDraft
                     ? 'New filter'
                     : filter.label || labels?.field || 'Filter';
+                const sessionSettings = getSessionSettings(filter.id);
+                const isHidden =
+                    !!tabKey && isHiddenOnTab(sessionSettings, tabKey);
+                const isLocked =
+                    !!tabKey && isFilterLockedOnTab(filter, tabKey, hasTabs);
+                const lockLabel = isHidden
+                    ? 'Hidden filters cannot be changed by viewers'
+                    : `${isLocked ? 'Unlock' : 'Lock'} filter${hasTabs ? ' on this tab' : ''}`;
+                const eyeLabel = isHidden
+                    ? 'Hidden from viewers. Click to show.'
+                    : 'Visible to viewers. Click to hide.';
                 return (
                     <Tooltip
                         key={filter.id}
@@ -84,7 +132,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                 : 'filters.notAppliedToAnyTiles',
                         )}
                     >
-                        <Box className={classes.pill}>
+                        <Box
+                            className={`${classes.pill} ${pillActionClasses.pill}`}
+                        >
                             <Button
                                 size="xs"
                                 variant="default"
@@ -97,6 +147,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                         : '',
                                     isSelected ? classes.selectedPill : '',
                                     isDraft ? classes.draftPill : '',
+                                    isHidden
+                                        ? pillActionClasses.hiddenPill
+                                        : '',
                                 ].join(' ')}
                                 onClick={() => open(filter.id)}
                             >
@@ -120,6 +173,66 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                     )}
                                 </Text>
                             </Button>
+                            {editing === null && tabKey && (
+                                <Box
+                                    className={[
+                                        pillActionClasses.actions,
+                                        isLocked || isHidden
+                                            ? pillActionClasses.actionsPinned
+                                            : '',
+                                    ].join(' ')}
+                                >
+                                    <Tooltip label={lockLabel}>
+                                        <ActionIcon
+                                            size="xs"
+                                            radius="xl"
+                                            variant="default"
+                                            disabled={isHidden}
+                                            aria-label={lockLabel}
+                                            aria-pressed={isLocked}
+                                            onClick={() =>
+                                                toggleLock(filter, tabKey)
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    isLocked
+                                                        ? IconLock
+                                                        : IconLockOpen
+                                                }
+                                                size="sm"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label={eyeLabel}>
+                                        <ActionIcon
+                                            size="xs"
+                                            radius="xl"
+                                            variant="default"
+                                            aria-label={eyeLabel}
+                                            aria-pressed={isHidden}
+                                            onClick={() =>
+                                                updateSessionSettings(
+                                                    filter.id,
+                                                    toggleHiddenOnTab(
+                                                        sessionSettings,
+                                                        tabKey,
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    isHidden
+                                                        ? IconEyeOff
+                                                        : IconEye
+                                                }
+                                                size="sm"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Box>
+                            )}
                             {editing === null && (
                                 <Tooltip label="Remove filter">
                                     <ActionIcon

@@ -4,26 +4,22 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import FilterSettings from '../dashboardFilters/FilterConfiguration/FilterSettings';
+import { FilterValueSettings } from './FilterValueSettings';
+import { InteractivityQuestions } from './InteractivityQuestions';
 
 type Props = {
     filterRule: DashboardFilterRule;
-    originalFilterRule: DashboardFilterRule | null;
     field: DashboardFilterableField | null;
     onChange: (next: DashboardFilterRule) => void;
 };
 
-export const Interactivity: FC<Props> = ({
-    filterRule,
-    originalFilterRule,
-    field,
-    onChange,
-}) => {
+export const Interactivity: FC<Props> = ({ filterRule, field, onChange }) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
@@ -50,17 +46,21 @@ export const Interactivity: FC<Props> = ({
             activeTabUuid={activeTabUuid}
             parameterValues={parameterValues}
         >
-            <FilterSettings
-                isEditMode
-                isCreatingNew={false}
-                filterType={
-                    field ? getFilterTypeFromItem(field) : FilterType.STRING
-                }
-                field={field ?? undefined}
-                filterRule={filterRule}
-                originalFilterRule={originalFilterRule ?? undefined}
-                onChangeFilterRule={onChange}
-            />
+            <Stack gap="md">
+                <FilterValueSettings
+                    filterType={
+                        field ? getFilterTypeFromItem(field) : FilterType.STRING
+                    }
+                    field={field}
+                    filterRule={filterRule}
+                    onChange={onChange}
+                />
+                <InteractivityQuestions
+                    filterRule={filterRule}
+                    field={field}
+                    onChange={onChange}
+                />
+            </Stack>
         </FiltersProvider>
     );
 };

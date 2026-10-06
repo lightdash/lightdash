@@ -43,9 +43,14 @@ seam in `features/dashboardTabs/index.tsx`.
 
 ## Session-only settings
 
-Lost on apply, cancel or reload; saving them needs a per-filter field list.
+Lost on reload, marked "Not saved". What saving each would need:
 
-- A field listed while it sits on 0 charts.
-- A waiting field (picked, not yet placed on a chart).
+- Field listed at 0 charts: a per-filter field list.
+- Waiting field (picked, not yet placed): the same per-filter field list.
+- Hide per tab: `hiddenTabUuids` on the rule, enforced like `lockedTabUuids`.
+- Picker: a picker type on the rule, plus the calendar presets.
+- Operators allowed: an allowed-operators list on the rule.
+- Filter boundaries: a bounding rule (allowed values or date range) on the rule.
+- Placement (bar or More): saved bar sections with a filter order.
 - Not implemented: a chart added later does not pick up a peer field for its
   explore.

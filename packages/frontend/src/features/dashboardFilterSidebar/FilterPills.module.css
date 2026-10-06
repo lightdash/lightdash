@@ -1,0 +1,20 @@
+.pill:hover .actions,
+.pill:focus-within .actions,
+.actionsPinned {
+    opacity: 1;
+}
+
+.actions {
+    position: absolute;
+    top: -6px;
+    right: 14px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 100ms ease;
+}
+
+.hiddenPill {
+    border-style: dashed;
+    opacity: 0.6;
+}

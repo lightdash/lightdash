@@ -14,6 +14,12 @@ import {
 } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    getFilterSessionSettings,
+    patchFilterSessionSettings,
+    type FilterSessionSettings,
+    type SessionSettingsByFilterId,
+} from './sessionSettings';
+import {
     findFilterRule,
     isFilterRuleDirty,
     removeFilterRule,
@@ -31,6 +37,7 @@ type SidebarState = {
     filterId: string | null;
     isNew: boolean;
     snapshot: FilterSidebarSnapshot;
+    sessionSnapshot: SessionSettingsByFilterId;
 };
 
 export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
@@ -57,6 +64,24 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     );
     // Session only: fields kept listed while they sit on no chart.
     const [listedFieldIds, setListedFieldIds] = useState<string[]>([]);
+    // Kept for the page session: not cleared when the sidebar closes
+    const [sessionSettings, setSessionSettings] =
+        useState<SessionSettingsByFilterId>({});
+
+    const getSessionSettings = useCallback(
+        (filterId: string) =>
+            getFilterSessionSettings(sessionSettings, filterId),
+        [sessionSettings],
+    );
+
+    const updateSessionSettings = useCallback(
+        (filterId: string, patch: Partial<FilterSessionSettings>) => {
+            setSessionSettings((all) =>
+                patchFilterSessionSettings(all, filterId, patch),
+            );
+        },
+        [],
+    );
 
     const listFieldId = useCallback((fieldId: string) => {
         setListedFieldIds((ids) =>
@@ -85,10 +110,11 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                           filterId,
                           isNew: false,
                           snapshot: { dashboardFilters, haveFiltersChanged },
+                          sessionSnapshot: sessionSettings,
                       },
             );
         },
-        [dashboardFilters, haveFiltersChanged],
+        [dashboardFilters, haveFiltersChanged, sessionSettings],
     );
 
     const openNew = useCallback(() => {
@@ -99,9 +125,10 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                       filterId: null,
                       isNew: true,
                       snapshot: { dashboardFilters, haveFiltersChanged },
+                      sessionSnapshot: sessionSettings,
                   },
         );
-    }, [dashboardFilters, haveFiltersChanged]);
+    }, [dashboardFilters, haveFiltersChanged, sessionSettings]);
 
     const addFirstField = useCallback(
         (field: DashboardFilterableField) => {
@@ -154,6 +181,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         if (state === null) return;
         setDashboardFilters(state.snapshot.dashboardFilters);
         setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
+        setSessionSettings(state.sessionSnapshot);
         resetSession();
     }, [state, setDashboardFilters, setHaveFiltersChanged, resetSession]);
 
@@ -196,6 +224,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             removeFilter,
             removeFilterById,
             updateFilter,
+            getSessionSettings,
+            updateSessionSettings,
             cancel,
             apply,
             isDirty:
@@ -217,6 +247,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             removeFilter,
             removeFilterById,
             updateFilter,
+            getSessionSettings,
+            updateSessionSettings,
             cancel,
             apply,
             dashboardFilters,

@@ -20,6 +20,7 @@ import { FieldsAndCharts } from './FieldsAndCharts';
 import classes from './FilterSidebar.module.css';
 import { Interactivity } from './Interactivity';
 import { getTabCounts, getTileField, isTileFilterable } from './peers';
+import { isInteractivityChanged } from './sessionSettings';
 import { findFilterRule } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
 
@@ -29,7 +30,7 @@ export const FilterSidebar: FC = () => {
         isNew,
         addFirstField,
         removeFilter,
-        originalFilterRule,
+        getSessionSettings,
         activeSection,
         setActiveSection,
         updateFilter,
@@ -229,7 +230,27 @@ export const FilterSidebar: FC = () => {
                 >
                     <Tabs.List mb="md">
                         <Tabs.Tab value="fields">Fields and charts</Tabs.Tab>
-                        <Tabs.Tab value="interactivity">Interactivity</Tabs.Tab>
+                        <Tabs.Tab
+                            value="interactivity"
+                            rightSection={
+                                filterRule &&
+                                isInteractivityChanged(
+                                    filterRule,
+                                    getSessionSettings(filterRule.id),
+                                ) ? (
+                                    <Box
+                                        role="img"
+                                        aria-label="Changed from the default"
+                                        w={6}
+                                        h={6}
+                                        bg="blue.6"
+                                        style={{ borderRadius: '50%' }}
+                                    />
+                                ) : null
+                            }
+                        >
+                            Interactivity
+                        </Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel value="fields">
                         <FieldsAndCharts />
@@ -237,7 +258,6 @@ export const FilterSidebar: FC = () => {
                     <Tabs.Panel value="interactivity">
                         <Interactivity
                             filterRule={filterRule}
-                            originalFilterRule={originalFilterRule}
                             field={field}
                             onChange={updateFilter}
                         />

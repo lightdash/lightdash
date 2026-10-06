@@ -4,6 +4,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { createContext, useContext } from 'react';
+import { type FilterSessionSettings } from './sessionSettings';
 
 export type FilterSidebarSection = 'fields' | 'interactivity';
 
@@ -27,6 +28,11 @@ export type FilterSidebarContextValue = {
     removeFilter: () => void;
     removeFilterById: (filterId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
+    getSessionSettings: (filterId: string) => FilterSessionSettings;
+    updateSessionSettings: (
+        filterId: string,
+        patch: Partial<FilterSessionSettings>,
+    ) => void;
     cancel: () => void;
     apply: () => void;
     isDirty: boolean;

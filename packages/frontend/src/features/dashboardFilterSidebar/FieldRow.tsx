@@ -1,14 +1,7 @@
-import {
-    Badge,
-    Box,
-    Button,
-    Group,
-    Text,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
+import { Box, Button, Group, Text, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FieldsAndCharts.module.css';
+import { NotSavedBadge } from './NotSavedBadge';
 import { type FieldCount } from './peers';
 
 const pluralizeCharts = (count: number): string =>
@@ -69,16 +62,7 @@ export const FieldRow: FC<Props> = ({
                         {label}
                     </Text>
                     {isNotSaved && (
-                        <Tooltip label="A field on no charts is not saved yet. It will be gone after a reload.">
-                            <Badge
-                                size="xs"
-                                variant="light"
-                                color="gray"
-                                flex="none"
-                            >
-                                Not saved
-                            </Badge>
-                        </Tooltip>
+                        <NotSavedBadge tooltip="A field on no charts is not saved yet. It will be gone after a reload." />
                     )}
                 </Group>
                 <Text fz="xs" c="dimmed" truncate>
