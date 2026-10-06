@@ -68,3 +68,17 @@ export const canRunProvisioning = (
     !state.fetchingPlan &&
     !state.planError &&
     !state.running;
+
+export const countSetupStatements = (sql: string): number =>
+    sql.split('\n').reduce(
+        (state, line) => {
+            const trimmed = line.trim();
+            const dollarQuotes = (trimmed.match(/\$\$/g) ?? []).length;
+            const inBody =
+                dollarQuotes % 2 === 1 ? !state.inBody : state.inBody;
+            const counts =
+                !inBody && !trimmed.startsWith('--') && trimmed.endsWith(';');
+            return { inBody, count: state.count + (counts ? 1 : 0) };
+        },
+        { inBody: false, count: 0 },
+    ).count;

@@ -17,6 +17,7 @@ import { aiIdentityProvisioningApi } from './api';
 import { actionLabel } from './eventLabels';
 import {
     canRunProvisioning,
+    countSetupStatements,
     findingLabels,
     isProvisioningFallback,
     needsProvisioningApproval,
@@ -498,4 +499,24 @@ it('shows beyond-own-access and grant warnings in triage', async () => {
         ),
     ).toBeInTheDocument();
     expect(screen.getByText(/view_dependency:/)).toBeInTheDocument();
+});
+
+describe('countSetupStatements', () => {
+    it('counts top-level statements and skips comments and procedure bodies', () => {
+        expect(
+            countSetupStatements(
+                [
+                    '-- Run this one time;',
+                    'CREATE ROLE A;',
+                    'CREATE PROCEDURE P() RETURNS STRING LANGUAGE SQL AS $$',
+                    'BEGIN',
+                    '  GRANT USAGE ON DATABASE D TO ROLE A;',
+                    '  RETURN 1;',
+                    'END;',
+                    '$$;',
+                    'CREATE TASK T AS CALL P();',
+                ].join('\n'),
+            ),
+        ).toBe(3);
+    });
 });

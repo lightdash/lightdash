@@ -43,7 +43,7 @@ import { AiIdentityRoleDefinitions } from './AiIdentityRoleDefinitions';
 import { AiIdentityRoleMappings } from './AiIdentityRoleMappings';
 import { AiIdentityUngrantedSchemas } from './AiIdentityUngrantedSchemas';
 import { aiIdentityProvisioningApi } from './api';
-import { provisionerStatusLabels } from './provisioning';
+import { countSetupStatements, provisionerStatusLabels } from './provisioning';
 import { useProvisioningChange, useSetupCheck } from './useProvisioning';
 
 const aiRoleExpansionSummary = (
@@ -298,7 +298,13 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                             code={settings.setupSql}
                             language="sql"
                             onCopy={startWaiting}
+                            withExpandButton
+                            defaultExpanded={false}
+                            maxCollapsedHeight={280}
                         />
+                        <Text fz="xs" c="dimmed">
+                            {countSetupStatements(settings.setupSql)} statements
+                        </Text>
                         <Button
                             component="a"
                             variant="default"
@@ -470,7 +476,7 @@ export const AiIdentityAutomaticSetup: FC<{
                     hint={
                         status === AiIdentityProvisionerStatus.READY
                             ? null
-                            : 'Check the provisioner first.'
+                            : 'Check the setup first.'
                     }
                     onDirty={setMappingsDirty}
                 />
@@ -488,7 +494,7 @@ export const AiIdentityAutomaticSetup: FC<{
                     settings={settings}
                     hint={
                         status !== AiIdentityProvisionerStatus.READY
-                            ? 'Check the provisioner first.'
+                            ? 'Check the setup first.'
                             : settings.mappings.length === 0
                               ? 'Save at least one group mapping first.'
                               : null

@@ -204,11 +204,11 @@ it('puts each step hint inside its own step', () => {
     });
     expect(
         screen.getByText(
-            '4. Connect groups to AI roles Check the provisioner first.',
+            '4. Connect groups to AI roles Check the setup first.',
         ),
     ).toBeInTheDocument();
     expect(
-        screen.getByText('5. Review and run Check the provisioner first.'),
+        screen.getByText('5. Review and run Check the setup first.'),
     ).toBeInTheDocument();
 });
 
