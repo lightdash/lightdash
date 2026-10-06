@@ -1957,6 +1957,110 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('checkDashboardChartQueryPermissions with source spaces', () => {
+        type ChartQueryPermissionsTestService = {
+            checkDashboardChartQueryPermissions: (
+                account: Account,
+                projectUuid: string,
+                savedChartUuid: string,
+                space: { uuid: string; organizationUuid: string },
+                owningDashboardUuid: string | null,
+            ) => Promise<void>;
+            assertSavedChartViewAccessForUser: (...args: unknown[]) => unknown;
+        };
+
+        const buildSourceSpaceAccount = () =>
+            ({
+                isJwtUser: () => true,
+                access: {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: 'embedded-dashboard-uuid',
+                    },
+                },
+                authentication: {
+                    type: 'jwt',
+                    data: {
+                        content: {
+                            type: 'dashboard',
+                            dashboardUuid: 'embedded-dashboard-uuid',
+                        },
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            sourceSpaceUuids: ['source-space-uuid'],
+                        },
+                    },
+                },
+                embedWriteUser: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'view' },
+                    ]),
+                },
+                user: { ability: new Ability<PossibleAbilities>([]) },
+            }) as unknown as Account;
+
+        const buildService = () => {
+            const checkEmbedPermissions = vi.fn(async () => {
+                throw new ForbiddenError('Chart is not embedded');
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                permissionsService: {
+                    checkEmbedPermissions,
+                } as unknown as PermissionsService,
+            } as never) as unknown as ChartQueryPermissionsTestService;
+            const assertViewAccess = vi
+                .spyOn(service, 'assertSavedChartViewAccessForUser')
+                .mockResolvedValue(undefined);
+            return { service, checkEmbedPermissions, assertViewAccess };
+        };
+
+        test('authorizes a source-space chart through the write actor', async () => {
+            const { service, checkEmbedPermissions, assertViewAccess } =
+                buildService();
+
+            await service.checkDashboardChartQueryPermissions(
+                buildSourceSpaceAccount(),
+                projectUuid,
+                'source-chart-uuid',
+                {
+                    uuid: 'source-space-uuid',
+                    organizationUuid: projectSummary.organizationUuid,
+                },
+                null,
+            );
+
+            expect(assertViewAccess).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: sessionAccount.user.id }),
+                expect.objectContaining({
+                    spaceUuid: 'source-space-uuid',
+                    savedChartUuid: 'source-chart-uuid',
+                }),
+            );
+            expect(checkEmbedPermissions).not.toHaveBeenCalled();
+        });
+
+        test('keeps the dashboard check for charts outside the token spaces', async () => {
+            const { service, checkEmbedPermissions, assertViewAccess } =
+                buildService();
+
+            await expect(
+                service.checkDashboardChartQueryPermissions(
+                    buildSourceSpaceAccount(),
+                    projectUuid,
+                    'other-chart-uuid',
+                    {
+                        uuid: 'other-space-uuid',
+                        organizationUuid: projectSummary.organizationUuid,
+                    },
+                    null,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(checkEmbedPermissions).toHaveBeenCalled();
+            expect(assertViewAccess).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncQuery', () => {
         test.each([false, true])(
             'captures semantic metadata only when usage is enabled (%s), including result cache hits',

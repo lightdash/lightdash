@@ -44,7 +44,7 @@ type Props = {
         tileUuidMapping?: Record<string, string>,
     ) => void;
     onClose: () => void;
-    spaceUuid?: string;
+    spaceUuids?: string[];
 };
 
 type ItemProps = {
@@ -76,7 +76,7 @@ const SelectItem: FC<ItemProps> = ({
     </Stack>
 );
 
-const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
+const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -89,7 +89,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
     } = useChartSummariesV2(
         {
             projectUuid,
-            spaceUuid,
+            spaceUuids,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,

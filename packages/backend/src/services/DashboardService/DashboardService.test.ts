@@ -716,6 +716,213 @@ describe('DashboardService', () => {
         expect(dashboardModel.update).not.toHaveBeenCalled();
     });
 
+    describe('embed source spaces', () => {
+        const sourceSpaceUuid = 'source-space-uuid';
+        const buildEmbedWriteAccount = (sourceSpaceUuids?: string[]) =>
+            ({
+                isJwtUser: () => true,
+                embedWriteUser: user,
+                authentication: {
+                    type: 'jwt',
+                    data: {
+                        content: { type: 'dashboard' },
+                        writeActions: {
+                            spaceUuid: dashboard.spaceUuid,
+                            sourceSpaceUuids,
+                        },
+                    },
+                },
+            }) as unknown as Account;
+        const buildChartTileUpdate = (
+            tileUuid: string,
+            savedChartUuid: string,
+        ): UpdateDashboard => ({
+            tiles: [
+                {
+                    uuid: tileUuid,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: 0,
+                    h: 10,
+                    w: 10,
+                    tabUuid: undefined,
+                    properties: {
+                        savedChartUuid,
+                        title: 'chart',
+                    },
+                },
+            ],
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            tabs: [],
+        });
+
+        test('allows referencing a chart from a source space', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                uuid: 'source-chart-uuid',
+                spaceUuid: sourceSpaceUuid,
+                dashboardUuid: null,
+            });
+
+            await service.updateFromAccount(
+                buildEmbedWriteAccount([sourceSpaceUuid]),
+                dashboard.uuid,
+                buildChartTileUpdate('new-tile', 'source-chart-uuid'),
+                { projectUuid: dashboard.projectUuid },
+            );
+
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                user.userUuid,
+                { type: 'space', spaceUuid: sourceSpaceUuid },
+            );
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
+        });
+
+        test('rejects a chart from a space outside the token scope', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                uuid: 'other-chart-uuid',
+                spaceUuid: 'other-space-uuid',
+                dashboardUuid: null,
+            });
+
+            await expect(
+                service.updateFromAccount(
+                    buildEmbedWriteAccount([sourceSpaceUuid]),
+                    dashboard.uuid,
+                    buildChartTileUpdate('new-tile', 'other-chart-uuid'),
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+
+        test('rejects a dashboard-owned chart from a source space', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                uuid: 'owned-chart-uuid',
+                spaceUuid: sourceSpaceUuid,
+                dashboardUuid: 'another-dashboard-uuid',
+            });
+
+            await expect(
+                service.updateFromAccount(
+                    buildEmbedWriteAccount([sourceSpaceUuid]),
+                    dashboard.uuid,
+                    buildChartTileUpdate('new-tile', 'owned-chart-uuid'),
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+
+        test('rejects a source-space chart when the actor cannot view it', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                uuid: 'source-chart-uuid',
+                spaceUuid: sourceSpaceUuid,
+                dashboardUuid: null,
+            });
+            const actorWithoutChartAccess = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'Dashboard',
+                        action: ['view', 'update'],
+                    },
+                ]),
+            };
+
+            await expect(
+                service.updateFromAccount(
+                    {
+                        ...buildEmbedWriteAccount([sourceSpaceUuid]),
+                        embedWriteUser: actorWithoutChartAccess,
+                    } as unknown as Account,
+                    dashboard.uuid,
+                    buildChartTileUpdate('new-tile', 'source-chart-uuid'),
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('does not re-validate charts the stored dashboard already references', async () => {
+            const existingSavedChartUuid =
+                dashboard.tiles[0].type === DashboardTileTypes.SAVED_CHART
+                    ? dashboard.tiles[0].properties.savedChartUuid!
+                    : '';
+
+            await service.updateFromAccount(
+                buildEmbedWriteAccount(),
+                dashboard.uuid,
+                buildChartTileUpdate('moved-tile', existingSavedChartUuid),
+                { projectUuid: dashboard.projectUuid },
+            );
+
+            expect(savedChartModel.get).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
+        });
+
+        test('keeps SQL charts restricted to the write space', async () => {
+            savedSqlModel.getByUuid.mockResolvedValueOnce({
+                space: { uuid: sourceSpaceUuid },
+            });
+
+            await expect(
+                service.updateFromAccount(
+                    buildEmbedWriteAccount([sourceSpaceUuid]),
+                    dashboard.uuid,
+                    {
+                        ...buildChartTileUpdate('new-tile', ''),
+                        tiles: [
+                            {
+                                uuid: 'sql-tile',
+                                type: DashboardTileTypes.SQL_CHART,
+                                x: 0,
+                                y: 0,
+                                h: 10,
+                                w: 10,
+                                tabUuid: undefined,
+                                properties: {
+                                    savedSqlUuid: 'source-sql-uuid',
+                                    chartName: 'SQL chart',
+                                },
+                            },
+                        ],
+                    },
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+
+        test('validates an existing tile retargeted to a new chart', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                uuid: 'other-chart-uuid',
+                spaceUuid: 'other-space-uuid',
+                dashboardUuid: null,
+            });
+
+            await expect(
+                service.updateFromAccount(
+                    buildEmbedWriteAccount([sourceSpaceUuid]),
+                    dashboard.uuid,
+                    buildChartTileUpdate(
+                        dashboard.tiles[0].uuid,
+                        'other-chart-uuid',
+                    ),
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+    });
+
     test('keeps the space name in the update response for a grant-only editor', async () => {
         spacePermissionService.resolveAccess
             .mockResolvedValueOnce({

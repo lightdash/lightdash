@@ -179,6 +179,7 @@ import {
     DownloadCsv,
     type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
+import { getEmbedActorChartSpaceUuids } from '../../auth/account';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import {
@@ -6988,10 +6989,9 @@ export class AsyncQueryService extends ProjectService {
         owningDashboardUuid: string | null,
     ) {
         if (isJwtUser(account)) {
-            const embedWriteActions = account.authentication.data.writeActions;
             if (
                 account.embedWriteUser &&
-                embedWriteActions?.spaceUuid === space.uuid
+                getEmbedActorChartSpaceUuids(account).includes(space.uuid)
             ) {
                 const auditedAbility = this.createAuditedAbility(
                     account.embedWriteUser,

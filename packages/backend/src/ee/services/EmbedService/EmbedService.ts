@@ -86,7 +86,7 @@ import {
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { fromJwt } from '../../../auth/account';
+import { fromJwt, getEmbedActorChartSpaceUuids } from '../../../auth/account';
 import {
     decodeLightdashJwt,
     encodeLightdashJwt,
@@ -804,9 +804,7 @@ export class EmbedService extends BaseService {
             );
 
         if (checkPermissions) {
-            const writeSpaceUuid =
-                account.embedWriteUser &&
-                account.authentication.data.writeActions?.spaceUuid;
+            const actorChartSpaceUuids = getEmbedActorChartSpaceUuids(account);
             const chartsByUuid = new Map(
                 savedCharts.map((chart) => [chart.uuid, chart]),
             );
@@ -817,7 +815,7 @@ export class EmbedService extends BaseService {
                     if (
                         chart &&
                         embedWriteUser &&
-                        chart.spaceUuid === writeSpaceUuid
+                        actorChartSpaceUuids.includes(chart.spaceUuid)
                     ) {
                         const spaceAccessContext =
                             await this.spacePermissionService.resolveAccess(

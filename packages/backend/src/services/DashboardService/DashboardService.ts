@@ -13,6 +13,7 @@ import {
     Dashboard,
     DashboardDAO,
     DashboardTab,
+    DashboardTile,
     DashboardTileTypes,
     DashboardVersionedFields,
     DetailedViewStatistics,
@@ -58,7 +59,6 @@ import {
     type ChartVersionSummary,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
-    type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
@@ -81,7 +81,11 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { getAccountWriteContext, toSessionUser } from '../../auth/account';
+import {
+    getAccountWriteContext,
+    getEmbedActorChartSpaceUuids,
+    toSessionUser,
+} from '../../auth/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -1175,115 +1179,149 @@ export class DashboardService
         return space;
     }
 
-    private async assertDashboardTilesBelongToWriteSpace(
+    private static getTileChartReferences(
+        tiles: Array<Pick<DashboardTile, 'type' | 'properties'>>,
+    ) {
+        const savedChartUuids = new Set<string>();
+        const savedSqlUuids = new Set<string>();
+        tiles.forEach((tile) => {
+            if (
+                tile.type === DashboardTileTypes.SAVED_CHART &&
+                'savedChartUuid' in tile.properties &&
+                tile.properties.savedChartUuid
+            ) {
+                savedChartUuids.add(tile.properties.savedChartUuid);
+            }
+            if (
+                tile.type === DashboardTileTypes.SQL_CHART &&
+                'savedSqlUuid' in tile.properties &&
+                tile.properties.savedSqlUuid
+            ) {
+                savedSqlUuids.add(tile.properties.savedSqlUuid);
+            }
+        });
+        return { savedChartUuids, savedSqlUuids };
+    }
+
+    /**
+     * Charts already referenced by the stored dashboard are skipped; any newly
+     * referenced chart must come from the write space or a source space.
+     */
+    private async assertDashboardTilesUseAllowedCharts(
         user: SessionUser,
         tiles: CreateDashboard['tiles'],
-        writeSpaceUuid: UUID,
-        projectUuid: UUID,
+        {
+            projectUuid,
+            writeSpaceUuid,
+            actorChartSpaceUuids,
+            existingTiles,
+        }: {
+            projectUuid: UUID;
+            writeSpaceUuid: UUID;
+            actorChartSpaceUuids: string[];
+            existingTiles: DashboardTile[];
+        },
     ) {
-        const savedChartUuids = [
-            ...new Set(
-                tiles
-                    .filter(
-                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                    )
-                    .map((tile) => tile.properties.savedChartUuid)
-                    .filter((uuid): uuid is string => !!uuid),
-            ),
-        ];
+        const existing = DashboardService.getTileChartReferences(existingTiles);
+        const requested = DashboardService.getTileChartReferences(tiles);
+        const isAllowedChartSpace = (
+            spaceUuid: string,
+            owningDashboardUuid: string | null,
+        ) =>
+            spaceUuid === writeSpaceUuid ||
+            (actorChartSpaceUuids.includes(spaceUuid) &&
+                owningDashboardUuid === null);
 
         await Promise.all(
-            savedChartUuids.map(async (savedChartUuid) => {
-                const savedChart = await this.savedChartModel.get(
-                    savedChartUuid,
-                    undefined,
-                    { projectUuid },
-                );
+            [...requested.savedChartUuids]
+                .filter((uuid) => !existing.savedChartUuids.has(uuid))
+                .map(async (savedChartUuid) => {
+                    const savedChart = await this.savedChartModel.get(
+                        savedChartUuid,
+                        undefined,
+                        { projectUuid },
+                    );
 
-                if (savedChart.spaceUuid !== writeSpaceUuid) {
-                    throw new ForbiddenError(
-                        'Embed token does not allow saving charts from outside the write space',
-                    );
-                }
+                    if (
+                        !isAllowedChartSpace(
+                            savedChart.spaceUuid,
+                            savedChart.dashboardUuid,
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'Embed token does not allow saving charts from outside the write or source spaces',
+                        );
+                    }
 
-                const spaceAccessContext =
-                    await this.spacePermissionService.resolveAccess(
-                        user.userUuid,
-                        { type: 'space', spaceUuid: savedChart.spaceUuid },
-                    );
-                const auditedAbility = this.createAuditedAbility(user);
-                if (
-                    auditedAbility.cannot(
-                        'view',
-                        subject('SavedChart', {
-                            ...savedChart,
-                            inheritsFromOrgOrProject:
-                                spaceAccessContext.inheritsFromOrgOrProject,
-                            access: spaceAccessContext.access,
-                            metadata: {
-                                savedChartUuid: savedChart.uuid,
-                                savedChartName: savedChart.name,
-                            },
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
-                        'Embed token does not allow viewing this chart',
-                    );
-                }
-            }),
+                    const spaceAccessContext =
+                        await this.spacePermissionService.resolveAccess(
+                            user.userUuid,
+                            { type: 'space', spaceUuid: savedChart.spaceUuid },
+                        );
+                    const auditedAbility = this.createAuditedAbility(user);
+                    if (
+                        auditedAbility.cannot(
+                            'view',
+                            subject('SavedChart', {
+                                ...savedChart,
+                                inheritsFromOrgOrProject:
+                                    spaceAccessContext.inheritsFromOrgOrProject,
+                                access: spaceAccessContext.access,
+                                metadata: {
+                                    savedChartUuid: savedChart.uuid,
+                                    savedChartName: savedChart.name,
+                                },
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'Embed token does not allow viewing this chart',
+                        );
+                    }
+                }),
         );
 
-        const savedSqlUuids = [
-            ...new Set(
-                tiles
-                    .filter(
-                        (tile) => tile.type === DashboardTileTypes.SQL_CHART,
-                    )
-                    .map(
-                        (tile) =>
-                            (tile as CreateDashboardSqlChartTile).properties
-                                .savedSqlUuid,
-                    )
-                    .filter((uuid): uuid is string => !!uuid),
-            ),
-        ];
-
         await Promise.all(
-            savedSqlUuids.map(async (savedSqlUuid) => {
-                const savedSqlChart = await this.savedSqlModel.getByUuid(
-                    savedSqlUuid,
-                    { projectUuid },
-                );
-
-                if (savedSqlChart.space.uuid !== writeSpaceUuid) {
-                    throw new ForbiddenError(
-                        'Embed token does not allow saving SQL charts from outside the write space',
+            [...requested.savedSqlUuids]
+                .filter((uuid) => !existing.savedSqlUuids.has(uuid))
+                .map(async (savedSqlUuid) => {
+                    const savedSqlChart = await this.savedSqlModel.getByUuid(
+                        savedSqlUuid,
+                        { projectUuid },
                     );
-                }
 
-                const spaceAccessContext =
-                    await this.spacePermissionService.resolveAccess(
-                        user.userUuid,
-                        { type: 'space', spaceUuid: savedSqlChart.space.uuid },
-                    );
-                const auditedAbility = this.createAuditedAbility(user);
-                if (
-                    auditedAbility.cannot(
-                        'view',
-                        subject('SavedChart', {
-                            ...spaceAccessContext,
-                            metadata: {
-                                savedSqlUuid: savedSqlChart.savedSqlUuid,
+                    // Embedded SQL chart fetches only allow the write space.
+                    if (savedSqlChart.space.uuid !== writeSpaceUuid) {
+                        throw new ForbiddenError(
+                            'Embed token does not allow saving SQL charts from outside the write space',
+                        );
+                    }
+
+                    const spaceAccessContext =
+                        await this.spacePermissionService.resolveAccess(
+                            user.userUuid,
+                            {
+                                type: 'space',
+                                spaceUuid: savedSqlChart.space.uuid,
                             },
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
-                        'Embed token does not allow viewing this SQL chart',
-                    );
-                }
-            }),
+                        );
+                    const auditedAbility = this.createAuditedAbility(user);
+                    if (
+                        auditedAbility.cannot(
+                            'view',
+                            subject('SavedChart', {
+                                ...spaceAccessContext,
+                                metadata: {
+                                    savedSqlUuid: savedSqlChart.savedSqlUuid,
+                                },
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'Embed token does not allow viewing this SQL chart',
+                        );
+                    }
+                }),
         );
     }
 
@@ -1302,12 +1340,12 @@ export class DashboardService
             projectUuid,
             embedWriteActions.spaceUuid,
         );
-        await this.assertDashboardTilesBelongToWriteSpace(
-            user,
-            dashboard.tiles,
-            embedWriteActions.spaceUuid,
+        await this.assertDashboardTilesUseAllowedCharts(user, dashboard.tiles, {
             projectUuid,
-        );
+            writeSpaceUuid: embedWriteActions.spaceUuid,
+            actorChartSpaceUuids: getEmbedActorChartSpaceUuids(account),
+            existingTiles: [],
+        });
 
         return {
             user,
@@ -1809,11 +1847,18 @@ export class DashboardService
             }
 
             if (isDashboardVersionedFields(dashboard)) {
-                await this.assertDashboardTilesBelongToWriteSpace(
+                await this.assertDashboardTilesUseAllowedCharts(
                     user,
                     dashboard.tiles,
-                    embedWriteActions.spaceUuid,
-                    options?.projectUuid ?? existingDashboardDao.projectUuid,
+                    {
+                        projectUuid:
+                            options?.projectUuid ??
+                            existingDashboardDao.projectUuid,
+                        writeSpaceUuid: embedWriteActions.spaceUuid,
+                        actorChartSpaceUuids:
+                            getEmbedActorChartSpaceUuids(account),
+                        existingTiles: existingDashboardDao.tiles,
+                    },
                 );
             }
         }

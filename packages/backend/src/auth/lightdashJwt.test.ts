@@ -1,5 +1,6 @@
 import {
     CreateEmbedJwt,
+    EMBED_MAX_SOURCE_SPACE_UUIDS,
     EmbedJwt,
     ForbiddenError,
     ParameterError,
@@ -136,6 +137,58 @@ describe('JwtUtil', () => {
                 );
             },
         );
+
+        const sourceSpaceUuid = '3c90c3cc-0d44-4b50-8888-8dd25736052a';
+
+        it.each([
+            ['a non-array value', 'not-a-list'],
+            ['a non-uuid entry', ['space']],
+            [
+                'more entries than allowed',
+                Array.from(
+                    { length: EMBED_MAX_SOURCE_SPACE_UUIDS + 1 },
+                    () => sourceSpaceUuid,
+                ),
+            ],
+        ])(
+            'rejects signed tokens whose source spaces have %s',
+            (_label, sourceSpaceUuids) => {
+                const token = encodeLightdashJwt(
+                    {
+                        ...mockJwtData,
+                        writeActions: {
+                            userUuid: 'actor',
+                            spaceUuid: 'space',
+                            sourceSpaceUuids,
+                        },
+                    } as unknown as CreateEmbedJwt,
+                    encodedSecret,
+                    '1h',
+                );
+                expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                    ForbiddenError,
+                );
+            },
+        );
+
+        it('accepts signed tokens with valid source spaces', () => {
+            const token = encodeLightdashJwt(
+                {
+                    ...mockJwtData,
+                    writeActions: {
+                        userUuid: 'actor',
+                        spaceUuid: 'space',
+                        sourceSpaceUuids: [sourceSpaceUuid],
+                    },
+                },
+                encodedSecret,
+                '1h',
+            );
+            expect(
+                decodeLightdashJwt(token, encodedSecret).writeActions
+                    ?.sourceSpaceUuids,
+            ).toEqual([sourceSpaceUuid]);
+        });
 
         it('should decode and validate a valid JWT token', () => {
             const token = encodeLightdashJwt(mockJwtData, encodedSecret, '1h');

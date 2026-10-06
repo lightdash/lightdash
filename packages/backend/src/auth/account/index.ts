@@ -2,6 +2,8 @@ export {
     fromJwt,
     getAccountApiAccessContext,
     getAccountWriteContext,
+    getEmbedActorChartSpaceUuids,
+    getEmbedContentListingSpaceUuids,
     fromServiceAccount,
     fromSession,
     toSessionUser,

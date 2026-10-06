@@ -278,6 +278,31 @@ export const getAccountWriteContext = (
     };
 };
 
+/** Spaces whose charts the embed write actor's own permissions authorize: the write space plus any source spaces. */
+export const getEmbedActorChartSpaceUuids = (account: Account): string[] => {
+    if (!isJwtUser(account) || !account.embedWriteUser) return [];
+    const { writeActions, content } = account.authentication.data;
+    if (!writeActions) return [];
+    const sourceSpaceUuids =
+        content?.type === 'dashboard'
+            ? (writeActions.sourceSpaceUuids ?? [])
+            : [];
+    return [writeActions.spaceUuid, ...sourceSpaceUuids];
+};
+
+/** Tokens that opt in with sourceSpaceUuids may only list content from the actor chart spaces. */
+export const getEmbedContentListingSpaceUuids = (
+    account: Account,
+): string[] | undefined => {
+    if (
+        !isJwtUser(account) ||
+        account.authentication.data.writeActions?.sourceSpaceUuids === undefined
+    ) {
+        return undefined;
+    }
+    return getEmbedActorChartSpaceUuids(account);
+};
+
 export const getAccountApiAccessContext = (
     account: Account,
 ): Pick<AccountWriteContext, 'user'> => {

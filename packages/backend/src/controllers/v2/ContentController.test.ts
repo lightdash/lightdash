@@ -2,6 +2,7 @@ import {
     Account,
     ContentType,
     CreateEmbedJwt,
+    ForbiddenError,
     MemberAbility,
     OrganizationMemberRole,
     SessionUser,
@@ -41,8 +42,10 @@ const buildJwtAccount = ({
         projectUuid: 'project-uuid',
         serviceAccountUserUuid: 'embed-write-user-uuid',
     } satisfies CreateEmbedJwt['content'],
+    writeActions,
 }: {
     content?: CreateEmbedJwt['content'];
+    writeActions?: CreateEmbedJwt['writeActions'];
 }): Account =>
     ({
         isJwtUser: () => true,
@@ -50,6 +53,7 @@ const buildJwtAccount = ({
             type: 'jwt',
             data: {
                 content,
+                writeActions,
             },
         },
         embedWriteUser: buildSessionUser(),
@@ -101,6 +105,110 @@ describe('ContentController', () => {
                     page: 1,
                     pageSize: 50,
                 }),
+            );
+        });
+
+        describe('with source spaces on the token', () => {
+            const buildScopedRequest = () =>
+                ({
+                    account: buildJwtAccount({
+                        content: {
+                            type: 'dashboard',
+                            dashboardUuid: 'dashboard-uuid',
+                        },
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            serviceAccountUserUuid: 'embed-write-user-uuid',
+                            sourceSpaceUuids: ['source-space-uuid'],
+                        },
+                    }),
+                }) as express.Request;
+
+            it('defaults the listing to the write and source spaces', async () => {
+                const { controller, find } = buildController();
+
+                await controller.listContent(
+                    buildScopedRequest(),
+                    ['project-uuid'],
+                    undefined,
+                    undefined,
+                    undefined,
+                    [ContentType.CHART],
+                );
+
+                expect(find).toHaveBeenCalledWith(
+                    expect.any(Object),
+                    expect.objectContaining({
+                        spaceUuids: ['write-space-uuid', 'source-space-uuid'],
+                    }),
+                    expect.any(Object),
+                    expect.any(Object),
+                );
+            });
+
+            it('keeps a requested subset of the token spaces', async () => {
+                const { controller, find } = buildController();
+
+                await controller.listContent(
+                    buildScopedRequest(),
+                    ['project-uuid'],
+                    ['source-space-uuid'],
+                );
+
+                expect(find).toHaveBeenCalledWith(
+                    expect.any(Object),
+                    expect.objectContaining({
+                        spaceUuids: ['source-space-uuid'],
+                    }),
+                    expect.any(Object),
+                    expect.any(Object),
+                );
+            });
+
+            it('rejects spaces outside the token scope', async () => {
+                const { controller, find } = buildController();
+
+                await expect(
+                    controller.listContent(
+                        buildScopedRequest(),
+                        ['project-uuid'],
+                        ['source-space-uuid', 'other-space-uuid'],
+                    ),
+                ).rejects.toThrowError(ForbiddenError);
+                expect(find).not.toHaveBeenCalled();
+            });
+
+            it.each<
+                [string, { sharedWithMe?: boolean; dataAppVizsFilter?: 'only' }]
+            >([
+                ['shared with me', { sharedWithMe: true }],
+                ['data app vizs', { dataAppVizsFilter: 'only' }],
+            ])(
+                'rejects %s listings that bypass space scoping',
+                async (_label, { sharedWithMe, dataAppVizsFilter }) => {
+                    const { controller, find } = buildController();
+
+                    await expect(
+                        controller.listContent(
+                            buildScopedRequest(),
+                            ['project-uuid'],
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            dataAppVizsFilter,
+                            undefined,
+                            sharedWithMe,
+                        ),
+                    ).rejects.toThrowError(ForbiddenError);
+                    expect(find).not.toHaveBeenCalled();
+                },
             );
         });
     });
