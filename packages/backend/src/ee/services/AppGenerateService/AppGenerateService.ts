@@ -13943,7 +13943,6 @@ export class AppGenerateService extends BaseService {
             versionDeps !== null
                 ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
                 : [];
-        const app = await this.appModel.getApp(appUuid, projectUuid);
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
@@ -14089,14 +14088,21 @@ export class AppGenerateService extends BaseService {
 
         // Outside the build's try, so a thumbnail can never mark it failed.
         if (becameReady) {
-            await this.enqueueThumbnailCapture({
-                organizationUuid,
-                projectUuid,
-                userUuid: payload.userUuid,
-                appUuid,
-                version,
-                isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
-            });
+            try {
+                const app = await this.appModel.getApp(appUuid, projectUuid);
+                await this.enqueueThumbnailCapture({
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: payload.userUuid,
+                    appUuid,
+                    version,
+                    isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
+                });
+            } catch (error) {
+                this.logger.warn(
+                    `App ${appUuid}: could not enqueue thumbnail capture for version ${version}: ${getErrorMessage(error)}`,
+                );
+            }
         }
     }
 }

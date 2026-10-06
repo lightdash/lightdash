@@ -121,6 +121,7 @@ function buildScenario({
         renderFails: false,
         queueIsDown: false,
         buildFails: false,
+        appDeletedDuringBuild: false,
     };
 
     const makeApp = (overrides: Partial<AppRow>): AppRow => ({
@@ -492,10 +493,12 @@ function buildScenario({
             sandboxUuid: 'sandbox',
         });
         pipeline.restoreSourceFromS3 = async () => 1;
-        pipeline.runBuild = async () =>
-            state.buildFails
+        pipeline.runBuild = async () => {
+            if (state.appDeletedDuringBuild) apps.delete(APP_UUID);
+            return state.buildFails
                 ? { exitCode: 1, stdout: '', stderr: 'boom' }
                 : { exitCode: 0, stdout: '', stderr: '' };
+        };
         pipeline.packageArtifacts = async () => ({
             distTar: Buffer.from('dist'),
             sourceTar: Buffer.from('src'),
@@ -781,6 +784,16 @@ describe('AppGenerateService thumbnails for versions created without a build', (
 
             expect(status).toBe('ready');
             expect(await s.thumbnailOf(APP_UUID)).toBeNull();
+        });
+
+        it('leaves the upload ready when the app is deleted while it builds', async () => {
+            const s = buildScenario({ versions: uploadedVersion });
+            s.state.appDeletedDuringBuild = true;
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('ready');
         });
 
         it.each([
