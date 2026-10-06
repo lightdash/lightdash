@@ -1,3 +1,11 @@
+## [2.444.1](https://github.com/lightdash/lightdash/compare/2.444.0...2.444.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **dashboards:** keep desktop tile layout in headless exports ([#30565](https://github.com/lightdash/lightdash/issues/30565)) ([74f406d](https://github.com/lightdash/lightdash/commit/74f406ddd237316332c852e10ef5786656b2d96f)), closes [#30563](https://github.com/lightdash/lightdash/issues/30563)
+* **dashboards:** render Markdown and Loom tiles in minimal mode for exports ([#30566](https://github.com/lightdash/lightdash/issues/30566)) ([21b230c](https://github.com/lightdash/lightdash/commit/21b230caf537d2141a08bf741fe1d7f469a6634f)), closes [#30563](https://github.com/lightdash/lightdash/issues/30563) [#30564](https://github.com/lightdash/lightdash/issues/30564)
+
 # [2.444.0](https://github.com/lightdash/lightdash/compare/2.443.2...2.444.0) (2026-10-06)
 
 
