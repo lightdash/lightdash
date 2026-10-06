@@ -101,6 +101,7 @@ export const useSettingsNavigation = (
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
+        aiPrincipalsEnabled,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
@@ -962,6 +963,20 @@ export const useSettingsNavigation = (
             }
 
             if (
+                aiPrincipalsEnabled &&
+                ability?.can('update', subject('Project', project))
+            ) {
+                projectItems.push({
+                    label: 'AI access',
+                    to: `${base}/aiAccess`,
+                    icon: IconDatabaseCog,
+                    keywords: ['principal', 'warehouse', 'permissions'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 isExternalSourcesEnabled &&
                 ability?.can(
                     'manage',
@@ -1265,6 +1280,7 @@ export const useSettingsNavigation = (
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
+        aiPrincipalsEnabled,
         track,
     ]);
 };

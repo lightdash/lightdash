@@ -23,6 +23,9 @@ import { type SettingsContext } from './types';
  * and a future global settings search all derive what to show from this context.
  */
 export const useSettingsContext = (): SettingsContext => {
+    const { data: aiPrincipals } = useServerFeatureFlag(
+        FeatureFlags.AiPrincipals,
+    );
     const { data: embeddingEnabled } = useServerFeatureFlag(
         CommercialFeatureFlags.Embedding,
     );
@@ -221,6 +224,7 @@ export const useSettingsContext = (): SettingsContext => {
         isWarehouseCredentialsFeatureFlagEnabled;
 
     return {
+        aiPrincipalsEnabled: aiPrincipals?.enabled === true,
         user,
         health,
         organization,

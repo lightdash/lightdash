@@ -1,0 +1,9 @@
+.mode {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-md);
+}
+.mode[data-unavailable='true'] {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-dimmed);
+}

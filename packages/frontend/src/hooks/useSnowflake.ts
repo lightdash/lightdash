@@ -2,6 +2,7 @@ import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../api';
+import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
@@ -87,6 +88,7 @@ export function useSnowflakeLoginPopup({
 }
 
 export function useSnowflakeAiLoginPopup() {
+    const t = useUiStrings();
     const health = useHealth();
     const queryClient = useQueryClient();
     const { showToastError } = useToaster();
@@ -101,7 +103,7 @@ export function useSnowflakeAiLoginPopup() {
         },
         onError: (error: Error) =>
             showToastError({
-                title: 'Snowflake AI sign-in failed',
+                title: t('aiAccess.signInError'),
                 subtitle: error.message,
             }),
     });
