@@ -2588,6 +2588,20 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /** Best-effort: a thumbnail must never fail the flow that copies it. */
+    private async copyVersionThumbnail(
+        from: { appUuid: string; version: number },
+        to: { appUuid: string; version: number },
+    ): Promise<void> {
+        try {
+            await this.appThumbnails.copyThumbnail({ from, to });
+        } catch (error) {
+            this.logger.warn(
+                `App ${to.appUuid}: could not copy thumbnail of app ${from.appUuid} version ${from.version} to version ${to.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     /** Scheduler job body. Never throws: a failed capture is only logged. */
     async captureVersionThumbnail({
         appUuid,
@@ -8243,6 +8257,10 @@ export class AppGenerateService extends BaseService {
                 vizPreview: source.viz_preview,
             },
         );
+        await this.copyVersionThumbnail(
+            { appUuid, version: sourceVersion },
+            { appUuid, version: newVersion },
+        );
         await this.unverifyAppIfNotPreserved({
             user,
             appUuid,
@@ -9237,6 +9255,11 @@ export class AppGenerateService extends BaseService {
             );
             throw error;
         }
+
+        await this.copyVersionThumbnail(
+            { appUuid: sourceApp.app_id, version: sourceVersion.version },
+            { appUuid: newAppUuid, version: newVersion },
+        );
 
         this.analytics.track({
             event: 'data_app.duplicated',
