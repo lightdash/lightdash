@@ -20,6 +20,11 @@ export const useProvisioningChange = (uuid: string) => {
     >({
         mutationFn: (action) => action(),
         onSuccess: (settings) => {
+            void client.invalidateQueries([
+                'ai-identity-exclusion-changes',
+                uuid,
+            ]);
+            void client.invalidateQueries(['ai-identity-request-log']);
             client.setQueryData(['ai-identity-provisioning', uuid], settings);
             void client.invalidateQueries([
                 'ai-identity-provisioning-plan',

@@ -19,12 +19,10 @@ import {
     AiIdentityListResult,
     AiIdentityProvisionerFindingReason,
     AiIdentityProvisionerStatus,
-    AiIdentitySchemaRuleMode,
     aiIdentitySnowflakeIdentifier,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
-    assertUnreachable,
     buildAiIdentityFixSql,
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
@@ -351,15 +349,7 @@ export class AiIdentityService extends BaseService {
             warehouse: aiIdentitySnowflakeIdentifier(
                 role.warehouse || credentials.warehouse,
             ),
-            schemaRule: this.normalizeSchemaRule(
-                role.schemaRule ??
-                    (role.schemas.length === 0
-                        ? { mode: AiIdentitySchemaRuleMode.EXISTING_ROLE }
-                        : {
-                              mode: AiIdentitySchemaRuleMode.LIST,
-                              schemas: role.schemas,
-                          }),
-            ),
+            schemaRule: this.normalizeSchemaRule(role.schemaRule ?? null),
         }));
         if (
             new Set(normalized.map((role) => role.roleName.toUpperCase()))
@@ -372,6 +362,14 @@ export class AiIdentityService extends BaseService {
         await this.args.aiIdentityModel.replaceAiRoles(
             aiIdentityAccountUuid,
             normalized,
+            {
+                organizationUuid,
+                actorType:
+                    account.isPatUser() || account.isServiceAccount()
+                        ? 'api'
+                        : 'user',
+                actorUserUuid: account.user.id ?? null,
+            },
         );
         await this.markProvisionerForSetupIfNeeded(
             aiIdentityAccountUuid,
@@ -381,60 +379,27 @@ export class AiIdentityService extends BaseService {
     }
 
     private normalizeSchemaRule(
-        rule: AiIdentitySchemaRule,
+        rule: AiIdentitySchemaRule | null,
     ): AiIdentitySchemaRule {
-        switch (rule.mode) {
-            case AiIdentitySchemaRuleMode.EXISTING_ROLE:
-                return { mode: rule.mode };
-            case AiIdentitySchemaRuleMode.LIST:
-                if (rule.schemas.length === 0)
-                    throw new ParameterError('Select at least one schema.');
-                return {
-                    mode: rule.mode,
-                    schemas: [
-                        ...new Set(
-                            rule.schemas.map((schema) => {
-                                const parts = schema.split('.');
-                                if (parts.length !== 2)
-                                    throw new ParameterError(
-                                        'Schemas must use DATABASE.SCHEMA.',
-                                    );
-                                return parts
-                                    .map(aiIdentitySnowflakeIdentifier)
-                                    .join('.')
-                                    .toUpperCase();
-                            }),
-                        ),
-                    ].sort(),
-                };
-            case AiIdentitySchemaRuleMode.ALL_EXCEPT:
-            case AiIdentitySchemaRuleMode.ONLY_MATCHING:
-                if (!rule.database)
-                    throw new ParameterError('Select a database.');
-                if (rule.patterns.length === 0)
-                    throw new ParameterError(
-                        'Enter at least one schema pattern.',
-                    );
-                return {
-                    mode: rule.mode,
-                    database: aiIdentitySnowflakeIdentifier(
-                        rule.database,
-                    ).toUpperCase(),
-                    patterns: [
-                        ...new Set(
-                            rule.patterns.map((pattern) => {
-                                if (!isValidSchemaPattern(pattern))
-                                    throw new ParameterError(
-                                        'Invalid schema pattern.',
-                                    );
-                                return pattern.trim().toUpperCase();
-                            }),
-                        ),
-                    ].sort(),
-                };
-            default:
-                return assertUnreachable(rule, 'Unknown schema rule');
-        }
+        if (!rule)
+            throw new ParameterError(
+                'Set a database and the schemas to exclude.',
+            );
+        if (!rule.database) throw new ParameterError('Select a database.');
+        return {
+            database: aiIdentitySnowflakeIdentifier(
+                rule.database,
+            ).toUpperCase(),
+            excludePatterns: [
+                ...new Set(
+                    rule.excludePatterns.map((pattern) => {
+                        if (!isValidSchemaPattern(pattern))
+                            throw new ParameterError('Invalid schema pattern.');
+                        return pattern.trim().toUpperCase();
+                    }),
+                ),
+            ].sort(),
+        };
     }
 
     private async provisionerRequirements(
@@ -456,7 +421,9 @@ export class AiIdentityService extends BaseService {
                     JSON.stringify([
                         role.roleName.toUpperCase(),
                         role.warehouse.toUpperCase(),
-                        this.normalizeSchemaRule(role.schemaRule),
+                        role.schemaRule.database
+                            ? this.normalizeSchemaRule(role.schemaRule)
+                            : role.schemaRule,
                     ]),
                 ),
             ),
@@ -540,9 +507,7 @@ export class AiIdentityService extends BaseService {
         error: string | null;
     }> {
         const patternRoles = aiRoles.filter(
-            (role) =>
-                role.schemaRule.mode === AiIdentitySchemaRuleMode.ALL_EXCEPT ||
-                role.schemaRule.mode === AiIdentitySchemaRuleMode.ONLY_MATCHING,
+            (role) => role.schemaRule.database !== '',
         );
         if (patternRoles.length === 0) return { results: [], error: null };
         const account = await this.args.aiIdentityModel.getAccount(
@@ -1768,6 +1733,7 @@ export class AiIdentityService extends BaseService {
         page: number,
         pageSize: number,
         includeReads = false,
+        exclusionAccountUuid: string | null = null,
     ) {
         const organizationUuid = await this.checkAdmin(account);
         const result = await this.args.aiIdentityModel.listEvents(
@@ -1776,6 +1742,7 @@ export class AiIdentityService extends BaseService {
             pageSize,
             null,
             includeReads,
+            exclusionAccountUuid,
         );
         await this.log(account, organizationUuid, 'list', null, null);
         return result;

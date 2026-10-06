@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { AI_IDENTITY_PROVISIONER_WORST_CASE } from '../types/aiIdentityProvisioning';
-import { AiIdentitySchemaRuleMode } from '../types/aiIdentitySchemaRule';
 import {
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
@@ -123,8 +122,8 @@ describe('buildAiIdentityProvisionerSetupSql', () => {
                     roleName: 'ANALYST_AI',
                     warehouse: 'COMPUTE_WH',
                     schemaRule: {
-                        mode: AiIdentitySchemaRuleMode.LIST,
-                        schemas: ['ANALYTICS.PUBLIC'],
+                        database: 'ANALYTICS',
+                        excludePatterns: [],
                     },
                     allowedSchemas: ['ANALYTICS.PUBLIC'],
                     excludedSchemas: [],
@@ -155,31 +154,6 @@ describe('buildAiIdentityProvisionerSetupSql', () => {
         expect(sql).toContain(AI_IDENTITY_PROVISIONER_WORST_CASE);
         expect(sql).toContain('New AI roles added later');
     });
-    it('transfers an existing role without creating it or granting data access', () => {
-        const sql = buildAiIdentityProvisionerSetupSql({
-            catalogLoaded: true,
-            userName: 'PROVISIONER',
-            roleName: 'PROVISIONER_ROLE',
-            publicKey: 'YWJj',
-            aiRoles: [
-                {
-                    roleName: 'EXISTING_AI',
-                    warehouse: '',
-                    schemaRule: {
-                        mode: AiIdentitySchemaRuleMode.EXISTING_ROLE,
-                    },
-                    allowedSchemas: [],
-                    excludedSchemas: [],
-                },
-            ],
-        });
-        expect(sql).toContain(
-            'GRANT OWNERSHIP ON ROLE EXISTING_AI TO ROLE PROVISIONER_ROLE COPY CURRENT GRANTS;',
-        );
-        expect(sql).not.toContain('CREATE ROLE IF NOT EXISTS EXISTING_AI');
-        expect(sql).not.toContain('GRANT SELECT');
-    });
-
     it('removes the provisioner after giving ACCOUNTADMIN its role', () => {
         const sql = buildAiIdentityProvisionerCleanupSql({
             userName: 'PROVISIONER',
@@ -217,13 +191,8 @@ describe('schema rule grants', () => {
         'DB.sales_archive',
         'OTHER.SALES',
     ];
-    const setup = (
-        mode:
-            | AiIdentitySchemaRuleMode.ALL_EXCEPT
-            | AiIdentitySchemaRuleMode.ONLY_MATCHING,
-        patterns: string[],
-    ) => {
-        const schemaRule = { mode, database: 'db', patterns };
+    const setup = (excludePatterns: string[]) => {
+        const schemaRule = { database: 'db', excludePatterns };
         const expansion = expandAiIdentitySchemaRule(schemaRule, catalog);
         return {
             expansion,
@@ -246,10 +215,7 @@ describe('schema rule grants', () => {
     };
 
     it('excludes several patterns without granting them or another database', () => {
-        const { sql } = setup(AiIdentitySchemaRuleMode.ALL_EXCEPT, [
-            'p?i',
-            'sales*',
-        ]);
+        const { sql } = setup(['p?i', 'sales*']);
         expect(sql).toContain(
             '-- LD_ROLE: 1 schema allowed, 3 excluded by the rule.',
         );
@@ -260,21 +226,13 @@ describe('schema rule grants', () => {
         expect(sql).not.toContain('GRANT USAGE ON SCHEMA OTHER.SALES');
     });
 
-    it('matches case insensitively and emits no schema grants on no match', () => {
-        const matched = setup(AiIdentitySchemaRuleMode.ONLY_MATCHING, [
-            'sales*',
-        ]);
-        expect(matched.expansion.allowed).toEqual([
+    it('matches case insensitively and excludes all schemas with a wildcard', () => {
+        expect(setup(['sales*']).expansion.excluded).toEqual([
             'DB.SALES',
             'DB.sales_archive',
         ]);
-        const empty = setup(AiIdentitySchemaRuleMode.ONLY_MATCHING, [
-            'MISSING*',
-        ]);
-        expect(empty.sql).toContain(
-            '-- LD_ROLE: 0 schemas allowed, 4 excluded by the rule.',
-        );
-        expect(empty.sql).not.toContain('GRANT USAGE ON SCHEMA');
+        expect(setup(['*']).sql).not.toContain('GRANT USAGE ON SCHEMA');
+        expect(setup([]).expansion.allowed).toHaveLength(4);
     });
 
     it('renders fix grants once per database and checks identifiers', () => {
@@ -302,9 +260,8 @@ describe('schema rule grants', () => {
                     roleName: 'ANALYST_AI',
                     warehouse: 'COMPUTE_WH',
                     schemaRule: {
-                        mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                         database: 'ANALYTICS',
-                        patterns: ['PII_*'],
+                        excludePatterns: ['PII_*'],
                     },
                     allowedSchemas: [],
                     excludedSchemas: [],

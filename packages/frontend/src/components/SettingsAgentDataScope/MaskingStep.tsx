@@ -1,6 +1,7 @@
 import { Select, Stack, Paper, Text } from '@mantine/core';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import InlineErrorState from '../common/InlineErrorState';
+import { maskingPreviewText } from '../common/SchemaRuleInput/schemaRule';
 import { SchemaRuleInput } from '../common/SchemaRuleInput/SchemaRuleInput';
 import { SqlPanel } from './SqlPanel';
 import { type BoundaryGuide } from './useBoundaryGuide';
@@ -25,18 +26,13 @@ export const MaskingStep = ({ guide }: { guide: BoundaryGuide }) => {
     return (
         <Stack gap="sm">
             <SchemaRuleInput
-                label="Protected schemas"
-                description="The rule selects schemas to protect. Review and run the masking SQL, then check the results."
+                label="Mask schemas that match"
+                description={null}
                 catalogSchemas={guide.catalogSchemas}
-                value={inputs.schemaRule}
-                allowExistingRole={false}
-                preview={{
-                    allowed: 'protected',
-                    excluded: 'not protected',
-                    listed: 'allowed',
-                }}
-                onChange={(schemaRule) =>
-                    setInputs((value) => ({ ...value, schemaRule }))
+                value={inputs.maskingSelection}
+                preview={maskingPreviewText}
+                onChange={(maskingSelection) =>
+                    setInputs((value) => ({ ...value, maskingSelection }))
                 }
             />
             <Select

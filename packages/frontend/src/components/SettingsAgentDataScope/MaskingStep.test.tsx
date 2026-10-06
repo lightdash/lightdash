@@ -33,7 +33,7 @@ const Guide = () => {
         </>
     );
 };
-it('protects the allowed set and generates masking SQL only after an explicit rule', async () => {
+it('protects the matching set and generates masking SQL only after an explicit rule', async () => {
     render(
         <MantineProvider env="test">
             <QueryClientProvider client={new QueryClient()}>
@@ -42,28 +42,20 @@ it('protects the allowed set and generates masking SQL only after an explicit ru
         </MantineProvider>,
     );
     expect(
-        screen.getByLabelText('Patterns', { selector: 'input' }),
+        screen.getByLabelText('Mask schemas that match', { selector: 'input' }),
     ).toHaveValue('');
     expect(
         screen.getByLabelText('Protected schema names'),
     ).toBeEmptyDOMElement();
-    fireEvent.click(
-        screen.getByLabelText('Protected schemas', { selector: 'input' }),
-    );
-    expect(
-        screen.queryByRole('option', { name: 'Use an existing role' }),
-    ).not.toBeInTheDocument();
-    await userEvent.click(
-        await screen.findByRole('option', {
-            name: 'Only schemas whose names match',
-        }),
-    );
     fireEvent.click(screen.getByLabelText('Database', { selector: 'input' }));
     await userEvent.click(await screen.findByRole('option', { name: 'DB' }));
     await userEvent.type(
-        screen.getByLabelText('Patterns', { selector: 'input' }),
+        screen.getByLabelText('Mask schemas that match', { selector: 'input' }),
         'PII_*{enter}',
     );
+    expect(
+        screen.getByText('1 schema matched, 1 not matched'),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Protected schema names')).toHaveTextContent(
         /^DB.PII_PEOPLE$/,
     );

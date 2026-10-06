@@ -3,7 +3,6 @@ import {
     AI_IDENTITY_SHOW_USERS_NOTICE,
     AiIdentityCreationMode,
     AiIdentityProvisionerStatus,
-    AiIdentitySchemaRuleMode,
     type AiIdentityAiRoleExpansion,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
     DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
@@ -25,6 +24,7 @@ import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import MantineModal from '../../components/common/MantineModal';
 import { SchemaNames } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
 import { RelativeTime } from './AiIdentityEventDisplay';
+import { AiIdentityExclusionChanges } from './AiIdentityExclusionChanges';
 import { AiIdentityProvisioningReview } from './AiIdentityProvisioningReview';
 import { AiIdentityRoleDefinitions } from './AiIdentityRoleDefinitions';
 import { AiIdentityRoleMappings } from './AiIdentityRoleMappings';
@@ -35,11 +35,8 @@ import { useProvisioningChange } from './useProvisioning';
 
 const aiRoleExpansionSummary = (
     expansion: AiIdentityAiRoleExpansion,
-    mode: AiIdentitySchemaRuleMode | null,
 ): string => {
-    if (mode === AiIdentitySchemaRuleMode.EXISTING_ROLE)
-        return `${expansion.roleName}: keeps its current schema access.`;
-    if (!expansion.catalogLoaded && mode !== AiIdentitySchemaRuleMode.LIST)
+    if (!expansion.catalogLoaded)
         return `${expansion.roleName}: the schema catalog is not loaded yet, so the script grants no schemas.`;
     return `${expansion.roleName}: ${expansion.allowed.length} ${expansion.allowed.length === 1 ? 'schema' : 'schemas'} allowed, ${expansion.excluded.length} excluded.`;
 };
@@ -154,13 +151,7 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                 {settings.aiRoleExpansions.map((expansion) => (
                     <Stack key={expansion.roleName} gap="xs">
                         <Text size="sm">
-                            {aiRoleExpansionSummary(
-                                expansion,
-                                settings.aiRoles.find(
-                                    (aiRole) =>
-                                        aiRole.roleName === expansion.roleName,
-                                )?.schemaRule.mode ?? null,
-                            )}
+                            {aiRoleExpansionSummary(expansion)}
                         </Text>
                         {expansion.catalogLoaded &&
                             expansion.excluded.length > 0 && (
@@ -345,6 +336,9 @@ export const AiIdentityAutomaticSetup: FC<{
                 </Stack>
             </Callout>
             <AiIdentityRoleDefinitions settings={settings} />
+            <AiIdentityExclusionChanges
+                accountUuid={settings.aiIdentityAccountUuid}
+            />
             <CreateProvisioner settings={settings} />
             <CheckProvisioner settings={settings} />
             <fieldset

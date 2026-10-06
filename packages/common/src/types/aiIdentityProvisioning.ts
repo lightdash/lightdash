@@ -17,7 +17,7 @@ export enum AiIdentityProvisionerStatus {
 }
 
 export const AI_IDENTITY_PROVISIONER_WORST_CASE =
-    "Lightdash's provisioning role can give AI-role access to users it creates. It cannot reach personal data or your other roles.";
+    'The provisioning role can give AI-role access to users it creates. An AI role can give a person access to schemas that their own Snowflake role cannot read.';
 
 export const AI_IDENTITY_SHOW_USERS_NOTICE =
     'Like any Snowflake role, it can list the names of the users in your account.';

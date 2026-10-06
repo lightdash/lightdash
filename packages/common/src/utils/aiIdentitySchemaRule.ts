@@ -1,10 +1,8 @@
 import {
-    AiIdentitySchemaRuleMode,
     type AiIdentitySchemaRule,
     type AiIdentitySchemaRuleExpansion,
 } from '../types/aiIdentitySchemaRule';
 import { ParameterError } from '../types/errors';
-import assertUnreachable from './assertUnreachable';
 
 const SYSTEM_SCHEMAS = new Set(['INFORMATION_SCHEMA']);
 
@@ -44,41 +42,36 @@ const unique = (values: string[]): string[] =>
         ).values(),
     ].sort((a, b) => a.localeCompare(b));
 
+export const expandSchemaPatterns = (
+    selection: { database: string; patterns: string[] },
+    catalogSchemas: readonly string[],
+): { matched: string[]; unmatched: string[] } => {
+    const patterns = selection.patterns.map(toRegExp);
+    const unmatched: string[] = [];
+    const matched: string[] = [];
+    catalogSchemas.forEach((qualified) => {
+        const parts = splitSchema(qualified);
+        if (
+            parts === null ||
+            !/^[A-Za-z_][A-Za-z0-9_$]*$/.test(parts.database) ||
+            !/^[A-Za-z_][A-Za-z0-9_$]*$/.test(parts.schema) ||
+            parts.database.toUpperCase() !== selection.database.toUpperCase() ||
+            SYSTEM_SCHEMAS.has(parts.schema.toUpperCase())
+        )
+            return;
+        const matches = patterns.some((pattern) => pattern.test(parts.schema));
+        (matches ? matched : unmatched).push(qualified);
+    });
+    return { matched: unique(matched), unmatched: unique(unmatched) };
+};
+
 export const expandAiIdentitySchemaRule = (
     rule: AiIdentitySchemaRule,
     catalogSchemas: readonly string[],
 ): AiIdentitySchemaRuleExpansion => {
-    switch (rule.mode) {
-        case AiIdentitySchemaRuleMode.EXISTING_ROLE:
-            return { allowed: [], excluded: [] };
-        case AiIdentitySchemaRuleMode.LIST:
-            return { allowed: unique(rule.schemas), excluded: [] };
-        case AiIdentitySchemaRuleMode.ALL_EXCEPT:
-        case AiIdentitySchemaRuleMode.ONLY_MATCHING: {
-            rule.patterns.forEach(toRegExp);
-            const inDatabase = catalogSchemas.filter((qualified) => {
-                const parts = splitSchema(qualified);
-                return (
-                    parts !== null &&
-                    parts.database.toUpperCase() ===
-                        rule.database.toUpperCase() &&
-                    !SYSTEM_SCHEMAS.has(parts.schema.toUpperCase())
-                );
-            });
-            const allowed: string[] = [];
-            const excluded: string[] = [];
-            inDatabase.forEach((qualified) => {
-                const { schema } = splitSchema(qualified)!;
-                const matches = matchesSchemaPattern(schema, rule.patterns);
-                const isAllowed =
-                    rule.mode === AiIdentitySchemaRuleMode.ALL_EXCEPT
-                        ? !matches
-                        : matches;
-                (isAllowed ? allowed : excluded).push(qualified);
-            });
-            return { allowed: unique(allowed), excluded: unique(excluded) };
-        }
-        default:
-            return assertUnreachable(rule, 'Unknown schema rule');
-    }
+    const { matched, unmatched } = expandSchemaPatterns(
+        { database: rule.database, patterns: rule.excludePatterns },
+        catalogSchemas,
+    );
+    return { allowed: unmatched, excluded: matched };
 };

@@ -1,7 +1,5 @@
 import {
-    AiIdentitySchemaRuleMode,
-    expandAiIdentitySchemaRule,
-    type AiIdentitySchemaRule,
+    expandSchemaPatterns,
     type ApiError,
     type SnowflakeAiBoundaryCheck,
     type SnowflakeAiBoundaryGuideConfig,
@@ -16,7 +14,10 @@ import {
     useAiAccessRestrictions,
     useProjectUpdateAiAccessRestrictions,
 } from '../../hooks/useProject';
-import { isValidSchemaRule } from '../common/SchemaRuleInput/schemaRule';
+import {
+    isValidSchemaSelection,
+    type SchemaPatternSelection,
+} from '../common/SchemaRuleInput/schemaRule';
 import { useGuideSql } from './useGuideSql';
 
 export const useBoundaryGuide = ({
@@ -81,11 +82,10 @@ export const useBoundaryGuide = ({
         roles: '',
         tagDatabase: '',
         tagSchema: '',
-        schemaRule: {
-            mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
+        maskingSelection: {
             database: '',
             patterns: [],
-        } as AiIdentitySchemaRule,
+        } as SchemaPatternSelection,
         protectedColumn: null as SnowflakeAiBoundaryTestBody['protectedColumn'],
     });
     const schemas = useMemo(
@@ -106,13 +106,13 @@ export const useBoundaryGuide = ({
         [schemas],
     );
     const protectedSchemas = useMemo(() => {
-        if (!isValidSchemaRule(inputs.schemaRule)) return [];
-        const allowed = new Set(
-            expandAiIdentitySchemaRule(inputs.schemaRule, catalogSchemas)
-                .allowed,
+        if (!isValidSchemaSelection(inputs.maskingSelection)) return [];
+        const matched = new Set(
+            expandSchemaPatterns(inputs.maskingSelection, catalogSchemas)
+                .matched,
         );
-        return schemas.filter((schema) => allowed.has(schema.label));
-    }, [inputs.schemaRule, catalogSchemas, schemas]);
+        return schemas.filter((schema) => matched.has(schema.label));
+    }, [inputs.maskingSelection, catalogSchemas, schemas]);
     const sql = useGuideSql({
         ...inputs,
         redirectUri: config.data?.redirectUri ?? '',

@@ -363,6 +363,7 @@ export class AiIdentityController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() includeReads?: boolean,
+        @Query() exclusionAccountUuid?: string,
     ): Promise<ApiAiIdentityEventsResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -374,6 +375,7 @@ export class AiIdentityController extends BaseController {
                     Math.max(1, page ?? 1),
                     Math.min(100, Math.max(1, pageSize ?? 50)),
                     includeReads ?? false,
+                    exclusionAccountUuid ?? null,
                 ),
         };
     }

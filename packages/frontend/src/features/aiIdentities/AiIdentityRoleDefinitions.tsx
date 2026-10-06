@@ -1,5 +1,4 @@
 import {
-    AiIdentitySchemaRuleMode,
     type AiIdentityProvisioningSettings,
     type AiIdentityAiRoleDefinition,
 } from '@lightdash/common';
@@ -17,7 +16,7 @@ import { useMemo, useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import {
     aiRolePreviewText,
-    isValidSchemaRule,
+    isValidSchemaSelection,
 } from '../../components/common/SchemaRuleInput/schemaRule';
 import { SchemaRuleInput } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
 import { useTables } from '../sqlRunner/hooks/useTables';
@@ -61,8 +60,8 @@ export const AiIdentityRoleDefinitions: FC<{
             <Stack gap="sm">
                 <Title order={5}>1. Define AI roles</Title>
                 <Text fz="sm">
-                    Set a schema rule for each AI role. Exclude personal data,
-                    or use an existing role that your team has created.
+                    Set a database for each AI role. Exclude schemas that
+                    contain personal data.
                 </Text>
                 {catalog.isError && (
                     <Callout variant="danger">
@@ -100,15 +99,28 @@ export const AiIdentityRoleDefinitions: FC<{
                                     }
                                 />
                             </SimpleGrid>
+                            <Text size="sm">
+                                AI can read all schemas in{' '}
+                                {row.schemaRule.database || 'the database'},
+                                except:
+                            </Text>
                             <SchemaRuleInput
-                                label="Schema rule"
+                                label="Exclude schemas that match"
                                 description={null}
                                 catalogSchemas={schemas}
-                                value={row.schemaRule}
-                                allowExistingRole
+                                value={{
+                                    database: row.schemaRule.database,
+                                    patterns: row.schemaRule.excludePatterns,
+                                }}
                                 preview={aiRolePreviewText}
-                                onChange={(schemaRule) =>
-                                    update(index, { ...row, schemaRule })
+                                onChange={({ database, patterns }) =>
+                                    update(index, {
+                                        ...row,
+                                        schemaRule: {
+                                            database,
+                                            excludePatterns: patterns,
+                                        },
+                                    })
                                 }
                             />
                             <Group justify="flex-end">
@@ -141,10 +153,9 @@ export const AiIdentityRoleDefinitions: FC<{
                                     roleName: '',
                                     warehouse: settings.defaultWarehouse,
                                     schemaRule: {
-                                        mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                                         database:
                                             schemas[0]?.split('.')[0] ?? '',
-                                        patterns: [],
+                                        excludePatterns: [],
                                     },
                                 },
                             ])
@@ -158,10 +169,12 @@ export const AiIdentityRoleDefinitions: FC<{
                             rows.some(
                                 (row) =>
                                     !row.roleName.trim() ||
-                                    !isValidSchemaRule(row.schemaRule) ||
-                                    (row.schemaRule.mode !==
-                                        AiIdentitySchemaRuleMode.EXISTING_ROLE &&
-                                        !row.warehouse.trim()),
+                                    !isValidSchemaSelection({
+                                        database: row.schemaRule.database,
+                                        patterns:
+                                            row.schemaRule.excludePatterns,
+                                    }) ||
+                                    !row.warehouse.trim(),
                             )
                         }
                         loading={change.isLoading}
@@ -178,11 +191,7 @@ export const AiIdentityRoleDefinitions: FC<{
                                             }) => ({
                                                 roleName,
                                                 warehouse,
-                                                schemas:
-                                                    schemaRule.mode ===
-                                                    AiIdentitySchemaRuleMode.LIST
-                                                        ? schemaRule.schemas
-                                                        : [],
+                                                schemas: [],
                                                 schemaRule,
                                             }),
                                         ),

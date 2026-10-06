@@ -12,6 +12,17 @@ import { aiIdentityProvisioningApi } from './api';
 
 vi.mock('./api', () => ({
     aiIdentityProvisioningApi: { update: vi.fn() },
+    aiIdentityApi: {
+        requestLog: vi.fn().mockResolvedValue({
+            data: [],
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalResults: 0,
+                totalPageCount: 0,
+            },
+        }),
+    },
 }));
 vi.mock('./AiIdentityRoleDefinitions', () => ({
     AiIdentityRoleDefinitions: () => <div>Role definitions</div>,
@@ -177,5 +188,17 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
     expect(screen.getByText('DB.PII_PEOPLE')).toBeInTheDocument();
     expect(
         screen.getByText('1 new schema is not granted to AI_ROLE'),
+    ).toBeInTheDocument();
+});
+
+it('shows the exclusion history next to the roles and warns about broader access', async () => {
+    renderSetup(settings);
+    expect(screen.getByText('Role definitions')).toBeInTheDocument();
+    expect(screen.getByText('Changes to exclusions')).toBeInTheDocument();
+    expect(
+        await screen.findByText('No changes to exclusions yet.'),
+    ).toBeInTheDocument();
+    expect(
+        screen.getByText(/their own Snowflake role cannot read/),
     ).toBeInTheDocument();
 });

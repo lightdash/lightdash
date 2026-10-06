@@ -1,36 +1,33 @@
-import {
-    AiIdentitySchemaRuleMode,
-    assertUnreachable,
-    isValidSchemaPattern,
-    type AiIdentitySchemaRule,
-} from '@lightdash/common';
+import { isValidSchemaPattern } from '@lightdash/common';
 
-export const isValidSchemaRule = (rule: AiIdentitySchemaRule): boolean => {
-    switch (rule.mode) {
-        case AiIdentitySchemaRuleMode.EXISTING_ROLE:
-            return true;
-        case AiIdentitySchemaRuleMode.LIST:
-            return rule.schemas.length > 0;
-        case AiIdentitySchemaRuleMode.ALL_EXCEPT:
-        case AiIdentitySchemaRuleMode.ONLY_MATCHING:
-            return (
-                !!rule.database.trim() &&
-                rule.patterns.length > 0 &&
-                rule.patterns.every(isValidSchemaPattern)
-            );
-        default:
-            return assertUnreachable(rule, 'Unknown schema rule');
-    }
+export type SchemaPatternSelection = {
+    database: string;
+    patterns: string[];
 };
 
+export const isValidSchemaSelection = (
+    selection: SchemaPatternSelection,
+): boolean =>
+    /^[A-Za-z_][A-Za-z0-9_$]*$/.test(selection.database) &&
+    selection.patterns.every(isValidSchemaPattern);
+
 export type SchemaRulePreviewText = {
-    allowed: string;
-    excluded: string;
-    listed: 'allowed' | 'excluded';
+    matched: string;
+    unmatched: string;
+    first: 'matched' | 'unmatched';
+    emptyWarning: string | null;
 };
 
 export const aiRolePreviewText: SchemaRulePreviewText = {
-    allowed: 'allowed',
-    excluded: 'excluded',
-    listed: 'excluded',
+    matched: 'excluded',
+    unmatched: 'allowed',
+    first: 'unmatched',
+    emptyWarning: 'This AI role can read all schemas in the database.',
+};
+
+export const maskingPreviewText: SchemaRulePreviewText = {
+    matched: 'matched',
+    unmatched: 'not matched',
+    first: 'matched',
+    emptyWarning: null,
 };

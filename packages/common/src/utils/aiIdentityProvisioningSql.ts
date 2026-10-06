@@ -4,8 +4,8 @@ import {
     type AiIdentityAiRoleDefinition,
     type AiIdentityProvisioningOperation,
 } from '../types/aiIdentityProvisioning';
-import { AiIdentitySchemaRuleMode } from '../types/aiIdentitySchemaRule';
 import { ParameterError } from '../types/errors';
+import assertUnreachable from './assertUnreachable';
 
 export const aiIdentitySnowflakeIdentifier = (value: string): string => {
     if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)) {
@@ -97,12 +97,8 @@ export const renderProvisioningOperation = (
         case 'drop_user':
             requireCreated();
             return `DROP USER ${userName};`;
-        default: {
-            const unreachable: never = op;
-            throw new ParameterError(
-                `Unsupported provisioning operation: ${unreachable}`,
-            );
-        }
+        default:
+            return assertUnreachable(op, 'Unsupported provisioning operation');
     }
 };
 
@@ -141,23 +137,12 @@ export const buildAiIdentityProvisionerSetupSql = ({
         ...aiRoles.flatMap((aiRole) => {
             const name = identifier(aiRole.roleName);
             const summary = `-- ${name}: ${aiRole.allowedSchemas.length} ${aiRole.allowedSchemas.length === 1 ? 'schema' : 'schemas'} allowed, ${aiRole.excludedSchemas.length} excluded by the rule.`;
-            if (
-                aiRole.schemaRule.mode ===
-                AiIdentitySchemaRuleMode.EXISTING_ROLE
-            )
-                return [
-                    summary,
-                    `-- Transfer the existing AI role ${name}.`,
-                    `GRANT OWNERSHIP ON ROLE ${name} TO ROLE ${role} COPY CURRENT GRANTS;`,
-                ];
             const warehouse = identifier(aiRole.warehouse);
-            const catalogNote =
-                !catalogLoaded &&
-                aiRole.schemaRule.mode !== AiIdentitySchemaRuleMode.LIST
-                    ? [
-                          '-- The schema catalog is not loaded, so this rule grants no schemas yet. Refresh the catalog and copy the script again.',
-                      ]
-                    : [];
+            const catalogNote = !catalogLoaded
+                ? [
+                      '-- The schema catalog is not loaded, so this rule grants no schemas yet. Refresh the catalog and copy the script again.',
+                  ]
+                : [];
             return [
                 summary,
                 ...catalogNote,

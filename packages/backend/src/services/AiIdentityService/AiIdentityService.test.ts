@@ -5,7 +5,6 @@ import {
     AiIdentityJobKind,
     AiIdentityJobStatus,
     AiIdentityProvisionerStatus,
-    AiIdentitySchemaRuleMode,
     AiIdentitySort,
     AiIdentityState,
     FeatureFlags,
@@ -435,8 +434,8 @@ describe('AiIdentityService', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'COMPUTE_WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.LIST,
-                    schemas: ['ANALYTICS.PUBLIC'],
+                    database: 'ANALYTICS',
+                    excludePatterns: [],
                 },
             },
         ]);
@@ -512,8 +511,8 @@ describe('AiIdentityService', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'COMPUTE_WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.LIST,
-                    schemas: ['ANALYTICS.PUBLIC'],
+                    database: 'ANALYTICS',
+                    excludePatterns: [],
                 },
             },
         ]);
@@ -1164,6 +1163,7 @@ describe('AiIdentityService', () => {
             20,
             null,
             false,
+            null,
         );
     });
 
@@ -1265,50 +1265,83 @@ describe('personal AI identities', () => {
 });
 
 describe('AI role rule validation', () => {
-    const role = (schemaRule: {
-        mode:
-            | AiIdentitySchemaRuleMode.ALL_EXCEPT
-            | AiIdentitySchemaRuleMode.ONLY_MATCHING;
-        database: string;
-        patterns: string[];
-    }) => ({
-        roleName: 'ANALYST_AI',
-        warehouse: 'WH',
-        schemas: [],
-        schemaRule,
+    beforeEach(() => {
+        model.getProvisioner.mockResolvedValue(null);
     });
     it.each([
-        [
-            'invalid pattern',
-            {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
-                database: 'DB',
-                patterns: ['A-B'],
-            },
-        ],
-        [
-            'missing pattern',
-            {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
-                database: 'DB',
-                patterns: [],
-            },
-        ],
-        [
-            'missing database',
-            {
-                mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
-                database: '',
-                patterns: ['A*'],
-            },
-        ],
-    ] as const)('rejects %s', async (_name, rule) => {
+        { database: 'DB', excludePatterns: ['A-B'] },
+        { database: '', excludePatterns: ['A*'] },
+    ])('rejects an invalid rule %j', async (schemaRule) => {
         await expect(
             service.replaceAiRoles(admin, 'account', [
-                role({ ...rule, patterns: [...rule.patterns] }),
+                {
+                    roleName: 'ANALYST_AI',
+                    warehouse: 'WH',
+                    schemas: [],
+                    schemaRule,
+                },
             ]),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(model.replaceAiRoles).not.toHaveBeenCalled();
+    });
+    it('rejects requests without a schema rule', async () => {
+        await expect(
+            service.replaceAiRoles(admin, 'account', [
+                {
+                    roleName: 'ANALYST_AI',
+                    warehouse: 'WH',
+                    schemas: ['DB.PUBLIC'],
+                },
+            ]),
+        ).rejects.toEqual(
+            new ParameterError('Set a database and the schemas to exclude.'),
+        );
+        expect(model.replaceAiRoles).not.toHaveBeenCalled();
+    });
+    it('accepts empty exclusions and ignores the compatibility schemas field', async () => {
+        await service.replaceAiRoles(admin, 'account', [
+            {
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemas: ['OTHER.PII'],
+                schemaRule: { database: 'db', excludePatterns: [] },
+            },
+        ]);
+        expect(model.replaceAiRoles).toHaveBeenCalledWith(
+            'account',
+            [
+                {
+                    roleName: 'ANALYST_AI',
+                    warehouse: 'WH',
+                    schemaRule: { database: 'DB', excludePatterns: [] },
+                },
+            ],
+            {
+                organizationUuid,
+                actorType: 'user',
+                actorUserUuid: admin.user.id,
+            },
+        );
+    });
+    it('can replace a fail-closed legacy role with no database', async () => {
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemas: [],
+                schemaRule: { database: '', excludePatterns: ['*'] },
+            },
+        ]);
+        await service.replaceAiRoles(admin, 'account', [
+            {
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemas: [],
+                schemaRule: { database: 'DB', excludePatterns: [] },
+            },
+        ]);
+        expect(model.replaceAiRoles).toHaveBeenCalled();
     });
 });
 
@@ -1376,9 +1409,8 @@ describe('schema grant check failure', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                     database: 'ANALYTICS',
-                    patterns: ['*_RESTRICTED'],
+                    excludePatterns: ['*_RESTRICTED'],
                 },
             },
         ]);
@@ -1416,15 +1448,45 @@ describe('schema grant check failure', () => {
         expect(JSON.stringify(ungrantedSchemas)).not.toContain('HR_RESTRICTED');
     });
 
-    it('never flags schemas for an explicit list', async () => {
+    it('checks new schemas when the role has no exclusions', async () => {
+        model.getCachedCatalogSchemas.mockResolvedValue({
+            loaded: true,
+            schemas: ['ANALYTICS.NEW_SCHEMA', 'OTHER.PUBLIC'],
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemas: [],
+                schemaRule: { database: 'ANALYTICS', excludePatterns: [] },
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        vi.mocked(listAiTwinSchemas).mockResolvedValueOnce([]);
+        stubProvisioner();
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                ungrantedSchemas: [
+                    expect.objectContaining({
+                        schemas: ['ANALYTICS.NEW_SCHEMA'],
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('skips fail-closed roles without a database', async () => {
         model.getAiRoles.mockResolvedValue([
             {
                 aiIdentityAiRoleUuid: 'role',
                 roleName: 'ANALYST_AI',
                 warehouse: 'WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.LIST,
-                    schemas: ['ANALYTICS.PUBLIC', 'ANALYTICS.SALES'],
+                    database: '',
+                    excludePatterns: ['*'],
                 },
             },
         ]);
@@ -1446,9 +1508,8 @@ describe('schema grant check failure', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
                     database: 'SALES',
-                    patterns: ['PUBLIC'],
+                    excludePatterns: ['PII_*'],
                 },
             },
         ]);
@@ -1512,9 +1573,8 @@ describe('schema grant check failure', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                     database: 'ANALYTICS',
-                    patterns: ['SECRET'],
+                    excludePatterns: ['SECRET'],
                 },
             },
         ]);
@@ -1558,9 +1618,8 @@ describe('schema grant check failure', () => {
                 roleName: 'ANALYST_AI',
                 warehouse: 'WH',
                 schemaRule: {
-                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
                     database: 'ANALYTICS',
-                    patterns: ['PUBLIC'],
+                    excludePatterns: ['PII_*'],
                 },
             },
         ]);

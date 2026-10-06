@@ -1,6 +1,9 @@
 import { type AiIdentityEvent } from '@lightdash/common';
 
 const actionLabels: Record<string, string> = {
+    ai_role_created: 'AI role created',
+    ai_role_deleted: 'AI role deleted',
+    ai_role_exclusions_changed: 'Exclusions changed',
     provision: 'Provisioning run',
     provision_statement: 'Ran in Snowflake',
     provisioner_verify: 'Provisioner checked',

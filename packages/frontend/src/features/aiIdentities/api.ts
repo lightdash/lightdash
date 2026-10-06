@@ -47,12 +47,16 @@ export const aiIdentityApi = {
         get<AiIdentityListResult>(`?${params.toString()}`),
     detail: (uuid: string, includeReads = false) =>
         get<AiIdentityDetail>(`/${uuid}?includeReads=${includeReads}`),
-    requestLog: (page: number, includeReads = false) =>
+    requestLog: (
+        page: number,
+        includeReads = false,
+        exclusionAccountUuid: string | null = null,
+    ) =>
         get<{
             data: AiIdentityEvent[];
             pagination: AiIdentityListResult['pagination'];
         }>(
-            `/request-log?page=${page}&pageSize=50&includeReads=${includeReads}`,
+            `/request-log?page=${page}&pageSize=50&includeReads=${includeReads}${exclusionAccountUuid ? `&exclusionAccountUuid=${encodeURIComponent(exclusionAccountUuid)}` : ''}`,
         ),
     job: (uuid: string) => get<AiIdentityJob>(`/jobs/${uuid}`),
     bulkTest: (body: AiIdentityBulkTestRequest) =>

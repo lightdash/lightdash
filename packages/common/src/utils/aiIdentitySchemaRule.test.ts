@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { AiIdentitySchemaRuleMode } from '../types/aiIdentitySchemaRule';
 import {
     expandAiIdentitySchemaRule,
     isValidSchemaPattern,
@@ -13,6 +12,9 @@ const catalog = [
     'ANALYTICS_DB.PII_PEOPLE',
     'ANALYTICS_DB.INFORMATION_SCHEMA',
     'OTHER_DB.SALES',
+    'ANALYTICS_DB.BAD-NAME',
+    'ANALYTICS_DB.1INVALID',
+    'ANALYTICS_DB.EXTRA.DOT',
 ];
 
 describe('matchesSchemaPattern', () => {
@@ -54,25 +56,8 @@ describe('expandAiIdentitySchemaRule', () => {
         expect(
             expandAiIdentitySchemaRule(
                 {
-                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                     database: 'ANALYTICS_DB',
-                    patterns: ['*_RESTRICTED', 'PII_*'],
-                },
-                catalog,
-            ),
-        ).toEqual({
-            allowed: ['ANALYTICS_DB.EVENTS_RAW', 'ANALYTICS_DB.SALES'],
-            excluded: ['ANALYTICS_DB.HR_RESTRICTED', 'ANALYTICS_DB.PII_PEOPLE'],
-        });
-    });
-
-    it('allows only the matching names in include mode', () => {
-        expect(
-            expandAiIdentitySchemaRule(
-                {
-                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
-                    database: 'analytics_db',
-                    patterns: ['sales', '*_raw'],
+                    excludePatterns: ['*_RESTRICTED', 'PII_*'],
                 },
                 catalog,
             ),
@@ -85,9 +70,8 @@ describe('expandAiIdentitySchemaRule', () => {
     it('allows everything when no name matches an exclusion', () => {
         const result = expandAiIdentitySchemaRule(
             {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                 database: 'ANALYTICS_DB',
-                patterns: ['*_SECRET'],
+                excludePatterns: ['*_SECRET'],
             },
             catalog,
         );
@@ -95,59 +79,28 @@ describe('expandAiIdentitySchemaRule', () => {
         expect(result.excluded).toEqual([]);
     });
 
-    it('allows nothing when no name matches in include mode', () => {
-        expect(
-            expandAiIdentitySchemaRule(
-                {
-                    mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
-                    database: 'ANALYTICS_DB',
-                    patterns: ['*_SAFE'],
-                },
-                catalog,
-            ).allowed,
-        ).toEqual([]);
-    });
-
-    it('ignores other databases and INFORMATION_SCHEMA', () => {
+    it('allows all safe schemas with no exclusions', () => {
         const { allowed, excluded } = expandAiIdentitySchemaRule(
             {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                 database: 'ANALYTICS_DB',
-                patterns: [],
+                excludePatterns: [],
             },
             catalog,
         );
+        expect(allowed).toHaveLength(4);
+        expect(excluded).toEqual([]);
         expect([...allowed, ...excluded]).not.toContain('OTHER_DB.SALES');
         expect([...allowed, ...excluded]).not.toContain(
             'ANALYTICS_DB.INFORMATION_SCHEMA',
         );
     });
 
-    it('keeps an explicit list as it is and grants nothing for an existing role', () => {
-        expect(
-            expandAiIdentitySchemaRule(
-                {
-                    mode: AiIdentitySchemaRuleMode.LIST,
-                    schemas: ['ANALYTICS_DB.SALES', 'analytics_db.sales'],
-                },
-                catalog,
-            ),
-        ).toEqual({ allowed: ['analytics_db.sales'], excluded: [] });
-        expect(
-            expandAiIdentitySchemaRule(
-                { mode: AiIdentitySchemaRuleMode.EXISTING_ROLE },
-                catalog,
-            ),
-        ).toEqual({ allowed: [], excluded: [] });
-    });
-
     it('rejects an invalid pattern', () => {
         expect(() =>
             expandAiIdentitySchemaRule(
                 {
-                    mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                     database: 'ANALYTICS_DB',
-                    patterns: ['HR CLEAR'],
+                    excludePatterns: ['HR RESTRICTED'],
                 },
                 catalog,
             ),
@@ -163,9 +116,8 @@ describe('expandAiIdentitySchemaRule', () => {
         const started = Date.now();
         const result = expandAiIdentitySchemaRule(
             {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                 database: 'ANALYTICS_DB',
-                patterns: ['*_RESTRICTED'],
+                excludePatterns: ['*_RESTRICTED'],
             },
             big,
         );

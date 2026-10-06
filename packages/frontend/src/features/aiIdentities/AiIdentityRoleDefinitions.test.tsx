@@ -1,6 +1,5 @@
 import {
     AiIdentityCreationMode,
-    AiIdentitySchemaRuleMode,
     type AiIdentityProvisioningSettings,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
@@ -53,12 +52,23 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
         screen.getByLabelText('Database', { selector: 'input' }),
     ).toHaveValue('DB');
     expect(
-        screen.getByLabelText('Patterns', { selector: 'input' }),
+        screen.getByLabelText('Exclude schemas that match', {
+            selector: 'input',
+        }),
     ).toHaveValue('');
+    expect(
+        screen.getByText('AI can read all schemas in DB, except:'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/locked|all.roles/i)).not.toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Save AI roles' });
-    expect(save).toBeDisabled();
+    expect(save).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+        'This AI role can read all schemas in the database.',
+    );
     await userEvent.type(
-        screen.getByLabelText('Patterns', { selector: 'input' }),
+        screen.getByLabelText('Exclude schemas that match', {
+            selector: 'input',
+        }),
         'PII_*{enter}',
     );
     expect(save).toBeEnabled();
@@ -69,35 +79,15 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
             warehouse: 'WH',
             schemas: [],
             schemaRule: {
-                mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                 database: 'DB',
-                patterns: ['PII_*'],
+                excludePatterns: ['PII_*'],
             },
         },
     ]);
-    fireEvent.click(
-        screen.getByLabelText('Schema rule', { selector: 'input' }),
-    );
-    await userEvent.click(
-        await screen.findByRole('option', { name: 'Pick schemas' }),
-    );
-    expect(save).toBeDisabled();
-    fireEvent.click(screen.getByLabelText('Schemas', { selector: 'input' }));
-    await userEvent.click(
-        await screen.findByRole('option', { name: 'DB.PUBLIC' }),
-    );
-    expect(save).toBeEnabled();
     fireEvent.change(screen.getByLabelText('Warehouse'), {
         target: { value: '' },
     });
     expect(save).toBeDisabled();
-    fireEvent.click(
-        screen.getByLabelText('Schema rule', { selector: 'input' }),
-    );
-    await userEvent.click(
-        await screen.findByRole('option', { name: 'Use an existing role' }),
-    );
-    expect(save).toBeEnabled();
 });
 
 it('blocks saving when another role has an invalid pattern or no database', () => {
@@ -113,8 +103,8 @@ it('blocks saving when another role has an invalid pattern or no database', () =
                             roleName: 'ONE',
                             warehouse: 'WH',
                             schemaRule: {
-                                mode: AiIdentitySchemaRuleMode.LIST,
-                                schemas: ['DB.PUBLIC'],
+                                database: 'DB',
+                                excludePatterns: [],
                             },
                         },
                         {
@@ -123,9 +113,8 @@ it('blocks saving when another role has an invalid pattern or no database', () =
                             roleName: 'TWO',
                             warehouse: 'WH',
                             schemaRule: {
-                                mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
                                 database: '',
-                                patterns: ['bad.pattern'],
+                                excludePatterns: ['bad.pattern'],
                             },
                         },
                     ],

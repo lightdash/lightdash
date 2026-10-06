@@ -451,3 +451,272 @@ describe('AiIdentityModel', () => {
         expect(tracker.history.update[0].bindings).not.toContain('NEW PRIVATE');
     });
 });
+
+describe('AI role schema rule storage', () => {
+    it.each([
+        {
+            name: 'all_except',
+            rule: {
+                mode: 'all_except',
+                database: 'RULE_DB',
+                patterns: ['PII_*'],
+            },
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'RULE_DB', excludePatterns: ['PII_*'] },
+        },
+        {
+            name: 'list',
+            rule: { mode: 'list', schemas: ['LIST_DB.PUBLIC'] },
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'LIST_DB', excludePatterns: ['*'] },
+        },
+        {
+            name: 'only_matching',
+            rule: {
+                mode: 'only_matching',
+                database: 'RULE_DB',
+                patterns: ['PUBLIC'],
+            },
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'COLUMN_DB', excludePatterns: ['*'] },
+        },
+        {
+            name: 'existing_role',
+            rule: { mode: 'existing_role' },
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'COLUMN_DB', excludePatterns: ['*'] },
+        },
+        {
+            name: 'empty list',
+            rule: { mode: 'list', schemas: [] },
+            schemas: [],
+            expected: { database: '', excludePatterns: ['*'] },
+        },
+        {
+            name: 'only_matching without stored schemas',
+            rule: {
+                mode: 'only_matching',
+                database: 'RULE_DB',
+                patterns: ['PUBLIC'],
+            },
+            schemas: [],
+            expected: { database: '', excludePatterns: ['*'] },
+        },
+        {
+            name: 'existing_role without stored schemas',
+            rule: { mode: 'existing_role' },
+            schemas: [],
+            expected: { database: '', excludePatterns: ['*'] },
+        },
+        {
+            name: 'null rule',
+            rule: null,
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'COLUMN_DB', excludePatterns: ['*'] },
+        },
+        {
+            name: 'null rule without stored schemas',
+            rule: null,
+            schemas: [],
+            expected: { database: '', excludePatterns: ['*'] },
+        },
+        {
+            name: 'current rule',
+            rule: { database: 'DB', excludePatterns: [] },
+            schemas: ['COLUMN_DB.PUBLIC'],
+            expected: { database: 'DB', excludePatterns: [] },
+        },
+    ])(
+        'reads $name and returns the compatibility schemas field',
+        async ({ rule, schemas, expected }) => {
+            tracker.on.select('ai_identity_ai_roles').responseOnce([
+                {
+                    ai_identity_ai_role_uuid: 'role',
+                    role_name: 'AI_ROLE',
+                    warehouse: 'WH',
+                    schemas,
+                    schema_rule: rule,
+                },
+            ]);
+            expect(await model.getAiRoles('account')).toEqual([
+                {
+                    aiIdentityAiRoleUuid: 'role',
+                    roleName: 'AI_ROLE',
+                    warehouse: 'WH',
+                    schemas: [],
+                    schemaRule: expected,
+                },
+            ]);
+        },
+    );
+    it('stores exclusions with an empty compatibility schemas field', async () => {
+        tracker.on.delete('ai_identity_ai_roles').responseOnce(1);
+        tracker.on.insert('ai_identity_ai_roles').responseOnce(1);
+        tracker.on.select('ai_identity_accounts').responseOnce({});
+        tracker.on.select('ai_identity_ai_roles').responseOnce([]);
+        tracker.on.insert('ai_identity_events').responseOnce(1);
+        await model.replaceAiRoles(
+            'account',
+            [
+                {
+                    roleName: 'AI_ROLE',
+                    warehouse: 'WH',
+                    schemaRule: { database: 'DB', excludePatterns: ['PII_*'] },
+                },
+            ],
+            {
+                organizationUuid: 'org',
+                actorType: 'user',
+                actorUserUuid: 'admin',
+            },
+        );
+        expect(tracker.history.insert[0].bindings).toContain('[]');
+        expect(tracker.history.insert[0].bindings).toContain(
+            JSON.stringify({ database: 'DB', excludePatterns: ['PII_*'] }),
+        );
+    });
+});
+
+describe('AI role exclusion events', () => {
+    const role = (patterns: string[]) => ({
+        roleName: 'ANALYST_AI',
+        warehouse: 'WH',
+        schemaRule: { database: 'DB', excludePatterns: patterns },
+    });
+    it.each([
+        {
+            name: 'add',
+            before: ['PII_*'],
+            after: ['PII_*', '*_RAW'],
+            action: 'ai_role_exclusions_changed',
+            added: '*_RAW',
+            removed: 'none',
+        },
+        {
+            name: 'remove',
+            before: ['PII_*', '*_RAW'],
+            after: ['PII_*'],
+            action: 'ai_role_exclusions_changed',
+            added: 'none',
+            removed: '*_RAW',
+        },
+        {
+            name: 'create',
+            before: null,
+            after: ['PII_*'],
+            action: 'ai_role_created',
+            added: 'PII_*',
+            removed: 'none',
+        },
+        {
+            name: 'delete',
+            before: ['PII_*'],
+            after: null,
+            action: 'ai_role_deleted',
+            added: 'none',
+            removed: 'PII_*',
+        },
+        {
+            name: 'create without patterns',
+            before: null,
+            after: [],
+            action: 'ai_role_created',
+            added: 'none',
+            removed: 'none',
+        },
+        {
+            name: 'delete without patterns',
+            before: [],
+            after: null,
+            action: 'ai_role_deleted',
+            added: 'none',
+            removed: 'none',
+        },
+    ])(
+        'records who, role and patterns for $name',
+        async ({ before, after, action, added, removed }) => {
+            tracker.on.select('ai_identity_accounts').responseOnce({});
+            tracker.on.select('ai_identity_ai_roles').responseOnce(
+                before === null
+                    ? []
+                    : [
+                          {
+                              role_name: 'ANALYST_AI',
+                              schemas: [],
+                              schema_rule: role(before).schemaRule,
+                          },
+                      ],
+            );
+            tracker.on.delete('ai_identity_ai_roles').responseOnce(1);
+            tracker.on.insert('ai_identity_ai_roles').responseOnce(1);
+            tracker.on.insert('ai_identity_events').responseOnce(1);
+            await model.replaceAiRoles(
+                'account',
+                after === null ? [] : [role(after)],
+                {
+                    organizationUuid: 'org',
+                    actorType: 'user',
+                    actorUserUuid: 'admin',
+                },
+            );
+            const event = tracker.history.insert.find((query) =>
+                query.sql.includes('ai_identity_events'),
+            )!;
+            expect(event.bindings).toEqual(
+                expect.arrayContaining([
+                    'org',
+                    'account',
+                    'user',
+                    'admin',
+                    action,
+                    `ANALYST_AI · Database: DB · Added: ${added} · Removed: ${removed}`,
+                ]),
+            );
+        },
+    );
+    it('does not record reordered or case-only pattern changes', async () => {
+        tracker.on.select('ai_identity_accounts').responseOnce({});
+        tracker.on.select('ai_identity_ai_roles').responseOnce([
+            {
+                role_name: 'ANALYST_AI',
+                schemas: [],
+                schema_rule: role(['pii_*', '*_RAW']).schemaRule,
+            },
+        ]);
+        tracker.on.delete('ai_identity_ai_roles').responseOnce(1);
+        tracker.on.insert('ai_identity_ai_roles').responseOnce(1);
+        await model.replaceAiRoles('account', [role(['*_RAW', 'PII_*'])], {
+            organizationUuid: 'org',
+            actorType: 'user',
+            actorUserUuid: 'admin',
+        });
+        expect(tracker.history.insert).toHaveLength(1);
+    });
+});
+
+it('filters exclusion history by organization, account and action before pagination', async () => {
+    tracker.on.select('ai_identity_events').responseOnce([{ count: '51' }]);
+    tracker.on.select('ai_identity_events').responseOnce([]);
+    const result = await model.listEvents('org', 2, 50, null, false, 'account');
+    for (const query of tracker.history.select) {
+        expect(query.bindings).toEqual(
+            expect.arrayContaining([
+                'org',
+                'account',
+                'ai_role_created',
+                'ai_role_deleted',
+                'ai_role_exclusions_changed',
+            ]),
+        );
+        expect(query.sql).toContain(
+            '"ai_identity_events"."ai_identity_account_uuid" =',
+        );
+        expect(query.sql).toContain('"ai_identity_events"."action" in');
+    }
+    expect(result.pagination).toEqual({
+        page: 2,
+        pageSize: 50,
+        totalResults: 51,
+        totalPageCount: 2,
+    });
+});

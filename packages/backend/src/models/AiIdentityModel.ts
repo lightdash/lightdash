@@ -12,11 +12,11 @@ import {
     AiIdentityJobStatus,
     AiIdentityListResult,
     AiIdentityProvisionerStatus,
-    AiIdentitySchemaRuleMode,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStateCounts,
     AiIdentityStatus,
+    assertUnreachable,
     DEFAULT_AI_TWIN_NAME_TEMPLATE,
     getAiIdentityFailureGroupCopy,
     resolveAiTwinName,
@@ -27,12 +27,69 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { createHash } from 'node:crypto';
+import { z } from 'zod';
 import {
     AiIdentitiesTableName,
     DbAiIdentity,
 } from '../database/entities/aiIdentities';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { usersInProjectSql } from './AnalyticsModelSql';
+
+const currentSchemaRule = z
+    .object({
+        database: z.string(),
+        excludePatterns: z.array(z.string()),
+    })
+    .strict();
+
+const legacySchemaRule = z.discriminatedUnion('mode', [
+    z.object({
+        mode: z.literal('all_except'),
+        database: z.string(),
+        patterns: z.array(z.string()),
+    }),
+    z.object({
+        mode: z.literal('only_matching'),
+        database: z.string(),
+        patterns: z.array(z.string()),
+    }),
+    z.object({ mode: z.literal('list'), schemas: z.array(z.string()) }),
+    z.object({ mode: z.literal('existing_role') }),
+]);
+
+const normalizeStoredSchemaRule = (
+    rule: unknown,
+    schemas: string[],
+): { database: string; excludePatterns: string[] } => {
+    if (rule === null)
+        return {
+            database: schemas[0]?.split('.')[0] ?? '',
+            excludePatterns: ['*'],
+        };
+    const current = currentSchemaRule.safeParse(rule);
+    if (current.success) return current.data;
+    const legacy = legacySchemaRule.parse(rule);
+    switch (legacy.mode) {
+        case 'all_except':
+            return {
+                database: legacy.database,
+                excludePatterns: legacy.patterns,
+            };
+        case 'list':
+            return {
+                database: legacy.schemas[0]?.split('.')[0] ?? '',
+                excludePatterns: ['*'],
+            };
+        case 'only_matching':
+        case 'existing_role':
+            return {
+                database: schemas[0]?.split('.')[0] ?? '',
+                excludePatterns: ['*'],
+            };
+        default:
+            return assertUnreachable(legacy, 'Unknown stored schema rule');
+    }
+};
 
 type IdentityRow = DbAiIdentity & {
     email: string;
@@ -858,22 +915,22 @@ export class AiIdentityModel {
     async getAiRoles(
         aiIdentityAccountUuid: string,
     ): Promise<AiIdentityAiRoleDefinition[]> {
-        const rows = await this.database('ai_identity_ai_roles')
+        const rows = await this.database<{
+            ai_identity_account_uuid: string;
+            ai_identity_ai_role_uuid: string;
+            role_name: string;
+            warehouse: string;
+            schemas: string[];
+            schema_rule: unknown;
+        }>('ai_identity_ai_roles')
             .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
             .orderBy('role_name');
         return rows.map((row) => ({
             aiIdentityAiRoleUuid: row.ai_identity_ai_role_uuid,
             roleName: row.role_name,
             warehouse: row.warehouse,
-            schemas: row.schemas,
-            schemaRule:
-                row.schema_rule ??
-                (row.schemas.length === 0
-                    ? { mode: AiIdentitySchemaRuleMode.EXISTING_ROLE }
-                    : {
-                          mode: AiIdentitySchemaRuleMode.LIST,
-                          schemas: row.schemas,
-                      }),
+            schemas: [],
+            schemaRule: normalizeStoredSchemaRule(row.schema_rule, row.schemas),
         }));
     }
 
@@ -885,8 +942,86 @@ export class AiIdentityModel {
                 'roleName' | 'warehouse' | 'schemaRule'
             >
         >,
+        actor: {
+            organizationUuid: string;
+            actorType: AiIdentityEventActorType;
+            actorUserUuid: string | null;
+        },
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            await trx('ai_identity_accounts')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .forUpdate()
+                .first();
+            const previous = await trx('ai_identity_ai_roles').where({
+                ai_identity_account_uuid: aiIdentityAccountUuid,
+            });
+            const before = new Map(
+                previous.map((row) => [
+                    row.role_name.toUpperCase(),
+                    normalizeStoredSchemaRule(row.schema_rule, row.schemas),
+                ]),
+            );
+            const after = new Map(
+                roles.map((role) => [
+                    role.roleName.toUpperCase(),
+                    role.schemaRule,
+                ]),
+            );
+            const events = [
+                ...new Set([...before.keys(), ...after.keys()]),
+            ].flatMap((roleName) => {
+                const oldRule = before.get(roleName);
+                const newRule = after.get(roleName);
+                const oldPatterns = new Set(
+                    oldRule?.excludePatterns.map((pattern) =>
+                        pattern.trim().toUpperCase(),
+                    ) ?? [],
+                );
+                const newPatterns = new Set(
+                    newRule?.excludePatterns.map((pattern) =>
+                        pattern.trim().toUpperCase(),
+                    ) ?? [],
+                );
+                const added = [...newPatterns]
+                    .filter((pattern) => !oldPatterns.has(pattern))
+                    .sort();
+                const removed = [...oldPatterns]
+                    .filter((pattern) => !newPatterns.has(pattern))
+                    .sort();
+                const databaseChanged =
+                    oldRule &&
+                    newRule &&
+                    oldRule.database.toUpperCase() !==
+                        newRule.database.toUpperCase();
+                if (
+                    oldRule &&
+                    newRule &&
+                    !databaseChanged &&
+                    added.length === 0 &&
+                    removed.length === 0
+                )
+                    return [];
+                let action = 'ai_role_exclusions_changed';
+                if (!oldRule) action = 'ai_role_created';
+                else if (!newRule) action = 'ai_role_deleted';
+                const database = databaseChanged
+                    ? `${oldRule.database} to ${newRule.database}`
+                    : (newRule ?? oldRule)!.database;
+                return [
+                    {
+                        organization_uuid: actor.organizationUuid,
+                        ai_identity_account_uuid: aiIdentityAccountUuid,
+                        ai_identity_uuid: null,
+                        actor_type: actor.actorType,
+                        actor_user_uuid: actor.actorUserUuid,
+                        action,
+                        target_count: 1,
+                        status: 'success',
+                        detail: `${roleName} · Database: ${database} · Added: ${added.join(', ') || 'none'} · Removed: ${removed.join(', ') || 'none'}`,
+                    },
+                ];
+            });
             await trx('ai_identity_ai_roles')
                 .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
                 .delete();
@@ -896,15 +1031,12 @@ export class AiIdentityModel {
                         ai_identity_account_uuid: aiIdentityAccountUuid,
                         role_name: role.roleName,
                         warehouse: role.warehouse,
-                        schemas: JSON.stringify(
-                            role.schemaRule.mode ===
-                                AiIdentitySchemaRuleMode.LIST
-                                ? role.schemaRule.schemas
-                                : [],
-                        ),
+                        schemas: JSON.stringify([]),
                         schema_rule: JSON.stringify(role.schemaRule),
                     })),
                 );
+            if (events.length > 0)
+                await trx('ai_identity_events').insert(events);
         });
     }
 
@@ -1181,6 +1313,7 @@ export class AiIdentityModel {
         pageSize: number,
         aiIdentityUuid: string | null = null,
         includeReads = false,
+        exclusionAccountUuid: string | null = null,
     ): Promise<{
         data: AiIdentityEvent[];
         pagination: {
@@ -1194,6 +1327,18 @@ export class AiIdentityModel {
             'ai_identity_events.organization_uuid',
             organizationUuid,
         );
+        if (exclusionAccountUuid !== null) {
+            query
+                .where(
+                    'ai_identity_events.ai_identity_account_uuid',
+                    exclusionAccountUuid,
+                )
+                .whereIn('ai_identity_events.action', [
+                    'ai_role_created',
+                    'ai_role_deleted',
+                    'ai_role_exclusions_changed',
+                ]);
+        }
         if (aiIdentityUuid !== null)
             query.where('ai_identity_events.ai_identity_uuid', aiIdentityUuid);
         else {
@@ -1255,6 +1400,7 @@ export class AiIdentityModel {
                 'job.status as job_status',
             )
             .orderBy('ai_identity_events.created_at', 'desc')
+            .orderBy('ai_identity_events.ai_identity_event_uuid', 'desc')
             .limit(pageSize)
             .offset((page - 1) * pageSize);
         const totalResults = Number(count);
