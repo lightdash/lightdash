@@ -47,7 +47,10 @@ export async function routeProjectForSlack(
         return null;
     }
 
-    if (decisions && projects.length <= 254) {
+    if (
+        decisions &&
+        (projects.length <= 254 || decisions.isAiAccessRestricted)
+    ) {
         const answers = await decisions.evaluate({
             operation: 'project-routing',
             state: { query: userQuery, projects },
@@ -69,6 +72,7 @@ export async function routeProjectForSlack(
             const selected = confidentChoice(answers.project);
             return selected && selected !== 'none' ? selected : null;
         }
+        if (decisions.isAiAccessRestricted) return null;
     }
 
     const projectList = projects

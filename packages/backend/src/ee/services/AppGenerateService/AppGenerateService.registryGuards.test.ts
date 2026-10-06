@@ -130,6 +130,7 @@ function buildService(
     };
 
     const projectModel = {
+        getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG_UUID }),
         ...overrides.projectModel,
     };

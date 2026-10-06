@@ -198,10 +198,13 @@ export class AiRouterService extends BaseService {
                 projectUuid,
             });
         const { model, keyManagement } = getModel(copilotConfig);
-        const decisions = await this.aiAgentService.getDecisionClient({
-            userUuid: account.user.userUuid,
-            organizationUuid,
-        });
+        const decisions = await this.aiAgentService.getDecisionClient(
+            {
+                userUuid: account.user.userUuid,
+                organizationUuid,
+            },
+            projectUuid,
+        );
         const brain = await selectAgent({
             model,
             decisions,

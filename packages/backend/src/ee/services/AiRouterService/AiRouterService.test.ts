@@ -362,6 +362,10 @@ describe('AiRouterService', () => {
             projectUuid,
             mode: 'mcp',
         });
+        expect(aiAgentService.getDecisionClient).toHaveBeenCalledWith(
+            { userUuid: account.user.userUuid, organizationUuid },
+            projectUuid,
+        );
         expect(result.nextAction).toBe('show_picker');
     });
 

@@ -1,10 +1,17 @@
+import { Ability } from '@casl/ability';
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import {
     DATA_APP_VIZ_TEMPLATE,
     type DataAppVizSchema,
 } from '@lightdash/common';
+import { Readable } from 'node:stream';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { AppGenerateService } from './AppGenerateService';
+
+vi.mock('../../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
+}));
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -16,7 +23,12 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 
-const USER = { userUuid: 'user-1', organizationUuid: 'org-1' } as never;
+const USER = {
+    userUuid: 'user-1',
+    organizationUuid: 'org-1',
+    ability: new Ability([]),
+    abilityRules: [],
+} as never;
 
 function buildService(
     overrides: {
@@ -24,10 +36,12 @@ function buildService(
         schedulerClient?: Record<string, unknown>;
         codingAgent?: 'claude' | 'codex';
         sampleDataEnabled?: boolean;
+        restricted?: boolean;
     } = {},
 ) {
     const analytics = { track: vi.fn() };
     const appModel = overrides.appModel ?? {
+        findApp: vi.fn().mockResolvedValue(null),
         createWithVersion: vi
             .fn()
             .mockResolvedValue({ app: { slug: 'generated-app' } }),
@@ -52,6 +66,8 @@ function buildService(
     const schedulerClient = overrides.schedulerClient ?? {
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
+    const projectService = { runViewChartQuery: vi.fn() };
+    const upload = vi.fn().mockResolvedValue({});
     const service = new AppGenerateService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
@@ -73,6 +89,9 @@ function buildService(
         } as never,
         pinnedListModel: {} as never,
         projectModel: {
+            getAiAccessRestrictions: vi
+                .fn()
+                .mockResolvedValue(overrides.restricted ?? false),
             getSummary: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-1' }),
@@ -81,7 +100,9 @@ function buildService(
         spaceModel: {} as never,
         savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
-        savedChartService: {} as never,
+        savedChartService: {
+            get: vi.fn().mockRejectedValue(new Error('chart unavailable')),
+        } as never,
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({
                 organizationUuid: 'org-1',
@@ -95,7 +116,7 @@ function buildService(
         coderService: {} as never,
         documentService: {} as never,
         dashboardService: {} as never,
-        projectService: {} as never,
+        projectService: projectService as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
@@ -105,7 +126,7 @@ function buildService(
             getDataAppModelVisibility: async () => null,
         } as never,
         sandboxManager: null,
-        appRuntimeS3: null,
+        appRuntimeS3: { client: { send: upload }, bucket: 'test' } as never,
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
@@ -117,7 +138,14 @@ function buildService(
     (
         service as unknown as { createAuditedAbility: () => unknown }
     ).createAuditedAbility = () => ({ can: () => true, cannot: () => false });
-    return { service, appModel, schedulerClient, analytics };
+    return {
+        service,
+        appModel,
+        schedulerClient,
+        analytics,
+        projectService,
+        upload,
+    };
 }
 
 describe('AppGenerateService.generateApp with the data app viz template', () => {
@@ -353,6 +381,187 @@ describe('AppGenerateService.iterateApp creation experience', () => {
 });
 
 describe('AppGenerateService chart build context', () => {
+    it('refuses a screenshot upload under restrictions before reading the image', async () => {
+        const { service } = buildService({ restricted: true });
+        const body = Readable.from([Buffer.from('private-screen')]);
+        await expect(
+            service.uploadFile(
+                USER,
+                'project-1',
+                'image/png',
+                body,
+                14,
+                'app-1',
+                'screenshot.png',
+                'screenshot',
+            ),
+        ).rejects.toThrow('Screenshots are off under AI access restrictions');
+        expect(body.readableFlowing).toBeNull();
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: 'browser_upload',
+                detail: 'data_app_screenshot_upload',
+            }),
+        );
+    });
+
+    it('refuses an untagged image under restrictions', async () => {
+        const { service } = buildService({ restricted: true });
+        const png = Buffer.concat([
+            Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            Buffer.alloc(16),
+        ]);
+        await expect(
+            service.uploadFile(
+                USER,
+                'project-1',
+                'image/png',
+                Readable.from([png]),
+                png.length,
+                'app-1',
+                'render.png',
+            ),
+        ).rejects.toThrow(
+            'Image attachments are off under AI access restrictions',
+        );
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({ detail: 'data_app_image_upload' }),
+        );
+    });
+
+    it.each(['screenshot', 'attachment'] as const)(
+        'stores an image %s when restrictions are off',
+        async (kind) => {
+            const { service, upload } = buildService();
+            const png = Buffer.concat([
+                Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+                Buffer.alloc(16),
+            ]);
+            await expect(
+                service.uploadFile(
+                    USER,
+                    'project-1',
+                    'image/png',
+                    Readable.from([png]),
+                    png.length,
+                    'app-1',
+                    'render.png',
+                    kind === 'screenshot' ? kind : undefined,
+                ),
+            ).resolves.toMatchObject({ mimeType: 'image/png' });
+            expect(upload).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each([true, false])(
+        'checks staged images against current restrictions (%s)',
+        async (restricted) => {
+            const { service, upload, schedulerClient } = buildService({
+                restricted,
+            });
+            upload.mockResolvedValue({
+                ContentType: 'image/png',
+                Metadata: { kind: 'screenshot' },
+            });
+            const fileIds = ['11111111-1111-4111-8111-111111111111'];
+            const create = service.generateApp(
+                USER,
+                'project-1',
+                'Create a chart',
+                fileIds,
+                'app-1',
+                undefined,
+                undefined,
+                DATA_APP_VIZ_TEMPLATE,
+            );
+            if (restricted) {
+                await expect(create).rejects.toThrow(
+                    'Image attachments are off under AI access restrictions',
+                );
+            } else {
+                await create;
+            }
+            const iterate = service.iterateApp(
+                USER,
+                'project-1',
+                'app-1',
+                'Update chart',
+                fileIds,
+            );
+            if (restricted) {
+                await expect(iterate).rejects.toThrow(
+                    'Image attachments are off under AI access restrictions',
+                );
+                expect(
+                    schedulerClient.appGeneratePipeline,
+                ).not.toHaveBeenCalled();
+                expect(logAiEgressBlock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        detail: 'data_app_screenshot_build',
+                    }),
+                );
+            } else {
+                await iterate;
+                expect(
+                    schedulerClient.appGeneratePipeline,
+                ).toHaveBeenCalledTimes(2);
+            }
+        },
+    );
+
+    it.each([true, false])(
+        'applies restrictions to browser samples in create and iterate (%s)',
+        async (restricted) => {
+            const { service, schedulerClient } = buildService({ restricted });
+            const vizContext = {
+                sampleRows: [{ secret_value: 'private-row' }],
+            };
+            await service.generateApp(
+                USER,
+                'project-1',
+                'Create a chart',
+                [],
+                'app-1',
+                undefined,
+                undefined,
+                DATA_APP_VIZ_TEMPLATE,
+                undefined,
+                undefined,
+                undefined,
+                { name: null, vizContext },
+            );
+            await service.iterateApp(
+                USER,
+                'project-1',
+                'app-1',
+                'Change the chart',
+                [],
+                undefined,
+                undefined,
+                undefined,
+                { vizContext },
+            );
+            const { calls } = (
+                schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>
+            ).mock;
+            expect(calls).toHaveLength(2);
+            expect(
+                calls.every(
+                    ([payload]) =>
+                        JSON.stringify(payload).includes('private-row') ===
+                        !restricted,
+                ),
+            ).toBe(true);
+            if (restricted)
+                expect(logAiEgressBlock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        surface: 'data_app_build',
+                        reason: 'rows_not_fetched_by_ai_sign_in',
+                    }),
+                );
+        },
+    );
+
     const schema: DataAppVizSchema = {
         fields: [
             { name: 'amount', label: 'Amount', type: 'metric', required: true },

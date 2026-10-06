@@ -1947,6 +1947,17 @@ export class ManagedAgentService extends BaseService {
                         user: { organizationUuid },
                         featureFlagId: FeatureFlags.AiAgentFastDecisions,
                     }),
+                ).then(async (decisions) =>
+                    decisions &&
+                    (await this.projectModel.getAiAccessRestrictions(
+                        projectUuid,
+                    ))
+                        ? decisions.withAiAccessRestrictions({
+                              organizationUuid,
+                              projectUuid,
+                              userUuid: actor.userUuid,
+                          })
+                        : decisions,
                 ),
             ]);
         const verifiedFieldUsage = await runtime

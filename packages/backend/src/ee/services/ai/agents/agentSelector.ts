@@ -210,6 +210,15 @@ export async function selectAgent({
         }
     }
 
+    if (decisions?.isAiAccessRestricted) {
+        return {
+            selectedAgentUuid: null,
+            confidence: 'low',
+            reasoning: 'Choose an agent to continue.',
+            shouldSkipForwardingQuery: false,
+        };
+    }
+
     const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
         '{{candidates}}',
         buildAgentDescriptions(candidates),

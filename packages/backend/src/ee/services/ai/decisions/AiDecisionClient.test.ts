@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
 import { traceSpan } from '../../../../tracing/tracing';
+import { logAiEgressBlock } from '../../../../utils/aiEgress/logAiEgressBlock';
 import {
     AiDecisionClient,
     confidentChoice,
     resolveAiDecisionClient,
 } from './AiDecisionClient';
+
+vi.mock('../../../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
+}));
 
 const config = { apiKey: 'test-key', model: 'jev-1.13.0', timeoutMs: 100 };
 const request = {
@@ -55,11 +60,77 @@ const spanAttributes = () => {
 };
 
 afterEach(() => {
+    vi.mocked(logAiEgressBlock).mockClear();
     vi.useRealTimers();
     vi.restoreAllMocks();
 });
 
 describe('AiDecisionClient', () => {
+    it('keeps restrictions in usage clients without changing the shared client', async () => {
+        const fetcher = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(Response.json(result));
+        const shared = new AiDecisionClient(config, fetcher);
+        const usage = { inputTokens: 0, outputTokens: 0, serviceMs: null };
+        const restricted = shared
+            .withAiAccessRestrictions({
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'user-1',
+            })
+            .withUsage(usage);
+        expect(await restricted.evaluate(request)).toBeNull();
+        expect(fetcher).not.toHaveBeenCalled();
+        expect(usage).toEqual({
+            inputTokens: 0,
+            outputTokens: 0,
+            serviceMs: null,
+        });
+        expect(await shared.evaluate(request)).toEqual(result.answers);
+        expect(fetcher).toHaveBeenCalledOnce();
+    });
+
+    it('skips value and error decisions under restrictions and logs the block', async () => {
+        const fetcher = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(Response.json(result));
+        const client = new AiDecisionClient(
+            config,
+            fetcher,
+        ).withAiAccessRestrictions({
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        });
+        const results = await Promise.all(
+            ['filter-value', 'query-error', 'answer-claims'].map((operation) =>
+                client.evaluate({
+                    ...request,
+                    operation,
+                    state: { warehouseValue: 'private-row' },
+                }),
+            ),
+        );
+        expect(results).toEqual([null, null, null]);
+        expect(fetcher).not.toHaveBeenCalled();
+        expect(logAiEgressBlock).toHaveBeenCalledTimes(3);
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: 'typesafe_decision',
+                reason: 'off_under_restrictions',
+                projectUuid: 'project-1',
+            }),
+        );
+        expect(
+            await client.evaluate({
+                ...request,
+                operation: 'warehouse-table-ranking',
+                state: { query: 'show customer private-row' },
+            }),
+        ).toBeNull();
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
     it('validates a response and only returns a listed confident choice', async () => {
         const fetcher = vi
             .fn<typeof fetch>()

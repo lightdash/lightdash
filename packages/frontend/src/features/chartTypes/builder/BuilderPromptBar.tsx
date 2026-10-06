@@ -37,6 +37,7 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useAiAccessRestrictions } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import {
     ModelPicker,
@@ -235,7 +236,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             useState(false);
         const queryClient = useQueryClient();
         const { health, user } = useApp();
+        const { data: aiAccessRestrictions } = useAiAccessRestrictions(
+            projectUuid,
+            true,
+        );
+        const restricted = aiAccessRestrictions?.enabled === true;
         const canIncludeSampleData =
+            !restricted &&
             health.data?.dataApps.sampleDataEnabled !== false &&
             Boolean(buildContext?.sampleRows?.length);
         const sourceIdentity =
@@ -511,10 +518,23 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             ],
         );
 
+        const attachFiles = (files: File[]) => {
+            const allowed = restricted
+                ? files.filter((file) => !file.type.startsWith('image/'))
+                : files;
+            if (allowed.length < files.length) {
+                showToastError({
+                    title: 'Image attachments are off',
+                    subtitle: 'AI access restrictions block image attachments.',
+                });
+            }
+            if (allowed.length > 0) attachments.add(allowed);
+        };
+
         const handlePaste: ClipboardEventHandler = (event) => {
             if (event.clipboardData.files.length === 0) return;
             event.preventDefault();
-            attachments.add(Array.from(event.clipboardData.files));
+            attachFiles(Array.from(event.clipboardData.files));
         };
 
         const handleDragOver: DragEventHandler = (event) => {
@@ -523,7 +543,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         const handleDrop: DragEventHandler = (event) => {
             event.preventDefault();
-            attachments.add(Array.from(event.dataTransfer.files));
+            attachFiles(Array.from(event.dataTransfer.files));
         };
 
         const handleCaptureScreenshot = async () => {
@@ -761,7 +781,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     multiple
                     hidden
                     onChange={(event) => {
-                        attachments.add(Array.from(event.target.files ?? []));
+                        attachFiles(Array.from(event.target.files ?? []));
                         event.target.value = '';
                     }}
                 />
@@ -817,7 +837,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 />
                             )}
                             {onCaptureScreenshot && (
-                                <Tooltip label="Attach screenshot of current render">
+                                <Tooltip
+                                    label={
+                                        restricted
+                                            ? 'Screenshots are off under AI access restrictions.'
+                                            : 'Attach screenshot of current render'
+                                    }
+                                >
                                     <ActionIcon
                                         variant="subtle"
                                         color="gray"
@@ -827,6 +853,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                             void handleCaptureScreenshot()
                                         }
                                         disabled={
+                                            restricted ||
                                             isComposerLocked ||
                                             isCapturingScreenshot
                                         }
@@ -839,6 +866,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </ActionIcon>
                                 </Tooltip>
                             )}
+                            {restricted &&
+                                Boolean(buildContext?.sampleRows?.length) && (
+                                    <Text size="xs" c="dimmed">
+                                        Sample rows are off under AI access
+                                        restrictions.
+                                    </Text>
+                                )}
                             {canIncludeSampleData && (
                                 <SampleDataButton
                                     enabled={includeSampleData}

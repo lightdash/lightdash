@@ -12,6 +12,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject, type Ability } from '@casl/ability';
 import {
+    AiEgressBlockReason,
+    AiEgressSurface,
     AlreadyExistsError,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
@@ -233,6 +235,7 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { VERSION } from '../../../version';
 import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
@@ -2318,6 +2321,21 @@ export class AppGenerateService extends BaseService {
                 'Insufficient permissions to upload app files',
             );
         }
+        const restricted =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
+        if (restricted && kind === 'screenshot') {
+            logAiEgressBlock({
+                surface: AiEgressSurface.BROWSER_UPLOAD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_screenshot_upload',
+            });
+            throw new ForbiddenError(
+                'Screenshots are off under AI access restrictions',
+            );
+        }
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
@@ -2356,6 +2374,19 @@ export class AppGenerateService extends BaseService {
             bufferedBody,
             declaredMimeType,
         );
+        if (restricted && category === 'image') {
+            logAiEgressBlock({
+                surface: AiEgressSurface.BROWSER_UPLOAD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_image_upload',
+            });
+            throw new ForbiddenError(
+                'Image attachments are off under AI access restrictions',
+            );
+        }
         if (kind === 'screenshot' && category !== 'image') {
             throw new ParameterError('Screenshots must be images');
         }
@@ -7250,6 +7281,18 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             'Insufficient permissions to create data apps',
         );
+        const restricted =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
+        if (restricted && vizContext?.sampleRows?.length) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.DATA_APP_BUILD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_sample_rows',
+            });
+        }
         await this.assertDataAppCreditsAvailable(user);
         const claudeModel =
             this.dataAppCodingAgent === 'claude'
@@ -7300,6 +7343,19 @@ export class AppGenerateService extends BaseService {
                 fileIds,
             );
         }
+        if (restricted && stagedFiles.some((file) => file.isImage)) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.BROWSER_UPLOAD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_screenshot_build',
+            });
+            throw new ForbiddenError(
+                'Image attachments are off under AI access restrictions',
+            );
+        }
 
         // The pipeline gets the augmented prompt so Claude in the sandbox
         // sees the resolved intent. The version row keeps the original
@@ -7310,7 +7366,8 @@ export class AppGenerateService extends BaseService {
                 ? appendVizBuildContext(
                       formatPromptWithClarifications(prompt, clarifications),
                       vizContext,
-                      this.lightdashConfig.appRuntime.sampleDataEnabled,
+                      this.lightdashConfig.appRuntime.sampleDataEnabled &&
+                          !restricted,
                   )
                 : formatPromptWithClarifications(prompt, clarifications);
 
@@ -7497,7 +7554,6 @@ export class AppGenerateService extends BaseService {
             vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
-
         AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
@@ -7513,6 +7569,19 @@ export class AppGenerateService extends BaseService {
             organizationUuid,
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
+        const restricted =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
+        if (restricted && vizContext?.sampleRows?.length) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.DATA_APP_BUILD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_sample_rows',
+            });
+        }
+
         await this.assertDataAppCreditsAvailable(user);
 
         // Resolve attachment types/filenames from the staged S3 objects so the
@@ -7525,6 +7594,19 @@ export class AppGenerateService extends BaseService {
                 bucket,
                 appUuid,
                 fileIds,
+            );
+        }
+        if (restricted && stagedFiles.some((file) => file.isImage)) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.BROWSER_UPLOAD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'data_app_screenshot_build',
+            });
+            throw new ForbiddenError(
+                'Image attachments are off under AI access restrictions',
             );
         }
 
@@ -7634,7 +7716,8 @@ export class AppGenerateService extends BaseService {
             pipelinePrompt = appendVizBuildContext(
                 pipelinePrompt,
                 vizContext,
-                this.lightdashConfig.appRuntime.sampleDataEnabled,
+                this.lightdashConfig.appRuntime.sampleDataEnabled &&
+                    !restricted,
             );
         }
 

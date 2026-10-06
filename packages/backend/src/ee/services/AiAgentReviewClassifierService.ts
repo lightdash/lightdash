@@ -93,7 +93,10 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
-    projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'findExploresFromCache' | 'getAiAccessRestrictions'
+    >;
     lightdashConfig: LightdashConfig;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
@@ -281,7 +284,7 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly projectModel: Pick<
         ProjectModel,
-        'getSummary' | 'findExploresFromCache'
+        'getSummary' | 'findExploresFromCache' | 'getAiAccessRestrictions'
     >;
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -340,7 +343,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         // Evidence ranking runs on the instance decision provider, so it would
         // send turn content out of a Bedrock org's region before its own judge
         // ever sees it. Skipping it leaves candidates unranked, not unreviewed.
-        const decisions =
+        const unrestrictedDecisions =
             (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                 args.organizationUuid,
             ))
@@ -361,13 +364,25 @@ export class AiAgentReviewClassifierService extends BaseService {
         const candidates =
             await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
                 ...args,
-                ...(decisions ? { supportingEvidenceLimit: 30 } : {}),
+                ...(unrestrictedDecisions
+                    ? { supportingEvidenceLimit: 30 }
+                    : {}),
             });
-        if (!decisions) return candidates;
+        if (!unrestrictedDecisions) return candidates;
         const limit = pLimit(4);
         return Promise.all(
             candidates.map((candidate) =>
                 limit(async () => {
+                    const decisions =
+                        (await this.projectModel.getAiAccessRestrictions(
+                            candidate.subject.projectUuid,
+                        ))
+                            ? unrestrictedDecisions.withAiAccessRestrictions({
+                                  organizationUuid: args.organizationUuid,
+                                  projectUuid: candidate.subject.projectUuid,
+                                  userUuid: null,
+                              })
+                            : unrestrictedDecisions;
                     const supportingEvidence = await rankReviewEvidence(
                         decisions,
                         candidate,
