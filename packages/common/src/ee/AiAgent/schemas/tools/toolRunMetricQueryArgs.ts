@@ -141,6 +141,7 @@ export const toolRunMetricQueryStructuredContentSchema = z.object({
 
 export const toolRunMetricQueryOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
+        queryUuid: z.string().uuid().optional(),
         queryCacheHit: z.boolean().optional(),
     }),
     structuredContent: toolRunMetricQueryStructuredContentSchema,

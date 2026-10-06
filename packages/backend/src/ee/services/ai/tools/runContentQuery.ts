@@ -242,6 +242,7 @@ export const getRunContentQuery = ({
                         )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                         metadata: {
                             status: 'success' as const,
+                            queryUuid: queryResults.queryUuid,
                             queryCacheHit:
                                 queryResults.cacheMetadata?.cacheHit === true,
                         },
@@ -344,6 +345,7 @@ export const getRunContentQuery = ({
                         result,
                         metadata: {
                             status: 'success' as const,
+                            queryUuid: queryResults.queryUuid,
                             queryCacheHit:
                                 queryResults.cacheMetadata?.cacheHit === true,
                         },
@@ -366,6 +368,7 @@ export const getRunContentQuery = ({
                     )}${review}`,
                     metadata: {
                         status: 'success' as const,
+                        queryUuid: queryResults.queryUuid,
                         queryCacheHit:
                             queryResults.cacheMetadata?.cacheHit === true,
                     },

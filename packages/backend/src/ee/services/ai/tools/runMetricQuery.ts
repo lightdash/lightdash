@@ -163,6 +163,7 @@ export const getRunMetricQuery = ({
                         result,
                         metadata: {
                             status: 'success',
+                            queryUuid: results.queryUuid,
                             queryCacheHit:
                                 results.cacheMetadata?.cacheHit === true,
                         },
@@ -206,6 +207,7 @@ export const getRunMetricQuery = ({
                     result: `${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',
+                        queryUuid: results.queryUuid,
                         queryCacheHit: results.cacheMetadata?.cacheHit === true,
                     },
                     structuredContent: {

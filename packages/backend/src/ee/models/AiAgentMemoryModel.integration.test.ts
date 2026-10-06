@@ -271,7 +271,10 @@ describe('AiAgentMemoryModel integration', () => {
         distillCall: AiAgentMemoryDistillCall,
         projectModel: Pick<
             ProjectModel,
-            'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
+            | 'findExploresFromCache'
+            | 'getCachedExploreNames'
+            | 'getSummary'
+            | 'getAiAccessRestrictions'
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
@@ -1824,6 +1827,8 @@ describe('AiAgentMemoryModel integration', () => {
             getCachedExploreNames:
                 projectModel.getCachedExploreNames.bind(projectModel),
             getSummary: projectModel.getSummary.bind(projectModel),
+            getAiAccessRestrictions:
+                projectModel.getAiAccessRestrictions.bind(projectModel),
         });
 
         await expect(

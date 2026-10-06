@@ -272,6 +272,7 @@ export const getRunSavedChart = ({
                         result,
                         metadata: {
                             status: 'success',
+                            queryUuid: queryResults.queryUuid,
                             queryCacheHit:
                                 queryResults.cacheMetadata?.cacheHit === true,
                         },
@@ -302,6 +303,7 @@ export const getRunSavedChart = ({
                     )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',
+                        queryUuid: queryResults.queryUuid,
                         queryCacheHit:
                             queryResults.cacheMetadata?.cacheHit === true,
                     },

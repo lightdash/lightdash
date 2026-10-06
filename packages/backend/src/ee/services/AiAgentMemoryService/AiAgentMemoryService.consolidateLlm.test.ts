@@ -99,6 +99,7 @@ const build = () => {
                 orders: { name: 'orders', tables: {}, joinedTables: [] },
             }),
             getSummary: vi.fn(),
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
         } as AnyType,
         projectContextModel: { getDocument: vi.fn() },
         userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,

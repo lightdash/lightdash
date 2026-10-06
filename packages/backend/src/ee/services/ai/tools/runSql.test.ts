@@ -90,7 +90,7 @@ const makeTool = ({
         reviewQuery,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runSqlJob: vi.fn().mockResolvedValue({
-            queryUuid: 'query-uuid',
+            queryUuid: '11111111-1111-4111-8111-111111111111',
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
@@ -123,15 +123,18 @@ const makeTool = ({
 describe('getRunSql', () => {
     it('keeps the warehouse query ID out of SQL output and errors', async () => {
         const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const queryUuid = '11111111-1111-4111-8111-111111111111';
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         dependencies.runSqlJob.mockResolvedValueOnce({
-            queryUuid: 'query-uuid',
+            queryUuid,
             warehouseQueryId,
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
         });
         const output = await executeRunSql(tool);
+        expect(output.metadata?.queryUuid).toBe(queryUuid);
+        expect(output.metadata?.queryUuid).not.toBe(warehouseQueryId);
         expect(JSON.stringify(output)).not.toContain('warehouseQueryId');
         expect(JSON.stringify(output)).not.toContain(warehouseQueryId);
 
@@ -206,7 +209,7 @@ describe('getRunSql', () => {
             autoApproveSql: true,
         });
         dependencies.runSqlJob.mockResolvedValueOnce({
-            queryUuid: 'empty-query-uuid',
+            queryUuid: '22222222-2222-4222-8222-222222222222',
             rows: [],
             columns: ['answer'],
             rowCount: 0,
@@ -328,7 +331,7 @@ describe('getRunSql', () => {
     it('mirrors a truncated preview in the structured content', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         dependencies.runSqlJob.mockResolvedValueOnce({
-            queryUuid: 'query-uuid',
+            queryUuid: '11111111-1111-4111-8111-111111111111',
             rows: Array.from({ length: 60 }, (_, index) => ({
                 answer: index,
                 extra: 'not selected',
@@ -355,7 +358,7 @@ describe('getRunSql', () => {
     it('reports an empty result in the structured content', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         dependencies.runSqlJob.mockResolvedValueOnce({
-            queryUuid: 'query-uuid',
+            queryUuid: '11111111-1111-4111-8111-111111111111',
             rows: [],
             columns: ['answer'],
             rowCount: 0,
@@ -555,7 +558,7 @@ describe('getRunSql agent SQL scope', () => {
 
 describe('getRunSql Slack links only', () => {
     const largeResult = {
-        queryUuid: 'query-uuid',
+        queryUuid: '11111111-1111-4111-8111-111111111111',
         rows: Array.from({ length: 30 }, (_, index) => ({ answer: index })),
         columns: ['answer'],
         rowCount: 30,
@@ -605,7 +608,7 @@ describe('SQL query review', () => {
                 maxQueryLimit: 20,
             });
             dependencies.runSqlJob.mockResolvedValue({
-                queryUuid: 'query',
+                queryUuid: '33333333-3333-4333-8333-333333333333',
                 rows: rowCount ? [{ answer: 1 }] : [],
                 columns: ['answer'],
                 rowCount,
@@ -678,7 +681,7 @@ describe('SQL query review', () => {
         const output = executeRunSql(tool);
         await vi.waitFor(() => expect(reviewQuery).toHaveBeenCalledOnce());
         resolveQuery({
-            queryUuid: 'query',
+            queryUuid: '33333333-3333-4333-8333-333333333333',
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,

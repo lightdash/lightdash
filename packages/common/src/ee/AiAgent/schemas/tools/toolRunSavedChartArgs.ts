@@ -128,6 +128,7 @@ export type ToolRunSavedChartStructuredContent = z.infer<
 
 export const toolRunSavedChartOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
+        queryUuid: z.string().uuid().optional(),
         queryCacheHit: z.boolean().optional(),
     }),
     structuredContent: toolRunSavedChartStructuredContentSchema,

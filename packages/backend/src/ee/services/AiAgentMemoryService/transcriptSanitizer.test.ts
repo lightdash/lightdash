@@ -55,6 +55,26 @@ const thread = (
 });
 
 describe('sanitizeThread', () => {
+    it('keeps row shape but withholds samples under restrictions', async () => {
+        const source = thread(
+            'Query returned 2 rows.\n```csv\nName,Count\nWAREHOUSE_ROW_SECRET,1\nOther,2\n```',
+            'runQuery',
+        );
+        source.turns[0].assistantText = 'WAREHOUSE_ROW_SECRET';
+
+        const restricted = await sanitizeThread(source, {
+            restrictionsEnabled: true,
+        });
+        const unrestricted = await sanitizeThread(source);
+
+        expect(JSON.stringify(restricted)).toContain('rowCount');
+        expect(JSON.stringify(restricted)).toContain('Name');
+        expect(JSON.stringify(restricted)).not.toContain(
+            'WAREHOUSE_ROW_SECRET',
+        );
+        expect(JSON.stringify(unrestricted)).toContain('WAREHOUSE_ROW_SECRET');
+    });
+
     it('keeps evidence while stripping identifiers, citations, and empty observations', async () => {
         const sanitized = await sanitizeThread(
             thread(`result for ${UUID}<ld-mem-cite id="result" />`),

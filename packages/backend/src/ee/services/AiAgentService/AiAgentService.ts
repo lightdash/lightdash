@@ -32,6 +32,8 @@ import {
     AiAgentVizConfig,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
+    AiEgressBlockReason,
+    AiEgressSurface,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
     AiMcpGithubConnectMode,
@@ -308,6 +310,7 @@ import {
     UnfurlService,
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
@@ -524,6 +527,13 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
+import {
+    getSavedQueryAiSignInProvenance,
+    isSavedRowResult,
+    savedQueryMetadataSchema,
+    savedResultHasAiSignInProvenance,
+    withholdSavedRows,
+} from '../ai/utils/savedResultEgress';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
@@ -7167,11 +7177,67 @@ export class AiAgentService extends BaseService {
             },
         };
 
-        const serializedInput =
-            Compaction.serializeConversation(messagesToCompact);
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(prompt.projectUuid);
+        if (
+            restrictionsEnabled &&
+            messagesToCompact.some(
+                (message) => message.role === 'assistant' && message.message,
+            )
+        ) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.AGENT_THREAD_HISTORY,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid: prompt.projectUuid,
+                userUuid: user.userUuid,
+                detail: 'compactionAssistantText',
+            });
+        }
+        const safeMessages = restrictionsEnabled
+            ? await Promise.all(
+                  messagesToCompact.map(async (message) =>
+                      message.role === 'assistant'
+                          ? {
+                                ...message,
+                                message: null,
+                                toolResults: await Promise.all(
+                                    message.toolResults.map(async (result) => {
+                                        if (
+                                            !isSavedRowResult(result.toolName)
+                                        ) {
+                                            return result;
+                                        }
+                                        logAiEgressBlock({
+                                            surface:
+                                                AiEgressSurface.AGENT_THREAD_HISTORY,
+                                            reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                                            organizationUuid:
+                                                user.organizationUuid ?? null,
+                                            projectUuid: prompt.projectUuid,
+                                            userUuid: user.userUuid,
+                                            detail: result.toolName,
+                                        });
+                                        return {
+                                            ...result,
+                                            result: await withholdSavedRows(
+                                                result.toolName,
+                                                result.result,
+                                            ),
+                                        };
+                                    }),
+                                ),
+                            }
+                          : message,
+                  ),
+              )
+            : messagesToCompact;
+        const serializedInput = Compaction.serializeConversation(safeMessages);
 
         const summary = await generateCompactionSummary(compactionModel, {
-            previousSummary: latestCompaction?.summary,
+            previousSummary: restrictionsEnabled
+                ? null
+                : latestCompaction?.summary,
             conversation: serializedInput,
         });
 
@@ -7363,7 +7429,20 @@ export class AiAgentService extends BaseService {
             threadUuid: prompt.threadUuid,
             prompt,
         });
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(prompt.projectUuid);
+        if (restrictionsEnabled && compaction) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.AGENT_THREAD_HISTORY,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: prompt.organizationUuid,
+                projectUuid: prompt.projectUuid,
+                userUuid: user.userUuid,
+                detail: 'compactionSummary',
+            });
+        }
         const applicableCompaction =
+            !restrictionsEnabled &&
             compaction &&
             targetThreadMessages.some(
                 (message) =>
@@ -11000,6 +11079,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             threadUuid: string;
         },
     ): Promise<ModelMessage[]> {
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(
+                options.projectUuid,
+            );
         const currentPromptExamples = options.currentPromptExamples ?? {
             type: 'retrieve',
         };
@@ -11067,6 +11150,45 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
+                const replayResults = await Promise.all(
+                    toolCallsAndResults.map(async (entry) => {
+                        const { toolResult } = entry;
+                        if (
+                            !restrictionsEnabled ||
+                            toolResult === null ||
+                            !isSavedRowResult(toolResult.toolName)
+                        ) {
+                            return entry;
+                        }
+                        if (
+                            options.userUuid &&
+                            savedResultHasAiSignInProvenance(
+                                toolResult.metadata,
+                                options.userUuid,
+                            )
+                        ) {
+                            return entry;
+                        }
+                        logAiEgressBlock({
+                            surface: AiEgressSurface.AGENT_THREAD_HISTORY,
+                            reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                            organizationUuid: options.organizationUuid,
+                            projectUuid: options.projectUuid,
+                            userUuid: options.userUuid ?? null,
+                            detail: toolResult.toolName,
+                        });
+                        return {
+                            ...entry,
+                            toolResult: {
+                                ...toolResult,
+                                result: await withholdSavedRows(
+                                    toolResult.toolName,
+                                    toolResult.result,
+                                ),
+                            },
+                        };
+                    }),
+                );
                 const isCurrentPrompt =
                     message.ai_prompt_uuid === options.currentPromptUuid;
                 if (isCurrentPrompt) {
@@ -11093,7 +11215,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }
                 messages.push(
                     ...AiAgentService.buildToolCallTurnMessages(
-                        toolCallsAndResults,
+                        replayResults,
                         isCurrentPrompt,
                         options.fastDecisionsEnabled,
                     ),
@@ -11113,9 +11235,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     !message.error_message &&
                     (!hasUnresolvedApproval || !isCurrentPrompt)
                 ) {
+                    if (restrictionsEnabled) {
+                        logAiEgressBlock({
+                            surface: AiEgressSurface.AGENT_THREAD_HISTORY,
+                            reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                            organizationUuid: options.organizationUuid,
+                            projectUuid: options.projectUuid,
+                            userUuid: options.userUuid ?? null,
+                            detail: 'assistantResponse',
+                        });
+                    }
                     messages.push({
                         role: 'assistant',
-                        content: stripMemoryCitations(message.response),
+                        content: restrictionsEnabled
+                            ? '[earlier answer withheld under AI access restrictions]'
+                            : stripMemoryCitations(message.response),
                     } satisfies AssistantModelMessage);
                 }
 
@@ -11972,7 +12106,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
-            () => this.projectContextModel.getDocument(projectUuid);
+            async () => {
+                const entries =
+                    await this.projectContextModel.getDocument(projectUuid);
+                if (
+                    !(await this.projectModel.getAiAccessRestrictions(
+                        projectUuid,
+                    ))
+                ) {
+                    return entries;
+                }
+                logAiEgressBlock({
+                    surface: AiEgressSurface.AGENT_MEMORY,
+                    reason: AiEgressBlockReason.METADATA_ONLY,
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    detail: 'projectContext',
+                });
+                return entries.map((entry) => ({
+                    ...entry,
+                    content:
+                        '[project context content withheld under AI access restrictions]',
+                    terms: [],
+                }));
+            };
         // Memories are scoped to the thread's owner, so a Slack thread keeps one
         // memory context for its whole life no matter who prompts in a turn.
         // Resolved lazily and once per run — a memory-disabled run never asks.
@@ -11991,12 +12149,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         projectUuid,
                         userUuid: ownerUserUuid,
                     });
+                const restrictionsEnabled =
+                    await this.projectModel.getAiAccessRestrictions(
+                        projectUuid,
+                    );
+                if (restrictionsEnabled && memories.length > 0) {
+                    logAiEgressBlock({
+                        surface: AiEgressSurface.AGENT_MEMORY,
+                        reason: AiEgressBlockReason.METADATA_ONLY,
+                        organizationUuid,
+                        projectUuid,
+                        userUuid: ownerUserUuid,
+                        detail: 'loadProjectContext',
+                    });
+                }
                 const now = Date.now();
                 return memories.map((memory) => ({
                     slug: memory.slug,
-                    content: memory.raw_memory,
+                    content: restrictionsEnabled
+                        ? '[memory content withheld under AI access restrictions]'
+                        : memory.raw_memory,
                     scope: memory.scope,
-                    terms: memory.terms,
+                    terms: restrictionsEnabled ? [] : memory.terms,
                     objects: memory.objects,
                     ageDays: Math.max(
                         0,
@@ -12193,14 +12367,57 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
 
         const storeToolResults: StoreToolResultsFn = async (args) => {
+            const resultsWithProvenance = await Promise.all(
+                args.map(async (arg) => {
+                    if (
+                        ![
+                            'runQuery',
+                            'generateVisualization',
+                            'runMetricQuery',
+                            'runSavedChart',
+                            'runContentQuery',
+                            'runSql',
+                        ].includes(arg.toolName)
+                    ) {
+                        return arg;
+                    }
+                    const metadata = savedQueryMetadataSchema.safeParse(
+                        arg.metadata,
+                    );
+                    if (!metadata.success) return arg;
+                    const history = await this.asyncQueryService
+                        .getAsyncQueryHistory({
+                            account: fromSession(user),
+                            projectUuid,
+                            queryUuid: metadata.data.queryUuid,
+                        })
+                        .catch(() => null);
+                    const provenance = getSavedQueryAiSignInProvenance(
+                        arg.metadata,
+                        history,
+                        user.userUuid,
+                    );
+                    return provenance
+                        ? {
+                              ...arg,
+                              aiSignInProvenance: {
+                                  userUuid: provenance.aiSignInUserUuid,
+                                  aiSignInCredentialUuid:
+                                      provenance.aiSignInCredentialUuid,
+                              },
+                          }
+                        : arg;
+                }),
+            );
             await wrapSentryTransaction(
                 'AiAgent.storeToolResults',
-                args.map((arg) => ({
+                resultsWithProvenance.map((arg) => ({
                     promptUuid: arg.promptUuid,
                     toolCallId: arg.toolCallId,
                     toolName: arg.toolName,
                 })),
-                () => this.aiAgentModel.createToolResults(args),
+                () =>
+                    this.aiAgentModel.createToolResults(resultsWithProvenance),
             );
             this.enqueueMobilePushThreadReconciliation(prompt.threadUuid);
         };
@@ -14916,9 +15133,26 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     organizationUuid: user.organizationUuid!,
                     threadUuid,
                 });
+                const restrictionsEnabled =
+                    await this.projectModel.getAiAccessRestrictions(
+                        prompt.projectUuid,
+                    );
+                if (restrictionsEnabled) {
+                    logAiEgressBlock({
+                        surface: AiEgressSurface.AGENT_THREAD_HISTORY,
+                        reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                        organizationUuid: user.organizationUuid ?? null,
+                        projectUuid: prompt.projectUuid,
+                        userUuid: user.userUuid,
+                        detail: 'readPinnedThread',
+                    });
+                }
                 return messages.map((message) => ({
                     role: message.role,
-                    message: message.message ?? '',
+                    message:
+                        restrictionsEnabled && message.role !== 'user'
+                            ? '[earlier answer and rows withheld under AI access restrictions]'
+                            : (message.message ?? ''),
                     createdAt: message.createdAt,
                 }));
             },
@@ -21126,8 +21360,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
         telemetry?: Omit<AiCallAttribution, 'keyManagement'>,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
-        const { query, response, expectedAnswer, artifact, toolResults } =
-            await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+        const {
+            projectUuid,
+            organizationUuid,
+            query,
+            response,
+            expectedAnswer,
+            artifact,
+            toolResults,
+        } = await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
+        const judgeResponse = restrictionsEnabled
+            ? '[answer withheld under AI access restrictions]'
+            : response;
 
         // TODO: Implement judge configuration in the future!
         // reusing existing configuration for now
@@ -21162,16 +21408,34 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
             if (queryResults.length > 0) {
                 contextParts.push('\nQuery Results:');
-                queryResults.forEach((toolResult) => {
-                    contextParts.push(String(toolResult.result));
-                });
+                contextParts.push(
+                    ...(await Promise.all(
+                        queryResults.map(async (toolResult) => {
+                            if (!restrictionsEnabled) {
+                                return String(toolResult.result);
+                            }
+                            logAiEgressBlock({
+                                surface: AiEgressSurface.AGENT_JUDGE,
+                                reason: AiEgressBlockReason.METADATA_ONLY,
+                                organizationUuid,
+                                projectUuid,
+                                userUuid: null,
+                                detail: toolResult.toolName,
+                            });
+                            return withholdSavedRows(
+                                toolResult.toolName,
+                                toolResult.result,
+                            );
+                        }),
+                    )),
+                );
             }
         }
 
         const factualityScore = expectedAnswer
             ? await llmAsAJudge({
                   query,
-                  response,
+                  response: judgeResponse,
                   expectedAnswer,
                   context: contextParts.length > 0 ? contextParts : undefined,
                   judge,
@@ -21186,7 +21450,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             contextParts.length > 0
                 ? await llmAsAJudge({
                       query,
-                      response,
+                      response: judgeResponse,
                       context: contextParts,
                       judge,
                       callOptions,

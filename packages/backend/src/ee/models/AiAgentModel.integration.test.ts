@@ -515,6 +515,14 @@ describe('AiAgentModel prompt activity', () => {
                 toolCallId,
                 toolName: 'findExplores',
                 result: expectedResults[index],
+                aiSignInProvenance:
+                    index === 0
+                        ? {
+                              userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                              aiSignInCredentialUuid:
+                                  '22222222-2222-4222-8222-222222222222',
+                          }
+                        : null,
             })),
         );
 
@@ -529,6 +537,14 @@ describe('AiAgentModel prompt activity', () => {
                 history.map(({ toolResult }) => toolResult?.result),
             ),
         ).toEqual(expectedResults.map((result) => [result]));
+        expect(histories[0][0].toolResult?.metadata).toMatchObject({
+            aiSignInFetchedRows: true,
+            aiSignInUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            aiSignInCredentialUuid: '22222222-2222-4222-8222-222222222222',
+        });
+        expect(histories[1][0].toolResult?.metadata).toMatchObject({
+            aiSignInFetchedRows: false,
+        });
     });
 
     it('keeps Slack prompt activity monotonic', async () => {

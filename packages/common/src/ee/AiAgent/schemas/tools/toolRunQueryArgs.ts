@@ -783,6 +783,7 @@ export type ToolRunQueryStructuredContent = z.infer<
 export const toolRunQueryOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
         chartImageUrl: z.string().nullish(),
+        queryUuid: z.string().uuid().optional(),
         queryCacheHit: z.boolean().optional(),
         queryReuseHit: z.boolean().optional(),
     }),

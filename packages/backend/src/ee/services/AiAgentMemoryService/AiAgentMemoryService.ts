@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
+    AiEgressBlockReason,
+    AiEgressSurface,
     CommercialFeatureFlags,
     ConflictError,
     ForbiddenError,
@@ -62,6 +64,7 @@ import {
 } from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import {
     type DbAiAgentMemory,
     type DbAiAgentMemoryConsolidationRun,
@@ -253,7 +256,10 @@ type Dependencies = {
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
     projectModel: Pick<
         ProjectModel,
-        'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
+        | 'findExploresFromCache'
+        | 'getCachedExploreNames'
+        | 'getSummary'
+        | 'getAiAccessRestrictions'
     >;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
@@ -798,6 +804,19 @@ export class AiAgentMemoryService extends BaseService {
 
         const currentEntries =
             await this.projectContextModel.getDocument(projectUuid);
+        if (await this.projectModel.getAiAccessRestrictions(projectUuid)) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.AGENT_MEMORY,
+                reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'promotion',
+            });
+            throw new ParameterError(
+                'Memory promotion is unavailable under AI access restrictions',
+            );
+        }
         let authoringResult: MemoryProjectContextAuthoringResult;
         try {
             authoringResult = await this.projectContextEntryAuthoringCall({
@@ -1700,6 +1719,21 @@ export class AiAgentMemoryService extends BaseService {
         input: AiAgentMemoryConsolidationInputEntry[];
         abortSignal?: AbortSignal;
     }): Promise<ConsolidationOutput> {
+        const restrictionsEnabled =
+            await this.projectModel.getAiAccessRestrictions(
+                args.partition.projectUuid,
+            );
+        if (restrictionsEnabled) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.AGENT_MEMORY,
+                reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                organizationUuid: args.partition.organizationUuid,
+                projectUuid: args.partition.projectUuid,
+                userUuid: null,
+                detail: 'consolidation',
+            });
+            return { operations: [] };
+        }
         if (!this.orgAiCopilotConfigResolver) {
             throw new Error('AI copilot config resolver is required');
         }
@@ -1887,8 +1921,23 @@ export class AiAgentMemoryService extends BaseService {
         let memoryGenerated = false;
         try {
             abortSignal?.throwIfAborted();
+            const restrictionsEnabled =
+                await this.projectModel.getAiAccessRestrictions(
+                    thread.projectUuid,
+                );
+            if (restrictionsEnabled) {
+                logAiEgressBlock({
+                    surface: AiEgressSurface.AGENT_MEMORY,
+                    reason: AiEgressBlockReason.METADATA_ONLY,
+                    organizationUuid: thread.organizationUuid,
+                    projectUuid: thread.projectUuid,
+                    userUuid: null,
+                    detail: 'distillThread',
+                });
+            }
             const transcript = serializeTranscript(
                 await sanitizeThread(threadThroughWatermark, {
+                    restrictionsEnabled,
                     onUnknownTool: (toolName) => {
                         this.logger.warn(
                             'Unknown AI agent tool uses fallback distill policy',
