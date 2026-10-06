@@ -1,3 +1,10 @@
+# [2.449.0](https://github.com/lightdash/lightdash/compare/2.448.0...2.449.0) (2026-10-06)
+
+
+### Features
+
+* **documents:** apply simple Document edits without the agent model ([#30550](https://github.com/lightdash/lightdash/issues/30550)) ([0457d21](https://github.com/lightdash/lightdash/commit/0457d21a89e5172a093e91ba04bc1cd9958b1b75))
+
 # [2.448.0](https://github.com/lightdash/lightdash/compare/2.447.0...2.448.0) (2026-10-06)
 
 
