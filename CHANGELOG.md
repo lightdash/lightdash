@@ -1,3 +1,10 @@
+# [2.444.0](https://github.com/lightdash/lightdash/compare/2.443.2...2.444.0) (2026-10-06)
+
+
+### Features
+
+* **analytics:** track period-over-period, custom metrics and date x-axis on chart events ([#30391](https://github.com/lightdash/lightdash/issues/30391)) ([e34d0f9](https://github.com/lightdash/lightdash/commit/e34d0f9518163caa68879fb038883e4a060a1111)), closes [#30389](https://github.com/lightdash/lightdash/issues/30389) [#30393](https://github.com/lightdash/lightdash/issues/30393) [#30389](https://github.com/lightdash/lightdash/issues/30389) [#30402](https://github.com/lightdash/lightdash/issues/30402) [#30389](https://github.com/lightdash/lightdash/issues/30389) [#30389](https://github.com/lightdash/lightdash/issues/30389) [#30403](https://github.com/lightdash/lightdash/issues/30403) [#30389](https://github.com/lightdash/lightdash/issues/30389)
+
 ## [2.443.2](https://github.com/lightdash/lightdash/compare/2.443.1...2.443.2) (2026-10-06)
 
 
