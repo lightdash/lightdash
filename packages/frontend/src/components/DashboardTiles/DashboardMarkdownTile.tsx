@@ -18,7 +18,7 @@ import TileBase from './TileBase/index';
 
 export type Props = Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'minimal'
 > & {
     tile: DashboardMarkdownTile;
 };
