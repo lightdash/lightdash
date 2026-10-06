@@ -371,7 +371,7 @@ describe('AiPrincipalModel', () => {
                 'left join "users" on "users"."user_uuid" = "ai_query_audit"."user_uuid"',
             );
             expect(tracker.history.select[1].sql).toContain(
-                '"users"."email" as "person_email"',
+                '"emails"."email" as "person_email"',
             );
             expect(tracker.history.select[1].bindings).toEqual([
                 'project',

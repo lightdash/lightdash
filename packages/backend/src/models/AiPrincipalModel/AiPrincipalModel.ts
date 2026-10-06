@@ -363,9 +363,17 @@ export class AiPrincipalModel {
         const [count] = await this.database(AiQueryAuditTableName)
             .where('project_uuid', projectUuid)
             .count<{ total: string }[]>('* as total');
-        const rows = await this.database(AiQueryAuditTableName)
+        const { database } = this;
+        const rows = await database(AiQueryAuditTableName)
             .leftJoin('users', 'users.user_uuid', 'ai_query_audit.user_uuid')
-            .select('ai_query_audit.*', 'users.email as person_email')
+            .leftJoin('emails', function joinPrimaryEmail() {
+                this.on('emails.user_id', '=', 'users.user_id').andOn(
+                    'emails.is_primary',
+                    '=',
+                    database.raw('true'),
+                );
+            })
+            .select('ai_query_audit.*', 'emails.email as person_email')
             .where('ai_query_audit.project_uuid', projectUuid)
             .orderBy('ai_query_audit.created_at', 'desc')
             .limit(args.pageSize)
