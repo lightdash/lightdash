@@ -1,3 +1,10 @@
+## [2.445.1](https://github.com/lightdash/lightdash/compare/2.445.0...2.445.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **ai-reviews:** join the Slack channel before posting review notifications ([#30572](https://github.com/lightdash/lightdash/issues/30572)) ([d6b88e5](https://github.com/lightdash/lightdash/commit/d6b88e5b4bed1757c166fcaa591557d700a26835))
+
 # [2.445.0](https://github.com/lightdash/lightdash/compare/2.444.2...2.445.0) (2026-10-06)
 
 
