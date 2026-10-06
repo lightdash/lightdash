@@ -1,1 +1,6 @@
-[]
+[
+    {
+        "column": "user_warehouse_credentials.purpose",
+        "reason": "Joined credential queries qualify purpose, and single-table lookups use it to keep AI credentials separate from default credentials."
+    }
+]

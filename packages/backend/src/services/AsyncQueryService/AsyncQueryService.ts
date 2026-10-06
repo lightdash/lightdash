@@ -3770,6 +3770,7 @@ export class AsyncQueryService extends ProjectService {
                     userId: userUuid,
                     isRegisteredUser,
                     isServiceAccount,
+                    context: queryTags.query_context,
                 });
             const { warehouseCredentials } = resolvedCredentials;
 
@@ -5791,6 +5792,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
+                context,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -6583,6 +6585,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            context,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6918,6 +6921,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            context,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7692,6 +7696,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
+                context,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -7906,6 +7911,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            context,
         });
 
         const source = await this.queryHistoryModel.get(
@@ -10677,6 +10683,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
+                context,
             }),
             this.getUserAttributes({ account }),
         ]);
@@ -11531,6 +11538,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            context,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(

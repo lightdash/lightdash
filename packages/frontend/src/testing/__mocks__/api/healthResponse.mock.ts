@@ -101,6 +101,9 @@ export default function mockHealthResponse(
             snowflake: {
                 enabled: false,
             },
+            snowflakeAi: {
+                enabled: false,
+            },
             databricks: {
                 enabled: false,
             },

@@ -3,6 +3,7 @@ import {
     NotFoundError,
     ParameterError,
     UnexpectedServerError,
+    UserWarehouseCredentialPurpose,
     type CreateWarehouseCredentials,
     type WarehouseConnection,
     type WarehouseTypes,
@@ -563,6 +564,10 @@ export class WarehouseConnectionModel {
         return this.database(UserWarehouseCredentialsTableName)
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
             .where(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
+            .where(
                 `${UserWarehouseCredentialsTableName}.warehouse_type`,
                 warehouseType,
             )
@@ -645,6 +650,7 @@ export class WarehouseConnectionModel {
         const row = await this.database(UserWarehouseCredentialsTableName)
             .where('user_uuid', userUuid)
             .where('warehouse_type', warehouseType)
+            .where('purpose', UserWarehouseCredentialPurpose.DEFAULT)
             .first('user_warehouse_credentials_uuid');
         return row !== undefined;
     }

@@ -601,6 +601,7 @@ export type CreateSnowflakeCredentials = {
     user: string;
     password?: string;
     requireUserCredentials?: boolean;
+    requireAgentSession?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
     authenticationType?: SnowflakeAuthenticationType;

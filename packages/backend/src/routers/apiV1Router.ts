@@ -1,4 +1,9 @@
-import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
+import {
+    AuthorizationError,
+    FeatureFlags,
+    ForbiddenError,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
@@ -836,6 +841,51 @@ apiV1Router.get(
     lightdashConfig.auth.snowflake.callbackPath,
     (req, res, next) => {
         passport.authenticate('snowflake', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+        })(req, res, next);
+    },
+);
+
+const requireSnowflakeAiSignIn = async (
+    req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+) => {
+    try {
+        const { user } = req;
+        if (!user?.organizationUuid) {
+            throw new ForbiddenError('An organization sign-in is required');
+        }
+        const flag = await req.services.getFeatureFlagService().get({
+            user,
+            featureFlagId: FeatureFlags.SnowflakeAiSignIn,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'Snowflake AI sign-in is not enabled for this organization',
+            );
+        }
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.loginPath,
+    isAuthenticated,
+    requireSnowflakeAiSignIn,
+    storeOIDCRedirect,
+    passport.authenticate('snowflake-ai'),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.callbackPath,
+    isAuthenticated,
+    requireSnowflakeAiSignIn,
+    (req, res, next) => {
+        passport.authenticate('snowflake-ai', {
             failureRedirect: getOidcRedirectURL(false)(req),
             successRedirect: getOidcRedirectURL(true)(req),
         })(req, res, next);

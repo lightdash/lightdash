@@ -67,6 +67,7 @@ import {
 } from './controllers/authentication';
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
+import { snowflakeAiPassportStrategy } from './controllers/authentication/strategies/snowflakeAiStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { createDatabase } from './database/createDatabase';
 import { MigrationLeaseManager } from './database/migrationLease';
@@ -1078,6 +1079,10 @@ export default class App {
         if (snowflakePassportStrategy) {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (snowflakeAiPassportStrategy) {
+            passport.use('snowflake-ai', snowflakeAiPassportStrategy);
+            refresh.use('snowflake-ai', snowflakeAiPassportStrategy);
         }
         if (databricksPassportStrategy) {
             passport.use('databricks', databricksPassportStrategy);
