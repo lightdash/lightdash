@@ -103,7 +103,7 @@ export const SnowflakeAiBoundaryGuide = (props: BoundaryGuideProps) => {
                                 <GuideSection
                                     id="how"
                                     title="How this works"
-                                    summary="You control Snowflake. This guide shows SQL and checks the boundary."
+                                    summary="Masking protects the data. A session scope adds a second layer."
                                     status={null}
                                     isOpen={opened.includes('how')}
                                     onToggle={(open) => toggle('how', open)}

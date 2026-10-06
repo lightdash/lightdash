@@ -28,5 +28,5 @@ export const getBoundarySecuritySummary = (
         ...(config.state.lastTest?.checks.map(
             (check) => `${check.id}: ${check.status}. ${check.detail}`,
         ) ?? []),
-        'Does not cover: views with owner rights and users with their own session policy. Masking checks cover only the selected column.',
+        'Does not cover: The session scope does not stop a view in an allowed schema from reading an excluded schema. Mask the data itself. It does not block RESULT_SCAN of the same person’s earlier results. Raw SQL from AI stays off. Review users with their own session policy. Masking checks cover only the selected column.',
     ].join('\n');

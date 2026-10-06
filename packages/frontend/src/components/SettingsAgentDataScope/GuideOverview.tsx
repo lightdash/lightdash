@@ -14,9 +14,7 @@ export const GuideOverview = () => (
                 <List.Item>
                     How each person signs in to Snowflake for AI.
                 </List.Item>
-                <List.Item>
-                    Read-only session checks and a masked-column probe.
-                </List.Item>
+                <List.Item>Masking checks and session scope checks.</List.Item>
             </List>
         </Stack>
         <Stack gap="xs">
@@ -26,8 +24,12 @@ export const GuideOverview = () => (
             <List size="sm" spacing="xs">
                 <List.Item>Your admin applies the SQL in Snowflake.</List.Item>
                 <List.Item>
-                    Your Snowflake grants and masking policies decide which data
-                    AI can read.
+                    Tag-based masking policies check IS_AGENT_ACTIVATED. They
+                    mask the data itself for AI sessions.
+                </List.Item>
+                <List.Item>
+                    The session scope adds a second layer. It limits data reads,
+                    warehouse use and role switching.
                 </List.Item>
                 <List.Item>
                     Each AI query uses the person’s Snowflake sign-in for AI.
@@ -41,13 +43,13 @@ export const GuideLimitations = () => (
     <Callout variant="warning" title="What this does not cover">
         <List size="sm" spacing="xs">
             <List.Item>
-                Views run with their owner’s rights. A session scope alone does
-                not hide personal data. Apply masking to the underlying data.
+                The session scope does not stop a view in an allowed schema from
+                reading an excluded schema. Mask the data itself.
             </List.Item>
             <List.Item>
-                <Code>RESULT_SCAN</Code> may read earlier results from the same
-                Snowflake user. Raw SQL from AI stays off until this check
-                passes with a Restricted Session Scope active.
+                The live test showed that the session scope does not block{' '}
+                <Code>RESULT_SCAN</Code> from reading the same person’s earlier
+                results. Raw SQL from AI stays off.
             </List.Item>
             <List.Item>
                 A user’s session policy replaces the account policy. Review

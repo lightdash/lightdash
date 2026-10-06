@@ -4,7 +4,7 @@ import { Badge, Button, Group, Stack, Text } from '@mantine/core';
 const CHECK_TITLES: Record<SnowflakeAiBoundaryCheck['id'], string> = {
     agent_active: 'Agent session and session scope',
     masked_column: 'Protected column is masked',
-    result_scan_blocked: 'Earlier results are blocked',
+    result_scan_blocked: 'Earlier results check',
     secondary_roles_blocked: 'Secondary roles are blocked',
     current_role: 'Current role',
 };

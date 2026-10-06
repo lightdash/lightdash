@@ -75,18 +75,19 @@ export const GuideChecklist = ({
             ),
         },
         {
-            id: 'session_policy',
-            title: 'Limit what AI sessions can do',
-            summary: 'Use a read-only scope and block role switching.',
-            manual: true,
-            content: <SessionCeilingStep sql={guide.ceilingSql} />,
-        },
-        {
             id: 'masking',
             title: 'Hide personal data from AI',
-            summary: 'Choose the schemas to protect with masking policies.',
+            summary:
+                'Mask the data itself with policies that check for agent sessions.',
             manual: true,
             content: <MaskingStep guide={guide} />,
+        },
+        {
+            id: 'session_policy',
+            title: 'Limit what AI sessions can do',
+            summary: 'Add a session scope after masking to limit AI sessions.',
+            manual: true,
+            content: <SessionCeilingStep sql={guide.ceilingSql} />,
         },
         {
             id: 'sign_in',

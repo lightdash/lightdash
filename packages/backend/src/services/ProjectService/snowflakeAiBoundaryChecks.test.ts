@@ -56,8 +56,9 @@ describe('Snowflake AI boundary checks', () => {
             expect.stringContaining("RESULT_SCAN('01b-query')"),
             'USE SECONDARY ROLES ALL',
         ]);
+        expect(results[3]?.detail).toContain('Raw SQL from AI stays off.');
         expect(results[3]?.detail).toContain(
-            'Raw SQL from AI stays off until this check passes',
+            'a Restricted Session Scope does not block RESULT_SCAN',
         );
         expect(results[4]).toMatchObject({
             id: 'secondary_roles_blocked',
@@ -84,7 +85,7 @@ describe('Snowflake AI boundary checks', () => {
         ]);
         expect(results[4]?.id).toBe('secondary_roles_blocked');
         expect(client.runQuery).toHaveBeenCalledTimes(1);
-        expect(results[3]?.detail).toContain('Restricted Session Scope active');
+        expect(results[3]?.detail).toContain('Raw SQL from AI stays off.');
     });
 
     it('skips the secondary roles probe when the agent session is inactive', async () => {

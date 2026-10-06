@@ -123,7 +123,7 @@ const getSessionPolicySql = ({
         if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(role))
             throw new Error('Enter a valid Snowflake role');
     });
-    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
+    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read, compute usage]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
     return `CREATE RESTRICTED SESSION SCOPE ${scope} AS $$\n${yaml}\n$$;\n\nCREATE SESSION POLICY ${policy} AGENT_RESTRICTED_SESSION_SCOPE = ${sqlString(scope)};`;
 };
 

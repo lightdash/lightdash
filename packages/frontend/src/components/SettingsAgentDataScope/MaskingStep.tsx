@@ -25,7 +25,7 @@ export const MaskingStep = ({ guide }: { guide: BoundaryGuide }) => {
         <Stack gap="sm">
             <MultiSelect
                 label="Protected schemas"
-                description="Generate masking SQL for columns in these schemas. Review and run it, then check the results."
+                description="Create tag-based policies that check IS_AGENT_ACTIVATED and mask the data itself. Review and run the SQL, then check the results."
                 data={schemas.map((schema) => ({
                     value: schema.key,
                     label: schema.label,

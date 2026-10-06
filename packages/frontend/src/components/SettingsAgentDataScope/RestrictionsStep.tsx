@@ -72,8 +72,9 @@ const RestrictionsContent = ({
                         </Text>
                     )}
                     <Text size="sm">
-                        Raw SQL from AI stays off until the RESULT_SCAN check
-                        passes with a Restricted Session Scope active.
+                        Raw SQL from AI stays off. The live test showed that the
+                        session scope does not block RESULT_SCAN of the same
+                        person’s earlier results.
                     </Text>
                 </Stack>
             </MantineModal>

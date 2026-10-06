@@ -20,7 +20,7 @@ const getValue = (row: Record<string, unknown> | undefined, key: string) =>
     row && key in row ? row[key] : row?.[key.toLowerCase()];
 
 const rawSqlRequirement =
-    'Raw SQL from AI stays off until this check passes with a Restricted Session Scope active.';
+    'Raw SQL from AI stays off. The live test showed that a Restricted Session Scope does not block RESULT_SCAN of the same person’s earlier results.';
 
 export const getUnavailableSnowflakeAiBoundaryChecks =
     (): SnowflakeAiBoundaryCheck[] => [
@@ -196,7 +196,7 @@ export const runSnowflakeAiBoundaryChecks = async ({
             results.push({
                 id: 'result_scan_blocked',
                 status: 'pass',
-                detail: `An earlier query result is unavailable to the agent session. Raw SQL from AI stays off until this check passes with a Restricted Session Scope active. Snowflake said: ${getErrorMessage(error)}`,
+                detail: `An earlier query result is unavailable to the agent session. ${rawSqlRequirement} Snowflake said: ${getErrorMessage(error)}`,
                 fixStep: 4,
             });
         }

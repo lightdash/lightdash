@@ -57,6 +57,9 @@ describe('boundary restrictions confirmation', () => {
         });
         expect(summary).toContain('marked as done by Test Admin on 2026-10-05');
         expect(summary).toContain('Checks have not run.');
-        expect(summary).toContain('Does not cover:');
+        expect(summary).toContain(
+            'The session scope does not stop a view in an allowed schema from reading an excluded schema. Mask the data itself.',
+        );
+        expect(summary).toContain('Raw SQL from AI stays off.');
     });
 });

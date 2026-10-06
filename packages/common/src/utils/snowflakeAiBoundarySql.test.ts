@@ -66,7 +66,7 @@ describe('Snowflake AI boundary SQL', () => {
         expect(sql).toContain('ALTER SCHEMA "DATA"."PRIVATE" SET TAG');
     });
 
-    it('generates a read-only restricted scope and account policy', () => {
+    it('generates a restricted scope with warehouse use and an account policy', () => {
         const sql = getSessionCeilingSql({
             database: 'DATA',
             schema: 'SECURITY',
@@ -75,7 +75,7 @@ describe('Snowflake AI boundary SQL', () => {
         expect(sql).toContain(
             'CREATE RESTRICTED SESSION SCOPE "DATA"."SECURITY"."LIGHTDASH_AI_RESTRICTED_SCOPE" AS $$',
         );
-        expect(sql).toContain('- privileges: [data read]');
+        expect(sql).toContain('- privileges: [data read, compute usage]');
         expect(sql).toContain('account: [all]');
         expect(sql).not.toContain('program usage');
         expect(sql).toContain(
