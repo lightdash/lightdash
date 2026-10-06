@@ -1,3 +1,10 @@
+## [2.443.1](https://github.com/lightdash/lightdash/compare/2.443.0...2.443.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **settings:** stop highlighting Ask AI on the AI credits page ([#30546](https://github.com/lightdash/lightdash/issues/30546)) ([d7a1b08](https://github.com/lightdash/lightdash/commit/d7a1b08a4a31d83643d863d6eae3d7029e4e857d))
+
 # [2.443.0](https://github.com/lightdash/lightdash/compare/2.442.1...2.443.0) (2026-10-06)
 
 
