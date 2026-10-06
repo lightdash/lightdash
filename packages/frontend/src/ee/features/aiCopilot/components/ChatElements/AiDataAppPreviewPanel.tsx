@@ -245,7 +245,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, effectiveVersion ?? undefined);
+    } = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        effectiveVersion ?? undefined,
+        'builder',
+    );
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
     const isForbidden =

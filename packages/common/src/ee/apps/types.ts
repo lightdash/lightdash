@@ -1565,3 +1565,16 @@ export type DataAppVizContext = {
     drillDown: { enabled: boolean };
     pointMenu: { enabled: boolean };
 };
+
+/**
+ * Client-supplied context for signed-in app previews; unknown keeps older clients
+ * unclassified. The separate embed endpoint assigns 'embed' server-side after
+ * verifying embed access, so it is intentionally excluded from this input type.
+ */
+export type DataAppViewContext =
+    | 'builder'
+    | 'standalone'
+    | 'dashboard'
+    | 'chart'
+    | 'delivery'
+    | 'unknown';

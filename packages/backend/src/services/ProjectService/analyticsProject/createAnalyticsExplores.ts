@@ -38,6 +38,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    dataAppReachColumns,
+    dataAppReachMetrics,
+    dataAppReachSql,
+} from '../../../analytics/systemExplores/dataAppReach';
+import {
     semanticUsageColumns,
     semanticUsageMetrics,
     semanticUsageSql,
@@ -78,6 +83,7 @@ export const analyticsExploreNames = [
     'agent_requests',
     'agent_request_events',
     'semantic_usage',
+    'data_app_reach',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -93,6 +99,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            data_app_reach: {
+                columns: dataAppReachColumns,
+                metrics: dataAppReachMetrics,
+            },
             semantic_usage: {
                 columns: semanticUsageColumns,
                 metrics: semanticUsageMetrics,
@@ -137,7 +147,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach' ||
             name === 'content_health' ||
             name === 'agent_requests' ||
-            name === 'agent_request_events'
+            name === 'agent_request_events' ||
+            name === 'data_app_reach'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -234,6 +245,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         content_health: contentHealthSql,
                         agent_requests: agentRequestsSql,
                         semantic_usage: semanticUsageSql,
+                        data_app_reach: dataAppReachSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -266,6 +278,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Hash of the captured field definition. No historical dependency graph or rename mapping is inferred.';
             table.dimensions.lineage_status.description =
                 'Captured: direct field references known. Partial: some references omitted or unsupported. Unavailable: SQL-only or capture failed. Not captured: historical query without field capture.';
+        }
+        if (name === 'data_app_reach') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.event_name.hidden = true;
+            table.dimensions.view_context.description =
+                'UI surface captured at token creation, not historical builder identity. Older loads have unknown context. Reloads remain included.';
         }
         if (name === 'content_health') {
             table.dimensions.org_id.hidden = true;
@@ -369,7 +387,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
         const includeAppMetadata =
-            name === 'data_app_events' || name === 'semantic_usage';
+            name === 'data_app_events' ||
+            name === 'semantic_usage' ||
+            name === 'data_app_reach';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,

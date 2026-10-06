@@ -1,6 +1,10 @@
-import { LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS } from '@lightdash/common';
+import {
+    LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
+    type DataAppViewContext,
+} from '@lightdash/common';
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
@@ -16,7 +20,18 @@ export type PreviewTokenPayload = {
     projectUuid: string;
     /** Exact public HTTPS origins admitted to this app's img-src policy. */
     browserImageOrigins: string[];
+    viewContext: DataAppViewContext | 'embed';
 };
+
+const viewContextSchema = z.enum([
+    'builder',
+    'standalone',
+    'dashboard',
+    'chart',
+    'delivery',
+    'embed',
+    'unknown',
+]);
 
 const normalizeBrowserImageOrigins = (origins: unknown): string[] | null => {
     if (origins === undefined) return [];
@@ -64,6 +79,7 @@ export const mintPreviewToken = (
     organizationUuid: string,
     projectUuid: string,
     browserImageOrigins: string[] = [],
+    viewContext: PreviewTokenPayload['viewContext'] = 'unknown',
 ): string => {
     const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);
     if (!normalizedOrigins) {
@@ -79,6 +95,7 @@ export const mintPreviewToken = (
             organizationUuid,
             projectUuid,
             browserImageOrigins: normalizedOrigins,
+            viewContext,
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecrets.active),
         {
@@ -141,6 +158,9 @@ export const verifyPreviewTokenClaims = (
                         'browserImageOrigins'
                     >),
                     browserImageOrigins,
+                    viewContext: viewContextSchema
+                        .catch('unknown')
+                        .parse(decoded.viewContext),
                 },
             };
         } catch {

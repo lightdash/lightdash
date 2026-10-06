@@ -28,6 +28,39 @@ const mint = (keyring: ReturnType<typeof secrets>) =>
     );
 
 describe('app preview tokens across secret rotation', () => {
+    test.each(['standalone', 'builder', 'embed'] as const)(
+        'retains signed %s view context',
+        (viewContext) => {
+            const token = mintPreviewToken(
+                oldOnly,
+                appUuid,
+                3,
+                'user',
+                'org',
+                'project',
+                [],
+                viewContext,
+            );
+            expect(
+                verifyPreviewToken(token, newActiveOldFallback, appUuid, 3),
+            ).toMatchObject({ ok: true, payload: { viewContext } });
+        },
+    );
+
+    test.each([undefined, 'unsupported', { invalid: true }])(
+        'keeps legacy or unknown context compatible (%j)',
+        (viewContext) => {
+            const decoded = jwt.decode(mint(oldOnly)) as jwt.JwtPayload;
+            const token = jwt.sign(
+                { ...decoded, viewContext },
+                deriveSigningKey(oldOnly.active),
+                { algorithm: 'HS256' },
+            );
+            expect(
+                verifyPreviewToken(token, newActiveOldFallback, appUuid, 3),
+            ).toMatchObject({ ok: true, payload: { viewContext: 'unknown' } });
+        },
+    );
     test('mints with the active secret only', () => {
         const token = mint(newActiveOldFallback);
         expect(verifyPreviewToken(token, newOnly, appUuid, 3).ok).toBe(true);

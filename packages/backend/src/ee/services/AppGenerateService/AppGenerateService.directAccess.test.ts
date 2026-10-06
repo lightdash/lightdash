@@ -213,6 +213,7 @@ describe('AppGenerateService direct app access', () => {
             PROJECT_UUID,
             APP_UUID,
             1,
+            'standalone',
         );
         expect(
             verifyPreviewTokenClaims(token, {
@@ -220,7 +221,7 @@ describe('AppGenerateService direct app access', () => {
                 fallbacks: [],
                 all: ['test-secret'],
             }),
-        ).toMatchObject({ ok: true });
+        ).toMatchObject({ ok: true, payload: { viewContext: 'standalone' } });
 
         await expect(
             service.filterAppsUserCanView(

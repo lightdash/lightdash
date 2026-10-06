@@ -120,6 +120,7 @@ import {
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
+    type DataAppViewContext,
     type DataAppViz,
     type DataAppVizDeleteImpact,
     type DataAppVizListSort,
@@ -10536,6 +10537,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10592,6 +10594,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10646,6 +10649,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -11499,6 +11503,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         version: number,
+        viewContext: DataAppViewContext = 'unknown',
     ): Promise<string> {
         await this.assertDataAppsEnabled(user);
 
@@ -11521,6 +11526,7 @@ export class AppGenerateService extends BaseService {
             user.organizationUuid!,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
+            viewContext,
         );
     }
 
@@ -11581,6 +11587,7 @@ export class AppGenerateService extends BaseService {
             app.organization_uuid,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
+            'embed',
         );
 
         return { token, version: latestReady.version };

@@ -60,6 +60,7 @@ import {
     type DataAppCompactionResult,
     type DataAppCreationExperience,
     type DataAppTemplate,
+    type DataAppViewContext,
     type FunnelChartDataInput,
     type MapChartLocation,
     type MapChartType,
@@ -2284,6 +2285,7 @@ export type DataAppViewedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         appUuid: string;
+        viewContext?: DataAppViewContext | 'embed';
     };
 };
 

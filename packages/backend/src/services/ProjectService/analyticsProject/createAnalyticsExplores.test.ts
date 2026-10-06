@@ -81,6 +81,7 @@ describe('createAnalyticsExplores', () => {
             'agent_requests',
             'agent_request_events',
             'semantic_usage',
+            'data_app_reach',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

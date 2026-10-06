@@ -792,6 +792,7 @@ describe('AppGenerateService data app vizs', () => {
                         appUuid: 'data-app-viz-1',
                         version: 2,
                         userUuid: 'reader-1',
+                        viewContext: 'chart',
                         organizationUuid: 'org-1',
                         projectUuid: 'project-1',
                     },
@@ -1463,6 +1464,7 @@ describe('AppGenerateService data app vizs', () => {
                 payload: {
                     appUuid: 'data-app-viz-1',
                     version: 2,
+                    viewContext: 'chart',
                     organizationUuid: 'org-1',
                     projectUuid: 'project-1',
                 },

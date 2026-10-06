@@ -42,6 +42,7 @@ import {
     type ApiUpdateAppResponse,
     type ApiUpgradeAppResponse,
     type DataAppActivityFilters,
+    type DataAppViewContext,
     type DataAppVizListSortBy,
     type DataAppVizListSortDirection,
     type GenerateAppRequestBody,
@@ -1103,6 +1104,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
         @Path() version: number,
+        @Query() viewContext: DataAppViewContext = 'unknown',
     ): Promise<ApiPreviewTokenResponse> {
         assertRegisteredAccount(req.account);
         const token = await this.getAppGenerateService().getPreviewToken(
@@ -1110,6 +1112,7 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             version,
+            viewContext,
         );
         return {
             status: 'ok',
