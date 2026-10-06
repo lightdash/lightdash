@@ -63,8 +63,8 @@ export class AiPrincipalModel {
     private secrets(row: DbAiPrincipal): AiPrincipalWithSecrets {
         return {
             ...AiPrincipalModel.principal(row),
-            privateKey: row.encrypted_private_key
-                ? this.encryptionUtil.decrypt(row.encrypted_private_key)
+            secret: row.encrypted_secret
+                ? this.encryptionUtil.decrypt(row.encrypted_secret)
                 : null,
         };
     }
@@ -236,12 +236,12 @@ export class AiPrincipalModel {
         if (!existing) throw new NotFoundError('AI principal not found');
         return AiPrincipalModel.principal(existing);
     }
-    async setKeyPair(
+    async setSecret(
         aiPrincipalUuid: string,
         keys: {
-            publicKey: string;
-            privateKey: string;
-            publicKeyFingerprint: string;
+            secret: string;
+            publicKey: string | null;
+            publicKeyFingerprint: string | null;
         },
     ): Promise<void> {
         await this.database(AiPrincipalsTableName)
@@ -249,9 +249,7 @@ export class AiPrincipalModel {
             .update({
                 public_key: keys.publicKey,
                 public_key_fingerprint: keys.publicKeyFingerprint,
-                encrypted_private_key: this.encryptionUtil.encrypt(
-                    keys.privateKey,
-                ),
+                encrypted_secret: this.encryptionUtil.encrypt(keys.secret),
                 updated_at: new Date(),
             });
     }

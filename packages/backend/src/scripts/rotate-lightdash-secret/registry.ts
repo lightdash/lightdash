@@ -14,7 +14,7 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
     {
         table: 'ai_principals',
         primaryKeyColumn: 'ai_principal_uuid',
-        column: 'encrypted_private_key',
+        column: 'encrypted_secret',
     },
     {
         table: 'projects',

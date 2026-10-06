@@ -42,7 +42,7 @@ export type DbAiPrincipal = {
     last_probe: AiProbeResult | null;
     public_key: string | null;
     public_key_fingerprint: string | null;
-    encrypted_private_key: Buffer | null;
+    encrypted_secret: Buffer | null;
     created_at: Date;
     updated_at: Date;
 };
