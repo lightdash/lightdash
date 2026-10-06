@@ -967,20 +967,6 @@ export class AsyncQueryService extends ProjectService {
         return enabled;
     }
 
-    private async isAiPrincipalsEnabled(account: Account): Promise<boolean> {
-        assertIsAccountWithOrg(account);
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                organizationUuid: account.organization.organizationUuid,
-                ...(account.isRegisteredUser()
-                    ? { userUuid: account.user.id }
-                    : {}),
-            },
-            featureFlagId: FeatureFlags.AiPrincipals,
-        });
-        return enabled;
-    }
-
     private async getPreAggregationRoutingDecision({
         metricQuery,
         explore,
@@ -1646,7 +1632,13 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 QueryExecutionContext.AI,
             )) ||
-                (await this.isAiPrincipalsEnabled(account))) &&
+                (await this.aiAccessService.isPolicyEnabled({
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid,
+                    warehouseConnectionUuid:
+                        queryHistory.warehouseConnectionUuid ?? null,
+                    userUuid: account.user.id,
+                }))) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');
@@ -11517,6 +11509,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
         });
+        assertIsAccountWithOrg(account);
 
         if (
             aiAccessOnly &&
@@ -11524,7 +11517,13 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 QueryExecutionContext.AI,
             )) ||
-                (await this.isAiPrincipalsEnabled(account))) &&
+                (await this.aiAccessService.isPolicyEnabled({
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid,
+                    warehouseConnectionUuid:
+                        queryHistory.warehouseConnectionUuid ?? null,
+                    userUuid: account.user.id,
+                }))) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');

@@ -391,6 +391,7 @@ const getMockedAsyncQueryService = (
     const service: AsyncQueryService = new AsyncQueryService({
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
+            isPolicyEnabled: vi.fn(async () => false),
         } as unknown as AiAccessService,
         getDocumentService: () =>
             ({
@@ -3608,15 +3609,19 @@ describe('AsyncQueryService', () => {
     });
 
     test.each(['getAsyncQueryResults', 'getRawAsyncQueryResults'] as const)(
-        '%s refuses a non-AI query with only AI principals enabled',
+        '%s refuses a non-AI query when an AI access policy is enabled',
         async (method) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
-            vi.mocked(service.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.AiPrincipals,
-                }),
-            );
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled: false,
+            });
+            Object.assign(service, {
+                aiAccessService: {
+                    resolvePlan: vi.fn(async () => null),
+                    isPolicyEnabled: vi.fn(async () => true),
+                },
+            });
             const history = {
                 context: QueryExecutionContext.EXPLORE,
                 status: QueryHistoryStatus.READY,
