@@ -1,13 +1,11 @@
 import {
+    isApiError,
     type ApiAppVersionSummary,
     type ApiError,
     type ApiGetAppResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-
-const isApiError = (error: unknown): error is ApiError =>
-    typeof error === 'object' && error !== null && 'error' in error;
 
 // The app read pages versions newest first, so the page ending at `version`
 // holds that version first when it exists, and 404s when nothing is that old.
