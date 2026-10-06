@@ -204,7 +204,7 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
             parts: [
                 {
                     title: 'Create the AI principal role',
-                    body: `-- Run as a superuser or a role with CREATEROLE. Lightdash holds this password; the role has no other sign-in.
+                    body: `-- Run as a superuser or a role with CREATEROLE. This instance holds this password; the role has no other sign-in.
 CREATE ROLE ${ref} LOGIN NOINHERIT PASSWORD ${password};
 GRANT CONNECT ON DATABASE ${quoteIdentifier(connection.dbname)} TO ${ref};`,
                 },
