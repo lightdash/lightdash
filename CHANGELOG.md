@@ -1,3 +1,10 @@
+## [2.439.2](https://github.com/lightdash/lightdash/compare/2.439.1...2.439.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* keep string fields as text in formatted XLSX exports ([#30498](https://github.com/lightdash/lightdash/issues/30498)) ([ba0a7a6](https://github.com/lightdash/lightdash/commit/ba0a7a65ecb0a7e20dca30a9b58f80be581b9c6f))
+
 ## [2.439.1](https://github.com/lightdash/lightdash/compare/2.439.0...2.439.1) (2026-10-06)
 
 
