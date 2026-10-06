@@ -13,6 +13,12 @@ import {
 import express from 'express';
 import { QueryController } from './QueryController';
 
+const passThroughResults = <T>(
+    _account: unknown,
+    _projectUuid: string,
+    results: T,
+) => results;
+
 describe('QueryController', () => {
     it.each([
         [
@@ -35,7 +41,10 @@ describe('QueryController', () => {
                 .fn()
                 .mockResolvedValue({ queryUuid: 'query-uuid' });
             const controller = new QueryController({
-                getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+                getAsyncQueryService: () => ({
+                    executeAsyncMetricQuery,
+                    redactFieldsSqlForResponse: passThroughResults,
+                }),
             } as unknown as ConstructorParameters<typeof QueryController>[0]);
             const req = {
                 account: {},
@@ -153,7 +162,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncMetricQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
@@ -189,7 +201,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncMetricQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
@@ -226,7 +241,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncSavedChartQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncSavedChartQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {

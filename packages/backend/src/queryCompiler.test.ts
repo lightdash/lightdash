@@ -473,6 +473,31 @@ test('Should compile table calculations that reference additional metrics', () =
     );
 });
 
+test('Should compile a SQL-less custom metric from its base dimension', () => {
+    const compileWithSql = (sql: string) =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: {
+                ...METRIC_QUERY_VALID_REFERENCES,
+                additionalMetrics: [
+                    {
+                        name: 'custom_metric_1',
+                        table: 'table1',
+                        type: MetricType.SUM,
+                        sql,
+                        baseDimensionName: 'dim_1',
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }).compiledAdditionalMetrics[0].compiledSql;
+
+    expect(compileWithSql('')).toBe(
+        compileWithSql(EXPLORE.tables.table1.dimensions.dim_1.sql),
+    );
+});
+
 test('Should compile table calculations that reference both custom dimensions and additional metrics', () => {
     const metricQueryWithBoth = {
         ...METRIC_QUERY_VALID_REFERENCES,

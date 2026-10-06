@@ -415,7 +415,11 @@ import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
-import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
+import {
+    redactExploreSql,
+    redactFieldSql,
+    resolveAdditionalMetricsSql,
+} from '../../utils/embedCompiledSql';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -7746,7 +7750,7 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
         exploreName: string,
-    ): Promise<Set<string>> {
+    ): Promise<{ explore: Explore; fieldSqlKeys: Set<string> }> {
         const explore = await this.getExplore(
             account,
             projectUuid,
@@ -7775,7 +7779,7 @@ export class ProjectService extends BaseService {
                 }
             }
         }
-        return fieldSqlKeys;
+        return { explore, fieldSqlKeys };
     }
 
     /**
@@ -7860,14 +7864,16 @@ export class ProjectService extends BaseService {
         // allowed; only hand-authored SQL needs the scope or a provenance match.
         let additionalMetricsToAuthorize: typeof additionalMetrics = [];
         if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
-            const knownFieldSqlKeys = await this.getExploreFieldSqlKeys(
+            const { explore, fieldSqlKeys } = await this.getExploreFieldSqlKeys(
                 account,
                 projectUuid,
                 exploreName,
             );
-            additionalMetricsToAuthorize = additionalMetrics.filter(
-                (metric) =>
-                    !knownFieldSqlKeys.has(getCustomSqlFieldKey(metric)),
+            additionalMetricsToAuthorize = resolveAdditionalMetricsSql(
+                additionalMetrics,
+                explore.tables,
+            ).filter(
+                (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
             );
         }
         if (
@@ -8019,23 +8025,6 @@ export class ProjectService extends BaseService {
                 'User cannot run queries with custom SQL fields',
             );
         }
-    }
-
-    private cannotViewEmbedCompiledSql(
-        account: Account,
-        projectUuid: string,
-    ): boolean {
-        return (
-            isAiAgentEmbedAccount(account) &&
-            this.createAuditedAbility(account).cannot(
-                'view',
-                subject('EmbedCompiledSql', {
-                    organizationUuid:
-                        account.embed.organization.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        );
     }
 
     async compileQueryForResponse(args: {
@@ -11987,7 +11976,9 @@ export class ProjectService extends BaseService {
             false,
         );
         return {
-            ...explore,
+            ...(this.cannotViewEmbedCompiledSql(account, projectUuid)
+                ? redactExploreSql(explore)
+                : explore),
             warehouseConnectionUuid:
                 await this.projectModel.getExploreWarehouseConnectionUuid(
                     projectUuid,
@@ -13096,9 +13087,15 @@ export class ProjectService extends BaseService {
                     savedChart.tableName,
                 );
 
-                return getDimensions(explore).filter(
+                const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
                 );
+                return this.cannotViewEmbedCompiledSql(
+                    account,
+                    savedChart.projectUuid,
+                )
+                    ? filters.map(redactFieldSql)
+                    : filters;
             },
         );
     }
@@ -13193,6 +13190,10 @@ export class ProjectService extends BaseService {
                         accessResults[index],
                     ]),
                 );
+                const shouldRedactSql = this.cannotViewEmbedCompiledSql(
+                    account,
+                    savedCharts[0].projectUuid,
+                );
 
                 return savedCharts.map((savedChart) => {
                     if (!chartAccess.get(savedChart.uuid)) {
@@ -13204,7 +13205,13 @@ export class ProjectService extends BaseService {
                         };
                     }
 
-                    const explore = exploresMap[savedChart.tableName];
+                    const cachedExplore = exploresMap[savedChart.tableName];
+                    const explore =
+                        shouldRedactSql &&
+                        cachedExplore &&
+                        !isExploreError(cachedExplore)
+                            ? redactExploreSql(cachedExplore)
+                            : cachedExplore;
 
                     let filters: CompiledDimension[] = [];
                     let metricFilters: Metric[] = [];

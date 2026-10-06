@@ -10778,6 +10778,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 table: string;
                 type: MetricType;
                 sql: string;
+                baseDimensionName?: string;
             }[];
         };
     };
@@ -11336,6 +11337,43 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).resolves.toBeUndefined();
         expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows a SQL-less custom metric that references a modelled dimension', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: [
+                        {
+                            ...additionalMetric('')[0],
+                            baseDimensionName: 'dim1',
+                        },
+                    ],
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects a SQL-less custom metric that references an unknown dimension', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: [
+                        {
+                            ...additionalMetric('')[0],
+                            baseDimensionName: 'missing',
+                        },
+                    ],
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
 
     it('rejects modelled-field SQL rebound to another table', async () => {
@@ -13552,6 +13590,22 @@ describe('ProjectService.compileQueryForResponse', () => {
         exploreName: 'orders',
     });
 
+    const buildDashboardAccount = () =>
+        fromJwt({
+            decodedToken: {
+                content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+            },
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                chartUuids: [],
+                explores: [],
+            },
+            embed: buildAiAgentAccount({ sqlScopeProjectUuid: null }).embed,
+            source: 'test-token',
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+
     beforeEach(() => {
         vi.spyOn(service, 'compileQuery').mockResolvedValue({
             query: 'select 1',
@@ -13599,6 +13653,17 @@ describe('ProjectService.compileQueryForResponse', () => {
         });
     });
 
+    it('redacts compiled SQL for dashboard embeds that cannot import the SQL scope', async () => {
+        await expect(
+            service.compileQueryForResponse(
+                compileArgs(buildDashboardAccount()),
+            ),
+        ).resolves.toStrictEqual({
+            query: '',
+            parameterReferences: ['p'],
+        });
+    });
+
     it('returns the full payload for session accounts', async () => {
         await expect(
             service.compileQueryForResponse(compileArgs(developerAccount)),
@@ -13607,5 +13672,133 @@ describe('ProjectService.compileQueryForResponse', () => {
             pivotQuery: 'select 2',
             parameterReferences: ['p'],
         });
+    });
+});
+
+describe('ProjectService.getExploreResponse', () => {
+    const { projectUuid } = defaultProject;
+    const service = getMockedProjectService(lightdashConfigMock);
+    const embedAccount = fromJwt({
+        decodedToken: {
+            content: { type: 'metricsCatalog', canExplore: true },
+        },
+        content: {
+            type: 'metricsCatalog',
+            chartUuids: [],
+            explores: [],
+        },
+        embed: {
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+                name: 'Test organization',
+            },
+            projectUuid,
+            encodedSecret: 'test-secret',
+            dashboardUuids: [],
+            allowAllDashboards: false,
+            chartUuids: [],
+            allowAllCharts: false,
+            appUuids: [],
+            allowAllApps: false,
+            createdAt: '2026-01-01',
+            user: null,
+        },
+        source: 'test-token',
+        userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+    });
+
+    const exploreWithSql: Explore = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    dim1: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        sql: '${TABLE}.dim1',
+                        compiledSql: '"a".dim1',
+                    },
+                },
+            },
+        },
+    };
+
+    beforeEach(() => {
+        vi.spyOn(service, 'getExplore').mockResolvedValue(exploreWithSql);
+    });
+
+    it('strips semantic-layer SQL for embeds without the SQL scope', async () => {
+        const result = await service.getExploreResponse(
+            embedAccount,
+            projectUuid,
+            exploreWithSql.name,
+        );
+
+        const dimension = result.tables.a.dimensions.dim1;
+        expect(dimension.sql).toBe('');
+        expect(dimension.compiledSql).toBe('');
+        expect(dimension.label).toBe('dim1');
+        expect(result.tables.a.sqlTable).toBe('');
+        expect(result.joinedTables[0].compiledSqlOn).toBe('');
+    });
+
+    it('strips field SQL from single-chart available filters for embeds without the SQL scope', async () => {
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            {
+                uuid: 'chart-uuid',
+                name: 'Chart',
+                tableName: exploreWithSql.name,
+                projectUuid,
+                spaceUuid: 'space-uuid',
+                dashboardUuid: null,
+            },
+        ]);
+        const filtersService = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            } as unknown as SpacePermissionService,
+        });
+        vi.spyOn(filtersService, 'getExplore').mockResolvedValue(
+            exploreWithSql,
+        );
+        const chartViewerAccount = {
+            ...embedAccount,
+            user: {
+                ...embedAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof embedAccount;
+
+        const filters = await filtersService.getAvailableFiltersForSavedQuery(
+            chartViewerAccount,
+            'chart-uuid',
+        );
+
+        expect(filters.length).toBeGreaterThan(0);
+        filters.forEach((filter) => {
+            expect(filter.sql).toBe('');
+            expect(filter).toHaveProperty('compiledSql', '');
+        });
+    });
+
+    it('keeps SQL for session accounts', async () => {
+        const result = await service.getExploreResponse(
+            developerAccount,
+            projectUuid,
+            exploreWithSql.name,
+        );
+
+        expect(result.tables.a.dimensions.dim1.compiledSql).toBe('"a".dim1');
+        expect(result.joinedTables[0].compiledSqlOn).toBe(
+            '("a".dim1) = ("b".dim1)',
+        );
     });
 });
