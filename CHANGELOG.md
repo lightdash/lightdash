@@ -1,3 +1,10 @@
+## [2.440.1](https://github.com/lightdash/lightdash/compare/2.440.0...2.440.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **data-apps:** charge session compaction only its own share of the session totals ([#30539](https://github.com/lightdash/lightdash/issues/30539)) ([e291b88](https://github.com/lightdash/lightdash/commit/e291b8881a0b538c194210f381e05a86d741aaf3))
+
 # [2.440.0](https://github.com/lightdash/lightdash/compare/2.439.2...2.440.0) (2026-10-06)
 
 
