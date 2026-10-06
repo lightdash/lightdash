@@ -131,10 +131,58 @@ export class GithubAppService extends BaseService {
             if (!userUuid) {
                 throw new ParameterError('User uuid not provided');
             }
+            if (userUuid !== user.userUuid) {
+                throw new AuthorizationError('User does not match');
+            }
+
+            const pendingInstallation = oauth.githubInstallation;
+            if (
+                pendingInstallation &&
+                pendingInstallation.organizationUuid !== user.organizationUuid
+            ) {
+                throw new AuthorizationError('Organization does not match');
+            }
 
             if (!code) {
-                throw new ParameterError('Code not provided');
+                if (setup_action !== 'update' || pendingInstallation) {
+                    throw new ParameterError('Code not provided');
+                }
+                if (!installation_id) {
+                    throw new ParameterError('Installation id not provided');
+                }
+                if (!isUserWithOrg(user)) {
+                    throw new ForbiddenError(
+                        'User is not part of an organization',
+                    );
+                }
+                const auditedAbility = this.createAuditedAbility(user);
+                if (
+                    auditedAbility.cannot(
+                        'update',
+                        subject('Organization', {
+                            organizationUuid: user.organizationUuid,
+                            metadata: { installationId: installation_id },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                const nextState = `${this.lightdashConfig.github.redirectDomain}_${nanoid().replaceAll('_', '')}`;
+                const authorizeUrl = getGithubUserAuthorizeUrl(nextState);
+                // eslint-disable-next-line no-param-reassign -- Persist the continuation in the Express session.
+                oauth.githubInstallation = {
+                    installationId: installation_id,
+                    organizationUuid: user.organizationUuid,
+                };
+                // eslint-disable-next-line no-param-reassign -- Bind the next callback to a fresh state.
+                oauth.state = nextState;
+                return authorizeUrl;
             }
+
+            const selectedInstallationId =
+                pendingInstallation?.installationId ?? installation_id;
+            // eslint-disable-next-line no-param-reassign -- Consume the pending installation before exchanging the code.
+            delete oauth.githubInstallation;
             const userToServerToken = await getGithubApp().oauth.createToken({
                 code,
             });
@@ -145,7 +193,7 @@ export class GithubAppService extends BaseService {
 
             const redirectUrl = new URL(oauth?.returnTo || '/');
 
-            if (setup_action === 'request') {
+            if (!pendingInstallation && setup_action === 'request') {
                 // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
                 // We will try to poll for the installation id
                 console.info(
@@ -191,7 +239,7 @@ export class GithubAppService extends BaseService {
                 return `${redirectUrl.href}?status=github_request_sent`;
             }
 
-            if (!installation_id) {
+            if (!selectedInstallationId) {
                 throw new ParameterError('Installation id not provided');
             }
             // Verify installation
@@ -204,14 +252,14 @@ export class GithubAppService extends BaseService {
                     },
                 );
             const installation = response.data.installations.find(
-                (i) => `${i.id}` === installation_id,
+                (i) => `${i.id}` === selectedInstallationId,
             );
             if (installation === undefined)
                 throw new ParameterError('Invalid installation id');
 
             await this.upsertInstallation(
                 userUuid,
-                installation_id,
+                selectedInstallationId,
                 token,
                 refreshToken,
             );

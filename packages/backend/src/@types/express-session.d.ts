@@ -7,6 +7,10 @@ declare module 'express-session' {
             returnTo?: string | undefined;
             intent?: 'link' | undefined;
             githubFlow?: 'installation' | 'user_link' | undefined;
+            githubInstallation?: {
+                installationId: string;
+                organizationUuid: string;
+            };
             codeVerifier?: string | undefined;
             state?: string | undefined;
             linear?: {
