@@ -3,6 +3,7 @@ import {
     AnyType,
     DimensionType,
     QueryExecutionContext,
+    WarehouseQueryError,
 } from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
 import {
@@ -77,6 +78,105 @@ describe('TrinoWarehouseClient', () => {
         expect(results.rows[0]).toEqual(lowerCaseRow);
         expect(results.fields).toEqual(lowerCaseFields);
         expect(results.rows.length).toEqual(2);
+    });
+
+    describe('streamQuery timezone', () => {
+        beforeEach(() => {
+            queryResultMock.mockReset();
+            queryResultMock.mockReturnValue({
+                next: vi.fn().mockResolvedValue({
+                    done: true,
+                    value: queryResponse,
+                }),
+            });
+        });
+
+        it('finishes setting the timezone before submitting the tagged query', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            const timezoneNext = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    done: false,
+                    value: { nextUri: 'http://trino/timezone/next' },
+                })
+                .mockResolvedValueOnce({
+                    done: false,
+                    value: { data: [[true]] },
+                })
+                .mockResolvedValueOnce({ done: true, value: {} });
+            queryResultMock
+                .mockReturnValueOnce({ next: timezoneNext })
+                .mockImplementationOnce(() => {
+                    expect(timezoneNext).toHaveBeenCalledTimes(3);
+                    return {
+                        next: vi.fn().mockResolvedValue({
+                            done: true,
+                            value: queryResponse,
+                        }),
+                    };
+                });
+
+            const results = await warehouse.runQuery(
+                'SELECT 1',
+                { chart_uuid: 'abc-123' },
+                'Asia/Kathmandu',
+            );
+
+            expect(queryResultMock).toHaveBeenNthCalledWith(
+                1,
+                "SET TIME ZONE 'Asia/Kathmandu'",
+            );
+            expect(queryResultMock).toHaveBeenNthCalledWith(2, {
+                query: 'SELECT 1\n-- {"chart_uuid":"abc-123"}',
+                extraHeaders: { 'X-Trino-Client-Tags': 'chart_uuid=abc-123' },
+            });
+            expect(results).toEqual({
+                fields: lowerCaseFields,
+                rows: [lowerCaseRow],
+            });
+        });
+
+        it.each([false, true])(
+            'rejects a timezone error instead of running the SQL (done=%s)',
+            async (done) => {
+                const warehouse = new TrinoWarehouseClient(credentials);
+                const streamCallback = vi.fn();
+                queryResultMock.mockReturnValueOnce({
+                    next: vi
+                        .fn()
+                        .mockResolvedValueOnce({
+                            done: false,
+                            value: { nextUri: 'http://trino/timezone/next' },
+                        })
+                        .mockResolvedValueOnce({
+                            done,
+                            value: {
+                                error: {
+                                    message:
+                                        'Time zone not supported: Invalid/Zone',
+                                },
+                            },
+                        }),
+                });
+
+                const result = warehouse.streamQuery(
+                    'SELECT 1',
+                    streamCallback,
+                    {
+                        timezone: 'Invalid/Zone',
+                    },
+                );
+
+                await expect(result).rejects.toBeInstanceOf(
+                    WarehouseQueryError,
+                );
+                await expect(result).rejects.toThrow(
+                    'Time zone not supported: Invalid/Zone',
+                );
+                expect(queryResultMock).toHaveBeenCalledTimes(1);
+                expect(streamCallback).not.toHaveBeenCalled();
+            },
+        );
     });
 
     it('expect schema with trino types mapped to dimension types', async () => {
