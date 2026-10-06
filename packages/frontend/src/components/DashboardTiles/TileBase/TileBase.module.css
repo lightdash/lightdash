@@ -133,7 +133,11 @@
     pointer-events: auto;
 }
 
-@media (hover: none), (width < $mantine-breakpoint-sm) {
+/* Touch layout. Real touch screens report a coarse pointer; the headless
+   browser used for scheduled deliveries reports `hover: none` too but with
+   `pointer: none`, and must keep the desktop layout or small untitled tiles
+   lose their content to the always-visible actions. */
+@media (hover: none) and (pointer: coarse), (width < $mantine-breakpoint-sm) {
     .headerContainer {
         flex-wrap: wrap;
     }
