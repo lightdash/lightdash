@@ -3712,6 +3712,14 @@ export class MetricQueryBuilder {
             },
         );
 
+        // Keep ClickHouse's joined dimension names distinct from the output aliases.
+        const dimensionCteAliases = dimensionAlias.map((alias, index) =>
+            warehouseSqlBuilder.getAdapterType() ===
+            SupportedDbtAdapter.CLICKHOUSE
+                ? `${fieldQuoteChar}__dd_dimension_${index}${fieldQuoteChar}`
+                : alias,
+        );
+
         const ctes: string[] = [];
         const ddJoins: string[] = [];
         const ddMetricSelects: string[] = [];
@@ -3773,7 +3781,11 @@ export class MetricQueryBuilder {
 
                 // Outer CTE: group by selected dimensions (or no group by for a scalar).
                 const outerSelects = [
-                    ...dimensionAlias.map((alias) => `  ${alias}`),
+                    ...dimensionAlias.map((alias, index) =>
+                        alias === dimensionCteAliases[index]
+                            ? `  ${alias}`
+                            : `  ${alias} AS ${dimensionCteAliases[index]}`,
+                    ),
                     `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 ];
                 const outerGroupBy =
@@ -3794,10 +3806,10 @@ export class MetricQueryBuilder {
                 } else {
                     ddJoins.push(
                         `INNER JOIN ${ddCteName} ON ${dimensionAlias
-                            .map((alias) =>
+                            .map((alias, index) =>
                                 warehouseSqlBuilder.getNullSafeEqualJoinSql(
                                     `${baseCteName}.${alias}`,
-                                    `${ddCteName}.${alias}`,
+                                    `${ddCteName}.${dimensionCteAliases[index]}`,
                                 ),
                             )
                             .join(' AND ')}`,
