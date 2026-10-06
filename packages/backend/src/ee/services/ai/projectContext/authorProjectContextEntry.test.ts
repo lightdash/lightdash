@@ -48,6 +48,7 @@ const evidencePacket: AiAgentReviewJudgeEvidencePacket = {
         knowledgeDocumentCount: 0,
         knowledgeDocuments: [],
         mcpServers: [],
+        skills: [],
     },
     semanticContext: {
         queriedExploreNames: [],

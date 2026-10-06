@@ -25,6 +25,35 @@ vi.mock('./ProjectContextWritebackModal', () => ({
     ProjectContextWritebackModal: () => null,
 }));
 
+vi.mock('../AiAgentSkillModal', () => ({
+    AiAgentSkillModal: () => <div>skill modal</div>,
+}));
+
+const skillProposalFinding = {
+    uuid: 'finding-1',
+    promptUuid: 'prompt-1',
+    threadUuid: 'thread-1',
+    projectUuid: 'project-1',
+    agentUuid: 'agent-1',
+    subcategories: ['weekly-revenue-table'],
+    fixTargets: ['agent_configuration_change' as const],
+    targetRefs: [],
+    evidenceExcerpts: [],
+    recommendation: {
+        actionType: 'create_skill' as const,
+        title: 'Create a weekly revenue skill',
+        rationale: 'The same steer recurs.',
+        targetRefs: [],
+    },
+    projectContextEntry: null,
+    skillProposal: {
+        name: 'weekly-revenue-table',
+        description: 'Use when the user asks for weekly revenue in GBP.',
+        instructions: '## Steps\n1. Query weekly revenue.',
+    },
+    createdAt: new Date('2026-10-05T08:00:00.000Z'),
+};
+
 const makeReviewItem = (
     overrides: Partial<AiAgentReviewItemSummary> = {},
 ): AiAgentReviewItemSummary =>
@@ -146,5 +175,42 @@ describe('ReviewItemActions', () => {
         );
 
         expect(screen.queryByText('Dismiss')).not.toBeInTheDocument();
+    });
+
+    it('offers to create the drafted skill on an accepted proposal', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({
+                        status: 'open',
+                        primaryRootCause: 'agent_configuration',
+                        latestFinding: skillProposalFinding,
+                    })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(screen.getByText('Create skill'));
+
+        expect(screen.getByText('skill modal')).toBeInTheDocument();
+    });
+
+    it('keeps a skill proposal behind accept while it is in triage', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({
+                        status: 'triage',
+                        primaryRootCause: 'agent_configuration',
+                        latestFinding: skillProposalFinding,
+                    })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByText('Accept')).toBeInTheDocument();
+        expect(screen.queryByText('Create skill')).not.toBeInTheDocument();
     });
 });

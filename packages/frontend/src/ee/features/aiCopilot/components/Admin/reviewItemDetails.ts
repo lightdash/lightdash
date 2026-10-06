@@ -1,6 +1,7 @@
 import {
     formatAiProjectContextObjectRef,
     getReviewItemProjectContextEntry,
+    getReviewItemSkillProposal,
     getVisibleAiAgentReviewRootCauses,
     type AiAgentRecommendationAction,
     type AiAgentReviewItemPriority,
@@ -131,6 +132,7 @@ const actionLabels: Record<AiAgentRecommendationAction, string> = {
     update_access: 'Update access',
     route_to_product_work: 'Route to product',
     request_more_evidence: 'Needs more evidence',
+    create_skill: 'Create skill',
     no_action: 'No action',
 };
 
@@ -266,6 +268,11 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
 export const getReviewReasoningText = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
+    const skillProposal = getReviewItemSkillProposal(reviewItem);
+    if (skillProposal) {
+        return `${getWhyText(reviewItem)}\n\nProposed skill \`/${skillProposal.name}\`: ${skillProposal.description}`;
+    }
+
     const contextEntry = getReviewItemProjectContextEntry(reviewItem);
 
     if (contextEntry) {

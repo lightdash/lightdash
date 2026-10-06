@@ -1456,6 +1456,7 @@ export class AiAgentReviewClassifierModel {
                         recommendation: latest.recommendation,
                         projectContextEntry:
                             latest.project_context_entry ?? null,
+                        skillProposal: latest.skill_proposal ?? null,
                         createdAt: latest.created_at,
                     },
                 };
@@ -2975,6 +2976,9 @@ export class AiAgentReviewClassifierModel {
                     project_context_entry: finding?.projectContextEntry
                         ? this.jsonb(finding.projectContextEntry)
                         : null,
+                    skill_proposal: finding?.skillProposal
+                        ? this.jsonb(finding.skillProposal)
+                        : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,
                     review_item_description: finding?.reviewItem.description,
@@ -2995,12 +2999,17 @@ export class AiAgentReviewClassifierModel {
                     .where('fingerprint', newFingerprint)
                     .first('status', 'dismissed_reason');
 
+                // A skill proposal is a suggestion on a correct answer, not a
+                // failure, so it waits in triage until an admin accepts it.
+                const isSkillProposal =
+                    finding.recommendation?.actionType === 'create_skill';
                 await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
                     .insert({
                         fingerprint: newFingerprint,
                         organization_uuid: turnSignal.subject.organizationUuid,
                         project_uuid: turnSignal.subject.projectUuid,
                         agent_uuid: turnSignal.subject.agentUuid,
+                        ...(isSkillProposal ? { status: 'triage' } : {}),
                     })
                     .onConflict('fingerprint')
                     .merge({ updated_at: trx.fn.now() });

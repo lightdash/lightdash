@@ -113,6 +113,7 @@ const signalLabels: Record<AiAgentTurnSignal, string> = {
     acceptance_or_continuation: 'Accepted',
     product_capability_request: 'Capability request',
     human_intervention: 'Human intervention',
+    standing_instruction: 'Standing instruction',
     ambiguous: 'Ambiguous',
 };
 

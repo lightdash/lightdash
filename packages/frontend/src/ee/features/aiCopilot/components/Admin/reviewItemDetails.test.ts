@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     formatRelativeReviewDate,
+    getActionLabel,
     getIssueTitle,
     getReviewReasoningText,
     getReviewSecondaryDetail,
@@ -215,5 +216,36 @@ describe('formatRelativeReviewDate', () => {
     it('falls back to an absolute date once older than a week', () => {
         const old = new Date(Date.now() - 30 * 86_400_000);
         expect(formatRelativeReviewDate(old)).not.toMatch(/ago/);
+    });
+});
+
+describe('skill proposals', () => {
+    const item = makeItem({
+        primaryRootCause: 'agent_configuration',
+        latestFinding: {
+            recommendation: {
+                actionType: 'create_skill',
+                title: 'Create a weekly revenue skill',
+                rationale: 'Users keep asking for the same table.',
+                targetRefs: [],
+            },
+            skillProposal: {
+                name: 'weekly-revenue-table',
+                description:
+                    'Use when the user asks for weekly revenue in GBP.',
+                instructions: '## Steps\n1. Query weekly revenue.',
+            },
+        },
+    });
+
+    it('labels the action as creating a skill', () => {
+        expect(getActionLabel(item)).toBe('Create skill');
+    });
+
+    it('names the proposed skill in the reasoning text', () => {
+        expect(getReviewReasoningText(item)).toContain(
+            'Users keep asking for the same table.',
+        );
+        expect(getReviewReasoningText(item)).toContain('/weekly-revenue-table');
     });
 });

@@ -115,6 +115,7 @@ const makeLatestFinding = (
     evidenceExcerpts: [],
     recommendation: null,
     projectContextEntry: null,
+    skillProposal: null,
     createdAt: NOW,
 });
 
@@ -1990,6 +1991,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                             terms: ['revenue'],
                             objects: [{ type: 'explore', name: 'orders' }],
                         },
+                        skillProposal: null,
                         createdAt: NOW,
                     },
                 }),

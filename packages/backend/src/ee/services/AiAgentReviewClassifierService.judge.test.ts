@@ -95,6 +95,7 @@ const replayInput: AiAgentReviewJudgeReplayInput = {
             knowledgeDocumentCount: 0,
             knowledgeDocuments: [],
             mcpServers: [],
+            skills: [],
         },
         semanticContext: {
             queriedExploreNames: [],
@@ -131,6 +132,7 @@ const judgeOutput = (
     evidenceExcerpts: [],
     recommendation: null,
     projectContextEntry: null,
+    skillProposal: null,
     matchedExistingItemKey: null,
     reviewItem: { title: 'Fix it', description: 'why' },
     ...overrides,
@@ -157,6 +159,9 @@ const makeService = () =>
             findExploresFromCache: vi.fn(),
         } as never,
         projectContextModel: { getDocument: vi.fn().mockResolvedValue([]) },
+        aiAgentSkillModel: {
+            findBoundToAgent: vi.fn().mockResolvedValue([]),
+        },
         lightdashConfig: {
             ai: { copilot: { providers: {}, defaultProvider: 'openai' } },
         } as never,
@@ -227,5 +232,56 @@ describe('single-tier judge', () => {
         expect(result.judgeOutput?.projectContextEntry).toEqual(
             projectContextEntry,
         );
+    });
+
+    it('drafts a skill for promoted create_skill recommendations', async () => {
+        const output = judgeOutput({
+            signal: 'standing_instruction',
+            implicitSignalSources: ['standing_instruction'],
+            primaryRootCause: 'agent_configuration',
+            agentConfigurationSettings: ['skills'],
+            fixTargets: ['agent_configuration_change'],
+            recommendation: {
+                actionType: 'create_skill',
+                title: 'Create a weekly revenue skill',
+                rationale: 'The same steer recurs.',
+                targetRefs: [],
+            },
+        });
+        const skillProposal = {
+            name: 'weekly-revenue-table',
+            description: 'Use when the user asks for weekly revenue in GBP.',
+            instructions:
+                '## When to use\nWeekly revenue.\n\n## Steps\n1. Query.',
+        };
+        generateTextMock
+            .mockResolvedValueOnce({ output } as never)
+            .mockResolvedValueOnce({ output: { skillProposal } } as never);
+
+        const result = await makeService().replayJudge(replayInput);
+
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
+        expect(result.judgeOutput?.skillProposal).toEqual(skillProposal);
+    });
+
+    it('keeps the finding when the skill draft call fails', async () => {
+        const output = judgeOutput({
+            signal: 'standing_instruction',
+            primaryRootCause: 'agent_configuration',
+            recommendation: {
+                actionType: 'create_skill',
+                title: 'Create a weekly revenue skill',
+                rationale: 'The same steer recurs.',
+                targetRefs: [],
+            },
+        });
+        generateTextMock
+            .mockResolvedValueOnce({ output } as never)
+            .mockRejectedValueOnce(new Error('provider down'));
+
+        const result = await makeService().replayJudge(replayInput);
+
+        expect(result.judgeOutput?.promotedToFinding).toBe(true);
+        expect(result.judgeOutput?.skillProposal).toBeNull();
     });
 });

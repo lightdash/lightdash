@@ -16,6 +16,7 @@ import {
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
     type AiAgentJudgeProjectContextEntry,
+    type AiAgentJudgeSkillProposal,
     type AiAgentKnowledgeDocumentSnapshot,
     type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
@@ -27,6 +28,7 @@ import {
     type AiAgentReviewClassifierTurnSignal,
     type AiAgentReviewItemDedupCandidate,
     type AiAgentRootCause,
+    type AiAgentSkillSnapshot,
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
     type CatalogItemSummary,
@@ -49,6 +51,7 @@ import { BaseService } from '../../services/BaseService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiAgentSkillModel } from '../models/AiAgentSkillModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
@@ -58,6 +61,7 @@ import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
 import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
+import { authorSkillProposal } from './ai/skills/authorSkillProposal';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -66,7 +70,7 @@ import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificati
 import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v16';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -98,6 +102,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
+    aiAgentSkillModel: Pick<AiAgentSkillModel, 'findBoundToAgent'>;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
 
@@ -129,6 +134,7 @@ export type AiAgentReviewJudgeEvidencePacket = {
         knowledgeDocumentCount: number;
         knowledgeDocuments: AiAgentKnowledgeDocumentSnapshot[];
         mcpServers: AiAgentMcpServerSnapshot[];
+        skills: AiAgentSkillSnapshot[];
     };
     semanticContext: {
         queriedExploreNames: string[];
@@ -299,6 +305,11 @@ export class AiAgentReviewClassifierService extends BaseService {
         'getDocument'
     >;
 
+    private readonly aiAgentSkillModel: Pick<
+        AiAgentSkillModel,
+        'findBoundToAgent'
+    >;
+
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
 
     constructor(dependencies: AiAgentReviewClassifierServiceDependencies) {
@@ -318,6 +329,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.projectContextModel = dependencies.projectContextModel;
+        this.aiAgentSkillModel = dependencies.aiAgentSkillModel;
         this.judgeTurn =
             dependencies.judgeTurn ??
             ((candidate, evidencePacket) =>
@@ -1077,6 +1089,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             judgeOutput.primaryRootCause === 'project_context'
                 ? judgeOutput.projectContextEntry
                 : null;
+        const skillProposal =
+            judgeOutput.recommendation?.actionType === 'create_skill'
+                ? judgeOutput.skillProposal
+                : null;
 
         return {
             signal,
@@ -1089,6 +1105,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 evidenceExcerpts: judgeOutput.evidenceExcerpts,
                 recommendation,
                 projectContextEntry,
+                skillProposal,
                 reviewItem: {
                     fingerprint,
                     title: judgeOutput.reviewItem.title,
@@ -1325,16 +1342,24 @@ export class AiAgentReviewClassifierService extends BaseService {
                 projectUuid: candidate.subject.projectUuid,
                 agentUuid: candidate.subject.agentUuid,
             });
-            const [knowledgeDocuments, mcpServers] = await Promise.all([
-                this.aiAgentDocumentModel.findAllForAgent({
-                    organizationUuid: candidate.subject.organizationUuid,
-                    agentUuid: candidate.subject.agentUuid,
-                    projectUuid: candidate.subject.projectUuid,
-                }),
-                this.aiAgentReviewClassifierModel.getAgentMcpCapabilities(
-                    candidate.subject.agentUuid,
-                ),
-            ]);
+            const [knowledgeDocuments, mcpServers, boundSkills] =
+                await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: candidate.subject.organizationUuid,
+                        agentUuid: candidate.subject.agentUuid,
+                        projectUuid: candidate.subject.projectUuid,
+                    }),
+                    this.aiAgentReviewClassifierModel.getAgentMcpCapabilities(
+                        candidate.subject.agentUuid,
+                    ),
+                    this.aiAgentSkillModel.findBoundToAgent(
+                        candidate.subject.agentUuid,
+                    ),
+                ]);
+            const skills: AiAgentSkillSnapshot[] = boundSkills.map((skill) => ({
+                name: skill.name,
+                description: skill.description,
+            }));
 
             const instruction = agent.instruction ?? null;
             const settings = [
@@ -1343,6 +1368,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 agent.enableDataAccess ? 'data_access' : null,
                 agent.enableSelfImprovement ? 'self_improvement' : null,
                 mcpServers.length > 0 ? 'mcp_servers' : null,
+                skills.length > 0 ? 'skills' : null,
                 agent.tags && agent.tags.length > 0 ? 'explore_tags' : null,
                 agent.spaceAccess.length > 0 ? 'space_access' : null,
                 agent.groupAccess.length > 0 || agent.userAccess.length > 0
@@ -1386,6 +1412,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     summary: document.summary,
                 })),
                 mcpServers,
+                skills,
             };
             const snapshotHash = getAiAgentConfigSnapshotHash(snapshot);
 
@@ -1404,6 +1431,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 knowledgeDocumentCount: snapshot.knowledgeDocuments.length,
                 knowledgeDocuments: snapshot.knowledgeDocuments,
                 mcpServers: snapshot.mcpServers,
+                skills: snapshot.skills,
                 catalogVisibility: await this.computeCatalogVisibility(
                     candidate.subject.projectUuid,
                     agent.tags,
@@ -1435,6 +1463,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             knowledgeDocumentCount: 0,
             knowledgeDocuments: [],
             mcpServers: [],
+            skills: [],
             catalogVisibility: null,
         };
     }
@@ -1668,6 +1697,7 @@ Implicit signal definitions — set these whenever the evidence supports them:
 - tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from. A human SQL-approval gate expiring (evidence packet pendingApprovalTimeout=true, or a result saying the SQL approval timed out / the user may have stepped away) is NOT a tool_error — it is expected behavior when the user steps away, not a runtime or warehouse defect. Do not promote it as runtime_reliability; when it is the only issue in the turn use promotedToFinding=false (or feedback_quality at most), especially when humanFeedback.score is not negative.
 - product_capability_request: the user asked for something Lightdash cannot currently express.
 - human_intervention: an admin or engineer had to step in.
+- standing_instruction: the user tells the agent how to work, scope, present or verify in standing terms ("always", "from now on", "every time", "as usual", "like last time"), or repeats a steer that previousTurns or existingReviewItems already show them giving — the same format, grouping, filter set or procedure asked for again even though the answer itself was correct. A request stated once, in passing, is not a standing instruction.
 
 Grounding rules for next_user_* signals — these override everything below:
 - The evidence packet's nextUserPrompt field is the ONLY evidence for next_user_correction, next_user_dispute, and next_user_retry. When nextUserPrompt is null there is no next user turn: never emit these signals, and never imagine or predict what the user would say next.
@@ -1684,7 +1714,8 @@ Decision rules — apply in order:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
    - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
    - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
-   - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question.
+   - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question — unless standing_instruction also applies.
+   - Promote standing_instruction when the steer is a multi-step procedure or a presentation convention the agent should follow on request: signal=standing_instruction, primaryRootCause=agent_configuration, agentConfigurationSettings=["skills"], fixTargets=["agent_configuration_change"], recommendation.actionType=create_skill, and one targetRef of type agent_config with setting "skills". Set subcategories to exactly one stable kebab-case key naming the procedure (for example "weekly-revenue-table") so repeats collapse onto one item. Do not promote when agentConfig.skills already covers the procedure (promotedToFinding=false, primaryRootCause=not_a_failure), and route a business definition or a which-explore rule to project_context instead of a skill.
 
 When promoting, pick primaryRootCause by mapping the dominant signal:
    - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field, OR where the warehouse/dbt data the user asked for is not currently exposed (a model/join/field would need to be added) → semantic_layer.
@@ -1698,6 +1729,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - Query-construction failures are NOT missing data: when queryHistory shows a filter-validation error, or degenerate filters that guarantee empty or partial results (an isNull filter on the requested date dimension, equality on a single date, stacked over-restrictive filters), attribute the empty/sparse result to the agent's own query construction → runtime_reliability (or agent_configuration when instructions caused it), NOT semantic_layer. Do not emit semantic_yaml_patch or dbt_modeling_ticket fixTargets for it. Do not accept the assistant's own "we don't have this data" prose as ground truth when its queries were malformed — inspect metricQuery.filters yourself.
    - product_capability_request → product_capability.
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
+   - standing_instruction → agent_configuration with the skills setting, as described above.
    - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
 
 4. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
@@ -1715,6 +1747,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - mcp_tools: external MCP servers listed in agentConfig.mcpServers together with their enabled tools (for example Linear or GitHub). Successful mcp_* calls in toolOutcomes are real integrations, not hallucinations.
    Capability routing: when the assistant claims something is "not supported" but availableCapabilities/mcpServers show the capability DOES exist for this agent → agent_configuration (stale agent knowledge or missing instructions), not product_capability. Use product_capability only when the capability genuinely does not exist for this agent. The semanticContext catalog is already scoped to what this agent can access — a field absent there may still exist in the project but be outside the agent's explore tags; prefer agent_configuration (access/tags) over semantic_layer when the user names data the agent cannot see.
    agentConfig.knowledgeDocuments lists the agent's actual knowledge documents (with summaries) — never recommend adding a knowledge document that already exists; recommend updating the existing one instead.
+   agentConfig.skills lists the skills already bound to this agent (name, description) — never recommend create_skill for a procedure one of them already covers.
 
 7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
@@ -1757,10 +1790,84 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                   })
                 : null;
 
+        const skillProposal =
+            result.output.promotedToFinding &&
+            result.output.recommendation?.actionType === 'create_skill'
+                ? await this.emitSkillProposal({
+                      candidate,
+                      evidencePacket,
+                      model,
+                      judgeOutput: result.output,
+                  })
+                : null;
+
         return {
             ...result.output,
             projectContextEntry,
+            skillProposal,
         } as AiAgentReviewClassifierJudgeOutput;
+    }
+
+    /**
+     * Follow-up call that drafts the skill behind a create_skill
+     * recommendation. Kept out of the main judge schema for the same grammar
+     * size reason as the project context entry; failure leaves the finding
+     * without a draft and the admin writes the skill by hand.
+     */
+    private async emitSkillProposal(input: {
+        candidate: AiAgentReviewClassifierTurnCandidate;
+        evidencePacket: AiAgentReviewJudgeEvidencePacket;
+        model: ReturnType<typeof getModel>;
+        judgeOutput: Omit<
+            AiAgentReviewClassifierJudgeOutput,
+            'projectContextEntry' | 'skillProposal'
+        >;
+    }): Promise<AiAgentJudgeSkillProposal | null> {
+        const { candidate, evidencePacket, model, judgeOutput } = input;
+        this.debugLog('SkillProposalRequest', {
+            promptUuid: candidate.subject.assistantPromptUuid,
+            threadUuid: candidate.subject.threadUuid,
+            judgeModelId: model.model.modelId,
+        });
+        const telemetry = getAiCallTelemetry({
+            functionId: 'aiAgentReviewClassifierJudgeSkillProposal',
+            feature: 'review-classifier',
+            organizationUuid: candidate.subject.organizationUuid,
+            projectUuid: candidate.subject.projectUuid,
+            agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
+            promptUuid: candidate.subject.assistantPromptUuid,
+            keyManagement: model.keyManagement,
+            ...getLanguageModelAttribution(model.model),
+        });
+        try {
+            return await authorSkillProposal({
+                evidence: {
+                    evidencePacket,
+                    finding: {
+                        reviewItem: judgeOutput.reviewItem,
+                        promotionReason: judgeOutput.promotionReason,
+                        subcategories: judgeOutput.subcategories,
+                        recommendation: judgeOutput.recommendation,
+                        evidenceExcerpts: judgeOutput.evidenceExcerpts,
+                    },
+                    existingSkills: evidencePacket.agentConfig.skills,
+                },
+                model,
+                telemetry,
+            });
+        } catch (error) {
+            Logger.error(
+                'AI review skill proposal emission failed; keeping finding without a draft',
+                {
+                    promptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    errorMessage:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
+            return null;
+        }
     }
 
     /**
@@ -1778,7 +1885,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         model: ReturnType<typeof getModel>;
         judgeOutput: Omit<
             AiAgentReviewClassifierJudgeOutput,
-            'projectContextEntry'
+            'projectContextEntry' | 'skillProposal'
         >;
     }): Promise<AiAgentJudgeProjectContextEntry | null> {
         const { candidate, evidencePacket, model, judgeOutput } = input;

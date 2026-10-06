@@ -4,6 +4,7 @@ import {
     isReservedAiAgentSkillName,
     isValidAiAgentSkillName,
     splitAiAgentSkillFrontmatter,
+    type AiAgentSkill,
     type AiAgentSkillFiles,
     type AiAgentSkillIssue,
     type AiAgentSkillSummary,
@@ -84,6 +85,7 @@ type FormProps = {
     skill: AiAgentSkillSummary | null;
     existingFiles: AiAgentSkillFiles;
     bindToAgentUuid: string | null;
+    onCreated: ((skill: AiAgentSkill) => void) | null;
     onClose: () => void;
 };
 
@@ -91,6 +93,7 @@ const SkillForm = ({
     skill,
     existingFiles,
     bindToAgentUuid,
+    onCreated,
     onClose,
 }: FormProps) => {
     const isEditing = skill !== null;
@@ -149,11 +152,12 @@ const SkillForm = ({
                     files: currentFiles,
                 });
             } else {
-                await createSkill.mutateAsync({
+                const created = await createSkill.mutateAsync({
                     files: currentFiles,
                     projectUuid: null,
                     agentUuids: bindToAgentUuid ? [bindToAgentUuid] : [],
                 });
+                onCreated?.(created);
             }
         } catch {
             // The mutation hooks already show the error toast.
@@ -265,11 +269,19 @@ type Props = {
     skill: AiAgentSkillSummary | null;
     /** Agent to bind a new skill to on creation. */
     bindToAgentUuid: string | null;
+    /** Prefilled files for a new skill, e.g. a draft proposed on the Issues board. */
+    draftFiles?: AiAgentSkillFiles;
+    onCreated?: (skill: AiAgentSkill) => void;
     onClose: () => void;
 };
 
 /** Loads the current files when editing, then mounts the form once per skill. */
-export const AiAgentSkillModal = ({ skill, ...props }: Props) => {
+export const AiAgentSkillModal = ({
+    skill,
+    draftFiles,
+    onCreated,
+    ...props
+}: Props) => {
     const detail = useAiAgentSkill(skill?.uuid ?? null);
     if (skill && !detail.data) {
         return (
@@ -296,7 +308,8 @@ export const AiAgentSkillModal = ({ skill, ...props }: Props) => {
         <SkillForm
             key={skill?.uuid ?? 'new'}
             skill={skill}
-            existingFiles={detail.data?.content.files ?? {}}
+            existingFiles={detail.data?.content.files ?? draftFiles ?? {}}
+            onCreated={onCreated ?? null}
             {...props}
         />
     );
