@@ -4,6 +4,7 @@ import {
     ContentType,
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     QueryExecutionContext,
     type Document,
     type RegisteredAccount,
@@ -91,6 +92,7 @@ const setup = (spaceAccess: string[] | null = null) => {
         create: vi.fn().mockResolvedValue(document),
         updateContent: vi.fn().mockResolvedValue(document),
         updateMetadata: vi.fn().mockResolvedValue(document),
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
     };
     const spaceModel = {
         find: vi.fn().mockResolvedValue([{ uuid: spaceUuid, path: 'reports' }]),
@@ -857,6 +859,114 @@ describe('MCP Document runtime', () => {
             { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
         );
         expect(documentService.updateContent).not.toHaveBeenCalled();
+    });
+
+    describe('personal Documents', () => {
+        const personal: Document = { ...document, spaceUuid: null };
+
+        test('are created without a Space, even under a Space scope', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.create.mockResolvedValue(personal);
+
+            await expect(
+                runtime.createDocumentContent({ ...content, spaceSlug: null }),
+            ).resolves.toMatchObject({
+                uuid: personal.documentUuid,
+                content: { spaceSlug: null },
+            });
+            expect(documentService.create).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                expect.objectContaining({ spaceUuid: undefined }),
+                { source: 'mcp' },
+            );
+        });
+
+        test('are readable only by the user who created them', async () => {
+            const { runtime, documentService } = setup();
+            documentService.getBySlug.mockResolvedValueOnce(personal);
+            await expect(
+                runtime.readDocumentContent({ slug: personal.slug }, null),
+            ).resolves.toMatchObject({ content: { spaceSlug: null } });
+
+            documentService.getBySlug.mockResolvedValueOnce({
+                ...personal,
+                createdByUserUuid: 'someone-else',
+            });
+            await expect(
+                runtime.readDocumentContent({ slug: personal.slug }, null),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        test('are edited without the Space scope', async () => {
+            const { runtime, documentService } = setup(['different-space']);
+            documentService.getBySlug.mockResolvedValue(personal);
+            documentService.updateContent.mockResolvedValue(personal);
+
+            await runtime.editDocumentContent(personal.slug, {
+                type: 'content',
+                baseVersionUuid: versionUuid,
+                markdown: '# Revised',
+                charts: {},
+            });
+
+            expect(documentService.updateContent).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                personal.documentUuid,
+                expect.any(Object),
+                { allowedSpaceUuids: undefined, change: { source: 'mcp' } },
+            );
+        });
+
+        test('are saved into a Space named by the user', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.getBySlug.mockResolvedValue(personal);
+
+            await expect(
+                runtime.editDocumentContent(personal.slug, {
+                    type: 'metadata',
+                    spaceSlug: 'Reports',
+                }),
+            ).resolves.toMatchObject({ content: { spaceSlug: 'reports' } });
+            expect(documentService.moveToSpace).toHaveBeenCalledWith(account, {
+                projectUuid,
+                itemUuid: personal.documentUuid,
+                targetSpaceUuid: spaceUuid,
+            });
+            expect(documentService.updateMetadata).not.toHaveBeenCalled();
+        });
+
+        test('are renamed within the Space they were just saved to', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.getBySlug.mockResolvedValue(personal);
+
+            await runtime.editDocumentContent(personal.slug, {
+                type: 'metadata',
+                spaceSlug: 'reports',
+                name: 'Renamed',
+            });
+
+            expect(documentService.updateMetadata).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                personal.documentUuid,
+                { name: 'Renamed' },
+                { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
+            );
+        });
+
+        test('only personal Documents can be saved to a Space', async () => {
+            const { runtime, documentService } = setup();
+
+            await expect(
+                runtime.editDocumentContent(document.slug, {
+                    type: 'metadata',
+                    spaceSlug: 'reports',
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+        });
     });
 
     test('stale version conflicts are forwarded without retrying the write', async () => {

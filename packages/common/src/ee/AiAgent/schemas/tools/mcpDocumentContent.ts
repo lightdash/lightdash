@@ -77,7 +77,13 @@ export const documentAsCodeSchema = z
         name: z.string().min(1),
         slug: z.string().min(1),
         description: z.string(),
-        spaceSlug: z.string().min(1),
+        spaceSlug: z
+            .string()
+            .min(1)
+            .nullable()
+            .describe(
+                'Space slug, or the Space name exactly as the user gave it. null keeps the Document personal: only the user and admins can see it until it is saved to a Space.',
+            ),
         schemaVersion: z.literal(2),
         markdown: z.string().describe(DOCUMENT_MARKDOWN_DESCRIPTION),
         charts: documentChartsSchema,
@@ -128,6 +134,13 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
             name: z.string().min(1).optional(),
             slug: z.string().min(1).optional(),
             description: z.string().optional(),
+            spaceSlug: z
+                .string()
+                .min(1)
+                .optional()
+                .describe(
+                    'Saves a personal Document into this Space: its slug, or the Space name exactly as the user gave it. Documents already in a Space cannot be moved.',
+                ),
         })
         .strict(),
 ]);

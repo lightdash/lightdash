@@ -4411,28 +4411,13 @@ export class AiAgentToolsService extends BaseService {
         document: Document,
         chartId: string | null = null,
     ): Promise<DocumentContentResult> {
-        if (
-            document.spaceUuid === null ||
-            !AiAgentToolsService.hasAgentSpaceAccess(
-                context.spaceAccess,
-                document.spaceUuid,
-            )
-        ) {
-            throw new NotFoundError('Document not found');
-        }
-        const [space] = await this.spaceModel.find({
-            projectUuid: context.projectUuid,
-            spaceUuids: [document.spaceUuid],
-        });
-        if (!space) {
-            throw new NotFoundError('Document not found');
-        }
+        const spaceSlug = await this.getDocumentSpaceSlug(context, document);
         const project = await this.projectModel.getSummary(context.projectUuid);
         const metadata = {
             name: document.name,
             slug: document.slug,
             description: document.description,
-            spaceSlug: getContentAsCodePathFromLtreePath(space.path),
+            spaceSlug,
             schemaVersion: document.version.schemaVersion,
         };
         const { charts } = document.version.content;
@@ -4469,6 +4454,49 @@ export class AiAgentToolsService extends BaseService {
                           chart: { id: chartId as string, ...chart },
                       },
         };
+    }
+
+    /**
+     * The Space slug an agent may reach the Document through, or null for a
+     * personal Document. Agents reach personal Documents of their own user
+     * only, whatever Space scope they have.
+     */
+    private async getDocumentSpaceSlug(
+        context: AiAgentToolsRuntimeContext,
+        document: Document,
+    ): Promise<string | null> {
+        if (document.spaceUuid === null) {
+            if (document.createdByUserUuid !== context.user.userUuid) {
+                throw new NotFoundError('Document not found');
+            }
+            return null;
+        }
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                document.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError('Document not found');
+        }
+        const [space] = await this.spaceModel.find({
+            projectUuid: context.projectUuid,
+            spaceUuids: [document.spaceUuid],
+        });
+        if (!space) {
+            throw new NotFoundError('Document not found');
+        }
+        return getContentAsCodePathFromLtreePath(space.path);
+    }
+
+    /** Space scopes narrow shared Spaces; personal Documents are checked by creator. */
+    private static getDocumentScope(
+        context: AiAgentToolsRuntimeContext,
+        document: Document,
+    ): string[] | undefined {
+        return document.spaceUuid === null
+            ? undefined
+            : (context.spaceAccess ?? undefined);
     }
 
     private async readDocumentContent(
@@ -4512,7 +4540,10 @@ export class AiAgentToolsService extends BaseService {
         assertRegisteredAccount(context.account);
         const input = documentAsCodeSchema.parse(raw);
         AiAgentToolsService.assertNoConversationTags(input.markdown);
-        const space = await this.resolveDocumentSpace(context, input.spaceSlug);
+        const space =
+            input.spaceSlug === null
+                ? null
+                : await this.resolveDocumentSpace(context, input.spaceSlug);
         const document = await this.documentService.create(
             context.account,
             context.projectUuid,
@@ -4520,7 +4551,7 @@ export class AiAgentToolsService extends BaseService {
                 name: input.name,
                 slug: input.slug,
                 description: input.description,
-                spaceUuid: space.uuid,
+                spaceUuid: space?.uuid,
                 schemaVersion: input.schemaVersion,
                 content: parseDocumentContent(input.schemaVersion, {
                     markdown: input.markdown,
@@ -4611,17 +4642,33 @@ export class AiAgentToolsService extends BaseService {
         );
         const current = await this.documentContentResult(context, existing);
         if (edit.type === 'metadata') {
-            const { type: _type, ...metadata } = edit;
-            const document = await this.documentService.updateMetadata(
-                context.account,
-                context.projectUuid,
-                current.uuid,
-                metadata,
-                {
-                    allowedSpaceUuids: context.spaceAccess ?? undefined,
-                    change: AiAgentToolsService.documentChange(context),
-                },
-            );
+            const { type: _type, spaceSlug, ...metadata } = edit;
+            const saved =
+                spaceSlug === undefined
+                    ? existing
+                    : await this.saveDocumentToSpace(
+                          context,
+                          existing,
+                          spaceSlug,
+                      );
+            const document = Object.values(metadata).some(
+                (value) => value !== undefined,
+            )
+                ? await this.documentService.updateMetadata(
+                      context.account,
+                      context.projectUuid,
+                      current.uuid,
+                      metadata,
+                      {
+                          allowedSpaceUuids:
+                              AiAgentToolsService.getDocumentScope(
+                                  context,
+                                  saved,
+                              ),
+                          change: AiAgentToolsService.documentChange(context),
+                      },
+                  )
+                : saved;
             return this.documentContentResult(context, document);
         }
         if (existing.version.versionUuid !== edit.baseVersionUuid) {
@@ -4669,11 +4716,38 @@ export class AiAgentToolsService extends BaseService {
                 ),
             },
             {
-                allowedSpaceUuids: context.spaceAccess ?? undefined,
+                allowedSpaceUuids: AiAgentToolsService.getDocumentScope(
+                    context,
+                    existing,
+                ),
                 change: AiAgentToolsService.documentChange(context),
             },
         );
         return this.documentContentResult(context, document);
+    }
+
+    private async saveDocumentToSpace(
+        context: AiAgentToolsRuntimeContext,
+        document: Document,
+        spaceSlug: string,
+    ): Promise<Document> {
+        assertRegisteredAccount(context.account);
+        if (document.spaceUuid !== null) {
+            throw new ParameterError(
+                'This Document is already in a Space. Only personal Documents can be saved to a Space.',
+            );
+        }
+        const space = await this.resolveDocumentSpace(context, spaceSlug);
+        await this.documentService.moveToSpace(context.account, {
+            projectUuid: context.projectUuid,
+            itemUuid: document.documentUuid,
+            targetSpaceUuid: space.uuid,
+        });
+        return this.documentService.get(
+            context.account,
+            context.projectUuid,
+            document.documentUuid,
+        );
     }
 
     private static documentChange(

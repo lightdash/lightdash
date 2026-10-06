@@ -531,7 +531,10 @@ describe('AI Agent Document authoring', () => {
             ).toBe(enableDocuments);
             if (enableDocuments) {
                 expect(prompt.content).toContain(
-                    'Ask the user when the destination is missing or ambiguous',
+                    'Do not ask where to save a Document',
+                );
+                expect(prompt.content).toContain(
+                    'pass spaceSlug: null to create a personal Document',
                 );
                 expect(prompt.content).toContain(
                     'keeping every unchanged chart as its <document-chart id="cN"> tag',
