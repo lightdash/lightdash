@@ -137,6 +137,7 @@ const buildService = ({
         upsertSettings: vi.fn().mockResolvedValue(settings),
     };
     const projectModel = {
+        getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
         getSummary: vi.fn().mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
         }),
@@ -526,9 +527,13 @@ describe('ManagedAgentService cleanup qualification enforcement', () => {
 });
 
 describe('ManagedAgentService discovery scope', () => {
-    it.each([true, false])(
-        'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
-        async (enabled) => {
+    it.each([
+        { enabled: true, restricted: false },
+        { enabled: false, restricted: false },
+        { enabled: true, restricted: true },
+    ])(
+        'resolves project restrictions before reviewing managed metric queries (%j)',
+        async ({ enabled, restricted }) => {
             const { service, dataRuntime } = buildService();
             const getFlag = vi.fn().mockResolvedValue({ enabled });
             const internal = service as AnyType;
@@ -538,6 +543,12 @@ describe('ManagedAgentService discovery scope', () => {
                 timeoutMs: 100,
             };
             internal.featureFlagModel.get = getFlag;
+            internal.projectModel.getAiAccessRestrictions.mockResolvedValue(
+                restricted,
+            );
+            const fetcher = vi
+                .spyOn(globalThis, 'fetch')
+                .mockRejectedValue(new Error('Unexpected provider call'));
             dataRuntime.listExplores.mockResolvedValue([
                 validExplore,
             ] as AnyType);
@@ -547,9 +558,9 @@ describe('ManagedAgentService discovery scope', () => {
                 fields: {},
                 cacheMetadata: { cacheHit: false },
             });
-            const evaluate = vi
-                .spyOn(AiDecisionClient.prototype, 'evaluate')
-                .mockResolvedValue({
+            const evaluate = vi.spyOn(AiDecisionClient.prototype, 'evaluate');
+            if (!restricted)
+                evaluate.mockResolvedValue({
                     conditions: { type: 'noul', noul: 0.99 },
                 });
             try {
@@ -585,10 +596,12 @@ describe('ManagedAgentService discovery scope', () => {
                 });
                 expect(evaluate).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(output.result.includes('Query/question review')).toBe(
-                    enabled,
+                    enabled && !restricted,
                 );
+                expect(fetcher).not.toHaveBeenCalled();
             } finally {
                 evaluate.mockRestore();
+                fetcher.mockRestore();
             }
         },
     );

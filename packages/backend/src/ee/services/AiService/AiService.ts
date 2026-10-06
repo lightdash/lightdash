@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
+    AiEgressBlockReason,
+    AiEgressSurface,
     CommercialFeatureFlags,
     FeatureFlags,
     ForbiddenError,
@@ -40,6 +42,7 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import {
     ChartTypeExploreSuggested,
     ChartTypeFieldsSuggested,
@@ -168,7 +171,7 @@ export class AiService extends BaseService {
         input: ChartSimilarityInput,
         cachedOnly = false,
     ): Promise<ChartSimilarityMatch[] | undefined> {
-        const decisions = await resolveAiDecisionClient(
+        const unrestrictedDecisions = await resolveAiDecisionClient(
             this.lightdashConfig.ai.decisions,
             () =>
                 this.featureFlagService.get({
@@ -176,6 +179,20 @@ export class AiService extends BaseService {
                     featureFlagId: FeatureFlags.AiAgentFastDecisions,
                 }),
         );
+        const decisions =
+            unrestrictedDecisions &&
+            (
+                await this.projectService.getAiAccessRestrictions(
+                    fromSession(user),
+                    projectUuid,
+                )
+            ).enabled
+                ? unrestrictedDecisions.withAiAccessRestrictions({
+                      organizationUuid: user.organizationUuid ?? null,
+                      projectUuid,
+                      userUuid: user.userUuid,
+                  })
+                : unrestrictedDecisions;
         const key = createHash('sha256')
             .update(
                 JSON.stringify([
@@ -183,6 +200,7 @@ export class AiService extends BaseService {
                     user.userUuid,
                     projectUuid,
                     decisions?.modelName ?? null,
+                    decisions?.isAiAccessRestricted ?? false,
                     input,
                 ]),
             )
@@ -371,6 +389,26 @@ export class AiService extends BaseService {
 
         if (!aiCustomVizFlag.enabled) {
             throw new Error('AI Custom viz feature not enabled!');
+        }
+        if (
+            (
+                await this.projectService.getAiAccessRestrictions(
+                    fromSession(user),
+                    projectUuid,
+                )
+            ).enabled
+        ) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.BROWSER_UPLOAD,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: 'custom_viz_rows',
+            });
+            throw new ForbiddenError(
+                'AI custom charts are off under AI access restrictions',
+            );
         }
         let openAiResponse: {
             result: string;

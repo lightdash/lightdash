@@ -30,6 +30,7 @@ import BuilderPromptBar from './BuilderPromptBar';
 import { type SavedChartSourceControls } from './savedChartSource';
 
 const attachmentAdd = vi.hoisted(() => vi.fn());
+const aiAccessRestrictions = vi.hoisted(() => ({ enabled: false }));
 const showToastError = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastError }),
@@ -51,6 +52,7 @@ vi.mock('../../../hooks/useProjectUuid', () => ({
 }));
 vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: undefined }),
+    useAiAccessRestrictions: () => ({ data: aiAccessRestrictions }),
 }));
 vi.mock('../../externalConnections/hooks/useExternalConnections', () => ({
     useExternalConnections: () => ({
@@ -342,6 +344,7 @@ const promptBar = ({
 
 describe('BuilderPromptBar', () => {
     beforeEach(() => {
+        aiAccessRestrictions.enabled = false;
         attachmentAdd.mockClear();
         showToastError.mockClear();
         connections.linked = [];
@@ -351,6 +354,78 @@ describe('BuilderPromptBar', () => {
         themeQuery.isError = false;
         themeQuery.isSuccess = true;
         useOrganizationDesigns.mockClear();
+    });
+
+    it('removes sample rows when restrictions change before submission', async () => {
+        const send = vi.fn();
+        const props = {
+            build: buildState({ send }),
+            buildContext: { sampleRows: [{ value: 'private-row' }] },
+        };
+        const view = renderWithProviders(promptBar(props));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        aiAccessRestrictions.enabled = true;
+        view.rerender(promptBar(props));
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Update chart',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send).toHaveBeenCalledOnce();
+        expect(JSON.stringify(send.mock.lastCall)).not.toContain('private-row');
+        expect(send.mock.lastCall?.[0].includeSampleData).not.toBe(true);
+    });
+
+    it.each([true, false])(
+        'filters image attachments only under restrictions (%s)',
+        async (restricted) => {
+            aiAccessRestrictions.enabled = restricted;
+            const view = renderWithProviders(promptBar());
+            const image = new File(['png'], 'chart.png', { type: 'image/png' });
+            const input =
+                view.container.querySelector<HTMLInputElement>(
+                    'input[type="file"]',
+                )!;
+            await userEvent.upload(input, image);
+            if (restricted) {
+                expect(attachmentAdd).not.toHaveBeenCalled();
+                expect(showToastError).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: 'Image attachments are off',
+                    }),
+                );
+            } else {
+                expect(attachmentAdd).toHaveBeenCalledWith([image]);
+                expect(showToastError).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it('disables screenshot capture and sample sharing under restrictions', async () => {
+        aiAccessRestrictions.enabled = true;
+        const capture = vi
+            .fn()
+            .mockResolvedValue(new File(['png'], 'screen.png'));
+        renderWithProviders(
+            promptBar({
+                onCaptureScreenshot: capture,
+                buildContext: { sampleRows: [{ secret_value: 'private-row' }] },
+            }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Attach screenshot' }),
+        ).toBeDisabled();
+        expect(
+            screen.queryByRole('button', { name: 'Include sample data' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Sample rows are off under AI access restrictions.',
+            ),
+        ).toBeInTheDocument();
+        expect(capture).not.toHaveBeenCalled();
     });
 
     it('stages a captured render as a screenshot', async () => {

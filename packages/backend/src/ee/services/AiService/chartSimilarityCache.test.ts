@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import { type SessionUser } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import {
@@ -13,7 +14,12 @@ vi.mock('../ai/models', () => ({
     getModel: () => ({ model: 'test', keyManagement: null }),
 }));
 
-const user = { organizationUuid: 'org', userUuid: 'user' } as SessionUser;
+const user = {
+    organizationUuid: 'org',
+    userUuid: 'user',
+    ability: new Ability([]),
+    abilityRules: [],
+} as unknown as SessionUser;
 const input: ChartSimilarityInput = {
     source: {
         name: 'Revenue',
@@ -29,7 +35,10 @@ const input: ChartSimilarityInput = {
     },
     candidates: [],
 };
-const setup = () => {
+const setup = (decisionsEnabled = false) => {
+    const projectService = {
+        getAiAccessRestrictions: vi.fn().mockResolvedValue({ enabled: false }),
+    };
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
@@ -38,15 +47,33 @@ const setup = () => {
         getAccessibleModelIds: vi.fn(),
     };
     const service = new AiService({
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: decisionsEnabled
+            ? {
+                  ...lightdashConfigMock,
+                  ai: {
+                      ...lightdashConfigMock.ai,
+                      decisions: {
+                          apiKey: 'test',
+                          model: 'test',
+                          timeoutMs: 100,
+                      },
+                  },
+              }
+            : lightdashConfigMock,
+        projectService,
         featureFlagService,
         orgAiCopilotConfigResolver,
     } as unknown as ConstructorParameters<typeof AiService>[0]);
-    return { service, featureFlagService, orgAiCopilotConfigResolver };
+    return {
+        service,
+        featureFlagService,
+        orgAiCopilotConfigResolver,
+        projectService,
+    };
 };
-beforeEach(() =>
-    vi.mocked(compareChartQueries).mockReset().mockResolvedValue([]),
-);
+beforeEach(() => {
+    vi.mocked(compareChartQueries).mockReset().mockResolvedValue([]);
+});
 
 it('reuses completed comparisons and invalidates on query changes', async () => {
     const { service } = setup();
@@ -169,3 +196,51 @@ it('treats configuration failures as unavailable without provider discovery', as
         orgAiCopilotConfigResolver.getAccessibleModelIds,
     ).not.toHaveBeenCalled();
 });
+
+it.each([true, false])(
+    'scopes chart decisions and cached matches to restrictions (%s)',
+    async (restricted) => {
+        const fetcher = vi
+            .spyOn(globalThis, 'fetch')
+            .mockRejectedValue(new Error('Unexpected provider call'));
+        try {
+            const { service, projectService } = setup(true);
+            const previous = [
+                {
+                    uuid: 'chart',
+                    relationship: 'related' as const,
+                    explanation: 'Previous match',
+                },
+            ];
+            vi.mocked(compareChartQueries).mockResolvedValueOnce(previous);
+            expect(await service.compareCharts(user, 'project', input)).toEqual(
+                previous,
+            );
+            projectService.getAiAccessRestrictions.mockResolvedValue({
+                enabled: restricted,
+            });
+            vi.mocked(compareChartQueries).mockImplementationOnce(
+                async (_model, _input, decisions) => {
+                    expect(decisions?.isAiAccessRestricted).toBe(true);
+                    expect(
+                        await decisions!.evaluate({
+                            operation: 'chart-reuse',
+                            state: input,
+                            questions: {},
+                        }),
+                    ).toBeNull();
+                    return [];
+                },
+            );
+            expect(await service.compareCharts(user, 'project', input)).toEqual(
+                restricted ? [] : previous,
+            );
+            expect(compareChartQueries).toHaveBeenCalledTimes(
+                restricted ? 2 : 1,
+            );
+            expect(fetcher).not.toHaveBeenCalled();
+        } finally {
+            fetcher.mockRestore();
+        }
+    },
+);

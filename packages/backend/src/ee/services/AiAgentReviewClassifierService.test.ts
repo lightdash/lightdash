@@ -271,6 +271,7 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const projectModel = {
         getSummary: vi.fn(),
+        getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
         findExploresFromCache: vi.fn(),
     };
     const projectContextModel = {
@@ -422,6 +423,36 @@ describe('AiAgentReviewClassifierService', () => {
             orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(
                 false,
             );
+        }
+    });
+
+    it('keeps evidence order without calling the decision provider under restrictions', async () => {
+        const fetcher = vi
+            .spyOn(globalThis, 'fetch')
+            .mockRejectedValue(new Error('Unexpected provider call'));
+        decisionConfig.apiKey = 'test';
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+        const evidence = Array.from({ length: 8 }, (_, index) => ({
+            ...makeWritebackEvidence('Query result'),
+            toolCallId: `tool-${index}`,
+            toolName: 'runQuery',
+        }));
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({ supportingEvidence: evidence }),
+        ]);
+        try {
+            const input = await service.captureJudgeReplayInput({
+                organizationUuid: ORGANIZATION_UUID,
+                promptUuid: PROMPT_UUID,
+            });
+            expect(input?.candidate.supportingEvidence).toEqual(
+                evidence.slice(0, 5),
+            );
+            expect(projectModel.getAiAccessRestrictions).toHaveBeenCalled();
+            expect(fetcher).not.toHaveBeenCalled();
+        } finally {
+            fetcher.mockRestore();
         }
     });
 

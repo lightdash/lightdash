@@ -3090,7 +3090,7 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        const decisions =
+        const unrestrictedDecisions =
             (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                 organizationUuid,
             ))
@@ -3103,6 +3103,15 @@ export class AiWritebackService extends BaseService {
                               featureFlagId: FeatureFlags.AiAgentFastDecisions,
                           }),
                   );
+        const decisions =
+            unrestrictedDecisions &&
+            (await this.projectModel.getAiAccessRestrictions(projectUuid))
+                ? unrestrictedDecisions.withAiAccessRestrictions({
+                      organizationUuid,
+                      projectUuid,
+                      userUuid: null,
+                  })
+                : unrestrictedDecisions;
         if (decisions) {
             const options = candidates.map(
                 AiWritebackService.toDbtSourceOption,

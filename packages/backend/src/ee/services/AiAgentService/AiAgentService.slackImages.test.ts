@@ -57,6 +57,9 @@ describe('Slack image delivery scope', () => {
                 getCopilotConfig: async () => ({}),
                 isOrgBedrockRouted: async () => false,
             },
+            projectModel: {
+                getAiAccessRestrictions: async () => false,
+            },
             aiAgentModel: {
                 findSlackPrompt: async () => prompt,
                 getAgent: async () => ({

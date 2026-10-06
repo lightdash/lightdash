@@ -1,4 +1,9 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    AiEgressBlockReason,
+    AiEgressSurface,
+    assertUnreachable,
+    type AiEgressBlock,
+} from '@lightdash/common';
 import {
     APIError,
     APITimeoutError,
@@ -11,6 +16,7 @@ import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { traceSpan, type TraceSpan } from '../../../../tracing/tracing';
+import { logAiEgressBlock } from '../../../../utils/aiEgress/logAiEgressBlock';
 
 export type DecisionQuestion =
     | { type: 'noul'; instructions: string }
@@ -184,6 +190,10 @@ export class AiDecisionClient {
             retryAfter: 0,
         },
         sdk?: TypeSafeClient,
+        private readonly restriction: Omit<
+            AiEgressBlock,
+            'surface' | 'reason' | 'detail'
+        > | null = null,
     ) {
         this.sdk = sdk ?? createSdk(config, request);
     }
@@ -195,7 +205,25 @@ export class AiDecisionClient {
             usage,
             this.health,
             this.sdk,
+            this.restriction,
         );
+    }
+
+    withAiAccessRestrictions(
+        restriction: Omit<AiEgressBlock, 'surface' | 'reason' | 'detail'>,
+    ): AiDecisionClient {
+        return new AiDecisionClient(
+            this.config,
+            this.request,
+            this.usage,
+            this.health,
+            this.sdk,
+            restriction,
+        );
+    }
+
+    get isAiAccessRestricted(): boolean {
+        return this.restriction !== null;
     }
 
     get modelName(): string {
@@ -203,6 +231,17 @@ export class AiDecisionClient {
     }
 
     async evaluate(args: EvaluateArgs): Promise<DecisionAnswers | null> {
+        if (this.restriction) {
+            logAiEgressBlock({
+                ...this.restriction,
+                surface: AiEgressSurface.TYPESAFE_DECISION,
+                reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                detail: LOGGED_OPERATIONS.has(args.operation)
+                    ? args.operation
+                    : 'unknown',
+            });
+            return null;
+        }
         // Provider errors and request options can contain credentials or
         // user data. Only allowlisted operations and local outcomes are logged.
         const loggedOperation = LOGGED_OPERATIONS.has(args.operation)

@@ -15,6 +15,7 @@ import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
+import { useAiAccessRestrictions } from '../../../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -214,6 +215,11 @@ export const ConfigTabs: React.FC = memo(() => {
         FeatureFlags.AiCustomViz,
     );
     const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
+    const { data: aiAccessRestrictions } = useAiAccessRestrictions(
+        projectUuid ?? '',
+        Boolean(projectUuid),
+    );
+    const restricted = aiAccessRestrictions?.enabled === true;
 
     // Without chart types there is nothing to switch to, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
@@ -321,7 +327,7 @@ export const ConfigTabs: React.FC = memo(() => {
                                     setEditorConfig={setEditorConfig}
                                 />
 
-                                {isAiEnabled && (
+                                {isAiEnabled && !restricted && (
                                     <GenerateVizWithAi
                                         itemsMap={itemsMap}
                                         sampleResults={series.slice(0, 3)}
@@ -330,6 +336,12 @@ export const ConfigTabs: React.FC = memo(() => {
                                     />
                                 )}
                             </Button.Group>
+                            {isAiEnabled && restricted && (
+                                <Text size="xs" c="dimmed">
+                                    AI chart generation is off under AI access
+                                    restrictions.
+                                </Text>
+                            )}
                         </Config.Group>
                     </Config.Section>
                 </Config>

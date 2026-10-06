@@ -19,6 +19,7 @@ const { locationSearch, navigate, sectionProps, enabledFlags } = vi.hoisted(
         enabledFlags: new Set<string>(['enable-data-apps']),
     }),
 );
+const aiAccessRestrictions = vi.hoisted(() => ({ enabled: false }));
 
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -36,6 +37,12 @@ vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 vi.mock('../../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
+}));
+vi.mock('../../../../hooks/useProject', () => ({
+    useAiAccessRestrictions: () => ({ data: aiAccessRestrictions }),
+}));
+vi.mock('./components/CustomVisAi', () => ({
+    GenerateVizWithAi: () => <button type="button">Generate with AI</button>,
 }));
 vi.mock('../../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: vi.fn(),
@@ -59,6 +66,7 @@ vi.mock('./components/CustomVisTemplate', () => ({
 
 describe('CustomVisConfig', () => {
     beforeEach(() => {
+        aiAccessRestrictions.enabled = false;
         locationSearch.current = '';
         navigate.mockClear();
         sectionProps.length = 0;
@@ -77,6 +85,33 @@ describe('CustomVisConfig', () => {
                 },
             },
         } as unknown as ReturnType<typeof useVisualizationContext>);
+    });
+
+    it('shows AI generation when restrictions are off', async () => {
+        enabledFlags.add('ai-custom-viz');
+        renderWithProviders(<ConfigTabs />);
+        expect(
+            await screen.findByRole('button', { name: 'Generate with AI' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(
+                'AI chart generation is off under AI access restrictions.',
+            ),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides AI generation when restrictions are enabled', async () => {
+        enabledFlags.add('ai-custom-viz');
+        aiAccessRestrictions.enabled = true;
+        renderWithProviders(<ConfigTabs />);
+        expect(
+            screen.queryByRole('button', { name: 'Generate with AI' }),
+        ).not.toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                'AI chart generation is off under AI access restrictions.',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('keeps the Explorer query when opening the chart type builder', async () => {

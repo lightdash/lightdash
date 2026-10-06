@@ -141,6 +141,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
             isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
         } as AnyType,
         projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
             get: vi.fn(),
             getDbtSourceIdentity: vi.fn().mockResolvedValue({
                 dbtSourceUuid: PRIMARY_SOURCE_UUID,
@@ -896,7 +897,7 @@ describe('AiWritebackService dbt source targeting', () => {
 
     describe('semantic source selection', () => {
         afterEach(() => vi.restoreAllMocks());
-        const setup = (enabled = true) => {
+        const setup = (enabled = true, restricted = false) => {
             const get = vi.fn().mockResolvedValue({ enabled });
             const service = buildService({
                 lightdashConfig: {
@@ -909,12 +910,29 @@ describe('AiWritebackService dbt source targeting', () => {
                     },
                 },
                 featureFlagModel: { get },
+                projectModel: {
+                    getAiAccessRestrictions: vi
+                        .fn()
+                        .mockResolvedValue(restricted),
+                },
                 projectDbtSourcesModel: {
                     getSources: vi.fn().mockResolvedValue([marketingSource()]),
                 },
             });
             return { service, get };
         };
+
+        it('uses the selection fallback without a provider call under restrictions', async () => {
+            const fetcher = vi
+                .spyOn(globalThis, 'fetch')
+                .mockRejectedValue(new Error('Unexpected provider call'));
+            const { service } = setup(true, true);
+            const result = await resolve(service, {
+                prompt: 'Choose a source for this change',
+            });
+            expect(result.kind).toBe('select');
+            expect(fetcher).not.toHaveBeenCalled();
+        });
 
         it('uses the organization flag and selects only an authorized candidate, ignoring a negated longer name', async () => {
             const { service, get } = setup();

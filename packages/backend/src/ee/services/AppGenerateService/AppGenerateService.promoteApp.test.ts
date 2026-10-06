@@ -332,6 +332,7 @@ async function buildScenario() {
         } as never,
         pinnedListModel: {} as never,
         projectModel: {
+            getAiAccessRestrictions: async () => false,
             getSummary: async (projectUuid: string) =>
                 projectUuid === PREVIEW_PROJECT_UUID
                     ? {

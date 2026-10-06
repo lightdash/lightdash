@@ -1817,7 +1817,10 @@ export class AiAgentService extends BaseService {
                 return null;
             throw error;
         }
-        if (!agent.enableDataAccess || !(await this.getDecisionClient(user)))
+        if (
+            !agent.enableDataAccess ||
+            !(await this.getDecisionClient(user, agent.projectUuid))
+        )
             return null;
         const installation =
             await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
@@ -2087,10 +2090,13 @@ export class AiAgentService extends BaseService {
             this.lightdashConfig.ai.promptInputRequestClassifier;
         void (
             enabled
-                ? this.getDecisionClient({
-                      userUuid: args.userUuid,
-                      organizationUuid: args.organizationUuid,
-                  })
+                ? this.getDecisionClient(
+                      {
+                          userUuid: args.userUuid,
+                          organizationUuid: args.organizationUuid,
+                      },
+                      args.projectUuid,
+                  )
                 : Promise.resolve(undefined)
         )
             .then((decisions) =>
@@ -2201,6 +2207,7 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string | null = null,
     ) {
         if (
             await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
@@ -2209,12 +2216,47 @@ export class AiAgentService extends BaseService {
         ) {
             return undefined;
         }
-        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
+        const decisions = await resolveAiDecisionClient(
+            this.lightdashConfig.ai.decisions,
+            () =>
+                this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                }),
         );
+        if (
+            decisions &&
+            projectUuid &&
+            (await this.projectModel.getAiAccessRestrictions(projectUuid))
+        ) {
+            return decisions.withAiAccessRestrictions({
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                userUuid: user.userUuid,
+            });
+        }
+        return decisions;
+    }
+
+    private async getDecisionClientForProjects(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuids: string[],
+    ) {
+        const decisions = await this.getDecisionClient(user);
+        if (!decisions) return undefined;
+        const restrictions = await Promise.all(
+            projectUuids.map((projectUuid) =>
+                this.projectModel.getAiAccessRestrictions(projectUuid),
+            ),
+        );
+        const restrictedIndex = restrictions.findIndex(Boolean);
+        return restrictedIndex < 0
+            ? decisions
+            : decisions.withAiAccessRestrictions({
+                  organizationUuid: user.organizationUuid ?? null,
+                  projectUuid: projectUuids[restrictedIndex],
+                  userUuid: user.userUuid,
+              });
     }
 
     // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
@@ -2223,26 +2265,29 @@ export class AiAgentService extends BaseService {
         {
             battleProfile,
             enableFastDecisions,
+            projectUuid,
         }: {
             battleProfile: AiAgentBattleProfile | null;
             enableFastDecisions: boolean;
+            projectUuid: string;
         },
     ) {
         const enabled =
             battleProfile === null
                 ? enableFastDecisions
                 : battleProfile === 'fast';
-        return enabled ? this.getDecisionClient(user) : undefined;
+        return enabled ? this.getDecisionClient(user, projectUuid) : undefined;
     }
 
     private async getPromptErrorMessage(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
         error: unknown,
         defaultMessage: string,
     ): Promise<string> {
         try {
             return await createUserFacingErrorResolver({
-                decisions: await this.getDecisionClient(user),
+                decisions: await this.getDecisionClient(user, projectUuid),
             })(error, defaultMessage);
         } catch {
             // Optional classification must never prevent the error reply.
@@ -2868,7 +2913,7 @@ export class AiAgentService extends BaseService {
             : undefined;
 
         if (threadContext) {
-            const decisions = await this.getDecisionClient(user);
+            const decisions = await this.getDecisionClient(user, projectUuid);
             if (decisions) {
                 const signals = await classifyResponseSignals(
                     decisions,
@@ -7390,6 +7435,7 @@ export class AiAgentService extends BaseService {
             fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
                 battleProfile: prompt.battleProfile,
                 enableFastDecisions,
+                projectUuid: agent.projectUuid,
             })),
             threadUuid: prompt.threadUuid,
         };
@@ -8729,7 +8775,7 @@ export class AiAgentService extends BaseService {
             model,
             explores,
             agent.instruction,
-            await this.getDecisionClient(user),
+            await this.getDecisionClient(user, projectUuid),
         );
 
         return readinessScore;
@@ -10170,9 +10216,10 @@ export class AiAgentService extends BaseService {
                 agentUuid,
             }),
             userUuid && limit > 0 && limit <= 30
-                ? this.getDecisionClient({ organizationUuid, userUuid }).catch(
-                      () => undefined,
-                  )
+                ? this.getDecisionClient(
+                      { organizationUuid, userUuid },
+                      projectUuid,
+                  ).catch(() => undefined)
                 : undefined,
         ]);
         if (!embeddingResult) {
@@ -13865,6 +13912,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const decisionClient = await this.getPromptDecisionClient(user, {
             battleProfile,
             enableFastDecisions: options.enableFastDecisions ?? true,
+            projectUuid: prompt.projectUuid,
         });
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
@@ -16881,6 +16929,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
             const userFacingMessage = await this.getPromptErrorMessage(
                 user,
+                slackPrompt.projectUuid,
                 error,
                 AiAgentService.agentFailedMessage(agent?.name),
             );
@@ -17041,6 +17090,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     userUuid: slackPrompt.createdByUserUuid,
                     organizationUuid: slackPrompt.organizationUuid,
                 },
+                slackPrompt.projectUuid,
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
             );
@@ -18327,10 +18377,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     })),
                     promptText,
                     { organizationUuid, userUuid, keyManagement },
-                    await this.getDecisionClient({
-                        organizationUuid,
-                        userUuid,
-                    }),
+                    await this.getDecisionClientForProjects(
+                        { organizationUuid, userUuid },
+                        candidateProjects.map((project) => project.projectUuid),
+                    ),
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -18443,10 +18493,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         const { model, keyManagement } = getModel(copilotConfig);
 
-        const decisions = await this.getDecisionClient({
-            organizationUuid,
-            userUuid,
-        });
+        const decisions = await this.getDecisionClientForProjects(
+            { organizationUuid, userUuid },
+            availableAgents.map((agent) => agent.projectUuid),
+        );
         const decision = await selectAgent({
             model,
             candidates: availableAgents,

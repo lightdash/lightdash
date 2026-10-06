@@ -170,6 +170,7 @@ export async function compareChartQueries(
                 input,
             );
         }
+        if (decisions.isAiAccessRestricted) return [];
         // The existing generator supports twelve complete candidates per call.
         if (input.candidates.length > 12) return [];
     }

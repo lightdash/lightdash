@@ -65,6 +65,7 @@ function buildService() {
         } as never,
         pinnedListModel: {} as never,
         projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
             getSummary: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-1' }),

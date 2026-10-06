@@ -93,10 +93,10 @@ describe('verified answer retrieval', () => {
             await service.getRelevantVerifiedAnswerContextForAgent(user, args),
         ).toEqual({ relevantVerifiedAnswers: [expanded] });
         expect(authorize).toHaveBeenCalledWith(user, 'agent', 'project');
-        expect(getDecisions).toHaveBeenCalledWith({
-            userUuid: 'user',
-            organizationUuid: 'org',
-        });
+        expect(getDecisions).toHaveBeenCalledWith(
+            { userUuid: 'user', organizationUuid: 'org' },
+            'project',
+        );
         expect(aiAgentModel.searchArtifactsBySimilarity).toHaveBeenCalledWith({
             organizationUuid: 'org',
             projectUuid: 'project',
