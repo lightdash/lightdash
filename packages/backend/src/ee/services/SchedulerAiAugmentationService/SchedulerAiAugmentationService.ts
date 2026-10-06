@@ -1,5 +1,8 @@
 import {
+    AiEgressBlockReason,
+    AiEgressSurface,
     assertUnreachable,
+    FeatureFlags,
     ForbiddenError,
     hasAiAgentAccessToSpace,
     hasSchedulerUuid,
@@ -18,11 +21,15 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
+import { AiAccessRestrictionsError } from '../../../services/ProjectService/ProjectService';
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import {
@@ -44,6 +51,8 @@ import {
 } from './deliveryContext';
 
 type Dependencies = {
+    projectModel: ProjectModel;
+    featureFlagModel: FeatureFlagModel;
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
     schedulerService: SchedulerService;
     userModel: UserModel;
@@ -54,6 +63,8 @@ type Dependencies = {
 };
 
 export class SchedulerAiAugmentationService {
+    private readonly projectModel: ProjectModel;
+    private readonly featureFlagModel: FeatureFlagModel;
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
 
     private readonly schedulerService: SchedulerService;
@@ -69,6 +80,8 @@ export class SchedulerAiAugmentationService {
     private readonly aiService: AiService;
 
     constructor(dependencies: Dependencies) {
+        this.projectModel = dependencies.projectModel;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.schedulerAiAugmentationModel =
             dependencies.schedulerAiAugmentationModel;
         this.schedulerService = dependencies.schedulerService;
@@ -175,26 +188,51 @@ export class SchedulerAiAugmentationService {
             : (scheduler.aiAugmentation ?? null);
         if (!augmentation) return null;
 
-        switch (augmentation.type) {
-            case 'agent':
-                return this.runAgentForDelivery(
-                    scheduler,
-                    createdBy,
-                    augmentation,
-                    deliveryQueries,
-                );
-            case 'fast_model':
-                return this.runFastModelForDelivery(
-                    scheduler,
-                    createdBy,
-                    augmentation.prompt,
-                    deliveryQueries,
-                );
-            default:
-                return assertUnreachable(
-                    augmentation,
-                    'Unknown scheduler AI augmentation type',
-                );
+        const { projectUuid, organizationUuid } =
+            await this.schedulerService.getSchedulerProjectContext(scheduler);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { userUuid: createdBy, organizationUuid },
+            featureFlagId: FeatureFlags.AiAccessRestrictions,
+        });
+        const restricted =
+            enabled &&
+            (await this.projectModel.getAiAccessRestrictions(projectUuid));
+        try {
+            switch (augmentation.type) {
+                case 'agent':
+                    return await this.runAgentForDelivery(
+                        scheduler,
+                        createdBy,
+                        augmentation,
+                        deliveryQueries,
+                        restricted,
+                    );
+                case 'fast_model':
+                    return await this.runFastModelForDelivery(
+                        scheduler,
+                        createdBy,
+                        augmentation.prompt,
+                        deliveryQueries,
+                        restricted,
+                    );
+                default:
+                    return assertUnreachable(
+                        augmentation,
+                        'Unknown scheduler AI augmentation type',
+                    );
+            }
+        } catch (error) {
+            if (!restricted || !(error instanceof AiAccessRestrictionsError))
+                throw error;
+            logAiEgressBlock({
+                surface: AiEgressSurface.SCHEDULED_DELIVERY_SUMMARY,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: createdBy,
+                detail: null,
+            });
+            return null;
         }
     }
 
@@ -206,6 +244,7 @@ export class SchedulerAiAugmentationService {
         createdBy: string,
         augmentation: Extract<SchedulerAiAugmentation, { type: 'agent' }>,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        restricted: boolean,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
@@ -238,6 +277,7 @@ export class SchedulerAiAugmentationService {
             dashboard,
             scheduler,
             deliveryQueries,
+            restricted,
         });
 
         return this.aiAgentService.generateScheduledReport(creator, {
@@ -259,7 +299,7 @@ export class SchedulerAiAugmentationService {
                       ),
                   }
                 : null,
-            sourceThreadUuid: augmentation.sourceThreadUuid,
+            sourceThreadUuid: restricted ? null : augmentation.sourceThreadUuid,
         });
     }
 
@@ -272,6 +312,7 @@ export class SchedulerAiAugmentationService {
         createdBy: string,
         prompt: string,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        restricted: boolean,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
@@ -294,6 +335,7 @@ export class SchedulerAiAugmentationService {
             dashboard,
             scheduler,
             deliveryQueries,
+            restricted,
         });
 
         return this.aiService.generateDeliverySummary(creator, {
@@ -313,18 +355,24 @@ export class SchedulerAiAugmentationService {
         dashboard,
         scheduler,
         deliveryQueries,
+        restricted,
     }: {
         account: Account;
         projectUuid: string;
         dashboard: DashboardDAO | null;
         scheduler: SchedulerAndTargets | SendNowScheduler;
         deliveryQueries: SchedulerDeliveryQuery[] | undefined;
+        restricted: boolean;
     }): Promise<string> {
+        const context = restricted
+            ? QueryExecutionContext.AI
+            : QueryExecutionContext.SCHEDULED_DELIVERY;
         if (deliveryQueries && deliveryQueries.length > 0) {
             return this.getDeliveryQueriesContent(
                 account,
                 projectUuid,
                 deliveryQueries,
+                restricted,
             );
         }
         if (dashboard) {
@@ -332,9 +380,15 @@ export class SchedulerAiAugmentationService {
                 account,
                 dashboard,
                 scheduler,
+                context,
             );
         }
-        return this.getChartDeliveryContent(account, scheduler, projectUuid);
+        return this.getChartDeliveryContent(
+            account,
+            scheduler,
+            projectUuid,
+            context,
+        );
     }
 
     // Reads the stored results of the queries the delivery already executed.
@@ -343,19 +397,26 @@ export class SchedulerAiAugmentationService {
         account: Account,
         projectUuid: string,
         deliveryQueries: SchedulerDeliveryQuery[],
+        restricted: boolean,
     ): Promise<string> {
         const sections = await deliveryQueries.reduce<
             Promise<SectionAccumulator>
         >(async (accPromise, { chartName, queryUuid }) => {
             const acc = await accPromise;
             if (acc.remainingChars <= 0) return omitSection(acc, chartName);
-            const { rows, fields, truncated } =
-                await this.asyncQueryService.getRawAsyncQueryResults({
-                    account,
-                    projectUuid,
-                    queryUuid,
-                    maxRows: MAX_ROWS_PER_CHART,
-                });
+            const queryArgs = {
+                account,
+                projectUuid,
+                queryUuid,
+                maxRows: MAX_ROWS_PER_CHART,
+            };
+            const { rows, fields, truncated } = restricted
+                ? await this.asyncQueryService.executeAiQueryFromHistory(
+                      queryArgs,
+                  )
+                : await this.asyncQueryService.getRawAsyncQueryResults(
+                      queryArgs,
+                  );
             return appendCsvSection(
                 acc,
                 chartName,
@@ -374,6 +435,7 @@ export class SchedulerAiAugmentationService {
         account: Account,
         scheduler: SchedulerAndTargets | SendNowScheduler,
         projectUuid: string,
+        context: QueryExecutionContext,
     ): Promise<string> {
         if (!scheduler.savedChartUuid) return '';
 
@@ -389,7 +451,7 @@ export class SchedulerAiAugmentationService {
                     parameters: isChartScheduler(scheduler)
                         ? scheduler.parameters
                         : undefined,
-                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    context,
                 },
                 SCHEDULER_POLLING_OPTIONS,
             );
@@ -408,6 +470,7 @@ export class SchedulerAiAugmentationService {
         account: Account,
         dashboard: DashboardDAO,
         scheduler: SchedulerAndTargets | SendNowScheduler,
+        context: QueryExecutionContext,
     ): Promise<string> {
         const dashboardFilters = getDeliveryDashboardFilters(
             dashboard,
@@ -438,7 +501,7 @@ export class SchedulerAiAugmentationService {
                             dashboardUuid: dashboard.uuid,
                             dashboardFilters,
                             dashboardSorts: [],
-                            context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                            context,
                             parameters,
                         },
                         SCHEDULER_POLLING_OPTIONS,
