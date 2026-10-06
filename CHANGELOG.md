@@ -1,3 +1,10 @@
+# [2.448.0](https://github.com/lightdash/lightdash/compare/2.447.0...2.448.0) (2026-10-06)
+
+
+### Features
+
+* **documents:** save personal Documents to a Space from the UI ([#30549](https://github.com/lightdash/lightdash/issues/30549)) ([7b0cef7](https://github.com/lightdash/lightdash/commit/7b0cef77170463ce438088e8865c49ed7afbb2c4)), closes [#30547](https://github.com/lightdash/lightdash/issues/30547) [#30545](https://github.com/lightdash/lightdash/issues/30545)
+
 # [2.447.0](https://github.com/lightdash/lightdash/compare/2.446.0...2.447.0) (2026-10-06)
 
 
