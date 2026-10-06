@@ -1,3 +1,10 @@
+# [2.437.0](https://github.com/lightdash/lightdash/compare/2.436.1...2.437.0) (2026-10-06)
+
+
+### Features
+
+* **learn:** walkthroughs to write a document and to read one (CS-349) ([#30450](https://github.com/lightdash/lightdash/issues/30450)) ([41a23c5](https://github.com/lightdash/lightdash/commit/41a23c59f9d7ef4d5e2c366960c549bd1354b190))
+
 ## [2.436.1](https://github.com/lightdash/lightdash/compare/2.436.0...2.436.1) (2026-10-06)
 
 
