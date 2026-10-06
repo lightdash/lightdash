@@ -203,15 +203,11 @@ export const AiIdentityRoleDefinitions: FC<{
                                             ({ pattern, count }) =>
                                                 `${count} ${count === 1 ? 'schema matches' : 'schemas match'} ${pattern}.`,
                                         );
-                                        const timing = settings.automaticSync
-                                            .enabled
-                                            ? 'The change applies in 10 minutes or less.'
-                                            : null;
                                         setSavedMessage(
-                                            [timing, ...counts]
-                                                .filter(Boolean)
-                                                .join(' ') ||
-                                                'AI roles updated.',
+                                            [
+                                                'The change applies in 10 minutes or less.',
+                                                ...counts,
+                                            ].join(' '),
                                         );
                                         setDraft(null);
                                     },

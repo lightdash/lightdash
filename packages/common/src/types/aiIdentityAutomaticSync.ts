@@ -38,9 +38,7 @@ export const AI_IDENTITY_SCHEMA_CHANGED_MESSAGE =
     'A schema changed after the last sync. AI is paused until the next sync.';
 
 export type AiIdentityAutomaticSync = {
-    enabled: boolean;
     pending: boolean;
-    setupSql: string | null;
     status: AiIdentitySyncStatus | null;
     lastRunAt: Date | null;
     managedScope: AiIdentityManagedScope[];

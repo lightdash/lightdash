@@ -33,7 +33,10 @@ export const AiIdentityProvisioningTriage: FC<{
     if (!settings) return null;
     return (
         <>
-            <AiIdentityUngrantedSchemas entries={settings.ungrantedSchemas} />
+            <AiIdentityUngrantedSchemas
+                entries={settings.ungrantedSchemas}
+                issues={settings.automaticSync.issues}
+            />
             {settings.beyondOwnAccessWarnings.length > 0 && (
                 <Callout
                     variant="warning"
@@ -48,25 +51,24 @@ export const AiIdentityProvisioningTriage: FC<{
                     ))}
                 </Callout>
             )}
-            {settings.automaticSync.enabled &&
-                settings.automaticSync.issues.length > 0 && (
-                    <Callout variant="warning" title="Grant sync warnings">
-                        {[
-                            ...new Map(
-                                settings.automaticSync.issues.map((issue) => [
-                                    JSON.stringify(issue),
-                                    issue,
-                                ]),
-                            ).entries(),
-                        ].map(([key, issue]) => (
-                            <Text key={key} fz="sm">
-                                {issue.code}: {issue.message}
-                                {issue.roleName ? ` (${issue.roleName})` : ''}
-                                {issue.schema ? ` ${issue.schema}` : ''}
-                            </Text>
-                        ))}
-                    </Callout>
-                )}
+            {settings.automaticSync.issues.length > 0 && (
+                <Callout variant="warning" title="Grant sync warnings">
+                    {[
+                        ...new Map(
+                            settings.automaticSync.issues.map((issue) => [
+                                JSON.stringify(issue),
+                                issue,
+                            ]),
+                        ).entries(),
+                    ].map(([key, issue]) => (
+                        <Text key={key} fz="sm">
+                            {issue.code}: {issue.message}
+                            {issue.roleName ? ` (${issue.roleName})` : ''}
+                            {issue.schema ? ` ${issue.schema}` : ''}
+                        </Text>
+                    ))}
+                </Callout>
+            )}
             {isProvisioningFallback(settings) && (
                 <Callout variant="warning">
                     {settings.fallbackReason ??

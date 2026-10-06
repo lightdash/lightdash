@@ -2,7 +2,6 @@ import {
     type AiIdentityProvisioningSettings,
     type CreateAiIdentityProvisioner,
     type UpdateAiIdentityAiRoleDefinition,
-    type UpdateAiIdentityAutomaticSync,
     type AiIdentityProvisioningPlan,
     type UpdateAiIdentityProvisioningSettings,
     type UpdateAiIdentityRoleMapping,
@@ -87,11 +86,6 @@ export const aiIdentityProvisioningApi = {
         get<AiIdentityProvisioningSettings>(provisioningPath(uuid)),
     update: (uuid: string, body: UpdateAiIdentityProvisioningSettings) =>
         patch<AiIdentityProvisioningSettings>(provisioningPath(uuid), body),
-    automaticSync: (uuid: string, body: UpdateAiIdentityAutomaticSync) =>
-        patch<AiIdentityProvisioningSettings>(
-            `${provisioningPath(uuid)}/automatic-sync`,
-            body,
-        ),
     create: (uuid: string, body: CreateAiIdentityProvisioner) =>
         post<AiIdentityProvisioningSettings>(
             `${provisioningPath(uuid)}/provisioner`,

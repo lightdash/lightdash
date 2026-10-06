@@ -29,35 +29,6 @@ const key = (value: string): string => {
 
 const string = aiIdentitySnowflakeString;
 
-export const buildAiIdentityRoleSchemaGrantSql = (
-    roleName: string,
-    schemas: readonly string[],
-): string => {
-    const role = identifier(roleName);
-    const databases = new Set<string>();
-    return schemas
-        .flatMap((schema) => {
-            const parts = schema.split('.');
-            if (parts.length !== 2)
-                throw new ParameterError('Schemas must use DATABASE.SCHEMA.');
-            const database = identifier(parts[0]);
-            const qualified = `${database}.${identifier(parts[1])}`;
-            const databaseGrant = databases.has(database.toUpperCase())
-                ? []
-                : [`GRANT USAGE ON DATABASE ${database} TO ROLE ${role};`];
-            databases.add(database.toUpperCase());
-            return [
-                ...databaseGrant,
-                `GRANT USAGE ON SCHEMA ${qualified} TO ROLE ${role};`,
-                `GRANT SELECT ON ALL TABLES IN SCHEMA ${qualified} TO ROLE ${role};`,
-                `GRANT SELECT ON ALL VIEWS IN SCHEMA ${qualified} TO ROLE ${role};`,
-                `GRANT SELECT ON FUTURE TABLES IN SCHEMA ${qualified} TO ROLE ${role};`,
-                `GRANT SELECT ON FUTURE VIEWS IN SCHEMA ${qualified} TO ROLE ${role};`,
-            ];
-        })
-        .join('\n');
-};
-
 export const renderProvisioningOperation = (
     op: AiIdentityProvisioningOperation,
     context: {
@@ -184,16 +155,15 @@ export const buildAiIdentityProvisionerSetupSql = ({
             const warehouse = identifier(aiRole.warehouse);
             const catalogNote = !catalogLoaded
                 ? [
-                      '-- The schema catalog is not loaded, so this rule grants no schemas yet. Refresh the catalog and copy the script again.',
+                      '-- The schema catalog is not loaded. The grant sync applies the rule after it loads.',
                   ]
                 : [];
             return [
                 summary,
                 ...catalogNote,
-                `-- Create ${name} with access only to its selected schemas.`,
+                `-- The grant sync gives ${name} access to allowed schemas.`,
                 `CREATE ROLE IF NOT EXISTS ${name};`,
                 `GRANT USAGE ON WAREHOUSE ${warehouse} TO ROLE ${name};`,
-                buildAiIdentityRoleSchemaGrantSql(name, aiRole.allowedSchemas),
                 `GRANT OWNERSHIP ON ROLE ${name} TO ROLE ${role} COPY CURRENT GRANTS;`,
             ];
         }),

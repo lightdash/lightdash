@@ -47,9 +47,7 @@ const settings: AiIdentityProvisioningSettings = {
     worstCaseNotice: '',
     showUsersNotice: '',
     automaticSync: {
-        enabled: false,
         pending: false,
-        setupSql: null,
         status: null,
         lastRunAt: null,
         managedScope: [],
@@ -82,7 +80,7 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
             <AiIdentityRoleDefinitions
                 settings={{
                     ...settings,
-                    automaticSync: { ...settings.automaticSync, enabled: true },
+                    automaticSync: settings.automaticSync,
                 }}
             />
         </MantineProvider>,
@@ -287,10 +285,9 @@ it('reports only newly added patterns from the saved expansion', async () => {
         screen.getByRole('button', { name: 'Save AI roles' }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Saved. 2 schemas match *_PII.',
+        'Saved. The change applies in 10 minutes or less. 2 schemas match *_PII.',
     );
     expect(screen.getByRole('alert')).not.toHaveTextContent('*_CLEAR');
-    expect(screen.getByRole('alert')).not.toHaveTextContent(/minutes|sync/);
     await userEvent.click(screen.getByRole('button', { name: 'Add AI role' }));
     expect(screen.queryByText('Saved.')).not.toBeInTheDocument();
 });

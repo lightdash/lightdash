@@ -3,7 +3,6 @@ import { AI_IDENTITY_PROVISIONER_WORST_CASE } from '../types/aiIdentityProvision
 import {
     buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
-    buildAiIdentityRoleSchemaGrantSql,
     renderProvisioningOperation,
 } from './aiIdentityProvisioningSql';
 import { expandAiIdentitySchemaRule } from './aiIdentitySchemaRule';
@@ -225,13 +224,7 @@ describe('buildAiIdentityProvisionerSetupSql', () => {
             'GRANT OWNERSHIP ON ROLE ANALYST_AI TO ROLE LIGHTDASH_PROVISIONER_ROLE COPY CURRENT GRANTS;',
         );
         expect(sql).toContain(
-            'GRANT SELECT ON FUTURE VIEWS IN SCHEMA ANALYTICS.PUBLIC TO ROLE ANALYST_AI;',
-        );
-        expect(sql).toContain(
             'GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE ANALYST_AI;',
-        );
-        expect(sql).toContain(
-            'GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.PUBLIC TO ROLE ANALYST_AI;',
         );
         expect(sql).not.toContain('SENSITIVE');
         expect(sql).toContain(
@@ -306,7 +299,7 @@ describe('schema rule grants', () => {
         expect(sql).toContain(
             '-- LD_ROLE: 1 schema allowed, 3 excluded by the rule.',
         );
-        expect(sql).toContain(
+        expect(sql).not.toContain(
             'GRANT USAGE ON SCHEMA DB.PUBLIC TO ROLE LD_ROLE;',
         );
         expect(sql).not.toContain('GRANT USAGE ON SCHEMA DB.PII');
@@ -320,20 +313,6 @@ describe('schema rule grants', () => {
         ]);
         expect(setup(['*']).sql).not.toContain('GRANT USAGE ON SCHEMA');
         expect(setup([]).expansion.allowed).toHaveLength(4);
-    });
-
-    it('renders fix grants once per database and checks identifiers', () => {
-        const sql = buildAiIdentityRoleSchemaGrantSql('LD_ROLE', [
-            'DB.PUBLIC',
-            'DB.SALES',
-        ]);
-        expect(sql.match(/GRANT USAGE ON DATABASE DB/g)).toHaveLength(1);
-        expect(sql).toContain(
-            'GRANT SELECT ON FUTURE VIEWS IN SCHEMA DB.SALES TO ROLE LD_ROLE;',
-        );
-        expect(() =>
-            buildAiIdentityRoleSchemaGrantSql('LD_ROLE', ['DB.BAD-NAME']),
-        ).toThrow();
     });
 
     it('says when the catalog is not loaded for a pattern rule', () => {

@@ -50,9 +50,7 @@ const settings: AiIdentityProvisioningSettings = {
     worstCaseNotice: '',
     showUsersNotice: '',
     automaticSync: {
-        enabled: false,
         pending: false,
-        setupSql: null,
         status: null,
         lastRunAt: null,
         managedScope: [],

@@ -135,9 +135,8 @@ export class AiIdentityModel {
 
     async getAutomaticSync(
         aiIdentityAccountUuid: string,
-    ): Promise<Omit<AiIdentityAutomaticSync, 'setupSql'>> {
+    ): Promise<AiIdentityAutomaticSync> {
         const row: {
-            enabled: boolean;
             pending: boolean;
             status: AiIdentitySyncStatus | null;
             last_run_at: Date | null;
@@ -149,7 +148,6 @@ export class AiIdentityModel {
                 .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
                 .first()) ?? null;
         return {
-            enabled: row?.enabled ?? false,
             pending: row?.pending ?? false,
             status: row?.status ?? null,
             lastRunAt: row?.last_run_at ?? null,
@@ -159,31 +157,17 @@ export class AiIdentityModel {
         };
     }
 
-    async setAutomaticSync(
-        aiIdentityAccountUuid: string,
-        enabled: boolean,
-    ): Promise<void> {
-        await this.database('ai_identity_automatic_sync')
-            .insert({
-                ai_identity_account_uuid: aiIdentityAccountUuid,
-                enabled,
-                pending: enabled,
-            })
-            .onConflict('ai_identity_account_uuid')
-            .merge({
-                enabled,
-                pending: enabled,
-                updated_at: new Date(),
-            });
-    }
-
     async setAutomaticSyncPending(
         aiIdentityAccountUuid: string,
         pending: boolean,
     ): Promise<void> {
         await this.database('ai_identity_automatic_sync')
-            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
-            .update({ pending, updated_at: new Date() });
+            .insert({
+                ai_identity_account_uuid: aiIdentityAccountUuid,
+                pending,
+            })
+            .onConflict('ai_identity_account_uuid')
+            .merge({ pending, updated_at: new Date() });
     }
 
     async recordAutomaticSync(

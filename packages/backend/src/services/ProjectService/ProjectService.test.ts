@@ -5,6 +5,7 @@ import {
     AiIdentityAutomaticSyncRefusalError,
     AiIdentityState,
     AiIdentityStatus,
+    AiIdentitySyncStatus,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -161,6 +162,7 @@ import {
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { checkAiTwinConnection } from '../AiIdentityService/aiTwinConnection';
+import { ProvisionerConnection } from '../AiIdentityService/provisionerConnection';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -9398,10 +9400,20 @@ describe('Snowflake AI twin query routing', () => {
             aiIdentityAccountUuid: 'account-uuid',
         })),
         getAutomaticSync: vi.fn(async () => ({
-            enabled: false,
             pending: false,
         })),
-        getProvisioner: vi.fn(async () => null),
+        getProvisioner: vi.fn(
+            async (): Promise<{
+                userName: string;
+                roleName: string;
+                privateKey: string;
+            } | null> => ({
+                userName: 'PROVISIONER',
+                roleName: 'PROVISIONER_ROLE',
+                privateKey: 'PRIVATE',
+            }),
+        ),
+        recordAutomaticSync: vi.fn(async () => undefined),
         find: vi.fn(async () => readyIdentity),
         findWithPrivateKey: vi.fn(
             async (): Promise<typeof readyIdentity | null> => readyIdentity,
@@ -9455,6 +9467,19 @@ describe('Snowflake AI twin query routing', () => {
         });
 
     beforeEach(() => {
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'readAutomaticSync',
+        ).mockImplementation(async () => ({
+            status: AiIdentitySyncStatus.OK,
+            hasLog: true,
+            lastRunAt: new Date(),
+            lastOkStartedAt: new Date(),
+            schemaWatermark: new Date(0),
+            managedScope: [],
+            issues: [],
+            progress: 0,
+        }));
         vi.spyOn(projectModel, 'getAiAccessRestrictions').mockResolvedValue(
             true,
         );
@@ -9492,8 +9517,8 @@ describe('Snowflake AI twin query routing', () => {
     );
 
     it('refuses an AI query when automatic sync has no provisioner', async () => {
+        identityModel.getProvisioner.mockResolvedValueOnce(null);
         identityModel.getAutomaticSync.mockResolvedValueOnce({
-            enabled: true,
             pending: false,
         });
         await expect(resolve(makeService(), true)).rejects.toBeInstanceOf(
@@ -9505,7 +9530,6 @@ describe('Snowflake AI twin query routing', () => {
     it('refuses an AI query while a saved rule is pending sync', async () => {
         identityModel.getProvisioner.mockClear();
         identityModel.getAutomaticSync.mockResolvedValueOnce({
-            enabled: true,
             pending: true,
         });
         await expect(resolve(makeService(), true)).rejects.toBeInstanceOf(

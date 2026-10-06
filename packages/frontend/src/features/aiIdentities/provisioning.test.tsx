@@ -74,9 +74,7 @@ const settings: AiIdentityProvisioningSettings = {
     worstCaseNotice: '',
     showUsersNotice: '',
     automaticSync: {
-        enabled: false,
         pending: false,
-        setupSql: null,
         status: null,
         lastRunAt: null,
         managedScope: [],
@@ -375,14 +373,13 @@ it('only permits runs when automatic creation is effective and the provisioner i
     ).toBe(false);
 });
 
-it('shows ungranted schemas with admin SQL and a download in triage', async () => {
+it('shows schemas waiting for grant sync in triage', async () => {
     vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
         ...settings,
         ungrantedSchemas: [
             {
                 roleName: 'AI_ROLE',
                 schemas: ['DB.NEW'],
-                fixSql: 'GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;',
             },
         ],
     });
@@ -393,17 +390,39 @@ it('shows ungranted schemas with admin SQL and a download in triage', async () =
         />,
     );
     expect(
-        await screen.findByText('1 new schema is not granted to AI_ROLE'),
+        await screen.findByText('1 new schema waits for the next grant sync'),
     ).toBeInTheDocument();
     expect(screen.getByText('DB.NEW')).toBeInTheDocument();
     expect(
-        screen.getByText(/Run this SQL as an admin role/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Download .sql' })).toHaveAttribute(
-        'href',
-        `data:application/sql;charset=utf-8,${encodeURIComponent('GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;')}`,
+        screen.queryByRole('link', { name: 'Download .sql' }),
+    ).not.toBeInTheDocument();
+});
+
+it('shows a warning only when the latest sync issue names a waiting schema', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
+        ...settings,
+        ungrantedSchemas: [{ roleName: 'AI_ROLE', schemas: ['DB.NEW'] }],
+        automaticSync: {
+            ...settings.automaticSync,
+            issues: [
+                {
+                    code: 'statement_failed',
+                    message: 'Could not grant DB.NEW.',
+                    roleName: 'AI_ROLE',
+                    database: 'DB',
+                    schema: 'NEW',
+                },
+            ],
+        },
+    });
+    renderWithClient(
+        <AiIdentityProvisioningTriage
+            accountUuid="account"
+            onSetup={vi.fn()}
+        />,
     );
+    expect(await screen.findByText('Grant sync issue')).toBeInTheDocument();
+    expect(screen.getByText('Could not grant DB.NEW.')).toBeInTheDocument();
 });
 
 it('shows the background setup result on the next visit before automatic creation is enabled', async () => {
@@ -443,7 +462,6 @@ it('shows beyond-own-access and grant warnings in triage', async () => {
         ...settings,
         automaticSync: {
             ...settings.automaticSync,
-            enabled: true,
             issues: [
                 {
                     code: 'view_dependency',

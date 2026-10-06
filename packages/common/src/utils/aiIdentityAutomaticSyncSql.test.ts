@@ -90,6 +90,34 @@ describe('automatic grant sync setup', () => {
         expect(sql).toContain('USER_TASK_TIMEOUT_MS = 3600000');
     });
 
+    it('installs exclusion rules before the first scheduled sync', () => {
+        const sql = buildAiIdentityAutomaticSyncSetupSql({
+            managedScope: [{ roleName: 'ANALYST_AI', database: 'DATA' }],
+            managedRules: [
+                {
+                    roleName: 'ANALYST_AI',
+                    database: 'DATA',
+                    excludePatterns: ['PII_*'],
+                },
+            ],
+            provisionerRole: 'LIGHTDASH_PROVISIONER_ROLE',
+            warehouse: 'COMPUTE_WH',
+        });
+        expect(sql).toContain(
+            "VALUES ('DATA', 'ANALYST_AI', 'EXCLUDE', '^PII_.*$', 'SCHEMA')",
+        );
+        expect(
+            sql.indexOf(
+                'INSERT INTO LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_GRANT_RULES',
+            ),
+        ).toBeLessThan(
+            sql.indexOf(
+                'ALTER TASK LIGHTDASH_GOVERNANCE.AI_GRANTS.SYNC_AI_GRANTS_TASK RESUME',
+            ),
+        );
+        expect(sql).not.toContain('GRANT USAGE ON SCHEMA DATA.PII_');
+    });
+
     it.each(['PUBLIC', 'SYSADMIN', 'GLOBALORGADMIN', 'LIGHTDASH_AI_GRANTOR'])(
         'rejects protected role %s',
         (roleName) => {

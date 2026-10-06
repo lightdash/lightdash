@@ -12,5 +12,4 @@ export type AiIdentitySchemaRuleExpansion = {
 export type AiIdentityUngrantedSchemas = {
     roleName: string;
     schemas: string[];
-    fixSql: string;
 };

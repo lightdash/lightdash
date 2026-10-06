@@ -74,9 +74,7 @@ const settings: AiIdentityProvisioningSettings = {
     worstCaseNotice: '',
     showUsersNotice: '',
     automaticSync: {
-        enabled: false,
         pending: false,
-        setupSql: null,
         status: null,
         lastRunAt: null,
         managedScope: [],
@@ -132,7 +130,6 @@ it('shows an unsafe sync warning', () => {
         ...settings,
         automaticSync: {
             ...settings.automaticSync,
-            enabled: true,
             status: AiIdentitySyncStatus.UNSAFE,
             lastRunAt: new Date(),
         },
@@ -145,7 +142,6 @@ it('shows admin scope, first-sync progress and typed warnings', () => {
         ...settings,
         automaticSync: {
             ...settings.automaticSync,
-            enabled: true,
             status: AiIdentitySyncStatus.RUNNING,
             lastRunAt: new Date(),
             managedScope: [{ roleName: 'ANALYST_AI', database: 'DATA' }],
@@ -239,7 +235,6 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
             {
                 roleName: 'AI_ROLE',
                 schemas: ['DB.NEW'],
-                fixSql: 'GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;',
             },
         ],
     });
@@ -248,13 +243,13 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
     ).toBeInTheDocument();
     expect(
         screen.getByText(
-            'OTHER_ROLE: the schema catalog is not loaded yet, so the script grants no schemas.',
+            'OTHER_ROLE: the schema catalog is not loaded yet, so the sync grants schemas after the catalog loads.',
         ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByText('Show excluded schemas'));
     expect(screen.getByText('DB.PII_PEOPLE')).toBeInTheDocument();
     expect(
-        screen.getByText('1 new schema is not granted to AI_ROLE'),
+        screen.getByText('1 new schema waits for the next grant sync'),
     ).toBeInTheDocument();
 });
 

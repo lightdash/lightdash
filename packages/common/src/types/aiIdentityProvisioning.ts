@@ -200,10 +200,6 @@ export type UpdateAiIdentityProvisioningSettings = {
     mode: AiIdentityCreationMode;
 };
 
-export type UpdateAiIdentityAutomaticSync = {
-    enabled: boolean;
-};
-
 export type RunAiIdentityProvisioningRequest = {
     approveStatements: true;
 };

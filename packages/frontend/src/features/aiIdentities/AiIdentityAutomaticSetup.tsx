@@ -50,7 +50,7 @@ const aiRoleExpansionSummary = (
     expansion: AiIdentityAiRoleExpansion,
 ): string => {
     if (!expansion.catalogLoaded)
-        return `${expansion.roleName}: the schema catalog is not loaded yet, so the script grants no schemas.`;
+        return `${expansion.roleName}: the schema catalog is not loaded yet, so the sync grants schemas after the catalog loads.`;
     return `${expansion.roleName}: ${expansion.allowed.length} ${expansion.allowed.length === 1 ? 'schema' : 'schemas'} allowed, ${expansion.excluded.length} excluded.`;
 };
 
@@ -128,7 +128,6 @@ const AiIdentityGrantSyncStatus: FC<{
 const AiIdentityGrantSyncSetup: FC<{
     settings: AiIdentityProvisioningSettings;
 }> = ({ settings }) => {
-    const change = useProvisioningChange(settings.aiIdentityAccountUuid);
     const sync = settings.automaticSync;
     return (
         <Paper p="md">
@@ -152,33 +151,7 @@ const AiIdentityGrantSyncSetup: FC<{
                               </Text>
                           ))}
                 </Callout>
-                {sync.setupSql && (
-                    <CodeBlock code={sync.setupSql} language="sql" />
-                )}
-                {change.error && (
-                    <Callout variant="danger">
-                        {change.error.error.message}
-                    </Callout>
-                )}
-                {!sync.enabled && (
-                    <Button
-                        disabled={!settings.provisioner}
-                        loading={change.isLoading}
-                        onClick={() =>
-                            change.mutate(() =>
-                                aiIdentityProvisioningApi.automaticSync(
-                                    settings.aiIdentityAccountUuid,
-                                    {
-                                        enabled: true,
-                                    },
-                                ),
-                            )
-                        }
-                    >
-                        Enable automatic sync
-                    </Button>
-                )}
-                {sync.enabled && <AiIdentityGrantSyncStatus sync={sync} />}
+                <AiIdentityGrantSyncStatus sync={sync} />
             </Stack>
         </Paper>
     );
@@ -317,14 +290,10 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                 {settings.setupSql && (
                     <>
                         <Text fz="sm">
-                            Create the provisioner user and role, and grant
-                            access to provision the mapped AI roles.
+                            Create the setup roles and user. The grant sync
+                            applies access to allowed schemas.
                         </Text>
-                        <Text fz="sm">
-                            Run this as a role that can create roles and users,
-                            for example SECURITYADMIN, or ACCOUNTADMIN for the
-                            future grants.
-                        </Text>
+                        <Text fz="sm">Run this as ACCOUNTADMIN.</Text>
                         <CodeBlock
                             code={settings.setupSql}
                             language="sql"
@@ -426,6 +395,7 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                 <Title order={5}>3. Check the setup</Title>
                 <AiIdentityUngrantedSchemas
                     entries={settings.ungrantedSchemas}
+                    issues={settings.automaticSync.issues}
                 />
                 {settings.mode === AiIdentityCreationMode.AUTOMATIC &&
                     settings.effectiveMode !==

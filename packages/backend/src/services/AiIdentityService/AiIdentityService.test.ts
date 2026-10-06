@@ -120,7 +120,6 @@ const model = {
         .mockResolvedValue({ schemas: ['ANALYTICS.PUBLIC'], loaded: true }),
     getCachedCatalogSchemasForPeople: vi.fn().mockResolvedValue(new Map()),
     getAutomaticSync: vi.fn().mockResolvedValue({
-        enabled: false,
         pending: false,
         status: null,
         lastRunAt: null,
@@ -257,7 +256,6 @@ afterEach(() => {
     });
     model.getAiRoles.mockResolvedValue([]);
     model.getAutomaticSync.mockResolvedValue({
-        enabled: false,
         pending: false,
         status: null,
         lastRunAt: null,
@@ -531,6 +529,19 @@ describe('AiIdentityService', () => {
         );
         expect(settings.effectiveMode).toBe(AiIdentityCreationMode.GUIDED);
         expect(settings.fallbackReason).toContain('JWT token is invalid');
+        expect(settings.setupSql).toContain(
+            'CREATE USER IF NOT EXISTS LIGHTDASH_PROVISIONER',
+        );
+        expect(settings.setupSql).toContain(
+            'CREATE ROLE IF NOT EXISTS LIGHTDASH_AI_GRANTOR',
+        );
+        expect(settings.setupSql).toContain(
+            'CREATE TABLE IF NOT EXISTS LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_GRANT_RULES',
+        );
+        expect(settings.setupSql).toContain('SYNC_AI_GRANTS_TASK RESUME');
+        expect(settings.setupSql).not.toContain(
+            'GRANT USAGE ON SCHEMA ANALYTICS.PUBLIC TO ROLE ANALYST_AI',
+        );
     });
     it('reports a defined AI role missing from the provisioner grants', async () => {
         model.getAiRoles.mockResolvedValueOnce([
@@ -1200,7 +1211,7 @@ describe('AiIdentityService', () => {
         );
     });
 
-    it('shows the person one sign-in action and blocks raw SQL until ready', async () => {
+    it('asks an admin before sign-in when grant sync is not installed', async () => {
         model.find.mockResolvedValueOnce({
             ...identity,
             snowflakeLogin: null,
@@ -1215,7 +1226,7 @@ describe('AiIdentityService', () => {
         ).resolves.toMatchObject({
             aiIdentityRequired: true,
             state: AiIdentityState.NEEDS_SIGN_IN,
-            action: 'sign_in',
+            action: 'ask_admin',
             rawSqlAllowed: false,
         });
         model.find.mockResolvedValueOnce({
@@ -1229,14 +1240,13 @@ describe('AiIdentityService', () => {
             }),
         ).resolves.toMatchObject({
             state: AiIdentityState.READY,
-            action: null,
-            rawSqlAllowed: true,
+            action: 'ask_admin',
+            rawSqlAllowed: false,
         });
     });
 
     it('refuses person access when automatic grant sync cannot be read', async () => {
         model.getAutomaticSync.mockResolvedValueOnce({
-            enabled: true,
             pending: false,
             status: null,
             lastRunAt: null,
@@ -1488,9 +1498,6 @@ describe('schema grant check failure', () => {
                     {
                         roleName: 'ANALYST_AI',
                         schemas: ['ANALYTICS.SALES'],
-                        fixSql: expect.stringContaining(
-                            'GRANT USAGE ON SCHEMA ANALYTICS.SALES TO ROLE ANALYST_AI',
-                        ),
                     },
                 ],
             }),
@@ -1577,7 +1584,6 @@ describe('schema grant check failure', () => {
                 {
                     roleName: 'ANALYST_AI',
                     schemas: ['SALES.PUBLIC'],
-                    fixSql: 'old',
                 },
             ],
         });
@@ -1603,12 +1609,11 @@ describe('schema grant check failure', () => {
         expect(model.updateProvisioner).toHaveBeenCalledWith(
             'account',
             expect.objectContaining({
-                statusMessage: 'The AI role cannot read all allowed schemas.',
+                statusMessage: null,
                 ungrantedSchemas: [
                     {
                         roleName: 'ANALYST_AI',
                         schemas: ['SALES.PUBLIC'],
-                        fixSql: 'old',
                     },
                 ],
             }),
@@ -1693,7 +1698,6 @@ describe('schema grant check failure', () => {
                 {
                     roleName: 'ANALYST_AI',
                     schemas: ['ANALYTICS.PUBLIC'],
-                    fixSql: 'old',
                 },
             ],
         });
@@ -1730,7 +1734,6 @@ describe('schema grant check failure', () => {
                     {
                         roleName: 'ANALYST_AI',
                         schemas: ['ANALYTICS.PUBLIC'],
-                        fixSql: 'old',
                     },
                 ],
                 statusMessage: 'The schema check for ANALYST_AI failed.',
@@ -1866,7 +1869,7 @@ describe('background setup checks', () => {
             { key: 'create_identities', status: 'passed' },
             { key: 'sync_installed', status: 'pending' },
             { key: 'exclusions', status: 'pending' },
-            { key: 'first_sync', status: 'pending' },
+            { key: 'first_sync', status: 'failed' },
         ]);
         expect(
             ProvisionerConnection.prototype.grantsToRole,
@@ -1878,7 +1881,6 @@ describe('background setup checks', () => {
     });
     it('shows the grant sync as installed and the first run as complete', async () => {
         model.getAutomaticSync.mockResolvedValue({
-            enabled: true,
             pending: false,
             status: AiIdentitySyncStatus.OK,
             lastRunAt: new Date(),
@@ -1916,7 +1918,6 @@ describe('background setup checks', () => {
 
     it('shows first grant sync progress while it runs', async () => {
         model.getAutomaticSync.mockResolvedValue({
-            enabled: true,
             pending: true,
             status: AiIdentitySyncStatus.RUNNING,
             lastRunAt: null,

@@ -57,10 +57,9 @@ const filter = {
 };
 
 describe('AiIdentityModel', () => {
-    it('returns a disabled automatic sync before setup', async () => {
+    it('returns the default automatic sync before setup', async () => {
         tracker.on.select('ai_identity_automatic_sync').responseOnce([]);
         await expect(model.getAutomaticSync('account')).resolves.toEqual({
-            enabled: false,
             pending: false,
             status: null,
             lastRunAt: null,
@@ -74,24 +73,23 @@ describe('AiIdentityModel', () => {
         const lastRunAt = new Date('2026-10-06T10:00:00Z');
         tracker.on.select('ai_identity_automatic_sync').responseOnce([
             {
-                enabled: true,
+                enabled: false,
                 pending: false,
                 status: AiIdentitySyncStatus.UNSAFE,
                 last_run_at: lastRunAt,
             },
         ]);
         await expect(model.getAutomaticSync('account')).resolves.toMatchObject({
-            enabled: true,
             status: AiIdentitySyncStatus.UNSAFE,
             lastRunAt,
         });
     });
 
     it('holds rule changes pending until Lightdash completes a sync', async () => {
-        tracker.on.update('ai_identity_automatic_sync').responseOnce(1);
+        tracker.on.insert('ai_identity_automatic_sync').responseOnce([1]);
         await model.setAutomaticSyncPending('account', true);
-        expect(tracker.history.update[0].bindings).toContain(true);
-        expect(tracker.history.update[0].bindings).toContain('account');
+        expect(tracker.history.insert[0].bindings).toContain(true);
+        expect(tracker.history.insert[0].bindings).toContain('account');
     });
 
     it('compares cached schemas for the matching Snowflake sign-in', async () => {

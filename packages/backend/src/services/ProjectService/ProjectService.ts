@@ -2472,42 +2472,37 @@ export class ProjectService extends BaseService {
         const automaticSync = await this.aiIdentityModel.getAutomaticSync(
             identityAccount.aiIdentityAccountUuid,
         );
-        if (automaticSync.enabled) {
-            if (automaticSync.pending)
-                throw new AiIdentityAutomaticSyncRefusalError();
-            try {
-                const provisioner = await this.aiIdentityModel.getProvisioner(
+        if (automaticSync.pending)
+            throw new AiIdentityAutomaticSyncRefusalError();
+        try {
+            const provisioner = await this.aiIdentityModel.getProvisioner(
+                identityAccount.aiIdentityAccountUuid,
+            );
+            if (!provisioner)
+                throw new Error('The provisioner is not available.');
+            const connection = new ProvisionerConnection(
+                credentials,
+                provisioner.userName,
+                provisioner.roleName,
+                provisioner.privateKey,
+                {
+                    mappedRoles: new Set(),
+                    lightdashCreatedUsers: new Set(),
+                },
+            );
+            const run = await connection.readAutomaticSync();
+            if (run.hasLog)
+                await this.aiIdentityModel.recordAutomaticSync(
                     identityAccount.aiIdentityAccountUuid,
-                );
-                if (!provisioner)
-                    throw new Error('The provisioner is not available.');
-                const connection = new ProvisionerConnection(
-                    credentials,
-                    provisioner.userName,
-                    provisioner.roleName,
-                    provisioner.privateKey,
-                    {
-                        mappedRoles: new Set(),
-                        lightdashCreatedUsers: new Set(),
-                    },
-                );
-                const run = await connection.readAutomaticSync();
-                if (run.hasLog)
-                    await this.aiIdentityModel.recordAutomaticSync(
-                        identityAccount.aiIdentityAccountUuid,
-                        run,
-                    );
-                const reason = aiIdentityAutomaticSyncUnsafeReason(
                     run,
-                    new Date(),
                 );
-                if (reason !== null)
-                    throw new AiIdentityAutomaticSyncRefusalError(reason);
-            } catch (error) {
-                if (error instanceof AiIdentityAutomaticSyncRefusalError)
-                    throw error;
-                throw new AiIdentityAutomaticSyncRefusalError();
-            }
+            const reason = aiIdentityAutomaticSyncUnsafeReason(run, new Date());
+            if (reason !== null)
+                throw new AiIdentityAutomaticSyncRefusalError(reason);
+        } catch (error) {
+            if (error instanceof AiIdentityAutomaticSyncRefusalError)
+                throw error;
+            throw new AiIdentityAutomaticSyncRefusalError();
         }
         const refuseTwin = (state: AiIdentityState): never => {
             this.logger.warn('AI access query refused', {

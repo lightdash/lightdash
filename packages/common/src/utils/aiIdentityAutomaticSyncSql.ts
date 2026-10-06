@@ -19,6 +19,7 @@ export const globToAiIdentityRegex = (pattern: string): string =>
 
 export const buildAiIdentityAutomaticSyncSetupSql = ({
     managedScope,
+    managedRules = [],
     provisionerRole,
     warehouse,
     grantorRole = AI_IDENTITY_GRANTOR_ROLE,
@@ -27,6 +28,11 @@ export const buildAiIdentityAutomaticSyncSetupSql = ({
     schedule = '10 MINUTES',
 }: {
     managedScope: readonly { roleName: string; database: string }[];
+    managedRules?: readonly {
+        roleName: string;
+        database: string;
+        excludePatterns: readonly string[];
+    }[];
     provisionerRole: string;
     warehouse: string;
     grantorRole?: string;
@@ -467,9 +473,17 @@ $$;`.replaceAll('__NAMESPACE__', namespace);
         `CREATE TABLE IF NOT EXISTS ${namespace}.AI_GRANT_DECISIONS (RUN_ID STRING, AI_ROLE STRING, DATABASE_NAME STRING, SCHEMA_NAME STRING, DECISION STRING, FMODE STRING);`,
         'BEGIN TRANSACTION;',
         `DELETE FROM ${namespace}.AI_GRANT_SCOPE;`,
+        `DELETE FROM ${namespace}.AI_GRANT_RULES;`,
         ...scope.map(
             ({ roleName, database: scopedDatabase }) =>
                 `INSERT INTO ${namespace}.AI_GRANT_SCOPE (AI_ROLE, DATABASE_NAME) VALUES (${aiIdentitySnowflakeString(roleName)}, ${aiIdentitySnowflakeString(scopedDatabase)});`,
+        ),
+        ...managedRules.flatMap(
+            ({ roleName, database: scopedDatabase, excludePatterns }) =>
+                (excludePatterns.length > 0 ? excludePatterns : ['']).map(
+                    (pattern) =>
+                        `INSERT INTO ${namespace}.AI_GRANT_RULES (DATABASE_NAME, AI_ROLE, MODE, PATTERN_REGEX, FUTURE_MODE) VALUES (${aiIdentitySnowflakeString(aiIdentitySnowflakeIdentifier(scopedDatabase).toUpperCase())}, ${aiIdentitySnowflakeString(aiIdentitySnowflakeIdentifier(roleName).toUpperCase())}, 'EXCLUDE', ${aiIdentitySnowflakeString(pattern === '' ? '^$' : globToAiIdentityRegex(pattern))}, 'SCHEMA');`,
+                ),
         ),
         'COMMIT;',
         ...[...new Set(scope.map((entry) => entry.database))].flatMap(
