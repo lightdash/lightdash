@@ -1,9 +1,37 @@
 import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { createHash } from 'node:crypto';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import {
+    mapQueryHistoryRowToListItem,
+    QueryHistoryModel,
+} from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
+    test('omits a Snowflake query ID from a query history list item', () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const row = {
+            query_uuid: 'query-uuid',
+            created_at: new Date(),
+            project_uuid: 'project-uuid',
+            context: 'ai',
+            status: QueryHistoryStatus.ERROR,
+            error: `Snowflake query ${warehouseQueryId} failed`,
+            warehouse_query_id: warehouseQueryId,
+            request_parameters: { sql: 'SELECT 1', limit: 10 },
+            metric_query: null,
+            fields: null,
+            compiled_sql: 'SELECT 1',
+            chart_name: null,
+            sql_chart_name: null,
+            dashboard_name: null,
+            results_created_at: null,
+        } as unknown as Parameters<typeof mapQueryHistoryRowToListItem>[0];
+        const item = mapQueryHistoryRowToListItem(row);
+        expect(JSON.stringify(item)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(item)).not.toContain(warehouseQueryId);
+        expect(item.error).toBe('Snowflake query [query id removed] failed');
+        expect(item.subline).toBe('Snowflake query [query id removed] failed');
+    });
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';

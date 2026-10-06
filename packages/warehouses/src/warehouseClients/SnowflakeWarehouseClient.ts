@@ -2094,6 +2094,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     parseError(error: SnowflakeError, query: string = '') {
+        if (this.credentials.requireAgentSession) {
+            return new WarehouseQueryError(
+                'Snowflake could not run this query.',
+            );
+        }
         // if the error has no code or data, return a generic error
         if (!error?.code && !error.data) {
             return new WarehouseQueryError(error?.message || 'Unknown error');

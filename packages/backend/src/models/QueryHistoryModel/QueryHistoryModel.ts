@@ -40,6 +40,7 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import { sanitizeSnowflakeQueryError } from '../../utils/sanitizeSnowflakeQueryError';
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
@@ -910,7 +911,7 @@ export function mapQueryHistoryRowToListItem(
     }
 
     if (row.status === QueryHistoryStatus.ERROR && row.error) {
-        subline = row.error;
+        subline = sanitizeSnowflakeQueryError(row.error);
     }
 
     // A run served from cache reuses a results file created by an earlier
@@ -930,7 +931,7 @@ export function mapQueryHistoryRowToListItem(
         status: row.status,
         title,
         subline,
-        error: row.error,
+        error: sanitizeSnowflakeQueryError(row.error),
         exploreName,
         metricQuery:
             language === QueryLanguage.SEMANTIC ? row.metric_query : null,

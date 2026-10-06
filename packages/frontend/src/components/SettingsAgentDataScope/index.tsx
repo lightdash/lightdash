@@ -31,7 +31,6 @@ import classes from './SettingsAgentDataScope.module.css';
 type SettingsAgentDataScopeProps = {
     projectUuid: string;
     showAiAccessRestrictions: boolean;
-    rawSqlUnavailable: boolean;
 };
 
 type AgentDataScopeFormValues = {
@@ -170,7 +169,6 @@ const AgentDataScopeForm: FC<{
 const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     projectUuid,
     showAiAccessRestrictions,
-    rawSqlUnavailable,
 }) => {
     const { showToastError, showToastSuccess } = useToaster();
     const { data: scope, isInitialLoading: isLoadingScope } =
@@ -264,7 +262,7 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 <SettingsCard p="xl">
                     <Switch
                         label="AI access restrictions"
-                        description="When on, AI uses only each person's sign-in for AI, and raw SQL from AI is off. This includes AI agents, the Slack agent, MCP and data apps. Without that sign-in, AI is refused."
+                        description="When on, AI uses only each person's Snowflake sign-in for AI. This includes AI agents, the Slack agent, MCP and data apps. Without that sign-in, AI is refused."
                         checked={aiAccessRestrictions?.enabled ?? false}
                         disabled={
                             !aiAccessRestrictions || aiAccessMutation.isLoading
@@ -282,11 +280,6 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                             }
                         }}
                     />
-                    {rawSqlUnavailable && aiAccessRestrictions?.enabled && (
-                        <Text size="xs" c="dimmed" mt="sm">
-                            Raw SQL from AI is off on this connection.
-                        </Text>
-                    )}
                 </SettingsCard>
             )}
             <SettingsCard p="xl" pos="relative">

@@ -718,9 +718,6 @@ export class AiAccessRestrictionsError extends ForbiddenError {
     }
 }
 
-export const AI_RAW_SQL_OFF_MESSAGE =
-    'AI access restrictions are on for this project, so raw SQL from AI is off. Ask the question through the semantic layer instead.';
-
 type AiAccessIdentity =
     | {
           kind: 'snowflake_ai_sign_in';
@@ -766,7 +763,6 @@ type ExtraConnectionCredentialsArgs = {
 type AiAccessAuditReason =
     | 'no_ai_sign_in'
     | 'ai_sign_in_not_set_up'
-    | 'raw_sql_off'
     | 'agent_session_rejected';
 
 const logAiAccessRefusal = ({
@@ -2391,7 +2387,7 @@ export class ProjectService extends BaseService {
             surface = 'data_app';
         }
         const refuse = (
-            reason: 'no_ai_sign_in' | 'ai_sign_in_not_set_up' | 'raw_sql_off',
+            reason: 'no_ai_sign_in' | 'ai_sign_in_not_set_up',
             message?: string,
         ): never => {
             this.logger.warn('AI access query refused', {
@@ -2413,12 +2409,6 @@ export class ProjectService extends BaseService {
             throw new AiAccessRestrictionsError(message);
         };
         if (
-            restrictionsEnabled &&
-            (rawSql === true || context === QueryExecutionContext.MCP_RUN_SQL)
-        ) {
-            refuse('raw_sql_off', AI_RAW_SQL_OFF_MESSAGE);
-        }
-        if (
             !restrictionsEnabled &&
             (context === QueryExecutionContext.DATA_APP_SAMPLE ||
                 context === QueryExecutionContext.DATA_APP)
@@ -2427,8 +2417,9 @@ export class ProjectService extends BaseService {
         }
         if (
             credentials.type !== WarehouseTypes.SNOWFLAKE ||
-            rawSql === true ||
-            context === QueryExecutionContext.MCP_RUN_SQL ||
+            (!restrictionsEnabled &&
+                (rawSql === true ||
+                    context === QueryExecutionContext.MCP_RUN_SQL)) ||
             (!restrictionsEnabled &&
                 credentials.authenticationType !==
                     SnowflakeAuthenticationType.SSO)
@@ -10245,7 +10236,7 @@ export class ProjectService extends BaseService {
             exploreName,
             explore,
             csvLimit,
-            context: QueryExecutionContext.EXPLORE,
+            context,
             queryTags,
             dateZoom,
             chartUuid: undefined,
@@ -10637,12 +10628,14 @@ export class ProjectService extends BaseService {
                         warehouseCredentials,
                         warehouseConnectionUuid,
                         connectionRoute,
+                        aiAccessAudit,
                     } = await this.getWarehouseCredentialsWithConnection({
                         projectUuid,
                         binding: { kind: 'explore', exploreName },
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
+                        context,
                     });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -10652,6 +10645,7 @@ export class ProjectService extends BaseService {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
                             },
+                            aiAccessAudit,
                         );
 
                     const { userAttributes, intrinsicUserAttributes } =
@@ -10943,6 +10937,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiAccessAudit,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: { kind: 'connection', warehouseConnectionUuid: null },
@@ -10975,6 +10970,8 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            undefined,
+            aiAccessAudit,
         );
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -11043,6 +11040,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiAccessAudit,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: sqlChartUuid
@@ -11077,6 +11075,8 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            undefined,
+            aiAccessAudit,
         );
 
         // Apply limit and pivot to the SQL query

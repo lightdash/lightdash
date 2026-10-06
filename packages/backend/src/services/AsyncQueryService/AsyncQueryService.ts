@@ -263,6 +263,7 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
+import { sanitizeSnowflakeQueryError } from '../../utils/sanitizeSnowflakeQueryError';
 import {
     personaliseSharedSignInError,
     personaliseStoredSharedSignInError,
@@ -1654,13 +1655,15 @@ export class AsyncQueryService extends ProjectService {
             return {
                 status,
                 queryUuid,
-                error: await personaliseStoredSharedSignInError({
-                    account,
-                    projectUuid,
-                    error: queryHistory.error,
-                    projectModel: this.projectModel,
-                    featureFlagModel: this.featureFlagModel,
-                }),
+                error: sanitizeSnowflakeQueryError(
+                    await personaliseStoredSharedSignInError({
+                        account,
+                        projectUuid,
+                        error: queryHistory.error,
+                        projectModel: this.projectModel,
+                        featureFlagModel: this.featureFlagModel,
+                    }),
+                ),
                 erroredAt: queryHistory.erroredAt,
             };
         }

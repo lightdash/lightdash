@@ -27,6 +27,35 @@ const execute = async (
 };
 
 describe('getSearchFieldValues', () => {
+    it('keeps the warehouse query ID out of field value output and errors', async () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const searchFieldValues = vi.fn().mockResolvedValueOnce({
+            results: ['completed'],
+            note: null,
+            warehouseQueryId,
+        });
+        const tool = getSearchFieldValues({
+            searchFieldValues,
+            getExplore: vi.fn(),
+            enableFilterExpressions: false,
+        });
+        const args = {
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'complete',
+            filters: null,
+        };
+        const output = await execute(tool, args);
+        expect(JSON.stringify(output)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(output)).not.toContain(warehouseQueryId);
+
+        searchFieldValues.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const failed = await execute(tool, args);
+        expect(JSON.stringify(failed)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(failed)).not.toContain(warehouseQueryId);
+    });
     it.each([false, true])(
         'keeps an empty lookup and supplies exclusion guidance only in fast mode: %s',
         async (enabled) => {

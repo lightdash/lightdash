@@ -4469,6 +4469,35 @@ describe('ProjectService', () => {
         );
     });
     describe('runExploreQuery', () => {
+        test('passes the AI context into synchronous credential resolution', async () => {
+            const isolated = getMockedProjectService(lightdashConfigMock);
+            const resolveCredentials = vi
+                .fn()
+                .mockRejectedValue(new Error('credential probe'));
+            (
+                isolated as unknown as {
+                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
+                }
+            ).getWarehouseCredentialsWithConnection = resolveCredentials;
+
+            await expect(
+                isolated.runExploreQuery(
+                    sessionAccount,
+                    metricQueryMock,
+                    projectUuid,
+                    'valid_explore',
+                    null,
+                    undefined,
+                    QueryExecutionContext.DATA_APP_SAMPLE,
+                ),
+            ).rejects.toThrow('credential probe');
+            expect(resolveCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.DATA_APP_SAMPLE,
+                }),
+            );
+        });
+
         test('should get results with 1 row', async () => {
             const result = await service.runExploreQuery(
                 sessionAccount,
@@ -14223,143 +14252,6 @@ describe('Snowflake AI query credentials', () => {
             }
         },
     );
-    it('turns raw SQL from AI off under restrictions', async () => {
-        const service = getMockedProjectService(lightdashConfigMock, {
-            featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
-            } as unknown as FeatureFlagModel,
-        });
-        const getRestrictions = vi
-            .spyOn(projectModel, 'getAiAccessRestrictions')
-            .mockResolvedValue(true);
-        const warn = vi.spyOn(
-            Reflect.get(service, 'logger') as {
-                warn: (...args: unknown[]) => void;
-            },
-            'warn',
-        );
-        const audit = vi
-            .spyOn(winston, 'logAuditEvent')
-            .mockImplementation(vi.fn());
-        try {
-            await expect(
-                (
-                    service as unknown as {
-                        resolveAiAccessIdentity: (args: {
-                            projectUuid: string;
-                            userId: string;
-                            isRegisteredUser: boolean;
-                            isServiceAccount: boolean;
-                            context: QueryExecutionContext;
-                            credentials: CreateWarehouseCredentials;
-                            rawSql: boolean;
-                            aiSurface: 'slack_agent';
-                        }) => Promise<unknown>;
-                    }
-                ).resolveAiAccessIdentity({
-                    projectUuid: projectSummary.projectUuid,
-                    userId: 'user-uuid',
-                    isRegisteredUser: true,
-                    isServiceAccount: false,
-                    context: QueryExecutionContext.AI,
-                    credentials: {
-                        type: WarehouseTypes.POSTGRES,
-                        requireUserCredentials: true,
-                    } as CreateWarehouseCredentials,
-                    rawSql: true,
-                    aiSurface: 'slack_agent',
-                }),
-            ).rejects.toThrow('raw SQL from AI is off');
-            expect(warn).toHaveBeenCalledExactlyOnceWith(
-                'AI access query refused',
-                {
-                    projectUuid: projectSummary.projectUuid,
-                    userUuid: 'user-uuid',
-                    reason: 'raw_sql_off',
-                    surface: 'slack_agent',
-                    warehouseType: WarehouseTypes.POSTGRES,
-                },
-            );
-            expect(audit).toHaveBeenCalledExactlyOnceWith(
-                expect.objectContaining({
-                    status: 'denied',
-                    resource: expect.objectContaining({
-                        metadata: {
-                            reason: 'raw_sql_off',
-                            surface: 'slack_agent',
-                            warehouseType: WarehouseTypes.POSTGRES,
-                        },
-                    }),
-                }),
-            );
-        } finally {
-            getRestrictions.mockRestore();
-            warn.mockRestore();
-            audit.mockRestore();
-        }
-    });
-
-    it('turns raw SQL from AI off on Snowflake even with a sign-in for AI', async () => {
-        const service = getMockedProjectService(lightdashConfigMock, {
-            featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
-            } as unknown as FeatureFlagModel,
-        });
-        const getRestrictions = vi
-            .spyOn(projectModel, 'getAiAccessRestrictions')
-            .mockResolvedValue(true);
-        const warn = vi.spyOn(
-            Reflect.get(service, 'logger') as {
-                warn: (...args: unknown[]) => void;
-            },
-            'warn',
-        );
-        try {
-            await expect(
-                (
-                    service as unknown as {
-                        resolveAiAccessIdentity: (args: {
-                            projectUuid: string;
-                            userId: string;
-                            isRegisteredUser: boolean;
-                            isServiceAccount: boolean;
-                            context: QueryExecutionContext;
-                            credentials: CreateWarehouseCredentials;
-                            rawSql: boolean;
-                            aiSurface: 'slack_agent';
-                        }) => Promise<unknown>;
-                    }
-                ).resolveAiAccessIdentity({
-                    projectUuid: projectSummary.projectUuid,
-                    userId: 'user-uuid',
-                    isRegisteredUser: true,
-                    isServiceAccount: false,
-                    context: QueryExecutionContext.AI,
-                    credentials: {
-                        type: WarehouseTypes.SNOWFLAKE,
-                        authenticationType: SnowflakeAuthenticationType.SSO,
-                        requireUserCredentials: true,
-                    } as CreateWarehouseCredentials,
-                    rawSql: true,
-                    aiSurface: 'slack_agent',
-                }),
-            ).rejects.toThrow('raw SQL from AI is off');
-            expect(warn).toHaveBeenCalledExactlyOnceWith(
-                'AI access query refused',
-                {
-                    projectUuid: projectSummary.projectUuid,
-                    userUuid: 'user-uuid',
-                    reason: 'raw_sql_off',
-                    surface: 'slack_agent',
-                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                },
-            );
-        } finally {
-            getRestrictions.mockRestore();
-            warn.mockRestore();
-        }
-    });
-
     it.each(
         [QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL].flatMap(
             (context) =>
@@ -14378,7 +14270,7 @@ describe('Snowflake AI query credentials', () => {
                 ),
         ),
     )(
-        'never selects the AI sign-in for raw SQL with $context flag=$restrictionsEnabled setting=$projectSettingEnabled sign-in=$signInEnabled credential=$hasAiCredential',
+        'routes raw SQL by restrictions for $context flag=$restrictionsEnabled setting=$projectSettingEnabled sign-in=$signInEnabled credential=$hasAiCredential',
         async ({
             context,
             restrictionsEnabled,
@@ -14414,6 +14306,14 @@ describe('Snowflake AI query credentials', () => {
                     };
                 }
             ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+            (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                    ) => Promise<CreateWarehouseCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation = async (credentials) =>
+                credentials;
             const resolve = () =>
                 (
                     service as unknown as {
@@ -14439,14 +14339,23 @@ describe('Snowflake AI query credentials', () => {
                         : {}),
                 });
             try {
-                if (restrictionsEnabled && projectSettingEnabled) {
+                const restricted = restrictionsEnabled && projectSettingEnabled;
+                if (restricted && signInEnabled && hasAiCredential) {
+                    await expect(resolve()).resolves.toMatchObject({
+                        credentials: {
+                            requireAgentSession: true,
+                        },
+                    });
+                } else if (restricted) {
                     await expect(resolve()).rejects.toBeInstanceOf(
                         AiAccessRestrictionsError,
                     );
                 } else {
                     await expect(resolve()).resolves.toBeNull();
                 }
-                expect(findAiCredentialWithSecrets).not.toHaveBeenCalled();
+                expect(findAiCredentialWithSecrets).toHaveBeenCalledTimes(
+                    restricted && signInEnabled ? 1 : 0,
+                );
             } finally {
                 getRestrictions.mockRestore();
             }
@@ -14791,8 +14700,8 @@ describe('Snowflake AI query credentials', () => {
                 },
                 identity.aiAccessAudit,
             );
-            await expect(client.runQuery()).rejects.toThrow(
-                SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+            await expect(client.runQuery()).rejects.toBeInstanceOf(
+                ForbiddenError,
             );
             expect(warn).toHaveBeenCalledWith('AI access query refused', {
                 projectUuid: projectSummary.projectUuid,

@@ -390,13 +390,6 @@ const ProjectSettings: FC<{
                                               ) ??
                                                   false),
                                       )}
-                                      rawSqlUnavailable={
-                                          project?.warehouseConnection
-                                              ?.requireUserCredentials ===
-                                              true &&
-                                          project.warehouseConnection.type !==
-                                              'snowflake'
-                                      }
                                   />
                               </ProjectSettingsPage>
                           ),

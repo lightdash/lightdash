@@ -3921,6 +3921,27 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        test('omits Snowflake query IDs from the query results API', async () => {
+            const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+            serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
+                ...buildPendingAiQueryHistory(sessionAccount.user.id),
+                status: QueryHistoryStatus.ERROR,
+                warehouseQueryId,
+                error: `Snowflake query ${warehouseQueryId} failed`,
+            });
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+            });
+            expect(JSON.stringify(result)).not.toContain('warehouseQueryId');
+            expect(JSON.stringify(result)).not.toContain(warehouseQueryId);
+            expect(result).toMatchObject({
+                error: 'Snowflake query [query id removed] failed',
+            });
+        });
+
         test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
             const embedWriteUserUuid = 'embed-write-user-uuid';
             const embedAiAccount = buildEmbedAiAccount(embedWriteUserUuid);
