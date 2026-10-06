@@ -1,3 +1,10 @@
+## [2.436.1](https://github.com/lightdash/lightdash/compare/2.436.0...2.436.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* restore SDK queries from custom chart types ([#30521](https://github.com/lightdash/lightdash/issues/30521)) ([ac1c71a](https://github.com/lightdash/lightdash/commit/ac1c71a1bbebdc078a9d2fa12451a05ad2d72a33))
+
 # [2.436.0](https://github.com/lightdash/lightdash/compare/2.435.1...2.436.0) (2026-10-05)
 
 
