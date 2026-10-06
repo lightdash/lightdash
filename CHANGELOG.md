@@ -1,3 +1,10 @@
+## [2.439.1](https://github.com/lightdash/lightdash/compare/2.439.0...2.439.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep the skill dialog open on outside clicks and give it more room ([#30533](https://github.com/lightdash/lightdash/issues/30533)) ([3a8eee3](https://github.com/lightdash/lightdash/commit/3a8eee33643c1c49be80adc7435ac56bbbe2f3c5))
+
 # [2.439.0](https://github.com/lightdash/lightdash/compare/2.438.0...2.439.0) (2026-10-06)
 
 
