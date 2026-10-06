@@ -3411,7 +3411,7 @@ export type AiAgentTurnDecisionEvent = BaseTrack & {
         aiAgentId: string | null;
         promptId: string;
         threadId: string;
-        operation: 'chart-intent' | 'model-routing';
+        operation: 'chart-intent' | 'document-edit' | 'model-routing';
         outcome: string;
         applied: boolean;
         fallbackReason: string | null;
