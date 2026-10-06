@@ -1,6 +1,8 @@
-import { type AppGeneratePipelineJobPayload } from '@lightdash/common';
+import {
+    type AppCaptureThumbnailJobPayload,
+    type AppGeneratePipelineJobPayload,
+} from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
-import { CODING_AGENT_COMPACTION_NARRATION } from './codingAgentSession';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -14,7 +16,6 @@ vi.mock('ai', async (importOriginal) => ({
 
 const APP_UUID = 'app-uuid-1';
 const THREAD_UUID = 'thread-uuid-1';
-const SESSION_ID = 'session-1';
 const VERSION = 7;
 
 const makePayload = (): AppGeneratePipelineJobPayload => ({
@@ -27,19 +28,24 @@ const makePayload = (): AppGeneratePipelineJobPayload => ({
     isIteration: true,
 });
 
-// A thread whose previous version read far more than the compaction
-// threshold per turn, so this build summarizes its session before it generates.
-function buildService(
-    compactStdout: string,
-    statusHistory: { kind: string; message: string }[] = [],
-    sessionUsage: {
-        sessionId: string;
-        costUsd: number;
-        durationApiMs: number;
-        modelUsage: null;
-    } | null = null,
-) {
+function buildService({
+    headlessBrowserConfigured = true,
+    cancelledBeforeReady = false,
+    queueIsDown = false,
+}: {
+    headlessBrowserConfigured?: boolean;
+    cancelledBeforeReady?: boolean;
+    queueIsDown?: boolean;
+} = {}) {
     const statuses: string[] = [];
+    const queuedCaptures: AppCaptureThumbnailJobPayload[] = [];
+    const appCaptureThumbnail = async (
+        payload: AppCaptureThumbnailJobPayload,
+    ) => {
+        if (queueIsDown) throw new Error('Queue unavailable');
+        queuedCaptures.push(payload);
+        return { jobId: 'job-1' };
+    };
     const track = vi.fn();
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
@@ -51,32 +57,24 @@ function buildService(
         getVersion: vi.fn().mockResolvedValue({
             version: VERSION,
             app_thread_uuid: THREAD_UUID,
-            status_history: statusHistory,
+            status_history: [],
         }),
         findThreadByUuid: vi.fn().mockResolvedValue({
             app_thread_uuid: THREAD_UUID,
             app_id: APP_UUID,
-            thread_number: 2,
-            coding_agent_session_id: SESSION_ID,
-            coding_agent_session_usage: sessionUsage,
+            thread_number: 1,
+            coding_agent_session_id: null,
+            coding_agent_session_usage: null,
         }),
-        threadHasVersionThatReachedCodingAgent: vi.fn().mockResolvedValue(true),
+        threadHasVersionThatReachedCodingAgent: vi
+            .fn()
+            .mockResolvedValue(false),
         hasCancelledVersionSinceLastReady: vi.fn().mockResolvedValue(false),
-        findPreviousFinishedVersionInThread: vi.fn().mockResolvedValue({
-            version: VERSION - 1,
-            generationUsage: {
-                inputTokens: 1_000,
-                outputTokens: 5_000,
-                cacheReadInputTokens: 1_200_000,
-                cacheCreationInputTokens: 200_000,
-                numTurns: 4,
-                durationApiMs: 1_000,
-                costUsd: 1,
-            },
-        }),
+        findPreviousFinishedVersionInThread: vi.fn().mockResolvedValue(null),
         updateVersionStatusIfInProgress: vi
             .fn()
             .mockImplementation(async (_app: string, _v: number, status) => {
+                if (status === 'ready' && cancelledBeforeReady) return false;
                 statuses.push(status);
                 return true;
             }),
@@ -92,7 +90,7 @@ function buildService(
         commands: {
             run: vi.fn().mockResolvedValue({
                 exitCode: 0,
-                stdout: compactStdout,
+                stdout: '',
                 stderr: '',
             }),
         },
@@ -124,7 +122,7 @@ function buildService(
         projectParametersModel: {} as never,
         spaceModel: {} as never,
         savedChartModel: {} as never,
-        schedulerClient: {} as never,
+        schedulerClient: { appCaptureThumbnail } as never,
         savedChartService: {} as never,
         spacePermissionService: {} as never,
         coderService: {} as never,
@@ -137,7 +135,12 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
-        thumbnailCapture: null,
+        thumbnailCapture: headlessBrowserConfigured
+            ? {
+                  isAvailable: () => true,
+                  render: async () => Buffer.from('png'),
+              }
+            : null,
         thumbnailSettings: null,
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
@@ -146,8 +149,8 @@ function buildService(
     const service = raw as unknown as Record<string, unknown> & {
         runPipelineStages: (...args: unknown[]) => Promise<void>;
     };
-    // Everything the compact stage sits between, stubbed to the shape the
-    // pipeline expects. The compaction call itself is left real.
+    // Every stage before the ready transition, stubbed to the shape the
+    // pipeline expects.
     service.assembleEffectiveSkill = vi.fn().mockResolvedValue(undefined);
     service.writeCatalogAndPrompt = vi.fn().mockResolvedValue({
         durationMs: 1,
@@ -212,126 +215,54 @@ function buildService(
             0,
         );
 
-    return { runStages, statuses, sandbox, appModel, track };
+    return { runStages, statuses, queuedCaptures };
 }
 
-const COMPACT_FAILED = JSON.stringify({
-    type: 'system',
-    subtype: 'status',
-    status: null,
-    compact_result: 'failed',
-    compact_error: 'Not enough messages to compact.',
-});
-
-// `/compact` reports the session's cumulative cost but no turns or API time.
-const COMPACT_SUCCESS = [
-    JSON.stringify({
-        type: 'system',
-        subtype: 'status',
-        status: null,
-        compact_result: 'success',
-    }),
-    JSON.stringify({
-        type: 'result',
-        subtype: 'success',
-        num_turns: 0,
-        duration_api_ms: 0,
-        total_cost_usd: 1.5,
-        usage: {
-            input_tokens: 10,
-            output_tokens: 3_000,
-            cache_read_input_tokens: 0,
-            cache_creation_input_tokens: 470_000,
-        },
-    }),
-].join('\n');
-
-describe('AppGenerateService compact stage', () => {
-    it('still builds when the agent could not summarize its session', async () => {
-        const { runStages, statuses } = buildService(COMPACT_FAILED);
+describe('AppGenerateService thumbnail capture after a build', () => {
+    it('queues a capture of the version once its build is ready', async () => {
+        const { runStages, statuses, queuedCaptures } = buildService();
 
         await runStages();
 
-        expect(statuses).toContain('compact');
         expect(statuses.at(-1)).toBe('ready');
-    });
-
-    it('reports what the summary itself cost, apart from the generation', async () => {
-        const { runStages, track } = buildService(COMPACT_SUCCESS);
-
-        await runStages();
-
-        expect(track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'data_app.version.completed',
-                properties: expect.objectContaining({
-                    compactionResult: 'success',
-                    compactCacheCreationInputTokens: 470_000,
-                    compactOutputTokens: 3_000,
-                    compactCostUsd: 1.5,
-                    cacheCreationInputTokens: 0,
-                }),
-            }),
-        );
-    });
-
-    it('charges the summary only what it added to the session totals', async () => {
-        // The CLI reports cost since the session began, so the summary's own
-        // share is what grew past the thread's last snapshot.
-        const { runStages, track, appModel } = buildService(
-            COMPACT_SUCCESS,
-            [],
+        expect(queuedCaptures).toEqual([
             {
-                sessionId: SESSION_ID,
-                costUsd: 1.1,
-                durationApiMs: 25_000,
-                modelUsage: null,
+                appUuid: APP_UUID,
+                version: VERSION,
+                projectUuid: 'proj-uuid-1',
+                organizationUuid: 'org-uuid-1',
+                userUuid: 'user-uuid-1',
             },
-        );
+        ]);
+    });
+
+    it('queues nothing when no headless browser is configured', async () => {
+        const { runStages, statuses, queuedCaptures } = buildService({
+            headlessBrowserConfigured: false,
+        });
 
         await runStages();
 
-        expect(track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'data_app.version.completed',
-                properties: expect.objectContaining({
-                    compactionResult: 'success',
-                    compactCostUsd: expect.closeTo(0.4, 5),
-                    compactCacheCreationInputTokens: 470_000,
-                }),
-            }),
-        );
-        expect(appModel.setThreadCodingAgentSessionUsage).toHaveBeenCalledWith(
-            THREAD_UUID,
-            expect.objectContaining({
-                sessionId: SESSION_ID,
-                costUsd: 1.5,
-                durationApiMs: 25_000,
-            }),
-        );
+        expect(statuses.at(-1)).toBe('ready');
+        expect(queuedCaptures).toEqual([]);
     });
 
-    it('never summarizes twice when a retry resumes past the stage', async () => {
-        const { runStages, statuses, appModel, track } = buildService(
-            COMPACT_FAILED,
-            [{ kind: 'stage', message: CODING_AGENT_COMPACTION_NARRATION }],
-        );
+    it('queues nothing for a build that was cancelled before it became ready', async () => {
+        const { runStages, queuedCaptures } = buildService({
+            cancelledBeforeReady: true,
+        });
 
-        await runStages('generating');
+        await runStages();
 
-        expect(statuses).not.toContain('compact');
-        expect(
-            appModel.findPreviousFinishedVersionInThread,
-        ).not.toHaveBeenCalled();
+        expect(queuedCaptures).toEqual([]);
+    });
+
+    it('leaves the build ready when the capture cannot be queued', async () => {
+        const { runStages, statuses } = buildService({ queueIsDown: true });
+
+        await runStages();
+
         expect(statuses.at(-1)).toBe('ready');
-        expect(track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'data_app.version.completed',
-                properties: expect.objectContaining({
-                    compactionAttempted: true,
-                    compactionResult: 'interrupted',
-                }),
-            }),
-        );
+        expect(statuses).not.toContain('error');
     });
 });

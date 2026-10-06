@@ -394,6 +394,8 @@ async function buildScenario() {
         } as never,
         sandboxManager,
         appRuntimeS3: { client: s3Client as never, bucket: 'test-bucket' },
+        thumbnailCapture: null,
+        thumbnailSettings: null,
     });
 
     return {

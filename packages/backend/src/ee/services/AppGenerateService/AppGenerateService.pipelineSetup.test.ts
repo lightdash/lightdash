@@ -85,6 +85,8 @@ function buildService() {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         appRuntimeS3: { client: {}, bucket: 'apps' },
+        thumbnailCapture: null,
+        thumbnailSettings: null,
     } as never);
     const suspendSandbox = vi.fn().mockResolvedValue(undefined);
     const logger = {

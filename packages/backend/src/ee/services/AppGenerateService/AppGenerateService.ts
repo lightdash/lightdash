@@ -79,6 +79,7 @@ import {
     type ApiGetAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
+    type AppCaptureThumbnailJobPayload,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
@@ -279,6 +280,13 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
+import {
+    AppThumbnails,
+    type AppThumbnailCapture,
+    type AppThumbnailSettings,
+    type ThumbnailApp,
+    type ThumbnailVersion,
+} from './appThumbnails';
 import { assertChartTypesEnabled } from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
@@ -475,6 +483,9 @@ type AppGenerateServiceDeps = {
     /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
+    /** Null in tests: no headless capture, automatic capture always on. */
+    thumbnailCapture: AppThumbnailCapture | null;
+    thumbnailSettings: AppThumbnailSettings | null;
     chartRegistryClient: ChartRegistryClient;
     contentVerificationModel: ContentVerificationModel;
 };
@@ -811,6 +822,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly appThumbnails: AppThumbnails;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -846,6 +859,8 @@ export class AppGenerateService extends BaseService {
         aiCreditService,
         sandboxManager,
         appRuntimeS3,
+        thumbnailCapture,
+        thumbnailSettings,
         chartRegistryClient,
         contentVerificationModel,
     }: AppGenerateServiceDeps) {
@@ -879,6 +894,181 @@ export class AppGenerateService extends BaseService {
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
         this.contentVerificationModel = contentVerificationModel;
+        this.appThumbnails = this.buildAppThumbnails(
+            thumbnailCapture,
+            thumbnailSettings,
+        );
+    }
+
+    private static toThumbnailApp(
+        app: DbApp & { organization_uuid: string },
+    ): ThumbnailApp {
+        return {
+            appUuid: app.app_id,
+            projectUuid: app.project_uuid,
+            organizationUuid: app.organization_uuid,
+            spaceUuid: app.space_uuid,
+            createdByUserUuid: app.created_by_user_uuid,
+            name: app.name,
+            isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
+        };
+    }
+
+    private static toThumbnailVersion(
+        row: DbAppVersion | null,
+    ): ThumbnailVersion | null {
+        if (!row) return null;
+        return {
+            version: row.version,
+            status: row.status,
+            createdByUserUuid: row.created_by_user_uuid,
+            thumbnail: row.thumbnail_captured_at
+                ? { isManual: row.thumbnail_is_manual === true }
+                : null,
+        };
+    }
+
+    private static toAuthzApp(app: ThumbnailApp): AppViewAuthzApp {
+        return {
+            app_id: app.appUuid,
+            project_uuid: app.projectUuid,
+            space_uuid: app.spaceUuid,
+            created_by_user_uuid: app.createdByUserUuid,
+            organization_uuid: app.organizationUuid,
+        };
+    }
+
+    /** Wires the thumbnail rules to the version rows, bucket and permissions. */
+    private buildAppThumbnails(
+        capture: AppThumbnailCapture | null,
+        settings: AppThumbnailSettings | null,
+    ): AppThumbnails {
+        const signedUrlTtlSeconds = 900;
+        return new AppThumbnails({
+            versionStore: {
+                getApp: async (appUuid, projectUuid) =>
+                    AppGenerateService.toThumbnailApp(
+                        await this.appModel.getApp(appUuid, projectUuid),
+                    ),
+                findAppByUuid: async (appUuid) => {
+                    const app = await this.appModel.findAppByUuid(appUuid);
+                    return app ? AppGenerateService.toThumbnailApp(app) : null;
+                },
+                findVersion: async (appUuid, version) =>
+                    AppGenerateService.toThumbnailVersion(
+                        await this.appModel.getVersion(appUuid, version),
+                    ),
+                findLatestReadyVersion: async (appUuid) =>
+                    AppGenerateService.toThumbnailVersion(
+                        await this.appModel.getLatestReadyVersion(appUuid),
+                    ),
+                hasAnyVersionThumbnail: (appUuid) =>
+                    this.appModel.hasAnyVersionThumbnail(appUuid),
+                setThumbnail: (appUuid, version, thumbnail) =>
+                    this.appModel.setVersionThumbnail(
+                        appUuid,
+                        version,
+                        thumbnail,
+                    ),
+                clearThumbnail: (appUuid, version) =>
+                    this.appModel.clearVersionThumbnail(appUuid, version),
+            },
+            objectStorage: {
+                put: async (key, image) => {
+                    const { client, bucket } = this.getS3Client();
+                    await client.send(
+                        new PutObjectCommand({
+                            Bucket: bucket,
+                            Key: key,
+                            Body: image,
+                            ContentLength: image.length,
+                            ContentType: 'image/png',
+                        }),
+                    );
+                },
+                exists: async (key) => {
+                    const { client, bucket } = this.getS3Client();
+                    try {
+                        await client.send(
+                            new HeadObjectCommand({ Bucket: bucket, Key: key }),
+                        );
+                        return true;
+                    } catch (error) {
+                        if (
+                            error instanceof S3ServiceException &&
+                            error.$metadata.httpStatusCode === 404
+                        ) {
+                            return false;
+                        }
+                        throw error;
+                    }
+                },
+                copy: async (fromKey, toKey) => {
+                    const { client, bucket } = this.getS3Client();
+                    await client.send(
+                        new CopyObjectCommand({
+                            Bucket: bucket,
+                            CopySource: `/${bucket}/${fromKey}`,
+                            Key: toKey,
+                        }),
+                    );
+                },
+                delete: async (key) => {
+                    const { client, bucket } = this.getS3Client();
+                    await client.send(
+                        new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+                    );
+                },
+                getSignedUrl: (key) => {
+                    const { client, bucket } = this.getS3Client();
+                    return createObjectUrlSigner(
+                        client,
+                        this.lightdashConfig.appRuntime.s3 ?? {},
+                    ).getSignedDownloadUrl(bucket, key, signedUrlTtlSeconds);
+                },
+            },
+            capture: capture ?? {
+                isAvailable: () => false,
+                render: async () => {
+                    throw new MissingConfigError(
+                        'No headless browser is configured',
+                    );
+                },
+            },
+            settings: settings ?? {
+                isAutomaticCaptureEnabled: async () => true,
+            },
+            access: {
+                assertCanView: async (user, app) => {
+                    if (app.isCustomChartType) {
+                        await assertChartTypesEnabled(
+                            this.featureFlagModel,
+                            user,
+                        );
+                        this.assertCanUseChartTypes(user, {
+                            organizationUuid: app.organizationUuid,
+                            projectUuid: app.projectUuid,
+                        });
+                        return;
+                    }
+                    await this.assertDataAppsEnabled(user);
+                    // Viewing a thumbnail is a read: anyone who can view the
+                    // app can see it, not just those who can manage it.
+                    await this.assertCanViewApp(
+                        user,
+                        AppGenerateService.toAuthzApp(app),
+                    );
+                },
+                assertCanManage: async (user, app) => {
+                    await this.assertDataAppsEnabled(user);
+                    await this.assertCanManageApp(
+                        user,
+                        AppGenerateService.toAuthzApp(app),
+                        'Insufficient permissions to update app thumbnail',
+                    );
+                },
+            },
+        });
     }
 
     private async getDataAppProjectContext(
@@ -1938,10 +2128,6 @@ export class AppGenerateService extends BaseService {
         return `apps/${appUuid}/uploads/${fileId}`;
     }
 
-    private static appThumbnailKey(appUuid: string): string {
-        return `apps/${appUuid}/thumbnail.png`;
-    }
-
     private static mimeToExt(mimeType: string): string {
         const extMap: Record<string, string> = {
             'image/png': 'png',
@@ -2441,6 +2627,7 @@ export class AppGenerateService extends BaseService {
         return { imageUrl };
     }
 
+    /** Saves a manual thumbnail; `version: null` targets the latest ready version. */
     async uploadThumbnail(
         user: SessionUser,
         projectUuid: string,
@@ -2448,16 +2635,8 @@ export class AppGenerateService extends BaseService {
         body: Readable,
         contentLength: number,
         appUuid: string,
+        version: number | null,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to update app thumbnail',
-        );
-
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
         }
@@ -2475,16 +2654,12 @@ export class AppGenerateService extends BaseService {
         );
         AppGenerateService.validateUploadContent(bufferedBody, mimeType);
 
-        const { client: s3Client, bucket } = this.getS3Client();
-        await s3Client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: AppGenerateService.appThumbnailKey(appUuid),
-                Body: bufferedBody,
-                ContentLength: bufferedBody.length,
-                ContentType: 'image/png',
-            }),
-        );
+        const saved = await this.appThumbnails.setManualThumbnail(user, {
+            projectUuid,
+            appUuid,
+            version,
+            image: bufferedBody,
+        });
 
         this.analytics.track({
             event: 'data_app.thumbnail_uploaded',
@@ -2493,6 +2668,7 @@ export class AppGenerateService extends BaseService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
+                version: saved.version,
                 sizeBytes: bufferedBody.length,
             },
         });
@@ -2503,74 +2679,31 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await assertChartTypesEnabled(this.featureFlagModel, user);
-            this.assertCanUseChartTypes(user, {
-                organizationUuid: app.organization_uuid,
-                projectUuid,
-            });
-        } else {
-            await this.assertDataAppsEnabled(user);
-            // Viewing a thumbnail is a read: anyone who can view the app can
-            // see it (e.g. on a project homepage), not just those who can
-            // manage it.
-            await this.assertCanViewApp(user, app);
+        const thumbnailUrl = await this.appThumbnails.getAppThumbnailUrl(user, {
+            projectUuid,
+            appUuid,
+        });
+        if (thumbnailUrl === null) {
+            throw new NotFoundError('App thumbnail not found');
         }
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        const key = AppGenerateService.appThumbnailKey(appUuid);
-
-        try {
-            await s3Client.send(
-                new HeadObjectCommand({
-                    Bucket: bucket,
-                    Key: key,
-                }),
-            );
-        } catch (error) {
-            if (
-                error instanceof S3ServiceException &&
-                error.$metadata.httpStatusCode === 404
-            ) {
-                throw new NotFoundError('App thumbnail not found');
-            }
-            throw error;
-        }
-
-        const thumbnailUrl = await createObjectUrlSigner(
-            s3Client,
-            this.lightdashConfig.appRuntime.s3 ?? {},
-        ).getSignedDownloadUrl(bucket, key, 900);
-
         return { thumbnailUrl };
     }
 
     /**
-     * Remove an app's thumbnail. Idempotent — deleting a thumbnail that does
-     * not exist succeeds (S3 delete semantics).
+     * Removes a version's thumbnail; `version: null` targets the latest ready
+     * version. Idempotent.
      */
     async deleteThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
+        version: number | null,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to update app thumbnail',
-        );
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        await s3Client.send(
-            new DeleteObjectCommand({
-                Bucket: bucket,
-                Key: AppGenerateService.appThumbnailKey(appUuid),
-            }),
-        );
+        await this.appThumbnails.removeThumbnail(user, {
+            projectUuid,
+            appUuid,
+            version,
+        });
 
         this.analytics.track({
             event: 'data_app.thumbnail_deleted',
@@ -2579,8 +2712,66 @@ export class AppGenerateService extends BaseService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
+                version,
             },
         });
+    }
+
+    /** Best-effort: an enqueue failure must never affect the build. */
+    private async enqueueThumbnailCapture(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        appUuid: string;
+        version: number;
+        isCustomChartType: boolean;
+    }): Promise<void> {
+        try {
+            const enabled =
+                await this.appThumbnails.isAutomaticCaptureEnabled(args);
+            if (!enabled) return;
+            await this.schedulerClient.appCaptureThumbnail({
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                userUuid: args.userUuid,
+                appUuid: args.appUuid,
+                version: args.version,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `App ${args.appUuid}: could not enqueue thumbnail capture for version ${args.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /** Scheduler job body. Never throws: a failed capture is only logged. */
+    async captureVersionThumbnail({
+        appUuid,
+        version,
+    }: AppCaptureThumbnailJobPayload): Promise<void> {
+        const outcome = await this.appThumbnails.captureVersion({
+            appUuid,
+            version,
+        });
+        switch (outcome.status) {
+            case 'captured':
+                this.logger.info(
+                    `App ${appUuid}: captured thumbnail for version ${version}`,
+                );
+                return;
+            case 'skipped':
+                this.logger.info(
+                    `App ${appUuid}: skipped thumbnail capture for version ${version} (${outcome.reason})`,
+                );
+                return;
+            case 'failed':
+                this.logger.warn(
+                    `App ${appUuid}: thumbnail capture failed for version ${version}: ${getErrorMessage(outcome.error)}`,
+                );
+                return;
+            default:
+                assertUnreachable(outcome, 'Unknown thumbnail capture outcome');
+        }
     }
 
     private static truncateEnd(text: string, maxLength: number): string {
@@ -6470,6 +6661,14 @@ export class AppGenerateService extends BaseService {
                 );
                 return;
             }
+            await this.enqueueThumbnailCapture({
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                userUuid: payload.userUuid,
+                appUuid,
+                version,
+                isCustomChartType: isDataAppViz,
+            });
         } catch (error) {
             this.logger.error(
                 `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,

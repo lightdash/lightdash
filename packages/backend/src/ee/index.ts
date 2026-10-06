@@ -598,6 +598,25 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     sandboxManager: null,
                     appRuntimeS3: null,
+                    thumbnailCapture: {
+                        isAvailable: () =>
+                            context.lightdashConfig.headlessBrowser?.host !==
+                            undefined,
+                        render: ({ app, version, asUserUuid }) =>
+                            repository
+                                .getUnfurlService()
+                                .captureDataAppVersion({
+                                    projectUuid: app.projectUuid,
+                                    appUuid: app.appUuid,
+                                    appName: app.name,
+                                    version,
+                                    authUserUuid: asUserUuid,
+                                    organizationUuid: app.organizationUuid,
+                                }),
+                    },
+                    thumbnailSettings: {
+                        isAutomaticCaptureEnabled: async () => true,
+                    },
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,
                     }),

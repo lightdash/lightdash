@@ -12,6 +12,7 @@ import {
     AiDeepResearchPipelineJobPayload,
     AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
+    AppCaptureThumbnailJobPayload,
     AppGeneratePipelineJobPayload,
     DataAppInvestigateJobPayload,
     EE_SCHEDULER_TASKS,
@@ -367,6 +368,21 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 2,
                 jobKey: `app-build:${payload.appUuid}:${payload.version}`,
+            },
+        );
+        return { jobId };
+    }
+
+    // Best-effort follow-up to a ready build: one attempt, never retried.
+    async appCaptureThumbnail(payload: AppCaptureThumbnailJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.APP_CAPTURE_THUMBNAIL,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `app-thumbnail:${payload.appUuid}:${payload.version}`,
             },
         );
         return { jobId };

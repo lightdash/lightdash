@@ -141,7 +141,7 @@ Unknown routes are rejected.
   deliveries, into the schedule, so a link or a delivery reopens the same view.
 - **Host colour scheme** — the app follows the host's light/dark mode through a handshake; capture surfaces force
   light.
-- **Thumbnails** — captured from the running app (or uploaded manually) for cards and previews.
+- **Thumbnails** — one per ready version, captured automatically when a build becomes ready or by hand from the running app. An app's card shows its latest ready version's thumbnail.
 - **Exports** — CSV/XLSX and PDF exports run through the normal Lightdash export pipeline; the app never serializes
   data itself.
 - **Embedding and dashboards** — apps render as dashboard tiles (dashboard filters propagate to linked charts) and in

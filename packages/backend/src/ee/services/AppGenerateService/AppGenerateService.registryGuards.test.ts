@@ -192,6 +192,8 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        thumbnailCapture: null,
+        thumbnailSettings: null,
     });
 
     vi.spyOn(

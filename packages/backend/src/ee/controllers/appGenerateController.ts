@@ -1194,6 +1194,11 @@ export class AppGenerateController extends BaseController {
         };
     }
 
+    /**
+     * Save a PNG as the thumbnail of one version of a data app
+     * @summary Upload app thumbnail
+     * @param version the version to save it for; defaults to the latest ready version
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{appUuid}/thumbnail')
@@ -1202,6 +1207,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() version?: number,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         const mimeType = req.headers['content-type'];
@@ -1225,6 +1231,7 @@ export class AppGenerateController extends BaseController {
             req,
             contentLength,
             appUuid,
+            version ?? null,
         );
 
         return {
@@ -1233,6 +1240,11 @@ export class AppGenerateController extends BaseController {
         };
     }
 
+    /**
+     * Remove the thumbnail of one version of a data app
+     * @summary Delete app thumbnail
+     * @param version the version to remove it from; defaults to the latest ready version
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Delete('/{appUuid}/thumbnail')
@@ -1241,12 +1253,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() version?: number,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.getAppGenerateService().deleteThumbnail(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            version ?? null,
         );
         return {
             status: 'ok',

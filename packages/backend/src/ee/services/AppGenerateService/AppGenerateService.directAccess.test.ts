@@ -182,6 +182,8 @@ const buildService = (role: SpaceMemberRole) => {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        thumbnailCapture: null,
+        thumbnailSettings: null,
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

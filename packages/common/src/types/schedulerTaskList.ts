@@ -115,6 +115,12 @@ export type AppBuildFromSourceJobPayload = TraceTaskBase & {
     version: number;
 };
 
+// `userUuid` is the version's creator, whom the capture renders as.
+export type AppCaptureThumbnailJobPayload = TraceTaskBase & {
+    appUuid: string;
+    version: number;
+};
+
 export type AiWritebackPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     prompt: string;
@@ -199,6 +205,7 @@ export const EE_SCHEDULER_TASKS = {
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
+    APP_CAPTURE_THUMBNAIL: 'appCaptureThumbnail',
     AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
     AI_DEEP_RESEARCH: 'aiDeepResearch',
     DATA_APP_INVESTIGATE: 'dataAppInvestigate',
@@ -345,6 +352,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
+    [SCHEDULER_TASKS.APP_CAPTURE_THUMBNAIL]: AppCaptureThumbnailJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
@@ -394,6 +402,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
+    [EE_SCHEDULER_TASKS.APP_CAPTURE_THUMBNAIL]: AppCaptureThumbnailJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
