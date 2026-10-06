@@ -3279,6 +3279,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     credentials,
                     existingClient,
+                    aiPlan,
                 ),
                 sshTunnel,
                 tunnelConnectMs,
@@ -3375,6 +3376,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 credentials,
                 client,
+                aiPlan,
             ),
             sshTunnel,
             tunnelConnectMs,
@@ -3385,7 +3387,15 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         client: T,
+        aiPlan?: AiExecutionPlan | null,
     ): T {
+        if (aiPlan)
+            return attributeClientErrors(client, async (error) => {
+                this.aiAccessService.invalidateCredentials(
+                    aiPlan.principal.aiPrincipalUuid,
+                );
+                throw error;
+            });
         if (!getPersonSignIn(credentials)) return client;
         return attributeClientErrors(client, (error) =>
             this.attributeSharedSignInExpiry(projectUuid, credentials, error),
@@ -12467,6 +12477,7 @@ export class ProjectService extends BaseService {
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12480,13 +12491,33 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials: credentials, aiPlan } =
+            await this.getWarehouseCredentialsWithConnection({
+                context,
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            });
 
+        if (aiPlan) {
+            const { warehouseClient, sshTunnel } =
+                await this._getWarehouseClient(projectUuid, credentials, {
+                    aiPlan,
+                });
+            try {
+                const tables = await warehouseClient.getAllTables();
+                return WarehouseAvailableTablesModel.toWarehouseCatalog(
+                    tables.map((table) => ({
+                        ...table,
+                        partition_column: table.partitionColumn || null,
+                        table_type: table.tableType,
+                    })),
+                );
+            } finally {
+                await sshTunnel.disconnect();
+            }
+        }
         let catalog: WarehouseTablesCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
@@ -12610,6 +12641,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
         metadata?: Record<string, unknown>,
+        context?: QueryExecutionContext,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12640,15 +12672,17 @@ export class ProjectService extends BaseService {
             project,
             warehouseConnectionUuid,
         );
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: {
-                kind: 'connection',
-                warehouseConnectionUuid: connection.warehouseConnectionUuid,
-            },
-            userId: account.user.userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials: credentials } =
+            await this.getWarehouseCredentialsWithConnection({
+                context,
+                projectUuid,
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                },
+                userId: account.user.userUuid,
+                isRegisteredUser: true,
+            });
         return { connection, credentials, organizationUuid };
     }
 
@@ -12725,12 +12759,15 @@ export class ProjectService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         warehouseConnectionUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseDatabaseListing> {
         const { connection, credentials, organizationUuid } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         const connectionAnalytics = await this.getConnectionAnalyticsProperties(
             {
@@ -12785,12 +12822,15 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
         listedDatabaseName: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseTablesCatalog> {
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         const listedDatabase = findListedDatabase(
             await this.listConnectionSqlRunnerDatabases(
@@ -12838,12 +12878,15 @@ export class ProjectService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         warehouseConnectionUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<void> {
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         await this.warehouseConnectionTablesModel.clearTables({
             projectUuid,
@@ -12862,14 +12905,15 @@ export class ProjectService extends BaseService {
             schemaName,
             tableName,
         }: { databaseName: string; schemaName: string; tableName: string },
+        queryContext: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseTableSchema> {
-        const queryContext = QueryExecutionContext.SQL_RUNNER;
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
                 { tableName, schemaName, databaseName, queryContext },
+                queryContext,
             );
         const listedDatabase = findListedCatalogDatabase(
             await this.listConnectionSqlRunnerDatabases(

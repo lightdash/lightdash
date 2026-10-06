@@ -91,6 +91,54 @@ const setup = () => {
 };
 
 describe('SnowflakeAiCredentialProvider', () => {
+    test.each([
+        [
+            'connection refused at private.example.test',
+            AiPrincipalFailureReason.UNKNOWN,
+            true,
+        ],
+        [
+            'invalid access token at private.example.test',
+            AiPrincipalFailureReason.CREDENTIAL_REJECTED,
+            false,
+        ],
+        ['user disabled', AiPrincipalFailureReason.DISABLED_OR_LOCKED, false],
+        [
+            'blocked by network policy',
+            AiPrincipalFailureReason.NETWORK_POLICY,
+            false,
+        ],
+        [
+            'warehouse permission denied',
+            AiPrincipalFailureReason.WAREHOUSE_ACCESS,
+            false,
+        ],
+    ])(
+        'classifies connection failure %s without exposing the host',
+        async (message, reason, transient) => {
+            const { provider } = setup();
+            vi.mocked(checkSnowflakeAgentSessionWithToken).mockRejectedValue(
+                new Error(message),
+            );
+            const result = await provider.probe(connection, assurances);
+            expect(result).toMatchObject({ ok: false, reason, transient });
+            expect(JSON.stringify(result)).not.toContain(
+                'private.example.test',
+            );
+        },
+    );
+    test('expires minted tokens after eight minutes', async () => {
+        const { provider } = setup();
+        const before = Date.now();
+        const result = await provider.mint(mintArgs);
+        expect(result.expiresAt?.getTime()).toBeGreaterThanOrEqual(
+            before + 480000,
+        );
+        expect(result.expiresAt?.getTime()).toBeLessThanOrEqual(
+            Date.now() + 480000,
+        );
+    });
+
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.mocked(checkSnowflakeAgentSessionWithToken).mockReset();
@@ -188,7 +236,7 @@ describe('SnowflakeAiCredentialProvider', () => {
                     requireUserCredentials: false,
                 },
                 assurances,
-                expiresAt: null,
+                expiresAt: expect.any(Date),
             });
             expect(
                 UserService.generateSnowflakeAccessToken,
@@ -231,7 +279,9 @@ describe('SnowflakeAiCredentialProvider', () => {
         });
         expect(
             checkSnowflakeAgentSessionWithToken,
-        ).toHaveBeenCalledExactlyOnceWith('account', 'access-token');
+        ).toHaveBeenCalledExactlyOnceWith('account', 'access-token', {
+            throwOnError: true,
+        });
     });
     test.each(assurances)(
         'refuses an inactive session for %s',
@@ -246,6 +296,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             expect(result).toMatchObject({
                 ok: false,
                 reason: AiPrincipalFailureReason.NOT_AGENT_SESSION,
+                transient: false,
                 message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
             });
             expect(JSON.stringify(result)).not.toContain('access-token');
@@ -266,6 +317,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             expect(result).toMatchObject({
                 ok: false,
                 reason: AiPrincipalFailureReason.NO_RESTRICTED_SESSION_SCOPE,
+                transient: false,
             });
             expect(JSON.stringify(result)).not.toContain('access-token');
         },
@@ -277,6 +329,7 @@ describe('SnowflakeAiCredentialProvider', () => {
         ).toMatchObject({
             ok: false,
             reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
+            transient: false,
         });
         expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
     });

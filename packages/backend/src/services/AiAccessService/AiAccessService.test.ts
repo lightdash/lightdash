@@ -22,7 +22,6 @@ import {
     type CreateWarehouseCredentials,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -38,6 +37,7 @@ import { aiExecutionPlanMock } from './AiAccessService.mock';
 import {
     type AiCreatedSecret,
     type AiCredentialProvider,
+    type AiMintedCredentials,
 } from './providers/AiCredentialProvider';
 import { createAiCredentialProviderRegistry } from './providers/registry';
 import { SnowflakeAiCredentialProvider } from './providers/SnowflakeAiCredentialProvider';
@@ -94,6 +94,9 @@ const principal: AiPrincipalWithSecrets = {
 };
 
 const account = buildAccount();
+account.user.ability = new Ability<PossibleAbilities>([
+    { action: 'manage', subject: 'Project' },
+]);
 const viewer = {
     ...account,
     user: {
@@ -168,11 +171,15 @@ const setup = () => {
         missingPrerequisite: vi.fn(
             async (): Promise<AiAccessRefusalReason | null> => null,
         ),
-        mint: vi.fn(async () => ({
-            credentials: { ...connection, user: 'ai' },
-            assurances: [],
-            expiresAt: null,
-        })),
+        mint: vi.fn(
+            async (): Promise<
+                AiMintedCredentials<CreateWarehouseCredentials>
+            > => ({
+                credentials: { ...connection, user: 'ai' },
+                assurances: [],
+                expiresAt: null,
+            }),
+        ),
         probe: vi.fn(
             async (): Promise<AiProbeResult> => ({
                 ok: true,
@@ -200,7 +207,6 @@ const setup = () => {
     const registry = vi.fn((): AiCredentialProvider => provider);
     const service = new AiAccessService({
         lightdashConfig: {} as LightdashConfig,
-        analytics: {} as LightdashAnalytics,
         aiPrincipalModel: model as unknown as AiPrincipalModel,
         groupsModel: groups as unknown as GroupsModel,
         featureFlagModel: flags as unknown as FeatureFlagModel,
@@ -227,6 +233,168 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test('denies policy changes to project developers', async () => {
+        const { service, model } = setup();
+        const developer = {
+            ...viewer,
+            user: {
+                ...viewer.user,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'update', subject: 'Project' },
+                ]),
+            },
+        };
+        await expect(
+            service.upsertPolicy(developer, 'project', null, policy),
+        ).rejects.toThrow(ForbiddenError);
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test('refuses embedded viewers distinctly from service accounts', async () => {
+        const { service } = setup();
+        await expect(
+            service.resolvePlan({ ...args, isRegisteredUser: false }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
+                message:
+                    'AI access runs as a signed-in person. Embedded viewers cannot use it on this connection.',
+            },
+        });
+    });
+    test('shares concurrent mints and reuses unexpired credentials', async () => {
+        const { service, provider } = setup();
+        provider.mint.mockResolvedValue({
+            credentials: connection,
+            assurances: [],
+            expiresAt: new Date(Date.now() + 480000),
+        });
+        await Promise.all([
+            service.resolvePlan(args),
+            service.resolvePlan(args),
+        ]);
+        await service.resolvePlan(args);
+        expect(provider.mint).toHaveBeenCalledTimes(1);
+    });
+    test('shares a mint while the provider is still waiting', async () => {
+        const { service, provider } = setup();
+        let complete:
+            | ((value: AiMintedCredentials<CreateWarehouseCredentials>) => void)
+            | null = null;
+        const pending = new Promise<
+            AiMintedCredentials<CreateWarehouseCredentials>
+        >((resolve) => {
+            complete = resolve;
+        });
+        provider.mint.mockReturnValue(pending);
+        const first = service.resolvePlan(args);
+        const second = service.resolvePlan(args);
+        await vi.waitFor(() => expect(provider.mint).toHaveBeenCalledTimes(1));
+        if (complete === null) throw new Error('Missing mint resolver');
+        (
+            complete as (
+                value: AiMintedCredentials<CreateWarehouseCredentials>,
+            ) => void
+        )({
+            credentials: connection,
+            assurances: [],
+            expiresAt: new Date(Date.now() + 480000),
+        });
+        await Promise.all([first, second]);
+        expect(provider.mint).toHaveBeenCalledTimes(1);
+    });
+    test('drops a failed mint so the next query can retry', async () => {
+        const { service, provider } = setup();
+        provider.mint.mockRejectedValueOnce(new Error('mint unavailable'));
+        await expect(service.resolvePlan(args)).rejects.toThrow(
+            'mint unavailable',
+        );
+        await service.resolvePlan(args);
+        expect(provider.mint).toHaveBeenCalledTimes(2);
+    });
+    test('reprobes a recent transient failure before executing again', async () => {
+        const { service, provider, model } = setup();
+        model.findPrincipalByRef.mockResolvedValue({
+            ...principal,
+            status: AiPrincipalStatus.READY,
+            lastProbe: {
+                ok: false,
+                transient: true,
+                checkedAt: new Date(),
+                reason: AiPrincipalFailureReason.UNKNOWN,
+                message: 'Temporary failure',
+                observed: {},
+            },
+        });
+        await service.resolvePlan(args);
+        expect(provider.probe).toHaveBeenCalledOnce();
+    });
+    test('mints again after expiry', async () => {
+        const { service, provider } = setup();
+        provider.mint.mockResolvedValue({
+            credentials: connection,
+            assurances: [],
+            expiresAt: new Date(0),
+        });
+        await service.resolvePlan(args);
+        await service.resolvePlan(args);
+        expect(provider.mint).toHaveBeenCalledTimes(2);
+    });
+    test('does not cache credentials without an expiry', async () => {
+        const { service, provider } = setup();
+        await service.resolvePlan(args);
+        await service.resolvePlan(args);
+        expect(provider.mint).toHaveBeenCalledTimes(2);
+    });
+    test('records a transient failure, refuses generically, and clears the mint cache', async () => {
+        const { service, provider, model } = setup();
+        provider.mint.mockResolvedValue({
+            credentials: connection,
+            assurances: [],
+            expiresAt: new Date(Date.now() + 480000),
+        });
+        provider.probe.mockResolvedValueOnce({
+            ok: false,
+            transient: true,
+            checkedAt: new Date(),
+            observed: {},
+            reason: AiPrincipalFailureReason.UNKNOWN,
+            message: 'private host connection failed',
+        });
+        await expect(service.resolvePlan(args)).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                message:
+                    'The last check of your AI principal failed. Ask an admin to review it.',
+            },
+        });
+        expect(model.recordProbe).toHaveBeenCalledWith(
+            'principal',
+            expect.objectContaining({ transient: true }),
+        );
+        await service.resolvePlan(args);
+        expect(provider.mint).toHaveBeenCalledTimes(2);
+    });
+    test.each(['deletePrincipal', 'regenerateSecret'] as const)(
+        '%s clears cached credentials',
+        async (method) => {
+            const { service, provider } = setup();
+            provider.mint.mockResolvedValue({
+                credentials: connection,
+                assurances: [],
+                expiresAt: new Date(Date.now() + 480000),
+            });
+            await service.resolvePlan(args);
+            provider.createSecret.mockResolvedValue({
+                secret: 'new',
+                publicKey: null,
+                publicKeyFingerprint: null,
+            });
+            await service[method](account, 'principal');
+            await service.resolvePlan(args);
+            expect(provider.mint).toHaveBeenCalledTimes(2);
+        },
+    );
+
     test('denies policy writes and principal reads to non-admins', async () => {
         const { service, model, projects } = setup();
         await expect(
@@ -432,6 +600,7 @@ describe('AiAccessService', () => {
         );
         expect(model.recordProbe).toHaveBeenCalledWith('principal', {
             ok: false,
+            transient: false,
             checkedAt: expect.any(Date),
             observed: {},
             reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
@@ -677,7 +846,11 @@ describe('AiAccessService', () => {
             await expect(
                 service.resolvePlan({ ...args, ...caller }),
             ).rejects.toMatchObject({
-                refusal: { reason: AiAccessRefusalReason.SERVICE_ACCOUNT },
+                refusal: {
+                    reason: caller.isServiceAccount
+                        ? AiAccessRefusalReason.SERVICE_ACCOUNT
+                        : AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
+                },
             });
             expect(provider.mint).not.toHaveBeenCalled();
         },
@@ -762,6 +935,7 @@ describe('AiAccessService', () => {
         const { service, model, provider } = setup();
         provider.probe.mockResolvedValue({
             ok: false,
+            transient: false,
             checkedAt: new Date(),
             observed: {},
             reason: AiPrincipalFailureReason.WRONG_PRINCIPAL,
@@ -770,7 +944,8 @@ describe('AiAccessService', () => {
         await expect(service.resolvePlan(args)).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
-                message: 'Wrong principal',
+                message:
+                    'The last check of your AI principal failed. Ask an admin to review it.',
             },
         });
         expect(model.recordProbe).toHaveBeenCalledWith(
@@ -808,7 +983,8 @@ describe('AiAccessService', () => {
         await expect(service.resolvePlan(args)).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
-                message: 'Check failed',
+                message:
+                    'The last check of your AI principal failed. Ask an admin to review it.',
             },
         });
         expect(provider.mint).not.toHaveBeenCalled();

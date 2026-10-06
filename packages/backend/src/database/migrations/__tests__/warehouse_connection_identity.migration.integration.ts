@@ -215,12 +215,13 @@ describe('Multi runtime identity on the real schema', () => {
             )
         ).queryUuid;
 
-    const queryBinding = async (queryUuid: string) =>
-        (
-            await database('query_history')
-                .where('query_uuid', queryUuid)
-                .first('warehouse_connection_uuid')
-        ).warehouse_connection_uuid as string | null;
+    const queryBinding = async (queryUuid: string) => {
+        const row = await database('query_history')
+            .where('query_uuid', queryUuid)
+            .first('warehouse_connection_uuid');
+        if (!row) throw new Error('Query history not found');
+        return row.warehouse_connection_uuid ?? null;
+    };
 
     describe('SQL chart save bindings', () => {
         test('a multi save writes the extra connection on the new version', async () => {

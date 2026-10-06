@@ -3,6 +3,7 @@ import {
     AiAccessRefusedError,
     AiCredentialMethod,
     AiPrincipalFailureReason,
+    AiPrincipalStatus,
     AiSetupScriptFormat,
     ParameterError,
     UnexpectedServerError,
@@ -13,7 +14,7 @@ import {
     type AiWarehouseCapabilities,
     type CreatePostgresCredentials,
 } from '@lightdash/common';
-import { PostgresWarehouseClient } from '@lightdash/warehouses';
+import { PostgresWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import { randomBytes } from 'node:crypto';
 import {
     type AiCreatedSecret,
@@ -102,16 +103,14 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
                     'Postgres cannot verify this AI principal assurance.',
                 );
         }
-        const redact = (message: string): string =>
-            credentials.password.length > 0
-                ? message.split(credentials.password).join('[REDACTED]')
-                : message;
         let observed: {
             session_user: string | null;
             current_user: string | null;
         };
+        const tunnel = new SshTunnel(credentials);
         try {
-            const client = new PostgresWarehouseClient(credentials);
+            const tunneledCredentials = await tunnel.connect();
+            const client = new PostgresWarehouseClient(tunneledCredentials);
             const { rows } = await client.runQuery(
                 'SELECT session_user AS session_user, current_user AS current_user',
                 {},
@@ -156,9 +155,12 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
                 ok: false,
                 checkedAt: new Date(),
                 reason,
-                message: redact(`${message} ${warehouseMessage}`),
+                transient: reason === AiPrincipalFailureReason.UNKNOWN,
+                message,
                 observed: { session_user: null, current_user: null },
             };
+        } finally {
+            await tunnel.disconnect();
         }
         for (const assurance of assurances) {
             if (
@@ -170,9 +172,8 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
                     ok: false,
                     checkedAt: new Date(),
                     reason: AiPrincipalFailureReason.WRONG_PRINCIPAL,
-                    message: redact(
-                        `Postgres signed in as ${observed.session_user}, not ${assurance.expected}.`,
-                    ),
+                    transient: false,
+                    message: 'Postgres signed in as a different principal.',
                     observed,
                 };
             }
@@ -192,7 +193,11 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
         const ref = quoteIdentifier(principal.ref);
         const schema = quoteIdentifier(connection.schema);
         const password = quoteLiteral(
-            principal.secret ?? '<generated when the principal is first used>',
+            principal.status === AiPrincipalStatus.PENDING &&
+                principal.lastProbe === null
+                ? (principal.secret ??
+                      '<generated when the principal is first used>')
+                : '<held by this instance; regenerate the secret to see a new one>',
         );
         return {
             format: AiSetupScriptFormat.SQL,

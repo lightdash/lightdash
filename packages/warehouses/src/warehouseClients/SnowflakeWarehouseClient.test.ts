@@ -384,6 +384,20 @@ describe('SnowflakeWarehouseClient', () => {
         ).toHaveBeenCalledTimes(1);
     });
 
+    it('propagates probe errors only when requested and still destroys the connection', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(new Error('connection interrupted'));
+        });
+        await expect(
+            checkSnowflakeAgentSessionWithToken('test', 'token', {
+                throwOnError: true,
+            }),
+        ).rejects.toThrow('connection interrupted');
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
     it('refuses token sign-in when disabling cached results fails', async () => {
         executeMock
             .mockImplementationOnce(({ complete }) => {

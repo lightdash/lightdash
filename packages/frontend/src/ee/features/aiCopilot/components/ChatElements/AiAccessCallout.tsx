@@ -22,7 +22,7 @@ export const AiAccessCallout = ({
     const t = useUiStrings();
     const canUpdate =
         project &&
-        user.data?.ability.can('update', subject('Project', project));
+        user.data?.ability.can('manage', subject('Project', project));
     return (
         <Callout variant="warning">
             <Group gap="xs">

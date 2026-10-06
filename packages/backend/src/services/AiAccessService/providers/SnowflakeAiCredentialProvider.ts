@@ -143,7 +143,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 { kind: 'agent_session_active' },
                 { kind: 'result_cache_off' },
             ],
-            expiresAt: null,
+            expiresAt: new Date(Date.now() + 8 * 60 * 1000),
         };
     }
 
@@ -173,6 +173,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         if (!credentials.token)
             return {
                 ok: false,
+                transient: false,
                 checkedAt: new Date(),
                 reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
                 message: 'Snowflake AI access requires an access token.',
@@ -181,10 +182,47 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     active_restricted_session_scopes: null,
                 },
             };
-        const session = await checkSnowflakeAgentSessionWithToken(
-            credentials.account,
-            credentials.token,
-        );
+        let session: Awaited<
+            ReturnType<typeof checkSnowflakeAgentSessionWithToken>
+        >;
+        try {
+            session = await checkSnowflakeAgentSessionWithToken(
+                credentials.account,
+                credentials.token,
+                { throwOnError: true },
+            );
+        } catch (error) {
+            const detail =
+                error instanceof Error ? error.message : String(error);
+            let reason = AiPrincipalFailureReason.UNKNOWN;
+            if (
+                /invalid.*token|token.*expired|incorrect.*password|authentication failed/i.test(
+                    detail,
+                )
+            )
+                reason = AiPrincipalFailureReason.CREDENTIAL_REJECTED;
+            else if (/\bdisabled\b|\blocked\b/i.test(detail))
+                reason = AiPrincipalFailureReason.DISABLED_OR_LOCKED;
+            else if (/network policy|ip.*not allowed/i.test(detail))
+                reason = AiPrincipalFailureReason.NETWORK_POLICY;
+            else if (
+                /warehouse.*privilege|warehouse.*not.*exist|permission denied/i.test(
+                    detail,
+                )
+            )
+                reason = AiPrincipalFailureReason.WAREHOUSE_ACCESS;
+            return {
+                ok: false,
+                transient: reason === AiPrincipalFailureReason.UNKNOWN,
+                checkedAt: new Date(),
+                reason,
+                message: 'Snowflake could not verify the AI principal.',
+                observed: {
+                    current_role: null,
+                    active_restricted_session_scopes: null,
+                },
+            };
+        }
         const observed = {
             current_role: session.currentRole,
             active_restricted_session_scopes:
@@ -198,6 +236,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             )
                 return {
                     ok: false,
+                    transient: false,
                     checkedAt: new Date(),
                     reason: AiPrincipalFailureReason.NOT_AGENT_SESSION,
                     message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
@@ -209,6 +248,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             )
                 return {
                     ok: false,
+                    transient: false,
                     checkedAt: new Date(),
                     reason: AiPrincipalFailureReason.NO_RESTRICTED_SESSION_SCOPE,
                     message:

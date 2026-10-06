@@ -29,7 +29,6 @@ import {
     type UpsertAiAccessPolicy,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
-import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -40,6 +39,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { BaseService } from '../BaseService';
 import {
     type AiCredentialProvider,
+    type AiMintArgs,
     type AiMintedCredentials,
 } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
@@ -55,11 +55,16 @@ export type ResolvePlanArgs = {
     isServiceAccount: boolean;
 };
 
+type AiMintCacheEntry = {
+    minted: AiMintedCredentials<CreateWarehouseCredentials> | null;
+    expiresAt: Date;
+    pending: Promise<AiMintedCredentials<CreateWarehouseCredentials>> | null;
+};
+
 type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
 
 type AiAccessServiceArguments = {
     lightdashConfig: LightdashConfig;
-    analytics: LightdashAnalytics;
     aiPrincipalModel: AiPrincipalModel;
     groupsModel: GroupsModel;
     featureFlagModel: FeatureFlagModel;
@@ -70,6 +75,48 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly mintCache = new Map<string, AiMintCacheEntry>();
+
+    invalidateCredentials(aiPrincipalUuid: string): void {
+        this.mintCache.delete(aiPrincipalUuid);
+    }
+
+    private async mintCredentials(
+        provider: AiCredentialProvider,
+        args: AiMintArgs<CreateWarehouseCredentials>,
+    ): Promise<AiMintedCredentials<CreateWarehouseCredentials>> {
+        const key = args.principal.aiPrincipalUuid;
+        const cached = this.mintCache.get(key);
+        if (cached?.pending) return cached.pending;
+        if (cached?.minted && cached.expiresAt.getTime() > Date.now())
+            return cached.minted;
+        const entry: AiMintCacheEntry = {
+            minted: null,
+            expiresAt: new Date(0),
+            pending: null,
+        };
+        this.mintCache.set(key, entry);
+        entry.pending = provider
+            .mint(args)
+            .then((minted) => {
+                if (this.mintCache.get(key) === entry) {
+                    if (minted.expiresAt === null) this.mintCache.delete(key);
+                    else {
+                        entry.minted = minted;
+                        entry.expiresAt = minted.expiresAt;
+                        entry.pending = null;
+                    }
+                }
+                return minted;
+            })
+            .catch((error: unknown) => {
+                if (this.mintCache.get(key) === entry)
+                    this.mintCache.delete(key);
+                throw error;
+            });
+        return entry.pending;
+    }
+
     private readonly aiPrincipalModel: AiPrincipalModel;
 
     private readonly groupsModel: GroupsModel;
@@ -106,7 +153,7 @@ export class AiAccessService extends BaseService {
     private async authorizeProject(
         account: Account,
         projectUuid: string,
-        action: 'view' | 'update',
+        action: 'view' | 'manage',
     ): Promise<string> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -126,7 +173,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         projectUuid: string,
         warehouseConnectionUuid: string | null,
-        action: 'view' | 'update' = 'update',
+        action: 'view' | 'manage' = 'manage',
     ): Promise<{
         connection: CreateWarehouseCredentials;
         organizationUuid: string;
@@ -168,7 +215,7 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string | null,
     ): Promise<AiAccessPolicy | null> {
-        await this.authorizeProject(account, projectUuid, 'update');
+        await this.authorizeProject(account, projectUuid, 'manage');
         return this.aiPrincipalModel.findPolicy(
             projectUuid,
             warehouseConnectionUuid,
@@ -347,7 +394,7 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         aiPrincipalUuid: string,
     ): Promise<void> {
-        await this.authorizeProject(account, projectUuid, 'update');
+        await this.authorizeProject(account, projectUuid, 'manage');
         const principal =
             await this.aiPrincipalModel.getPrincipal(aiPrincipalUuid);
         const policy = await this.aiPrincipalModel.getPolicy(
@@ -388,8 +435,10 @@ export class AiAccessService extends BaseService {
             });
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
+            this.invalidateCredentials(aiPrincipalUuid);
             return this.aiPrincipalModel.recordProbe(aiPrincipalUuid, {
                 ok: false,
+                transient: false,
                 checkedAt: new Date(),
                 reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
                 message: error.refusal.message,
@@ -400,6 +449,7 @@ export class AiAccessService extends BaseService {
             minted.credentials,
             minted.assurances,
         );
+        if (!probe.ok) this.invalidateCredentials(aiPrincipalUuid);
         return this.aiPrincipalModel.recordProbe(aiPrincipalUuid, probe);
     }
 
@@ -413,6 +463,7 @@ export class AiAccessService extends BaseService {
             throw new ParameterError(
                 'This warehouse mints credentials; there is no secret to regenerate.',
             );
+        this.invalidateCredentials(aiPrincipalUuid);
         await this.aiPrincipalModel.setSecret(aiPrincipalUuid, secret);
         return this.aiPrincipalModel.resetStatus(aiPrincipalUuid);
     }
@@ -422,6 +473,7 @@ export class AiAccessService extends BaseService {
         aiPrincipalUuid: string,
     ): Promise<void> {
         await this.loadPrincipal(account, aiPrincipalUuid);
+        this.invalidateCredentials(aiPrincipalUuid);
         await this.aiPrincipalModel.deletePrincipal(aiPrincipalUuid);
     }
 
@@ -430,7 +482,7 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         args: { page: number; pageSize: number },
     ): Promise<ApiAiQueryAuditResponse['results']> {
-        await this.authorizeProject(account, projectUuid, 'update');
+        await this.authorizeProject(account, projectUuid, 'manage');
         return this.aiPrincipalModel.listAudit(projectUuid, args);
     }
 
@@ -504,9 +556,14 @@ export class AiAccessService extends BaseService {
         args: AccessArgs,
         policy: AiAccessPolicy,
     ): Promise<AiCredentialProvider> {
-        if (args.isServiceAccount || !args.isRegisteredUser) {
+        if (args.isServiceAccount) {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.SERVICE_ACCOUNT,
+            );
+        }
+        if (!args.isRegisteredUser) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
             );
         }
         const provider = this.providerRegistry(args.connection.type);
@@ -628,7 +685,6 @@ export class AiAccessService extends BaseService {
         if (principal.status === AiPrincipalStatus.FAILED) {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.PRINCIPAL_FAILED,
-                { message: principal.statusMessage ?? undefined },
             );
         }
     }
@@ -677,29 +733,34 @@ export class AiAccessService extends BaseService {
             let principal = await this.principal(args, policy, email);
             AiAccessService.assertPrincipal(principal);
             principal = await this.ensureSecret(principal, provider);
-            const { credentials, assurances } = await provider.mint({
-                connection: args.connection,
-                principal,
-                policy,
-                person: { userUuid: args.userUuid, email },
-            });
+            const { credentials, assurances } = await this.mintCredentials(
+                provider,
+                {
+                    connection: args.connection,
+                    principal,
+                    policy,
+                    person: { userUuid: args.userUuid, email },
+                },
+            );
             let verifiedPrincipal = principal;
             if (
                 principal.status === AiPrincipalStatus.PENDING ||
-                !principal.lastProbe ||
+                !principal.lastProbe?.ok ||
                 Date.now() - principal.lastProbe.checkedAt.getTime() >
                     60 * 60 * 1000
             ) {
                 const probe = await provider.probe(credentials, assurances);
+                if (!probe.ok)
+                    this.invalidateCredentials(principal.aiPrincipalUuid);
                 const recorded = await this.aiPrincipalModel.recordProbe(
                     principal.aiPrincipalUuid,
                     probe,
                 );
-                if (!probe.ok)
+                if (!probe.ok) {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.PRINCIPAL_FAILED,
-                        { message: probe.message },
                     );
+                }
                 verifiedPrincipal = {
                     ...recorded,
                     secret: principal.secret,

@@ -39,6 +39,7 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    QueryExecutionContext,
     ReadContentType,
     ResultColumns,
     SavedChart,
@@ -696,7 +697,9 @@ export type RunComposerQueriesFn = (args: {
     };
 }>;
 
-export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
+export type ListWarehouseTablesFn = (
+    context?: QueryExecutionContext,
+) => Promise<WarehouseTablesCatalog>;
 
 export type DescribeWarehouseTableFn = (args: {
     table: string;

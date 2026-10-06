@@ -3114,6 +3114,7 @@ export class AiAgentService extends BaseService {
             const catalog = await this.projectService.getWarehouseTables(
                 user,
                 projectUuid,
+                QueryExecutionContext.AI,
             );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {

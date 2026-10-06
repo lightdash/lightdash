@@ -71,6 +71,7 @@ export type QueryUsageMetadata = {
 };
 
 export type QueryHistory = {
+    warehouseConnectionUuid?: string | null;
     queryUuid: string;
     createdAt: Date;
     createdBy: string | null;

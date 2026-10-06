@@ -967,6 +967,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    projectModel: models.getProjectModel(),
+                    warehouseConnectionModel:
+                        models.getWarehouseConnectionModel(),
+                    aiAccessService: repository.getAiAccessService(),
                     schedulerAiAugmentationModel:
                         models.getSchedulerAiAugmentationModel<SchedulerAiAugmentationModel>(),
                     schedulerService: repository.getSchedulerService(),
@@ -984,6 +988,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new DataAppAnalysisService({
+                    projectModel: models.getProjectModel(),
+                    warehouseConnectionModel:
+                        models.getWarehouseConnectionModel(),
+                    aiAccessService: repository.getAiAccessService(),
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
                     appModel: models.getAppModel(),

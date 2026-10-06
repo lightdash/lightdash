@@ -201,6 +201,12 @@ const execute = async (
 };
 
 describe('listWarehouseTables tool', () => {
+    test('passes the AI context to warehouse table discovery', async () => {
+        const list = vi.fn().mockResolvedValue({});
+        await execute(list, { limit: 100 });
+        expect(list).toHaveBeenCalledWith('ai');
+    });
+
     test('renders matched tables grouped by schema and as structured content', async () => {
         const output = await execute(async () => structuredCatalog, {
             limit: 100,

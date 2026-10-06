@@ -368,7 +368,7 @@ export const AiAccessPage = () => {
     if (
         !project.data ||
         !flag?.enabled ||
-        !user.data?.ability.can('update', subject('Project', project.data))
+        !user.data?.ability.can('manage', subject('Project', project.data))
     )
         return <Alert color="red">AI access settings are not available.</Alert>;
     return (
