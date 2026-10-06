@@ -366,7 +366,20 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
             if (options?.timezone) {
                 console.debug(`Setting Trino timezone to ${options?.timezone}`);
-                await session.query(`SET TIME ZONE '${options?.timezone}'`);
+                const timezoneQuery = await session.query(
+                    `SET TIME ZONE '${options?.timezone}'`,
+                );
+                let timezoneResult: IteratorResult<QueryResult>;
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    timezoneResult = await timezoneQuery.next();
+                    if (timezoneResult.value.error) {
+                        throw new WarehouseQueryError(
+                            getErrorMessage(timezoneResult.value.error) ??
+                                'Failed to set the time zone',
+                        );
+                    }
+                } while (!timezoneResult.done);
             }
 
             query = await session.query(
