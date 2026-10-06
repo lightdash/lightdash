@@ -28,6 +28,7 @@ import {
     type QueryExecutionContext,
     type UpsertAiAccessPolicy,
 } from '@lightdash/common';
+import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
@@ -220,6 +221,8 @@ export class AiAccessService extends BaseService {
         }
         const refs = new Set<string>();
         for (const mapping of upsert.groupMappings) {
+            if (!isValidUuid(mapping.groupUuid))
+                throw new ParameterError('A group mapping needs a group.');
             if (!mapping.ref.trim())
                 throw new ParameterError('A group mapping needs a reference.');
             if (refs.has(mapping.ref))
