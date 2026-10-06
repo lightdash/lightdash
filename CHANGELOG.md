@@ -1,3 +1,10 @@
+# [2.447.0](https://github.com/lightdash/lightdash/compare/2.446.0...2.447.0) (2026-10-06)
+
+
+### Features
+
+* **ai:** draft personal Documents and save them to a Space from chat ([#30547](https://github.com/lightdash/lightdash/issues/30547)) ([dd9c804](https://github.com/lightdash/lightdash/commit/dd9c80499c533c48cd293882e0149118676e9fd5)), closes [#30545](https://github.com/lightdash/lightdash/issues/30545)
+
 # [2.446.0](https://github.com/lightdash/lightdash/compare/2.445.1...2.446.0) (2026-10-06)
 
 
