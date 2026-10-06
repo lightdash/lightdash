@@ -1,3 +1,8 @@
+import {
+    type AiIdentitySchemaRule,
+    type AiIdentityUngrantedSchemas,
+} from './aiIdentitySchemaRule';
+
 export enum AiIdentityCreationMode {
     GUIDED = 'guided',
     AUTOMATIC = 'automatic',
@@ -47,12 +52,12 @@ export type AiIdentityAiRoleDefinition = {
     aiIdentityAiRoleUuid: string;
     roleName: string;
     warehouse: string;
-    schemas: string[];
+    schemaRule: AiIdentitySchemaRule;
 };
 
 export type UpdateAiIdentityAiRoleDefinition = Pick<
     AiIdentityAiRoleDefinition,
-    'roleName' | 'warehouse' | 'schemas'
+    'roleName' | 'warehouse' | 'schemaRule'
 >;
 
 export type CreateAiIdentityProvisioner = {
@@ -117,8 +122,17 @@ export type AiIdentityProvisioningSettings = {
     defaultWarehouse: string;
     mappings: AiIdentityRoleMapping[];
     findings: AiIdentityProvisionerFinding[];
+    aiRoleExpansions: AiIdentityAiRoleExpansion[];
+    ungrantedSchemas: AiIdentityUngrantedSchemas[];
     worstCaseNotice: string;
     showUsersNotice: string;
+};
+
+export type AiIdentityAiRoleExpansion = {
+    roleName: string;
+    allowed: string[];
+    excluded: string[];
+    catalogLoaded: boolean;
 };
 
 export type UpdateAiIdentityProvisioningSettings = {
