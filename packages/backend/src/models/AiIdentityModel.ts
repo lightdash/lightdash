@@ -1138,6 +1138,7 @@ export class AiIdentityModel {
                 WHERE outcome.organization_uuid = ai_identity_events.organization_uuid
                   AND outcome.ai_identity_job_uuid = ai_identity_events.ai_identity_job_uuid
                   AND outcome.actor_type = 'scheduler'
+                  AND ai_identity_events.action = outcome.action
                 ORDER BY outcome.created_at DESC, outcome.ai_identity_event_uuid DESC
                 LIMIT 1
             ) AS outcome ON TRUE`)

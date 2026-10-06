@@ -298,24 +298,71 @@ export class AiIdentityService extends BaseService {
                 .size !== normalized.length
         )
             throw new ParameterError('Each AI role needs a distinct name.');
+        const before = await this.provisionerRequirements(
+            aiIdentityAccountUuid,
+        );
         await this.args.aiIdentityModel.replaceAiRoles(
             aiIdentityAccountUuid,
             normalized,
         );
-        if (
-            await this.args.aiIdentityModel.getProvisioner(
-                aiIdentityAccountUuid,
-            )
-        )
-            await this.args.aiIdentityModel.updateProvisioner(
-                aiIdentityAccountUuid,
-                {
-                    status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
-                    statusMessage:
-                        'Run the updated setup script and check the provisioner again.',
-                },
-            );
+        await this.markProvisionerForSetupIfNeeded(
+            aiIdentityAccountUuid,
+            before,
+        );
         return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private async provisionerRequirements(
+        aiIdentityAccountUuid: string,
+    ): Promise<{ roles: Set<string>; definitions: Set<string> }> {
+        const [mappings, aiRoles] = await Promise.all([
+            this.args.aiIdentityModel.getRoleMappings(aiIdentityAccountUuid),
+            this.args.aiIdentityModel.getAiRoles(aiIdentityAccountUuid),
+        ]);
+        return {
+            roles: new Set(
+                [
+                    ...mappings.map((mapping) => mapping.aiRole),
+                    ...aiRoles.map((role) => role.roleName),
+                ].map((role) => role.toUpperCase()),
+            ),
+            definitions: new Set(
+                aiRoles.map((role) =>
+                    JSON.stringify([
+                        role.roleName.toUpperCase(),
+                        role.warehouse.toUpperCase(),
+                        role.schemas
+                            .map((schema) => schema.toUpperCase())
+                            .sort(),
+                    ]),
+                ),
+            ),
+        };
+    }
+
+    private async markProvisionerForSetupIfNeeded(
+        aiIdentityAccountUuid: string,
+        before: { roles: Set<string>; definitions: Set<string> },
+    ): Promise<void> {
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (!provisioner) return;
+        const after = await this.provisionerRequirements(aiIdentityAccountUuid);
+        const needsSetup =
+            [...after.roles].some((role) => !before.roles.has(role)) ||
+            [...after.definitions].some(
+                (definition) => !before.definitions.has(definition),
+            );
+        if (!needsSetup) return;
+        await this.args.aiIdentityModel.updateProvisioner(
+            aiIdentityAccountUuid,
+            {
+                status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+                statusMessage:
+                    'Run the updated setup script and check the provisioner again.',
+            },
+        );
     }
 
     private async provisionerConnection(
@@ -514,23 +561,17 @@ export class AiIdentityService extends BaseService {
             aiRoles: [],
             existingAiRoles: mappings.map((mapping) => mapping.aiRole),
         });
+        const before = await this.provisionerRequirements(
+            aiIdentityAccountUuid,
+        );
         await this.args.aiIdentityModel.replaceRoleMappings(
             aiIdentityAccountUuid,
             mappings,
         );
-        if (
-            await this.args.aiIdentityModel.getProvisioner(
-                aiIdentityAccountUuid,
-            )
-        )
-            await this.args.aiIdentityModel.updateProvisioner(
-                aiIdentityAccountUuid,
-                {
-                    status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
-                    statusMessage:
-                        'Run the updated setup script and check the provisioner again.',
-                },
-            );
+        await this.markProvisionerForSetupIfNeeded(
+            aiIdentityAccountUuid,
+            before,
+        );
         const settings = await this.getProvisioningSettings(
             account,
             aiIdentityAccountUuid,
@@ -690,8 +731,8 @@ export class AiIdentityService extends BaseService {
             aiIdentityAccountUuid: string;
             createdByUserUuid: string | null;
         },
-    ): Promise<void> {
-        await this.args.aiIdentityModel.withProvisioningLock(
+    ): Promise<number> {
+        return this.args.aiIdentityModel.withProvisioningLock(
             job.aiIdentityAccountUuid,
             () => this.runProvisioningJobUnlocked(job),
         );
@@ -703,7 +744,7 @@ export class AiIdentityService extends BaseService {
             aiIdentityAccountUuid: string;
             createdByUserUuid: string | null;
         },
-    ): Promise<void> {
+    ): Promise<number> {
         const provisioner = await this.args.aiIdentityModel.getProvisioner(
             job.aiIdentityAccountUuid,
         );
@@ -722,7 +763,7 @@ export class AiIdentityService extends BaseService {
             mode !== AiIdentityCreationMode.AUTOMATIC &&
             job.createdByUserUuid === null
         )
-            return;
+            return 0;
         const connection = await this.provisionerConnection(
             job.aiIdentityAccountUuid,
         );
@@ -794,6 +835,7 @@ export class AiIdentityService extends BaseService {
                 skipped: plan.skipped,
             });
             let done = 0;
+            const toTest = new Set<string>();
             await forEachSequential(plan.items, async (item) => {
                 try {
                     await connection.execute(item.operation);
@@ -891,10 +933,10 @@ export class AiIdentityService extends BaseService {
                             );
                     }
                     if (
-                        item.operation.kind === 'grant_role' &&
+                        item.operation.kind !== 'drop_user' &&
                         item.aiIdentityUuid !== null
                     )
-                        await this.testIdentityByUuid(item.aiIdentityUuid);
+                        toTest.add(item.aiIdentityUuid);
                 } catch (error) {
                     await this.args.aiIdentityModel.addEvent({
                         organizationUuid: job.organizationUuid,
@@ -918,6 +960,12 @@ export class AiIdentityService extends BaseService {
                     done,
                 });
             });
+            await forEachSequential([...toTest], async (aiIdentityUuid) => {
+                await this.testIdentityByUuid(aiIdentityUuid);
+            });
+            return new Set(
+                plan.items.map((item) => item.operation.userName.toUpperCase()),
+            ).size;
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : String(error);
@@ -1551,9 +1599,10 @@ export class AiIdentityService extends BaseService {
             status: AiIdentityJobStatus.RUNNING,
         });
         try {
+            let peopleAffected: number | null = null;
             if (job.kind === AiIdentityJobKind.SYNC) await this.runSync(job);
             if (job.kind === AiIdentityJobKind.PROVISION)
-                await this.runProvisioningJob(job);
+                peopleAffected = await this.runProvisioningJob(job);
             if (job.kind === AiIdentityJobKind.TEST) await this.runTest(job);
             if (job.kind === AiIdentityJobKind.EXPORT)
                 await this.runExport(job);
@@ -1569,7 +1618,7 @@ export class AiIdentityService extends BaseService {
                 actorType: 'scheduler',
                 actorUserUuid: null,
                 action: job.kind,
-                targetCount: finished?.done ?? 0,
+                targetCount: peopleAffected ?? finished?.done ?? 0,
                 status: 'success',
                 detail: null,
             });

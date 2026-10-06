@@ -113,6 +113,9 @@ const model = {
     listProvisioningDrops: vi.fn().mockResolvedValue([]),
     getProjectMemberIds: vi.fn().mockResolvedValue(['user']),
     markProvisioned: vi.fn(),
+    markProvisionedKey: vi.fn(),
+    getOrganizationGroupUuids: vi.fn().mockResolvedValue(new Set(['group'])),
+    replaceRoleMappings: vi.fn(),
     findByUuid: vi.fn().mockResolvedValue(identity),
     find: vi.fn().mockResolvedValue(identity),
     findByUuidWithPrivateKey: vi
@@ -218,6 +221,7 @@ afterEach(() => {
     });
     model.getProvisioningMode.mockResolvedValue(AiIdentityCreationMode.GUIDED);
     model.getRoleMappings.mockResolvedValue([]);
+    model.getAiRoles.mockResolvedValue([]);
     model.getProvisioningIdentities.mockResolvedValue([]);
     model.listProvisioningDrops.mockResolvedValue([]);
     model.find.mockResolvedValue(identity);
@@ -307,6 +311,157 @@ describe('AiIdentityService', () => {
                 action: 'provision_statement',
                 detail: expect.stringContaining('GRANT ROLE'),
                 status: 'success',
+            }),
+        );
+    });
+    it('tests an AI identity again after a new key is applied', async () => {
+        model.getJob.mockResolvedValue({
+            jobUuid: 'job',
+            kind: AiIdentityJobKind.PROVISION,
+            status: AiIdentityJobStatus.QUEUED,
+            organizationUuid,
+            aiIdentityAccountUuid: 'account',
+            createdByUserUuid: admin.user.id,
+            createdAt: new Date(),
+            total: 1,
+            done: 1,
+            fileUrl: null,
+            error: null,
+        });
+        model.getProvisioningMode.mockResolvedValue(
+            AiIdentityCreationMode.AUTOMATIC,
+        );
+        model.getProvisioner.mockResolvedValue({
+            status: 'ready',
+            firstRunApprovedAt: new Date(),
+            userName: 'LIGHTDASH_PROVISIONER',
+            roleName: 'LIGHTDASH_PROVISIONER_ROLE',
+            privateKey: 'PRIVATE',
+        });
+        model.getRoleMappings.mockResolvedValue([
+            {
+                aiIdentityRoleMappingUuid: 'mapping',
+                groupUuid: 'group',
+                groupName: 'Group',
+                aiRole: 'ANALYST_AI',
+                priority: 1,
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([
+            {
+                ...identity,
+                publicKey: 'YWJj',
+                publicKeyFingerprint: 'SHA256:NEW',
+                groupUuids: ['group'],
+                createdByProvisioner: true,
+                provisionedRole: 'ANALYST_AI',
+                provisionedUserName: 'PERSON_AI',
+                provisionedPublicKeyFingerprint: 'SHA256:OLD',
+            },
+        ]);
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'LIGHTDASH_PROVISIONER',
+            role: 'LIGHTDASH_PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        const execute = vi
+            .spyOn(ProvisionerConnection.prototype, 'execute')
+            .mockResolvedValue('SQL');
+        const testIdentity = vi
+            .spyOn(
+                service as unknown as {
+                    testIdentityByUuid: (uuid: string) => Promise<unknown>;
+                },
+                'testIdentityByUuid',
+            )
+            .mockResolvedValue(identity);
+        await service.runJob('job');
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'set_public_key' }),
+        );
+        expect(testIdentity).toHaveBeenCalledTimes(1);
+        expect(testIdentity).toHaveBeenCalledWith(identity.aiIdentityUuid);
+        expect(model.addEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorType: 'scheduler',
+                action: AiIdentityJobKind.PROVISION,
+                targetCount: 1,
+            }),
+        );
+    });
+    it('keeps a ready provisioner ready when a mapping uses a role it already has', async () => {
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.READY,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+        });
+        model.getAiRoles.mockResolvedValue([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'COMPUTE_WH',
+                schemas: ['ANALYTICS.PUBLIC'],
+            },
+        ]);
+        await service.replaceProvisioningMappings(admin, 'account', [
+            { groupUuid: 'group', aiRole: 'analyst_ai', priority: 1 },
+        ]);
+        expect(model.replaceRoleMappings).toHaveBeenCalled();
+        expect(model.updateProvisioner).not.toHaveBeenCalled();
+    });
+    it('asks for the setup script again when a mapping adds a new role', async () => {
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.READY,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+        });
+        model.getAiRoles.mockResolvedValue([]);
+        model.getRoleMappings.mockResolvedValueOnce([]).mockResolvedValue([
+            {
+                aiIdentityRoleMappingUuid: 'mapping',
+                groupUuid: 'group',
+                groupName: 'Group',
+                aiRole: 'FINANCE_AI',
+                priority: 1,
+            },
+        ]);
+        await service.replaceProvisioningMappings(admin, 'account', [
+            { groupUuid: 'group', aiRole: 'FINANCE_AI', priority: 1 },
+        ]);
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
             }),
         );
     });
