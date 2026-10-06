@@ -1,25 +1,48 @@
 {
   "schemaVersion": "2",
-  "version": "2.445.1",
-  "previousVersion": "2.445.0",
-  "releaseDate": "2026-10-06T16:12:07.769Z",
+  "version": "2.446.0",
+  "previousVersion": "2.445.1",
+  "releaseDate": "2026-10-06T16:36:34.894Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261006100000_allow_personal_documents.ts",
+        "edition": "core",
+        "tables": [
+          "documents"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/documents — the response property `results/items/items/spaceUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/duplicate — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/promote — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid} — the response property `results/allOf[#/components/schemas/DocumentSummary]/spaceUuid` became nullable for the status `200`",
+        "GET /api/v2/content — the response property `results/data/items/anyOf[#/components/schemas/DocumentContentItem]/space` became nullable for the status `200`"
+      ],
+      "breakingCount": 9,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -41,5 +64,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "documents-personal-space-nullable",
+      "reason": "Documents (beta, documents feature flag) can now be personal: a Document created without a Space is visible only to its creator and admins, and spaceUuid in Document responses and space in Document content items are null until it is moved into a Space. API clients reading these fields must handle null. Requests are unchanged except that spaceUuid becomes optional when creating a Document.",
+      "requiredStop": false
+    }
+  ]
 }

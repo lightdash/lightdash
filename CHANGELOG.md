@@ -1,3 +1,10 @@
+# [2.446.0](https://github.com/lightdash/lightdash/compare/2.445.1...2.446.0) (2026-10-06)
+
+
+### Features
+
+* **documents:** create personal Documents without a Space ([#30545](https://github.com/lightdash/lightdash/issues/30545)) ([3f982c0](https://github.com/lightdash/lightdash/commit/3f982c06faa9c0cf45301c2546d215c72a759b10))
+
 ## [2.445.1](https://github.com/lightdash/lightdash/compare/2.445.0...2.445.1) (2026-10-06)
 
 

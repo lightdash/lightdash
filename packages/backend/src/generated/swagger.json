@@ -56893,7 +56893,7 @@
                 "enum": ["document"],
                 "type": "string"
             },
-            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__": {
+            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors-or-spaceUuid__": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -56931,9 +56931,6 @@
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "views": {
                         "type": "number",
                         "format": "double"
@@ -56968,15 +56965,14 @@
                     "uuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "spaceUuid",
                     "views",
                     "firstViewedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_ResourceViewDashboardItem-at-data.validationErrors_": {
-                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__",
+            "Omit_ResourceViewDashboardItem-at-data.validationErrors-or-spaceUuid_": {
+                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors-or-spaceUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "ResourceViewDocumentItem": {
@@ -56987,7 +56983,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.validationErrors_"
+                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.validationErrors-or-spaceUuid_"
                             },
                             {
                                 "properties": {
@@ -57006,13 +57002,18 @@
                                     },
                                     "projectUuid": {
                                         "type": "string"
+                                    },
+                                    "spaceUuid": {
+                                        "type": "string",
+                                        "nullable": true
                                     }
                                 },
                                 "required": [
                                     "directAccessRoles",
                                     "createdByUserUuid",
                                     "organizationUuid",
-                                    "projectUuid"
+                                    "projectUuid",
+                                    "spaceUuid"
                                 ],
                                 "type": "object"
                             }
@@ -63789,7 +63790,9 @@
                         "type": "string"
                     },
                     "spaceUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null for a personal Document, visible only to its creator and admins."
                     },
                     "organizationUuid": {
                         "type": "string"
@@ -63972,7 +63975,8 @@
                         "nullable": false
                     },
                     "spaceUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Omit to create a personal Document, visible only to its creator and admins."
                     },
                     "description": {
                         "type": "string"
@@ -63984,13 +63988,7 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "content",
-                    "schemaVersion",
-                    "spaceUuid",
-                    "description",
-                    "name"
-                ],
+                "required": ["content", "schemaVersion", "description", "name"],
                 "type": "object"
             },
             "Pick_CreateDocumentRequest.name-or-spaceUuid_": {
@@ -63999,10 +63997,11 @@
                         "type": "string"
                     },
                     "spaceUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Omit to create a personal Document, visible only to its creator and admins."
                     }
                 },
-                "required": ["name", "spaceUuid"],
+                "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -67860,27 +67859,68 @@
                 "enum": ["document"],
                 "type": "string"
             },
-            "DocumentContentItem": {
+            "Pick_Content.Exclude_keyofContent.space__": {
                 "properties": {
                     "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DOCUMENT"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/ContentType"
                     },
                     "description": {
                         "type": "string",
                         "nullable": true
                     },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
                     },
                     "createdBy": {
                         "properties": {
@@ -67919,17 +67959,80 @@
                         "type": "object",
                         "nullable": true
                     },
-                    "project": {
+                    "pinnedList": {
                         "properties": {
-                            "name": {
-                                "type": "string"
-                            },
                             "uuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["name", "uuid"],
-                        "type": "object"
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "description",
+                    "name",
+                    "slug",
+                    "verification",
+                    "uuid",
+                    "createdAt",
+                    "views",
+                    "firstViewedAt",
+                    "organization",
+                    "project",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "pinnedList"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentContentItem": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "organization": {
                         "properties": {
@@ -67943,7 +68046,7 @@
                         "required": ["name", "uuid"],
                         "type": "object"
                     },
-                    "space": {
+                    "project": {
                         "properties": {
                             "name": {
                                 "type": "string"
@@ -67955,6 +68058,43 @@
                         "required": ["name", "uuid"],
                         "type": "object"
                     },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "pinnedList": {
                         "properties": {
                             "uuid": {
@@ -67965,26 +68105,9 @@
                         "type": "object",
                         "nullable": true
                     },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
                     "lastViewedAt": {
                         "type": "string",
                         "format": "date-time",
-                        "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
                         "nullable": true
                     },
                     "directAccessRoles": {
@@ -68000,27 +68123,40 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
                     }
                 },
                 "required": [
                     "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
                     "description",
+                    "name",
+                    "slug",
+                    "verification",
+                    "uuid",
                     "createdAt",
+                    "views",
+                    "firstViewedAt",
+                    "organization",
+                    "project",
                     "createdBy",
                     "lastUpdatedAt",
                     "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
                     "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "verification",
                     "directAccessRoles",
-                    "owner"
+                    "owner",
+                    "space"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -69296,7 +69432,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.445.1",
+        "version": "2.446.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -111425,6 +111561,14 @@
                     {
                         "in": "query",
                         "name": "includePersonalDataApps",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includePersonalDocuments",
                         "required": false,
                         "schema": {
                             "type": "boolean"
