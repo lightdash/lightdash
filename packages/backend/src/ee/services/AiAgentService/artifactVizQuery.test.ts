@@ -1,6 +1,8 @@
+import { Ability } from '@casl/ability';
 import {
     MergeJoinType,
     type AnonymousAccount,
+    type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -40,8 +42,15 @@ const account = {
     },
     embedWriteUser: user,
     embedWriteContext: { canUseAiAgent: true },
-    embed: { projectUuid: 'project-uuid' },
+    embed: {
+        projectUuid: 'project-uuid',
+        organization: { organizationUuid: 'org-uuid' },
+    },
     access: { controls: { userAttributes: { tenant_id: 'tenant-a' } } },
+    organization: { organizationUuid: 'org-uuid' },
+    user: { id: 'viewer-1', ability: new Ability<PossibleAbilities>([]) },
+    isJwtUser: () => true,
+    isAnonymousUser: () => true,
 } as unknown as AnonymousAccount;
 
 const config = {
@@ -61,7 +70,17 @@ const config = {
     chartConfig: null,
 };
 
-const query = { queryUuid: 'query-uuid' };
+const dimension = validExplore.tables.a.dimensions.dim1;
+const query = {
+    queryUuid: 'query-uuid',
+    fields: {
+        a_dim1: { ...dimension, sql: '${TABLE}.dim1', compiledSql: '"a".dim1' },
+    },
+};
+const redactedQuery = {
+    ...query,
+    fields: { a_dim1: expect.objectContaining({ sql: '', compiledSql: '' }) },
+};
 
 const buildService = () => {
     const aiAgentModel = {
@@ -169,7 +188,7 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expect(result.query).toEqual(query);
+                expect(result.query).toEqual(embedded ? redactedQuery : query);
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith(
@@ -225,7 +244,7 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expect(result.query).toEqual(query);
+            expect(result.query).toEqual(embedded ? redactedQuery : query);
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
             ).toHaveBeenCalledWith(
@@ -236,3 +255,32 @@ describe.each([
         });
     },
 );
+
+describe('AI artifact visualization SQL redaction', () => {
+    it('keeps field SQL for embeds granted view:EmbedCompiledSql', async () => {
+        const { service } = buildService();
+        const grantedAccount = {
+            ...account,
+            user: {
+                id: 'viewer-1',
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'EmbedCompiledSql',
+                        action: 'view',
+                        conditions: {
+                            organizationUuid: 'org-uuid',
+                            projectUuid: 'project-uuid',
+                        },
+                    },
+                ]),
+            },
+        } as unknown as AnonymousAccount;
+
+        const result = await service.getEmbedArtifactVizQuery(
+            grantedAccount,
+            ...artifactArgs,
+        );
+
+        expect(result.query).toEqual(query);
+    });
+});

@@ -113,6 +113,11 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
+import {
+    redactExploreSql,
+    redactFieldSql,
+    redactItemsMapSql,
+} from '../../../utils/embedCompiledSql';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
@@ -968,7 +973,12 @@ export class EmbedService extends BaseService {
 
         return {
             savedQueryFilters,
-            allFilterableFields,
+            allFilterableFields: this.cannotViewEmbedCompiledSql(
+                account,
+                projectUuid,
+            )
+                ? allFilterableFields.map(redactFieldSql)
+                : allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
             defaultTimeDimensions: {},
@@ -1448,26 +1458,32 @@ export class EmbedService extends BaseService {
         // Execute using AsyncQueryService method with embed context.
         // The session timezone only takes effect when timezone support is
         // enabled for the org; otherwise it is dropped so the param is inert.
-        return this.asyncQueryService.executeAsyncDashboardChartQuery({
+        const results =
+            await this.asyncQueryService.executeAsyncDashboardChartQuery({
+                account,
+                projectUuid,
+                chartUuid: chart.uuid,
+                preloadedSavedChart: chart,
+                preloadedProjectParameters: projectParameters,
+                tileUuid,
+                dashboardSorts: dashboardSorts ?? [],
+                dashboardUuid,
+                dashboardFilters: appliedDashboardFilters,
+                dateZoom,
+                invalidateCache,
+                limit,
+                context: QueryExecutionContext.EMBED,
+                parameters: acceptedUserParameters,
+                pivotResults,
+                sessionTimezone: isTimezoneSupportEnabled
+                    ? (timezone ?? null)
+                    : null,
+            });
+        return this.asyncQueryService.redactFieldsSqlForResponse(
             account,
             projectUuid,
-            chartUuid: chart.uuid,
-            preloadedSavedChart: chart,
-            preloadedProjectParameters: projectParameters,
-            tileUuid,
-            dashboardSorts: dashboardSorts ?? [],
-            dashboardUuid,
-            dashboardFilters: appliedDashboardFilters,
-            dateZoom,
-            invalidateCache,
-            limit,
-            context: QueryExecutionContext.EMBED,
-            parameters: acceptedUserParameters,
-            pivotResults,
-            sessionTimezone: isTimezoneSupportEnabled
-                ? (timezone ?? null)
-                : null,
-        });
+            results,
+        );
     }
 
     private static _getSqlChartUuidFromDashboardTiles(
@@ -1784,6 +1800,10 @@ export class EmbedService extends BaseService {
             useTimezoneAwareDateTrunc: isTimezoneSupportEnabled,
         });
 
+        const shouldRedactSql = this.cannotViewEmbedCompiledSql(
+            account,
+            projectUuid,
+        );
         return {
             appliedDashboardFilters: undefined,
             chart: {
@@ -1791,7 +1811,7 @@ export class EmbedService extends BaseService {
                 inheritsFromOrgOrProject: true,
                 access: [],
             },
-            explore,
+            explore: shouldRedactSql ? redactExploreSql(explore) : explore,
             rows: formatRows(
                 rows,
                 fields,
@@ -1801,7 +1821,7 @@ export class EmbedService extends BaseService {
             ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
-            fields,
+            fields: shouldRedactSql ? redactItemsMapSql(fields) : fields,
         };
     }
 

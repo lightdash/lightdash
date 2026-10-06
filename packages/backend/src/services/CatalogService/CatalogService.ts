@@ -82,6 +82,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
+import {
+    redactCatalogMetricSql,
+    redactFieldSql,
+} from '../../utils/embedCompiledSql';
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -1379,7 +1383,9 @@ export class CatalogService<
             );
         }
 
-        return metrics[0];
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? redactCatalogMetricSql(metrics[0])
+            : metrics[0];
     }
 
     /** @deprecated Only used by deprecated metrics tree endpoints; use getMetricsTreeDetails instead. */
@@ -1576,7 +1582,10 @@ export class CatalogService<
             addDefaultTimeDimension: false,
         });
 
-        return getAvailableCompareMetrics(allMetrics);
+        const compareMetrics = getAvailableCompareMetrics(allMetrics);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? compareMetrics.map(redactCatalogMetricSql)
+            : compareMetrics;
     }
 
     async getPaginatedMetricsWithTimeDimensions(
@@ -1707,7 +1716,10 @@ export class CatalogService<
             .filter((d): d is CompiledDimension => d !== undefined);
 
         // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
-        return getTypeValidFilterDimensions(allDimensions);
+        const dimensions = getTypeValidFilterDimensions(allDimensions);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? dimensions.map(redactFieldSql)
+            : dimensions;
     }
 
     async getSegmentDimensions(
@@ -1762,7 +1774,10 @@ export class CatalogService<
             .filter((d): d is CompiledDimension => d !== undefined);
 
         // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
-        return getTypeValidSegmentDimensions(allDimensions);
+        const dimensions = getTypeValidSegmentDimensions(allDimensions);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? dimensions.map(redactFieldSql)
+            : dimensions;
     }
 
     /** @deprecated Only used by the deprecated delete-edge endpoint; use updateMetricsTree instead. */

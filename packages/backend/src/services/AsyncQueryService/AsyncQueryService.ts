@@ -224,6 +224,7 @@ import {
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
 import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
+import { redactItemsMapSql } from '../../utils/embedCompiledSql';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -1531,6 +1532,16 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryHistory,
         );
+    }
+
+    redactFieldsSqlForResponse<T extends { fields: ItemsMap }>(
+        account: Account,
+        projectUuid: string,
+        results: T,
+    ): T {
+        return this.cannotViewEmbedCompiledSql(account, projectUuid)
+            ? { ...results, fields: redactItemsMapSql(results.fields) }
+            : results;
     }
 
     private assertEmbedAiAgentCanDownload(

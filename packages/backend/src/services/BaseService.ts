@@ -1,5 +1,10 @@
-import { type Ability } from '@casl/ability';
-import { isAccount, type Account, type SessionUser } from '@lightdash/common';
+import { subject, type Ability } from '@casl/ability';
+import {
+    isAccount,
+    isJwtUser,
+    type Account,
+    type SessionUser,
+} from '@lightdash/common';
 import type { AuditResource, CallStackEntry } from '../logging/auditLog';
 import {
     CaslAuditWrapper,
@@ -123,6 +128,24 @@ export abstract class BaseService {
             userAgent: requestContext?.userAgent,
             requestId: requestContext?.requestId,
         });
+    }
+
+    /** Embed viewers see compiled SQL only when their token grants view:EmbedCompiledSql. */
+    protected cannotViewEmbedCompiledSql(
+        account: Account,
+        projectUuid: string,
+    ): boolean {
+        return (
+            isJwtUser(account) &&
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('EmbedCompiledSql', {
+                    organizationUuid:
+                        account.embed.organization.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        );
     }
 
     /**

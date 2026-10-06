@@ -304,6 +304,7 @@ import {
     UnfurlService,
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
+import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
@@ -8125,13 +8126,26 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return this.getArtifactVizQuery(user, {
+        const vizQuery = await this.getArtifactVizQuery(user, {
             projectUuid,
             agentUuid,
             artifactUuid,
             versionUuid,
             runtimeOptions,
         });
+        if (
+            vizQuery.source !== 'semantic' ||
+            !this.cannotViewEmbedCompiledSql(account, projectUuid)
+        ) {
+            return vizQuery;
+        }
+        return {
+            ...vizQuery,
+            query: {
+                ...vizQuery.query,
+                fields: redactItemsMapSql(vizQuery.query.fields),
+            },
+        };
     }
 
     async getEmbedDashboardArtifactChartVizQuery(
@@ -8147,7 +8161,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return this.getDashboardArtifactChartVizQuery(user, {
+        const vizQuery = await this.getDashboardArtifactChartVizQuery(user, {
             projectUuid,
             agentUuid,
             artifactUuid,
@@ -8155,6 +8169,16 @@ export class AiAgentService extends BaseService {
             chartIndex,
             runtimeOptions,
         });
+        if (!this.cannotViewEmbedCompiledSql(account, projectUuid)) {
+            return vizQuery;
+        }
+        return {
+            ...vizQuery,
+            query: {
+                ...vizQuery.query,
+                fields: redactItemsMapSql(vizQuery.query.fields),
+            },
+        };
     }
 
     async getEmbedAgentThread(

@@ -34,6 +34,7 @@ import {
 } from '@lightdash/formula';
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
+import { resolveAdditionalMetricsSql } from './utils/embedCompiledSql';
 
 const formatFormulaError = (displayName: string, error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -502,14 +503,16 @@ export const compileMetricQuery = ({
         ...popMetricIds,
     ];
 
-    const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
-        (additionalMetric) =>
-            compileAdditionalMetric({
-                additionalMetric,
-                explore,
-                warehouseSqlBuilder,
-                availableParameters: availableParametersWithReserved,
-            }),
+    const compiledAdditionalMetrics = resolveAdditionalMetricsSql(
+        metricQuery.additionalMetrics || [],
+        explore.tables,
+    ).map((additionalMetric) =>
+        compileAdditionalMetric({
+            additionalMetric,
+            explore,
+            warehouseSqlBuilder,
+            availableParameters: availableParametersWithReserved,
+        }),
     );
 
     const compiler = new ExploreCompiler(warehouseSqlBuilder);

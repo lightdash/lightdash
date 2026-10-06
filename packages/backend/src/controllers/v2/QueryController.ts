@@ -246,7 +246,9 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results,
+            results: this.services
+                .getAsyncQueryService()
+                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
         };
     }
 
@@ -379,7 +381,9 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results,
+            results: this.services
+                .getAsyncQueryService()
+                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
         };
     }
 
@@ -468,7 +472,9 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results,
+            results: this.services
+                .getAsyncQueryService()
+                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
         };
     }
 
@@ -511,7 +517,9 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results,
+            results: this.services
+                .getAsyncQueryService()
+                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
         };
     }
 
@@ -552,7 +560,9 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results,
+            results: this.services
+                .getAsyncQueryService()
+                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
         };
     }
 

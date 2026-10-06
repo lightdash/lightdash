@@ -24,6 +24,7 @@ import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useCanViewEmbedCompiledSql from '../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
@@ -146,6 +147,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     const exploreMetric = useExploreMetric();
     const [showCompiled, setShowCompiled] = useState(false);
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
+    const canViewSql = useCanViewEmbedCompiledSql();
 
     return (
         <Stack gap="xs" w="100%">
@@ -161,42 +163,50 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                 </Badge>
             </Group>
 
-            <Divider />
+            {canViewSql && (
+                <>
+                    <Divider />
 
-            <Box>
-                <Group gap="xs" mb={4} justify="space-between">
-                    <Text size="xs" c="dimmed" fw={500}>
-                        {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
-                    </Text>
-                    <Tooltip label="Show compiled SQL">
-                        <UnstyledButton
-                            type="button"
-                            aria-pressed={showCompiled}
-                            className={classes.compiledToggle}
-                            onClick={() => setShowCompiled((prev) => !prev)}
-                        >
-                            <MantineIcon
-                                icon={IconCode}
-                                size={12}
-                                color={showCompiled ? 'indigo.6' : 'gray.6'}
-                            />
-                            <Text
-                                size="xs"
-                                c={showCompiled ? 'indigo.6' : 'dimmed'}
-                                fw={500}
-                            >
-                                Compiled SQL
+                    <Box>
+                        <Group gap="xs" mb={4} justify="space-between">
+                            <Text size="xs" c="dimmed" fw={500}>
+                                {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
                             </Text>
-                        </UnstyledButton>
-                    </Tooltip>
-                </Group>
-                <CodeBlock
-                    code={sqlToShow}
-                    language="sql"
-                    className={classes.codeBlock}
-                    withCopyButton={false}
-                />
-            </Box>
+                            <Tooltip label="Show compiled SQL">
+                                <UnstyledButton
+                                    type="button"
+                                    aria-pressed={showCompiled}
+                                    className={classes.compiledToggle}
+                                    onClick={() =>
+                                        setShowCompiled((prev) => !prev)
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconCode}
+                                        size={12}
+                                        color={
+                                            showCompiled ? 'indigo.6' : 'gray.6'
+                                        }
+                                    />
+                                    <Text
+                                        size="xs"
+                                        c={showCompiled ? 'indigo.6' : 'dimmed'}
+                                        fw={500}
+                                    >
+                                        Compiled SQL
+                                    </Text>
+                                </UnstyledButton>
+                            </Tooltip>
+                        </Group>
+                        <CodeBlock
+                            code={sqlToShow}
+                            language="sql"
+                            className={classes.codeBlock}
+                            withCopyButton={false}
+                        />
+                    </Box>
+                </>
+            )}
 
             {metric.timeDimension && (
                 <>
@@ -219,7 +229,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                 </>
             )}
 
-            {compiledQueryConfig && (
+            {compiledQueryConfig && canViewSql && (
                 <CompiledQuerySection
                     projectUuid={projectUuid}
                     exploreName={metric.table}
