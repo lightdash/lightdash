@@ -2412,7 +2412,10 @@ export class ProjectService extends BaseService {
             });
             throw new AiAccessRestrictionsError(message);
         };
-        if (restrictionsEnabled && rawSql === true) {
+        if (
+            restrictionsEnabled &&
+            (rawSql === true || context === QueryExecutionContext.MCP_RUN_SQL)
+        ) {
             refuse('raw_sql_off', AI_RAW_SQL_OFF_MESSAGE);
         }
         if (
@@ -2425,6 +2428,7 @@ export class ProjectService extends BaseService {
         if (
             credentials.type !== WarehouseTypes.SNOWFLAKE ||
             rawSql === true ||
+            context === QueryExecutionContext.MCP_RUN_SQL ||
             (!restrictionsEnabled &&
                 credentials.authenticationType !==
                     SnowflakeAuthenticationType.SSO)
@@ -10944,6 +10948,8 @@ export class ProjectService extends BaseService {
             binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: userUuid,
             isRegisteredUser: true,
+            context,
+            rawSql: true,
         });
         const connectionAnalytics = this.getQueryConnectionAnalyticsProperties({
             warehouseConnectionUuid,
@@ -11044,6 +11050,8 @@ export class ProjectService extends BaseService {
                 : { kind: 'connection', warehouseConnectionUuid: null },
             userId: userUuid,
             isRegisteredUser: true,
+            context,
+            rawSql: true,
         });
 
         this.analytics.track({

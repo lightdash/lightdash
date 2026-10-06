@@ -6785,9 +6785,14 @@ describe('AsyncQueryService', () => {
             expect(warehouse).not.toHaveBeenCalled();
         });
 
-        it.each([undefined, 'analytics'])(
-            'checks SQL permissions before project restrictions (%s)',
-            async (provisioningSource) => {
+        it.each([
+            [undefined, QueryExecutionContext.SQL_RUNNER],
+            [undefined, QueryExecutionContext.AI],
+            [undefined, QueryExecutionContext.MCP_RUN_SQL],
+            ['analytics', QueryExecutionContext.SQL_RUNNER],
+        ] as const)(
+            'checks SQL permissions before project restrictions (%s, %s)',
+            async (provisioningSource, context) => {
                 projectModel.getSummary.mockResolvedValueOnce({
                     ...projectSummary,
                     provisioningSource,
@@ -6809,7 +6814,7 @@ describe('AsyncQueryService', () => {
                         account: viewerAccount,
                         projectUuid,
                         sql: 'SELECT 1',
-                        context: QueryExecutionContext.SQL_RUNNER,
+                        context,
                     }),
                 ).rejects.toEqual(new ForbiddenError());
             },
@@ -7360,6 +7365,49 @@ describe('AsyncQueryService', () => {
             });
         });
     });
+
+    it.each([
+        [{ sql: 'SELECT 1' }, '', true],
+        [{ savedSqlUuid: 'chart-uuid' }, '', true],
+        [{ slug: 'chart-slug' }, '', true],
+        [{ query: metricQueryMock }, 'sql_query_explorer', true],
+        [{ query: metricQueryMock }, '', false],
+    ] as const)(
+        'keeps raw SQL classification in queued query args for %j',
+        async (requestParameters, exploreName, rawSql) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.queryHistoryModel.getByQueryUuid = vi.fn(
+                async () =>
+                    ({
+                        queryUuid: 'query-uuid',
+                        projectUuid,
+                        organizationUuid:
+                            sessionAccount.organization.organizationUuid,
+                        createdByUserUuid: sessionAccount.user.id,
+                        createdByAccount: null,
+                        createdByActorType: 'session',
+                        context: QueryExecutionContext.AI,
+                        metricQuery: { ...metricQueryMock, exploreName },
+                        requestParameters,
+                        fields: {},
+                        usedParameters: null,
+                        cacheKey: 'cache-key',
+                        compiledSql: 'SELECT 1',
+                        createdAt: new Date(),
+                    }) as QueryHistory,
+            );
+            const internals = service as AnyType;
+            internals.deriveWarehouseCredentialsOverrides = vi.fn(
+                async () => undefined,
+            );
+            internals.isExcludedFromUsage = vi.fn(async () => false);
+            internals.getOnboardingFlow = vi.fn(async () => 'legacy');
+
+            const args = await internals.buildWarehouseQueryArgs('query-uuid');
+
+            expect(args.rawSql).toBe(rawSql);
+        },
+    );
 
     describe('executeAsyncCalculateTotalFromQueryHistory', () => {
         afterEach(() => {

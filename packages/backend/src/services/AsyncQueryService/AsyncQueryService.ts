@@ -65,6 +65,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getQueryLanguage,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -106,6 +107,7 @@ import {
     QueryExecutionContext,
     QueryHistoryListFilters,
     QueryHistoryStatus,
+    QueryLanguage,
     QuerySourceType,
     resolveQueryTimezone,
     ResultRow,
@@ -3698,6 +3700,7 @@ export class AsyncQueryService extends ProjectService {
         fieldsMap,
         usedParameters,
         queryTags,
+        rawSql,
         warehouseCredentialsOverrides,
         queryUuid,
         cacheKey,
@@ -3772,6 +3775,7 @@ export class AsyncQueryService extends ProjectService {
                     isRegisteredUser,
                     isServiceAccount,
                     context: queryTags.query_context,
+                    rawSql,
                 });
             const { warehouseCredentials, aiAccessAudit } = resolvedCredentials;
 
@@ -4327,6 +4331,10 @@ export class AsyncQueryService extends ProjectService {
             queryCreatedAt: query.createdAt,
             queryUsage: query.requestParameters.queryUsage,
             query: query.compiledSql,
+            rawSql:
+                getQueryLanguage(query.requestParameters) ===
+                    QueryLanguage.SQL ||
+                query.metricQuery.exploreName === SQL_QUERY_MOCK_EXPLORER_NAME,
             displayTimezone,
         };
     }
@@ -5362,6 +5370,10 @@ export class AsyncQueryService extends ProjectService {
                         fieldsMap,
                         usedParameters: queryComposer.getUsedParameters(),
                         queryTags,
+                        rawSql:
+                            getQueryLanguage(requestParameters) ===
+                                QueryLanguage.SQL ||
+                            queryComposer instanceof SqlQueryComposer,
                         warehouseCredentialsOverrides,
                         queryUuid: queryHistoryUuid,
                         pivotConfiguration,
@@ -10977,6 +10989,7 @@ export class AsyncQueryService extends ProjectService {
             },
             {
                 query: metricQuery,
+                savedSqlUuid: sqlChart.savedSqlUuid,
                 invalidateCache,
             },
         );
@@ -11136,6 +11149,7 @@ export class AsyncQueryService extends ProjectService {
             },
             {
                 query: metricQuery,
+                savedSqlUuid: savedChart.savedSqlUuid,
                 invalidateCache,
             },
         );

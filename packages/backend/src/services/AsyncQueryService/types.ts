@@ -297,6 +297,7 @@ export type RunAsyncWarehouseQueryArgs = {
     isServiceAccount?: boolean;
     onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
+    rawSql?: boolean;
     fieldsMap: ItemsMap;
     /** Resolved parameter values for this execution — interpolates parameter
      *  placeholders in column format expressions at column-build time. */
