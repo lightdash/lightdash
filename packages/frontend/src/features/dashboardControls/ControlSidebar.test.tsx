@@ -34,6 +34,15 @@ vi.mock('./FieldsAndTiles', () => ({
     FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
 }));
 
+vi.mock('./FilterSettings', () => ({
+    FilterSettings: ({ attemptedApply }: { attemptedApply: boolean }) => (
+        <div
+            data-testid="filter-settings"
+            data-attempted-apply={attemptedApply}
+        />
+    ),
+}));
+
 const FIELD_ID = 'orders_status';
 
 const field = {
@@ -61,7 +70,7 @@ const makeRule = (
     id: 'filter-1',
     operator: 'equals' as DashboardFilterRule['operator'],
     target: { fieldId: FIELD_ID, tableName: 'orders' },
-    values: [],
+    values: ['done'],
     label: undefined,
     ...overrides,
 });
@@ -194,8 +203,86 @@ describe('ControlSidebar', () => {
         expect(screen.getByText('Add a field to apply')).toBeInTheDocument();
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
-        expect(screen.queryByRole('tab')).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+    });
+
+    it('disables Settings for a placeholder and says why', () => {
+        setSidebar({
+            isPlaceholder: true,
+            activeSection: 'settings',
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        const settings = screen.getByRole('tab', { name: 'Settings' });
+        expect(settings).toHaveAttribute('title', 'Pick a field first');
+        expect(settings).toBeDisabled();
+        expect(
+            screen.getByRole('tab', { name: /^Fields and tiles/ }),
+        ).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+        expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
+    });
+
+    it('switches between the two tabs', () => {
+        const { setActiveSection } = setSidebar({});
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('tab', { name: 'Fields and tiles (1)' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        const settings = screen.getByRole('tab', { name: 'Settings' });
+        expect(settings).toBeEnabled();
+        expect(settings).not.toHaveAttribute('title');
+        fireEvent.click(settings);
+        expect(setActiveSection).toHaveBeenCalledWith('settings');
+
+        setSidebar({ activeSection: 'settings', setActiveSection });
+        rerender(<ControlSidebar />);
+        expect(screen.getByTestId('filter-settings')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('fields-and-tiles'),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: /^Fields and tiles/ }));
+        expect(setActiveSection).toHaveBeenCalledWith('fields');
+    });
+
+    it('blocks Apply while the default value is missing', () => {
+        const { apply } = setSidebar({
+            activeSection: 'settings',
+            editingRule: makeRule({ label: 'Order status', values: [] }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(
+            screen.getByText('Choose a default value or turn it off'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Not applied yet')).not.toBeInTheDocument();
+        expect(screen.getByTestId('filter-settings')).toHaveAttribute(
+            'data-attempted-apply',
+            'false',
+        );
+
+        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
+            key: 'Enter',
+        });
+        expect(apply).not.toHaveBeenCalled();
+        expect(screen.getByTestId('filter-settings')).toHaveAttribute(
+            'data-attempted-apply',
+            'true',
+        );
+    });
+
+    it('does not block a filter with no default value', () => {
+        setSidebar({
+            editingRule: makeRule({ label: 'Order status', disabled: true }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
     });
 
     it('asks a new filter for a label and suggests the field name', () => {

@@ -1,4 +1,6 @@
 import {
+    isFilterLockedOnTab,
+    isWithValueFilter,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -51,3 +53,23 @@ export const isFilterRuleDirty = (
         findFilterRule(snapshot, filterId),
         findFilterRule(current, filterId),
     );
+
+// Locks or unlocks the filter on one tab; lockKey is the tab uuid, or the
+// dashboard uuid when the dashboard has no tabs
+export const toggleFilterLockOnTab = (
+    rule: DashboardFilterRule,
+    lockKey: string,
+    hasTabs: boolean,
+): DashboardFilterRule => {
+    const existing = rule.lockedTabUuids ?? [];
+    const next = isFilterLockedOnTab(rule, lockKey, hasTabs)
+        ? existing.filter((uuid) => uuid !== lockKey)
+        : [...existing, lockKey];
+    return { ...rule, lockedTabUuids: next.length > 0 ? next : undefined };
+};
+
+/** An enabled rule whose operator needs a value but has none. */
+export const isDefaultValueIncomplete = (rule: DashboardFilterRule) =>
+    !rule.disabled &&
+    isWithValueFilter(rule.operator) &&
+    (rule.values ?? []).length === 0;

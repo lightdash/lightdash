@@ -120,6 +120,8 @@ export const EditorShell: FC<Props> = ({
                             key={tab.value}
                             value={tab.value}
                             disabled={tab.disabled}
+                            // The reason is a description; the name stays the label
+                            aria-label={tab.disabled ? tab.label : undefined}
                             title={
                                 tab.disabled ? tab.disabledReason : undefined
                             }

@@ -50,6 +50,20 @@ never called a filter. User-facing copy says *tile*, never *chart*.
 - `ControlsBar` carries the same `data-tour-*` anchors as `DashboardFiltersBar`;
   keep them in step when either changes.
 
+## Settings
+
+- `FilterSettings` renders two cards: "Default value" (`FilterValueSettings`)
+  and "Viewer controls" (`ViewerControls`).
+- This layer only exposes what a dashboard can already save: `disabled` and the
+  rule's values as the default, `required` and `requiredGroupId`, and
+  `lockedTabUuids` (the dashboard uuid is the key when there are no tabs).
+- Settings is disabled for a placeholder ("Pick a field first"). The tab id
+  stays `settings`.
+- Apply is blocked while `isDefaultValueIncomplete(rule)`; the inline error
+  shows only after an Apply attempt.
+- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
+  hidden while the sidebar is open.
+
 ## Fields and tiles
 
 A filter control can hold several fields, on today's saved shape (`peers.ts`):

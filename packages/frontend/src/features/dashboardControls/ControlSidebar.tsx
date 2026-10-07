@@ -4,12 +4,14 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import { FilterSettings } from './FilterSettings';
 import {
     getFilterFields,
     getTabCounts,
     getTileField,
     isTileFilterable,
 } from './peers';
+import { isDefaultValueIncomplete } from './sidebarState';
 import { useControlsSidebar } from './useControlsSidebar';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -32,6 +34,7 @@ export const ControlSidebar: FC = () => {
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
+    const [attemptedApply, setAttemptedApply] = useState(false);
     const labelInputRef = useRef<HTMLInputElement>(null);
     const labelErrorId = useId();
     const handleRemoveClick = useCallback(() => {
@@ -122,7 +125,9 @@ export const ControlSidebar: FC = () => {
         ? 'Add a field to apply'
         : needsLabel
           ? 'Add a label to apply'
-          : null;
+          : isDefaultValueIncomplete(filterRule)
+            ? 'Choose a default value or turn it off'
+            : null;
     const canApply = blocker === null;
     const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
     const fieldCount = getFilterFields(filterRule).length;
@@ -133,6 +138,7 @@ export const ControlSidebar: FC = () => {
     const subtitle = isPlaceholder
         ? 'No mapping yet'
         : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
+    const showSettings = activeSection === 'settings' && !isPlaceholder;
     const showLabelError = () => {
         setLabelError(true);
         labelInputRef.current?.focus();
@@ -145,8 +151,20 @@ export const ControlSidebar: FC = () => {
             menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
             onCancel={cancel}
-            tabs={[{ value: 'fields', label: 'Fields and tiles' }]}
-            activeTab={activeSection}
+            tabs={[
+                {
+                    value: 'fields',
+                    label: 'Fields and tiles',
+                    count: isPlaceholder ? 0 : fieldCount,
+                },
+                {
+                    value: 'settings',
+                    label: 'Settings',
+                    disabled: isPlaceholder,
+                    disabledReason: 'Pick a field first',
+                },
+            ]}
+            activeTab={showSettings ? 'settings' : 'fields'}
             onTabChange={(value) => {
                 if (value === 'fields' || value === 'settings')
                     setActiveSection(value);
@@ -184,8 +202,12 @@ export const ControlSidebar: FC = () => {
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
-                            if (canApply) apply();
-                            else if (!hasLabel) showLabelError();
+                            if (canApply) {
+                                apply();
+                                return;
+                            }
+                            setAttemptedApply(true);
+                            if (!hasLabel) showLabelError();
                         }}
                     />
                     {isNew && !hasLabel && fieldLabel !== null && (
@@ -211,7 +233,16 @@ export const ControlSidebar: FC = () => {
                 </>
             }
         >
-            <FieldsAndTiles />
+            {showSettings ? (
+                <FilterSettings
+                    rule={filterRule}
+                    field={field}
+                    attemptedApply={attemptedApply}
+                    onChange={updateFilter}
+                />
+            ) : (
+                <FieldsAndTiles />
+            )}
         </EditorShell>
     );
 };

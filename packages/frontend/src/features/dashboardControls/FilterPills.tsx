@@ -1,10 +1,11 @@
 import {
     FilterOperator,
     getConditionalRuleLabelFromItem,
+    isFilterLockedOnTab,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Text, Tooltip } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
+import { IconLock, IconLockOpen, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -12,6 +13,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { getTabsForFilterRule } from '../dashboardFilters/FilterConfiguration/utils';
 import classes from './FilterPills.module.css';
+import { replaceFilterRule, toggleFilterLockOnTab } from './sidebarState';
 import { useControlsSidebar } from './useControlsSidebar';
 
 type Props = {
@@ -29,6 +31,13 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
     const { editing, isSidebarOpen, isNew, open, removeFilterById } =
         useControlsSidebar();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -47,6 +56,19 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         [dashboardTabs],
     );
     const tabsEnabled = dashboardTabs.length > 1;
+    const hasTabs = dashboardTabs.length > 0;
+    // Dashboards without tabs lock on the dashboard uuid
+    const lockKey = hasTabs ? activeTabUuid : dashboardUuid;
+
+    const toggleLock = (filter: DashboardFilterRule, key: string) => {
+        setDashboardFilters((filters) =>
+            replaceFilterRule(
+                filters,
+                toggleFilterLockOnTab(filter, key, hasTabs),
+            ),
+        );
+        setHaveFiltersChanged(true);
+    };
 
     const pills = [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
         .map((filter: DashboardFilterRule) => {
@@ -88,6 +110,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                     !hasNoDefault &&
                     !UNARY_OPERATORS.has(filter.operator) &&
                     (filter.values === undefined || filter.values.length === 0);
+                const isLocked =
+                    !!lockKey && isFilterLockedOnTab(filter, lockKey, hasTabs);
+                const lockLabel = `${isLocked ? 'Unlock' : 'Lock'} filter${hasTabs ? ' on this tab' : ''}`;
                 return (
                     <Tooltip
                         key={filter.id}
@@ -114,22 +139,71 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                 ].join(' ')}
                                 rightSection={
                                     !isSidebarOpen && (
-                                        <Tooltip fz="xs" label="Remove filter">
-                                            <ActionIcon
-                                                size="xs"
-                                                radius="xl"
-                                                aria-label="Remove filter"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    removeFilterById(filter.id);
-                                                }}
+                                        <Group gap={2} wrap="nowrap">
+                                            {lockKey && (
+                                                <Box
+                                                    component="span"
+                                                    className={
+                                                        isLocked
+                                                            ? pillClasses.lockSlotActive
+                                                            : pillClasses.lockSlot
+                                                    }
+                                                >
+                                                    <Tooltip
+                                                        fz="xs"
+                                                        label={lockLabel}
+                                                    >
+                                                        <ActionIcon
+                                                            size="xs"
+                                                            radius="xl"
+                                                            aria-label={
+                                                                lockLabel
+                                                            }
+                                                            aria-pressed={
+                                                                isLocked
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleLock(
+                                                                    filter,
+                                                                    lockKey,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    isLocked
+                                                                        ? IconLock
+                                                                        : IconLockOpen
+                                                                }
+                                                                size="sm"
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                            <Tooltip
+                                                fz="xs"
+                                                label="Remove filter"
                                             >
-                                                <MantineIcon
-                                                    icon={IconX}
-                                                    size="sm"
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                                <ActionIcon
+                                                    size="xs"
+                                                    radius="xl"
+                                                    aria-label="Remove filter"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removeFilterById(
+                                                            filter.id,
+                                                        );
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconX}
+                                                        size="sm"
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
                                     )
                                 }
                                 onClick={() => open(filter.id)}
