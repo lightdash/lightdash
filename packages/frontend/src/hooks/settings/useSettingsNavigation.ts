@@ -967,7 +967,7 @@ export const useSettingsNavigation = (
                 ability?.can('manage', subject('Project', project))
             ) {
                 projectItems.push({
-                    label: 'AI access',
+                    label: 'Agent identity',
                     to: `${base}/aiAccess`,
                     icon: IconDatabaseCog,
                     keywords: ['principal', 'warehouse', 'permissions'],

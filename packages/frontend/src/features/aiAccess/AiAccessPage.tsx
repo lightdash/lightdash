@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     AiCredentialMethod,
+    AI_DIRECT_TRANSPORT,
+    AiPrincipalKind,
+    type AiAccessPolicy,
     FeatureFlags,
     type AiPrincipal,
     type AiWarehouseCapabilities,
@@ -28,10 +31,12 @@ import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
-import { AiAgentMarkerSection } from './AiAgentMarkerSection';
+import { AiIdentityModeCards } from './AiIdentityModeCards';
+import { AiMarkerTest } from './AiMarkerTest';
 import { AiPolicyEditor } from './AiPolicyEditor';
 import { AiPrincipalStatusBadge } from './AiPrincipalStatusBadge';
 import { AiSetupScriptDrawer } from './AiSetupScriptDrawer';
+import { AiWarehouseSignals } from './AiWarehouseSignals';
 import {
     useAiAccessAudit,
     useAiAccessCapabilities,
@@ -40,6 +45,7 @@ import {
     useDeleteAiPrincipal,
     useRegenerateAiSecret,
     useTestAiPrincipal,
+    useUpsertAiAccessPolicy,
 } from './api';
 const Principals = ({
     projectUuid,
@@ -233,7 +239,7 @@ const Audit = ({ projectUuid }: { projectUuid: string }) => {
     const query = useAiAccessAudit(projectUuid, null, page);
     return (
         <Stack>
-            <Title order={5}>Query audit</Title>
+            <Title order={5}>Audit</Title>
             <Text size="sm" c="dimmed">
                 Queries across all project connections.
             </Text>
@@ -251,7 +257,7 @@ const Audit = ({ projectUuid }: { projectUuid: string }) => {
                                 {[
                                     'Time',
                                     'Person',
-                                    'Principal',
+                                    'Identity',
                                     'Transport',
                                     'Probe ok',
                                 ].map((label) => (
@@ -272,7 +278,13 @@ const Audit = ({ projectUuid }: { projectUuid: string }) => {
                                             row.userUuid ??
                                             'Unknown'}
                                     </Table.Td>
-                                    <Table.Td>{row.principalRef}</Table.Td>
+                                    <Table.Td>
+                                        {row.principalKind ===
+                                            AiPrincipalKind.PERSON &&
+                                        row.aiPrincipalUuid === null
+                                            ? 'Person, marked'
+                                            : row.principalRef}
+                                    </Table.Td>
                                     <Table.Td>{row.transport.kind}</Table.Td>
                                     <Table.Td>
                                         {row.probeOk ? 'Yes' : 'No'}
@@ -291,48 +303,91 @@ const Audit = ({ projectUuid }: { projectUuid: string }) => {
         </Stack>
     );
 };
-const ConnectionAccess = ({
+const IdentitySettings = ({
     projectUuid,
     connection,
+    policy,
+    capabilities,
 }: {
     projectUuid: string;
     connection: string | null;
+    policy: AiAccessPolicy | null;
+    capabilities: AiWarehouseCapabilities;
 }) => {
-    const policy = useAiAccessPolicy(projectUuid, connection);
-    const capabilities = useAiAccessCapabilities(projectUuid, connection);
+    const [separate, setSeparate] = useState(
+        () =>
+            !!policy?.enabled &&
+            policy.principalKind !== AiPrincipalKind.PERSON,
+    );
     const [script, setScript] = useState<{ principal: string | null } | null>(
         null,
     );
-    if (policy.isLoading || capabilities.isLoading) return <Loader />;
-    if (policy.isError || capabilities.isError)
-        return <Alert color="red">Could not load AI access settings.</Alert>;
-    const noModeAvailable = Object.values(capabilities.data.principals).every(
-        (capability) => !capability.available,
-    );
+    const save = useUpsertAiAccessPolicy(projectUuid, connection);
+    const person = capabilities.principals.person;
     return (
         <Stack gap="xl">
-            <AiAgentMarkerSection marker={capabilities.data.marker} />
-            <Title order={4}>Run AI as a separate principal (optional)</Title>
-            {noModeAvailable && (
-                <Alert color="blue" title="Coming soon">
-                    AI principals for {capabilities.data.warehouseType} are not
-                    available yet. The modes below show what this warehouse will
-                    support.
-                </Alert>
+            <AiIdentityModeCards
+                capabilities={capabilities}
+                separate={separate}
+                disabled={save.isLoading}
+                onChange={(next) => {
+                    if (next) {
+                        setSeparate(true);
+                        return;
+                    }
+                    if (!policy) {
+                        setSeparate(false);
+                        return;
+                    }
+                    save.mutate(
+                        {
+                            enabled: true,
+                            principalKind: AiPrincipalKind.PERSON,
+                            transport: AI_DIRECT_TRANSPORT,
+                            sharedRef: null,
+                            twinNameTemplate: null,
+                            groupMappings: [],
+                            policySource: policy.policySource,
+                        },
+                        { onSuccess: () => setSeparate(false) },
+                    );
+                }}
+            />
+            {separate && (
+                <AiPolicyEditor
+                    key={policy?.updatedAt.toString() ?? 'new'}
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    policy={
+                        policy?.principalKind === AiPrincipalKind.PERSON
+                            ? null
+                            : policy
+                    }
+                    capabilities={capabilities}
+                    onSetup={() => setScript({ principal: null })}
+                />
             )}
-            <AiPolicyEditor
-                projectUuid={projectUuid}
-                connection={connection}
-                policy={policy.data}
-                capabilities={capabilities.data}
-                onSetup={() => setScript({ principal: null })}
+            <AiWarehouseSignals
+                marker={capabilities.marker}
+                separate={separate}
             />
-            <Principals
-                projectUuid={projectUuid}
-                connection={connection}
-                capabilities={capabilities.data}
-                onSetup={(principal) => setScript({ principal })}
-            />
+            {separate ? (
+                <Stack>
+                    <Title order={4}>Test</Title>
+                    <Principals
+                        projectUuid={projectUuid}
+                        connection={connection}
+                        capabilities={capabilities}
+                        onSetup={(principal) => setScript({ principal })}
+                    />
+                </Stack>
+            ) : (
+                <AiMarkerTest
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    disabled={!person.available}
+                />
+            )}
             {script && (
                 <AiSetupScriptDrawer
                     projectUuid={projectUuid}
@@ -344,13 +399,36 @@ const ConnectionAccess = ({
         </Stack>
     );
 };
+const ConnectionAccess = ({
+    projectUuid,
+    connection,
+}: {
+    projectUuid: string;
+    connection: string | null;
+}) => {
+    const policy = useAiAccessPolicy(projectUuid, connection);
+    const capabilities = useAiAccessCapabilities(projectUuid, connection);
+    if (policy.isLoading || capabilities.isLoading) return <Loader />;
+    if (policy.isError || capabilities.isError)
+        return (
+            <Alert color="red">Could not load agent identity settings.</Alert>
+        );
+    return (
+        <IdentitySettings
+            projectUuid={projectUuid}
+            connection={connection}
+            policy={policy.data}
+            capabilities={capabilities.data}
+        />
+    );
+};
 const ProjectAccess = ({ projectUuid }: { projectUuid: string }) => {
     const connections = useWarehouseConnections(projectUuid);
     const [connection, setConnection] = useState<string | null>(null);
     return (
         <SettingsPage
-            title="AI access"
-            description="Choose the warehouse principal and rules for AI queries."
+            title="Agent identity"
+            description="Every query an agent runs on this connection is marked. Choose how the warehouse tells agents apart."
         >
             <SettingsPageContainer>
                 <Stack gap="xl">

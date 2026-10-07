@@ -9,21 +9,22 @@ const modes = [
         kind: AiPrincipalKind.GROUP,
         title: 'Group',
         description: 'Use a warehouse principal for each mapped group.',
-    },
-    {
-        kind: AiPrincipalKind.PERSON,
-        title: 'Person',
-        description: 'Run as the person through a separate AI sign-in.',
+        admin: 'Admin: create each group principal and grant its access.',
+        person: 'Person: use the principal mapped to their group.',
     },
     {
         kind: AiPrincipalKind.TWIN,
         title: 'Twin',
         description: 'Give each person a separate warehouse principal for AI.',
+        admin: 'Admin: create each twin and grant its access.',
+        person: 'Person: use their assigned twin.',
     },
     {
         kind: AiPrincipalKind.SHARED,
         title: 'Shared',
         description: 'Use one warehouse principal for everyone using AI.',
+        admin: 'Admin: create the shared principal and grant its access.',
+        person: 'Person: nothing to do.',
     },
 ];
 export const AiModeCards = ({
@@ -44,7 +45,7 @@ export const AiModeCards = ({
         }}
     >
         <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
-            {modes.map(({ kind, title, description }) => {
+            {modes.map(({ kind, title, description, admin, person }) => {
                 const capability = capabilities.principals[kind];
                 return (
                     <Tooltip
@@ -65,6 +66,8 @@ export const AiModeCards = ({
                                 disabled={!capability.available}
                             />
                             <Text size="sm">{description}</Text>
+                            <Text size="sm">{admin}</Text>
+                            <Text size="sm">{person}</Text>
                             {!capability.available && (
                                 <Text size="xs" c="dimmed">
                                     {capability.reason}

@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     type AiAccessForUser,
+    type AiMarkerTestResult,
     type AiAccessPolicy,
     type AiPrincipal,
     type AiSetupScript,
@@ -246,4 +247,14 @@ export const useDeleteAiPrincipal = (
 ) =>
     useAccessMutation(project, (uuid: string) =>
         aiAccessApi.deletePrincipal(project, connection, uuid),
+    );
+
+export const useTestAiMarker = (project: string, connection: string | null) =>
+    useAccessMutation(project, () =>
+        lightdashApi<AiMarkerTestResult>({
+            version: 'v2',
+            url: aiAccessUrl(project, 'marker/test', connection),
+            method: 'POST',
+            body: undefined,
+        }),
     );

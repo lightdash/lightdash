@@ -81,6 +81,7 @@ export enum AiPrincipalFailureReason {
 export type AiAssurance =
     | { kind: 'current_user_is'; expected: string }
     | { kind: 'agent_session_active' }
+    | { kind: 'agent_marker'; level: AiAgentMarkerLevel }
     | { kind: 'restricted_session_scope_active' }
     | { kind: 'group_member'; group: string }
     | { kind: 'result_cache_off' }
@@ -107,6 +108,7 @@ export enum AiCredentialMethod {
     BROKER = 'broker',
     KEY = 'key',
     SIGN_IN = 'sign_in',
+    MARKER = 'marker',
 }
 
 export type AiPrincipalKindCapability =
@@ -218,16 +220,39 @@ export type AiQueryAudit = {
     createdAt: Date;
 };
 
-export type AiExecutionPlan = {
-    principal: AiPrincipal;
-    transport: AiTransport;
-    credentials: CreateWarehouseCredentials;
-    assurances: AiAssurance[];
-    audit: {
-        personUuid: string;
-        principalRef: string;
-        queryTags: Record<string, string>;
-    };
+type AiExecutionAudit = {
+    personUuid: string;
+    principalRef: string;
+    queryTags: Record<string, string>;
+};
+
+export type AiExecutionPlan =
+    | {
+          identity: 'principal';
+          principal: AiPrincipal;
+          transport: AiTransport;
+          credentials: CreateWarehouseCredentials;
+          assurances: AiAssurance[];
+          audit: AiExecutionAudit;
+      }
+    | {
+          identity: 'marked_person';
+          transport: { kind: AiTransportKind.DIRECT };
+          assurances: [{ kind: 'agent_marker'; level: AiAgentMarkerLevel }];
+          audit: AiExecutionAudit & { userUuid: string | null };
+      };
+
+export type AiMarkerTestResult = {
+    ok: boolean;
+    level: AiAgentMarkerLevel;
+    observed: Record<string, string | null>;
+    message: string;
+    checkedAt: Date;
+};
+
+export type ApiAiMarkerTestResponse = {
+    status: 'ok';
+    results: AiMarkerTestResult;
 };
 
 export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
@@ -318,6 +343,8 @@ export const isAiAccessRefusal = (value: unknown): value is AiAccessRefusal =>
     typeof (value as { message?: AnyType }).message === 'string';
 
 export type AiAccessForUser = {
+    identity: 'marked_person' | 'principal' | null;
+    marker: AiAgentMarker | null;
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     enabled: boolean;

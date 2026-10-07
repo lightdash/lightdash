@@ -2360,7 +2360,7 @@ export class ProjectService extends BaseService {
                       isServiceAccount,
                   })
                 : null;
-        if (aiPlan) {
+        if (aiPlan?.identity === 'principal') {
             return {
                 ...aiPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
@@ -2481,6 +2481,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(aiPlan ? { aiPlan } : {}),
         };
     }
 
@@ -3105,7 +3106,7 @@ export class ProjectService extends BaseService {
                       isServiceAccount,
                   })
                 : null;
-        if (aiPlan) {
+        if (aiPlan?.identity === 'principal') {
             return {
                 ...aiPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
@@ -3221,6 +3222,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(aiPlan ? { aiPlan } : {}),
         };
     }
 
@@ -3295,7 +3297,7 @@ export class ProjectService extends BaseService {
 
         const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
             databricksCompute || ''
-        }${aiPlan ? JSON.stringify([aiPlan.principal.aiPrincipalUuid, aiPlan.transport]) : ''}`;
+        }${aiPlan ? JSON.stringify([aiPlan.identity === 'principal' ? aiPlan.principal.aiPrincipalUuid : aiPlan.audit.personUuid, aiPlan.transport]) : ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -3421,7 +3423,7 @@ export class ProjectService extends BaseService {
         client: T,
         aiPlan?: AiExecutionPlan | null,
     ): T {
-        if (aiPlan)
+        if (aiPlan?.identity === 'principal')
             return attributeClientErrors(client, async (error) => {
                 this.aiAccessService.invalidateCredentials(
                     aiPlan.principal.aiPrincipalUuid,
@@ -10545,6 +10547,51 @@ export class ProjectService extends BaseService {
         );
     }
 
+    async runAgentMarkerProbe(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        sql: string,
+    ): Promise<Record<string, unknown>[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        )
+            throw new ForbiddenError();
+        const { warehouseCredentials, aiPlan } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid },
+                context: QueryExecutionContext.AI,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+            { aiPlan, agentSession: true },
+        );
+        try {
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                withAgentMarkerTag({
+                    ...aiPlan?.audit.queryTags,
+                    query_context: QueryExecutionContext.AI,
+                    user_uuid: account.user.id,
+                    organization_uuid: organizationUuid,
+                }),
+            );
+            return rows;
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
     async runSqlQuery(
         user: SessionUser,
         projectUuid: string,
@@ -11159,7 +11206,7 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.results.autocompleteEnabled &&
             !!user.userUuid &&
             !skipAiAccessCache &&
-            aiPlan === null;
+            aiPlan?.identity !== 'principal';
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 

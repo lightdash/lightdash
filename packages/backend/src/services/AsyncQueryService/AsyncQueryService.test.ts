@@ -129,7 +129,10 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { type AiAccessService } from '../AiAccessService/AiAccessService';
-import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
+import {
+    aiExecutionPlanMock,
+    markedPersonPlanMock,
+} from '../AiAccessService/AiAccessService.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { DocumentService } from '../DocumentService/DocumentService';
@@ -3561,6 +3564,33 @@ describe('AsyncQueryService', () => {
         ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
         expect(getRoutingDecision).not.toHaveBeenCalled();
     });
+
+    test.each([true, false])(
+        'marked person follows the cache bypass flag: %s',
+        async (enabled) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled,
+            });
+            const getRoutingDecision = vi.fn(() => ({
+                target: 'pre_aggregate' as const,
+            }));
+            Object.assign(service, {
+                preAggregateStrategy: { getRoutingDecision },
+            });
+            const result = await service['getPreAggregationRoutingDecision']({
+                account: sessionAccount,
+                metricQuery: metricQueryMock,
+                explore: validExplore,
+                context: QueryExecutionContext.AI,
+                forceWarehouse: false,
+                aiPlan: markedPersonPlanMock,
+            });
+            expect(result.target).toBe(enabled ? 'warehouse' : 'pre_aggregate');
+            expect(getRoutingDecision).toHaveBeenCalledTimes(enabled ? 0 : 1);
+        },
+    );
 
     test('uses the resolved principal in the metric results cache key', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);

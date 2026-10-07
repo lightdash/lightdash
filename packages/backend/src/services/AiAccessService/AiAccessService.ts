@@ -1,8 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_APPLICATION_NAME,
+    AI_AGENT_TAG,
     AI_PRINCIPAL_QUERY_TAG,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    AiAgentMarkerLevel,
+    AiCredentialMethod,
     AiPrincipalFailureReason,
     AiPrincipalKind,
     AiPrincipalStatus,
@@ -15,10 +19,12 @@ import {
     NotFoundError,
     ParameterError,
     UnexpectedServerError,
+    WarehouseTypes,
     type Account,
     type AiAccessForUser,
     type AiAccessPolicy,
     type AiExecutionPlan,
+    type AiMarkerTestResult,
     type AiPrincipal,
     type AiPrincipalWithSecrets,
     type AiSetupScript,
@@ -38,6 +44,7 @@ import { type UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
 import { describeAgentMarker } from './agentMarker';
+import { agentMarkerProbe } from './agentMarkerProbe';
 import {
     type AiCredentialProvider,
     type AiMintArgs,
@@ -413,6 +420,94 @@ export class AiAccessService extends BaseService {
             throw new NotFoundError('AI principal not found');
     }
 
+    async testMarker(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        runQuery: (sql: string) => Promise<Record<string, unknown>[]>,
+    ): Promise<AiMarkerTestResult> {
+        const { connection } = await this.loadConnection(
+            account,
+            projectUuid,
+            warehouseConnectionUuid,
+        );
+        const marker = describeAgentMarker(connection.type);
+        const result: AiMarkerTestResult = {
+            ok: false,
+            level: marker.level,
+            observed: {},
+            message: 'The agent marker check failed.',
+            checkedAt: new Date(),
+        };
+        if (marker.level === AiAgentMarkerLevel.NONE) {
+            return { ...result, message: marker.identify };
+        }
+        try {
+            const probe = agentMarkerProbe(connection.type);
+            let rows: Record<string, unknown>[];
+            try {
+                rows = await runQuery(probe.sql);
+            } catch (error) {
+                if (
+                    probe.fallbackSql === null ||
+                    !(error instanceof Error) ||
+                    !/unknown function.*CURRENT_QUERY_TAG|CURRENT_QUERY_TAG.*does not exist/i.test(
+                        error.message,
+                    )
+                )
+                    throw error;
+                rows = await runQuery(probe.fallbackSql);
+            }
+            result.observed = Object.fromEntries(
+                Object.entries(rows[0] ?? {}).map(([key, value]) => [
+                    key.toLowerCase(),
+                    value === null ? null : String(value),
+                ]),
+            );
+            switch (connection.type) {
+                case WarehouseTypes.POSTGRES:
+                case WarehouseTypes.REDSHIFT:
+                    result.ok =
+                        result.observed.agent === 'true' &&
+                        result.observed.application_name ===
+                            AI_AGENT_APPLICATION_NAME;
+                    break;
+                case WarehouseTypes.SNOWFLAKE:
+                    result.ok = result.observed.agent?.toLowerCase() === 'true';
+                    break;
+                case WarehouseTypes.DATABRICKS:
+                case WarehouseTypes.BIGQUERY:
+                case WarehouseTypes.ATHENA:
+                case WarehouseTypes.CLICKHOUSE:
+                case WarehouseTypes.TRINO:
+                    result.ok = true;
+                    result.observed = {
+                        agent: 'true',
+                        channels: marker.channels.join(', '),
+                    };
+                    break;
+                case WarehouseTypes.DUCKDB:
+                    break;
+                default:
+                    assertUnreachable(connection, 'Unknown warehouse type');
+            }
+            if (!result.ok) {
+                result.message =
+                    'The warehouse session did not report the expected agent marker.';
+            } else if (marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY) {
+                result.message =
+                    'The query succeeded with agent tags sent through the listed channels. These tags identify queries; they do not enforce access.';
+            } else {
+                result.message =
+                    'The warehouse session carries the agent marker.';
+            }
+        } catch {
+            result.message =
+                'The agent marker query failed. Check your warehouse credentials and connection.';
+        }
+        return { ...result, checkedAt: new Date() };
+    }
+
     async testPrincipal(
         account: Account,
         aiPrincipalUuid: string,
@@ -532,20 +627,32 @@ export class AiAccessService extends BaseService {
             queryUuid,
             projectUuid,
             warehouseConnectionUuid,
-            userUuid: plan.audit.personUuid,
-            aiPrincipalUuid: plan.principal.aiPrincipalUuid,
-            principalKind: plan.principal.kind,
-            principalRef: plan.principal.ref,
+            userUuid:
+                plan.identity === 'marked_person'
+                    ? plan.audit.userUuid
+                    : plan.audit.personUuid,
+            aiPrincipalUuid:
+                plan.identity === 'principal'
+                    ? plan.principal.aiPrincipalUuid
+                    : null,
+            principalKind:
+                plan.identity === 'principal'
+                    ? plan.principal.kind
+                    : AiPrincipalKind.PERSON,
+            principalRef: plan.audit.principalRef,
             transport: plan.transport,
-            probeOk: plan.principal.lastProbe?.ok ?? false,
-            probeCheckedAt: plan.principal.lastProbe?.checkedAt ?? null,
+            probeOk:
+                plan.identity === 'marked_person' ||
+                (plan.principal.lastProbe?.ok ?? false),
+            probeCheckedAt:
+                plan.identity === 'principal'
+                    ? (plan.principal.lastProbe?.checkedAt ?? null)
+                    : null,
             personTag: plan.audit.personUuid,
         });
     }
 
-    private async enabledPolicy(
-        args: PolicyLookupArgs,
-    ): Promise<AiAccessPolicy | null> {
+    private async isEnabled(args: PolicyLookupArgs): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 userUuid: args.userUuid,
@@ -553,7 +660,19 @@ export class AiAccessService extends BaseService {
             },
             featureFlagId: FeatureFlags.AiPrincipals,
         });
-        if (!enabled) return null;
+        return enabled;
+    }
+
+    private async enabledPolicy(
+        args: PolicyLookupArgs,
+    ): Promise<AiAccessPolicy | null> {
+        if (!(await this.isEnabled(args))) return null;
+        return this.findEnabledPolicy(args);
+    }
+
+    private async findEnabledPolicy(
+        args: PolicyLookupArgs,
+    ): Promise<AiAccessPolicy | null> {
         const policy = await this.aiPrincipalModel.findPolicy(
             args.projectUuid,
             args.warehouseConnectionUuid,
@@ -727,13 +846,67 @@ export class AiAccessService extends BaseService {
     }
 
     async isPolicyEnabled(args: PolicyLookupArgs): Promise<boolean> {
-        return (await this.enabledPolicy(args)) !== null;
+        const policy = await this.enabledPolicy(args);
+        if (!policy) return false;
+        if (policy.principalKind !== AiPrincipalKind.PERSON) return true;
+        const connection =
+            args.warehouseConnectionUuid === null
+                ? await this.projectModel.getWarehouseCredentialsForProject(
+                      args.projectUuid,
+                  )
+                : await this.warehouseConnectionModel.getCredentials(
+                      await this.warehouseConnectionModel.getProject(
+                          args.projectUuid,
+                      ),
+                      args.warehouseConnectionUuid,
+                  );
+        return !this.usesMarker(connection);
+    }
+
+    private usesMarker(connection: CreateWarehouseCredentials): boolean {
+        const { person } = this.providerRegistry(connection.type).capabilities(
+            connection,
+        ).principals;
+        return person.available && person.method === AiCredentialMethod.MARKER;
     }
 
     async resolvePlan(args: ResolvePlanArgs): Promise<AiExecutionPlan | null> {
-        if (!isAiAccessQueryContext(args.context)) return null;
-        const policy = await this.enabledPolicy(args);
-        if (!policy) return null;
+        if (
+            !isAiAccessQueryContext(args.context) ||
+            !(await this.isEnabled(args))
+        )
+            return null;
+        const policy = await this.findEnabledPolicy(args);
+        if (
+            !policy ||
+            (policy.principalKind === AiPrincipalKind.PERSON &&
+                this.usesMarker(args.connection))
+        ) {
+            const email =
+                args.isRegisteredUser && !args.isServiceAccount
+                    ? (await this.userModel.getUserDetailsByUuid(args.userUuid))
+                          .email
+                    : null;
+            return {
+                identity: 'marked_person',
+                transport: { kind: AiTransportKind.DIRECT },
+                assurances: [
+                    {
+                        kind: 'agent_marker',
+                        level: describeAgentMarker(args.connection.type).level,
+                    },
+                ],
+                audit: {
+                    personUuid: args.userUuid,
+                    userUuid:
+                        args.isRegisteredUser || args.isServiceAccount
+                            ? args.userUuid
+                            : null,
+                    principalRef: email ?? args.userUuid,
+                    queryTags: { [AI_AGENT_TAG]: 'true' },
+                },
+            };
+        }
         try {
             const provider = await this.provider(args, policy);
             const { email } = await this.userModel.getUserDetailsByUuid(
@@ -781,6 +954,7 @@ export class AiAccessService extends BaseService {
             }
             const { secret, ...publicPrincipal } = verifiedPrincipal;
             return {
+                identity: 'principal',
                 principal: publicPrincipal,
                 transport: policy.transport,
                 credentials,
@@ -799,15 +973,26 @@ export class AiAccessService extends BaseService {
     }
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {
-        const policy = await this.enabledPolicy(args);
+        const enabled = await this.isEnabled(args);
+        const policy = enabled ? await this.findEnabledPolicy(args) : null;
+        const marked =
+            enabled &&
+            (!policy ||
+                (policy.principalKind === AiPrincipalKind.PERSON &&
+                    this.usesMarker(args.connection)));
         const result: AiAccessForUser = {
+            identity: policy ? 'principal' : null,
+            marker: enabled ? describeAgentMarker(args.connection.type) : null,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
-            enabled: policy !== null,
-            principalKind: policy?.principalKind ?? null,
+            enabled,
+            principalKind: marked
+                ? AiPrincipalKind.PERSON
+                : (policy?.principalKind ?? null),
             principal: null,
             refusal: null,
         };
+        if (marked) return { ...result, identity: 'marked_person' };
         if (!policy) return result;
         try {
             const provider = await this.provider(args, policy);

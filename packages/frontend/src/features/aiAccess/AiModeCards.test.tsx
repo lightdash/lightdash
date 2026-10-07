@@ -22,7 +22,7 @@ const capabilities: AiWarehouseCapabilities = {
     principals: {
         group: { available: true, method: AiCredentialMethod.KEY },
         person: { available: false, reason: 'Sign-in is unavailable' },
-        twin: { available: true, method: AiCredentialMethod.KEY },
+        twin: { available: false, reason: 'Twins are coming soon' },
         shared: { available: true, method: AiCredentialMethod.KEY },
     },
     transports: {
@@ -40,12 +40,12 @@ describe('AI mode cards', () => {
                 onChange={onChange}
             />,
         );
-        const radio = screen.getByRole('radio', { name: 'Person' });
+        const radio = screen.getByRole('radio', { name: 'Twin' });
         expect(radio).toBeDisabled();
-        expect(screen.getByText('Sign-in is unavailable')).toBeInTheDocument();
+        expect(screen.getByText('Twins are coming soon')).toBeInTheDocument();
         fireEvent.click(radio);
         expect(onChange).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole('radio', { name: 'Twin' }));
-        expect(onChange).toHaveBeenCalledWith(AiPrincipalKind.TWIN);
+        fireEvent.click(screen.getByRole('radio', { name: 'Shared' }));
+        expect(onChange).toHaveBeenCalledWith(AiPrincipalKind.SHARED);
     });
 });

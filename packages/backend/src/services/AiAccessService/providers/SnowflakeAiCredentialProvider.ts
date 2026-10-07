@@ -157,6 +157,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 case 'result_cache_off':
                 case 'restricted_session_scope_active':
                     break;
+                case 'agent_marker':
                 case 'current_user_is':
                 case 'group_member':
                 case 'procedure_present':

@@ -189,13 +189,13 @@ describe.sequential('Postgres AI principals', () => {
             throw new AggregateError(errors, 'AI principal cleanup failed');
     });
 
-    it('reports Postgres group key capabilities without person support', async () => {
+    it('reports Postgres group keys and marked person capabilities', async () => {
         const response = await admin.get<Body<AiWarehouseCapabilities>>(
             `${baseUrl}/capabilities`,
         );
         expect(response.body.results).toMatchObject({
             principals: {
-                person: { available: false },
+                person: { available: true, method: 'marker' },
                 group: { available: true, method: 'key' },
             },
             setupFormat: 'sql',

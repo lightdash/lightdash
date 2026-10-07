@@ -126,8 +126,8 @@ describe('PostgresAiCredentialProvider', () => {
             warehouseType: WarehouseTypes.POSTGRES,
             principals: {
                 person: {
-                    available: false,
-                    reason: 'Postgres has no verified agent session. Use a group, twin or shared principal.',
+                    available: true,
+                    method: AiCredentialMethod.MARKER,
                 },
                 twin: { available: true, method: AiCredentialMethod.KEY },
                 group: { available: true, method: AiCredentialMethod.KEY },

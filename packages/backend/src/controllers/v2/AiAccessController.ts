@@ -1,6 +1,7 @@
 import {
     ApiAiAccessForUserResponse,
     ApiAiAccessPolicyResponse,
+    ApiAiMarkerTestResponse,
     ApiAiPrincipalResponse,
     ApiAiPrincipalsResponse,
     ApiAiQueryAuditResponse,
@@ -164,6 +165,36 @@ export class AiAccessController extends BaseController {
                 projectUuid,
                 connection ?? null,
             ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/marker/test')
+    @OperationId('testMarkerAiAccess')
+    async testMarker(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Query() connection?: UUID,
+    ): Promise<ApiAiMarkerTestResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .testMarker(
+                    req.account!,
+                    projectUuid,
+                    connection ?? null,
+                    (sql) =>
+                        this.services
+                            .getProjectService()
+                            .runAgentMarkerProbe(
+                                req.account!,
+                                projectUuid,
+                                connection ?? null,
+                                sql,
+                            ),
+                ),
         };
     }
 

@@ -2,8 +2,10 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AI_DIRECT_TRANSPORT,
+    AiAgentMarkerLevel,
     AiPrincipalKind,
     AiPrincipalStatus,
+    AiTransportKind,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -14164,7 +14166,8 @@ describe('AI principal credential routing', () => {
         user: 'ai',
         password: 'test',
     };
-    const plan: AiExecutionPlan = {
+    const plan: Extract<AiExecutionPlan, { identity: 'principal' }> = {
+        identity: 'principal',
         principal: {
             aiPrincipalUuid: 'ai-one',
             aiAccessPolicyUuid: 'policy',
@@ -14286,6 +14289,51 @@ describe('AI principal credential routing', () => {
         });
         expect(result.aiPlan).toBe(plan);
         expect(personal).not.toHaveBeenCalled();
+    });
+    test('keeps personal credentials and the audit plan for marked person', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        const marked: AiExecutionPlan = {
+            identity: 'marked_person',
+            transport: { kind: AiTransportKind.DIRECT },
+            assurances: [
+                {
+                    kind: 'agent_marker',
+                    level: AiAgentMarkerLevel.ADVISORY_SESSION,
+                },
+            ],
+            audit: {
+                personUuid: user.userUuid,
+                userUuid: user.userUuid,
+                principalRef: 'person@example.test',
+                queryTags: { agent: 'true' },
+            },
+        };
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            marked,
+        );
+        const personal = vi
+            .spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            )
+            .mockResolvedValue({
+                uuid: 'personal',
+                credentials: { ...credentials, user: 'person' },
+            });
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toMatchObject({
+            user: 'person',
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        expect(result.aiPlan).toBe(marked);
+        expect(personal).toHaveBeenCalledOnce();
     });
     test('uses personal credentials when the resolver returns null', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);

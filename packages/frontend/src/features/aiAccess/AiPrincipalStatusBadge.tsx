@@ -22,7 +22,7 @@ const labels: Record<AiPrincipalFailureReason, string> = {
 export const AiPrincipalStatusBadge = ({
     principal,
 }: {
-    principal: AiPrincipal;
+    principal: Pick<AiPrincipal, 'status' | 'failureReason' | 'statusMessage'>;
 }) => (
     <Tooltip
         disabled={!principal.statusMessage}

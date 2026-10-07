@@ -41,8 +41,8 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
             warehouseType: this.warehouseType,
             principals: {
                 person: {
-                    available: false,
-                    reason: 'Postgres has no verified agent session. Use a group, twin or shared principal.',
+                    available: true,
+                    method: AiCredentialMethod.MARKER,
                 },
                 twin: available,
                 group: available,

@@ -130,6 +130,7 @@ import type { PivotValuesColumn } from '../visualizations/types';
 import type {
     ApiAiAccessForUserResponse,
     ApiAiAccessPolicyResponse,
+    ApiAiMarkerTestResponse,
     ApiAiPrincipalResponse,
     ApiAiPrincipalsResponse,
     ApiAiQueryAuditResponse,
@@ -1565,6 +1566,7 @@ type ApiResults =
     | ApiAiPrincipalsResponse['results']
     | ApiAiPrincipalResponse['results']
     | ApiAiSetupScriptResponse['results']
+    | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']
     | ApiAiQueryAuditResponse['results']
     | ApiOrganizationRoleSetResponse['results']

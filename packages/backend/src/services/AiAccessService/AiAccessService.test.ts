@@ -233,6 +233,134 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test('marks a person policy without minting credentials or isolating results', async () => {
+        const { service, model, provider } = setup();
+        model.findPolicy.mockResolvedValue({
+            ...policy,
+            principalKind: AiPrincipalKind.PERSON,
+        });
+        const capabilities = provider.capabilities();
+        provider.capabilities.mockReturnValue({
+            ...capabilities,
+            principals: {
+                ...capabilities.principals,
+                person: { available: true, method: AiCredentialMethod.MARKER },
+            },
+        });
+        const plan = await service.resolvePlan(args);
+        expect(plan).toMatchObject({
+            identity: 'marked_person',
+            transport: AI_DIRECT_TRANSPORT,
+            audit: {
+                personUuid: args.userUuid,
+                principalRef: 'a.b+tag@example.test',
+                queryTags: { agent: 'true' },
+            },
+        });
+        expect(plan).not.toHaveProperty('credentials');
+        expect(provider.mint).not.toHaveBeenCalled();
+        expect(provider.probe).not.toHaveBeenCalled();
+        expect(await service.isPolicyEnabled(args)).toBe(false);
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            enabled: true,
+            identity: 'marked_person',
+            principalKind: AiPrincipalKind.PERSON,
+            principal: null,
+            refusal: null,
+        });
+        if (!plan) throw new Error('Expected a marked plan');
+        await service.recordQuery({
+            queryUuid: 'query',
+            projectUuid: args.projectUuid,
+            warehouseConnectionUuid: null,
+            plan,
+        });
+        expect(model.insertAudit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                aiPrincipalUuid: null,
+                principalKind: AiPrincipalKind.PERSON,
+                principalRef: 'a.b+tag@example.test',
+                probeOk: true,
+                personTag: args.userUuid,
+            }),
+        );
+    });
+    test('keeps external caller tags out of the audit user foreign key', async () => {
+        const { service, model } = setup();
+        model.findPolicy.mockResolvedValue(null);
+        const plan = await service.resolvePlan({
+            ...args,
+            isRegisteredUser: false,
+            userUuid: 'external-person',
+        });
+        expect(plan).toMatchObject({
+            identity: 'marked_person',
+            audit: { personUuid: 'external-person', userUuid: null },
+        });
+        if (!plan) throw new Error('Expected a marked plan');
+        await service.recordQuery({
+            queryUuid: 'query',
+            projectUuid: args.projectUuid,
+            warehouseConnectionUuid: null,
+            plan,
+        });
+        expect(model.insertAudit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userUuid: null,
+                personTag: 'external-person',
+            }),
+        );
+    });
+    test('reports marked identity without a policy', async () => {
+        const { service, model } = setup();
+        model.findPolicy.mockResolvedValue(null);
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            enabled: true,
+            identity: 'marked_person',
+            principal: null,
+            refusal: null,
+        });
+        expect(await service.isPolicyEnabled(args)).toBe(false);
+    });
+    test('restricts marker probes to project managers', async () => {
+        const { service } = setup();
+        const runQuery = vi.fn();
+        await expect(
+            service.testMarker(viewer, 'project', null, runQuery),
+        ).rejects.toThrow(ForbiddenError);
+        expect(runQuery).not.toHaveBeenCalled();
+    });
+    test.each([
+        ['true', 'lightdash-ai', true],
+        [null, 'normal', false],
+    ] as const)(
+        'checks the session marker and application name',
+        async (agent, applicationName, ok) => {
+            const { service } = setup();
+            const runQuery = vi.fn(async () => [
+                { agent, application_name: applicationName },
+            ]);
+            expect(
+                await service.testMarker(account, 'project', null, runQuery),
+            ).toMatchObject({
+                ok,
+                observed: { agent, application_name: applicationName },
+            });
+            expect(runQuery).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "current_setting('lightdash.agent', true)",
+                ),
+            );
+        },
+    );
+    test('returns a failed marker result when the query fails', async () => {
+        const { service } = setup();
+        expect(
+            await service.testMarker(account, 'project', null, async () => {
+                throw new Error('secret');
+            }),
+        ).toMatchObject({ ok: false, observed: {} });
+    });
     test('denies policy changes to project developers', async () => {
         const { service, model } = setup();
         const developer = {
@@ -836,11 +964,14 @@ describe('AiAccessService', () => {
         expect(model.findPolicy).not.toHaveBeenCalled();
     });
     test.each([null, { ...policy, enabled: false }])(
-        'ignores no enabled policy: %s',
+        'defaults to marked person without an enabled policy: %s',
         async (value) => {
             const { service, model, provider } = setup();
             model.findPolicy.mockResolvedValue(value);
-            expect(await service.resolvePlan(args)).toBeNull();
+            expect(await service.resolvePlan(args)).toMatchObject({
+                identity: 'marked_person',
+                audit: { queryTags: { agent: 'true' } },
+            });
             expect(provider.mint).not.toHaveBeenCalled();
         },
     );
@@ -932,7 +1063,9 @@ describe('AiAccessService', () => {
             'principal',
             expect.objectContaining({ ok: true }),
         );
-        expect(plan?.principal.status).toBe(AiPrincipalStatus.READY);
+        if (plan?.identity !== 'principal')
+            throw new Error('Expected a principal plan');
+        expect(plan.principal.status).toBe(AiPrincipalStatus.READY);
         expect(plan?.principal).not.toHaveProperty('secret');
         expect(plan?.audit.queryTags).toEqual({ ai_principal: 'ai_shared' });
     });
@@ -1049,12 +1182,14 @@ describe('AiAccessService', () => {
         })(type);
         registry.mockReturnValue(unavailable);
         const capabilities = unavailable.capabilities(connection);
-        expect(
-            Object.values(capabilities.principals).every((c) => !c.available),
-        ).toBe(true);
-        expect(
-            Object.values(capabilities.transports).every((c) => !c.available),
-        ).toBe(true);
+        expect(capabilities.principals.person.available).toBe(
+            type !== WarehouseTypes.DUCKDB,
+        );
+        expect(capabilities.transports.direct.available).toBe(
+            type !== WarehouseTypes.DUCKDB,
+        );
+        expect(capabilities.principals.twin.available).toBe(false);
+        expect(capabilities.principals.group.available).toBe(false);
         const capability = capabilities.principals.shared;
         if (capability.available)
             throw new Error('Expected unavailable provider');

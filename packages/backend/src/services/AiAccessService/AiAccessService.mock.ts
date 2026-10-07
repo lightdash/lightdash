@@ -1,13 +1,19 @@
 import {
     AI_DIRECT_TRANSPORT,
+    AiAgentMarkerLevel,
     AiPrincipalKind,
     AiPrincipalStatus,
+    AiTransportKind,
     WarehouseTypes,
     type AiExecutionPlan,
 } from '@lightdash/common';
 import { describeAgentMarker } from './agentMarker';
 
-export const aiExecutionPlanMock: AiExecutionPlan = {
+export const aiExecutionPlanMock: Extract<
+    AiExecutionPlan,
+    { identity: 'principal' }
+> = {
+    identity: 'principal',
     principal: {
         aiPrincipalUuid: 'ai-principal-uuid',
         aiAccessPolicyUuid: 'ai-policy-uuid',
@@ -47,3 +53,20 @@ export const aiExecutionPlanMock: AiExecutionPlan = {
 };
 
 export const aiAgentMarkerMock = describeAgentMarker(WarehouseTypes.POSTGRES);
+
+export const markedPersonPlanMock: Extract<
+    AiExecutionPlan,
+    { identity: 'marked_person' }
+> = {
+    identity: 'marked_person',
+    transport: { kind: AiTransportKind.DIRECT },
+    assurances: [
+        { kind: 'agent_marker', level: AiAgentMarkerLevel.ADVISORY_SESSION },
+    ],
+    audit: {
+        personUuid: 'person-uuid',
+        userUuid: 'person-uuid',
+        principalRef: 'person@example.test',
+        queryTags: { agent: 'true' },
+    },
+};
