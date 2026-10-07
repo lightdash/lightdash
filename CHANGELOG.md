@@ -1,3 +1,10 @@
+## [2.458.2](https://github.com/lightdash/lightdash/compare/2.458.1...2.458.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* preserve homepage stars while favorites update ([#30636](https://github.com/lightdash/lightdash/issues/30636)) ([f9086dd](https://github.com/lightdash/lightdash/commit/f9086dd586ab6841b231bc4b1f484827110ae11f))
+
 ## [2.458.1](https://github.com/lightdash/lightdash/compare/2.458.0...2.458.1) (2026-10-07)
 
 
