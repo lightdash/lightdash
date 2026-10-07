@@ -692,6 +692,12 @@ describe('getAiAgentConfigSnapshotHash', () => {
                 enabledToolNames: ['list_issues', 'create_issue'],
             },
         ],
+        skills: [
+            {
+                name: 'weekly-revenue-table',
+                description: 'Use when the user asks for weekly revenue.',
+            },
+        ],
     };
 
     it('is stable when unordered snapshot arrays are reordered', () => {
