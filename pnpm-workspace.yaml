@@ -52,8 +52,8 @@ minimumReleaseAgeExclude:
   - postcss@8.5.10 || 8.5.18 || 8.5.23
   # Renovate security update: i18next-http-backend@3.0.5 || 4.0.2
   - i18next-http-backend@3.0.5 || 4.0.2
-  # Renovate security update: simple-git@3.36.0
-  - simple-git@3.36.0
+  # Renovate security update: simple-git@3.36.0 || 4.0.1
+  - simple-git@3.36.0 || 4.0.1
   # Renovate security update: dompurify@3.4.0 || 3.4.13
   - dompurify@3.4.0 || 3.4.13
   # Renovate security update: yaml@2.8.3
