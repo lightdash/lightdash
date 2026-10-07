@@ -39,7 +39,7 @@ const setup = (enabled: boolean) => {
     const service = new SchedulerAiAugmentationService({
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),
-            getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
+            getWarehouseCredentialsForBinding: vi.fn().mockResolvedValue({}),
         } as unknown as Dependencies['projectModel'],
         warehouseConnectionModel: {
             getProject: vi.fn().mockResolvedValue({}),

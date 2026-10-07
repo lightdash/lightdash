@@ -165,7 +165,7 @@ function buildService(
             getSummary: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-1' }),
-            getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
+            getWarehouseCredentialsForBinding: vi.fn().mockResolvedValue({}),
         },
         warehouseConnectionModel: {
             getProject: vi.fn().mockResolvedValue({}),

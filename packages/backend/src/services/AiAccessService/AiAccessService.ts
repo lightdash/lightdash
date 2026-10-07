@@ -197,8 +197,9 @@ export class AiAccessService extends BaseService {
         );
         const connection =
             warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForProject(
+                ? await this.projectModel.getWarehouseCredentialsForBinding(
                       projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
                   )
                 : await this.warehouseConnectionModel.getCredentials(
                       await this.warehouseConnectionModel.getProject(
@@ -863,8 +864,9 @@ export class AiAccessService extends BaseService {
         if (policy.principalKind !== AiPrincipalKind.PERSON) return true;
         const connection =
             args.warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForProject(
+                ? await this.projectModel.getWarehouseCredentialsForBinding(
                       args.projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
                   )
                 : await this.warehouseConnectionModel.getCredentials(
                       await this.warehouseConnectionModel.getProject(

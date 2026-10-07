@@ -506,8 +506,9 @@ export class DataAppAnalysisService extends BaseService {
             await this.projectModel.getSummary(projectUuid);
         const connection =
             warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForProject(
+                ? await this.projectModel.getWarehouseCredentialsForBinding(
                       projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
                   )
                 : await this.warehouseConnectionModel.getCredentials(
                       await this.warehouseConnectionModel.getProject(

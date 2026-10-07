@@ -204,7 +204,7 @@ const setup = () => {
     };
     const projects = {
         getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
-        getWarehouseCredentialsForProject: vi.fn(
+        getWarehouseCredentialsForBinding: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
     };
@@ -323,7 +323,7 @@ describe('AiAccessService', () => {
                 'checks marker %s and application name %s',
                 async (agent, applicationName, ok) => {
                     const { service, projects } = setup();
-                    projects.getWarehouseCredentialsForProject.mockResolvedValue(
+                    projects.getWarehouseCredentialsForBinding.mockResolvedValue(
                         {
                             type,
                             host: 'localhost',
@@ -365,7 +365,7 @@ describe('AiAccessService', () => {
         'reports request-bound channels when the Trino probe succeeds (%s)',
         async (succeeds) => {
             const { service, projects } = setup();
-            projects.getWarehouseCredentialsForProject.mockResolvedValue({
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue({
                 type: WarehouseTypes.TRINO,
                 host: 'localhost',
                 port: 8080,
@@ -580,7 +580,7 @@ describe('AiAccessService', () => {
         expect(model.upsertPolicy).not.toHaveBeenCalled();
         expect(model.listPrincipals).not.toHaveBeenCalled();
         expect(
-            projects.getWarehouseCredentialsForProject,
+            projects.getWarehouseCredentialsForBinding,
         ).not.toHaveBeenCalled();
     });
     test('rejects an unavailable kind with the provider reason', async () => {
@@ -895,7 +895,7 @@ describe('AiAccessService', () => {
             'extra',
         );
         expect(
-            projects.getWarehouseCredentialsForProject,
+            projects.getWarehouseCredentialsForBinding,
         ).not.toHaveBeenCalled();
     });
     test('rejects a principal under another project route', async () => {
