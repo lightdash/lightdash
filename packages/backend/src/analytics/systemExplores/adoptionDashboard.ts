@@ -46,7 +46,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'Recorded activity by person and week. A missing name is retained separately by user identity. Recent activity is not evidence of a recent login.',
         explore: 'user_activity',
         dimensions: [
-            'lightdash_users_name',
+            'user_activity_user_name',
             'user_activity_user_id',
             'user_activity_activity_date_week',
         ],
@@ -58,7 +58,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         fieldLabels: {
             user_activity_total_events: 'Recorded activities',
             user_activity_activity_date_week: 'Week',
-            lightdash_users_name: 'Person',
+            user_activity_user_name: 'Person',
         },
     },
     {
@@ -100,8 +100,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'Recorded app loads from standalone pages, dashboards and charts. Reloads and creators using their own apps count. Builder previews, embeds, deliveries and older loads with unknown context are excluded. Loads do not confirm successful rendering or readership.',
         explore: 'data_app_reach',
         dimensions: [
-            'lightdash_apps_name',
-            'lightdash_apps_project_name',
+            'data_app_reach_app_name',
+            'data_app_reach_project_name',
             'data_app_reach_app_id',
             'data_app_reach_project_id',
         ],
@@ -152,8 +152,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'Creators and apps from recorded creation events, grouped by week. Names reflect the latest available lookup. Iterations and reads are excluded.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_users_name',
-            'lightdash_apps_name',
+            'data_app_events_user_name',
+            'data_app_events_app_name',
             'data_app_events_event_ts_week',
             'data_app_events_user_id',
             'data_app_events_app_id',
@@ -171,8 +171,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         fieldLabels: {
             data_app_events_unique_apps: 'Apps created',
             data_app_events_event_ts_week: 'Creation week',
-            lightdash_users_name: 'Creator',
-            lightdash_apps_name: 'App',
+            data_app_events_user_name: 'Creator',
+            data_app_events_app_name: 'App',
         },
     },
     {
@@ -202,8 +202,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'People loading apps from standalone pages, dashboards and charts, grouped by app and week. Includes reloads and creators viewing their own apps. The same person can appear across apps and weeks; do not sum rows to count distinct people.',
         explore: 'data_app_reach',
         dimensions: [
-            'lightdash_apps_name',
-            'lightdash_users_name',
+            'data_app_reach_app_name',
+            'data_app_reach_user_name',
             'data_app_reach_event_ts_week',
             'data_app_reach_app_id',
             'data_app_reach_project_id',
@@ -320,7 +320,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         description:
             'People ranked by captured web-app AI agent questions. Missing names remain separate by identity; this does not count app building or background AI calls.',
         explore: 'agent_requests',
-        dimensions: ['lightdash_users_name', 'agent_requests_user_id'],
+        dimensions: ['agent_requests_user_name', 'agent_requests_user_id'],
         metrics: ['agent_requests_total_requests'],
         filters: askAi,
         limit: 50,
@@ -333,7 +333,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         description:
             'Web-app questions and distinct requesters for each AI agent. People can use several agents, so audiences overlap.',
         explore: 'agent_requests',
-        dimensions: ['lightdash_agents_name', 'agent_requests_agent_id'],
+        dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
             'agent_requests_total_requests',
             'agent_requests_distinct_requesters',

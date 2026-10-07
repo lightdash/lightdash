@@ -45,6 +45,11 @@ describe('built-in usage dashboards', () => {
         (_slug, chart) => {
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
+            expect(
+                chart.metricQuery.dimensions.every((field) =>
+                    field.startsWith(`${chart.tableName}_`),
+                ),
+            ).toBe(true);
         },
     );
 
@@ -139,19 +144,19 @@ describe('built-in usage dashboards', () => {
             expect(rows.get('ask-ai-users')).toHaveLength(3);
             expect(rows.get('app-creators')).toEqual([
                 expect.objectContaining({
-                    lightdash_users_name: 'Alex',
+                    data_app_events_user_name: 'Alex',
                     data_app_events_user_id: 'a',
                     data_app_events_unique_apps: 1n,
                 }),
             ]);
             expect(rows.get('app-reader-detail')).toEqual([
                 expect.objectContaining({
-                    lightdash_users_name: 'Alex',
+                    data_app_reach_user_name: 'Alex',
                     data_app_reach_user_id: 'b',
                     data_app_reach_total_loads: 3n,
                 }),
                 expect.objectContaining({
-                    lightdash_users_name: 'Alex',
+                    data_app_reach_user_name: 'Alex',
                     data_app_reach_user_id: 'a',
                     data_app_reach_total_loads: 1n,
                 }),
@@ -307,7 +312,7 @@ describe('built-in usage dashboards', () => {
             expect(semanticRows.get(`${prefix}people-using-fields`)).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        lightdash_users_name: 'Unknown user',
+                        semantic_usage_user_name: 'Unknown user',
                         semantic_usage_user_id: null,
                         semantic_usage_total_queries: 1n,
                     }),
@@ -316,9 +321,9 @@ describe('built-in usage dashboards', () => {
             expect(semanticRows.get(`${prefix}content-using-fields`)).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        lightdash_charts_name: 'Revenue chart',
-                        lightdash_dashboards_name: 'Sales',
-                        lightdash_apps_name: 'Sales app',
+                        semantic_usage_chart_name: 'Revenue chart',
+                        semantic_usage_dashboard_name: 'Sales',
+                        semantic_usage_app_name: 'Sales app',
                         semantic_usage_total_queries: 1n,
                     }),
                 ]),
@@ -358,18 +363,20 @@ describe('built-in usage dashboards', () => {
                 ),
             ).toBe(6);
             expect(
-                rows.filter((row) => row.lightdash_apps_name === 'Shared name'),
+                rows.filter(
+                    (row) => row.data_app_events_app_name === 'Shared name',
+                ),
             ).toHaveLength(2);
-            expect(rows.map((row) => row.lightdash_apps_name)).toEqual(
+            expect(rows.map((row) => row.data_app_events_app_name)).toEqual(
                 expect.arrayContaining([
                     'historical-app',
                     'Unknown app',
                     'Other project',
                 ]),
             );
-            expect(rows.map((row) => row.lightdash_apps_name)).not.toContain(
-                'Other organization',
-            );
+            expect(
+                rows.map((row) => row.data_app_events_app_name),
+            ).not.toContain('Other organization');
             await db.run('DELETE FROM lightdash_content');
             const withoutInventory = (
                 await db.runAndReadAll(compile(appChart).query)
