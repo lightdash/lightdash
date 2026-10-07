@@ -1,3 +1,10 @@
+# [2.468.0](https://github.com/lightdash/lightdash/compare/2.467.0...2.468.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** files a sandbox download writes stay in the workspace (CS-283) ([#30455](https://github.com/lightdash/lightdash/issues/30455)) ([412679c](https://github.com/lightdash/lightdash/commit/412679c1d42b535d27d0d7f1b9e15c5127d8b93b))
+
 # [2.467.0](https://github.com/lightdash/lightdash/compare/2.466.0...2.467.0) (2026-10-07)
 
 
