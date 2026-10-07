@@ -20,7 +20,7 @@ export const describeAgentMarker = (type: WarehouseTypes): AiAgentMarker => {
                         where: "SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')",
                     },
                 ],
-                note: 'Only marked person sessions are verified by the warehouse.',
+                note: 'The warehouse verifies the session only when the person has done the AI sign-in. Other agent queries carry the query tag.',
                 enforce: `CREATE ROW ACCESS POLICY agent_access AS (ai_allowed BOOLEAN)
 RETURNS BOOLEAN ->
     NOT COALESCE(SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN, FALSE)
