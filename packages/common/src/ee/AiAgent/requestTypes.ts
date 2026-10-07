@@ -201,7 +201,8 @@ export type CreateWebAppThread = {
     battleProfile?: AiAgentBattleProfile | null;
 };
 
-export type AiAgentBattleProfile = 'fast' | 'baseline';
+/** `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions. */
+export type AiAgentBattleProfile = 'fast' | 'baseline' | 'luna';
 
 export type AiPrompt = {
     organizationUuid: string;

@@ -28,11 +28,11 @@ describe('MessageTimingIndicator', () => {
                     finishedAt: '2026-09-22T10:00:00.900Z',
                 }}
                 isWinner
-                tokens={{ agent: 0, jev: 9402 }}
+                tokens={{ agent: 0, decisions: 9402, decisionName: 'Luna' }}
             />,
         );
 
-        expect(screen.getByText('🥇 900ms · 9.4K JEV tokens')).toBeVisible();
+        expect(screen.getByText('🥇 900ms · 9.4K Luna tokens')).toBeVisible();
     });
 
     it('renders nothing without response timing', () => {

@@ -7,7 +7,11 @@ import {
 } from '../../utils/responseTiming';
 import { formatTokenCount } from '../Battle/battleTurns';
 
-export type MessageTokenCounts = { agent: number; jev: number };
+export type MessageTokenCounts = {
+    agent: number;
+    decisions: number;
+    decisionName: string;
+};
 
 interface Props {
     responseTiming: AiPromptResponseTiming | null;
@@ -61,7 +65,8 @@ export const MessageTimingIndicator: FC<Props> = ({
                     )}
                     {tokens && (
                         <Text size="xs">
-                            Tokens: JEV {tokens.jev.toLocaleString()} · agent{' '}
+                            Tokens: {tokens.decisionName}{' '}
+                            {tokens.decisions.toLocaleString()} · agent{' '}
                             {tokens.agent.toLocaleString()}
                         </Text>
                     )}
@@ -76,7 +81,7 @@ export const MessageTimingIndicator: FC<Props> = ({
             <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
                 {isWinner ? '🥇 ' : ''}
                 {tokens
-                    ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.jev)}`
+                    ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.decisions, tokens.decisionName)}`
                     : `${ttft} · ${formatDurationMs(metrics.totalMs)}`}
             </Badge>
         </Tooltip>

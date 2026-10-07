@@ -273,6 +273,39 @@ export type AiPromptDecisionTable = Knex.CompositeTableType<
     never
 >;
 
+export const AiPromptDecisionShadowTableName = 'ai_prompt_decision_shadow';
+
+/** A live decision paired with a second provider's answers to the same questions. */
+export type DbAiPromptDecisionShadow = {
+    ai_prompt_decision_shadow_uuid: string;
+    ai_prompt_uuid: string;
+    created_at: Date;
+    operation: string;
+    questions: object;
+    state: unknown;
+    live_provider: string;
+    live_model: string;
+    live_outcome: string;
+    live_answers: object | null;
+    live_latency_ms: number;
+    live_service_ms: number | null;
+    shadow_provider: string;
+    shadow_model: string;
+    shadow_outcome: string;
+    shadow_answers: object | null;
+    shadow_latency_ms: number;
+    shadow_service_ms: number | null;
+};
+
+export type AiPromptDecisionShadowTable = Knex.CompositeTableType<
+    DbAiPromptDecisionShadow,
+    Omit<
+        DbAiPromptDecisionShadow,
+        'ai_prompt_decision_shadow_uuid' | 'created_at'
+    >,
+    never
+>;
+
 export type AiPromptClassifierNeedsUserInputMetadata = {
     gate: 'match' | 'no_match';
     model: string | null;

@@ -1410,6 +1410,7 @@ export const AssistantBubble: FC<Props> = memo(
                         {battle.isBattle && message.jevDecision && (
                             <JevDecisionIndicator
                                 decision={message.jevDecision}
+                                name={battle.decisionName}
                             />
                         )}
                         <MessageTimingIndicator
@@ -1419,7 +1420,8 @@ export const AssistantBubble: FC<Props> = memo(
                                 battle.isBattle && message.tokenUsage
                                     ? {
                                           agent: message.tokenUsage.totalTokens,
-                                          jev:
+                                          decisionName: battle.decisionName,
+                                          decisions:
                                               (message.tokenUsage
                                                   .decisionInputTokens ?? 0) +
                                               (message.tokenUsage

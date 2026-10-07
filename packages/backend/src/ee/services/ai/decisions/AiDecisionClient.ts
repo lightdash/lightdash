@@ -1,11 +1,12 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
-    APIError,
-    APITimeoutError,
-    APIUserAbortError,
+    APIUserAbortError as TypeSafeAbortError,
+    APIError as TypeSafeApiError,
     TypeSafeClient,
+    APITimeoutError as TypeSafeTimeoutError,
     type EntryType,
 } from '@typesafe-ai/sdk';
+import OpenAI from 'openai';
 import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
@@ -93,14 +94,18 @@ export type AiDecisionUsage = {
     serviceMs: number | null;
 };
 
-// JEV's gateway reports how long its model service spent on the request.
-const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
+// Each provider reports how long its model service spent on the request.
+const SERVICE_TIME_HEADERS = {
+    jev: 'x-envoy-upstream-service-time',
+    luna: 'openai-processing-ms',
+} as const;
 // Turns arrive seconds apart, past fetch's default keep-alive, so every turn paid a new TLS handshake.
-const JEV_DISPATCHER = new Agent({
+const KEEP_ALIVE_DISPATCHER = new Agent({
     keepAliveTimeout: 300_000,
     keepAliveMaxTimeout: 300_000,
 });
-type DecisionConfig = LightdashConfig['ai']['decisions'];
+export type DecisionConfig = LightdashConfig['ai']['decisions'];
+export type DecisionProvider = NonNullable<DecisionConfig['provider']>;
 
 class DecisionResponseTooLarge extends Error {}
 
@@ -135,9 +140,45 @@ const spanOutcome = (
     }
 };
 
-/** SDK transport: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
-const createSdk = (config: DecisionConfig, request: typeof fetch) =>
-    new TypeSafeClient({
+/** Provider fetch: our keep-alive pool, and a size cap since the SDKs buffer whole bodies. */
+const pooledFetch =
+    (request: typeof fetch) =>
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const response = await request(input, {
+            ...init,
+            ...({ dispatcher: KEEP_ALIVE_DISPATCHER } as {
+                dispatcher: Dispatcher;
+            }),
+        });
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > MAX_DECISION_PAYLOAD_BYTES) {
+            await response.body?.cancel();
+            throw new DecisionResponseTooLarge();
+        }
+        return response;
+    };
+
+type TransportRequest = {
+    state: EntryType;
+    questions: Record<string, DecisionQuestion>;
+    signal: AbortSignal | undefined;
+    timeout: number;
+};
+/** Returns the provider's answers in JEV's shape; `responseSchema` validates the result. */
+type DecisionTransport = (
+    request: TransportRequest,
+) => Promise<{ data: unknown; serviceMs: number | null }>;
+
+const headerMs = (response: Response, header: string): number | null => {
+    const value = Number(response.headers.get(header) ?? Number.NaN);
+    return Number.isFinite(value) ? value : null;
+};
+
+const createJevTransport = (
+    config: DecisionConfig,
+    request: typeof fetch,
+): DecisionTransport => {
+    const sdk = new TypeSafeClient({
         apiKey: config.apiKey ?? '',
         defaultModel: config.model,
         timeout: MAX_DECISION_TIMEOUT_MS,
@@ -145,24 +186,142 @@ const createSdk = (config: DecisionConfig, request: typeof fetch) =>
         retry: { maxRetries: 0 },
         // Provider errors can carry user data; outcomes are logged locally instead.
         logLevel: 'off',
-        fetch: async (input, init) => {
-            const response = await request(input, {
-                ...init,
-                ...({ dispatcher: JEV_DISPATCHER } as {
-                    dispatcher: Dispatcher;
-                }),
-            });
-            const length = Number(response.headers.get('content-length'));
-            if (
-                Number.isFinite(length) &&
-                length > MAX_DECISION_PAYLOAD_BYTES
-            ) {
-                await response.body?.cancel();
-                throw new DecisionResponseTooLarge();
-            }
-            return response;
-        },
+        fetch: pooledFetch(request),
     });
+    return async ({ state, questions, signal, timeout }) => {
+        const { data, response } = await sdk
+            .systemOne(
+                { state, questions, model: config.model },
+                { signal, timeout },
+            )
+            .withResponse();
+        return {
+            data,
+            serviceMs: headerMs(response, SERVICE_TIME_HEADERS.jev),
+        };
+    };
+};
+
+type LunaQuestion = OpenAI.DecisionCreateParams['questions'][number];
+const toLunaQuestion = (
+    name: string,
+    question: DecisionQuestion,
+): LunaQuestion => {
+    switch (question.type) {
+        case 'noul':
+            return {
+                type: 'predicate',
+                name,
+                instructions: question.instructions,
+            };
+        case 'choice':
+            return {
+                type: 'choice',
+                name,
+                instructions: question.instructions,
+                choices: Object.entries(question.criteria).map(
+                    ([value, description]) =>
+                        description === null
+                            ? { value }
+                            : { value, description },
+                ),
+            };
+        case 'score':
+            return {
+                type: 'score',
+                name,
+                instructions: question.instructions,
+                levels: question.criteria.map((label) => ({ label })),
+            };
+        default:
+            return assertUnreachable(question, 'Unknown decision question');
+    }
+};
+
+type LunaAnswer = OpenAI.Decision['answers'][number];
+const fromLunaAnswer = (answer: LunaAnswer): DecisionAnswers[string] | null => {
+    switch (answer.type) {
+        case 'predicate':
+            return { type: 'noul', noul: answer.probability };
+        case 'choice':
+            return {
+                type: 'choice',
+                choice: String(answer.choice),
+                confidence: answer.confidence,
+                probabilities: Object.fromEntries(
+                    answer.probabilities.map((option) => [
+                        String(option.value),
+                        option.probability,
+                    ]),
+                ),
+            };
+        case 'score':
+            return {
+                type: 'score',
+                score: answer.score,
+                confidence: answer.confidence,
+            };
+        // A refused question is left unanswered, which fails validation and takes the legacy path.
+        case 'refusal':
+            return null;
+        default:
+            return assertUnreachable(answer, 'Unknown decision answer');
+    }
+};
+
+/** OpenAI's Decisions API, translated to and from JEV's question and answer shapes. */
+const createLunaTransport = (
+    config: DecisionConfig,
+    request: typeof fetch,
+): DecisionTransport => {
+    const sdk = new OpenAI({
+        apiKey: config.apiKey ?? '',
+        timeout: MAX_DECISION_TIMEOUT_MS,
+        maxRetries: 0,
+        logLevel: 'off',
+        fetch: pooledFetch(request),
+    });
+    return async ({ state, questions, signal, timeout }) => {
+        const { data, response } = await sdk.decisions
+            .create(
+                {
+                    model: config.model,
+                    input: JSON.stringify(state),
+                    questions: Object.entries(questions).map(([name, q]) =>
+                        toLunaQuestion(name, q),
+                    ),
+                },
+                { signal, timeout },
+            )
+            .withResponse();
+        const answers: Record<string, DecisionAnswers[string]> = {};
+        for (const answer of data.answers) {
+            const converted = fromLunaAnswer(answer);
+            if (answer.name !== null && converted)
+                answers[answer.name] = converted;
+        }
+        return {
+            data: { model: data.model, answers, usage: data.usage },
+            serviceMs: headerMs(response, SERVICE_TIME_HEADERS.luna),
+        };
+    };
+};
+
+const createTransport = (
+    config: DecisionConfig,
+    request: typeof fetch,
+): DecisionTransport => {
+    const provider = config.provider ?? 'jev';
+    switch (provider) {
+        case 'jev':
+            return createJevTransport(config, request);
+        case 'luna':
+            return createLunaTransport(config, request);
+        default:
+            return assertUnreachable(provider, 'Unknown decision provider');
+    }
+};
+
 type EvaluateArgs = {
     operation: string;
     state: unknown;
@@ -173,8 +332,91 @@ type EvaluateArgs = {
 };
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
+export type DecisionEvaluation = {
+    answers: DecisionAnswers | null;
+    outcome: DecisionOutcome;
+    durationMs: number;
+    serviceMs: number | null;
+};
+type DecisionShadowSide = DecisionEvaluation & {
+    provider: DecisionProvider;
+    model: string;
+};
+/** One live decision and the same questions answered by a second provider that nobody acted on. */
+export type DecisionShadowEntry = {
+    operation: string;
+    questions: Record<string, DecisionQuestion>;
+    state: unknown;
+    live: DecisionShadowSide;
+    shadow: DecisionShadowSide;
+};
+export type DecisionShadow = {
+    client: AiDecisionClient;
+    record: (entry: DecisionShadowEntry) => Promise<void>;
+};
+
+/** Throws on answers the questions cannot have produced; reconciles two-decimal rounding drift. */
+const validateAnswers = (
+    questions: Record<string, DecisionQuestion>,
+    answers: DecisionAnswers,
+): DecisionAnswers => {
+    for (const [key, question] of Object.entries(questions)) {
+        const answer = answers[key];
+        if (!answer || answer.type !== question.type) {
+            throw new Error('Invalid decision response');
+        }
+        if (question.type === 'choice' && answer.type === 'choice') {
+            const probabilities = Object.values(answer.probabilities);
+            const mass = probabilities.reduce((sum, value) => sum + value, 0);
+            // Live responses round distributions to two decimal places.
+            const rounded = probabilities.every(
+                (value) =>
+                    Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+            );
+            const complete =
+                Object.keys(question.criteria).length === probabilities.length;
+            const tolerance =
+                rounded && complete
+                    ? Math.min(0.02, probabilities.length * 0.005) + 1e-8
+                    : 0.001;
+            if (
+                !Object.hasOwn(question.criteria, answer.choice) ||
+                !Object.hasOwn(answer.probabilities, answer.choice) ||
+                Math.abs(mass - 1) > tolerance ||
+                Object.keys(answer.probabilities).some(
+                    (option) => !Object.hasOwn(question.criteria, option),
+                )
+            ) {
+                throw new Error('Invalid decision option');
+            }
+            // Never raise a probability when reconciling rounding drift.
+            if (mass > 1)
+                answer.probabilities = Object.fromEntries(
+                    Object.entries(answer.probabilities).map(
+                        ([option, value]) => [option, value / mass],
+                    ),
+                );
+        }
+        if (
+            question.type === 'score' &&
+            answer.type === 'score' &&
+            (answer.score < 0 || answer.score > question.criteria.length - 1)
+        ) {
+            throw new Error('Invalid decision score');
+        }
+    }
+    return answers;
+};
+
+const SKIPPED: DecisionEvaluation = {
+    answers: null,
+    outcome: 'skipped',
+    durationMs: 0,
+    serviceMs: null,
+};
+
 export class AiDecisionClient {
-    private readonly sdk: TypeSafeClient;
+    private readonly transport: DecisionTransport;
 
     constructor(
         private readonly config: DecisionConfig,
@@ -184,9 +426,10 @@ export class AiDecisionClient {
             consecutiveFailures: 0,
             retryAfter: 0,
         },
-        sdk?: TypeSafeClient,
+        transport?: DecisionTransport,
+        private readonly shadow?: DecisionShadow,
     ) {
-        this.sdk = sdk ?? createSdk(config, request);
+        this.transport = transport ?? createTransport(config, request);
     }
 
     withUsage(usage: AiDecisionUsage): AiDecisionClient {
@@ -195,7 +438,21 @@ export class AiDecisionClient {
             this.request,
             usage,
             this.health,
-            this.sdk,
+            this.transport,
+            this.shadow,
+        );
+    }
+
+    /** Every live decision is also sent to `shadow.client`; both results go to `shadow.record`. */
+    withShadow(shadow: DecisionShadow | undefined): AiDecisionClient {
+        if (!shadow) return this;
+        return new AiDecisionClient(
+            this.config,
+            this.request,
+            this.usage,
+            this.health,
+            this.transport,
+            shadow,
         );
     }
 
@@ -203,7 +460,18 @@ export class AiDecisionClient {
         return this.config.model;
     }
 
+    get provider(): DecisionProvider {
+        return this.config.provider ?? 'jev';
+    }
+
     async evaluate(args: EvaluateArgs): Promise<DecisionAnswers | null> {
+        const live = await this.evaluateWithOutcome(args);
+        if (this.shadow && live.outcome !== 'skipped')
+            void this.runShadow(args, live);
+        return live.answers;
+    }
+
+    async evaluateWithOutcome(args: EvaluateArgs): Promise<DecisionEvaluation> {
         // Provider errors and request options can contain credentials or
         // user data. Only allowlisted operations and local outcomes are logged.
         const loggedOperation = LOGGED_OPERATIONS.has(args.operation)
@@ -219,11 +487,42 @@ export class AiDecisionClient {
         );
     }
 
+    private async runShadow(
+        args: EvaluateArgs,
+        live: DecisionEvaluation,
+    ): Promise<void> {
+        if (!this.shadow) return;
+        try {
+            // The shadow gets the client maximum so slow answers are still recorded, with their time.
+            const shadow = await this.shadow.client.evaluateWithOutcome({
+                ...args,
+                timeoutMs: MAX_DECISION_TIMEOUT_MS,
+            });
+            await this.shadow.record({
+                operation: args.operation,
+                questions: args.questions,
+                state: args.state,
+                live: {
+                    ...live,
+                    provider: this.provider,
+                    model: this.modelName,
+                },
+                shadow: {
+                    ...shadow,
+                    provider: this.shadow.client.provider,
+                    model: this.shadow.client.modelName,
+                },
+            });
+        } catch {
+            Logger.warn('AI agent decision shadow failed');
+        }
+    }
+
     private async evaluateInSpan(
         { state, questions, signal, timeoutMs }: EvaluateArgs,
         loggedOperation: string,
         span: TraceSpan,
-    ): Promise<DecisionAnswers | null> {
+    ): Promise<DecisionEvaluation> {
         if (
             !this.config.apiKey ||
             signal?.aborted ||
@@ -242,12 +541,14 @@ export class AiDecisionClient {
                 'lightdash.decision.outcome': spanOutcome('skipped'),
                 'lightdash.decision.durationMs': 0,
             });
-            return null;
+            return SKIPPED;
         }
 
         const startedAt = performance.now();
         let outcome: DecisionOutcome = 'request-failed';
         let retryableFailure = true;
+        let answers: DecisionAnswers | null = null;
+        let serviceMs: number | null = null;
         try {
             const body = JSON.stringify({
                 model: this.config.model,
@@ -256,28 +557,23 @@ export class AiDecisionClient {
             });
             if (Buffer.byteLength(body) > MAX_DECISION_PAYLOAD_BYTES) {
                 outcome = 'state-too-large';
-                return null;
+                return SKIPPED;
             }
             // JSON round-trip matches what the size check measured and yields a JSON value.
             const jsonState: EntryType = JSON.parse(
                 JSON.stringify(state ?? null),
             );
-            const { data, response } = await this.sdk
-                .systemOne(
-                    { state: jsonState, questions, model: this.config.model },
-                    {
-                        signal,
-                        timeout: Math.min(
-                            Math.max(timeoutMs ?? 0, this.config.timeoutMs),
-                            MAX_DECISION_TIMEOUT_MS,
-                        ),
-                    },
-                )
-                .withResponse();
-            const serviceMs = Number(
-                response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
-            );
-            if (Number.isFinite(serviceMs)) {
+            const response = await this.transport({
+                state: jsonState,
+                questions,
+                signal,
+                timeout: Math.min(
+                    Math.max(timeoutMs ?? 0, this.config.timeoutMs),
+                    MAX_DECISION_TIMEOUT_MS,
+                ),
+            });
+            serviceMs = response.serviceMs;
+            if (serviceMs !== null) {
                 span.setAttribute('lightdash.decision.serviceMs', serviceMs);
                 if (this.usage)
                     this.usage.serviceMs =
@@ -285,7 +581,7 @@ export class AiDecisionClient {
             }
             outcome = 'invalid-response';
             retryableFailure = false;
-            const rawResponse: unknown = data;
+            const rawResponse: unknown = response.data;
             const providerUsage = z
                 .object({ usage: usageSchema.optional() })
                 .safeParse(rawResponse);
@@ -299,79 +595,38 @@ export class AiDecisionClient {
                     providerUsage.data.usage.output_tokens;
             }
             const parsed = responseSchema.parse(rawResponse);
-            const { answers } = parsed;
-            for (const [key, question] of Object.entries(questions)) {
-                const answer = answers[key];
-                if (!answer || answer.type !== question.type) {
-                    throw new Error('Invalid decision response');
-                }
-                if (question.type === 'choice' && answer.type === 'choice') {
-                    const probabilities = Object.values(answer.probabilities);
-                    const mass = probabilities.reduce(
-                        (sum, value) => sum + value,
-                        0,
-                    );
-                    // Live responses round distributions to two decimal places.
-                    const rounded = probabilities.every(
-                        (value) =>
-                            Math.abs(value * 100 - Math.round(value * 100)) <
-                            1e-8,
-                    );
-                    const complete =
-                        Object.keys(question.criteria).length ===
-                        probabilities.length;
-                    const tolerance =
-                        rounded && complete
-                            ? Math.min(0.02, probabilities.length * 0.005) +
-                              1e-8
-                            : 0.001;
-                    if (
-                        !Object.hasOwn(question.criteria, answer.choice) ||
-                        !Object.hasOwn(answer.probabilities, answer.choice) ||
-                        Math.abs(mass - 1) > tolerance ||
-                        Object.keys(answer.probabilities).some(
-                            (option) =>
-                                !Object.hasOwn(question.criteria, option),
-                        )
-                    ) {
-                        throw new Error('Invalid decision option');
-                    }
-                    // Never raise a probability when reconciling rounding drift.
-                    if (mass > 1)
-                        answer.probabilities = Object.fromEntries(
-                            Object.entries(answer.probabilities).map(
-                                ([option, value]) => [option, value / mass],
-                            ),
-                        );
-                }
-                if (
-                    question.type === 'score' &&
-                    answer.type === 'score' &&
-                    (answer.score < 0 ||
-                        answer.score > question.criteria.length - 1)
-                ) {
-                    throw new Error('Invalid decision score');
-                }
-            }
+            answers = validateAnswers(questions, parsed.answers);
             this.health.consecutiveFailures = 0;
             this.health.retryAfter = 0;
             outcome = 'success';
-            return answers;
         } catch (error) {
-            if (error instanceof APIError) {
-                outcome = 'provider-http-error';
-                retryableFailure = error.status === 429 || error.status >= 500;
-            }
-            if (signal?.aborted || error instanceof APIUserAbortError)
+            const status =
+                error instanceof TypeSafeApiError ||
+                error instanceof OpenAI.APIError
+                    ? error.status
+                    : undefined;
+            if (
+                signal?.aborted ||
+                error instanceof TypeSafeAbortError ||
+                error instanceof OpenAI.APIUserAbortError
+            ) {
                 outcome = 'cancelled';
-            else if (error instanceof APITimeoutError) outcome = 'timeout';
+                retryableFailure = false;
+            } else if (
+                error instanceof TypeSafeTimeoutError ||
+                error instanceof OpenAI.APIConnectionTimeoutError
+            ) {
+                outcome = 'timeout';
+            } else if (status !== undefined) {
+                outcome = 'provider-http-error';
+                retryableFailure = status === 429 || status >= 500;
+            }
             if (!signal?.aborted && retryableFailure) {
                 this.health.consecutiveFailures += 1;
                 if (this.health.consecutiveFailures >= 3) {
                     this.health.retryAfter = Date.now() + 30_000;
                 }
             }
-            return null;
         } finally {
             const durationMs = Math.round(performance.now() - startedAt);
             span.setAttributes({
@@ -382,6 +637,12 @@ export class AiDecisionClient {
                 `AI agent decision: ${loggedOperation}, outcome=${outcome}, durationMs=${durationMs}`,
             );
         }
+        return {
+            answers,
+            outcome,
+            durationMs: Math.round(performance.now() - startedAt),
+            serviceMs,
+        };
     }
 }
 

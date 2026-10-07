@@ -5,10 +5,10 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 
-export type BattleType = 'models' | 'speed';
+export type BattleType = 'models' | 'speed' | 'decisions';
 
 const isBattleType = (value: string): value is BattleType =>
-    value === 'models' || value === 'speed';
+    value === 'models' || value === 'speed' || value === 'decisions';
 
 interface Props {
     enabled: boolean;
@@ -64,6 +64,10 @@ export const BattleModeSetup: FC<Props> = ({
                             }}
                             data={[
                                 { value: 'speed', label: 'Speed features' },
+                                {
+                                    value: 'decisions',
+                                    label: 'JEV vs Luna',
+                                },
                                 { value: 'models', label: 'Models' },
                             ]}
                         />
@@ -96,9 +100,12 @@ export const BattleModeSetup: FC<Props> = ({
         </Group>
         {enabled && (
             <Text size="xs" c="dimmed" mt={6}>
-                {battleType === 'speed'
-                    ? 'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'
-                    : 'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
+                {battleType === 'speed' &&
+                    'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'}
+                {battleType === 'decisions' &&
+                    'Same prompt and model. A makes fast decisions with JEV; B makes them with OpenAI Luna. Replies continue both threads side by side.'}
+                {battleType === 'models' &&
+                    'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
             </Text>
         )}
     </Paper>

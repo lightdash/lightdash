@@ -1,6 +1,6 @@
-import type { AiAgentThread } from '@lightdash/common';
+import type { AiAgentBattleProfile, AiAgentThread } from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useContext, useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
 import { getAiAgentPageBase } from '../../hooks/aiAgentRouting';
@@ -8,6 +8,7 @@ import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
+import { BattleMessageContext } from './BattleMessageContext';
 import {
     formatTokenCount,
     getBattleTotals,
@@ -33,6 +34,18 @@ const useTicking = (active: boolean) => {
     }, [active]);
     return now;
 };
+
+const battleColors: Record<AiAgentBattleProfile, string> = {
+    fast: 'violet',
+    luna: 'teal',
+    baseline: 'gray',
+};
+const battleDecisionNames: Record<AiAgentBattleProfile, string> = {
+    fast: 'JEV',
+    luna: 'Luna',
+    baseline: 'JEV',
+};
+const NO_WINNERS: ReadonlySet<string> = new Set();
 
 // The ticker and stream updates stay here so they never re-render the chat.
 const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
@@ -119,7 +132,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                     size="sm"
                     flex="none"
                     variant="light"
-                    color={thread.battleProfile === 'fast' ? 'violet' : 'gray'}
+                    color={battleColors[thread.battleProfile ?? 'baseline']}
                 >
                     {label}
                 </Badge>
@@ -152,7 +165,13 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                             {formatDurationMs(sessionMs)}
                         </Text>
                         {' · '}
-                        {formatTokenCount(totals.agentTokens, totals.jevTokens)}
+                        {formatTokenCount(
+                            totals.agentTokens,
+                            totals.jevTokens,
+                            battleDecisionNames[
+                                thread.battleProfile ?? 'baseline'
+                            ],
+                        )}
                     </Text>
                 )}
                 <Anchor
@@ -177,25 +196,39 @@ export const BattleThreadPane: FC<Props> = ({
     thread,
     queuedCount,
     onChoiceSelect,
-}) => (
-    <Stack h="100%" gap={0} miw={0}>
-        <BattlePaneHeader
-            label={label}
-            projectUuid={projectUuid}
-            agentUuid={agentUuid}
-            thread={thread}
-            queuedCount={queuedCount}
-        />
-        <Box flex={1} mih={0}>
-            <AgentChatDisplay
-                thread={thread}
-                agentName={agentName}
-                enableAutoScroll
+}) => {
+    const battle = useContext(BattleMessageContext);
+    const decisionName =
+        battleDecisionNames[thread.battleProfile ?? 'baseline'];
+    const messageContext = useMemo(
+        () => ({
+            winnerMessageUuids: battle?.winnerMessageUuids ?? NO_WINNERS,
+            decisionName,
+        }),
+        [battle?.winnerMessageUuids, decisionName],
+    );
+    return (
+        <Stack h="100%" gap={0} miw={0}>
+            <BattlePaneHeader
+                label={label}
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
-                renderArtifactsInline
-                onChoiceSelect={onChoiceSelect}
+                thread={thread}
+                queuedCount={queuedCount}
             />
-        </Box>
-    </Stack>
-);
+            <Box flex={1} mih={0}>
+                <BattleMessageContext.Provider value={messageContext}>
+                    <AgentChatDisplay
+                        thread={thread}
+                        agentName={agentName}
+                        enableAutoScroll
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        renderArtifactsInline
+                        onChoiceSelect={onChoiceSelect}
+                    />
+                </BattleMessageContext.Provider>
+            </Box>
+        </Stack>
+    );
+};

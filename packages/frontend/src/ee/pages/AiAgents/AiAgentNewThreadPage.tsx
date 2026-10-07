@@ -1,3 +1,4 @@
+import type { AiAgentBattleProfile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -88,6 +89,12 @@ const agentTourProps = {
     'data-tour-docs': 'agents/set-up-agents.mdx#intro:1',
     'data-tour-return': 'none',
     'data-tour-resultdocs': 'agents/set-up-agents.mdx#data-access:1',
+};
+
+const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
+    speed: 'baseline',
+    decisions: 'luna',
+    models: undefined,
 };
 
 const AiAgentNewThreadPage: FC = () => {
@@ -292,16 +299,15 @@ const AiAgentNewThreadPage: FC = () => {
                         ...shared,
                         modelConfig: modelAConfig,
                         battleProfile:
-                            battleType === 'speed' ? 'fast' : undefined,
+                            battleType === 'models' ? undefined : 'fast',
                     }),
                     createBattleThread({
                         ...shared,
                         modelConfig:
-                            battleType === 'speed'
-                                ? modelAConfig
-                                : getAiAgentModelConfig(modelB, false),
-                        battleProfile:
-                            battleType === 'speed' ? 'baseline' : undefined,
+                            battleType === 'models'
+                                ? getAiAgentModelConfig(modelB, false)
+                                : modelAConfig,
+                        battleProfile: battleProfileB[battleType],
                     }),
                 ]).then(([threadA, threadB]) =>
                     navigate(
@@ -539,7 +545,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         loading={isCreatingThread || isCreatingBattleThreads}
                         disabled={!isPinnedContextReady}
-                        showFastMode={!(isBattle && battleType === 'speed')}
+                        showFastMode={!(isBattle && battleType !== 'models')}
                         placeholder={
                             isBattle
                                 ? `Ask both models anything about your data...`
