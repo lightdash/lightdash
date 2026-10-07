@@ -28,8 +28,6 @@ export const useOrgAdoptionSummary = (enabled = true) =>
         retry: false,
     });
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useDepartmentMembership = (enabled = true) =>
     useQuery<DepartmentMembership[], ApiError>({
         queryKey: [...ORG_ADOPTION_QUERY_KEY, 'membership'],
@@ -50,8 +48,6 @@ const useInvalidateAdoption = () => {
     };
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useCreateDepartment = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -76,8 +72,6 @@ export const useCreateDepartment = () => {
     );
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useUpdateDepartment = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -106,8 +100,6 @@ export const useUpdateDepartment = () => {
     );
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useDeleteDepartment = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -132,8 +124,6 @@ export const useDeleteDepartment = () => {
     );
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useSetDepartmentGroups = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastApiError } = useToaster();
@@ -159,8 +149,6 @@ export const useSetDepartmentGroups = () => {
     );
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useSetDepartmentMembers = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastApiError } = useToaster();
@@ -186,8 +174,6 @@ export const useSetDepartmentMembers = () => {
     );
 };
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
 export const useSetDepartmentOwners = () => {
     const invalidate = useInvalidateAdoption();
     const { showToastApiError } = useToaster();
