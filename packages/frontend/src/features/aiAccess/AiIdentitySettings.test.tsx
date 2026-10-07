@@ -8,7 +8,7 @@ import {
     type AiAccessPolicy,
     type AiWarehouseCapabilities,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiIdentitySettings } from './AiIdentitySettings';
@@ -60,23 +60,29 @@ const policy: AiAccessPolicy = {
     createdAt: new Date(),
     updatedAt: new Date(),
 };
-const renderSettings = (saved: AiAccessPolicy | null) =>
+const renderSettings = (
+    saved: AiAccessPolicy | null,
+    available = capabilities,
+) =>
     renderWithProviders(
         <AiIdentitySettings
             projectUuid="project"
             connection={null}
             connectionSelector={null}
             policy={saved}
-            capabilities={capabilities}
+            capabilities={available}
         />,
     );
 describe('Agent identity draft', () => {
     beforeEach(() => mutate.mockClear());
-    it('does not save a radio change and confirms removal on Save', () => {
+    it('confirms before switching to marked person', () => {
         renderSettings(policy);
-        fireEvent.click(screen.getByRole('radio', { name: 'Marked person' }));
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Switch back to marked person',
+            }),
+        );
         expect(mutate).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         expect(
             screen.getByText('Switch to marked person?'),
         ).toBeInTheDocument();
@@ -96,13 +102,13 @@ describe('Agent identity draft', () => {
     });
     it('keeps the saved configuration when the confirmation is cancelled', () => {
         renderSettings(policy);
-        fireEvent.click(screen.getByRole('radio', { name: 'Marked person' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         fireEvent.click(
-            screen.getByRole('radio', { name: 'Separate principal' }),
+            screen.getByRole('button', {
+                name: 'Switch back to marked person',
+            }),
         );
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(screen.getByLabelText('Principal reference')).toHaveValue('');
         expect(mutate).not.toHaveBeenCalled();
     });
     it.each([
@@ -110,8 +116,11 @@ describe('Agent identity draft', () => {
         { ...policy, groupMappings: [], twinNameTemplate: 'ai_{user_uuid}' },
     ])('confirms removal of a shared reference or person template', (saved) => {
         renderSettings(saved);
-        fireEvent.click(screen.getByRole('radio', { name: 'Marked person' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Switch back to marked person',
+            }),
+        );
         expect(
             screen.getByText('Switch to marked person?'),
         ).toBeInTheDocument();
@@ -132,16 +141,11 @@ describe('Agent identity draft', () => {
                         ? 'ai_{user_uuid}'
                         : null,
             });
-            expect(
-                screen.getByRole('radio', { name: 'Separate principal' }),
-            ).toBeChecked();
             expect(screen.getByLabelText('Principal reference')).toHaveValue(
                 '',
             );
             expect(
-                screen.getByText(
-                    /This connection uses a per-group or per-person/,
-                ),
+                screen.getByText(/Agents run as a per-group or per-person/),
             ).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
             fireEvent.change(screen.getByLabelText('Principal reference'), {
@@ -193,13 +197,135 @@ describe('Agent identity draft', () => {
             expect.any(Object),
         );
     });
-    it('leaves marked person without a saved policy unconfigured', () => {
-        renderSettings(null);
-        fireEvent.click(
-            screen.getByRole('radio', { name: 'Separate principal' }),
-        );
-        fireEvent.click(screen.getByRole('radio', { name: 'Marked person' }));
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    it.each([
+        null,
+        { ...policy, principalKind: AiPrincipalKind.PERSON, groupMappings: [] },
+    ])('starts collapsed for a person policy or no policy', (saved) => {
+        renderSettings(saved);
+        expect(
+            screen.getByText('Agents run as the marked person'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('Principal reference'),
+        ).not.toBeInTheDocument();
+        const disclosure = screen.getByRole('button', {
+            name: 'Need a hard boundary? Use a separate principal',
+        });
+        expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(disclosure);
+        expect(
+            screen.getByLabelText('Principal reference'),
+        ).toBeInTheDocument();
         expect(mutate).not.toHaveBeenCalled();
+    });
+    it('shows only the marked person statement for verified sessions even when shared is available', () => {
+        renderSettings(null, {
+            ...capabilities,
+            marker: {
+                ...capabilities.marker,
+                level: AiAgentMarkerLevel.VERIFIED_SESSION,
+            },
+        });
+        expect(
+            screen.getByText(
+                'Snowflake verifies the session once the person has done the AI sign-in.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(
+                screen.getByRole('heading', { name: 'Identity' }).parentElement!
+                    .parentElement!,
+            ).queryByRole('button'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    });
+    it.each([
+        AiAgentMarkerLevel.ADVISORY_SESSION,
+        AiAgentMarkerLevel.IDENTIFY_ONLY,
+    ])('shows the coming-soon reason without controls for %s', (level) => {
+        renderSettings(null, {
+            ...capabilities,
+            marker: { ...capabilities.marker, level },
+            principals: {
+                ...capabilities.principals,
+                shared: {
+                    available: false,
+                    reason: 'Separate principals are coming soon.',
+                },
+            },
+        });
+        expect(
+            screen.getByText('Separate principals are coming soon.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                level === AiAgentMarkerLevel.IDENTIFY_ONLY
+                    ? 'The marker identifies agent queries in query history. It cannot restrict them.'
+                    : 'The marker is advisory on this warehouse. Any SQL in the session can change it.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(
+                screen.getByRole('heading', { name: 'Identity' }).parentElement!
+                    .parentElement!,
+            ).queryByRole('button'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    });
+    it.each([
+        AiAgentMarkerLevel.VERIFIED_SESSION,
+        AiAgentMarkerLevel.IDENTIFY_ONLY,
+        AiAgentMarkerLevel.ADVISORY_SESSION,
+    ])(
+        'confirms switching an API policy on a person-only warehouse at %s',
+        (level) => {
+            renderSettings(policy, {
+                ...capabilities,
+                marker: { ...capabilities.marker, level },
+                principals: {
+                    ...capabilities.principals,
+                    shared: { available: false, reason: 'Coming soon' },
+                },
+            });
+            expect(
+                screen.getByText(
+                    'This connection has a separate principal policy saved through the API.',
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByLabelText('Principal reference'),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Switch to marked person' }),
+            );
+            expect(mutate).not.toHaveBeenCalled();
+            fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+            expect(mutate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    principalKind: AiPrincipalKind.PERSON,
+                    groupMappings: [],
+                    sharedRef: null,
+                    twinNameTemplate: null,
+                }),
+                expect.any(Object),
+            );
+        },
+    );
+    it('shows the dotted message without Identity controls or Test for no marker', () => {
+        renderSettings(policy, {
+            ...capabilities,
+            marker: { ...capabilities.marker, level: AiAgentMarkerLevel.NONE },
+        });
+        expect(
+            screen.getByText('This warehouse cannot mark agent queries.')
+                .parentElement,
+        ).toHaveAttribute('data-variant', 'dotted');
+        expect(
+            within(
+                screen.getByRole('heading', { name: 'Identity' }).parentElement!
+                    .parentElement!,
+            ).queryByRole('button'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Test')).not.toBeInTheDocument();
     });
 });
