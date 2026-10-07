@@ -57,6 +57,36 @@ describe('Agent identity choices', () => {
         );
         expect(onChange).toHaveBeenCalledWith(true);
     });
+    it('disables separate principal when only shared principals are unavailable', () => {
+        const onChange = vi.fn();
+        renderWithProviders(
+            <AiIdentityModeCards
+                capabilities={{
+                    ...capabilities,
+                    principals: {
+                        ...capabilities.principals,
+                        shared: {
+                            available: false,
+                            reason: 'Shared principals are unavailable',
+                        },
+                    },
+                }}
+                separate={false}
+                onChange={onChange}
+                disabled={false}
+            />,
+        );
+        expect(
+            screen.getByRole('radio', { name: 'Separate principal' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByText('Shared principals are unavailable'),
+        ).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('radio', { name: 'Separate principal' }),
+        );
+        expect(onChange).not.toHaveBeenCalled();
+    });
     it('explains the Snowflake sign-in step', () => {
         renderWithProviders(
             <AiIdentityModeCards

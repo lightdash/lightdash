@@ -16,15 +16,7 @@ export const AiIdentityModeCards = ({
     disabled: boolean;
 }) => {
     const person = capabilities.principals.person;
-    const separateKinds = [
-        capabilities.principals.twin,
-        capabilities.principals.group,
-        capabilities.principals.shared,
-    ];
-    const separateAvailable = separateKinds.some((kind) => kind.available);
-    const separateReason = separateKinds.find(
-        (kind): kind is { available: false; reason: string } => !kind.available,
-    )?.reason;
+    const shared = capabilities.principals.shared;
     return (
         <Radio.Group
             aria-label="Identity"
@@ -67,24 +59,26 @@ export const AiIdentityModeCards = ({
                 <Radio.Card
                     value="principal"
                     aria-label="Separate principal"
-                    disabled={disabled || !separateAvailable}
+                    opacity={shared.available ? 1 : 0.5}
+                    disabled={disabled || !shared.available}
                     p="md"
                     radius="md"
                 >
                     <Stack gap="xs">
                         <Group>
                             <Radio.Indicator
-                                disabled={disabled || !separateAvailable}
+                                disabled={disabled || !shared.available}
                             />
                             <Text fw={500}>Separate principal</Text>
                         </Group>
                         <Text size="sm" c="dimmed">
-                            Agents use a different warehouse principal. Use this
-                            when the marker cannot enforce your rules.
+                            Agents use one warehouse principal for every agent
+                            query. Use this when the marker cannot enforce your
+                            rules.
                         </Text>
-                        {!separateAvailable && (
+                        {!shared.available && (
                             <Text size="sm" c="dimmed">
-                                {separateReason}
+                                {shared.reason}
                             </Text>
                         )}
                     </Stack>

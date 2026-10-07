@@ -18,7 +18,6 @@ vi.mock('./api', () => ({
 }));
 vi.mock('./AiPrincipals', () => ({ Principals: () => null }));
 vi.mock('./AiMarkerTest', () => ({ AiMarkerTest: () => null }));
-vi.mock('./AiPolicyEditor', () => ({ AiPolicyEditor: () => null }));
 vi.mock('./AiSetupScriptDrawer', () => ({ AiSetupScriptDrawer: () => null }));
 const capabilities: AiWarehouseCapabilities = {
     warehouseType: WarehouseTypes.POSTGRES,
@@ -117,6 +116,82 @@ describe('Agent identity draft', () => {
             screen.getByText('Switch to marked person?'),
         ).toBeInTheDocument();
         expect(mutate).not.toHaveBeenCalled();
+    });
+    it.each([AiPrincipalKind.GROUP, AiPrincipalKind.TWIN])(
+        'replaces an API-created %s setup with one principal after confirmation',
+        (principalKind) => {
+            renderSettings({
+                ...policy,
+                principalKind,
+                groupMappings:
+                    principalKind === AiPrincipalKind.GROUP
+                        ? policy.groupMappings
+                        : [],
+                twinNameTemplate:
+                    principalKind === AiPrincipalKind.TWIN
+                        ? 'ai_{user_uuid}'
+                        : null,
+            });
+            expect(
+                screen.getByRole('radio', { name: 'Separate principal' }),
+            ).toBeChecked();
+            expect(screen.getByLabelText('Principal reference')).toHaveValue(
+                '',
+            );
+            expect(
+                screen.getByText(
+                    /This connection uses a per-group or per-person/,
+                ),
+            ).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+            fireEvent.change(screen.getByLabelText('Principal reference'), {
+                target: { value: 'ai_shared' },
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+            expect(
+                screen.getByText('Replace principal setup?'),
+            ).toBeInTheDocument();
+            expect(mutate).not.toHaveBeenCalled();
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(mutate).not.toHaveBeenCalled();
+            fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+            expect(mutate).toHaveBeenCalledWith(
+                {
+                    enabled: true,
+                    principalKind: AiPrincipalKind.SHARED,
+                    transport: { kind: AiTransportKind.DIRECT },
+                    sharedRef: 'ai_shared',
+                    twinNameTemplate: null,
+                    groupMappings: [],
+                    policySource: null,
+                },
+                expect.any(Object),
+            );
+        },
+    );
+    it('keeps a saved shared reference and saves edits without confirmation', () => {
+        renderSettings({
+            ...policy,
+            principalKind: AiPrincipalKind.SHARED,
+            sharedRef: 'ai_shared',
+            groupMappings: [],
+        });
+        expect(screen.getByLabelText('Principal reference')).toHaveValue(
+            'ai_shared',
+        );
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        fireEvent.change(screen.getByLabelText('Principal reference'), {
+            target: { value: 'ai_other' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        expect(mutate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                principalKind: AiPrincipalKind.SHARED,
+                sharedRef: 'ai_other',
+            }),
+            expect.any(Object),
+        );
     });
     it('leaves marked person without a saved policy unconfigured', () => {
         renderSettings(null);

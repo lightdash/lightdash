@@ -32,7 +32,7 @@ const principalLabels: Record<AiPrincipalKind, string> = {
     [AiPrincipalKind.PERSON]: 'Marked person',
     [AiPrincipalKind.GROUP]: 'Per group',
     [AiPrincipalKind.TWIN]: 'Per person',
-    [AiPrincipalKind.SHARED]: 'One shared',
+    [AiPrincipalKind.SHARED]: 'Shared',
 };
 export const Principals = ({
     projectUuid,

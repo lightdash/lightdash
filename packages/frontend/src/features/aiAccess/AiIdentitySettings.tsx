@@ -19,11 +19,10 @@ import { Principals } from './AiPrincipals';
 import { AiSetupScriptDrawer } from './AiSetupScriptDrawer';
 import { AiWarehouseSignals } from './AiWarehouseSignals';
 import { useUpsertAiAccessPolicy } from './api';
-import { hasDuplicateRefs } from './validation';
 
 const toInput = (policy: AiAccessPolicy | null): UpsertAiAccessPolicy => ({
     enabled: true,
-    principalKind: policy?.principalKind ?? AiPrincipalKind.GROUP,
+    principalKind: policy?.principalKind ?? AiPrincipalKind.SHARED,
     transport: policy?.transport ?? AI_DIRECT_TRANSPORT,
     sharedRef: policy?.sharedRef ?? null,
     twinNameTemplate: policy?.twinNameTemplate ?? null,
@@ -56,23 +55,10 @@ const isInvalid = (
         !value.transport.name.trim()
     )
         return true;
-    switch (value.principalKind) {
-        case AiPrincipalKind.GROUP:
-            return (
-                hasDuplicateRefs(value.groupMappings) ||
-                value.groupMappings.some(
-                    (row) => !row.groupUuid || !row.ref.trim(),
-                ) ||
-                new Set(value.groupMappings.map((row) => row.groupUuid))
-                    .size !== value.groupMappings.length
-            );
-        case AiPrincipalKind.SHARED:
-            return !value.sharedRef?.trim();
-        case AiPrincipalKind.TWIN:
-            return !value.twinNameTemplate?.trim();
-        case AiPrincipalKind.PERSON:
-            return false;
-    }
+    return (
+        value.principalKind === AiPrincipalKind.SHARED &&
+        !value.sharedRef?.trim()
+    );
 };
 export const AiIdentitySettings = ({
     projectUuid,
@@ -92,7 +78,13 @@ export const AiIdentitySettings = ({
             !!policy?.enabled &&
             policy.principalKind !== AiPrincipalKind.PERSON,
     );
-    const [value, setValue] = useState(() => toInput(policy));
+    const [value, setValue] = useState(() => ({
+        ...toInput(policy),
+        sharedRef:
+            policy?.principalKind === AiPrincipalKind.SHARED
+                ? policy.sharedRef
+                : null,
+    }));
     const [confirming, setConfirming] = useState(false);
     const [script, setScript] = useState<{ principal: string | null } | null>(
         null,
@@ -101,7 +93,12 @@ export const AiIdentitySettings = ({
     const set = (patch: Partial<UpsertAiAccessPolicy>) =>
         setValue((previous) => ({ ...previous, ...patch }));
     const input = separate
-        ? value
+        ? {
+              ...value,
+              principalKind: AiPrincipalKind.SHARED,
+              twinNameTemplate: null,
+              groupMappings: [],
+          }
         : {
               ...value,
               enabled: true,
@@ -119,10 +116,9 @@ export const AiIdentitySettings = ({
         save.mutate(input, { onSuccess: () => setConfirming(false) });
     const onSave = () => {
         if (
-            !separate &&
-            (policy?.groupMappings.length ||
-                policy?.sharedRef ||
-                policy?.twinNameTemplate)
+            policy?.groupMappings.length ||
+            policy?.twinNameTemplate ||
+            (!separate && policy?.sharedRef)
         )
             setConfirming(true);
         else persist();
@@ -142,15 +138,17 @@ export const AiIdentitySettings = ({
                         capabilities={capabilities}
                         separate={separate}
                         disabled={save.isLoading}
-                        onChange={(next) => {
-                            setSeparate(next);
-                            if (
-                                next &&
-                                value.principalKind === AiPrincipalKind.PERSON
-                            )
-                                set({ principalKind: AiPrincipalKind.GROUP });
-                        }}
+                        onChange={setSeparate}
                     />
+                    {separate &&
+                        (policy?.principalKind === AiPrincipalKind.GROUP ||
+                            policy?.principalKind === AiPrincipalKind.TWIN) && (
+                            <Text size="sm" c="dimmed">
+                                This connection uses a per-group or per-person
+                                setup saved through the API. Saving here
+                                replaces it with one principal.
+                            </Text>
+                        )}
                     {separate && (
                         <AiPolicyEditor
                             value={value}
@@ -222,9 +220,17 @@ export const AiIdentitySettings = ({
             <MantineModal
                 opened={confirming}
                 onClose={() => setConfirming(false)}
-                title="Switch to marked person?"
+                title={
+                    separate
+                        ? 'Replace principal setup?'
+                        : 'Switch to marked person?'
+                }
                 role="alertdialog"
-                description="Agents will use each person's own credentials. Your separate principal setup is removed."
+                description={
+                    separate
+                        ? 'Agents will use one warehouse principal. Your per-group or per-person setup is removed.'
+                        : "Agents will use each person's own credentials. Your separate principal setup is removed."
+                }
                 confirmLabel="Switch"
                 confirmLoading={save.isLoading}
                 onConfirm={persist}
