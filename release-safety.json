@@ -1,14 +1,39 @@
 {
   "schemaVersion": "2",
-  "version": "2.451.0",
-  "previousVersion": "2.450.0",
-  "releaseDate": "2026-10-07T08:51:51.328Z",
+  "version": "2.452.0",
+  "previousVersion": "2.451.0",
+  "releaseDate": "2026-10-07T09:13:26.503Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 2,
+    "coreCount": 2,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261006180000_add_thumbnail_to_app_versions.ts",
+        "edition": "core",
+        "tables": [
+          "app_versions"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261006190000_add_data_app_automatic_thumbnails_to_organization_settings.ts",
+        "edition": "core",
+        "tables": [
+          "organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -21,20 +46,10 @@
       "changes": [],
       "breakingCount": 0,
       "advisories": [
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMetricQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSavedChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `desktop` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`"
+        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `appCaptureThumbnail` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
+        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `appCaptureThumbnail` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
       ],
-      "advisoryCount": 12
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,

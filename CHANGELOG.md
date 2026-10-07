@@ -1,3 +1,14 @@
+# [2.452.0](https://github.com/lightdash/lightdash/compare/2.451.0...2.452.0) (2026-10-07)
+
+
+### Features
+
+* **data-apps:** add a setting to turn automatic thumbnail capture off ([#30558](https://github.com/lightdash/lightdash/issues/30558)) ([12c2227](https://github.com/lightdash/lightdash/commit/12c2227b7e93e93020f86fba8cacdb977e10cb12))
+* **data-apps:** capture a thumbnail for each version when its build is ready ([#30553](https://github.com/lightdash/lightdash/issues/30553)) ([8ae1e03](https://github.com/lightdash/lightdash/commit/8ae1e031b9cdfa096cb2505fc76d795437f28df0))
+* **data-apps:** give restored, duplicated, promoted and uploaded versions a thumbnail ([#30557](https://github.com/lightdash/lightdash/issues/30557)) ([5704b8f](https://github.com/lightdash/lightdash/commit/5704b8f9dbfbc7cdb351731d7fdf0cc052f768cc))
+* **data-apps:** render a specific version on the headless app page ([#30551](https://github.com/lightdash/lightdash/issues/30551)) ([72e3680](https://github.com/lightdash/lightdash/commit/72e368048a4e5b037007ba7f08d0d316b1a5b05e))
+* **data-apps:** show a thumbnail on each ready version in history ([#30559](https://github.com/lightdash/lightdash/issues/30559)) ([2c5be81](https://github.com/lightdash/lightdash/commit/2c5be819bb23e15c9deda4ec9ad5400a803405cd))
+
 # [2.451.0](https://github.com/lightdash/lightdash/compare/2.450.0...2.451.0) (2026-10-07)
 
 
