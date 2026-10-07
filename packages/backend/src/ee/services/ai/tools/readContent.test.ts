@@ -10,6 +10,12 @@ const options: ToolExecutionOptions<Record<string, unknown>> = {
 
 type Read = Awaited<ReturnType<ReadContentFn>>;
 
+const dashboardTile = {
+    type: 'saved_chart',
+    tileSlug: 'orders-per-month',
+    properties: { chartSlug: 'orders-per-month' },
+};
+
 const dashboardRead = {
     type: 'dashboard',
     href: '/projects/project/dashboards/dashboard-uuid/view',
@@ -18,10 +24,9 @@ const dashboardRead = {
         slug: 'overview',
         tiles: [
             {
-                type: 'saved_chart',
-                tileSlug: 'orders-per-month',
+                ...dashboardTile,
                 properties: {
-                    chartSlug: 'orders-per-month',
+                    ...dashboardTile.properties,
                     chartQuery: {
                         exploreName: 'orders',
                         fieldIds: ['orders_order_date_month'],
@@ -29,6 +34,14 @@ const dashboardRead = {
                 },
             },
         ],
+    },
+} as unknown as Read;
+
+const dashboardReadWithoutChartQuery = {
+    ...dashboardRead,
+    content: {
+        ...dashboardRead.content,
+        tiles: [dashboardTile],
     },
 } as unknown as Read;
 
@@ -53,7 +66,7 @@ const execute = async (
 
 describe('readContent tool', () => {
     it('tells the agent how to target dashboard filters per tile when it reads a dashboard', async () => {
-        const output = await execute(dashboardRead, {
+        const output = await execute(dashboardReadWithoutChartQuery, {
             slug: 'overview',
             type: 'dashboard',
         });
@@ -65,6 +78,18 @@ describe('readContent tool', () => {
         expect(output).toHaveProperty(
             'result',
             expect.stringContaining('tileTargets'),
+        );
+    });
+
+    it('passes each tile explore through to the agent when it reads a dashboard', async () => {
+        const output = await execute(dashboardRead, {
+            slug: 'overview',
+            type: 'dashboard',
+        });
+
+        expect(output).toHaveProperty(
+            'result',
+            expect.stringContaining('"exploreName": "orders"'),
         );
     });
 
