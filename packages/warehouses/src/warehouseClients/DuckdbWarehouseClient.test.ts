@@ -1412,10 +1412,165 @@ describe('DuckdbWarehouseClient', () => {
                 scope: ['s3://bucket/'],
             },
         });
-        await expect(client.runQuery('SELECT 1')).rejects.toThrow(
-            /^Unable to configure GCP OAuth for DuckDB storage$/,
+        const error = await client.runQuery('SELECT 1').catch((e) => e);
+        expect(error.message).toBe(
+            'Unable to configure GCP OAuth for DuckDB storage: Failed statement containing [redacted]',
         );
+        expect(error.message).not.toContain('synthetic-secret-token');
         expect(streamMock).not.toHaveBeenCalled();
+    });
+
+    it('replaces a shared instance GCS secret only when the token changes', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        let token = 'first-token';
+        const getAccessToken = vi.fn(async () => token);
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    authMode: 'gcp_oauth',
+                    getAccessToken,
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'pre-aggregate-query-instance' },
+        );
+        const secretTokens = () =>
+            runMock.mock.calls
+                .filter(([sql]) =>
+                    (sql as string).includes(
+                        'CREATE OR REPLACE SECRET __lightdash_s3',
+                    ),
+                )
+                .map(([, params]) => (params as string[])[0]);
+
+        await client.runQuery('SELECT 1');
+        const afterFirstQuery = secretTokens().length;
+
+        // Concurrent sessions with an unchanged token leave the secret alone.
+        await Promise.all(
+            Array.from({ length: 10 }, () => client.runQuery('SELECT 1')),
+        );
+        expect(secretTokens()).toHaveLength(afterFirstQuery);
+        expect(getAccessToken.mock.calls.length).toBeGreaterThan(10);
+
+        // A rotated token replaces the secret once, however many sessions see it.
+        token = 'rotated-token';
+        await Promise.all(
+            Array.from({ length: 10 }, () => client.runQuery('SELECT 1')),
+        );
+        expect(secretTokens()).toHaveLength(afterFirstQuery + 1);
+        expect(secretTokens().at(-1)).toBe('rotated-token');
+    });
+
+    it('never installs a stale token over a newer one after waiting on the lock', async () => {
+        const runMock = vi.fn(async (_sql: string, _params?: unknown[]) => {});
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        let token = 'initial-token';
+        const getAccessToken = vi.fn(async () => token);
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    authMode: 'gcp_oauth',
+                    getAccessToken,
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'pre-aggregate-query-instance' },
+        );
+        await client.runQuery('SELECT 1');
+
+        // The token rotates between two sessions' fetches. The session holding
+        // the old token resolves last, so it reaches the lock after the newer
+        // token is already installed.
+        token = 'new-token';
+        getAccessToken
+            .mockImplementationOnce(async () => {
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 20);
+                });
+                return 'old-token';
+            })
+            .mockImplementationOnce(async () => 'new-token');
+        await Promise.all([
+            client.runQuery('SELECT 1'),
+            client.runQuery('SELECT 1'),
+        ]);
+
+        const installed = runMock.mock.calls
+            .filter(([sql]) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            )
+            .map(([, params]) => params?.[0]);
+        expect(installed).not.toContain('old-token');
+        expect(installed.at(-1)).toBe('new-token');
+    });
+
+    it('retries the shared GCS secret after a failed replacement', async () => {
+        let failSecret = true;
+        const runMock = vi.fn(async (sql: string) => {
+            if (failSecret && sql.includes('CREATE OR REPLACE SECRET')) {
+                throw new Error('Catalog write-write conflict');
+            }
+        });
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    authMode: 'gcp_oauth',
+                    getAccessToken: async () => 'token',
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'pre-aggregate-query-instance' },
+        );
+        await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+            'Unable to configure GCP OAuth for DuckDB storage: Catalog write-write conflict',
+        );
+        failSecret = false;
+        await expect(client.runQuery('SELECT 1')).resolves.toBeDefined();
     });
 
     it.each(['empty', 'rejected'] as const)(
