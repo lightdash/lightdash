@@ -3,8 +3,6 @@ import {
     Account,
     AI_DIRECT_TRANSPORT,
     AiAgentMarkerLevel,
-    AiPrincipalKind,
-    AiPrincipalStatus,
     AiTransportKind,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
@@ -14166,24 +14164,9 @@ describe('AI principal credential routing', () => {
         user: 'ai',
         password: 'test',
     };
-    const plan: Extract<AiExecutionPlan, { identity: 'principal' }> = {
-        identity: 'principal',
-        principal: {
-            aiPrincipalUuid: 'ai-one',
-            aiAccessPolicyUuid: 'policy',
-            kind: AiPrincipalKind.SHARED,
-            ref: 'ai',
-            userUuid: null,
-            groupUuid: null,
-            status: AiPrincipalStatus.READY,
-            failureReason: null,
-            statusMessage: null,
-            lastProbe: null,
-            publicKey: null,
-            publicKeyFingerprint: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        },
+    const plan: Extract<AiExecutionPlan, { identity: 'connected_person' }> = {
+        identity: 'connected_person',
+        identityUuid: 'ai-one',
         credentials,
         transport: AI_DIRECT_TRANSPORT,
         assurances: [],
@@ -14244,27 +14227,6 @@ describe('AI principal credential routing', () => {
         );
         expect(getAllTables).toHaveBeenCalledOnce();
         expect(disconnect).toHaveBeenCalledOnce();
-    });
-    test('invalidates AI credentials when a warehouse call fails', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
-        const invalidate = vi.fn();
-        configured.aiAccessService.invalidateCredentials = invalidate;
-        vi.mocked(
-            projectModel.getWarehouseClientFromCredentials,
-        ).mockReturnValue({
-            ...warehouseClientMock,
-            runQuery: vi.fn(async () => resultsWith1Row),
-            getAllTables: vi.fn().mockRejectedValue(new Error('expired token')),
-        });
-        const { warehouseClient, sshTunnel } =
-            await configured._getWarehouseClient(projectUuid, credentials, {
-                aiPlan: plan,
-            });
-        await expect(warehouseClient.getAllTables()).rejects.toThrow(
-            'expired token',
-        );
-        expect(invalidate).toHaveBeenCalledWith('ai-one');
-        await sshTunnel.disconnect();
     });
     test('uses the AI credentials before looking up personal credentials', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
@@ -14416,7 +14378,7 @@ describe('AI principal credential routing', () => {
             {
                 aiPlan: {
                     ...plan,
-                    principal: { ...plan.principal, aiPrincipalUuid: 'ai-two' },
+                    identityUuid: 'ai-two',
                 },
             },
         );

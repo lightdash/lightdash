@@ -1,8 +1,6 @@
 import {
     AI_DIRECT_TRANSPORT,
     AiAgentMarkerLevel,
-    AiPrincipalKind,
-    AiPrincipalStatus,
     AiTransportKind,
     WarehouseTypes,
     type AiExecutionPlan,
@@ -11,29 +9,10 @@ import { describeAgentMarker } from './agentMarker';
 
 export const aiExecutionPlanMock: Extract<
     AiExecutionPlan,
-    { identity: 'principal' }
+    { identity: 'connected_person' }
 > = {
-    identity: 'principal',
-    principal: {
-        aiPrincipalUuid: 'ai-principal-uuid',
-        aiAccessPolicyUuid: 'ai-policy-uuid',
-        kind: AiPrincipalKind.SHARED,
-        ref: 'ai_shared',
-        userUuid: null,
-        groupUuid: null,
-        status: AiPrincipalStatus.READY,
-        failureReason: null,
-        statusMessage: null,
-        lastProbe: {
-            ok: true,
-            checkedAt: new Date('2026-10-01'),
-            observed: {},
-        },
-        publicKey: null,
-        publicKeyFingerprint: null,
-        createdAt: new Date('2026-10-01'),
-        updatedAt: new Date('2026-10-01'),
-    },
+    identity: 'connected_person',
+    identityUuid: 'connected-person-uuid',
     transport: AI_DIRECT_TRANSPORT,
     credentials: {
         type: WarehouseTypes.POSTGRES,

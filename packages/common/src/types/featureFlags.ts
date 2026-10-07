@@ -11,12 +11,6 @@ export enum FeatureFlags {
      */
     AiPrincipals = 'ai-principals',
 
-    /**
-     * Lets a Snowflake AI access policy choose the procedure transport.
-     * Off by default; organization scope; no handler.
-     */
-    AiProcedureTransport = 'ai-procedure-transport',
-
     /** Off by default; organization scope; no handler. Enables Snowflake AI sign-in. */
     SnowflakeAiSignIn = 'snowflake-ai-sign-in',
     MultiConnectionProjects = 'multi-connection-projects',

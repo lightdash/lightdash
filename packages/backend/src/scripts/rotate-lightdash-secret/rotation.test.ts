@@ -49,11 +49,10 @@ afterEach(() => {
 });
 
 describe('ciphertext registry', () => {
-    test('contains the full 27-field inventory', () => {
+    test('contains the full 26-field inventory', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
-            'ai_principals.encrypted_secret',
             'projects.dbt_connection',
             'warehouse_credentials.encrypted_credentials',
             'warehouse_connections.encrypted_credentials',

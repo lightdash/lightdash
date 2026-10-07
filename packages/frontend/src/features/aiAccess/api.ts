@@ -2,8 +2,6 @@ import {
     FeatureFlags,
     type AiAccessForUser,
     type AiAccessPolicy,
-    type AiPrincipal,
-    type AiSetupScript,
     type AiWarehouseCapabilities,
     type ApiError,
     type ApiResponse,
@@ -20,9 +18,8 @@ const aiAccessUrl = (
     projectUuid: string,
     path: string,
     connection: string | null,
-    params: Record<string, string> = {},
 ) => {
-    const query = new URLSearchParams(params);
+    const query = new URLSearchParams();
     if (connection !== null) query.set('connection', connection);
     return `/projects/${encodeURIComponent(projectUuid)}/ai-access/${path}${query.size ? `?${query}` : ''}`;
 };
@@ -30,12 +27,10 @@ const get = <T extends ApiResponse['results']>(
     projectUuid: string,
     path: string,
     connection: string | null,
-    params?: Record<string, string>,
 ) =>
     lightdashApi<T>({
         version: 'v2',
-        url: aiAccessUrl(projectUuid, path, connection, params),
-        sensitive: path === 'setup-script',
+        url: aiAccessUrl(projectUuid, path, connection),
         method: 'GET',
         body: undefined,
     });
@@ -44,19 +39,6 @@ export const aiAccessApi = {
         get<AiWarehouseCapabilities>(project, 'capabilities', connection),
     policy: (project: string, connection: string | null) =>
         get<AiAccessPolicy | null>(project, 'policy', connection),
-    principals: (project: string, connection: string | null) =>
-        get<AiPrincipal[]>(project, 'principals', connection),
-    setupScript: (
-        project: string,
-        connection: string | null,
-        principal: string | null,
-    ) =>
-        get<AiSetupScript>(
-            project,
-            'setup-script',
-            connection,
-            principal ? { principal } : {},
-        ),
     me: (project: string, connection: string | null) =>
         get<AiAccessForUser>(project, 'me', connection),
     upsertPolicy: (
@@ -70,47 +52,6 @@ export const aiAccessApi = {
             method: 'PUT',
             body: JSON.stringify(policy),
         }),
-    test: (project: string, connection: string | null, uuid: string) =>
-        lightdashApi<AiPrincipal>({
-            version: 'v2',
-            url: aiAccessUrl(
-                project,
-                `principals/${encodeURIComponent(uuid)}/test`,
-                connection,
-            ),
-            method: 'POST',
-            body: undefined,
-        }),
-    regenerateSecret: (
-        project: string,
-        connection: string | null,
-        uuid: string,
-    ) =>
-        lightdashApi<AiPrincipal>({
-            version: 'v2',
-            url: aiAccessUrl(
-                project,
-                `principals/${encodeURIComponent(uuid)}/regenerate-secret`,
-                connection,
-            ),
-            method: 'POST',
-            body: undefined,
-        }),
-    deletePrincipal: (
-        project: string,
-        connection: string | null,
-        uuid: string,
-    ) =>
-        lightdashApi<undefined>({
-            version: 'v2',
-            url: aiAccessUrl(
-                project,
-                `principals/${encodeURIComponent(uuid)}`,
-                connection,
-            ),
-            method: 'DELETE',
-            body: undefined,
-        }),
 };
 const useAccessQuery = <T>(
     project: string,
@@ -118,16 +59,13 @@ const useAccessQuery = <T>(
     path: string,
     queryFn: () => Promise<T>,
     enabled = true,
-    extra: (string | number | null)[] = [],
-    sensitive = false,
 ) => {
     const { showToastApiError } = useToaster();
     const t = useUiStrings();
     return useQuery<T, ApiError>({
-        queryKey: ['ai-access', project, connection, path, ...extra],
+        queryKey: ['ai-access', project, connection, path],
         queryFn,
         enabled: !!project && enabled,
-        cacheTime: sensitive ? 0 : undefined,
         refetchOnWindowFocus: true,
         onError: ({ error }) =>
             showToastApiError({

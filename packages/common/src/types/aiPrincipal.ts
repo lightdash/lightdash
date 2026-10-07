@@ -24,126 +24,27 @@ export type AiAgentMarker = {
 
 export enum AiPrincipalKind {
     PERSON = 'person',
-    TWIN = 'twin',
-    GROUP = 'group',
-    SHARED = 'shared',
 }
-
-export type AiPrincipalSelector =
-    | { kind: AiPrincipalKind.PERSON }
-    | { kind: AiPrincipalKind.TWIN; ref: string }
-    | { kind: AiPrincipalKind.GROUP; ref: string }
-    | { kind: AiPrincipalKind.SHARED; ref: string };
 
 export enum AiTransportKind {
     DIRECT = 'direct',
-    PROCEDURE = 'procedure',
 }
 
-export enum AiProcedureRights {
-    RESTRICTED_CALLER = 'restrictedCaller',
-    DEFINER = 'definer',
-}
-
-export type AiTransport =
-    | { kind: AiTransportKind.DIRECT }
-    | {
-          kind: AiTransportKind.PROCEDURE;
-          name: string;
-          rights: AiProcedureRights;
-      };
+export type AiTransport = { kind: AiTransportKind.DIRECT };
 
 export const AI_DIRECT_TRANSPORT: AiTransport = {
     kind: AiTransportKind.DIRECT,
 };
 
-export enum AiPrincipalStatus {
-    PENDING = 'pending',
-    READY = 'ready',
-    FAILED = 'failed',
-}
-
-export enum AiPrincipalFailureReason {
-    CREDENTIAL_REJECTED = 'credential_rejected',
-    WRONG_PRINCIPAL = 'wrong_principal',
-    NOT_AGENT_SESSION = 'not_agent_session',
-    NO_RESTRICTED_SESSION_SCOPE = 'no_restricted_session_scope',
-    NOT_GROUP_MEMBER = 'not_group_member',
-    RESULT_CACHE_ON = 'result_cache_on',
-    PROCEDURE_MISSING = 'procedure_missing',
-    WAREHOUSE_ACCESS = 'warehouse_access',
-    DISABLED_OR_LOCKED = 'disabled_or_locked',
-    NETWORK_POLICY = 'network_policy',
-    BROKER_FAILED = 'broker_failed',
-    UNKNOWN = 'unknown',
-}
-
 export type AiAssurance =
-    | { kind: 'current_user_is'; expected: string }
     | { kind: 'agent_session_active' }
     | { kind: 'agent_marker'; level: AiAgentMarkerLevel }
     | { kind: 'restricted_session_scope_active' }
-    | { kind: 'group_member'; group: string }
-    | { kind: 'result_cache_off' }
-    | {
-          kind: 'procedure_present';
-          name: string;
-          rights: AiProcedureRights;
-      };
-
-export type AiProbeObserved = Record<string, string | null>;
-
-export type AiProbeResult =
-    | { ok: true; checkedAt: Date; observed: AiProbeObserved }
-    | {
-          ok: false;
-          transient: boolean;
-          checkedAt: Date;
-          reason: AiPrincipalFailureReason;
-          message: string;
-          observed: AiProbeObserved;
-      };
-
-export enum AiCredentialMethod {
-    BROKER = 'broker',
-    KEY = 'key',
-    SIGN_IN = 'sign_in',
-    MARKER = 'marker',
-}
-
-export type AiPrincipalKindCapability =
-    | { available: true; method: AiCredentialMethod }
-    | { available: false; reason: string };
-
-export type AiTransportCapability =
-    | { available: true }
-    | { available: false; reason: string };
-
-export enum AiSetupScriptFormat {
-    SQL = 'sql',
-    TERRAFORM = 'terraform',
-    RULES = 'rules',
-    IAM = 'iam',
-}
+    | { kind: 'result_cache_off' };
 
 export type AiWarehouseCapabilities = {
     marker: AiAgentMarker;
     warehouseType: WarehouseTypes;
-    principals: Record<AiPrincipalKind, AiPrincipalKindCapability>;
-    transports: Record<AiTransportKind, AiTransportCapability>;
-    setupFormat: AiSetupScriptFormat;
-};
-
-export type AiGroupMapping = {
-    groupUuid: string;
-    groupName: string;
-    ref: string;
-    priority: number;
-};
-
-export type AiPolicySource = {
-    label: string;
-    url: string | null;
 };
 
 export type AiAccessPolicy = {
@@ -153,56 +54,14 @@ export type AiAccessPolicy = {
     enabled: boolean;
     principalKind: AiPrincipalKind;
     transport: AiTransport;
-    sharedRef: string | null;
-    twinNameTemplate: string | null;
-    groupMappings: AiGroupMapping[];
-    policySource: AiPolicySource | null;
     createdAt: Date;
     updatedAt: Date;
 };
 
 export type UpsertAiAccessPolicy = Pick<
     AiAccessPolicy,
-    | 'enabled'
-    | 'principalKind'
-    | 'transport'
-    | 'sharedRef'
-    | 'twinNameTemplate'
-    | 'policySource'
-> & {
-    groupMappings: Pick<AiGroupMapping, 'groupUuid' | 'ref' | 'priority'>[];
-};
-
-export type AiPrincipal = {
-    aiPrincipalUuid: string;
-    aiAccessPolicyUuid: string;
-    kind: AiPrincipalKind;
-    ref: string;
-    userUuid: string | null;
-    groupUuid: string | null;
-    status: AiPrincipalStatus;
-    failureReason: AiPrincipalFailureReason | null;
-    statusMessage: string | null;
-    lastProbe: AiProbeResult | null;
-    publicKey: string | null;
-    publicKeyFingerprint: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-export type AiPrincipalWithSecrets = AiPrincipal & {
-    secret: string | null;
-};
-
-export type AiSetupScriptPart = {
-    title: string;
-    body: string;
-};
-
-export type AiSetupScript = {
-    format: AiSetupScriptFormat;
-    parts: AiSetupScriptPart[];
-};
+    'enabled' | 'principalKind' | 'transport'
+>;
 
 type AiExecutionAudit = {
     personUuid: string;
@@ -212,8 +71,8 @@ type AiExecutionAudit = {
 
 export type AiExecutionPlan =
     | {
-          identity: 'principal';
-          principal: AiPrincipal;
+          identity: 'connected_person';
+          identityUuid: string;
           transport: AiTransport;
           credentials: CreateWarehouseCredentials;
           assurances: AiAssurance[];
@@ -337,13 +196,12 @@ export type ApiOrganizationAgentIdentitySettingsResponse = {
 
 export type AiAccessForUser = {
     requirementSource: 'organization' | 'connection' | null;
-    identity: 'marked_person' | 'principal' | null;
+    identity: 'marked_person' | 'connected_person' | null;
     marker: AiAgentMarker | null;
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     enabled: boolean;
     principalKind: AiPrincipalKind | null;
-    principal: Pick<AiPrincipal, 'aiPrincipalUuid' | 'ref' | 'status'> | null;
     refusal: AiAccessRefusal | null;
 };
 
@@ -355,21 +213,6 @@ export type ApiAiAccessPolicyResponse = {
 export type ApiAiWarehouseCapabilitiesResponse = {
     status: 'ok';
     results: AiWarehouseCapabilities;
-};
-
-export type ApiAiPrincipalsResponse = {
-    status: 'ok';
-    results: AiPrincipal[];
-};
-
-export type ApiAiPrincipalResponse = {
-    status: 'ok';
-    results: AiPrincipal;
-};
-
-export type ApiAiSetupScriptResponse = {
-    status: 'ok';
-    results: AiSetupScript;
 };
 
 export type ApiAiAccessForUserResponse = {

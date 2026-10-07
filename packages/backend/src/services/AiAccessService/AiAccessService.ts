@@ -7,17 +7,13 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
-    AiCredentialMethod,
-    AiPrincipalFailureReason,
     AiPrincipalKind,
-    AiPrincipalStatus,
     AiTransportKind,
     assertIsAccountWithOrg,
     assertUnreachable,
     FeatureFlags,
     ForbiddenError,
     isAiAccessQueryContext,
-    NotFoundError,
     ParameterError,
     UnexpectedServerError,
     WarehouseTypes,
@@ -26,20 +22,16 @@ import {
     type AiAccessPolicy,
     type AiExecutionPlan,
     type AiMarkerTestResult,
-    type AiPrincipal,
-    type AiPrincipalWithSecrets,
-    type AiSetupScript,
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
     type QueryExecutionContext,
     type UpsertAiAccessPolicy,
 } from '@lightdash/common';
-import { validate as isValidUuid, v5 as uuidv5 } from 'uuid';
+import { v5 as uuidv5 } from 'uuid';
 import { type LightdashConfig } from '../../config/parseConfig';
-import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
+import { type AiAccessPolicyModel } from '../../models/AiAccessPolicyModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { type GroupsModel } from '../../models/GroupsModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
@@ -47,11 +39,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { BaseService } from '../BaseService';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
-import {
-    type AiCredentialProvider,
-    type AiMintArgs,
-    type AiMintedCredentials,
-} from './providers/AiCredentialProvider';
+import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
 
 export type ResolvePlanArgs = {
@@ -63,12 +51,6 @@ export type ResolvePlanArgs = {
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
-};
-
-type AiMintCacheEntry = {
-    minted: AiMintedCredentials<CreateWarehouseCredentials> | null;
-    expiresAt: Date;
-    pending: Promise<AiMintedCredentials<CreateWarehouseCredentials>> | null;
 };
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
@@ -85,8 +67,7 @@ type EffectiveAiAccessPolicy = AiAccessPolicy & {
 type AiAccessServiceArguments = {
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
-    aiPrincipalModel: AiPrincipalModel;
-    groupsModel: GroupsModel;
+    aiAccessPolicyModel: AiAccessPolicyModel;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
     warehouseConnectionModel: WarehouseConnectionModel;
@@ -95,53 +76,9 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
-    private readonly mintCache = new Map<string, AiMintCacheEntry>();
-
-    invalidateCredentials(aiPrincipalUuid: string): void {
-        this.mintCache.delete(aiPrincipalUuid);
-    }
-
-    private async mintCredentials(
-        provider: AiCredentialProvider,
-        args: AiMintArgs<CreateWarehouseCredentials>,
-    ): Promise<AiMintedCredentials<CreateWarehouseCredentials>> {
-        const key = args.principal.aiPrincipalUuid;
-        const cached = this.mintCache.get(key);
-        if (cached?.pending) return cached.pending;
-        if (cached?.minted && cached.expiresAt.getTime() > Date.now())
-            return cached.minted;
-        const entry: AiMintCacheEntry = {
-            minted: null,
-            expiresAt: new Date(0),
-            pending: null,
-        };
-        this.mintCache.set(key, entry);
-        entry.pending = provider
-            .mint(args)
-            .then((minted) => {
-                if (this.mintCache.get(key) === entry) {
-                    if (minted.expiresAt === null) this.mintCache.delete(key);
-                    else {
-                        entry.minted = minted;
-                        entry.expiresAt = minted.expiresAt;
-                        entry.pending = null;
-                    }
-                }
-                return minted;
-            })
-            .catch((error: unknown) => {
-                if (this.mintCache.get(key) === entry)
-                    this.mintCache.delete(key);
-                throw error;
-            });
-        return entry.pending;
-    }
-
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
-    private readonly aiPrincipalModel: AiPrincipalModel;
-
-    private readonly groupsModel: GroupsModel;
+    private readonly aiAccessPolicyModel: AiAccessPolicyModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -155,8 +92,7 @@ export class AiAccessService extends BaseService {
 
     constructor({
         organizationAgentIdentitySettingsModel,
-        aiPrincipalModel,
-        groupsModel,
+        aiAccessPolicyModel,
         featureFlagModel,
         userModel,
         projectModel,
@@ -166,8 +102,7 @@ export class AiAccessService extends BaseService {
         super();
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
-        this.aiPrincipalModel = aiPrincipalModel;
-        this.groupsModel = groupsModel;
+        this.aiAccessPolicyModel = aiAccessPolicyModel;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
@@ -263,7 +198,7 @@ export class AiAccessService extends BaseService {
             warehouseConnectionUuid,
         );
         return {
-            ...this.providerRegistry(connection.type).capabilities(connection),
+            warehouseType: connection.type,
             marker: describeAgentMarker(connection.type),
         };
     }
@@ -274,7 +209,7 @@ export class AiAccessService extends BaseService {
         warehouseConnectionUuid: string | null,
     ): Promise<AiAccessPolicy | null> {
         await this.authorizeProject(account, projectUuid, 'manage');
-        return this.aiPrincipalModel.findPolicy(
+        return this.aiAccessPolicyModel.findPolicy(
             projectUuid,
             warehouseConnectionUuid,
         );
@@ -286,202 +221,20 @@ export class AiAccessService extends BaseService {
         warehouseConnectionUuid: string | null,
         upsert: UpsertAiAccessPolicy,
     ): Promise<AiAccessPolicy> {
-        const { connection, organizationUuid } = await this.loadConnection(
+        const { connection } = await this.loadConnection(
             account,
             projectUuid,
             warehouseConnectionUuid,
         );
-        const provider = this.providerRegistry(connection.type);
-        const capabilities = provider.capabilities(connection);
-        const kind = capabilities.principals[upsert.principalKind];
-        if (!kind.available) throw new ParameterError(kind.reason);
-        const transport = capabilities.transports[upsert.transport.kind];
-        if (!transport.available) throw new ParameterError(transport.reason);
-        switch (upsert.principalKind) {
-            case AiPrincipalKind.SHARED:
-                if (!upsert.sharedRef?.trim())
-                    throw new ParameterError(
-                        'A shared principal needs a reference.',
-                    );
-                break;
-            case AiPrincipalKind.TWIN:
-                if (!upsert.twinNameTemplate?.trim())
-                    throw new ParameterError(
-                        'A twin principal needs a name template.',
-                    );
-                break;
-            case AiPrincipalKind.GROUP:
-                if (upsert.groupMappings.length === 0)
-                    throw new ParameterError(
-                        'A group policy needs at least one mapping.',
-                    );
-                break;
-            case AiPrincipalKind.PERSON:
-                break;
-            default:
-                assertUnreachable(
-                    upsert.principalKind,
-                    'Unknown AI principal kind',
-                );
-        }
-        const refs = new Set<string>();
-        for (const mapping of upsert.groupMappings) {
-            if (!isValidUuid(mapping.groupUuid))
-                throw new ParameterError('A group mapping needs a group.');
-            if (!mapping.ref.trim())
-                throw new ParameterError('A group mapping needs a reference.');
-            if (refs.has(mapping.ref))
-                throw new ParameterError(
-                    'Group principal references must be unique.',
-                );
-            refs.add(mapping.ref);
-        }
-        await Promise.all(
-            upsert.groupMappings.map(async (mapping) => {
-                const group = await this.groupsModel.getGroup(
-                    mapping.groupUuid,
-                );
-                if (group.organizationUuid !== organizationUuid) {
-                    throw new ParameterError(
-                        'The group must belong to the project organization.',
-                    );
-                }
-            }),
-        );
-        const policy = await this.aiPrincipalModel.upsertPolicy(
+        const configurationError = this.providerRegistry(
+            connection.type,
+        )?.configurationError();
+        if (configurationError) throw new ParameterError(configurationError);
+        return this.aiAccessPolicyModel.upsertPolicy(
             projectUuid,
             warehouseConnectionUuid,
             upsert,
         );
-        let principals: { ref: string; groupUuid: string | null }[] = [];
-        if (
-            policy.principalKind === AiPrincipalKind.SHARED &&
-            policy.sharedRef !== null
-        ) {
-            principals = [{ ref: policy.sharedRef, groupUuid: null }];
-        } else if (policy.principalKind === AiPrincipalKind.GROUP) {
-            principals = policy.groupMappings;
-        }
-        const desired = new Map(principals.map((entry) => [entry.ref, entry]));
-        const staticKind =
-            policy.principalKind === AiPrincipalKind.SHARED ||
-            policy.principalKind === AiPrincipalKind.GROUP;
-        const existing = await this.aiPrincipalModel.listPrincipals(
-            policy.aiAccessPolicyUuid,
-        );
-        await Promise.all(
-            existing
-                .filter(
-                    (principal) =>
-                        principal.kind !== policy.principalKind ||
-                        (staticKind &&
-                            desired.get(principal.ref)?.groupUuid !==
-                                principal.groupUuid),
-                )
-                .map((principal) =>
-                    this.aiPrincipalModel.deletePrincipal(
-                        principal.aiPrincipalUuid,
-                    ),
-                ),
-        );
-        await Promise.all(
-            principals.map(async (entry) => {
-                const created = await this.aiPrincipalModel.createPrincipal({
-                    aiAccessPolicyUuid: policy.aiAccessPolicyUuid,
-                    kind: policy.principalKind,
-                    ref: entry.ref,
-                    userUuid: null,
-                    groupUuid: entry.groupUuid,
-                });
-                await this.ensureSecret(
-                    await this.aiPrincipalModel.getPrincipal(
-                        created.aiPrincipalUuid,
-                    ),
-                    provider,
-                );
-            }),
-        );
-        return policy;
-    }
-
-    async listPrincipals(
-        account: Account,
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-    ): Promise<AiPrincipal[]> {
-        const policy = await this.getPolicy(
-            account,
-            projectUuid,
-            warehouseConnectionUuid,
-        );
-        return policy === null
-            ? []
-            : this.aiPrincipalModel.listPrincipals(policy.aiAccessPolicyUuid);
-    }
-
-    async getSetupScript(
-        account: Account,
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-        aiPrincipalUuid: string | null,
-    ): Promise<AiSetupScript> {
-        const { connection } = await this.loadConnection(
-            account,
-            projectUuid,
-            warehouseConnectionUuid,
-        );
-        const policy = await this.aiPrincipalModel.findPolicy(
-            projectUuid,
-            warehouseConnectionUuid,
-        );
-        if (policy === null)
-            throw new NotFoundError('AI access policy not found');
-        const provider = this.providerRegistry(connection.type);
-        let principal =
-            aiPrincipalUuid === null
-                ? null
-                : await this.aiPrincipalModel.getPrincipal(aiPrincipalUuid);
-        if (principal !== null) {
-            if (principal.aiAccessPolicyUuid !== policy.aiAccessPolicyUuid)
-                throw new NotFoundError('AI principal not found');
-            principal = await this.ensureSecret(principal, provider);
-        }
-        return provider.setupScript({ connection, policy, principal });
-    }
-
-    private async loadPrincipal(account: Account, aiPrincipalUuid: string) {
-        assertIsAccountWithOrg(account);
-        const principal =
-            await this.aiPrincipalModel.getPrincipal(aiPrincipalUuid);
-        const policy = await this.aiPrincipalModel.getPolicy(
-            principal.aiAccessPolicyUuid,
-        );
-        const { connection } = await this.loadConnection(
-            account,
-            policy.projectUuid,
-            policy.warehouseConnectionUuid,
-        );
-        return {
-            principal,
-            policy,
-            connection,
-            provider: this.providerRegistry(connection.type),
-        };
-    }
-
-    async assertPrincipalProject(
-        account: Account,
-        projectUuid: string,
-        aiPrincipalUuid: string,
-    ): Promise<void> {
-        await this.authorizeProject(account, projectUuid, 'manage');
-        const principal =
-            await this.aiPrincipalModel.getPrincipal(aiPrincipalUuid);
-        const policy = await this.aiPrincipalModel.getPolicy(
-            principal.aiAccessPolicyUuid,
-        );
-        if (policy.projectUuid !== projectUuid)
-            throw new NotFoundError('AI principal not found');
     }
 
     async testMarker(
@@ -580,79 +333,6 @@ export class AiAccessService extends BaseService {
         return { ...result, checkedAt: new Date() };
     }
 
-    async testPrincipal(
-        account: Account,
-        aiPrincipalUuid: string,
-    ): Promise<AiPrincipal> {
-        const { principal, policy, connection, provider } =
-            await this.loadPrincipal(account, aiPrincipalUuid);
-        if (
-            principal.userUuid !== null &&
-            principal.userUuid !== account.user.id
-        )
-            throw new ForbiddenError(
-                'Only the person can test their own AI principal.',
-            );
-        const withSecret = await this.ensureSecret(principal, provider);
-        const { email } = await this.userModel.getUserDetailsByUuid(
-            account.user.id,
-        );
-        if (!email)
-            throw new UnexpectedServerError(
-                'AI access needs the person to have an email address',
-            );
-        let minted: AiMintedCredentials<CreateWarehouseCredentials>;
-        try {
-            minted = await provider.mint({
-                connection,
-                principal: withSecret,
-                policy,
-                person: { userUuid: account.user.id, email },
-            });
-        } catch (error) {
-            if (!(error instanceof AiAccessRefusedError)) throw error;
-            this.invalidateCredentials(aiPrincipalUuid);
-            return this.aiPrincipalModel.recordProbe(aiPrincipalUuid, {
-                ok: false,
-                transient: false,
-                checkedAt: new Date(),
-                reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
-                message: error.refusal.message,
-                observed: {},
-            });
-        }
-        const probe = await provider.probe(
-            minted.credentials,
-            minted.assurances,
-        );
-        if (!probe.ok) this.invalidateCredentials(aiPrincipalUuid);
-        return this.aiPrincipalModel.recordProbe(aiPrincipalUuid, probe);
-    }
-
-    async regenerateSecret(
-        account: Account,
-        aiPrincipalUuid: string,
-    ): Promise<AiPrincipal> {
-        const { provider } = await this.loadPrincipal(account, aiPrincipalUuid);
-        const secret = await provider.createSecret();
-        if (secret === null)
-            throw new ParameterError(
-                'This warehouse mints credentials; there is no secret to regenerate.',
-            );
-        this.invalidateCredentials(aiPrincipalUuid);
-        await this.aiPrincipalModel.setSecret(aiPrincipalUuid, secret);
-        return this.aiPrincipalModel.resetStatus(aiPrincipalUuid);
-    }
-
-    async deletePrincipal(
-        account: Account,
-        aiPrincipalUuid: string,
-    ): Promise<void> {
-        await this.loadPrincipal(account, aiPrincipalUuid);
-        this.invalidateCredentials(aiPrincipalUuid);
-        await this.aiPrincipalModel.deletePrincipal(aiPrincipalUuid);
-    }
-
     async getMyAccess(
         account: Account,
         projectUuid: string,
@@ -697,10 +377,7 @@ export class AiAccessService extends BaseService {
                     ? plan.audit.userUuid
                     : plan.audit.personUuid,
             identity: plan.identity,
-            principalKind:
-                plan.identity === 'principal'
-                    ? plan.principal.kind
-                    : AiPrincipalKind.PERSON,
+            principalKind: AiPrincipalKind.PERSON,
             principalRef: plan.audit.principalRef,
             transport: plan.transport,
             context,
@@ -737,17 +414,13 @@ export class AiAccessService extends BaseService {
                     enabled: true,
                     principalKind: AiPrincipalKind.PERSON,
                     transport: { kind: AiTransportKind.DIRECT },
-                    sharedRef: null,
-                    twinNameTemplate: null,
-                    groupMappings: [],
-                    policySource: null,
                     createdAt: new Date(0),
                     updatedAt: new Date(0),
                     requirementSource: 'organization',
                 };
             }
         }
-        const policy = await this.aiPrincipalModel.findPolicy(
+        const policy = await this.aiAccessPolicyModel.findPolicy(
             args.projectUuid,
             args.warehouseConnectionUuid,
         );
@@ -763,10 +436,7 @@ export class AiAccessService extends BaseService {
             : null;
     }
 
-    private async provider(
-        args: AccessArgs,
-        policy: AiAccessPolicy,
-    ): Promise<AiCredentialProvider> {
+    private async provider(args: AccessArgs): Promise<AiCredentialProvider> {
         if (args.isServiceAccount) {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.SERVICE_ACCOUNT,
@@ -778,148 +448,17 @@ export class AiAccessService extends BaseService {
             );
         }
         const provider = this.providerRegistry(args.connection.type);
-        const capabilities = provider.capabilities(args.connection);
-        const principal = capabilities.principals[policy.principalKind];
-        if (!principal.available) {
+        if (!provider)
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
-                { message: principal.reason },
             );
-        }
-        const transport = capabilities.transports[policy.transport.kind];
-        if (!transport.available) {
+        const configurationError = provider.configurationError();
+        if (configurationError)
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.TRANSPORT_UNAVAILABLE,
-                { message: transport.reason },
+                AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                { message: configurationError },
             );
-        }
-        if (policy.transport.kind === AiTransportKind.PROCEDURE) {
-            const { enabled } = await this.featureFlagModel.get({
-                user: {
-                    userUuid: args.userUuid,
-                    organizationUuid: args.organizationUuid,
-                },
-                featureFlagId: FeatureFlags.AiProcedureTransport,
-            });
-            if (!enabled)
-                throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.TRANSPORT_UNAVAILABLE,
-                );
-        }
         return provider;
-    }
-
-    private async principal(
-        args: AccessArgs,
-        policy: EffectiveAiAccessPolicy,
-        email: string,
-    ): Promise<AiPrincipalWithSecrets> {
-        const { aiAccessPolicyUuid, principalKind } = policy;
-        if (policy.requirementSource === 'organization') {
-            return {
-                aiPrincipalUuid: uuidv5(
-                    `${aiAccessPolicyUuid}:${args.projectUuid}:${args.warehouseConnectionUuid}:${args.userUuid}`,
-                    uuidv5.URL,
-                ),
-                aiAccessPolicyUuid,
-                kind: AiPrincipalKind.PERSON,
-                ref: args.userUuid,
-                userUuid: args.userUuid,
-                groupUuid: null,
-                status: AiPrincipalStatus.PENDING,
-                failureReason: null,
-                statusMessage: null,
-                lastProbe: null,
-                publicKey: null,
-                publicKeyFingerprint: null,
-                secret: null,
-                createdAt: policy.createdAt,
-                updatedAt: policy.updatedAt,
-            };
-        }
-        let ref: string;
-        let userUuid: string | null = null;
-        let groupUuid: string | null = null;
-        switch (principalKind) {
-            case AiPrincipalKind.SHARED:
-                if (!policy.sharedRef)
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.NO_POLICY,
-                    );
-                ref = policy.sharedRef;
-                break;
-            case AiPrincipalKind.GROUP: {
-                const groups = await this.groupsModel.findUserGroups({
-                    userUuid: args.userUuid,
-                    organizationUuid: args.organizationUuid,
-                });
-                const mapping = policy.groupMappings
-                    .filter((m) => groups.some((g) => g.uuid === m.groupUuid))
-                    .sort(
-                        (a, b) =>
-                            b.priority - a.priority ||
-                            a.groupName.localeCompare(b.groupName),
-                    )[0];
-                if (!mapping)
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.NO_GROUP_MAPPING,
-                    );
-                ref = mapping.ref;
-                groupUuid = mapping.groupUuid;
-                break;
-            }
-            case AiPrincipalKind.TWIN:
-            case AiPrincipalKind.PERSON: {
-                userUuid = args.userUuid;
-                const existing =
-                    await this.aiPrincipalModel.findPrincipalForUser({
-                        aiAccessPolicyUuid,
-                        userUuid,
-                    });
-                if (existing) return existing;
-                if (principalKind === AiPrincipalKind.PERSON) {
-                    ref = userUuid;
-                } else {
-                    if (policy.twinNameTemplate === null)
-                        throw new AiAccessRefusedError(
-                            AiAccessRefusalReason.NO_POLICY,
-                        );
-                    ref = policy.twinNameTemplate
-                        .replaceAll(
-                            '{email_local_part}',
-                            email.split('@')[0].replace(/[^A-Za-z0-9_]/g, '_'),
-                        )
-                        .replaceAll('{user_uuid}', userUuid);
-                }
-                break;
-            }
-            default:
-                return assertUnreachable(
-                    principalKind,
-                    'Unknown AI principal kind',
-                );
-        }
-        const existing = await this.aiPrincipalModel.findPrincipalByRef({
-            aiAccessPolicyUuid,
-            ref,
-        });
-        if (existing) return existing;
-        const created = await this.aiPrincipalModel.createPrincipal({
-            aiAccessPolicyUuid,
-            kind: principalKind,
-            ref,
-            userUuid,
-            groupUuid,
-        });
-        return this.aiPrincipalModel.getPrincipal(created.aiPrincipalUuid);
-    }
-
-    private static assertPrincipal(principal: AiPrincipalWithSecrets): void {
-        if (principal.status === AiPrincipalStatus.FAILED) {
-            throw new AiAccessRefusedError(
-                AiAccessRefusalReason.PRINCIPAL_FAILED,
-            );
-        }
     }
 
     private static withRefusalSettingsUrl(
@@ -952,49 +491,6 @@ export class AiAccessService extends BaseService {
         });
     }
 
-    private async ensureSecret(
-        principal: AiPrincipalWithSecrets,
-        provider: AiCredentialProvider,
-    ): Promise<AiPrincipalWithSecrets> {
-        if (principal.secret !== null) return principal;
-        const created = await provider.createSecret();
-        if (created === null) return principal;
-        await this.aiPrincipalModel.setSecret(
-            principal.aiPrincipalUuid,
-            created,
-        );
-        return this.aiPrincipalModel.getPrincipal(principal.aiPrincipalUuid);
-    }
-
-    async isPolicyEnabled(args: PolicyLookupArgs): Promise<boolean> {
-        if (!(await this.isEnabled(args))) return false;
-        const connection =
-            args.warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForBinding(
-                      args.projectUuid,
-                      { kind: 'connection', warehouseConnectionUuid: null },
-                  )
-                : await this.warehouseConnectionModel.getCredentials(
-                      await this.warehouseConnectionModel.getProject(
-                          args.projectUuid,
-                      ),
-                      args.warehouseConnectionUuid,
-                  );
-        const policy = await this.findEnabledPolicy({ ...args, connection });
-        if (!policy) return false;
-        return (
-            policy.principalKind !== AiPrincipalKind.PERSON ||
-            !this.usesMarker(connection)
-        );
-    }
-
-    private usesMarker(connection: CreateWarehouseCredentials): boolean {
-        const { person } = this.providerRegistry(connection.type).capabilities(
-            connection,
-        ).principals;
-        return person.available && person.method === AiCredentialMethod.MARKER;
-    }
-
     async resolvePlan(args: ResolvePlanArgs): Promise<AiExecutionPlan | null> {
         if (
             !isAiAccessQueryContext(args.context) ||
@@ -1005,7 +501,7 @@ export class AiAccessService extends BaseService {
         if (
             !policy ||
             (policy.principalKind === AiPrincipalKind.PERSON &&
-                this.usesMarker(args.connection))
+                args.connection.type !== WarehouseTypes.SNOWFLAKE)
         ) {
             const email =
                 args.isRegisteredUser && !args.isServiceAccount
@@ -1033,7 +529,7 @@ export class AiAccessService extends BaseService {
             };
         }
         try {
-            const provider = await this.provider(args, policy);
+            const provider = await this.provider(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
             );
@@ -1041,63 +537,28 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            let principal = await this.principal(args, policy, email);
-            AiAccessService.assertPrincipal(principal);
-            principal = await this.ensureSecret(principal, provider);
-            const mintArgs = {
+            const { credentials, assurances } = await provider.mint({
                 connection: args.connection,
-                principal,
-                policy,
                 person: { userUuid: args.userUuid, email },
-            };
-            const { credentials, assurances } =
-                policy.requirementSource === 'organization'
-                    ? await provider.mint(mintArgs)
-                    : await this.mintCredentials(provider, mintArgs);
-            let verifiedPrincipal = principal;
-            if (
-                principal.status === AiPrincipalStatus.PENDING ||
-                !principal.lastProbe?.ok ||
-                Date.now() - principal.lastProbe.checkedAt.getTime() >
-                    60 * 60 * 1000
-            ) {
-                const probe = await provider.probe(credentials, assurances);
-                if (!probe.ok)
-                    this.invalidateCredentials(principal.aiPrincipalUuid);
-                const recorded =
-                    policy.requirementSource === 'organization'
-                        ? {
-                              ...principal,
-                              status: probe.ok
-                                  ? AiPrincipalStatus.READY
-                                  : AiPrincipalStatus.FAILED,
-                              lastProbe: probe,
-                          }
-                        : await this.aiPrincipalModel.recordProbe(
-                              principal.aiPrincipalUuid,
-                              probe,
-                          );
-                if (!probe.ok) {
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.PRINCIPAL_FAILED,
-                    );
-                }
-                verifiedPrincipal = {
-                    ...recorded,
-                    secret: principal.secret,
-                };
-            }
-            const { secret, ...publicPrincipal } = verifiedPrincipal;
+            });
+            const probe = await provider.probe(credentials, assurances);
+            if (!probe.ok)
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.PRINCIPAL_FAILED,
+                );
             return {
-                identity: 'principal',
-                principal: publicPrincipal,
+                identity: 'connected_person',
+                identityUuid: uuidv5(
+                    `${policy.aiAccessPolicyUuid}:${args.projectUuid}:${args.warehouseConnectionUuid}:${args.userUuid}`,
+                    uuidv5.URL,
+                ),
                 transport: policy.transport,
                 credentials,
                 assurances,
                 audit: {
                     personUuid: args.userUuid,
-                    principalRef: principal.ref,
-                    queryTags: { [AI_PRINCIPAL_QUERY_TAG]: principal.ref },
+                    principalRef: args.userUuid,
+                    queryTags: { [AI_PRINCIPAL_QUERY_TAG]: args.userUuid },
                 },
             };
         } catch (error) {
@@ -1118,10 +579,10 @@ export class AiAccessService extends BaseService {
             enabled &&
             (!policy ||
                 (policy.principalKind === AiPrincipalKind.PERSON &&
-                    this.usesMarker(args.connection)));
+                    args.connection.type !== WarehouseTypes.SNOWFLAKE));
         const result: AiAccessForUser = {
             requirementSource: policy?.requirementSource ?? null,
-            identity: policy ? 'principal' : null,
+            identity: policy ? 'connected_person' : null,
             marker: enabled ? describeAgentMarker(args.connection.type) : null,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
@@ -1129,13 +590,12 @@ export class AiAccessService extends BaseService {
             principalKind: marked
                 ? AiPrincipalKind.PERSON
                 : (policy?.principalKind ?? null),
-            principal: null,
             refusal: null,
         };
         if (marked) return { ...result, identity: 'marked_person' };
         if (!policy) return result;
         try {
-            const provider = await this.provider(args, policy);
+            const provider = await this.provider(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
             );
@@ -1143,22 +603,12 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            let principal = await this.principal(args, policy, email);
-            AiAccessService.assertPrincipal(principal);
-            principal = await this.ensureSecret(principal, provider);
             const missingPrerequisite = await provider.missingPrerequisite({
                 connection: args.connection,
-                principal,
-                policy,
                 person: { userUuid: args.userUuid, email },
             });
             if (missingPrerequisite !== null)
                 throw new AiAccessRefusedError(missingPrerequisite);
-            result.principal = {
-                aiPrincipalUuid: principal.aiPrincipalUuid,
-                ref: principal.ref,
-                status: principal.status,
-            };
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
             const refusalError = AiAccessService.withRefusalSettingsUrl(error);

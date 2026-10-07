@@ -2,18 +2,13 @@ import {
     ApiAiAccessForUserResponse,
     ApiAiAccessPolicyResponse,
     ApiAiMarkerTestResponse,
-    ApiAiPrincipalResponse,
-    ApiAiPrincipalsResponse,
-    ApiAiSetupScriptResponse,
     ApiAiWarehouseCapabilitiesResponse,
     ApiErrorPayload,
-    ApiSuccessEmpty,
     UpsertAiAccessPolicy,
     UUID,
 } from '@lightdash/common';
 import {
     Body,
-    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -107,48 +102,6 @@ export class AiAccessController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/principals')
-    @OperationId('listPrincipalsAiAccess')
-    async listPrincipals(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Query() connection?: UUID,
-    ): Promise<ApiAiPrincipalsResponse> {
-        const service = this.services.getAiAccessService();
-        return {
-            status: 'ok',
-            results: await service.listPrincipals(
-                req.account!,
-                projectUuid,
-                connection ?? null,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/setup-script')
-    @OperationId('getSetupScriptAiAccess')
-    async getSetupScript(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Query() connection?: UUID,
-        @Query() principal?: UUID,
-    ): Promise<ApiAiSetupScriptResponse> {
-        const service = this.services.getAiAccessService();
-        return {
-            status: 'ok',
-            results: await service.getSetupScript(
-                req.account!,
-                projectUuid,
-                connection ?? null,
-                principal ?? null,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Get('/me')
     @OperationId('getMyAccessAiAccess')
     async getMyAccess(
@@ -195,81 +148,5 @@ export class AiAccessController extends BaseController {
                             ),
                 ),
         };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/principals/{aiPrincipalUuid}/test')
-    @OperationId('testPrincipalAiAccess')
-    async testPrincipal(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Path() aiPrincipalUuid: UUID,
-    ): Promise<ApiAiPrincipalResponse> {
-        const service = this.services.getAiAccessService();
-        await service.assertPrincipalProject(
-            req.account!,
-            projectUuid,
-            aiPrincipalUuid,
-        );
-        return {
-            status: 'ok',
-            results: await service.testPrincipal(req.account!, aiPrincipalUuid),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/principals/{aiPrincipalUuid}/regenerate-secret')
-    @OperationId('regenerateSecretAiAccess')
-    async regenerateSecret(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Path() aiPrincipalUuid: UUID,
-    ): Promise<ApiAiPrincipalResponse> {
-        const service = this.services.getAiAccessService();
-        await service.assertPrincipalProject(
-            req.account!,
-            projectUuid,
-            aiPrincipalUuid,
-        );
-        return {
-            status: 'ok',
-            results: await service.regenerateSecret(
-                req.account!,
-                aiPrincipalUuid,
-            ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/principals/{aiPrincipalUuid}')
-    @OperationId('deletePrincipalAiAccess')
-    async deletePrincipal(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Path() aiPrincipalUuid: UUID,
-    ): Promise<ApiSuccessEmpty> {
-        const service = this.services.getAiAccessService();
-        await service.assertPrincipalProject(
-            req.account!,
-            projectUuid,
-            aiPrincipalUuid,
-        );
-        await service.deletePrincipal(req.account!, aiPrincipalUuid);
-        return { status: 'ok', results: undefined };
     }
 }

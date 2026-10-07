@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds new AI policy and principal tables without changing existing data',
+    reason: 'Adds the AI access policy table without changing existing data',
 } as const;
 
 export async function up(knex: Knex): Promise<void> {
@@ -21,86 +21,13 @@ export async function up(knex: Knex): Promise<void> {
             .index();
         table.uuid('warehouse_connection_uuid').nullable().index();
         table.boolean('enabled').notNullable().defaultTo(false);
-        table.text('principal_kind').notNullable().defaultTo('group');
-        table.check("principal_kind IN ('person','twin','group','shared')");
+        table.text('principal_kind').notNullable().defaultTo('person');
+        table.check("principal_kind = 'person'");
         table
             .jsonb('transport')
             .notNullable()
             .defaultTo(knex.raw('\'{"kind":"direct"}\'::jsonb'));
-        table.text('shared_ref').nullable();
-        table.text('twin_name_template').nullable();
-        table.jsonb('policy_source').nullable();
         table.timestamps(true, true);
-    });
-    await knex.schema.createTable('ai_principal_group_mappings', (table) => {
-        table
-            .uuid('ai_principal_group_mapping_uuid')
-            .primary()
-            .defaultTo(knex.raw('uuid_generate_v4()'));
-        table
-            .uuid('ai_access_policy_uuid')
-            .notNullable()
-            .references('ai_access_policy_uuid')
-            .inTable('ai_access_policies')
-            .onDelete('CASCADE')
-            .index();
-        table
-            .uuid('group_uuid')
-            .notNullable()
-            .references('group_uuid')
-            .inTable('groups')
-            .onDelete('CASCADE')
-            .index();
-        table.text('ref').notNullable();
-        table.integer('priority').notNullable().defaultTo(0);
-        table.unique(['ai_access_policy_uuid', 'group_uuid']);
-        table
-            .timestamp('created_at', { useTz: true })
-            .notNullable()
-            .defaultTo(knex.fn.now());
-    });
-    await knex.schema.createTable('ai_principals', (table) => {
-        table
-            .uuid('ai_principal_uuid')
-            .primary()
-            .defaultTo(knex.raw('uuid_generate_v4()'));
-        table
-            .uuid('ai_access_policy_uuid')
-            .notNullable()
-            .references('ai_access_policy_uuid')
-            .inTable('ai_access_policies')
-            .onDelete('CASCADE')
-            .index();
-        table
-            .uuid('user_uuid')
-            .nullable()
-            .references('user_uuid')
-            .inTable('users')
-            .onDelete('CASCADE')
-            .index();
-        table
-            .uuid('group_uuid')
-            .nullable()
-            .references('group_uuid')
-            .inTable('groups')
-            .onDelete('SET NULL')
-            .index();
-        table.text('kind').notNullable();
-        table.check("kind IN ('person','twin','group','shared')");
-        table.text('ref').notNullable();
-        table.text('status').notNullable().defaultTo('pending');
-        table.check("status IN ('pending','ready','failed')");
-        table.text('failure_reason').nullable();
-        table.text('status_message').nullable();
-        table.jsonb('last_probe').nullable();
-        table.text('public_key').nullable();
-        table.text('public_key_fingerprint').nullable();
-        table.binary('encrypted_secret').nullable();
-        table.timestamps(true, true);
-        table.unique(['ai_access_policy_uuid', 'ref'], {
-            indexName: 'ai_principals_policy_ref_unique',
-        });
-        table.index(['ai_access_policy_uuid', 'status']);
     });
     await knex.raw(
         'CREATE UNIQUE INDEX ai_access_policies_original_connection_unique ON ai_access_policies (project_uuid) WHERE warehouse_connection_uuid IS NULL',
@@ -108,13 +35,8 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(
         'CREATE UNIQUE INDEX ai_access_policies_extra_connection_unique ON ai_access_policies (project_uuid, warehouse_connection_uuid) WHERE warehouse_connection_uuid IS NOT NULL',
     );
-    await knex.raw(
-        'CREATE UNIQUE INDEX ai_principals_policy_user_unique ON ai_principals (ai_access_policy_uuid, user_uuid) WHERE user_uuid IS NOT NULL',
-    );
 }
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
-    await knex.schema.dropTable('ai_principals');
-    await knex.schema.dropTable('ai_principal_group_mappings');
     await knex.schema.dropTable('ai_access_policies');
 }

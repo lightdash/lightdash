@@ -1,9 +1,5 @@
 import {
-    AiAccessRefusalReason,
-    AiAccessRefusedError,
-    AiTransportKind,
     AnyType,
-    assertUnreachable,
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
@@ -117,18 +113,9 @@ export default abstract class WarehouseBaseClient<
     wrapForTransport(
         sql: string,
         values: AnyType[] | undefined,
-        transport: AiTransport,
+        _transport: AiTransport,
     ): { sql: string; values: AnyType[] | undefined } {
-        switch (transport.kind) {
-            case AiTransportKind.DIRECT:
-                return { sql, values };
-            case AiTransportKind.PROCEDURE:
-                throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.TRANSPORT_UNAVAILABLE,
-                );
-            default:
-                return assertUnreachable(transport, 'Unknown AI transport');
-        }
+        return { sql, values };
     }
 
     async executeAsyncQuery(

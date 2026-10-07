@@ -1,9 +1,6 @@
 import {
     AiAccessRefusalReason,
-    AiCredentialMethod,
-    AiPrincipalFailureReason,
-    AiPrincipalKind,
-    AiSetupScriptFormat,
+    AiAgentMarkerLevel,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
@@ -19,7 +16,7 @@ import {
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from '../../UserService';
-import { policy, principal } from './PostgresAiCredentialProvider.mock';
+import { AiSessionFailureReason } from './AiCredentialProvider';
 import { SnowflakeAiCredentialProvider } from './SnowflakeAiCredentialProvider';
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
@@ -49,8 +46,6 @@ const credential: UserWarehouseCredentialsWithSecrets = {
 };
 const mintArgs = {
     connection,
-    principal: { ...principal, kind: AiPrincipalKind.PERSON, userUuid: 'user' },
-    policy: { ...policy, principalKind: AiPrincipalKind.PERSON },
     person: { userUuid: 'user', email: 'user@example.test' },
 };
 const assurances: AiAssurance[] = [
@@ -94,23 +89,23 @@ describe('SnowflakeAiCredentialProvider', () => {
     test.each([
         [
             'connection refused at private.example.test',
-            AiPrincipalFailureReason.UNKNOWN,
+            AiSessionFailureReason.UNKNOWN,
             true,
         ],
         [
             'invalid access token at private.example.test',
-            AiPrincipalFailureReason.CREDENTIAL_REJECTED,
+            AiSessionFailureReason.CREDENTIAL_REJECTED,
             false,
         ],
-        ['user disabled', AiPrincipalFailureReason.DISABLED_OR_LOCKED, false],
+        ['user disabled', AiSessionFailureReason.DISABLED_OR_LOCKED, false],
         [
             'blocked by network policy',
-            AiPrincipalFailureReason.NETWORK_POLICY,
+            AiSessionFailureReason.NETWORK_POLICY,
             false,
         ],
         [
             'warehouse permission denied',
-            AiPrincipalFailureReason.WAREHOUSE_ACCESS,
+            AiSessionFailureReason.WAREHOUSE_ACCESS,
             false,
         ],
     ])(
@@ -155,22 +150,8 @@ describe('SnowflakeAiCredentialProvider', () => {
         );
     });
 
-    test('exposes only person sign-in and direct transport', async () => {
-        const { provider } = setup();
-        expect(provider.capabilities()).toMatchObject({
-            principals: {
-                person: { available: true, method: AiCredentialMethod.SIGN_IN },
-                twin: { available: false },
-                group: { available: false },
-                shared: { available: false },
-            },
-            transports: {
-                direct: { available: true },
-                procedure: { available: false },
-            },
-            setupFormat: AiSetupScriptFormat.SQL,
-        });
-        expect(await provider.createSecret()).toBeNull();
+    test('accepts a configured agent sign-in', () => {
+        expect(setup().provider.configurationError()).toBeNull();
     });
     test.each([
         'clientId',
@@ -180,10 +161,9 @@ describe('SnowflakeAiCredentialProvider', () => {
     ] as const)('requires OAuth %s', (field) => {
         const { provider, config } = setup();
         config.auth.snowflakeAi[field] = '';
-        expect(provider.capabilities().principals.person).toEqual({
-            available: false,
-            reason: 'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.',
-        });
+        expect(provider.configurationError()).toBe(
+            'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.',
+        );
     });
     test.each([true, false])(
         'checks sign-in without side effects: %s',
@@ -256,17 +236,6 @@ describe('SnowflakeAiCredentialProvider', () => {
                 );
         },
     );
-    test.each([
-        AiPrincipalKind.TWIN,
-        AiPrincipalKind.GROUP,
-        AiPrincipalKind.SHARED,
-    ])('refuses principal %s', async (kind) => {
-        const { provider, model } = setup();
-        await expect(
-            provider.mint({ ...mintArgs, principal: { ...principal, kind } }),
-        ).rejects.toBeInstanceOf(UnexpectedServerError);
-        expect(model.findAiCredentialWithSecrets).not.toHaveBeenCalled();
-    });
     test('proves the agent session and reports observations', async () => {
         const { provider } = setup();
         expect(await provider.probe(connection, assurances)).toEqual({
@@ -295,7 +264,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             const result = await provider.probe(connection, [assurance]);
             expect(result).toMatchObject({
                 ok: false,
-                reason: AiPrincipalFailureReason.NOT_AGENT_SESSION,
+                reason: AiSessionFailureReason.NOT_AGENT_SESSION,
                 transient: false,
                 message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
             });
@@ -316,7 +285,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             ]);
             expect(result).toMatchObject({
                 ok: false,
-                reason: AiPrincipalFailureReason.NO_RESTRICTED_SESSION_SCOPE,
+                reason: AiSessionFailureReason.NO_RESTRICTED_SESSION_SCOPE,
                 transient: false,
             });
             expect(JSON.stringify(result)).not.toContain('access-token');
@@ -328,7 +297,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             await provider.probe({ ...connection, token: '' }, assurances),
         ).toMatchObject({
             ok: false,
-            reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
+            reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
             transient: false,
         });
         expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
@@ -337,24 +306,12 @@ describe('SnowflakeAiCredentialProvider', () => {
         const { provider } = setup();
         await expect(
             provider.probe(connection, [
-                { kind: 'current_user_is', expected: 'user' },
+                {
+                    kind: 'agent_marker',
+                    level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                },
             ]),
         ).rejects.toBeInstanceOf(UnexpectedServerError);
         expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
-    });
-    test('generates agent integration and control setup SQL', () => {
-        const { provider } = setup();
-        const script = provider.setupScript({ ...mintArgs, principal: null });
-        expect(script.format).toBe(AiSetupScriptFormat.SQL);
-        expect(script.parts[0].body).toContain('IS_AGENTIC = TRUE');
-        expect(script.parts[0].body).toContain(
-            'https://lightdash.example.test/api/v1/login/snowflake-ai/callback',
-        );
-        expect(script.parts[1].body).toContain(
-            'AGENT_RESTRICTED_SESSION_SCOPE',
-        );
-        expect(script.parts[1].body).toContain(
-            "SYS_CONTEXT('SNOWFLAKE$CURRENT','IS_AGENT_ACTIVATED')",
-        );
     });
 });

@@ -5,10 +5,6 @@ import {
 import {
     AiAccessPoliciesTable,
     AiAccessPoliciesTableName,
-    AiPrincipalGroupMappingsTable,
-    AiPrincipalGroupMappingsTableName,
-    AiPrincipalsTable,
-    AiPrincipalsTableName,
 } from '../database/entities/aiPrincipals';
 import {
     AiUsageLedgerTable,
@@ -719,8 +715,6 @@ import {
 declare module 'knex/types/tables' {
     interface Tables {
         [AiAccessPoliciesTableName]: AiAccessPoliciesTable;
-        [AiPrincipalGroupMappingsTableName]: AiPrincipalGroupMappingsTable;
-        [AiPrincipalsTableName]: AiPrincipalsTable;
 
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;

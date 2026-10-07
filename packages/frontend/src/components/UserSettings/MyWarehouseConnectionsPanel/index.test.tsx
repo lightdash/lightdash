@@ -65,7 +65,7 @@ describe('My warehouse connections agent sign-in', () => {
             configured = clientConfigured;
             renderWithProviders(<MyWarehouseConnectionsPanel />);
             const button = screen.queryByRole('button', {
-                name: 'Sign in for agent sessions',
+                name: 'Connect agent',
             });
             if (visible) {
                 expect(button).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('My warehouse connections agent sign-in', () => {
             },
         ];
         renderWithProviders(<MyWarehouseConnectionsPanel />);
-        fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
         expect(screen.getByText('Confirm sign out')).toBeInTheDocument();
     });
 });

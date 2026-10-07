@@ -984,7 +984,7 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
     }): Promise<PreAggregationRoutingDecision> {
         const bypassPreAggregates =
-            aiPlan?.identity === 'principal' ||
+            aiPlan?.identity === 'connected_person' ||
             (await this.isAiAccessCacheBypassEnabled(account, context));
         if (forceWarehouse || bypassPreAggregates) {
             if (
@@ -1629,17 +1629,10 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             aiAccessOnly &&
-            ((await this.isAiAccessCacheBypassEnabled(
+            (await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
-            )) ||
-                (await this.aiAccessService.isPolicyEnabled({
-                    projectUuid,
-                    organizationUuid: account.organization.organizationUuid,
-                    warehouseConnectionUuid:
-                        queryHistory.warehouseConnectionUuid ?? null,
-                    userUuid: account.user.id,
-                }))) &&
+            )) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');
@@ -5979,7 +5972,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             reuseQueryUuid &&
-            aiPlan?.identity !== 'principal' &&
+            aiPlan?.identity !== 'connected_person' &&
             !invalidateCache &&
             !documentQueryContext &&
             !(await this.isAiAccessCacheBypassEnabled(account, context))
@@ -6035,8 +6028,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -6695,8 +6688,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -7086,8 +7079,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -7903,8 +7896,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -8229,8 +8222,8 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     aiPrincipalUuid:
-                        aiPlan?.identity === 'principal'
-                            ? aiPlan.principal.aiPrincipalUuid
+                        aiPlan?.identity === 'connected_person'
+                            ? aiPlan.identityUuid
                             : null,
                     warehouseConnectionUuid,
                     connectionRoute,
@@ -8378,8 +8371,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11030,8 +11023,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11194,8 +11187,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 aiPrincipalUuid:
-                    aiPlan?.identity === 'principal'
-                        ? aiPlan.principal.aiPrincipalUuid
+                    aiPlan?.identity === 'connected_person'
+                        ? aiPlan.identityUuid
                         : null,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11542,17 +11535,10 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             aiAccessOnly &&
-            ((await this.isAiAccessCacheBypassEnabled(
+            (await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
-            )) ||
-                (await this.aiAccessService.isPolicyEnabled({
-                    projectUuid,
-                    organizationUuid: account.organization.organizationUuid,
-                    warehouseConnectionUuid:
-                        queryHistory.warehouseConnectionUuid ?? null,
-                    userUuid: account.user.id,
-                }))) &&
+            )) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');
@@ -11705,8 +11691,8 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     aiPrincipalUuid:
-                        aiPlan?.identity === 'principal'
-                            ? aiPlan.principal.aiPrincipalUuid
+                        aiPlan?.identity === 'connected_person'
+                            ? aiPlan.identityUuid
                             : null,
                     warehouseConnectionUuid,
                     connectionRoute,

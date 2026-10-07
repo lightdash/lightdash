@@ -2360,7 +2360,7 @@ export class ProjectService extends BaseService {
                       isServiceAccount,
                   })
                 : null;
-        if (aiPlan?.identity === 'principal') {
+        if (aiPlan?.identity === 'connected_person') {
             return {
                 ...aiPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
@@ -3106,7 +3106,7 @@ export class ProjectService extends BaseService {
                       isServiceAccount,
                   })
                 : null;
-        if (aiPlan?.identity === 'principal') {
+        if (aiPlan?.identity === 'connected_person') {
             return {
                 ...aiPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
@@ -3297,7 +3297,7 @@ export class ProjectService extends BaseService {
 
         const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
             databricksCompute || ''
-        }${aiPlan ? JSON.stringify([aiPlan.identity === 'principal' ? aiPlan.principal.aiPrincipalUuid : aiPlan.audit.personUuid, aiPlan.transport]) : ''}`;
+        }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid, aiPlan.transport]) : ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -3423,13 +3423,7 @@ export class ProjectService extends BaseService {
         client: T,
         aiPlan?: AiExecutionPlan | null,
     ): T {
-        if (aiPlan?.identity === 'principal')
-            return attributeClientErrors(client, async (error) => {
-                this.aiAccessService.invalidateCredentials(
-                    aiPlan.principal.aiPrincipalUuid,
-                );
-                throw error;
-            });
+        if (aiPlan?.identity === 'connected_person') return client;
         if (!getPersonSignIn(credentials)) return client;
         return attributeClientErrors(client, (error) =>
             this.attributeSharedSignInExpiry(projectUuid, credentials, error),
@@ -11206,7 +11200,7 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.results.autocompleteEnabled &&
             !!user.userUuid &&
             !skipAiAccessCache &&
-            aiPlan?.identity !== 'principal';
+            aiPlan?.identity !== 'connected_person';
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 

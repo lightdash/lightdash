@@ -394,7 +394,6 @@ const getMockedAsyncQueryService = (
     const service: AsyncQueryService = new AsyncQueryService({
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
-            isPolicyEnabled: vi.fn(async () => false),
         } as unknown as AiAccessService,
         getDocumentService: () =>
             ({
@@ -3632,49 +3631,11 @@ describe('AsyncQueryService', () => {
         expect(cacheKey).toHaveBeenCalledWith(
             projectUuid,
             expect.objectContaining({
-                aiPrincipalUuid: aiExecutionPlanMock.principal.aiPrincipalUuid,
+                aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
             }),
         );
         cacheKey.mockRestore();
     });
-
-    test.each(['getAsyncQueryResults', 'getRawAsyncQueryResults'] as const)(
-        '%s refuses a non-AI query when an AI access policy is enabled',
-        async (method) => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
-                id: FeatureFlags.AiAccessSkipResultsCache,
-                enabled: false,
-            });
-            Object.assign(service, {
-                aiAccessService: {
-                    resolvePlan: vi.fn(async () => null),
-                    isPolicyEnabled: vi.fn(async () => true),
-                },
-            });
-            const history = {
-                context: QueryExecutionContext.EXPLORE,
-                status: QueryHistoryStatus.READY,
-                createdByUserUuid: sessionAccount.user.id,
-                requestParameters: {},
-                projectUuid,
-            } as QueryHistory;
-            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
-                history,
-            );
-            vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
-            await expect(
-                service[method]({
-                    account: sessionAccount,
-                    projectUuid,
-                    queryUuid: 'non-ai-query',
-                    aiAccessOnly: true,
-                    page: 1,
-                    pageSize: 10,
-                }),
-            ).rejects.toThrow('Query was not started by AI access');
-        },
-    );
 
     describe('executeAsyncMetricQuery', () => {
         test.each([
@@ -3851,8 +3812,7 @@ describe('AsyncQueryService', () => {
                 if (scenario === 'principal') {
                     expect(execute).toHaveBeenCalledWith(
                         expect.objectContaining({
-                            aiPrincipalUuid:
-                                aiExecutionPlanMock.principal.aiPrincipalUuid,
+                            aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
                         }),
                         expect.anything(),
                     );
@@ -6455,7 +6415,8 @@ describe('AsyncQueryService', () => {
                     expect.objectContaining({
                         tags: expect.objectContaining({
                             user_uuid: sessionAccount.user.id,
-                            ai_principal: aiExecutionPlanMock.principal.ref,
+                            ai_principal:
+                                aiExecutionPlanMock.audit.principalRef,
                             agent: 'true',
                         }),
                     }),

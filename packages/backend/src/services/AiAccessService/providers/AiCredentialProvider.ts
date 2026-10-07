@@ -1,30 +1,12 @@
 import {
-    type AiAccessPolicy,
     type AiAccessRefusalReason,
     type AiAssurance,
-    type AiPrincipalWithSecrets,
-    type AiProbeResult,
-    type AiSetupScript,
-    type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 
-export type AiCreatedSecret = {
-    secret: string;
-    publicKey: string | null;
-    publicKeyFingerprint: string | null;
-};
-
-export type AiPrincipalPerson = {
-    userUuid: string;
-    email: string;
-};
-
 export type AiMintArgs<T extends CreateWarehouseCredentials> = {
     connection: T;
-    principal: AiPrincipalWithSecrets;
-    policy: AiAccessPolicy;
-    person: AiPrincipalPerson;
+    person: { userUuid: string; email: string };
 };
 
 export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
@@ -33,36 +15,38 @@ export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
     expiresAt: Date | null;
 };
 
-export type AiSetupScriptArgs<T extends CreateWarehouseCredentials> = {
-    connection: T;
-    principal: AiPrincipalWithSecrets | null;
-    policy: AiAccessPolicy;
-};
+export enum AiSessionFailureReason {
+    CREDENTIAL_REJECTED = 'credential_rejected',
+    NOT_AGENT_SESSION = 'not_agent_session',
+    NO_RESTRICTED_SESSION_SCOPE = 'no_restricted_session_scope',
+    WAREHOUSE_ACCESS = 'warehouse_access',
+    DISABLED_OR_LOCKED = 'disabled_or_locked',
+    NETWORK_POLICY = 'network_policy',
+    UNKNOWN = 'unknown',
+}
 
-/**
- * One provider per warehouse type. `mint` returns credentials that sign in
- * as the principal and the assurances a probe must prove before a query
- * runs. `probe` opens one session with those credentials, runs one small
- * query and compares it with the assurances. Providers never fetch query
- * results by warehouse query id; results reach Lightdash only through the
- * query the plan started.
- */
+export type AiSessionProbeResult =
+    | { ok: true; checkedAt: Date; observed: Record<string, string | null> }
+    | {
+          ok: false;
+          transient: boolean;
+          checkedAt: Date;
+          reason: AiSessionFailureReason;
+          message: string;
+          observed: Record<string, string | null>;
+      };
+
 export interface AiCredentialProvider<
     T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
 > {
     readonly warehouseType: T['type'];
-
-    capabilities(connection: T): Omit<AiWarehouseCapabilities, 'marker'>;
-
-    createSecret(): Promise<AiCreatedSecret | null>;
-
+    configurationError(): string | null;
     missingPrerequisite(
         args: AiMintArgs<T>,
     ): Promise<AiAccessRefusalReason | null>;
-
     mint(args: AiMintArgs<T>): Promise<AiMintedCredentials<T>>;
-
-    probe(credentials: T, assurances: AiAssurance[]): Promise<AiProbeResult>;
-
-    setupScript(args: AiSetupScriptArgs<T>): AiSetupScript;
+    probe(
+        credentials: T,
+        assurances: AiAssurance[],
+    ): Promise<AiSessionProbeResult>;
 }

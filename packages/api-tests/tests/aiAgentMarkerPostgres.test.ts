@@ -44,10 +44,6 @@ describe('Postgres marked person agent identity', () => {
                         enabled: true,
                         principalKind: AiPrincipalKind.PERSON,
                         transport: AI_DIRECT_TRANSPORT,
-                        sharedRef: null,
-                        twinNameTemplate: null,
-                        groupMappings: [],
-                        policySource: null,
                     })
                 ).status,
             ).toBe(200);
@@ -57,31 +53,13 @@ describe('Postgres marked person agent identity', () => {
 
     afterAll(async () => {
         if (restorePolicy && originalPolicy) {
-            const {
-                enabled,
-                principalKind,
-                transport,
-                sharedRef,
-                twinNameTemplate,
-                groupMappings,
-                policySource,
-            } = originalPolicy;
+            const { enabled, principalKind, transport } = originalPolicy;
             expect(
                 (
                     await admin.put(`${baseUrl}/policy`, {
                         enabled,
                         principalKind,
                         transport,
-                        sharedRef,
-                        twinNameTemplate,
-                        groupMappings: groupMappings.map(
-                            ({ groupUuid, ref, priority }) => ({
-                                groupUuid,
-                                ref,
-                                priority,
-                            }),
-                        ),
-                        policySource,
                     })
                 ).status,
             ).toBe(200);
@@ -101,7 +79,6 @@ describe('Postgres marked person agent identity', () => {
             identity: 'marked_person',
             enabled: true,
             principalKind: AiPrincipalKind.PERSON,
-            principal: null,
             refusal: null,
         });
         const tested = await admin.post<Body<AiMarkerTestResult>>(

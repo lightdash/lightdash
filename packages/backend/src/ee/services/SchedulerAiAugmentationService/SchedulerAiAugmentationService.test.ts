@@ -3,7 +3,6 @@ import {
     type SendNowScheduler,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import Logger from '../../../logging/logger';
 import { SchedulerAiAugmentationService } from './SchedulerAiAugmentationService';
 
 type Dependencies = ConstructorParameters<
@@ -14,7 +13,7 @@ const setup = (enabled: boolean) => {
     const aiAccessService = {
         getAiAccessForUser: vi.fn().mockResolvedValue({
             enabled,
-            identity: enabled ? 'principal' : null,
+            identity: enabled ? 'connected_person' : null,
         }),
     };
     const asyncQueryService = {
@@ -86,25 +85,6 @@ const deliveryQueries = [{ chartName: 'Chart', queryUuid: 'query' }];
 
 describe('SchedulerAiAugmentationService AI access', () => {
     afterEach(() => vi.restoreAllMocks());
-    test('logs one reason when multiple saved queries are blocked', async () => {
-        const info = vi.fn();
-        vi.spyOn(Logger, 'child').mockReturnValue({
-            info,
-        } as unknown as typeof Logger);
-        const { service } = setup(true);
-        await service.runForDelivery({
-            scheduler,
-            createdBy: 'user',
-            deliveryQueries: [
-                ...deliveryQueries,
-                { chartName: 'Other chart', queryUuid: 'other-query' },
-            ],
-        });
-        expect(info).toHaveBeenCalledExactlyOnceWith(
-            'Skipping delivery AI augmentation because AI access runs as a separate principal',
-            expect.objectContaining({ projectUuid: 'project' }),
-        );
-    });
     test('uses the AI context when fresh delivery queries are needed', async () => {
         const { service, asyncQueryService } = setup(false);
         await service.runForDelivery({ scheduler, createdBy: 'user' });
@@ -116,63 +96,26 @@ describe('SchedulerAiAugmentationService AI access', () => {
         );
     });
 
-    test.each(['fast_model', 'agent'] as const)(
-        'skips %s before reading saved results when a policy applies',
-        async (type) => {
-            const {
-                service,
-                asyncQueryService,
-                aiService,
-                aiAgentService,
-                aiAccessService,
-            } = setup(true);
-            const result = await service.runForDelivery({
-                scheduler: {
-                    ...scheduler,
-                    aiAugmentation:
-                        type === 'agent'
-                            ? {
-                                  type,
-                                  agentUuid: 'agent',
-                                  prompt: 'Summarize',
-                                  sourceThreadUuid: null,
-                              }
-                            : { type, prompt: 'Summarize' },
-                },
-                createdBy: 'user',
-                deliveryQueries,
-            });
-            expect(result).toBeNull();
-            expect(aiAccessService.getAiAccessForUser).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    projectUuid: 'project',
-                    warehouseConnectionUuid: 'connection',
+    test.each([true, false])(
+        'summarizes saved results with connected person=%s',
+        async (connected) => {
+            const { service, asyncQueryService, aiService } = setup(connected);
+            await expect(
+                service.runForDelivery({
+                    scheduler,
+                    createdBy: 'user',
+                    deliveryQueries,
                 }),
-            );
+            ).resolves.toBe('summary');
             expect(
                 asyncQueryService.getRawAsyncQueryResults,
-            ).not.toHaveBeenCalled();
-            expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
-            expect(
-                aiAgentService.generateScheduledReport,
-            ).not.toHaveBeenCalled();
+            ).toHaveBeenCalledWith({
+                account: expect.anything(),
+                projectUuid: 'project',
+                queryUuid: 'query',
+                maxRows: expect.any(Number),
+            });
+            expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
         },
     );
-    test('summarizes saved results with AI read enforcement when no policy applies', async () => {
-        const { service, asyncQueryService, aiService } = setup(false);
-        await expect(
-            service.runForDelivery({
-                scheduler,
-                createdBy: 'user',
-                deliveryQueries,
-            }),
-        ).resolves.toBe('summary');
-        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith({
-            account: expect.anything(),
-            projectUuid: 'project',
-            queryUuid: 'query',
-            maxRows: expect.any(Number),
-        });
-        expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
-    });
 });

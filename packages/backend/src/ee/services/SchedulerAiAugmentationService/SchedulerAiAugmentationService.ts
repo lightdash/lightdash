@@ -242,25 +242,11 @@ export class SchedulerAiAugmentationService extends BaseService {
             histories.map((history) => history.warehouseConnectionUuid ?? null),
         );
         if (connections.size === 0) connections.add(null);
-        const access = await Promise.all(
+        await Promise.all(
             [...connections].map((connection) =>
                 this.getQueryAiAccess(account, projectUuid, connection),
             ),
         );
-        const blocked = access.find(
-            (result) => result.identity === 'principal',
-        );
-        if (blocked) {
-            this.logger.info(
-                'Skipping delivery AI augmentation because AI access runs as a separate principal',
-                {
-                    projectUuid,
-                    warehouseConnectionUuid: blocked.warehouseConnectionUuid,
-                },
-            );
-            return null;
-        }
-
         switch (augmentation.type) {
             case 'agent':
                 return this.runAgentForDelivery(

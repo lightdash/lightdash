@@ -23,12 +23,8 @@ describe('AI access API URLs', () => {
             );
             const policy: UpsertAiAccessPolicy = {
                 enabled: true,
-                principalKind: AiPrincipalKind.GROUP,
+                principalKind: AiPrincipalKind.PERSON,
                 transport: { kind: AiTransportKind.DIRECT },
-                sharedRef: null,
-                twinNameTemplate: null,
-                policySource: null,
-                groupMappings: [],
             };
             await aiAccessApi.upsertPolicy('project', connection, policy);
             expect(lightdashApi).toHaveBeenLastCalledWith(
@@ -44,57 +40,10 @@ describe('AI access API URLs', () => {
                     url: `/projects/project/ai-access/policy${suffix}`,
                 }),
             );
-            await aiAccessApi.principals('project', connection);
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    url: `/projects/project/ai-access/principals${suffix}`,
-                }),
-            );
             await aiAccessApi.me('project', connection);
             expect(lightdashApi).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     url: `/projects/project/ai-access/me${suffix}`,
-                }),
-            );
-            await aiAccessApi.setupScript('project', connection, null);
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    url: `/projects/project/ai-access/setup-script${suffix}`,
-                }),
-            );
-            await aiAccessApi.setupScript('project', connection, 'principal');
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    url: `/projects/project/ai-access/setup-script?principal=principal${connection ? '&connection=connection+%2F+one' : ''}`,
-                }),
-            );
-            await aiAccessApi.test('project', connection, 'principal');
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    method: 'POST',
-                    url: `/projects/project/ai-access/principals/principal/test${suffix}`,
-                }),
-            );
-            await aiAccessApi.regenerateSecret(
-                'project',
-                connection,
-                'principal',
-            );
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    method: 'POST',
-                    url: `/projects/project/ai-access/principals/principal/regenerate-secret${suffix}`,
-                }),
-            );
-            await aiAccessApi.deletePrincipal(
-                'project',
-                connection,
-                'principal',
-            );
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    method: 'DELETE',
-                    url: `/projects/project/ai-access/principals/principal${suffix}`,
                 }),
             );
         },

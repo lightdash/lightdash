@@ -131,9 +131,6 @@ import type {
     ApiAiAccessForUserResponse,
     ApiAiAccessPolicyResponse,
     ApiAiMarkerTestResponse,
-    ApiAiPrincipalResponse,
-    ApiAiPrincipalsResponse,
-    ApiAiSetupScriptResponse,
     ApiAiWarehouseCapabilitiesResponse,
     OrganizationAgentIdentitySettings,
 } from './aiPrincipal';
@@ -1564,9 +1561,6 @@ type ApiResults =
     | ApiCustomRoleAsCodeUpsertResponse['results']
     | ApiAiAccessPolicyResponse['results']
     | ApiAiWarehouseCapabilitiesResponse['results']
-    | ApiAiPrincipalsResponse['results']
-    | ApiAiPrincipalResponse['results']
-    | ApiAiSetupScriptResponse['results']
     | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']
     | ApiOrganizationRoleSetResponse['results']

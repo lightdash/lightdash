@@ -565,20 +565,11 @@ export class DataAppAnalysisService extends BaseService {
                         'unsupported_context',
                     );
                 }
-                const access = await this.getQueryAiAccess(
+                await this.getQueryAiAccess(
                     account,
                     projectUuid,
                     history.warehouseConnectionUuid ?? null,
                 );
-                if (access.identity === 'principal') {
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.NO_POLICY,
-                        {
-                            message:
-                                'AI analysis of saved results is off while AI access runs as a separate principal.',
-                        },
-                    );
-                }
                 const { rows, fields, truncated, displayTimezone } =
                     await this.asyncQueryService
                         .getRawAsyncQueryResults({

@@ -231,36 +231,26 @@ const completedEvent = (analytics: { track: ReturnType<typeof vi.fn> }) =>
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
 describe('DataAppAnalysisService.detect', () => {
-    it('refuses saved rows on an enabled AI principal policy before reading them', async () => {
+    it('reads saved rows for a connected person', async () => {
         const { service, aiAccessService, asyncQueryService, aiService } =
             buildService();
         aiAccessService.getAiAccessForUser.mockResolvedValue({
             enabled: true,
-            identity: 'principal',
+            identity: 'connected_person',
         });
         asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
             context: QueryExecutionContext.EXPLORE,
             warehouseConnectionUuid: 'connection',
         });
-        await expect(
-            service.detect(buildAccount(), 'proj-1', 'app-1', request),
-        ).rejects.toMatchObject({
-            refusal: {
-                reason: 'no_policy',
-                message:
-                    'AI analysis of saved results is off while AI access runs as a separate principal.',
-            },
-        });
+        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
         expect(aiAccessService.getAiAccessForUser).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: 'proj-1',
                 warehouseConnectionUuid: 'connection',
             }),
         );
-        expect(
-            asyncQueryService.getRawAsyncQueryResults,
-        ).not.toHaveBeenCalled();
-        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalled();
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalled();
     });
     it('reads saved rows as the person when no policy applies', async () => {
         const { service, asyncQueryService } = buildService();
