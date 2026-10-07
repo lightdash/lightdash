@@ -1,3 +1,15 @@
+# [2.451.0](https://github.com/lightdash/lightdash/compare/2.450.0...2.451.0) (2026-10-07)
+
+
+### Bug Fixes
+
+* **embed:** render standalone reset filters button as a full pill ([#30578](https://github.com/lightdash/lightdash/issues/30578)) ([07fb5e8](https://github.com/lightdash/lightdash/commit/07fb5e83685a0f801bc96d6eeb46000d4086f8b7))
+
+
+### Features
+
+* attribute Lightdash Desktop requests ([#30151](https://github.com/lightdash/lightdash/issues/30151)) ([b990a51](https://github.com/lightdash/lightdash/commit/b990a516eab60fc6cad83d3ea98a1fccfa77f8ec))
+
 # [2.450.0](https://github.com/lightdash/lightdash/compare/2.449.0...2.450.0) (2026-10-07)
 
 
