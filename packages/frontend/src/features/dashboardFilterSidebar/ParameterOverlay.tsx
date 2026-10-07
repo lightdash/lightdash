@@ -20,14 +20,12 @@ import {
     type TileParameterSource,
 } from './parameterSources';
 import classes from './TileOverlay.module.css';
+import { stopPropagation } from './tileSelector';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 
 const NOT_SET = 'not-set';
-
-const stopPropagation = (event: { stopPropagation: () => void }) =>
-    event.stopPropagation();
 
 type OverlayProps = {
     tile: DashboardTile;

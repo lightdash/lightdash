@@ -17,6 +17,7 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getLinkKey } from './linkCandidates';
 import {
     getControlsFromSavedValues,
     type ParameterControl,
@@ -93,6 +94,10 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         (c) => c.dashboardParameters,
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    // Tiles present when editing started; later ones get a link prompt
+    const [knownTileUuids, setKnownTileUuids] = useState<string[] | null>(null);
+    const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
@@ -409,14 +414,43 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
     useEffect(() => {
-        if (!isEditMode) resetSession();
+        if (!isEditMode) {
+            resetSession();
+            setKnownTileUuids(null);
+            setDismissedLinks([]);
+        }
     }, [isEditMode, resetSession]);
+    useEffect(() => {
+        if (isEditMode && knownTileUuids === null && dashboardTiles) {
+            setKnownTileUuids(dashboardTiles.map((tile) => tile.uuid));
+        }
+    }, [isEditMode, knownTileUuids, dashboardTiles]);
+    const newTileUuids = useMemo(
+        () =>
+            knownTileUuids === null
+                ? []
+                : (dashboardTiles ?? [])
+                      .map((tile) => tile.uuid)
+                      .filter((uuid) => !knownTileUuids.includes(uuid)),
+        [knownTileUuids, dashboardTiles],
+    );
+    const dismissLink = useCallback(
+        (tileUuid: string, ruleId: string) =>
+            setDismissedLinks((prev) => [
+                ...prev,
+                getLinkKey(tileUuid, ruleId),
+            ]),
+        [],
+    );
 
     const value = useMemo<FilterSidebarContextValue>(
         () => ({
             parameterControls,
             editingControlId,
             isSidebarOpen: state !== null || editingControlId !== null,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
             openControl,
             addControl,
             updateControl,
@@ -505,6 +539,9 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             setControlValue,
             closeControl,
             cancelControl,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
         ],
     );
 

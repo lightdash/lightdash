@@ -13,6 +13,7 @@ import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getFieldDisplayLabel } from './fieldGrains';
+import { getTileSelector } from './parameterSources';
 import {
     doesTileOfferField,
     getFilterFields,
@@ -24,12 +25,11 @@ import {
     type FieldsByTile,
 } from './peers';
 import classes from './TileOverlay.module.css';
+import { stopPropagation } from './tileSelector';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
-
-const getTileSelector = (tileUuid: string) => `[data-tile-uuid="${tileUuid}"]`;
 
 const NOT_FILTERED = '__not_filtered__';
 
@@ -64,9 +64,6 @@ const getFieldTarget = (
     );
     return fromTile ?? null;
 };
-
-const stopPropagation = (event: { stopPropagation: () => void }) =>
-    event.stopPropagation();
 
 type TileOverlayProps = {
     tile: DashboardTile;

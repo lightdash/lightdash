@@ -63,8 +63,11 @@ Lost on reload, marked "Not saved". What saving each would need:
 - Operators allowed: an allowed-operators list on the rule.
 - Filter boundaries: a bounding rule (allowed values or date range) on the rule.
 - Placement (bar or More): saved bar sections with a filter order.
-- Not implemented: a chart added later does not pick up a peer field for its
-  explore.
+- Link prompts: tiles present when editing starts are snapshotted; a tile added
+  later whose explore has a peer field of a filter, or another field of the same
+  kind, shows a card asking to link it (`LinkPrompts.tsx`, `getLinkCandidates` in `linkCandidates.ts`).
+  An exact match on the filter's own field still links on its own. Skipped
+  prompts live in a session list; Link writes `tileTargets` on the rule.
 
 - `FieldPicker` is controlled: the caller owns `chosen` and `kind` (a `FilterType`); `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore.
 - New-filter flow: Continue calls `addFirstField(chosen[0])` then `listFieldId` for the rest; "Add a field" uses `mode="single"` with `lockedKind`.

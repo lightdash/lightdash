@@ -50,6 +50,9 @@ export type FilterSidebarContextValue = {
     parameterControls: ParameterControl[];
     editingControlId: string | null;
     isSidebarOpen: boolean;
+    newTileUuids: string[];
+    dismissedLinks: string[];
+    dismissLink: (tileUuid: string, ruleId: string) => void;
     openControl: (id: string) => void;
     /** Adds the control and opens it. */
     addControl: (control: ParameterControl) => void;
