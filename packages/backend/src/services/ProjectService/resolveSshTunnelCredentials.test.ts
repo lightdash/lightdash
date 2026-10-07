@@ -8,10 +8,13 @@ import {
 } from './resolveSshTunnelCredentials';
 
 const knownKey = 'ssh-rsa AAAA-known (generated_by_lightdash_at_2026-09-04)';
+const organizationUuid = 'organization-uuid';
 
 const sshKeyPairModel = {
     find: vi.fn(async (publicKey: string) =>
-        publicKey === knownKey ? { publicKey, privateKey: 'PRIVATE' } : null,
+        publicKey === knownKey
+            ? { publicKey, privateKey: 'PRIVATE', organizationUuid }
+            : null,
     ),
 } as unknown as SshKeyPairModel;
 
@@ -31,10 +34,11 @@ const credentials = {
 
 describe('resolveSshTunnelPrivateKey', () => {
     it('attaches the private key when the public key is known', async () => {
-        const resolved = await resolveSshTunnelPrivateKey(sshKeyPairModel, {
-            ...credentials,
-            sshTunnelPublicKey: knownKey,
-        });
+        const resolved = await resolveSshTunnelPrivateKey(
+            sshKeyPairModel,
+            { ...credentials, sshTunnelPublicKey: knownKey },
+            organizationUuid,
+        );
         expect(resolved.sshTunnelPrivateKey).toBe('PRIVATE');
         expect(resolved.sshTunnelPublicKey).toBe(knownKey);
     });
@@ -47,10 +51,11 @@ describe('resolveSshTunnelPrivateKey', () => {
         'rejects a %s public key with an actionable ParameterError',
         async (_label, sshTunnelPublicKey) => {
             await expect(
-                resolveSshTunnelPrivateKey(sshKeyPairModel, {
-                    ...credentials,
-                    sshTunnelPublicKey,
-                }),
+                resolveSshTunnelPrivateKey(
+                    sshKeyPairModel,
+                    { ...credentials, sshTunnelPublicKey },
+                    organizationUuid,
+                ),
             ).rejects.toThrow(
                 new ParameterError(SSH_TUNNEL_KEY_MISSING_MESSAGE),
             );
@@ -59,10 +64,15 @@ describe('resolveSshTunnelPrivateKey', () => {
 
     it('rejects a public key that is not in ssh_key_pairs with a ParameterError', async () => {
         await expect(
-            resolveSshTunnelPrivateKey(sshKeyPairModel, {
-                ...credentials,
-                sshTunnelPublicKey: 'ssh-rsa AAAA-stale (generated elsewhere)',
-            }),
+            resolveSshTunnelPrivateKey(
+                sshKeyPairModel,
+                {
+                    ...credentials,
+                    sshTunnelPublicKey:
+                        'ssh-rsa AAAA-stale (generated elsewhere)',
+                },
+                organizationUuid,
+            ),
         ).rejects.toThrow(new ParameterError(SSH_TUNNEL_KEY_UNKNOWN_MESSAGE));
     });
 });

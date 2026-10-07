@@ -2510,6 +2510,7 @@ export class ProjectService extends BaseService {
                 warehouseConnection: await resolveSshTunnelPrivateKey(
                     this.sshKeyPairModel,
                     args.warehouseConnection,
+                    organizationUuid,
                 ),
             };
         }
@@ -2710,21 +2711,28 @@ export class ProjectService extends BaseService {
         );
     }
 
-    // The project-update form sends masked oauthClientId / oauthClientSecret
-    // (placeholder values), so merge them in from the saved project before
-    // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
-    // anything that isn't Databricks M2M.
+    // The project-update form sends masked secrets (placeholder values), so
+    // merge them in from the saved project before
+    // _resolveWarehouseClientCredentials runs the Databricks M2M token
+    // exchange or attaches the SSH tunnel key. No-op for anything else.
     // eslint-disable-next-line class-methods-use-this
-    private mergeMissingDatabricksM2MSecrets<
+    private mergeSavedSecretsForResolution<
         T extends { warehouseConnection: CreateWarehouseCredentials },
     >(
         data: T,
         savedProject: { warehouseConnection?: CreateWarehouseCredentials },
     ): T {
+        const { warehouseConnection } = data;
+        const isDatabricksM2M =
+            warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M;
+        const isSshTunnel =
+            (warehouseConnection.type === WarehouseTypes.POSTGRES ||
+                warehouseConnection.type === WarehouseTypes.REDSHIFT) &&
+            warehouseConnection.useSshTunnel === true;
         if (
-            data.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            data.warehouseConnection.authenticationType ===
-                DatabricksAuthenticationType.OAUTH_M2M &&
+            (isDatabricksM2M || isSshTunnel) &&
             savedProject.warehouseConnection
         ) {
             return {
@@ -5638,7 +5646,7 @@ export class ProjectService extends BaseService {
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeMissingDatabricksM2MSecrets(data, savedProject),
+            this.mergeSavedSecretsForResolution(data, savedProject),
             account.user.id,
             savedProject.organizationUuid,
         );
@@ -5815,7 +5823,7 @@ export class ProjectService extends BaseService {
         };
 
         const resolvedData = await this._resolveWarehouseClientCredentials(
-            this.mergeMissingDatabricksM2MSecrets(
+            this.mergeSavedSecretsForResolution(
                 updatedProjectData,
                 savedProject,
             ),

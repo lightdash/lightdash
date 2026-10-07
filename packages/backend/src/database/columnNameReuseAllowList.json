@@ -1,1 +1,10 @@
-[]
+[
+    {
+        "column": "ssh_key_pairs.organization_uuid",
+        "reason": "Previous releases only read ssh_key_pairs on its own by public_key and never join it to another table"
+    },
+    {
+        "column": "ssh_key_pairs.created_at",
+        "reason": "Previous releases only read ssh_key_pairs on its own by public_key and never join it to another table"
+    }
+]
