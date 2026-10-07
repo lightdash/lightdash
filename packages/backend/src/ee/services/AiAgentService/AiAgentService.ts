@@ -402,6 +402,7 @@ import {
     type ChartIntentResolution,
     type CompoundStep,
     type FieldCandidate,
+    type FieldKind,
     type InstantReplyKind,
 } from '../ai/decisions/chartIntent';
 import {
@@ -1082,6 +1083,22 @@ export const assertDeepResearchBedrockProfile = (
         throw new ParameterError(
             'Deep Research Bedrock inference profile changed during the run',
         );
+    }
+};
+
+const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
+    switch (basicType) {
+        case 'date':
+        case 'timestamp':
+            return 'date';
+        case 'number':
+            return 'number';
+        case 'boolean':
+            return 'boolean';
+        case 'string':
+            return 'text';
+        default:
+            return null;
     }
 };
 
@@ -12972,6 +12989,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                               table: item.tableLabel ?? item.tableName,
                               description:
                                   item.description?.slice(0, 160) ?? null,
+                              kind: catalogFieldKind(item.basicType),
                               isDate:
                                   item.basicType === 'date' ||
                                   item.basicType === 'timestamp',
