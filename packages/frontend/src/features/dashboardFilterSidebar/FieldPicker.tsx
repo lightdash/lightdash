@@ -1,11 +1,10 @@
 import { FilterType, type DashboardFilterableField } from '@lightdash/common';
 import {
-    Box,
     Group,
+    Select,
     SimpleGrid,
     Stack,
     Text,
-    TextInput,
     UnstyledButton,
 } from '@mantine/core';
 import {
@@ -16,16 +15,15 @@ import {
     IconToggleLeft,
     IconVariable,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
-import { foldFieldGrains, matchesSearch } from './fieldGrains';
+import { foldFieldGrains } from './fieldGrains';
 import {
     FIELD_KINDS,
     countPickableByKind,
     filterFieldsByKind,
     filterParametersByKind,
-    matchesParameterSearch,
     type PickableParameter,
 } from './fieldKinds';
 import classes from './FieldPicker.module.css';
@@ -61,7 +59,6 @@ export const FieldPicker: FC<Props> = ({
     onPickKind,
     lockedKind,
 }) => {
-    const [search, setSearch] = useState('');
     const activeKind = lockedKind ?? null;
     const pickableFields = useMemo(
         () => filterFieldsByKind(fields, activeKind),
@@ -77,21 +74,27 @@ export const FieldPicker: FC<Props> = ({
     // One row per field, grains folded, sorted by explore then by name
     const rows = useMemo(
         () =>
-            foldFieldGrains(
-                pickableFields.filter((field) => matchesSearch(field, search)),
-            ).sort(
+            foldFieldGrains(pickableFields).sort(
                 (a, b) =>
                     a.tableLabel.localeCompare(b.tableLabel) ||
                     a.label.localeCompare(b.label),
             ),
-        [pickableFields, search],
+        [pickableFields],
     );
-    const parameterRows = useMemo(
+    const parameterRows = pickableParameters;
+    const rowsByValue = useMemo(
+        () => new Map(rows.map((row) => [`field:${row.key}`, row])),
+        [rows],
+    );
+    const parametersByValue = useMemo(
         () =>
-            pickableParameters.filter((parameter) =>
-                matchesParameterSearch(parameter, search),
+            new Map(
+                parameterRows.map((parameter) => [
+                    `parameter:${parameter.key}`,
+                    parameter,
+                ]),
             ),
-        [pickableParameters, search],
+        [parameterRows],
     );
     const counts = countPickableByKind(pickableFields, pickableParameters);
     const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
@@ -101,7 +104,7 @@ export const FieldPicker: FC<Props> = ({
         : 'Search fields';
 
     return (
-        <Stack gap="sm" className={classes.picker}>
+        <Stack gap="sm">
             {onPickKind && (
                 <>
                     <Text fz="sm" fw={600}>
@@ -130,73 +133,96 @@ export const FieldPicker: FC<Props> = ({
                     </Text>
                 </>
             )}
-            <TextInput
-                placeholder={searchLabel}
+            <Select
+                size="sm"
+                searchable
+                clearable={false}
                 autoFocus
+                placeholder={searchLabel}
                 aria-label={searchLabel}
+                nothingFoundMessage={
+                    listsParameters
+                        ? 'No fields or parameters match'
+                        : 'No fields match'
+                }
                 leftSection={<MantineIcon icon={IconSearch} />}
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-            />
-            <Box className={classes.list}>
-                {rows.length === 0 && parameterRows.length === 0 && (
-                    <Text fz="xs" c="dimmed" px="xs">
-                        {listsParameters
-                            ? 'No fields or parameters match'
-                            : 'No fields match'}
-                    </Text>
-                )}
-                {rows.map((row) => {
-                    const count = getChartCount(row.field);
+                comboboxProps={{ withinPortal: true }}
+                maxDropdownHeight={360}
+                value={null}
+                data={[
+                    ...(rows.length > 0
+                        ? [
+                              {
+                                  group: 'Fields',
+                                  items: rows.map((row) => ({
+                                      value: `field:${row.key}`,
+                                      label: `${row.tableLabel} ${row.label}`,
+                                  })),
+                              },
+                          ]
+                        : []),
+                    ...(parameterRows.length > 0
+                        ? [
+                              {
+                                  group: 'Parameters',
+                                  items: parameterRows.map((parameter) => ({
+                                      value: `parameter:${parameter.key}`,
+                                      label: parameter.label,
+                                  })),
+                              },
+                          ]
+                        : []),
+                ]}
+                renderOption={({ option }) => {
+                    const row = rowsByValue.get(option.value);
+                    const parameter = parametersByValue.get(option.value);
+                    const count = row
+                        ? getChartCount(row.field)
+                        : (parameter?.chartCount ?? 0);
                     return (
-                        <UnstyledButton
-                            key={row.key}
-                            className={classes.fieldRow}
-                            aria-label={`${row.tableLabel} ${row.label}`}
-                            onClick={() => onPickField(row.field)}
-                        >
-                            <FieldIcon item={row.field} size={14} aria-hidden />
+                        <Group gap="xs" wrap="nowrap" flex={1}>
+                            {row ? (
+                                <FieldIcon
+                                    item={row.field}
+                                    size={14}
+                                    aria-hidden
+                                />
+                            ) : (
+                                <MantineIcon
+                                    icon={IconVariable}
+                                    color="dimmed"
+                                    aria-hidden
+                                />
+                            )}
                             <Text fz="sm" truncate className={classes.rowText}>
-                                <Text span c="dimmed">
-                                    {row.tableLabel}
-                                </Text>{' '}
-                                {row.label}
+                                {row ? (
+                                    <>
+                                        <Text span c="dimmed">
+                                            {row.tableLabel}
+                                        </Text>{' '}
+                                        {row.label}
+                                    </>
+                                ) : (
+                                    option.label
+                                )}
                             </Text>
                             <Text fz="xs" c="dimmed">
                                 {count} {pluralizeCharts(count)}
                             </Text>
-                        </UnstyledButton>
+                        </Group>
                     );
-                })}
-                {parameterRows.length > 0 && (
-                    <Group className={classes.groupHeader}>
-                        <Text fz="xs" c="dimmed">
-                            Parameters
-                        </Text>
-                    </Group>
-                )}
-                {parameterRows.map((parameter) => (
-                    <UnstyledButton
-                        key={parameter.key}
-                        className={classes.fieldRow}
-                        aria-label={parameter.label}
-                        onClick={() => onPickParameter?.(parameter.key)}
-                    >
-                        <MantineIcon
-                            icon={IconVariable}
-                            color="dimmed"
-                            aria-hidden
-                        />
-                        <Text fz="sm" truncate className={classes.rowText}>
-                            {parameter.label}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            {parameter.chartCount}{' '}
-                            {pluralizeCharts(parameter.chartCount)}
-                        </Text>
-                    </UnstyledButton>
-                ))}
-            </Box>
+                }}
+                onChange={(value) => {
+                    if (value === null) return;
+                    const row = rowsByValue.get(value);
+                    if (row) {
+                        onPickField(row.field);
+                        return;
+                    }
+                    const parameter = parametersByValue.get(value);
+                    if (parameter) onPickParameter?.(parameter.key);
+                }}
+            />
         </Stack>
     );
 };
