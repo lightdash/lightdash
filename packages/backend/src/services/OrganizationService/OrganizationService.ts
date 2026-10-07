@@ -617,17 +617,23 @@ export class OrganizationService extends BaseService {
                 const groupAccess = projectGroupAccesses.find((access) =>
                     groups.includes(access.groupUuid),
                 );
+                if (!groupAccess) {
+                    return member;
+                }
+                // A group can carry a custom-role UUID instead of a system
+                // role. It isn't convertible to an org role, so surface it as
+                // roleUuid and keep the member's own org role.
+                if (isSystemRole(groupAccess.role)) {
+                    return {
+                        ...member,
+                        role: convertProjectRoleToOrganizationRole(
+                            groupAccess.role,
+                        ),
+                    };
+                }
                 return {
                     ...member,
-                    // A group can carry a custom-role UUID instead of a system
-                    // role. Those aren't convertible to an org role, so fall back
-                    // to the member's own org role rather than throwing.
-                    role:
-                        groupAccess?.role && isSystemRole(groupAccess.role)
-                            ? convertProjectRoleToOrganizationRole(
-                                  groupAccess.role,
-                              )
-                            : member.role,
+                    roleUuid: groupAccess.role,
                 };
             });
         }

@@ -353,9 +353,7 @@ describe('organization service', () => {
         });
     });
 
-    it('getUsers falls back to the member org role when their group has a custom role', async () => {
-        // Group access carries a custom-role UUID (coalesced from role_uuid),
-        // which is not a system ProjectMemberRole and must not throw.
+    describe('getUsers with a project and group custom roles', () => {
         const customRoleUuid = 'ac5ac86a-b8a6-47fa-9679-40520dcb6136';
         const projectUuid = 'project-1';
         const groupUuid = 'group-1';
@@ -372,29 +370,59 @@ describe('organization service', () => {
             lastName: 'One',
             organizationUuid: organization.organizationUuid,
             role: OrganizationMemberRole.MEMBER,
+            roleUuid: undefined,
             isActive: true,
             isInviteExpired: false,
             groups: [{ uuid: groupUuid, name: 'Custom group' }],
         };
-        organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
-            { pagination: undefined, data: [member] },
-        );
-        projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
-            { projectUuid, groupUuid, role: customRoleUuid },
-        ]);
 
-        const result = await organizationService.getUsers(
-            adminUser,
-            10,
-            undefined,
-            undefined,
-            projectUuid,
-        );
+        it('surfaces the group custom role as roleUuid and keeps the member org role', async () => {
+            // Group access carries a custom-role UUID (coalesced from
+            // role_uuid), which is not a system ProjectMemberRole.
+            organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
+                { pagination: undefined, data: [member] },
+            );
+            projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
+                { projectUuid, groupUuid, role: customRoleUuid },
+            ]);
 
-        // Assert the behavioural outcome: a custom-role group must not throw and
-        // the member keeps their own org role (no system-role conversion).
-        expect(result.data).toHaveLength(1);
-        expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            const result = await organizationService.getUsers(
+                adminUser,
+                10,
+                undefined,
+                undefined,
+                projectUuid,
+            );
+
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            expect(result.data[0].roleUuid).toBe(customRoleUuid);
+        });
+
+        it('leaves roleUuid unset when the member has no group access to the project', async () => {
+            organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
+                { pagination: undefined, data: [member] },
+            );
+            projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
+                {
+                    projectUuid,
+                    groupUuid: 'another-group',
+                    role: customRoleUuid,
+                },
+            ]);
+
+            const result = await organizationService.getUsers(
+                adminUser,
+                10,
+                undefined,
+                undefined,
+                projectUuid,
+            );
+
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            expect(result.data[0].roleUuid).toBeUndefined();
+        });
     });
 
     describe('getImpersonationEnabled', () => {
