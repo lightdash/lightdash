@@ -8,7 +8,8 @@ export type DbDepartment = {
     headcount: number | null;
     headcount_note: string | null;
     target_active_users: number | null;
-    target_date: string | null;
+    // The model selects this column as text
+    target_date: Date | null;
     created_at: Date;
     updated_at: Date;
     updated_by_user_uuid: string | null;
@@ -21,9 +22,8 @@ type DbDepartmentCreate = Pick<
     | 'headcount'
     | 'headcount_note'
     | 'target_active_users'
-    | 'target_date'
     | 'updated_by_user_uuid'
->;
+> & { target_date: string | null };
 type DbDepartmentUpdate = Partial<
     Pick<
         DbDepartment,
@@ -32,10 +32,9 @@ type DbDepartmentUpdate = Partial<
         | 'headcount'
         | 'headcount_note'
         | 'target_active_users'
-        | 'target_date'
         | 'updated_by_user_uuid'
         | 'updated_at'
-    >
+    > & { target_date: string | null }
 >;
 export const DepartmentTableName = 'organization_departments';
 export type DepartmentTable = Knex.CompositeTableType<
