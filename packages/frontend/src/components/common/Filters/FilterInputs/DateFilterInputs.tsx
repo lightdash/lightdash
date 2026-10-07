@@ -403,11 +403,15 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             const isToDate = currentSettings?.toDate === true;
             const isExcludeToday =
                 isToDate && currentSettings?.excludeToday === true;
-            const supportsToDate =
-                currentSettings?.unitOfTime !== undefined &&
-                unitOfTimeSupportsToDate(currentSettings.unitOfTime);
+            const currentUnit = currentSettings?.unitOfTime;
+            // Unit the bounds apply to; undefined hides the toggles
+            const toDateUnit =
+                currentUnit !== undefined &&
+                unitOfTimeSupportsToDate(currentUnit)
+                    ? currentUnit
+                    : undefined;
             const setCurrentSettings = (
-                unitOfTime: UnitOfTime | undefined,
+                unitOfTime: UnitOfTime,
                 bounds: CurrentPeriodBounds,
             ) =>
                 onChange({
@@ -455,24 +459,21 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             )
                         }
                     />
-                    {supportsToDate && (
+                    {toDateUnit !== undefined && (
                         <Checkbox
                             size="xs"
                             label={getUiString('filters.currentPeriod.toDate')}
                             disabled={disabled}
                             checked={isToDate}
                             onChange={(e) =>
-                                setCurrentSettings(
-                                    currentSettings?.unitOfTime,
-                                    {
-                                        toDate: e.currentTarget.checked,
-                                        excludeToday: false,
-                                    },
-                                )
+                                setCurrentSettings(toDateUnit, {
+                                    toDate: e.currentTarget.checked,
+                                    excludeToday: false,
+                                })
                             }
                         />
                     )}
-                    {supportsToDate && isToDate && (
+                    {toDateUnit !== undefined && isToDate && (
                         <Checkbox
                             size="xs"
                             label={getUiString(
@@ -481,13 +482,10 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             disabled={disabled}
                             checked={!isExcludeToday}
                             onChange={(e) =>
-                                setCurrentSettings(
-                                    currentSettings?.unitOfTime,
-                                    {
-                                        toDate: true,
-                                        excludeToday: !e.currentTarget.checked,
-                                    },
-                                )
+                                setCurrentSettings(toDateUnit, {
+                                    toDate: true,
+                                    excludeToday: !e.currentTarget.checked,
+                                })
                             }
                         />
                     )}

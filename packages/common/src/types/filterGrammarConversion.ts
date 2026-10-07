@@ -3,6 +3,7 @@ import { type DbtColumnLightdashMetric } from './dbt';
 import { NotImplementedError, ParameterError } from './errors';
 import {
     FilterOperator,
+    getCurrentPeriodBounds,
     isDateFilterRule,
     UnitOfTime,
     type DateFilterSettings,
@@ -85,6 +86,13 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
             if (isDateFilterRule(filter)) {
                 const settings = filter.settings as DateFilterSettings;
                 const unitOfTime = settings.unitOfTime || UnitOfTime.days;
+
+                if (getCurrentPeriodBounds(settings).toDate) {
+                    throw new NotImplementedError(
+                        'Custom metric "to date" filter is not supported on dbt',
+                    );
+                }
+
                 return [`${operator} ${unitOfTime}`];
             }
             throw new NotImplementedError(

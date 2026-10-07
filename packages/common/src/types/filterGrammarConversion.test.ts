@@ -210,6 +210,21 @@ describe('convertMetricFilterToDbt', () => {
         );
     });
 
+    it('should throw for IN_THE_CURRENT filters bounded to date', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+        ];
+        expect(() => convertMetricFilterToDbt(filters, 'customers')).toThrow(
+            NotImplementedError,
+        );
+    });
+
     it('should convert IN_THE_CURRENT and NOT_IN_THE_CURRENT filters correctly', () => {
         const filters: MetricFilterRule[] = [
             {
