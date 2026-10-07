@@ -7,13 +7,30 @@ import { Text } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as api from '../../../../../api';
+import {
+    hasAgentIdentityHint,
+    updateAgentIdentityHint,
+} from '../../../../../features/aiAccess/agentIdentityHint';
 import { aiAccessApi } from '../../../../../features/aiAccess/api';
 import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
+import { useUserWarehouseCredentialsDeleteMutation } from '../../../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiAccessGate } from './AiAccessGate';
 
 const flag = vi.hoisted(() => ({ enabled: true, isLoading: false }));
+const composerRender = vi.fn();
+
+vi.mock('../../../../../providers/App/useApp', () => ({
+    default: () => ({
+        health: { data: undefined },
+        user: {
+            data: { organizationUuid: 'org-1', ability: { can: () => false } },
+        },
+    }),
+}));
 
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
@@ -22,7 +39,7 @@ vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastApiError: vi.fn() }),
+    default: () => ({ showToastApiError: vi.fn(), showToastSuccess: vi.fn() }),
 }));
 vi.mock('../../../../providers/Embed/useUiStrings', () => ({
     useUiStrings: () => (key: string) => key,
@@ -46,11 +63,16 @@ const accessError = { error: { message: 'Access check failed' } };
 const accessResult = (refused: boolean) =>
     ({ refusal: refused ? refusal : null }) as AiAccessForUser;
 
+const Composer = () => {
+    composerRender();
+    return <Text>Composer</Text>;
+};
+
 const Gate = () => {
     const access = useAiAccessGate('project-1');
     return (
         <AiAccessGate projectUuid="project-1" variant="card" {...access}>
-            <Text>Composer</Text>
+            <Composer />
         </AiAccessGate>
     );
 };
@@ -65,14 +87,145 @@ const renderGate = () => {
         </QueryClientProvider>
     );
     const view = renderWithProviders(content());
-    return { ...view, rerenderGate: () => view.rerender(content()) };
+    return { ...view, client, rerenderGate: () => view.rerender(content()) };
+};
+
+const DisconnectThenOpen = () => {
+    const [open, setOpen] = useState(false);
+    const disconnect =
+        useUserWarehouseCredentialsDeleteMutation('credential-1');
+    return (
+        <>
+            <button onClick={() => disconnect.mutate()}>Disconnect</button>
+            <button
+                disabled={!disconnect.isSuccess}
+                onClick={() => setOpen(true)}
+            >
+                Open chat
+            </button>
+            {open && <Gate />}
+        </>
+    );
 };
 
 describe('AiAccessGate', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        composerRender.mockClear();
+        localStorage.clear();
         flag.enabled = true;
         flag.isLoading = false;
+    });
+
+    it('holds a hinted organisation through flag and access loading without rendering the composer', async () => {
+        updateAgentIdentityHint('org-1', true);
+        flag.isLoading = true;
+        let resolveAccess!: (value: AiAccessForUser) => void;
+        const me = vi.spyOn(aiAccessApi, 'me').mockReturnValue(
+            new Promise((resolve) => {
+                resolveAccess = resolve;
+            }),
+        );
+        const { rerenderGate } = renderGate();
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        expect(me).not.toHaveBeenCalled();
+        flag.isLoading = false;
+        rerenderGate();
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        await act(async () => resolveAccess(accessResult(true)));
+        expect(
+            await screen.findByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(composerRender).not.toHaveBeenCalled();
+    });
+
+    it('ignores and clears a previous hint when the flag resolves off', () => {
+        updateAgentIdentityHint('org-1', true);
+        flag.isLoading = true;
+        const me = vi.spyOn(aiAccessApi, 'me');
+        const { rerenderGate } = renderGate();
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        flag.isLoading = false;
+        flag.enabled = false;
+        rerenderGate();
+        expect(screen.getByText('Composer')).toBeVisible();
+        expect(
+            screen.queryByTestId('ai-access-placeholder'),
+        ).not.toBeInTheDocument();
+        expect(hasAgentIdentityHint('org-1')).toBe(false);
+        expect(me).not.toHaveBeenCalled();
+    });
+
+    it('holds the gate while previously allowed access refetches', async () => {
+        const me = vi
+            .spyOn(aiAccessApi, 'me')
+            .mockResolvedValue(accessResult(false));
+        const { client } = renderGate();
+        await screen.findByText('Composer');
+        composerRender.mockClear();
+        let resolveAccess!: (value: AiAccessForUser) => void;
+        me.mockReturnValue(
+            new Promise((resolve) => {
+                resolveAccess = resolve;
+            }),
+        );
+        act(() => {
+            void client.invalidateQueries(['ai-access']);
+        });
+        await screen.findByTestId('ai-access-placeholder');
+        expect(screen.queryByText('Composer')).not.toBeInTheDocument();
+        await act(async () => resolveAccess(accessResult(true)));
+        expect(
+            await screen.findByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(composerRender).not.toHaveBeenCalled();
+    });
+
+    it('opens after disconnect with stale allowed access without rendering the composer', async () => {
+        const client = new QueryClient({
+            defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+        });
+        client.setQueryData(
+            ['ai-access', 'project-1', null, 'me'],
+            accessResult(false),
+        );
+        const deleteRequest = vi
+            .spyOn(api, 'lightdashApi')
+            .mockResolvedValue(null);
+        let resolveAccess!: (value: AiAccessForUser) => void;
+        vi.spyOn(aiAccessApi, 'me').mockReturnValue(
+            new Promise((resolve) => {
+                resolveAccess = resolve;
+            }),
+        );
+        renderWithProviders(
+            <QueryClientProvider client={client}>
+                <DisconnectThenOpen />
+            </QueryClientProvider>,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Disconnect' }),
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Open chat' }),
+            ).toBeEnabled(),
+        );
+        expect(deleteRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/user/warehouseCredentials/credential-1',
+                method: 'DELETE',
+            }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Open chat' }),
+        );
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        await act(async () => resolveAccess(accessResult(true)));
+        expect(
+            await screen.findByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(composerRender).not.toHaveBeenCalled();
     });
 
     it.each(['off', 'loading'])(

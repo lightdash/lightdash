@@ -11,6 +11,9 @@ import { aiAccessApi } from './api';
 import { useAiAccessGate } from './useAiAccessGate';
 
 const flag = vi.hoisted(() => ({ enabled: true, isLoading: false }));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({ user: { data: { organizationUuid: 'org-1' } } }),
+}));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
         data: flag.isLoading ? undefined : { enabled: flag.enabled },
@@ -55,6 +58,7 @@ const setup = (projectUuid?: string) => {
 describe('useAiAccessGate', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        localStorage.clear();
         flag.enabled = true;
         flag.isLoading = false;
     });
@@ -140,8 +144,8 @@ describe('useAiAccessGate', () => {
             flag.isLoading = state === 'unknown';
             rerender({ project: 'project-1' });
             expect(result.current).toMatchObject({
-                disabled: false,
-                isLoading: false,
+                disabled: state === 'unknown',
+                isLoading: state === 'unknown',
                 isError: false,
                 refusal: undefined,
             });

@@ -7,10 +7,16 @@ import {
     type OrganizationAgentIdentitySettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { lightdashApi } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
+import {
+    hasAgentIdentityHint,
+    updateAgentIdentityHint,
+} from './agentIdentityHint';
 
 const aiAccessUrl = (
     projectUuid: string,
@@ -63,7 +69,13 @@ export const useMyAiAccess = (
     project: string | undefined,
     connection: string | null = null,
 ) => {
+    const { user } = useApp();
+    const organizationUuid = user.data?.organizationUuid;
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const flagEnabled = flag?.enabled;
+    useEffect(() => {
+        updateAgentIdentityHint(organizationUuid, flagEnabled);
+    }, [organizationUuid, flagEnabled]);
     const query = useAccessQuery(
         project ?? '',
         connection,
@@ -75,7 +87,13 @@ export const useMyAiAccess = (
         ...query,
         data: flag?.enabled === true ? query.data : undefined,
         isError: !!project && flag?.enabled === true && query.isError,
-        isLoading: !!project && flag?.enabled === true && query.isLoading,
+        isFetching: !!project && flagEnabled === true && query.isFetching,
+        isLoading:
+            !!project &&
+            (flagEnabled === true
+                ? query.isLoading
+                : flagEnabled === undefined &&
+                  hasAgentIdentityHint(organizationUuid)),
     };
 };
 export const useOrganizationAgentIdentitySettings = () => {

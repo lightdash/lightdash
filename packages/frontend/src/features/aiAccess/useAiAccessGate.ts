@@ -1,7 +1,14 @@
 import { useMyAiAccess } from './api';
 
 export const useAiAccessGate = (projectUuid: string | undefined) => {
-    const { data, isLoading, isError, refetch } = useMyAiAccess(projectUuid);
+    const {
+        data,
+        isLoading: isInitialLoading,
+        isFetching,
+        isError,
+        refetch,
+    } = useMyAiAccess(projectUuid);
+    const isLoading = isInitialLoading || isFetching;
     const refusal = data?.refusal;
     return {
         refusal,
