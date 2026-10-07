@@ -39,6 +39,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
     const {
         editing,
+        isSidebarOpen,
         isNew,
         open,
         removeFilterById,
@@ -169,7 +170,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                         : '',
                                 ].join(' ')}
                                 rightSection={
-                                    editing === null && (
+                                    !isSidebarOpen && (
                                         <Group gap={2} wrap="nowrap">
                                             {tabKey && (
                                                 <Box

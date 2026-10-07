@@ -22,10 +22,10 @@ export const getRequiredIneligibilityReason = (
     tabUuids: string[],
 ): string | null => {
     if (isLockedOnEveryTab(rule, tabUuids)) {
-        return 'Locked or hidden on every tab, so viewers could not set it';
+        return 'it is locked or hidden on every tab';
     }
     if (!isRuleRequired(rule) && !isValuelessDashboardFilterRule(rule)) {
-        return 'Has a default value, so the rule would always be satisfied';
+        return 'it has a default value';
     }
     return null;
 };

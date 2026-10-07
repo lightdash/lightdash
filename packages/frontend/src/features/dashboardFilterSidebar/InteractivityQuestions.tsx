@@ -325,11 +325,12 @@ export const InteractivityQuestions: FC<Props> = ({
             : 'Required'
         : requiredReason === null
           ? 'Not required'
-          : `Cannot be required: ${requiredReason}`;
+          : `Cannot be required while ${requiredReason}`;
     const requiredSub = isRequired
         ? 'Viewers must set this filter to load the dashboard.'
-        : (requiredReason ??
-          'Viewers would have to set it before the charts load');
+        : requiredReason === null
+          ? 'Viewers would have to set it before the charts load'
+          : 'Remove the default value to require it';
 
     // Pick
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;

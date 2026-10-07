@@ -12,6 +12,8 @@ seam in `features/dashboardTabs/index.tsx`.
 
 ## Sidebar
 
+- `EditorShell` is the one chrome for `FilterSidebar` and `ParameterSidebar`: header (Back for drafts, title, reach line, More actions menu, Cancel), an `aboveTabs` slot for the label, tabs with counts, body, right-aligned footer. Add chrome there, not in either sidebar.
+
 - `FilterSidebarPage` is a drop-in for `components/common/Page/Page`. It wraps
   the page in `FilterSidebarProvider` and always passes `FilterSidebar` as the
   left `sidebar`, toggling only `isSidebarOpen`, so the dashboard grid never
@@ -32,8 +34,8 @@ seam in `features/dashboardTabs/index.tsx`.
 - A `ParameterControl` (`parameterControls.ts`) overrides N dashboard parameters of one kind (`ParameterKind`: string, number or date; never boolean). "Add" lists free parameters next to fields in `FieldPicker`; ticking parameters and pressing Continue calls `addControl` with a fresh uuid, an empty label, the kind of the first key, the keys and empty `tileTargets`. Fields and parameters are exclusive in one pick.
 - Saved: only the values, written through the dashboard's parameter values (`getControlValue` reads the first key). A dashboard saved today loads one control per saved value (`getControlsFromSavedValues`).
 - Session-only until a saved shape exists: the control itself (id, label, which keys it groups), its chart targeting (`tileTargets[tileUuid]` holds the key that sets the chart, or `false` to skip it; a missing entry falls back to the first key the chart references), hidden tabs (`hiddenTabUuids`) and placement (`bar` or `more`). The sidebar marks these "Not saved".
-- The control's Charts tab is the same card as a filter's: one `FieldRow` per key with `getKeyCount`, All / None / Remove through `applyKeyToAll`, `clearKeyFromAll` and `removeKey`; the tile overlay offers "+ Use {key}" / "Switch to {key}" through `setControlTileKey`. Counts come from `getControlCount`, `getControlTabCounts` and `getControlTabCountsForKey`.
-- `getFreeParameterKeys` lists the keys of a kind referenced by a tile and not yet taken by a control; `getControlTiles`, `getControlTileKey` and `doesControlApplyToTile` resolve targeting from `tileParameterReferences`.
+- The control's "Parameters and charts" tab is the same card as a filter's: one `FieldRow` per key with `getKeyCount`, All / None / Remove through `applyKeyToAll`, `clearKeyFromAll` and `removeKey`; the tile overlay offers "+ Use {key}" / "Switch to {key}" through `setControlTileKey`. Counts come from `getControlCount`, `getControlTabCounts` and `getControlTabCountsForKey`.
+- `getFreeParameterKeys` lists the keys of a kind referenced by a tile and not yet taken by a control; `getControlTileKey` and `doesControlApplyToTile` resolve targeting from `tileParameterReferences`.
 - `parameterSources.ts` resolves each tile's source and value with the shipped `getDashboardTileParameterSource` and `getDashboardTileParameterOverrides`, using `tileChartSavedParameters`; a referenced key with no value anywhere is `none` ("needs a value").
 
 ## Peer fields on today's saved shape

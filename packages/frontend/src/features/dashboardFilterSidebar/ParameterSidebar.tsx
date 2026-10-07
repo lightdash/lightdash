@@ -99,7 +99,7 @@ export const ParameterSidebar: FC = () => {
     return (
         <EditorShell
             title={control.label || 'New control'}
-            subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} charts${tabReach}`}
+            subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} ${count.possible === 1 ? 'chart' : 'charts'}${tabReach}`}
             onBack={isNew ? cancelControl : undefined}
             menu={
                 isNew ? null : (
@@ -155,8 +155,16 @@ export const ParameterSidebar: FC = () => {
             }
         >
             {section === 'charts' ? (
-                <Stack gap="md">
+                <Stack gap="lg">
                     <Stack gap="xs">
+                        <Stack gap={2}>
+                            <Text fz="sm" fw={600}>
+                                Parameters in this control
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                Choose which parameter each chart is set by.
+                            </Text>
+                        </Stack>
                         {control.parameterKeys.map((key) => {
                             const keyCountFor = getKeyCount(
                                 control,
@@ -275,9 +283,6 @@ export const ParameterSidebar: FC = () => {
                             />
                         )}
                     </Stack>
-                    <Text fz="xs" c="dimmed">
-                        Choose which parameter each chart is set by.
-                    </Text>
                 </Stack>
             ) : (
                 <Stack gap="md">
@@ -297,15 +302,6 @@ export const ParameterSidebar: FC = () => {
                                     projectUuid={projectUuid}
                                 />
                             )}
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                onClick={() =>
-                                    setControlValue(control.id, null)
-                                }
-                            >
-                                Clear
-                            </Button>
                         </Stack>
                     </Paper>
                     <ControlInteractivity controlId={control.id} />

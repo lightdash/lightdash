@@ -40,6 +40,7 @@ const ControlPill: FC<{
 }> = ({ control, isEditMode }) => {
     const {
         editingControlId,
+        isSidebarOpen,
         openControl,
         removeControl,
         cancelControl,
@@ -52,12 +53,14 @@ const ControlPill: FC<{
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const [opened, setOpened] = useState(false);
 
-    const value = formatValue(getControlValue(control, parameterValues));
     const isDraft = control.label === '';
     const label = isDraft ? 'New control' : control.label;
     const [firstKey] = control.parameterKeys;
     const definition =
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];
+    const value = formatValue(
+        getControlValue(control, parameterValues) ?? definition?.default,
+    );
     const isSelected = editingControlId === control.id;
 
     const button = (
@@ -71,7 +74,8 @@ const ControlPill: FC<{
                 isSelected ? classes.selectedPill : '',
             ].join(' ')}
             rightSection={
-                isEditMode && (
+                isEditMode &&
+                !isSidebarOpen && (
                     <Group gap={2} wrap="nowrap">
                         <Tooltip
                             fz="xs"

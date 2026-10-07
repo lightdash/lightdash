@@ -104,7 +104,7 @@ describe('requirements', () => {
                 rule('a', { lockedTabUuids: ['t1', 't2'] }),
                 ['t1', 't2'],
             ),
-        ).toMatch(/Locked or hidden on every tab/);
+        ).toMatch(/locked or hidden on every tab/);
         expect(
             getRequiredIneligibilityReason(
                 rule('a', { lockedTabUuids: ['t1'] }),

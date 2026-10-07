@@ -4,6 +4,6 @@ import { useFilterSidebar } from './useFilterSidebar';
 
 // Hidden while a filter is open so the sidebar is the only writer of its rules
 export const RequirementsButton: FC = () => {
-    const { editing } = useFilterSidebar();
-    return editing === null ? <FilterRequirementsButton /> : null;
+    const { isSidebarOpen } = useFilterSidebar();
+    return !isSidebarOpen ? <FilterRequirementsButton /> : null;
 };
