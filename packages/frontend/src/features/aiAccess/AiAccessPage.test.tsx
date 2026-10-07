@@ -12,6 +12,7 @@ const policyQuery = vi.fn();
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useParams: () => ({ projectUuid: 'project' }),
+    Navigate: ({ to }: { to: string }) => <div>redirect to {to}</div>,
 }));
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({
@@ -81,11 +82,11 @@ describe('Agent identity page', () => {
         warehouseType = WarehouseTypes.POSTGRES;
         enabled = true;
     });
-    it('shows the Snowflake-only state for Postgres without loading the policy', () => {
+    it('leaves the page for a Postgres project without loading the policy', () => {
         renderWithProviders(<AiAccessPage />);
         expect(
             screen.getByText(
-                'Agent identity is available for Snowflake projects.',
+                'redirect to /generalSettings/projectManagement/project',
             ),
         ).toBeInTheDocument();
         expect(policyQuery).not.toHaveBeenCalled();

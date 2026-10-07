@@ -15,7 +15,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useState, type ReactNode } from 'react';
-import { useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
@@ -222,7 +222,10 @@ export const AiAccessPage = () => {
         );
     if (project.data.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE)
         return (
-            <SuboptimalState title="Agent identity is available for Snowflake projects." />
+            <Navigate
+                to={`/generalSettings/projectManagement/${project.data.projectUuid}`}
+                replace
+            />
         );
     return (
         <ProjectAccess
