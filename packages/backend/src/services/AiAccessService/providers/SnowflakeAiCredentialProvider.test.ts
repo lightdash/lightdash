@@ -195,6 +195,17 @@ describe('SnowflakeAiCredentialProvider', () => {
         });
         expect(UserService.generateSnowflakeAccessToken).not.toHaveBeenCalled();
     });
+    test('requires sign-in again when the agent token cannot be refreshed', async () => {
+        const { provider, model } = setup();
+        vi.mocked(UserService.generateSnowflakeAccessToken).mockRejectedValue(
+            new Error('invalid_grant'),
+        );
+        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
+        });
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+        expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
+    });
     test.each(['old-refresh-token', 'new-refresh-token'])(
         'refreshes with AI purpose and rotates only changed tokens: %s',
         async (refreshToken) => {
@@ -267,26 +278,6 @@ describe('SnowflakeAiCredentialProvider', () => {
                 reason: AiSessionFailureReason.NOT_AGENT_SESSION,
                 transient: false,
                 message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
-            });
-            expect(JSON.stringify(result)).not.toContain('access-token');
-        },
-    );
-    test.each([null, '', ' '])(
-        'requires a restricted scope when requested: %s',
-        async (scope) => {
-            const { provider } = setup();
-            vi.mocked(checkSnowflakeAgentSessionWithToken).mockResolvedValue({
-                agentActivated: true,
-                currentRole: 'role',
-                activeRestrictedSessionScopes: scope,
-            });
-            const result = await provider.probe(connection, [
-                { kind: 'restricted_session_scope_active' },
-            ]);
-            expect(result).toMatchObject({
-                ok: false,
-                reason: AiSessionFailureReason.NO_RESTRICTED_SESSION_SCOPE,
-                transient: false,
             });
             expect(JSON.stringify(result)).not.toContain('access-token');
         },

@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DimensionType,
     FeatureFlags,
@@ -231,6 +233,24 @@ const completedEvent = (analytics: { track: ReturnType<typeof vi.fn> }) =>
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
 describe('DataAppAnalysisService.detect', () => {
+    it('refuses saved rows when the agent is disconnected', async () => {
+        const { service, aiAccessService, asyncQueryService, aiService } =
+            buildService();
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        aiAccessService.getAiAccessForUser.mockResolvedValue({
+            enabled: true,
+            refusal: error.refusal,
+        });
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ refusal: error.refusal });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
     it('reads saved rows for a connected person', async () => {
         const { service, aiAccessService, asyncQueryService, aiService } =
             buildService();

@@ -1,5 +1,4 @@
 import {
-    AiAccessRefusalReason,
     AiAccessRefusedError,
     assertRegisteredAccount,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
@@ -565,11 +564,17 @@ export class DataAppAnalysisService extends BaseService {
                         'unsupported_context',
                     );
                 }
-                await this.getQueryAiAccess(
+                const access = await this.getQueryAiAccess(
                     account,
                     projectUuid,
                     history.warehouseConnectionUuid ?? null,
                 );
+                if (access.refusal) {
+                    throw new AiAccessRefusedError(
+                        access.refusal.reason,
+                        access.refusal,
+                    );
+                }
                 const { rows, fields, truncated, displayTimezone } =
                     await this.asyncQueryService
                         .getRawAsyncQueryResults({

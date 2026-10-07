@@ -48,6 +48,8 @@ export const snowflakeAiPassportStrategy = !(
                   lightdashConfig.siteUrl,
               ).href,
               passReqToCallback: true,
+              state: true,
+              sessionKey: 'oauth2:snowflake-ai',
           },
           async (
               req: Express.Request,

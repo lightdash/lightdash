@@ -190,8 +190,9 @@ standard resolver without a custom handler. Use organization overrides for Cloud
 rollouts; standard user overrides also apply. Self-hosted instances can use the
 generic ENV lists and precedence described above.
 
-This flag enables the personal settings section and legacy AI credential
-selection for Snowflake AI and MCP queries. The sign-in routes also accept
+This flag enables the personal settings section and agentic Snowflake sign-in.
+AI credential selection requires `ai-principals` and the organisation's
+"Require agent identity" switch. The sign-in routes also accept
 `ai-principals`, as described below. The deployment
 also needs an Enterprise license and a second Snowflake OAuth security integration
 with `IS_AGENTIC = TRUE`. Configure its OAuth endpoints and client credentials in
@@ -205,9 +206,10 @@ client cache entries.
 
 Console changes apply to the next backend flag resolution. Reload or refetch the
 settings page to update the UI. ENV and OAuth configuration changes need a process
-restart. Disabling the flag preserves saved credentials and restores the existing
-credential-selection path; it does not cancel queries already in progress or
-revoke Snowflake tokens. This flag does not enforce AI access restrictions.
+restart. Disabling this flag preserves saved credentials; `ai-principals` and the
+organisation setting still control credential selection. It does not cancel
+queries already in progress or revoke Snowflake tokens. This flag does not
+enforce AI access restrictions.
 
 ## Agent identity
 

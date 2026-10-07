@@ -3348,7 +3348,7 @@ describe('getRunQuery structured content', () => {
 
 it('preserves the refusal envelope when a visualization query is refused', async () => {
     const error = new AiAccessRefusedError(
-        AiAccessRefusalReason.PRINCIPAL_PENDING,
+        AiAccessRefusalReason.PRINCIPAL_FAILED,
     );
     const output = await executeTool(vi.fn().mockRejectedValue(error));
     expect(output.result).toBe(error.message);

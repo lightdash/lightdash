@@ -497,9 +497,12 @@ describe('AiAccessService', () => {
         async (settingsUrl) => {
             const { service, provider } = setup();
             provider.missingPrerequisite.mockRejectedValue(
-                new AiAccessRefusedError(AiAccessRefusalReason.NO_POLICY, {
-                    settingsUrl,
-                }),
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.PRINCIPAL_FAILED,
+                    {
+                        settingsUrl,
+                    },
+                ),
             );
             expect(
                 await service.getAiAccessForUser({

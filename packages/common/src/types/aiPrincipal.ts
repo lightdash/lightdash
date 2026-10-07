@@ -25,7 +25,6 @@ export type AiAgentMarker = {
 export type AiAssurance =
     | { kind: 'agent_session_active' }
     | { kind: 'agent_marker'; level: AiAgentMarkerLevel }
-    | { kind: 'restricted_session_scope_active' }
     | { kind: 'result_cache_off' };
 
 export type AiWarehouseCapabilities = {
@@ -69,12 +68,8 @@ export type ApiAiMarkerTestResponse = {
 export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 
 export enum AiAccessRefusalReason {
-    NO_POLICY = 'no_policy',
-    PRINCIPAL_PENDING = 'principal_pending',
     PRINCIPAL_FAILED = 'principal_failed',
     NEEDS_SIGN_IN = 'needs_sign_in',
-    NO_GROUP_MAPPING = 'no_group_mapping',
-    TRANSPORT_UNAVAILABLE = 'transport_unavailable',
     WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
     SERVICE_ACCOUNT = 'service_account',
     EMBED_NOT_SUPPORTED = 'embed_not_supported',
@@ -99,18 +94,10 @@ export const getAiAccessRefusalMessage = (
     reason: AiAccessRefusalReason,
 ): string => {
     switch (reason) {
-        case AiAccessRefusalReason.NO_POLICY:
-            return 'AI access is on for this connection, but no AI principal is set up. Ask an admin to set one up.';
-        case AiAccessRefusalReason.PRINCIPAL_PENDING:
-            return 'Your AI principal is not ready yet. Ask an admin to finish the setup in the warehouse.';
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
             return 'The last check of your AI principal failed. Ask an admin to review it.';
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return 'Connect your agent to the warehouse once so it can run as you.';
-        case AiAccessRefusalReason.NO_GROUP_MAPPING:
-            return 'None of your groups has an AI principal. Ask an admin to map your group.';
-        case AiAccessRefusalReason.TRANSPORT_UNAVAILABLE:
-            return 'The procedure that AI queries go through is not available. Ask an admin to check it.';
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
             return 'AI principals are not available for this warehouse yet.';
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
@@ -130,11 +117,7 @@ export const getAiAccessRefusalAction = (
     switch (reason) {
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return AiAccessRefusalAction.SIGN_IN;
-        case AiAccessRefusalReason.NO_POLICY:
-        case AiAccessRefusalReason.PRINCIPAL_PENDING:
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
-        case AiAccessRefusalReason.NO_GROUP_MAPPING:
-        case AiAccessRefusalReason.TRANSPORT_UNAVAILABLE:
             return AiAccessRefusalAction.ASK_ADMIN;
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:

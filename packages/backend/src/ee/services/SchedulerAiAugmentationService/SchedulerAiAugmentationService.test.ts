@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     QueryExecutionContext,
     type SendNowScheduler,
 } from '@lightdash/common';
@@ -85,6 +87,29 @@ const deliveryQueries = [{ chartName: 'Chart', queryUuid: 'query' }];
 
 describe('SchedulerAiAugmentationService AI access', () => {
     afterEach(() => vi.restoreAllMocks());
+    test('refuses saved delivery results when the agent is disconnected', async () => {
+        const { service, aiAccessService, asyncQueryService, aiService } =
+            setup(true);
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        aiAccessService.getAiAccessForUser.mockResolvedValue({
+            enabled: true,
+            identity: 'connected_person',
+            refusal: error.refusal,
+        });
+        await expect(
+            service.runForDelivery({
+                scheduler,
+                createdBy: 'user',
+                deliveryQueries,
+            }),
+        ).rejects.toMatchObject({ refusal: error.refusal });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
+    });
     test('uses the AI context when fresh delivery queries are needed', async () => {
         const { service, asyncQueryService } = setup(false);
         await service.runForDelivery({ scheduler, createdBy: 'user' });

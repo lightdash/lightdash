@@ -18,7 +18,6 @@ export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
 export enum AiSessionFailureReason {
     CREDENTIAL_REJECTED = 'credential_rejected',
     NOT_AGENT_SESSION = 'not_agent_session',
-    NO_RESTRICTED_SESSION_SCOPE = 'no_restricted_session_scope',
     WAREHOUSE_ACCESS = 'warehouse_access',
     DISABLED_OR_LOCKED = 'disabled_or_locked',
     NETWORK_POLICY = 'network_policy',

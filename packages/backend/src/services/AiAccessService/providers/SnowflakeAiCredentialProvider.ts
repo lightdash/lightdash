@@ -82,7 +82,11 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             await UserService.generateSnowflakeAccessToken(
                 merged.refreshToken,
                 UserWarehouseCredentialPurpose.AI,
-            );
+            ).catch(() => {
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                );
+            });
         if (refreshToken !== merged.refreshToken)
             await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
                 credential.uuid,
@@ -113,7 +117,6 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             switch (assurance.kind) {
                 case 'agent_session_active':
                 case 'result_cache_off':
-                case 'restricted_session_scope_active':
                     break;
                 case 'agent_marker':
                     throw new UnexpectedServerError(
@@ -196,19 +199,6 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     checkedAt: new Date(),
                     reason: AiSessionFailureReason.NOT_AGENT_SESSION,
                     message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
-                    observed,
-                };
-            if (
-                assurance.kind === 'restricted_session_scope_active' &&
-                !session.activeRestrictedSessionScopes?.trim()
-            )
-                return {
-                    ok: false,
-                    transient: false,
-                    checkedAt: new Date(),
-                    reason: AiSessionFailureReason.NO_RESTRICTED_SESSION_SCOPE,
-                    message:
-                        'The Snowflake AI session has no active restricted session scope.',
                     observed,
                 };
         }

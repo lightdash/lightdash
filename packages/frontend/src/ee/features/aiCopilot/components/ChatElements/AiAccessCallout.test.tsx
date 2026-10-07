@@ -153,19 +153,13 @@ describe('AI access callout', () => {
         ).toBeEnabled();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
-    it('links project managers to settings', () => {
+    it('links organization managers to warehouse credential settings', () => {
         mocks.can.mockReturnValue(true);
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
             screen.getByRole('link', { name: 'Review agent identity' }),
-        ).toHaveAttribute(
-            'href',
-            '/generalSettings/projectManagement/project/settings',
-        );
-        expect(mocks.can).toHaveBeenCalledWith(
-            'manage',
-            expect.objectContaining({ projectUuid: 'project' }),
-        );
+        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        expect(mocks.can).toHaveBeenCalledWith('manage', 'Organization');
     });
     it('does not link other users to settings', () => {
         render(AiAccessRefusalAction.ASK_ADMIN);

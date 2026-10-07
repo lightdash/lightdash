@@ -81,6 +81,54 @@ const callVerify = async (
 };
 
 describe('Snowflake AI OAuth callback', () => {
+    it('exchanges a code only once for state issued to the same session', async () => {
+        const strategy = Object.create(snowflakeAiPassportStrategy!);
+        const exchange = vi.fn();
+        strategy._oauth2 = {
+            ...strategy._oauth2,
+            getOAuthAccessToken: exchange,
+        };
+        strategy.fail = vi.fn();
+        strategy.error = vi.fn();
+        const session = {};
+        const redirectUrl = await new Promise<string>((resolve) => {
+            strategy.redirect = resolve;
+            strategy.authenticate({ query: {}, session });
+        });
+        const state = new URL(redirectUrl).searchParams.get('state');
+        expect(state).toEqual(expect.any(String));
+        const query = { code: 'authorized-code', state };
+        strategy.authenticate({ query, session: {} });
+        expect(exchange).not.toHaveBeenCalled();
+        strategy.authenticate({ query, session });
+        expect(exchange).toHaveBeenCalledOnce();
+        strategy.authenticate({ query, session });
+        expect(exchange).toHaveBeenCalledOnce();
+        expect(strategy.fail).toHaveBeenCalledTimes(2);
+        expect(strategy.error).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, 'unrelated-state'])(
+        'rejects an unsolicited callback with state %s before exchanging the code',
+        (state) => {
+            const strategy = Object.create(snowflakeAiPassportStrategy!);
+            const exchange = vi.fn();
+            strategy._oauth2 = {
+                ...strategy._oauth2,
+                getOAuthAccessToken: exchange,
+            };
+            strategy.fail = vi.fn();
+            strategy.error = vi.fn();
+            strategy.authenticate({
+                query: { code: 'unsolicited-code', state },
+                session: {},
+            });
+            expect(exchange).not.toHaveBeenCalled();
+            expect(strategy.fail).toHaveBeenCalledWith(expect.anything(), 403);
+            expect(strategy.error).not.toHaveBeenCalled();
+        },
+    );
+
     it('refuses while the organization flag is off', async () => {
         const result = await callVerify(false, 'refresh-token');
         expect(result.done.mock.calls[0]?.[0]).toMatchObject({

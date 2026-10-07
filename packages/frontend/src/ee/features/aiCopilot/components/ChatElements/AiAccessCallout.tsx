@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import { AiAccessRefusalAction, type AiAccessRefusal } from '@lightdash/common';
 import {
     Anchor,
@@ -13,7 +12,6 @@ import { IconShieldCheck } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useProject } from '../../../../../hooks/useProject';
 import { useSnowflakeAiLoginPopup } from '../../../../../hooks/useSnowflake';
 import useApp from '../../../../../providers/App/useApp';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -27,13 +25,10 @@ export const AiAccessCallout = ({
     variant?: 'card' | 'inline';
 }) => {
     const { user } = useApp();
-    const { data: project } = useProject(projectUuid);
     const login = useSnowflakeAiLoginPopup();
     const client = useQueryClient();
     const t = useUiStrings();
-    const canUpdate =
-        project &&
-        user.data?.ability.can('manage', subject('Project', project));
+    const canUpdate = user.data?.ability.can('manage', 'Organization');
     const requiresSignIn = refusal.action === AiAccessRefusalAction.SIGN_IN;
     return (
         <Paper p="md" mb="md">
@@ -81,7 +76,7 @@ export const AiAccessCallout = ({
                         canUpdate && (
                             <Anchor
                                 component={Link}
-                                to={`/generalSettings/projectManagement/${projectUuid}/settings`}
+                                to="/generalSettings/warehouseCredentials"
                                 size="sm"
                             >
                                 {t('aiAccess.settings')}

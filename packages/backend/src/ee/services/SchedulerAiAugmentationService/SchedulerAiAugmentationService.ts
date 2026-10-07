@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusedError,
     assertUnreachable,
     ForbiddenError,
     hasAiAgentAccessToSpace,
@@ -243,9 +244,19 @@ export class SchedulerAiAugmentationService extends BaseService {
         );
         if (connections.size === 0) connections.add(null);
         await Promise.all(
-            [...connections].map((connection) =>
-                this.getQueryAiAccess(account, projectUuid, connection),
-            ),
+            [...connections].map(async (connection) => {
+                const access = await this.getQueryAiAccess(
+                    account,
+                    projectUuid,
+                    connection,
+                );
+                if (access.refusal) {
+                    throw new AiAccessRefusedError(
+                        access.refusal.reason,
+                        access.refusal,
+                    );
+                }
+            }),
         );
         switch (augmentation.type) {
             case 'agent':
