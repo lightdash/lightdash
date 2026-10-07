@@ -34,6 +34,7 @@ const visibleAgent: AiAgent = {
     enableSqlMode: true,
     adminOnly: false,
     modelConfig: null,
+    providerCredentialUuid: null,
     version: 1,
     threadRetentionHours: null,
 };

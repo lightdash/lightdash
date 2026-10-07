@@ -908,6 +908,112 @@ describe('pinning a project to a credential', () => {
     });
 });
 
+describe('validating an agent credential pin', () => {
+    const credential = {
+        uuid: 'cred-1',
+        organizationUuid: 'org-uuid',
+        provider: 'bedrock' as const,
+        label: 'Japan (Tokyo)',
+        isDefault: false,
+        config: {
+            apiKey: 'key',
+            region: 'ap-northeast-1',
+            allowedModels: ['claude-sonnet-4-5'],
+        },
+    };
+
+    const buildService = ({
+        resolution = { status: 'ok' as const, credential },
+        customProvidersEnabled = true,
+    } = {}) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {},
+            aiOrganizationProviderCredentialModel: {
+                findDecrypted: async () => resolution,
+            },
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {},
+            featureFlagModel: {
+                get: async () => ({ enabled: customProvidersEnabled }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+
+    // A pin saved while the flag is off would be inert at best and rerouted
+    // at worst, so the write is refused outright.
+    it('rejects a pin while custom providers are disabled', async () => {
+        await expect(
+            buildService({
+                customProvidersEnabled: false,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/not enabled/);
+    });
+
+    it('accepts a readable credential when the agent pins no model', async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                null,
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a credential that does not exist', async () => {
+        await expect(
+            buildService({
+                resolution: { status: 'none' } as never,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/not found/);
+    });
+
+    // Caught at save time, not at the agent's first prompt, which would
+    // otherwise fail with no obvious cause.
+    it('rejects an unreadable credential', async () => {
+        await expect(
+            buildService({
+                resolution: {
+                    status: 'unreadable',
+                    uuid: 'cred-1',
+                    label: 'Japan (Tokyo)',
+                } as never,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/cannot be read/);
+    });
+
+    it("rejects a model from another provider than the credential's", async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'gpt-5.4', modelProvider: 'openai' },
+            ),
+        ).rejects.toThrow(/bedrock/);
+    });
+
+    it("rejects a model outside the credential's allowed models", async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'claude-opus-4-8', modelProvider: 'bedrock' },
+            ),
+        ).rejects.toThrow(/not in the allowed models/);
+    });
+
+    it('accepts a model the credential can serve', async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'claude-sonnet-4-5', modelProvider: 'bedrock' },
+            ),
+        ).resolves.toBeUndefined();
+    });
+});
+
 describe('legacy Bedrock adoption', () => {
     const LEGACY_BEDROCK = {
         apiKey: 'ABSKlegacy-key',

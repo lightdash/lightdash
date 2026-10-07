@@ -150,7 +150,9 @@ const makeService = () =>
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         aiAgentReviewClassifierModel: {} as never,
-        aiAgentModel: {} as never,
+        aiAgentModel: {
+            findProviderCredentialUuid: vi.fn(async () => null),
+        } as never,
         aiAgentDocumentModel: { findAllForAgent: vi.fn() },
         aiOrganizationSettingsModel: {} as never,
         orgAiCopilotConfigResolver: {

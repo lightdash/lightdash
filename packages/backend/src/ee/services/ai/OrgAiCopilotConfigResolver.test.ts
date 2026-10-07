@@ -749,6 +749,23 @@ describe('OrgAiCopilotConfigResolver', () => {
                     }),
                 ).rejects.toThrow(/cannot be read/);
             });
+
+            // Pin writes are rejected while the flag is off, so this state
+            // means the flag was turned off after the pin was saved. The pin
+            // must not silently reroute to the instance provider's region.
+            it('fails closed when custom providers are disabled for a pinned agent', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        explicitCredential: credential(),
+                        customProvidersEnabled: false,
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: null,
+                        credentialUuid: 'cred-tokyo',
+                    }),
+                ).rejects.toThrow(/custom AI providers are not enabled/i);
+            });
         });
 
         // The repair screen must load while the credential is broken, or the

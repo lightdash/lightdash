@@ -1665,9 +1665,13 @@ export class AiAgentReviewClassifierService extends BaseService {
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
         // Run the judge on the org's own key when they have a BYO Anthropic key
         // that can serve the review model — never fall back to the instance
-        // provider for their turn data.
+        // provider for their turn data. A pinned agent judges on its pinned
+        // credential, keeping turn data inside the pinned region.
         const { model } = await resolveReviewJudgeModel({
             organizationUuid: candidate.subject.organizationUuid,
+            credentialUuid: await this.aiAgentModel.findProviderCredentialUuid(
+                candidate.subject.agentUuid,
+            ),
             orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
             instanceCopilotConfig: this.lightdashConfig.ai.copilot,
         });

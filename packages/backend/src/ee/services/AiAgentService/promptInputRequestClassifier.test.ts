@@ -39,6 +39,7 @@ const context = {
     organizationUuid: 'organization-uuid',
     projectUuid: 'project-uuid',
     agentUuid: 'agent-uuid',
+    credentialUuid: null,
     threadUuid: 'thread-uuid',
     promptUuid: 'prompt-uuid',
 };
@@ -172,6 +173,45 @@ describe('prompt input request classifier', () => {
             model: 'claude-haiku-4-5',
             confidence: 0.92,
         });
+    });
+
+    // A pinned agent's response must be judged on its pinned credential, not
+    // the org-level judge availability (which could route to the instance).
+    it('judges a pinned agent on its pinned credential', async () => {
+        generateTextMock.mockResolvedValue({
+            output: { needsUserInput: true, confidence: 0.9 },
+            usage: {},
+        } as never);
+        const pinnedConfig = { defaultProvider: 'bedrock', providers: {} };
+        orgAiCopilotConfigResolver.getCopilotConfig.mockResolvedValue(
+            pinnedConfig as never,
+        );
+
+        await classifyPromptInputRequest({
+            ...context,
+            credentialUuid: 'cred-tokyo',
+            response: 'Which project did you mean?',
+            orgAiCopilotConfigResolver,
+            instanceCopilotConfig: lightdashConfigMock.ai.copilot,
+        });
+
+        expect(
+            orgAiCopilotConfigResolver.getReviewJudgeAvailability,
+        ).not.toHaveBeenCalled();
+        expect(
+            orgAiCopilotConfigResolver.getCopilotConfig,
+        ).toHaveBeenCalledWith({
+            organizationUuid: context.organizationUuid,
+            projectUuid: null,
+            credentialUuid: 'cred-tokyo',
+        });
+        expect(getModelMock).toHaveBeenCalledWith(
+            pinnedConfig,
+            expect.objectContaining({
+                provider: 'bedrock',
+                useFastModel: true,
+            }),
+        );
     });
 
     it('rejects output outside the strict schema', async () => {

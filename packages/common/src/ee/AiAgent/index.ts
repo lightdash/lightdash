@@ -173,6 +173,9 @@ export const baseAgentSchema = z.object({
     enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
+    // AI provider credential this agent's prompts run on. Null means the
+    // project or organization selection applies.
+    providerCredentialUuid: z.string().nullable(),
     version: z.number(),
     threadRetentionHours: z
         .number()
@@ -208,6 +211,7 @@ export type AiAgent = Pick<
     | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
+    | 'providerCredentialUuid'
     | 'version'
     | 'threadRetentionHours'
 >;
@@ -236,6 +240,7 @@ export type AiAgentSummary = Pick<
     | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
+    | 'providerCredentialUuid'
     | 'version'
     | 'threadRetentionHours'
 >;
@@ -654,6 +659,7 @@ export type ApiCreateAiAgent = Pick<
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
+    providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
 };
 
@@ -682,6 +688,8 @@ export type ApiUpdateAiAgent = Partial<
     uuid: string;
     enableSqlMode?: boolean;
     mcpServerUuids?: string[];
+    // Omitted keeps the current pin; null clears it.
+    providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
 };
 
