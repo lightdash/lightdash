@@ -126,6 +126,7 @@ export const agentRequestsMetrics: SystemMetricDefinition[] = [
         ['pending_requests', 'pending'],
     ].map(([name, status]) => ({
         name,
+        description: `Captured prompts whose latest observed state is ${status}. Each prompt counts once, regardless of its number of lifecycle events or retries.`,
         type: MetricType.COUNT,
         column: 'prompt_id',
         filters: [
@@ -144,15 +145,31 @@ export const agentRequestsMetrics: SystemMetricDefinition[] = [
         type: MetricType.AVERAGE,
         column: 'request_latency_ms',
     },
-    { name: 'total_retries', type: MetricType.SUM, column: 'retry_count' },
+    {
+        name: 'total_retries',
+        description:
+            'Captured retry starts across prompts. A prompt can be retried more than once.',
+        type: MetricType.SUM,
+        column: 'retry_count',
+    },
     {
         name: 'total_retry_overhead_ms',
+        description:
+            'Total milliseconds spent on failed attempts followed by a captured retry. Excludes waiting time between attempts.',
         type: MetricType.SUM,
         column: 'retry_overhead_ms',
     },
-    { name: 'total_ai_calls', type: MetricType.SUM, column: 'ai_call_count' },
+    {
+        name: 'total_ai_calls',
+        description:
+            'Captured AI model calls linked to the selected prompts. One prompt can require several calls; calls without a matching captured prompt are excluded.',
+        type: MetricType.SUM,
+        column: 'ai_call_count',
+    },
     {
         name: 'total_request_tokens',
+        description:
+            'Sum of reported token totals from model calls linked to the selected prompts. Missing token usage is not estimated; tokens are not monetary cost.',
         type: MetricType.SUM,
         column: 'total_tokens',
     },

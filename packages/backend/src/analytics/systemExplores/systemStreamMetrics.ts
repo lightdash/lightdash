@@ -141,7 +141,8 @@ export const systemStreamMetrics: Record<
         },
         {
             name: 'unique_viewers',
-            description: 'Distinct users with a data app view event',
+            description:
+                'Distinct recorded user IDs with an app HTML load. Includes previews and reloads; embedded loads may identify the token issuer. Use Data app reach for viewer counts excluding known embeds.',
             type: MetricType.COUNT_DISTINCT,
             column: 'user_id',
             filters: [
@@ -194,13 +195,15 @@ export const systemStreamMetrics: Record<
         },
         {
             name: 'total_queries',
-            description: 'Total number of queries executed',
+            description:
+                'Recorded completed query attempts, including cache hits and execution errors. Excludes preview projects and failures before execution; duplicate event delivery can count again.',
             type: MetricType.COUNT,
             column: 'query_id',
         },
         {
             name: 'unique_users',
-            description: 'Number of distinct users',
+            description:
+                'Distinct recorded user identifiers with query outcomes, including service accounts. Missing identifiers are excluded; do not sum distinct counts across groups.',
             type: MetricType.COUNT_DISTINCT,
             column: 'user_id',
         },
@@ -222,19 +225,22 @@ export const systemStreamMetrics: Record<
     ai_usage: [
         {
             name: 'total_ai_calls',
-            description: 'Total number of AI model calls',
+            description:
+                'Recorded AI model calls across the selected features and channels. One Ask AI prompt can generate several calls; use Agent requests to count questions.',
             type: MetricType.COUNT,
             column: 'event_name',
         },
         {
             name: 'unique_users',
-            description: 'Number of distinct users',
+            description:
+                'Distinct recorded user identifiers associated with AI model calls. Missing identifiers are excluded; this is not necessarily the number of Ask AI users.',
             type: MetricType.COUNT_DISTINCT,
             column: 'user_id',
         },
         {
             name: 'total_tokens_used',
-            description: 'Total tokens used across all AI model calls',
+            description:
+                'Sum of reported token totals across AI model calls. Missing usage is not estimated; tokens are not monetary cost and provider token categories may overlap.',
             type: MetricType.SUM,
             column: 'total_tokens',
         },

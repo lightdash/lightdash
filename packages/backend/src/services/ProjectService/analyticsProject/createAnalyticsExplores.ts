@@ -44,6 +44,10 @@ import {
     dataAppReachSql,
 } from '../../../analytics/systemExplores/dataAppReach';
 import {
+    analyticsTableDescriptions,
+    describeAnalyticsDimensions,
+} from '../../../analytics/systemExplores/descriptions';
+import {
     semanticUsageColumns,
     semanticUsageMetrics,
     semanticUsageSql,
@@ -480,6 +484,11 @@ export const createAnalyticsExplores = (): Explore[] => {
                     : {}),
             },
         };
+
+        for (const table of Object.values(explore.tables)) {
+            table.description = analyticsTableDescriptions[table.name];
+            describeAnalyticsDimensions(table.name, table.dimensions);
+        }
 
         // Keep the joins lazy, but present their fields alongside the activity.
         const metadataPrefixes: Record<string, string> = {
