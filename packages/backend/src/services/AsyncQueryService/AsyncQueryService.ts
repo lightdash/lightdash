@@ -67,6 +67,7 @@ import {
     getPivotValueColumnName,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
+    isAiAccessQueryContext,
     isAiAgentContent,
     isBigqueryTokenErrorMessage,
     isCartesianChartConfig,
@@ -174,6 +175,7 @@ import {
 } from '@lightdash/common';
 import { DuckdbWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
 import {
     DownloadCsv,
@@ -944,18 +946,50 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private getPreAggregationRoutingDecision({
+    private async isAiAccessCacheBypassEnabled(
+        account: Account,
+        context: QueryExecutionContext,
+    ): Promise<boolean> {
+        if (!isAiAccessQueryContext(context)) return false;
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: account.organization.organizationUuid,
+                ...(account.isRegisteredUser()
+                    ? { userUuid: account.user.id }
+                    : {}),
+            },
+            featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
+        });
+        return enabled;
+    }
+
+    private async getPreAggregationRoutingDecision({
         metricQuery,
         explore,
         context,
         forceWarehouse,
+        account,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
         forceWarehouse: boolean;
-    }): PreAggregationRoutingDecision {
-        if (forceWarehouse) {
+        account: Account;
+    }): Promise<PreAggregationRoutingDecision> {
+        const bypassPreAggregates = await this.isAiAccessCacheBypassEnabled(
+            account,
+            context,
+        );
+        if (forceWarehouse || bypassPreAggregates) {
+            if (
+                bypassPreAggregates &&
+                explore.type === ExploreType.PRE_AGGREGATE
+            ) {
+                throw new NotSupportedError(
+                    'AI access cannot query a pre-aggregate explore',
+                );
+            }
             return { target: 'warehouse' };
         }
         return this.preAggregateStrategy.getRoutingDecision({
@@ -1571,6 +1605,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         page = 1,
         pageSize,
+        aiAccessOnly = false,
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -1586,6 +1621,17 @@ export class AsyncQueryService extends ProjectService {
             project,
             queryHistory,
         );
+
+        if (
+            aiAccessOnly &&
+            (await this.isAiAccessCacheBypassEnabled(
+                account,
+                QueryExecutionContext.AI,
+            )) &&
+            !isAiAccessQueryContext(queryHistory.context)
+        ) {
+            throw new ForbiddenError('Query was not started by AI access');
+        }
 
         const {
             context,
@@ -4928,7 +4974,12 @@ export class AsyncQueryService extends ProjectService {
                               )
                             : undefined;
 
-                    const cacheKey = QueryHistoryModel.getCacheKey(
+                    const bypassResultsCache =
+                        await this.isAiAccessCacheBypassEnabled(
+                            account,
+                            context,
+                        );
+                    const sharedCacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
@@ -4948,15 +4999,25 @@ export class AsyncQueryService extends ProjectService {
                         },
                     );
 
+                    const cacheKey = bypassResultsCache
+                        ? `${sharedCacheKey}.${randomUUID()}`
+                        : sharedCacheKey;
+
                     const cacheCheckStart = Date.now();
-                    const resultsCache = await this.findResultsCache(
-                        projectUuid,
-                        cacheKey,
-                        account,
-                        requestParameters.invalidateCache ??
-                            args.invalidateCache ??
-                            false,
-                    );
+                    const resultsCache = bypassResultsCache
+                        ? {
+                              cacheHit: false as const,
+                              updatedAt: undefined,
+                              expiresAt: undefined,
+                          }
+                        : await this.findResultsCache(
+                              projectUuid,
+                              cacheKey,
+                              account,
+                              requestParameters.invalidateCache ??
+                                  args.invalidateCache ??
+                                  false,
+                          );
                     const cacheCheckMs = Date.now() - cacheCheckStart;
 
                     const historyCreateStart = Date.now();
@@ -5853,7 +5914,8 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
             metricQuery: effectiveMetricQuery,
             explore,
             context,
@@ -5871,7 +5933,12 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        if (reuseQueryUuid && !invalidateCache && !documentQueryContext) {
+        if (
+            reuseQueryUuid &&
+            !invalidateCache &&
+            !documentQueryContext &&
+            !(await this.isAiAccessCacheBypassEnabled(account, context))
+        ) {
             const previous = await this.getAsyncQueryHistory({
                 account,
                 projectUuid,
@@ -6898,7 +6965,8 @@ export class AsyncQueryService extends ProjectService {
         });
         const fieldsWithOverrides = queryComposer.getFields();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -7703,7 +7771,8 @@ export class AsyncQueryService extends ProjectService {
         const fieldsWithOverrides = queryComposer.getFields();
         const parameterReferences = queryComposer.getParameterReferences();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -8604,7 +8673,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Parameter values change the executed SQL without changing its text
-        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+        const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 sql: resolved.sql,
                 references: normalizedReferences ?? null,
@@ -8615,6 +8684,12 @@ export class AsyncQueryService extends ProjectService {
             }),
             userUuid: null,
         });
+        const cacheKey = (await this.isAiAccessCacheBypassEnabled(
+            account,
+            context,
+        ))
+            ? `${sharedCacheKey}.${randomUUID()}`
+            : sharedCacheKey;
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(account, {
@@ -9227,7 +9302,7 @@ export class AsyncQueryService extends ProjectService {
             .map(({ tableUuid, version }) => `esv:${tableUuid}:${version}`)
             .sort()
             .join('|');
-        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+        const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 sql,
                 tables: [...tableEntries].sort(([a], [b]) =>
@@ -9238,6 +9313,12 @@ export class AsyncQueryService extends ProjectService {
             userUuid: null,
             externalSourceSalt,
         });
+        const cacheKey = (await this.isAiAccessCacheBypassEnabled(
+            account,
+            context,
+        ))
+            ? `${sharedCacheKey}.${randomUUID()}`
+            : sharedCacheKey;
 
         // External-source files live in the pre-aggregates bucket, so the
         // session is that bucket's. Throws MissingConfigError without it
@@ -9434,7 +9515,7 @@ export class AsyncQueryService extends ProjectService {
             // files it reads, not the rows it referenced: a leg served from
             // cache mints a new row over the same file, so the file-based key
             // is what a later run finds
-            const resultsKey =
+            const sharedResultsKey =
                 references.kind === 'queries'
                     ? QueryHistoryModel.getCacheKey(projectUuid, {
                           sql: JSON.stringify({
@@ -9451,18 +9532,35 @@ export class AsyncQueryService extends ProjectService {
                           userUuid: null,
                       })
                     : cacheKey;
-            if (references.kind === 'queries') {
-                const cached = invalidateCache
-                    ? null
-                    : ((await this.cacheService?.findCachedResultsFile(
-                          projectUuid,
-                          resultsKey,
-                          {
-                              userUuid: actor.userUuid,
+            const bypassResultsCache = isAiAccessQueryContext(context)
+                ? (
+                      await this.featureFlagModel.get({
+                          user: {
                               organizationUuid,
-                              organizationName: undefined,
+                              ...(actor.isRegisteredUser
+                                  ? { userUuid: actor.userUuid }
+                                  : {}),
                           },
-                      )) ?? null);
+                          featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
+                      })
+                  ).enabled
+                : false;
+            const resultsKey = bypassResultsCache
+                ? `${sharedResultsKey}.${queryUuid}`
+                : sharedResultsKey;
+            if (references.kind === 'queries') {
+                const cached =
+                    invalidateCache || bypassResultsCache
+                        ? null
+                        : ((await this.cacheService?.findCachedResultsFile(
+                              projectUuid,
+                              resultsKey,
+                              {
+                                  userUuid: actor.userUuid,
+                                  organizationUuid,
+                                  organizationName: undefined,
+                              },
+                          )) ?? null);
                 this.prometheusMetrics?.incrementQueryCacheHit(
                     cached !== null,
                     context,
@@ -11313,11 +11411,13 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         maxRows,
+        aiAccessOnly = false,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
         maxRows?: number;
+        aiAccessOnly?: boolean;
     }): Promise<{
         rows: Record<string, unknown>[];
         fields: ItemsMap;
@@ -11331,6 +11431,17 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
         });
+
+        if (
+            aiAccessOnly &&
+            (await this.isAiAccessCacheBypassEnabled(
+                account,
+                QueryExecutionContext.AI,
+            )) &&
+            !isAiAccessQueryContext(queryHistory.context)
+        ) {
+            throw new ForbiddenError('Query was not started by AI access');
+        }
 
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new UnexpectedServerError(
@@ -11441,7 +11552,8 @@ export class AsyncQueryService extends ProjectService {
         });
         const fields = queryComposer.getFields();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
             metricQuery,
             explore,
             context,
