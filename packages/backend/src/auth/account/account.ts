@@ -282,7 +282,8 @@ export const getAccountWriteContext = (
 export const getEmbedActorChartSpaceUuids = (account: Account): string[] => {
     if (!isJwtUser(account) || !account.embedWriteUser) return [];
     const { writeActions, content } = account.authentication.data;
-    if (!writeActions) return [];
+    // apiAccess tokens may omit the write space.
+    if (!writeActions?.spaceUuid) return [];
     const sourceSpaceUuids =
         content?.type === 'dashboard'
             ? (writeActions.sourceSpaceUuids ?? [])
@@ -296,6 +297,7 @@ export const getEmbedContentListingSpaceUuids = (
 ): string[] | undefined => {
     if (
         !isJwtUser(account) ||
+        account.authentication.data.content?.type !== 'dashboard' ||
         account.authentication.data.writeActions?.sourceSpaceUuids === undefined
     ) {
         return undefined;

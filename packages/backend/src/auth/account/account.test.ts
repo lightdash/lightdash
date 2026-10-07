@@ -731,6 +731,24 @@ describe('account', () => {
                 ).toBeUndefined();
             });
 
+            it('ignores source spaces for apiAccess tokens without a write space', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'apiAccess',
+                        serviceAccountUserUuid: mockSessionUser.userUuid,
+                    },
+                    writeActions: {
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    } as CreateEmbedJwt['writeActions'],
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([]);
+                expect(
+                    getEmbedContentListingSpaceUuids(account),
+                ).toBeUndefined();
+            });
+
             it('leaves content listing unscoped for registered accounts', () => {
                 expect(
                     getEmbedContentListingSpaceUuids(
