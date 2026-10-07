@@ -5685,6 +5685,40 @@ describe('AsyncQueryService', () => {
                 metricQuery: metricQueryMock,
             }) as QueryHistory;
 
+        it.each([QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL])(
+            'preserves a typed identity refusal when polling %s history',
+            async (context) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                ]);
+                const history = { ...createQueryHistory(), context };
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                );
+                const assertCanReadResults = vi.fn().mockRejectedValue(refusal);
+                Object.assign(service, {
+                    aiAccessService: { assertCanReadResults },
+                });
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
+                    history,
+                );
+                await expect(
+                    service.getAsyncQueryHistory({
+                        account,
+                        projectUuid,
+                        queryUuid: history.queryUuid,
+                    }),
+                ).rejects.toBe(refusal);
+                expect(assertCanReadResults).toHaveBeenCalledWith(
+                    account,
+                    projectUuid,
+                    history,
+                );
+            },
+        );
+
         it('allows caller-owned query history with explore-level access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();

@@ -522,62 +522,70 @@ const AiAgentNewThreadPage: FC = () => {
                         </Stack>
                     )}
 
-                    {showBattleSetup && !accessGate.disabled && (
-                        <BattleModeSetup
-                            enabled={battleMode}
-                            onEnabledChange={setBattleMode}
-                            battleType={battleType}
-                            onBattleTypeChange={setBattleType}
-                            speedBattleAvailable={speedBattleAvailable}
-                            models={battleModels}
-                            modelAKey={selectedModelKey}
-                            modelBKey={effectiveBattleModelBKey}
-                            onModelAChange={handleSelectedModelKeyChange}
-                            onModelBChange={setBattleModelBKey}
-                        />
-                    )}
+                    <Stack mih={320}>
+                        {showBattleSetup && !accessGate.disabled && (
+                            <BattleModeSetup
+                                enabled={battleMode}
+                                onEnabledChange={setBattleMode}
+                                battleType={battleType}
+                                onBattleTypeChange={setBattleType}
+                                speedBattleAvailable={speedBattleAvailable}
+                                models={battleModels}
+                                modelAKey={selectedModelKey}
+                                modelBKey={effectiveBattleModelBKey}
+                                onModelAChange={handleSelectedModelKeyChange}
+                                onModelBChange={setBattleModelBKey}
+                            />
+                        )}
 
-                    <AgentChatInput
-                        key={composerSeedKey}
-                        onSubmit={onSubmit}
-                        onStartDeepResearch={
-                            canStartDeepResearch && !isBattle
-                                ? onStartDeepResearch
-                                : undefined
-                        }
-                        loading={isCreatingThread || isCreatingBattleThreads}
-                        disabled={!isPinnedContextReady}
-                        showFastMode={!(isBattle && battleType !== 'models')}
-                        placeholder={
-                            isBattle
-                                ? `Ask both models anything about your data...`
-                                : `Ask ${agent.name} anything about your data...`
-                        }
-                        projectUuid={projectUuid}
-                        agentUuid={agent.uuid}
-                        agents={isEmbed ? undefined : agents}
-                        selectedAgent={agent}
-                        models={isBattle ? undefined : modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking && !isBattle
-                                ? extendedThinking
-                                : undefined
-                        }
-                        onExtendedThinkingChange={
-                            showExtendedThinking && !isBattle
-                                ? handleExtendedThinkingChange
-                                : undefined
-                        }
-                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                        onSqlModeChange={
-                            sqlModeAvailable ? setSqlModeOverride : undefined
-                        }
-                        defaultValue={pendingPrompt}
-                        onValueChange={setPendingPrompt}
-                        contentMentionPriorityItems={contentMentionItems}
-                    />
+                        <AgentChatInput
+                            key={composerSeedKey}
+                            onSubmit={onSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch && !isBattle
+                                    ? onStartDeepResearch
+                                    : undefined
+                            }
+                            loading={
+                                isCreatingThread || isCreatingBattleThreads
+                            }
+                            disabled={!isPinnedContextReady}
+                            showFastMode={
+                                !(isBattle && battleType !== 'models')
+                            }
+                            placeholder={
+                                isBattle
+                                    ? `Ask both models anything about your data...`
+                                    : `Ask ${agent.name} anything about your data...`
+                            }
+                            projectUuid={projectUuid}
+                            agentUuid={agent.uuid}
+                            agents={isEmbed ? undefined : agents}
+                            selectedAgent={agent}
+                            models={isBattle ? undefined : modelOptions}
+                            selectedModelId={selectedModelKey}
+                            onModelChange={handleSelectedModelKeyChange}
+                            extendedThinking={
+                                showExtendedThinking && !isBattle
+                                    ? extendedThinking
+                                    : undefined
+                            }
+                            onExtendedThinkingChange={
+                                showExtendedThinking && !isBattle
+                                    ? handleExtendedThinkingChange
+                                    : undefined
+                            }
+                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                            onSqlModeChange={
+                                sqlModeAvailable
+                                    ? setSqlModeOverride
+                                    : undefined
+                            }
+                            defaultValue={pendingPrompt}
+                            onValueChange={setPendingPrompt}
+                            contentMentionPriorityItems={contentMentionItems}
+                        />
+                    </Stack>
                 </Stack>
             </Stack>
         </Center>

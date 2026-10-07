@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusedError,
+    AiAccessRefusalReason,
     AiResultType,
     QuerySourceType,
     ChartKind,
@@ -9,10 +11,13 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ReactNode } from 'react';
+import { type ComponentProps, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
+import { AiChartVisualization } from './AiChartVisualization';
+import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 const mocks = vi.hoisted(() => ({
     fastDecisions: vi.fn(),
@@ -33,6 +38,7 @@ vi.mock('../../hooks/useAiAgentArtifacts', () => ({
 vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentThread: mocks.thread,
     useAiAgentArtifactVizQuery: mocks.query,
+    useAiAgentDashboardChartVizQuery: mocks.query,
     useUpdateArtifactVersionSavedSql: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock('../../../../../hooks/user/useCreateInAnySpaceAccess', () => ({
@@ -45,6 +51,19 @@ vi.mock(
     '../../../../../features/sqlRunner/components/SaveSqlChartModal',
     () => ({ SaveSqlChartModalContent: () => null }),
 );
+vi.mock('../../../../../hooks/useSnowflake', () => ({
+    useSnowflakeAiLoginPopup: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+        error: null,
+    }),
+}));
+vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
+    useCanViewAiAgentSql: () => false,
+}));
+vi.mock('../../../../../hooks/useCompiledSql', () => ({
+    useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
+}));
 vi.mock('../../../../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: mocks.rows,
 }));
@@ -899,5 +918,101 @@ describe('sql artifact viz switcher', () => {
         renderSql(statusResults);
         expect(vizRadios()).toHaveLength(0);
         expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+    });
+});
+
+describe('artifact panel agent identity recovery', () => {
+    it.each(['artifact', 'thread', 'query', 'rows'] as const)(
+        'shows a compact connect prompt for a typed refusal from %s',
+        (source) => {
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.NEEDS_SIGN_IN,
+            );
+            const original = mocks[source]();
+            mocks[source].mockReturnValue({
+                ...original,
+                error: { status: 'error', error: refusal },
+            });
+            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            expect(
+                screen.getByText(
+                    'Connect your agent to your warehouse to run this.',
+                ),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            ).toBeEnabled();
+            expect(
+                screen.queryByText('Could not load the visualization.'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(/not authorized to interact/),
+            ).not.toBeInTheDocument();
+        },
+    );
+});
+
+describe('alternate artifact visualization identity recovery', () => {
+    const error = {
+        status: 'error' as const,
+        error: new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+    };
+
+    it('shows the connection prompt for an inline chart refusal', () => {
+        mocks.query.mockReturnValue({ ...mocks.query(), error, isError: true });
+        renderWithProviders(
+            <AiChartVisualization
+                {...artifact}
+                artifactData={mocks.artifact().data}
+                message={mocks.thread().data.messages[0]}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByText(/Something went wrong/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the connection prompt for a dashboard chart refusal', () => {
+        mocks.query.mockReturnValue({ ...mocks.query(), error, isError: true });
+        renderWithProviders(
+            <AiDashboardVisualizationItem
+                {...artifact}
+                visualization={
+                    { title: 'Monthly orders' } as ComponentProps<
+                        typeof AiDashboardVisualizationItem
+                    >['visualization']
+                }
+                message={mocks.thread().data.messages[0]}
+                index={0}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeVisible();
+    });
+
+    it('shows the connection prompt for composer results instead of treating them as expired', () => {
+        renderWithProviders(
+            <AiComposerArtifactVisualization
+                projectUuid="project"
+                queryUuid="query"
+                results={{ ...mocks.rows(), error }}
+                vizConfig={
+                    { type: ChartKind.TABLE } as ComponentProps<
+                        typeof AiComposerArtifactVisualization
+                    >['vizConfig']
+                }
+                headerContent={null}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByText(/These results have expired/),
+        ).not.toBeInTheDocument();
     });
 });

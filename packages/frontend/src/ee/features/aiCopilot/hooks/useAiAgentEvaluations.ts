@@ -22,6 +22,10 @@ import {
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import {
+    getAiAccessRefusal,
+    isAiAgentAuthorizationError,
+} from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
 const AI_AGENT_EVALUATIONS_KEY = 'aiAgentEvaluations';
@@ -91,11 +95,11 @@ const useEvaluationErrorHandler = (
 
     return useCallback(
         (error: ApiError) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: errorTitle,
                     apiError: error.error,

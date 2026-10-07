@@ -1872,11 +1872,8 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        if (canViewProject) {
-            return queryHistory;
-        }
-
         if (
+            !canViewProject &&
             auditedAbility.cannot(
                 'view',
                 subject('Explore', {
@@ -1891,6 +1888,14 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
         }
 
         return queryHistory;

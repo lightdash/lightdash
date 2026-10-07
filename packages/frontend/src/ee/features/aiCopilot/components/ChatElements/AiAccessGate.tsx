@@ -1,11 +1,11 @@
 import { type AiAccessRefusal } from '@lightdash/common';
 import { Box, Button, Group, Paper, Text } from '@mantine/core';
 import { IconShieldCheck } from '@tabler/icons-react';
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiAccessCallout } from './AiAccessCallout';
 
-export const AiAccessGate = ({
+const AiAccessGateContent = ({
     projectUuid,
     refusal,
     isLoading,
@@ -24,7 +24,7 @@ export const AiAccessGate = ({
 }) => {
     const [isRetrying, setIsRetrying] = useState(false);
 
-    if (isError || (isRetrying && (isLoading || refusal !== undefined))) {
+    if (isError || (isRetrying && (isLoading || refusal !== null))) {
         return (
             <Paper p="md" mb="md">
                 <Group gap="sm" align="flex-start" wrap="nowrap">
@@ -54,7 +54,7 @@ export const AiAccessGate = ({
         );
     }
 
-    if (isLoading) {
+    if (isLoading || (projectUuid && refusal === undefined)) {
         return (
             <Box mih={160} data-testid="ai-access-placeholder" aria-hidden />
         );
@@ -72,3 +72,11 @@ export const AiAccessGate = ({
 
     return <>{children}</>;
 };
+
+export const AiAccessGate = (
+    props: ComponentProps<typeof AiAccessGateContent>,
+) => (
+    <Box mih={props.variant === 'card' ? 260 : 160}>
+        <AiAccessGateContent {...props} />
+    </Box>
+);

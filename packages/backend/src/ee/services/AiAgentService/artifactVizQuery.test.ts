@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     MergeJoinType,
     type AnonymousAccount,
     type PossibleAbilities,
@@ -282,5 +284,23 @@ describe('AI artifact visualization SQL redaction', () => {
         );
 
         expect(result.query).toEqual(query);
+    });
+});
+
+describe('artifact visualization identity refusals', () => {
+    it('preserves the typed refusal from query execution', async () => {
+        const { service, asyncQueryService } = buildService();
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        asyncQueryService.executeAsyncMetricQuery.mockRejectedValue(refusal);
+        await expect(
+            service.getArtifactVizQuery(user, {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            }),
+        ).rejects.toBe(refusal);
     });
 });

@@ -10,10 +10,6 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../../../../api';
-import {
-    hasAgentIdentityHint,
-    updateAgentIdentityHint,
-} from '../../../../../features/aiAccess/agentIdentityHint';
 import { aiAccessApi } from '../../../../../features/aiAccess/api';
 import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useUserWarehouseCredentialsDeleteMutation } from '../../../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
@@ -117,8 +113,24 @@ describe('AiAccessGate', () => {
         flag.isLoading = false;
     });
 
-    it('holds a hinted organisation through flag and access loading without rendering the composer', async () => {
-        updateAgentIdentityHint('org-1', true);
+    it('holds an idle query without access data', () => {
+        renderWithProviders(
+            <AiAccessGate
+                projectUuid="project-1"
+                variant="card"
+                refusal={undefined}
+                isLoading={false}
+                isError={false}
+                refetch={vi.fn()}
+            >
+                <Composer />
+            </AiAccessGate>,
+        );
+        expect(screen.getByTestId('ai-access-placeholder')).toBeVisible();
+        expect(composerRender).not.toHaveBeenCalled();
+    });
+
+    it('holds a cold load through disabled then enabled access without rendering the composer', async () => {
         flag.isLoading = true;
         let resolveAccess!: (value: AiAccessForUser) => void;
         const me = vi.spyOn(aiAccessApi, 'me').mockReturnValue(
@@ -139,8 +151,7 @@ describe('AiAccessGate', () => {
         expect(composerRender).not.toHaveBeenCalled();
     });
 
-    it('ignores and clears a previous hint when the flag resolves off', () => {
-        updateAgentIdentityHint('org-1', true);
+    it('holds while the flag loads, then renders the composer when it is off', () => {
         flag.isLoading = true;
         const me = vi.spyOn(aiAccessApi, 'me');
         const { rerenderGate } = renderGate();
@@ -152,7 +163,6 @@ describe('AiAccessGate', () => {
         expect(
             screen.queryByTestId('ai-access-placeholder'),
         ).not.toBeInTheDocument();
-        expect(hasAgentIdentityHint('org-1')).toBe(false);
         expect(me).not.toHaveBeenCalled();
     });
 
@@ -228,20 +238,16 @@ describe('AiAccessGate', () => {
         expect(composerRender).not.toHaveBeenCalled();
     });
 
-    it.each(['off', 'loading'])(
-        'renders children immediately when the flag is %s',
-        (state) => {
-            flag.enabled = false;
-            flag.isLoading = state === 'loading';
-            const me = vi.spyOn(aiAccessApi, 'me');
-            renderGate();
-            expect(screen.getByText('Composer')).toBeVisible();
-            expect(
-                screen.queryByTestId('ai-access-placeholder'),
-            ).not.toBeInTheDocument();
-            expect(me).not.toHaveBeenCalled();
-        },
-    );
+    it('renders children immediately when the flag is off', () => {
+        flag.enabled = false;
+        const me = vi.spyOn(aiAccessApi, 'me');
+        renderGate();
+        expect(screen.getByText('Composer')).toBeVisible();
+        expect(
+            screen.queryByTestId('ai-access-placeholder'),
+        ).not.toBeInTheDocument();
+        expect(me).not.toHaveBeenCalled();
+    });
 
     it('shows the placeholder while enabled access loads, then the refusal', async () => {
         let resolveAccess!: (value: AiAccessForUser) => void;

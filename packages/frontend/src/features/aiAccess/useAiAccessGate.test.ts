@@ -63,7 +63,7 @@ describe('useAiAccessGate', () => {
         flag.isLoading = false;
     });
 
-    it('renders while the flag loads and gates only when it becomes enabled', async () => {
+    it('holds while the disabled query waits for the flag, then renders the refusal', async () => {
         flag.isLoading = true;
         let resolveAccess!: (value: AiAccessForUser) => void;
         const me = vi.spyOn(aiAccessApi, 'me').mockReturnValue(
@@ -74,10 +74,10 @@ describe('useAiAccessGate', () => {
         const { result, rerender } = setup('project-1');
         expect(result.current).toEqual({
             refusal: undefined,
-            isLoading: false,
+            isLoading: true,
             isError: false,
             refetch: expect.any(Function),
-            disabled: false,
+            disabled: true,
         });
         expect(me).not.toHaveBeenCalled();
         flag.isLoading = false;
@@ -147,7 +147,7 @@ describe('useAiAccessGate', () => {
                 disabled: state === 'unknown',
                 isLoading: state === 'unknown',
                 isError: false,
-                refusal: undefined,
+                refusal: state === 'unknown' ? undefined : null,
             });
         },
     );
@@ -181,7 +181,7 @@ describe('useAiAccessGate', () => {
             const me = vi.spyOn(aiAccessApi, 'me');
             const { result } = setup();
             expect(result.current).toEqual({
-                refusal: undefined,
+                refusal: null,
                 isLoading: false,
                 isError: false,
                 refetch: expect.any(Function),
@@ -196,7 +196,7 @@ describe('useAiAccessGate', () => {
         const me = vi.spyOn(aiAccessApi, 'me');
         const { result } = setup('project-1');
         expect(result.current).toEqual({
-            refusal: undefined,
+            refusal: null,
             isLoading: false,
             isError: false,
             refetch: expect.any(Function),

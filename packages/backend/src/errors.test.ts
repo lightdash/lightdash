@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     ExpectedNotFoundError,
     isExpectedError,
     NotFoundError,
@@ -31,5 +33,18 @@ describe('handled API error reporting', () => {
 
     it('requires expected errors to be Error instances', () => {
         expect(isExpectedError({ isExpected: true })).toBe(false);
+    });
+});
+
+describe('agent identity refusal API response', () => {
+    it.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+    ])('preserves the typed %s refusal for the API error handler', (reason) => {
+        const error = new AiAccessRefusedError(reason);
+        const response = errorHandler(error);
+        expect(response.statusCode).toBe(403);
+        expect(response.data).toEqual(error.refusal);
+        expect(response.message).toBe(error.refusal.message);
     });
 });

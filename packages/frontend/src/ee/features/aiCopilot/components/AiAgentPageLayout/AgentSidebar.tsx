@@ -375,7 +375,7 @@ const ThreadList: FC<ThreadListProps> = ({
     };
 
     if (!isSuccess) {
-        return null;
+        return <Box className={classes.threadList} aria-hidden />;
     }
 
     const groupHandlers = {
@@ -484,7 +484,7 @@ const TrialAlert = () => (
         p="xs"
         title={
             <Text size="xs" fw={500}>
-                You're currently using Lightdash AI Agents in free trial mode
+                You're currently using AI agents in free trial mode
             </Text>
         }
     >

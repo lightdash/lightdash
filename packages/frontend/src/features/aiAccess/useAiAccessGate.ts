@@ -7,14 +7,15 @@ export const useAiAccessGate = (projectUuid: string | undefined) => {
         isFetching,
         isError,
         refetch,
+        isAccessRequired,
     } = useMyAiAccess(projectUuid);
     const isLoading = isInitialLoading || isFetching;
-    const refusal = data?.refusal;
+    const refusal = isAccessRequired ? data?.refusal : null;
     return {
         refusal,
         isLoading,
         isError,
         refetch,
-        disabled: isLoading || isError || !!refusal,
+        disabled: isLoading || isError || refusal !== null,
     };
 };

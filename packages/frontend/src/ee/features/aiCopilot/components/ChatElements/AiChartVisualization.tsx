@@ -20,6 +20,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
     getAiArtifactChartSource,
@@ -28,6 +29,7 @@ import {
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
+import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import {
     AiSqlArtifactActions,
@@ -106,6 +108,19 @@ export const AiChartVisualization: FC<Props> = ({
         queryExecutionHandle.isLoading ||
         (!isSqlArtifact && queryResults.isFetchingRows);
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
+
+    const refusal =
+        getAiAccessRefusal(queryExecutionHandle.error?.error) ??
+        getAiAccessRefusal(queryResults.error?.error);
+    if (refusal) {
+        return (
+            <AiAccessCallout
+                projectUuid={projectUuid}
+                refusal={refusal}
+                variant="inline"
+            />
+        );
+    }
 
     if (isQueryLoading) {
         return (

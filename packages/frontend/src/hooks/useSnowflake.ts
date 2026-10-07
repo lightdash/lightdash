@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../api';
 import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
+import { getAiAccessRefusal } from '../features/aiAccess/errors';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
@@ -102,6 +103,12 @@ export function useSnowflakeAiLoginPopup() {
             await Promise.all([
                 queryClient.invalidateQueries(['user_warehouse_credentials']),
                 queryClient.invalidateQueries(['ai-access']),
+                queryClient.invalidateQueries({
+                    predicate: (query) =>
+                        !!getAiAccessRefusal(
+                            (query.state.error as ApiError | null)?.error,
+                        ),
+                }),
             ]);
         },
         onError: (error: Error) =>
