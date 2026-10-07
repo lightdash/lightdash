@@ -283,6 +283,8 @@ COPY --link --from=node-runtime /opt /opt
 
 FROM prod AS pr-runner
 
+COPY --chown=1000:1000 ./packages/api-tests/stub/snowflake-ai-stub.mjs /usr/app/packages/api-tests/stub/snowflake-ai-stub.mjs
+
 # dbt deps/seed/run write dbt_packages/, target/ and logs/ into the project
 COPY --chown=1000:1000 ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY --chown=1000:1000 ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles

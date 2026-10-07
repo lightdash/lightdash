@@ -40,6 +40,22 @@ services:
         ports:
             - '3000'
 
+    # Snowflake agent OAuth and SDK sidecar for the API test loop.
+    snowflake-ai-stub:
+        build:
+            target: pr-runner
+            context: ..
+            dockerfile: dockerfile-prs
+            args:
+                - TURBO_TEAM=$TURBO_TEAM
+            secrets:
+                - TURBO_TOKEN
+        working_dir: /usr/app
+        entrypoint: ['dumb-init', '--']
+        command: ['node', 'packages/api-tests/stub/snowflake-ai-stub.mjs']
+        ports:
+            - '3900'
+
     lightdash-preview:
         build:
             target: pr-runner
@@ -52,6 +68,7 @@ services:
         depends_on:
             - db-preview
             - headless-browser
+            - snowflake-ai-stub
         healthcheck:
             interval: 10s
             timeout: 5s
@@ -94,6 +111,11 @@ services:
             S3_REGION: ${S3_REGION}
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
+            SNOWFLAKE_AI_OAUTH_ACCOUNT: stub
+            SNOWFLAKE_AI_OAUTH_CLIENT_ID: stub-client
+            SNOWFLAKE_AI_OAUTH_CLIENT_SECRET: stub-secret
+            SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT: http://snowflake-ai-stub:3900/oauth/authorize
+            SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT: http://snowflake-ai-stub:3900/oauth/token-request
             CUSTOM_ROLES_ENABLED: true
             # Enable service accounts in preview envs so the semantic-layer
             # connection page can generate project-scoped tokens. Sets the
