@@ -1,5 +1,6 @@
 import {
     LightdashMode,
+    contentToResourceViewItem,
     ResourceItemCategory,
     ResourceViewItemType,
     wrapResource,
@@ -40,12 +41,14 @@ export const HomepageContentPanel: FC<Props> = ({
     const allItems = useMemo(() => {
         const mostPopularItems =
             data?.mostPopular.map((item) => ({
-                ...wrapResource(
-                    item,
-                    'chartType' in item
-                        ? ResourceViewItemType.CHART
-                        : ResourceViewItemType.DASHBOARD,
-                ),
+                ...('contentType' in item
+                    ? contentToResourceViewItem(item)
+                    : wrapResource(
+                          item,
+                          'chartType' in item
+                              ? ResourceViewItemType.CHART
+                              : ResourceViewItemType.DASHBOARD,
+                      )),
                 category: ResourceItemCategory.MOST_POPULAR,
             })) ?? [];
         const recentlyUpdatedItems =

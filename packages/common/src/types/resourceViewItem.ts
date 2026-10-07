@@ -3,6 +3,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
     type ChartSourceType,
+    type DataAppContent,
     type SummaryContent,
 } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
@@ -229,7 +230,7 @@ export const spaceToResourceViewItem = (
 });
 
 export type MostPopularAndRecentlyUpdated = {
-    mostPopular: (DashboardBasicDetails | SpaceQuery)[];
+    mostPopular: (DashboardBasicDetails | SpaceQuery | DataAppContent)[];
     recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
 };
 

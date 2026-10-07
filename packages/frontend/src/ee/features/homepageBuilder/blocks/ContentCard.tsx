@@ -66,7 +66,7 @@ const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
     [ContentType.CHART]: 'Chart',
     [ContentType.DASHBOARD]: 'Dashboard',
     [ContentType.SPACE]: 'Space',
-    [ContentType.DATA_APP]: 'App',
+    [ContentType.DATA_APP]: 'Data app',
     [ContentType.DOCUMENT]: 'Document',
 };
 

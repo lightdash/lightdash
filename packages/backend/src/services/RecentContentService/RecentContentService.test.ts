@@ -42,6 +42,7 @@ describe('RecentContentService.recordView', () => {
                 projectUuids: ['project'],
                 uuids: ['chart'],
                 contentTypes: [ContentType.CHART],
+                dataAppVizsFilter: 'exclude',
             },
             {},
             { page: 1, pageSize: 1 },
@@ -57,6 +58,52 @@ describe('RecentContentService.recordView', () => {
         find.mockResolvedValue({ data: [] });
         await expect(
             service.recordView(defaultSessionUser, view),
+        ).rejects.toThrow('Content not found');
+        expect(recordView).not.toHaveBeenCalled();
+    });
+
+    it('records a directly shared app using the viewer-scoped fallback', async () => {
+        const appView = {
+            ...view,
+            contentType: 'data_app' as const,
+            contentUuid: 'app',
+        };
+        find.mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({
+            data: [
+                {
+                    uuid: 'app',
+                    contentType: ContentType.DATA_APP,
+                    space: { uuid: 'restricted-space' },
+                },
+            ],
+        });
+        await service.recordView(defaultSessionUser, appView);
+        expect(find).toHaveBeenLastCalledWith(
+            defaultSessionUser,
+            expect.objectContaining({
+                projectUuids: ['project'],
+                uuids: ['app'],
+                contentTypes: [ContentType.DATA_APP],
+                sharedWithMe: true,
+                dataAppVizsFilter: 'exclude',
+            }),
+            {},
+            expect.anything(),
+        );
+        expect(recordView).toHaveBeenCalledWith({
+            ...appView,
+            userUuid: defaultSessionUser.userUuid,
+            viewedAt: expect.any(Date),
+        });
+    });
+
+    it('does not record an app when neither space nor direct access permits it', async () => {
+        find.mockResolvedValue({ data: [] });
+        await expect(
+            service.recordView(defaultSessionUser, {
+                ...view,
+                contentType: 'data_app',
+            }),
         ).rejects.toThrow('Content not found');
         expect(recordView).not.toHaveBeenCalled();
     });
@@ -146,6 +193,46 @@ describe('RecentContentService.getRecentlyViewed', () => {
         expect(
             await service.getRecentlyViewed(defaultSessionUser, 'project'),
         ).toEqual([]);
+    });
+
+    it('merges space and directly shared apps in recency order and drops revoked access', async () => {
+        const app = (uuid: string) => ({
+            uuid,
+            contentType: ContentType.DATA_APP,
+            project: { uuid: 'project' },
+            space: { uuid: 'space' },
+        });
+        const recentApps = ['direct-app', 'revoked-app', 'space-app'].map(
+            (uuid) => ({
+                uuid,
+                contentType: 'data_app' as const,
+                viewedAt: new Date(),
+            }),
+        );
+        findRecent.mockResolvedValue([...recentApps, candidates[0]]);
+        findContent
+            .mockResolvedValueOnce({
+                data: [contentFor('chart-0'), app('space-app')],
+            })
+            .mockResolvedValueOnce({ data: [app('direct-app')] });
+        const entries = await service.getRecentlyViewed(
+            defaultSessionUser,
+            'project',
+        );
+        expect(entries.map((item) => item.uuid)).toEqual([
+            'direct-app',
+            'space-app',
+            'chart-0',
+        ]);
+        expect(findContent).toHaveBeenLastCalledWith(
+            defaultSessionUser,
+            expect.objectContaining({
+                uuids: ['direct-app', 'revoked-app'],
+                sharedWithMe: true,
+            }),
+            {},
+            expect.anything(),
+        );
     });
 
     it('does not resolve content or fall back to history for an empty table', async () => {

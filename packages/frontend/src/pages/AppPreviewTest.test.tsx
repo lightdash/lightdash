@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
     appUuid: 'app-uuid',
     appName: 'Sales app',
     isLoading: false,
+    spaceUuid: null as string | null,
+    recordView: vi.fn(),
 }));
 
 vi.mock('react-router', () => ({
@@ -58,9 +60,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
             : {
                   pages: [
                       {
+                          appUuid: 'canonical-app-uuid',
                           name: mocks.appName,
                           description: null,
-                          spaceUuid: null,
+                          spaceUuid: mocks.spaceUuid,
                           spaceName: null,
                           createdByUserUuid: 'user-uuid',
                           latestReadyVersion: 5,
@@ -75,6 +78,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
 
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
+}));
+
+vi.mock('../hooks/useRecordContentView', () => ({
+    useRecordContentView: mocks.recordView,
 }));
 
 vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
@@ -163,6 +170,31 @@ describe('AppPreviewTest', () => {
         mocks.appUuid = 'app-uuid';
         mocks.appName = 'Sales app';
         mocks.isLoading = false;
+        mocks.spaceUuid = null;
+        mocks.recordView.mockClear();
+    });
+
+    it('records the resolved app UUID after a space app loads, but not personal apps', () => {
+        const { rerender } = renderWithProviders(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            undefined,
+        );
+        mocks.spaceUuid = 'space';
+        rerender(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            'canonical-app-uuid',
+        );
+        mocks.isLoading = true;
+        rerender(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            undefined,
+        );
     });
 
     it('sets the tab title when the app loads and updates it when the app changes', () => {
@@ -171,6 +203,8 @@ describe('AppPreviewTest', () => {
         expect(document.title).not.toContain('Sales app');
 
         mocks.isLoading = false;
+        mocks.spaceUuid = null;
+        mocks.recordView.mockClear();
         rerender(<AppPreviewTest />);
         expect(document.title).toBe('(DEV) Sales app - Lightdash');
 

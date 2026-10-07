@@ -4,6 +4,7 @@ import {
     ChartType,
     CommercialFeatureFlags,
     ConflictError,
+    ContentType,
     ForbiddenError,
     generateSlug,
     getLtreePathFromSlug,
@@ -15,6 +16,7 @@ import {
     SpaceMemberRole,
     SpaceQuery,
     UpdateSpace,
+    type DataAppContent,
     type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -69,6 +71,8 @@ import {
     acquireSpaceAccessLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { dataAppContentConfiguration } from './ContentModel/ContentConfigurations/DataAppContentConfiguration';
+import type { SummaryContentRow } from './ContentModel/ContentModelTypes';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
@@ -2453,6 +2457,37 @@ export class SpaceModel {
             uuid: a.uuid,
             spaceUuid: a.spaceUuid as string,
         }));
+    }
+
+    async getMostPopularApps(
+        projectUuid: string,
+        spaceUuids: string[],
+        grantedAppUuids: string[] = [],
+    ): Promise<DataAppContent[]> {
+        if (spaceUuids.length === 0 && grantedAppUuids.length === 0) return [];
+        const rows: SummaryContentRow[] = await dataAppContentConfiguration
+            .getSummaryQuery(this.database, {
+                projectUuids: [projectUuid],
+                dataAppVizsFilter: 'exclude',
+            })
+            .where((access) => {
+                void access.whereIn(`${AppsTableName}.space_uuid`, spaceUuids);
+                if (grantedAppUuids.length > 0) {
+                    void access.orWhereIn(
+                        `${AppsTableName}.app_id`,
+                        grantedAppUuids,
+                    );
+                }
+            })
+            .orderBy('views', 'desc')
+            .orderBy(`${AppsTableName}.app_id`)
+            .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+        return rows
+            .map(dataAppContentConfiguration.convertSummaryRow)
+            .filter(
+                (content): content is DataAppContent =>
+                    content.contentType === ContentType.DATA_APP,
+            );
     }
 
     async update(

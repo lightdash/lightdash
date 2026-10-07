@@ -25,6 +25,11 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     toggle: vi.fn(),
     documentsEnabled: true,
+    popular: [] as Array<{
+        uuid: string;
+        contentType?: ContentType.DATA_APP;
+        name?: string;
+    }>,
 }));
 const favorites = [
     { type: ResourceViewItemType.DOCUMENT, data: { uuid: 'direct-document' } },
@@ -68,7 +73,10 @@ vi.mock('../../../../hooks/pinning/usePinnedItems', () => ({
     usePinnedItems: () => ({ data: favorites, isInitialLoading: false }),
 }));
 vi.mock('../../../../hooks/useProject', () => ({
-    useMostPopularAndRecentlyUpdated: () => ({ isInitialLoading: false }),
+    useMostPopularAndRecentlyUpdated: () => ({
+        isInitialLoading: false,
+        data: { mostPopular: mocks.popular },
+    }),
     useProject: () => ({}),
 }));
 vi.mock('../../../../hooks/useVerifiedContentList', () => ({
@@ -116,6 +124,7 @@ describe('Document collections', () => {
     };
     beforeEach(() => {
         mocks.documentsEnabled = true;
+        mocks.popular = [];
         mocks.toggle.mockReset();
         mocks.api.mockReset();
         mocks.api.mockImplementation(async ({ url }: { url: string }) => ({
@@ -127,6 +136,31 @@ describe('Document collections', () => {
         }));
     });
     afterEach(() => clients.forEach((client) => client.clear()));
+
+    it('preserves popularity order and uses already authorized app metadata without space-only hydration', async () => {
+        const app = {
+            uuid: 'direct-app',
+            contentType: ContentType.DATA_APP as const,
+            name: 'Shared app',
+        };
+        mocks.popular = [app, { uuid: 'chart' }];
+        const { result } = renderHook(
+            () =>
+                useCollectionSourceContent('project', {
+                    ...config,
+                    source: 'most-viewed',
+                }),
+            { wrapper: wrapper() },
+        );
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.items).toEqual([app, chart]);
+        expect(mocks.api).toHaveBeenCalledTimes(1);
+        expect(mocks.api).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/content?projectUuids=project&uuids=chart&pageSize=10',
+            }),
+        );
+    });
 
     it('resolves direct-only Documents through the document-scoped endpoint and preserves favorites order', async () => {
         const { result } = renderHook(
