@@ -156,6 +156,7 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
+import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
@@ -1570,14 +1571,15 @@ export const buildPrepareStep = ({
             );
         }
 
-        const stepMessages =
+        const stepMessages = pruneSupersededContentReads(
             args.decisions &&
-            stepNumber === 0 &&
-            intentToolGate?.intent === 'chart_from_previous' &&
-            forced.toolChoice &&
-            steers.length === 0
+                stepNumber === 0 &&
+                intentToolGate?.intent === 'chart_from_previous' &&
+                forced.toolChoice &&
+                steers.length === 0
                 ? compactChartDiscovery(messages)
-                : messages;
+                : messages,
+        );
         if (
             stepMessages === messages &&
             extraMessages.length === 0 &&
