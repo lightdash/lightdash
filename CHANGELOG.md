@@ -1,3 +1,10 @@
+# [2.470.0](https://github.com/lightdash/lightdash/compare/2.469.0...2.470.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** content-as-code lessons for download and upload (CS-283) ([#30457](https://github.com/lightdash/lightdash/issues/30457)) ([f41919b](https://github.com/lightdash/lightdash/commit/f41919ba9aebc11e6032e6ad62e18c2884813ec1))
+
 # [2.469.0](https://github.com/lightdash/lightdash/compare/2.468.0...2.469.0) (2026-10-07)
 
 
