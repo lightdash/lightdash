@@ -7,7 +7,12 @@ import {
     resolveAiDecisionClient,
 } from './AiDecisionClient';
 
-const config = { apiKey: 'test-key', model: 'jev-1.13.0', timeoutMs: 100 };
+const config = {
+    provider: 'jev' as const,
+    apiKey: 'test-key',
+    model: 'jev-1.13.0',
+    timeoutMs: 100,
+};
 const request = {
     operation: 'test',
     state: { question: 'Which project?' },
@@ -416,6 +421,7 @@ describe('AiDecisionClient', () => {
 
 describe('decision client rollout resolution', () => {
     const decisionConfig = {
+        provider: 'jev' as const,
         apiKey: 'decisionConfigured',
         model: 'test',
         timeoutMs: 100,
@@ -477,5 +483,254 @@ describe('decision client rollout resolution', () => {
             enabled,
         );
         expect(getFlag).toHaveBeenCalledTimes(4);
+    });
+});
+
+describe('AiDecisionClient with the luna provider', () => {
+    const lunaConfig = {
+        provider: 'luna' as const,
+        apiKey: 'luna-key',
+        model: 'gpt-6-luna',
+        timeoutMs: 100,
+    };
+    const lunaRequest = {
+        ...request,
+        questions: {
+            ...request.questions,
+            chart: { type: 'noul' as const, instructions: 'Is this a chart?' },
+            fit: {
+                type: 'score' as const,
+                instructions: 'Rate the fit',
+                criteria: ['Poor', 'Great'] as const,
+            },
+        },
+    };
+    const lunaResult = {
+        model: 'gpt-6-luna',
+        answers: [
+            { type: 'predicate', name: 'chart', probability: 0.8 },
+            {
+                type: 'choice',
+                name: 'pick',
+                choice: 'a',
+                confidence: 0.98,
+                probabilities: [
+                    { value: 'a', probability: 0.99 },
+                    { value: 'none', probability: 0.01 },
+                ],
+            },
+            {
+                type: 'score',
+                name: 'fit',
+                score: 0.7,
+                confidence: 0.4,
+                probabilities: [
+                    { value: 0, label: 'Poor', probability: 0.3 },
+                    { value: 1, label: 'Great', probability: 0.7 },
+                ],
+            },
+        ],
+        usage: { input_tokens: 380, output_tokens: 0 },
+    };
+
+    it('translates questions to the Decisions API and answers back to the shared shape', async () => {
+        const usage = { inputTokens: 0, outputTokens: 0, serviceMs: null };
+        const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+            Response.json(lunaResult, {
+                headers: { 'openai-processing-ms': '745' },
+            }),
+        );
+        const client = new AiDecisionClient(lunaConfig, fetcher).withUsage(
+            usage,
+        );
+        const answers = await client.evaluate(lunaRequest);
+
+        const [url, options] = fetcher.mock.calls[0];
+        expect(String(url)).toBe('https://api.openai.com/v1/decisions');
+        expect(new Headers(options?.headers).get('authorization')).toBe(
+            'Bearer luna-key',
+        );
+        expect(options).toHaveProperty('dispatcher');
+        expect(JSON.parse(String(options?.body))).toEqual({
+            model: 'gpt-6-luna',
+            input: JSON.stringify(request.state),
+            questions: [
+                {
+                    type: 'choice',
+                    name: 'pick',
+                    instructions: 'Pick a project',
+                    choices: [
+                        { value: 'a', description: 'A' },
+                        { value: 'none', description: 'None' },
+                    ],
+                },
+                {
+                    type: 'predicate',
+                    name: 'chart',
+                    instructions: 'Is this a chart?',
+                },
+                {
+                    type: 'score',
+                    name: 'fit',
+                    instructions: 'Rate the fit',
+                    levels: [{ label: 'Poor' }, { label: 'Great' }],
+                },
+            ],
+        });
+        expect(answers).toEqual({
+            chart: { type: 'noul', noul: 0.8 },
+            pick: result.answers.pick,
+            fit: { type: 'score', score: 0.7, confidence: 0.4 },
+        });
+        expect(confidentChoice(answers?.pick)).toBe('a');
+        expect(usage).toEqual({
+            inputTokens: 380,
+            outputTokens: 0,
+            serviceMs: 745,
+        });
+        expect(client.provider).toBe('luna');
+        expect(client.modelName).toBe('gpt-6-luna');
+    });
+
+    it('falls back when a question is refused', async () => {
+        const client = new AiDecisionClient(lunaConfig, async () =>
+            Response.json({
+                ...lunaResult,
+                answers: [
+                    lunaResult.answers[0],
+                    { type: 'refusal', name: 'pick' },
+                    lunaResult.answers[2],
+                ],
+            }),
+        );
+        expect(await client.evaluate(lunaRequest)).toBeNull();
+    });
+
+    it('never retries and opens the circuit on provider outages', async () => {
+        vi.useFakeTimers();
+        const fetcher = vi
+            .fn<typeof fetch>()
+            .mockImplementation(
+                async () => new Response(null, { status: 503 }),
+            );
+        const client = new AiDecisionClient(lunaConfig, fetcher);
+        for (let i = 0; i < 5; i += 1)
+            // eslint-disable-next-line no-await-in-loop
+            expect(await client.evaluate(lunaRequest)).toBeNull();
+        expect(fetcher).toHaveBeenCalledTimes(3);
+    });
+
+    it('aborts a slow request at its deadline and falls back', async () => {
+        const fetcher = vi.fn<typeof fetch>().mockImplementation(
+            (_url, options) =>
+                new Promise((_resolve, reject) => {
+                    options?.signal?.addEventListener(
+                        'abort',
+                        () => reject(options.signal?.reason),
+                        { once: true },
+                    );
+                }),
+        );
+        const client = new AiDecisionClient(
+            { ...lunaConfig, timeoutMs: 20 },
+            fetcher,
+        );
+        await expect(client.evaluate(lunaRequest)).resolves.toBeNull();
+        expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    });
+});
+
+describe('AiDecisionClient shadow', () => {
+    const lunaConfig = {
+        provider: 'luna' as const,
+        apiKey: 'luna-key',
+        model: 'gpt-6-luna',
+        timeoutMs: 100,
+    };
+    const lunaResult = {
+        model: 'gpt-6-luna',
+        answers: [
+            {
+                type: 'choice',
+                name: 'pick',
+                choice: 'none',
+                confidence: 0.6,
+                probabilities: [
+                    { value: 'a', probability: 0.4 },
+                    { value: 'none', probability: 0.6 },
+                ],
+            },
+        ],
+    };
+
+    it('returns the live answers and records both sides without blocking', async () => {
+        const record = vi.fn().mockResolvedValue(undefined);
+        const shadowFetch = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(Response.json(lunaResult));
+        const client = new AiDecisionClient(config, async () =>
+            Response.json(result),
+        ).withShadow({
+            client: new AiDecisionClient(lunaConfig, shadowFetch),
+            record,
+        });
+
+        expect(await client.evaluate(request)).toEqual(result.answers);
+        await vi.waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+        expect(record.mock.calls[0][0]).toMatchObject({
+            operation: 'test',
+            questions: request.questions,
+            state: request.state,
+            live: {
+                provider: 'jev',
+                model: 'jev-1.13.0',
+                outcome: 'success',
+                answers: result.answers,
+            },
+            shadow: {
+                provider: 'luna',
+                model: 'gpt-6-luna',
+                outcome: 'success',
+                answers: { pick: { type: 'choice', choice: 'none' } },
+            },
+        });
+        // The shadow gets the client maximum budget, not the live call's.
+        expect(
+            JSON.parse(String(shadowFetch.mock.calls[0][1]?.body)).questions,
+        ).toHaveLength(1);
+    });
+
+    it('records a failed shadow and never lets it affect the live answer', async () => {
+        const record = vi.fn().mockResolvedValue(undefined);
+        const client = new AiDecisionClient(config, async () =>
+            Response.json(result),
+        ).withShadow({
+            client: new AiDecisionClient(
+                lunaConfig,
+                async () => new Response(null, { status: 503 }),
+            ),
+            record,
+        });
+        expect(await client.evaluate(request)).toEqual(result.answers);
+        await vi.waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+        expect(record.mock.calls[0][0].shadow).toMatchObject({
+            outcome: 'provider-http-error',
+            answers: null,
+        });
+    });
+
+    it('does not shadow a skipped decision', async () => {
+        const record = vi.fn();
+        const shadowFetch = vi.fn<typeof fetch>();
+        const client = new AiDecisionClient(
+            { ...config, apiKey: null },
+            async () => Response.json(result),
+        ).withShadow({
+            client: new AiDecisionClient(lunaConfig, shadowFetch),
+            record,
+        });
+        expect(await client.evaluate(request)).toBeNull();
+        expect(shadowFetch).not.toHaveBeenCalled();
+        expect(record).not.toHaveBeenCalled();
     });
 });

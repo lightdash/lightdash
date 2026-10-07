@@ -166,6 +166,7 @@ import {
     AiPromptDataAppElementSnapshot,
     AiPromptDataAppRestoreSnapshot,
     AiPromptDataAppSnapshot,
+    AiPromptDecisionShadowTableName,
     AiPromptDecisionTableName,
     AiPromptInterruptTableName,
     AiPromptSkillSnapshot,
@@ -186,6 +187,7 @@ import {
     DbAiPromptContext,
     DbAiPromptDecision,
     DbAiPromptDecisionInsert,
+    DbAiPromptDecisionShadow,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
     DbAiPromptTurnDecision,
@@ -5904,6 +5906,21 @@ export class AiAgentModel {
         decision: DbAiPromptDecisionInsert,
     ): Promise<void> {
         await this.database(AiPromptDecisionTableName).insert(decision);
+    }
+
+    async createPromptDecisionShadow(
+        row: Omit<
+            DbAiPromptDecisionShadow,
+            'ai_prompt_decision_shadow_uuid' | 'created_at'
+        >,
+    ): Promise<void> {
+        await this.database(AiPromptDecisionShadowTableName).insert({
+            ...row,
+            // State may be any JSON value; node-postgres would turn an array into a Postgres array.
+            state: this.database.raw('?::jsonb', [
+                JSON.stringify(row.state ?? null),
+            ]),
+        });
     }
 
     async updatePromptNeedsUserInput({

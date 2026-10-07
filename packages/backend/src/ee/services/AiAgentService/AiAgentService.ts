@@ -378,6 +378,8 @@ import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
+    type DecisionProvider,
+    type DecisionShadowEntry,
 } from '../ai/decisions/AiDecisionClient';
 import {
     applyChartIntent,
@@ -2230,6 +2232,7 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        provider: DecisionProvider = 'jev',
     ) {
         if (
             await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
@@ -2238,12 +2241,40 @@ export class AiAgentService extends BaseService {
         ) {
             return undefined;
         }
-        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
+        const config =
+            provider === 'luna'
+                ? this.lightdashConfig.ai.lunaDecisions
+                : this.lightdashConfig.ai.decisions;
+        return resolveAiDecisionClient(config, () =>
             this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.AiAgentFastDecisions,
             }),
         );
+    }
+
+    private async recordDecisionShadow(
+        promptUuid: string,
+        entry: DecisionShadowEntry,
+    ): Promise<void> {
+        await this.aiAgentModel.createPromptDecisionShadow({
+            ai_prompt_uuid: promptUuid,
+            operation: entry.operation,
+            questions: entry.questions,
+            state: entry.state,
+            live_provider: entry.live.provider,
+            live_model: entry.live.model,
+            live_outcome: entry.live.outcome,
+            live_answers: entry.live.answers,
+            live_latency_ms: entry.live.durationMs,
+            live_service_ms: entry.live.serviceMs,
+            shadow_provider: entry.shadow.provider,
+            shadow_model: entry.shadow.model,
+            shadow_outcome: entry.shadow.outcome,
+            shadow_answers: entry.shadow.answers,
+            shadow_latency_ms: entry.shadow.durationMs,
+            shadow_service_ms: entry.shadow.serviceMs,
+        });
     }
 
     // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
@@ -2257,6 +2288,8 @@ export class AiAgentService extends BaseService {
             enableFastDecisions: boolean;
         },
     ) {
+        if (battleProfile === 'luna')
+            return this.getDecisionClient(user, 'luna');
         const enabled =
             battleProfile === null
                 ? enableFastDecisions
@@ -4513,6 +4546,14 @@ export class AiAgentService extends BaseService {
             if (!(await this.getDecisionClient(user))) {
                 throw new ForbiddenError(
                     'AI agent fast decisions must be enabled to compare profiles',
+                );
+            }
+            if (
+                body.battleProfile === 'luna' &&
+                !(await this.getDecisionClient(user, 'luna'))
+            ) {
+                throw new ForbiddenError(
+                    'Luna decisions must be configured to compare providers',
                 );
             }
         }
@@ -14284,8 +14325,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
             : undefined;
+        const shadowClient =
+            decisionClient?.provider === 'jev' &&
+            this.lightdashConfig.ai.lunaShadowEnabled
+                ? await this.getDecisionClient(user, 'luna')
+                : undefined;
         const decisions = decisionUsage
-            ? decisionClient?.withUsage(decisionUsage)
+            ? decisionClient?.withUsage(decisionUsage).withShadow(
+                  shadowClient
+                      ? {
+                            client: shadowClient,
+                            record: (entry) =>
+                                this.recordDecisionShadow(
+                                    prompt.promptUuid,
+                                    entry,
+                                ),
+                        }
+                      : undefined,
+              )
             : undefined;
         // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
         const fastExperienceEnabled = decisions !== undefined;

@@ -302,7 +302,19 @@ export const lightdashConfigMock: LightdashConfig = {
         exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
-        decisions: { apiKey: null, model: 'jev-1.13.0', timeoutMs: 900 },
+        decisions: {
+            provider: 'jev',
+            apiKey: null,
+            model: 'jev-1.13.0',
+            timeoutMs: 900,
+        },
+        lunaDecisions: {
+            provider: 'luna',
+            apiKey: null,
+            model: 'gpt-6-luna',
+            timeoutMs: 900,
+        },
+        lunaShadowEnabled: false,
         copilot: {
             enabled: false,
             debugLoggingEnabled: false,
