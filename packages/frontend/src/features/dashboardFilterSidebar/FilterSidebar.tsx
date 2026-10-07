@@ -12,8 +12,8 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { IconChevronLeft, IconDots, IconX } from '@tabler/icons-react';
+import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getFieldDisplayLabel } from './fieldGrains';
@@ -32,6 +32,8 @@ import { isInteractivityChanged } from './sessionSettings';
 import { findFilterRule } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
 
+const LABEL_ERROR = 'Add a label so viewers know what this filters';
+
 export const FilterSidebar: FC = () => {
     const {
         editing,
@@ -48,11 +50,16 @@ export const FilterSidebar: FC = () => {
         updateFilter,
         cancel,
         apply,
+        backToPicker,
         isDirty,
     } = useFilterSidebar();
     const [chosen, setChosen] = useState<DashboardFilterableField[]>([]);
     const [kind, setKind] = useState<FieldKind | null>(null);
     const [removeArmed, setRemoveArmed] = useState(false);
+    const [labelError, setLabelError] = useState(false);
+    const [labelTouched, setLabelTouched] = useState(false);
+    const labelInputRef = useRef<HTMLInputElement>(null);
+    const labelErrorId = useId();
     const handleRemoveClick = useCallback(() => {
         if (removeArmed) {
             setRemoveArmed(false);
@@ -99,9 +106,19 @@ export const FilterSidebar: FC = () => {
         if (first === undefined) return;
         addFirstField(first);
         rest.forEach((field) => listFieldId(getItemId(field)));
-        setChosen([]);
         setKind(null);
     }, [chosen, addFirstField, listFieldId]);
+    // Chosen fields survive Back to the picker; they clear on apply or cancel
+    const handleCancel = useCallback(() => {
+        setChosen([]);
+        setKind(null);
+        cancel();
+    }, [cancel]);
+    const handleApply = useCallback(() => {
+        setChosen([]);
+        setKind(null);
+        apply();
+    }, [apply]);
     const chosenStatus =
         chosen.length === 0
             ? 'Pick one or more fields'
@@ -191,7 +208,7 @@ export const FilterSidebar: FC = () => {
                             variant="subtle"
                             color="gray"
                             aria-label="Close"
-                            onClick={cancel}
+                            onClick={handleCancel}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -216,7 +233,7 @@ export const FilterSidebar: FC = () => {
                         {chosenStatus}
                     </Text>
                     <Group justify="flex-end" gap="xs">
-                        <Button variant="default" onClick={cancel}>
+                        <Button variant="default" onClick={handleCancel}>
                             Cancel
                         </Button>
                         <Button
@@ -246,7 +263,7 @@ export const FilterSidebar: FC = () => {
                                 variant="subtle"
                                 color="gray"
                                 aria-label="Close"
-                                onClick={cancel}
+                                onClick={handleCancel}
                             >
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
@@ -272,7 +289,7 @@ export const FilterSidebar: FC = () => {
                         Pick a field
                     </Text>
                     <Group justify="flex-end" gap="xs">
-                        <Button variant="default" onClick={cancel}>
+                        <Button variant="default" onClick={handleCancel}>
                             Cancel
                         </Button>
                         <Button disabled>Apply</Button>
@@ -289,22 +306,38 @@ export const FilterSidebar: FC = () => {
         ? getFieldDisplayLabel(field, allFilterableFields ?? [])
         : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
-    const reachSubject = hasLabel ? filterRule.label : 'This filter';
     const title = isNew ? 'New filter' : filterRule.label || 'Filter';
-    const statusSuffix = isNew
-        ? hasLabel
-            ? ''
-            : '. Add a label to finish'
+    const canApply = !isNew || hasLabel;
+    const footerStatus = !hasLabel
+        ? 'Add a label to apply'
         : isDirty
-          ? '. Not applied yet'
-          : '';
+          ? 'Not applied yet'
+          : null;
     const fieldCount = getFilterFields(filterRule, listedFieldIds).length;
-    const landingCue = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}`;
+    const tabReach =
+        dashboardTabs.length > 1
+            ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
+            : '';
+    const landingCue = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}${tabReach}`;
+    const showLabelError = () => {
+        setLabelError(true);
+        labelInputRef.current?.focus();
+    };
 
     return (
         <Box className={classes.root}>
             <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                <Stack gap={2}>
+                <Stack gap={2} align="flex-start">
+                    {isNew && (
+                        <Button
+                            variant="subtle"
+                            size="compact-xs"
+                            leftSection={<MantineIcon icon={IconChevronLeft} />}
+                            onClick={backToPicker}
+                        >
+                            Back
+                        </Button>
+                    )}
                     <Title order={5} className={classes.title}>
                         {title}
                     </Title>
@@ -319,7 +352,7 @@ export const FilterSidebar: FC = () => {
                             variant="subtle"
                             color="gray"
                             aria-label="Close"
-                            onClick={cancel}
+                            onClick={handleCancel}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -329,17 +362,35 @@ export const FilterSidebar: FC = () => {
 
             <Stack gap="md" p="md" className={classes.body}>
                 <TextInput
+                    ref={labelInputRef}
                     label="Filter label"
                     withAsterisk
                     required
+                    aria-required
+                    aria-describedby={labelError ? labelErrorId : undefined}
+                    error={labelError ? LABEL_ERROR : undefined}
+                    errorProps={{ id: labelErrorId }}
                     placeholder="What viewers will see"
                     value={filterRule.label ?? ''}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                        if (event.currentTarget.value.trim() !== '') {
+                            setLabelError(false);
+                        }
+                        setLabelTouched(true);
                         updateFilter({
                             ...filterRule,
                             label: event.currentTarget.value || undefined,
-                        })
-                    }
+                        });
+                    }}
+                    onBlur={() => {
+                        if (labelTouched && !hasLabel) setLabelError(true);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        if (canApply) handleApply();
+                        else showLabelError();
+                    }}
                 />
                 {isNew && fieldLabel !== null && (
                     <Group gap="xs">
@@ -412,26 +463,23 @@ export const FilterSidebar: FC = () => {
             </Stack>
 
             <Stack gap="xs" p="md" className={classes.footer}>
-                <Text fz="xs" c="dimmed">
-                    {reachSubject} reaches {reach.applied} of {reach.total}{' '}
-                    {reach.total === 1 ? 'chart' : 'charts'}
-                    {dashboardTabs.length > 1
-                        ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
-                        : ''}
-                    {statusSuffix}
-                </Text>
+                {footerStatus !== null && (
+                    <Text fz="xs" c="dimmed">
+                        {footerStatus}
+                    </Text>
+                )}
                 <Group justify="flex-end" gap="xs">
-                    <Button variant="default" onClick={cancel}>
+                    <Button variant="default" onClick={handleCancel}>
                         Cancel
                     </Button>
-                    {isNew && !hasLabel ? (
+                    {!canApply ? (
                         <Tooltip label="Add a label to apply">
-                            <Box>
+                            <Box onClick={showLabelError}>
                                 <Button disabled>Apply</Button>
                             </Box>
                         </Tooltip>
                     ) : (
-                        <Button onClick={apply}>Apply</Button>
+                        <Button onClick={handleApply}>Apply</Button>
                     )}
                 </Group>
             </Stack>

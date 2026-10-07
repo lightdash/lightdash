@@ -214,6 +214,16 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         resetSession();
     }, [state, setDashboardFilters, setHaveFiltersChanged, resetSession]);
 
+    // Drops the draft rule but keeps the new-filter picker open
+    const backToPicker = useCallback(() => {
+        if (state === null || !state.isNew || state.filterId === null) return;
+        setDashboardFilters(state.snapshot.dashboardFilters);
+        setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
+        setSessionSettings(state.sessionSnapshot);
+        setListedFieldIds([]);
+        setState({ ...state, filterId: null });
+    }, [state, setDashboardFilters, setHaveFiltersChanged]);
+
     const isEmpty = emptyDraft !== null;
 
     const apply = useCallback(() => {
@@ -307,6 +317,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             getSessionSettings,
             updateSessionSettings,
             cancel,
+            backToPicker,
             apply,
             isDirty:
                 isEmpty ||
@@ -333,6 +344,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             getSessionSettings,
             updateSessionSettings,
             cancel,
+            backToPicker,
             apply,
             dashboardFilters,
             waitingField,

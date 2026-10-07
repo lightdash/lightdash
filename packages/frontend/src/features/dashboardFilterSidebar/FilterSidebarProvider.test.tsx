@@ -164,6 +164,26 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.isNew).toBe(false);
     });
 
+    it('backToPicker drops the draft but keeps the new filter open', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.listFieldId('orders_amount'));
+        expect(latest.filters.dimensions).toHaveLength(3);
+
+        act(() => result.current.backToPicker());
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.changed).toBe(false);
+        expect(result.current.editing).toEqual({ filterId: null });
+        expect(result.current.isNew).toBe(true);
+        expect(result.current.listedFieldIds).toEqual([]);
+
+        act(() => result.current.addFirstField(statusField));
+        expect(latest.filters.dimensions).toHaveLength(3);
+    });
+
     it('clearFields empties the filter and addFirstField keeps its identity', () => {
         const original = initialFilters.dimensions[0];
         const { result } = renderHook(() => useFilterSidebar(), {

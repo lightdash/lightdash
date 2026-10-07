@@ -67,7 +67,9 @@ export const FieldRow: FC<Props> = ({
             <Stack className={classes.rowActions} gap={2}>
                 <Text fz="xs" c="dimmed" truncate>
                     {isNotSaved
-                        ? `${tableLabel} · Not on any chart yet`
+                        ? `Not on any chart yet · could reach ${
+                              count.possible
+                          } ${pluralizeCharts(count.possible)}`
                         : isWaiting
                           ? `${tableLabel} · not added yet`
                           : `${tableLabel} · ${count.applied} of ${

@@ -37,6 +37,7 @@ export type FilterSidebarContextValue = {
         patch: Partial<FilterSessionSettings>,
     ) => void;
     cancel: () => void;
+    backToPicker: () => void;
     apply: () => void;
     isDirty: boolean;
     isParametersOpen: boolean;
