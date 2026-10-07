@@ -77,13 +77,17 @@ export const formatShare = (pct: number | null, count: number): string => {
 const plural = (count: number, singular: string): string =>
     `${count} ${singular}${count === 1 ? '' : 's'}`;
 
-export const formatRoleSplit = (split: RoleSplit): string =>
-    [
-        plural(split.viewers, 'viewer'),
-        `${split.interactiveViewers} interactive`,
-        plural(split.editors, 'editor'),
-        plural(split.admins, 'admin'),
-    ].join(' · ');
+export const formatRoleSplit = (split: RoleSplit): string => {
+    const parts = [
+        split.viewers > 0 ? plural(split.viewers, 'viewer') : null,
+        split.interactiveViewers > 0
+            ? `${split.interactiveViewers} interactive`
+            : null,
+        split.editors > 0 ? plural(split.editors, 'editor') : null,
+        split.admins > 0 ? plural(split.admins, 'admin') : null,
+    ].filter((part): part is string => part !== null);
+    return parts.length > 0 ? parts.join(', ') : 'No one yet';
+};
 
 export const formatOwners = (owners: DepartmentOwner[]): string => {
     if (owners.length === 0) return '–';

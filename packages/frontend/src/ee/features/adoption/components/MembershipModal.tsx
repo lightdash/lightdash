@@ -1,4 +1,7 @@
-import { type DepartmentWithMetrics } from '@lightdash/common';
+import {
+    type DepartmentMembership,
+    type DepartmentWithMetrics,
+} from '@lightdash/common';
 import { Badge, Group, Select, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -14,6 +17,9 @@ type Props = {
     onClose: () => void;
     departments: DepartmentWithMetrics[];
 };
+
+const getName = (member: DepartmentMembership): string =>
+    `${member.firstName} ${member.lastName}`.trim() || member.email;
 
 export const MembershipModal: FC<Props> = ({
     opened,
@@ -68,9 +74,10 @@ export const MembershipModal: FC<Props> = ({
                     </Text>
                 )}
                 {rows.map(({ member, kind, candidateNames }) => {
-                    const name =
-                        `${member.firstName} ${member.lastName}`.trim() ||
-                        member.email;
+                    const name = getName(member);
+                    const isDuplicateName =
+                        rows.filter((row) => getName(row.member) === name)
+                            .length > 1;
                     return (
                         <Group
                             key={member.userUuid}
@@ -92,12 +99,14 @@ export const MembershipModal: FC<Props> = ({
                                         kind === 'conflict' ? 'orange' : 'gray'
                                     }
                                 >
-                                    {kind === 'conflict'
-                                        ? `In ${candidateNames.join(' and ')}`
-                                        : 'No department'}
+                                    {kind === 'unassigned'
+                                        ? 'No department'
+                                        : candidateNames.length > 0
+                                          ? `In ${candidateNames.join(' and ')}`
+                                          : 'In more than one department'}
                                 </Badge>
                                 <Select
-                                    label={`Department for ${name}`}
+                                    label={`Department for ${name}${isDuplicateName ? ` (${member.email})` : ''}`}
                                     placeholder="Choose a department"
                                     data={departmentOptions}
                                     searchable

@@ -68,7 +68,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'name',
                 header: 'Department',
-                size: 300,
+                size: 220,
                 Cell: ({ row }) => {
                     const {
                         department,
@@ -125,7 +125,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'headcount',
                 header: 'Headcount',
-                size: 150,
+                size: 100,
                 Cell: ({ row }) => {
                     const { department } = row.original;
                     if (department.effectiveHeadcount === null) {
@@ -184,7 +184,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'coverage',
                 header: 'Coverage',
-                size: 120,
+                size: 90,
                 Cell: ({ row }) => (
                     <Text fz="sm">
                         {formatShare(
@@ -197,7 +197,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'active',
                 header: 'Active 30d',
-                size: 120,
+                size: 90,
                 Cell: ({ row }) => (
                     <Text fz="sm">
                         {formatShare(
@@ -210,7 +210,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'roles',
                 header: 'Roles',
-                size: 300,
+                size: 170,
                 Cell: ({ row }) => (
                     <Text fz="xs" c="dimmed">
                         {formatRoleSplit(
@@ -232,7 +232,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'owner',
                 header: 'Owner',
-                size: 160,
+                size: 110,
                 Cell: ({ row }) => (
                     <Text fz="sm">
                         {formatOwners(row.original.department.owners)}
@@ -242,7 +242,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'target',
                 header: 'Target',
-                size: 190,
+                size: 130,
                 Cell: ({ row }) => (
                     <Text fz="sm">{formatTarget(row.original.department)}</Text>
                 ),
@@ -255,7 +255,7 @@ export const DepartmentsTable: FC<Props> = ({
                   {
                       id: 'edit',
                       header: '',
-                      size: 56,
+                      size: 48,
                       Cell: ({ row }) => {
                           const label = `Edit ${row.original.department.name}`;
                           return (

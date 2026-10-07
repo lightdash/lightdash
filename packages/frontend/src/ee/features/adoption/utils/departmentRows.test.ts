@@ -115,7 +115,7 @@ describe('formatters', () => {
                 editors: 1,
                 admins: 0,
             }),
-        ).toBe('5 viewers · 2 interactive · 1 editor · 0 admins');
+        ).toBe('5 viewers, 2 interactive, 1 editor');
     });
     it('shows the first owner and counts the rest', () => {
         expect(formatOwners([])).toBe('–');
@@ -140,5 +140,28 @@ describe('formatters', () => {
         expect(
             formatTarget({ targetActiveUsers: 40, targetDate: '2026-12-31' }),
         ).toBe('40 active by 31 Dec 2026');
+    });
+});
+
+describe('formatRoleSplit zero cases', () => {
+    it('says no one yet when every role is zero', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 0,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 0,
+            }),
+        ).toBe('No one yet');
+    });
+    it('lists only non-zero roles separated by commas', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 1,
+                interactiveViewers: 0,
+                editors: 1,
+                admins: 1,
+            }),
+        ).toBe('1 viewer, 1 editor, 1 admin');
     });
 });

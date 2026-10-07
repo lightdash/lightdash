@@ -52,6 +52,35 @@ describe('DepartmentsTable', () => {
             screen.getByRole('button', { name: 'Collapse Ops' }),
         ).toHaveAttribute('aria-expanded', 'true');
     });
+    it('shows only non-zero roles, or a placeholder when there are none', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Empty', null, 0, {
+                            metrics: metricsFixture(0, 0),
+                        }),
+                        dept('Staffed', null, 50, {
+                            metrics: metricsFixture(3, 50, {
+                                roleSplit: {
+                                    viewers: 1,
+                                    interactiveViewers: 0,
+                                    editors: 1,
+                                    admins: 1,
+                                },
+                            }),
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.getByText('No one yet')).toBeInTheDocument();
+        expect(
+            screen.getByText('1 viewer, 1 editor, 1 admin'),
+        ).toBeInTheDocument();
+    });
     it('lets the keyboard expand a row', async () => {
         renderTable();
         screen.getByRole('button', { name: 'Expand Ops' }).focus();

@@ -249,8 +249,9 @@ export const DepartmentForm: FC<FormProps> = ({
     const handleDelete = async () => {
         if (department === null) return;
         try {
-            await deleteDepartment.mutateAsync(department.departmentUuid);
+            // Close first so the refetch cannot re-render this drawer as a blank form
             onClose();
+            await deleteDepartment.mutateAsync(department.departmentUuid);
         } catch {
             setIsConfirmingDelete(false);
         }

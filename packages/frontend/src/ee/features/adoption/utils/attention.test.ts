@@ -39,6 +39,19 @@ describe('formatAttention', () => {
 });
 
 describe('getAttentionRows', () => {
+    it('skips department uuids it does not know', () => {
+        const rows = getAttentionRows(
+            [
+                member('clash', {
+                    kind: 'conflict',
+                    departmentUuids: ['gone', 'ops'],
+                }),
+            ],
+            departments,
+        );
+        expect(rows[0].candidateNames).toEqual(['Operations']);
+    });
+
     it('returns conflicts first with their department names, then unassigned people, and skips assigned people', () => {
         const rows = getAttentionRows(
             [

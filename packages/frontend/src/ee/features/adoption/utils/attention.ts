@@ -37,7 +37,7 @@ export const getAttentionRows = (
                       member,
                       kind: 'conflict',
                       candidateNames: member.resolution.departmentUuids
-                          .map((uuid) => names.get(uuid) ?? '')
+                          .flatMap((uuid) => names.get(uuid) ?? [])
                           .sort(),
                   },
               ]

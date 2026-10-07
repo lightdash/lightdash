@@ -28,8 +28,10 @@ export const AttentionStrip: FC<Props> = ({
         >
             <Group justify="space-between" wrap="nowrap">
                 <Text fz="sm">
-                    {message}. They aren't counted in any department until you
-                    place them
+                    {message}.{' '}
+                    {canManage
+                        ? "They aren't counted in any department until you place them"
+                        : "They aren't counted in any department until an admin places them"}
                 </Text>
                 {canManage && (
                     <Button

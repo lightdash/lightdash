@@ -37,12 +37,13 @@ const membership = [
     },
 ];
 
+let isPlacing = false;
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useDepartmentMembership: () => ({
         data: membership,
         isInitialLoading: false,
     }),
-    useSetDepartmentMembers: () => ({ mutate, isLoading: false }),
+    useSetDepartmentMembers: () => ({ mutate, isLoading: isPlacing }),
 }));
 
 const departments = [
@@ -56,7 +57,10 @@ const place = async (label: string, option: string) => {
 };
 
 describe('MembershipModal', () => {
-    beforeEach(() => mutate.mockReset());
+    beforeEach(() => {
+        mutate.mockReset();
+        isPlacing = false;
+    });
 
     const renderModal = () =>
         renderWithProviders(
@@ -109,5 +113,32 @@ describe('MembershipModal', () => {
             departmentUuid: 'Ops',
             userUuids: ['u9', 'u1', 'u2'],
         });
+    });
+
+    it('disables every select while a placement is saving', () => {
+        isPlacing = true;
+        renderModal();
+        const selects = screen.getAllByRole('combobox');
+        expect(selects).toHaveLength(3);
+        selects.forEach((select) => expect(select).toBeDisabled());
+    });
+
+    it('tells apart two people with the same name by email', () => {
+        membership.push({
+            ...person('u5', 'Ann'),
+            email: 'ann.other@example.com',
+        });
+        renderModal();
+        membership.pop();
+        expect(
+            screen.getByRole('combobox', {
+                name: 'Department for Ann Test (u1@example.com)',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('combobox', {
+                name: 'Department for Ann Test (ann.other@example.com)',
+            }),
+        ).toBeInTheDocument();
     });
 });
