@@ -14,7 +14,7 @@
         var(--mantine-color-body) 72%,
         transparent
     );
-    pointer-events: none;
+    cursor: default;
 }
 
 .overlay[data-highlighted] {
@@ -32,5 +32,4 @@
 .card {
     width: 280px;
     max-width: 90%;
-    pointer-events: auto;
 }

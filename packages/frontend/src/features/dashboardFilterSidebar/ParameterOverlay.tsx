@@ -54,7 +54,14 @@ const ParameterOverlay: FC<OverlayProps> = ({
     );
 
     if (referencedKeys.length === 0) {
-        return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
+        return (
+            <div
+                className={`${classes.overlay} ${classes.unfilterable}`}
+                onMouseDown={stopPropagation}
+                onTouchStart={stopPropagation}
+                onClick={stopPropagation}
+            />
+        );
     }
 
     const tileKey = getControlTileKey(control, tile, tileParameterReferences);
@@ -93,15 +100,11 @@ const ParameterOverlay: FC<OverlayProps> = ({
         <div
             className={classes.overlay}
             data-highlighted={isHighlighted || undefined}
+            onMouseDown={stopPropagation}
+            onTouchStart={stopPropagation}
+            onClick={stopPropagation}
         >
-            <Paper
-                shadow="md"
-                p="sm"
-                radius="md"
-                className={classes.card}
-                onMouseDown={stopPropagation}
-                onTouchStart={stopPropagation}
-            >
+            <Paper shadow="md" p="sm" radius="md" className={classes.card}>
                 <Stack gap="xs">
                     <Text fz="xs" c="dimmed">
                         {tileKey ? 'Set by' : 'Not set'}

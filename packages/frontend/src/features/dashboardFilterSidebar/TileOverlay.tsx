@@ -117,12 +117,24 @@ const TileOverlay: FC<TileOverlayProps> = ({
         );
 
     if (!isFilterable) {
-        return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
+        return (
+            <div
+                className={`${classes.overlay} ${classes.unfilterable}`}
+                onMouseDown={stopPropagation}
+                onTouchStart={stopPropagation}
+                onClick={stopPropagation}
+            />
+        );
     }
 
     if (options.length === 0) {
         return (
-            <div className={classes.overlay}>
+            <div
+                className={classes.overlay}
+                onMouseDown={stopPropagation}
+                onTouchStart={stopPropagation}
+                onClick={stopPropagation}
+            >
                 <Text fz="xs" c="dimmed">
                     No matching field
                 </Text>
@@ -138,15 +150,11 @@ const TileOverlay: FC<TileOverlayProps> = ({
         <div
             className={classes.overlay}
             data-highlighted={isHighlighted || undefined}
+            onMouseDown={stopPropagation}
+            onTouchStart={stopPropagation}
+            onClick={stopPropagation}
         >
-            <Paper
-                shadow="md"
-                p="sm"
-                radius="md"
-                className={classes.card}
-                onMouseDown={stopPropagation}
-                onTouchStart={stopPropagation}
-            >
+            <Paper shadow="md" p="sm" radius="md" className={classes.card}>
                 <Stack gap="xs">
                     <Text fz="xs" c="dimmed">
                         {tileField ? 'Filtered by' : 'Not filtered'}
