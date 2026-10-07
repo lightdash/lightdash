@@ -5,6 +5,7 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    QueryExecutionContext,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -19,6 +20,12 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
+import {
+    connectionContextFromUser,
+    WarehouseCredentialKind,
+} from '../../../services/WarehouseClientFactory/ConnectionContext';
+import type { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
+import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { EmbedService } from './EmbedService';
 import {
     EmbedServiceArgumentsMock,
@@ -1532,6 +1539,131 @@ describe('EmbedService', () => {
                 'dashboard_uuid',
             );
         });
+
+        test.each([false, true])(
+            'releases the embed query scope (query fails: %s)',
+            async (fails) => {
+                const disconnect = vi.fn(async () => {});
+                const queryError = new Error('embed query failed');
+                const results = {
+                    rows: [{ a_dim1: 'warehouse value' }],
+                    cacheMetadata: { cacheHit: false },
+                };
+                const getResultsFromCacheOrWarehouse = vi.fn(async () => {
+                    expect(disconnect).not.toHaveBeenCalled();
+                    if (fails) throw queryError;
+                    return results;
+                });
+                const withWarehouseClient = vi.fn<
+                    WarehouseClientFactory['withWarehouseClient']
+                >(async (_ref, _context, callback) => {
+                    try {
+                        return await callback({
+                            warehouseClient: warehouseClientMock,
+                            warehouseCredentials:
+                                warehouseClientMock.credentials,
+                            warehouseConnectionUuid: null,
+                            connectionRoute: null,
+                            aiPlan: null,
+                            credentialKind: WarehouseCredentialKind.SHARED,
+                            tunnelConnectMs: null,
+                        });
+                    } finally {
+                        await disconnect();
+                    }
+                });
+                const embedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    projectModel: {
+                        getSummary: vi.fn().mockResolvedValue({
+                            projectUuid: mockProjectUuid,
+                            organizationUuid: mockOrganizationUuid,
+                        }),
+                    },
+                    projectService: {
+                        warehouseClientFactory: { withWarehouseClient },
+                        _getFieldValuesMetricQuery: vi
+                            .fn()
+                            .mockImplementation(
+                                ({ authorizeInitialExplore }) => {
+                                    authorizeInitialExplore?.(validExplore);
+                                    return {
+                                        metricQuery: {
+                                            exploreName: validExplore.name,
+                                            dimensions: ['a_dim1'],
+                                            metrics: [],
+                                            filters: {},
+                                            sorts: [],
+                                            limit: 50,
+                                            tableCalculations: [],
+                                        },
+                                        explore: validExplore,
+                                        field: validExplore.tables.a.dimensions
+                                            .dim1,
+                                        staticResults: null,
+                                    };
+                                },
+                            ),
+                        combineParameters: vi.fn().mockResolvedValue({}),
+                        projectParametersModel: {
+                            find: vi.fn().mockResolvedValue([]),
+                        },
+                        isTimezoneSupportEnabled: vi
+                            .fn()
+                            .mockResolvedValue(false),
+                        getQueryTimezoneForProject: vi
+                            .fn()
+                            .mockResolvedValue('UTC'),
+                        getResultsFromCacheOrWarehouse,
+                    },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                const account = buildChartEmbedAccount([validExplore.name]);
+                const run = embedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                });
+                if (fails) await expect(run).rejects.toBe(queryError);
+                else
+                    await expect(run).resolves.toMatchObject({
+                        results: ['warehouse value'],
+                    });
+                expect(getResultsFromCacheOrWarehouse).toHaveBeenCalledOnce();
+                expect(disconnect).toHaveBeenCalledOnce();
+                expect(withWarehouseClient).toHaveBeenCalledExactlyOnceWith(
+                    {
+                        kind: 'binding',
+                        projectUuid: mockProjectUuid,
+                        binding: {
+                            kind: 'explore',
+                            exploreName: validExplore.name,
+                        },
+                        overrides: {
+                            snowflakeVirtualWarehouse: validExplore.warehouse,
+                            databricksCompute: validExplore.databricksCompute,
+                        },
+                    },
+                    connectionContextFromUser(
+                        {
+                            userUuid: account.user.id,
+                            isRegisteredUser: false,
+                            isServiceAccount: false,
+                        },
+                        {
+                            organizationUuid: mockOrganizationUuid,
+                            queryContext: QueryExecutionContext.EMBED,
+                        },
+                    ),
+                    expect.any(Function),
+                );
+            },
+        );
 
         test('forwards the embed account user attributes to the field values query builder', async () => {
             // Attribute-gated visibility is enforced inside
