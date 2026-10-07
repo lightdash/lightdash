@@ -44,18 +44,20 @@ import { useUpdateWarehouseCredentialsMutation } from './useProject';
 import { useUserUpdatePasswordMutation } from './user/usePassword';
 import {
     useUserWarehouseCredentialsCreateMutation,
+    useUserWarehouseCredentialsDeleteMutation,
     useUserWarehouseCredentialsUpdateMutation,
 } from './userWarehouseCredentials/useUserWarehouseCredentials';
 
 const mockApi = lightdashApi as unknown as Mock;
 
-function createWrapper() {
-    const queryClient = new QueryClient({
+function createWrapper(
+    queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
             mutations: { retry: false },
         },
-    });
+    }),
+) {
     return ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={queryClient}>
             {children}
@@ -309,5 +311,21 @@ describe('credential-bearing requests are marked sensitive', () => {
                 sensitive: true,
             }),
         );
+    });
+});
+
+describe('user warehouse credentials cache invalidation', () => {
+    it('invalidates AI access after deleting credentials', async () => {
+        mockApi.mockResolvedValue(null);
+        const queryClient = new QueryClient();
+        const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+        const { result } = renderHook(
+            () => useUserWarehouseCredentialsDeleteMutation('cred-uuid'),
+            { wrapper: createWrapper(queryClient) },
+        );
+
+        await result.current.mutateAsync();
+
+        expect(invalidateQueries).toHaveBeenCalledWith(['ai-access']);
     });
 });

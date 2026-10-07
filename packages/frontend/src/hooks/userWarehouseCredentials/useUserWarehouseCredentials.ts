@@ -79,6 +79,7 @@ export const useUserWarehouseCredentialsCreateMutation = (
             await queryClient.invalidateQueries([
                 'project_user_warehouse_credentials',
             ]);
+            await queryClient.invalidateQueries(['ai-access']);
 
             showToastSuccess({
                 title: `Success! Warehouse connection was created.`,
@@ -119,6 +120,7 @@ export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
                 await queryClient.invalidateQueries([
                     'project_user_warehouse_credentials',
                 ]);
+                await queryClient.invalidateQueries(['ai-access']);
 
                 showToastSuccess({
                     title: `Success! Warehouse connection was updated.`,
@@ -155,6 +157,7 @@ export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
                 await queryClient.invalidateQueries([
                     'project_user_warehouse_credentials',
                 ]);
+                await queryClient.invalidateQueries(['ai-access']);
 
                 showToastSuccess({
                     title: `Success! Warehouse connection was deleted.`,
