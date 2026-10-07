@@ -105,13 +105,13 @@ describe('counts', () => {
     it('getControlTabCounts counts per tab', () => {
         expect(getControlTabCounts(control, tiles, tabs, refs)).toEqual({
             t1: { applied: 2, total: 2 },
-            t2: { applied: 0, total: 0 },
+            t2: { applied: 0, total: 1 },
         });
         expect(
             getControlTabCountsForKey(control, 'country', tiles, tabs, refs),
         ).toEqual({
             t1: { applied: 1, total: 2 },
-            t2: { applied: 0, total: 0 },
+            t2: { applied: 0, total: 1 },
         });
     });
 });

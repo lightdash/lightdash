@@ -17,7 +17,7 @@ import classes from './FieldsAndCharts.module.css';
 import { type FieldCount } from './peers';
 
 const pluralizeCharts = (count: number): string =>
-    count === 1 ? 'chart' : 'charts';
+    count === 1 ? 'tile' : 'tiles';
 
 type Props = {
     field: DashboardFilterableField | null;
@@ -88,7 +88,7 @@ export const FieldRow: FC<Props> = ({
             >
                 <Text fz="xs" c="dimmed" truncate>
                     {isNotSaved
-                        ? `Not on any chart yet · could reach ${
+                        ? `Not on any tile yet · could reach ${
                               count.possible
                           } ${pluralizeCharts(count.possible)}`
                         : isWaiting
@@ -102,7 +102,7 @@ export const FieldRow: FC<Props> = ({
                         <Button
                             size="compact-xs"
                             variant="subtle"
-                            aria-label={`Apply ${label} to all ${count.possible} ${tableLabel} charts`}
+                            aria-label={`Apply ${label} to all ${count.possible} ${tableLabel} tiles`}
                             onClick={onAll}
                         >
                             Apply to all {count.possible}
@@ -127,12 +127,12 @@ export const FieldRow: FC<Props> = ({
                                     <Menu.Item
                                         aria-label={
                                             count.applied === 1
-                                                ? `Clear ${label} from the 1 chart`
-                                                : `Clear ${label} from all ${count.applied} charts`
+                                                ? `Clear ${label} from the 1 tile`
+                                                : `Clear ${label} from all ${count.applied} tiles`
                                         }
                                         onClick={onNone}
                                     >
-                                        Clear from charts
+                                        Clear from tiles
                                     </Menu.Item>
                                 )}
                                 {onRemove !== null && (

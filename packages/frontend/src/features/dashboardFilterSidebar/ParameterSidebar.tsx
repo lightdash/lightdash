@@ -99,7 +99,7 @@ export const ParameterSidebar: FC = () => {
     return (
         <EditorShell
             title={control.label || 'New parameter control'}
-            subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} ${count.possible === 1 ? 'chart' : 'charts'}${tabReach}`}
+            subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} ${count.possible === 1 ? 'tile' : 'tiles'}${tabReach}`}
             menu={
                 isNew ? null : (
                     <Menu.Item
@@ -122,10 +122,10 @@ export const ParameterSidebar: FC = () => {
             tabs={[
                 {
                     value: 'charts',
-                    label: 'Parameters and charts',
+                    label: 'Parameters and tiles',
                     count: keyCount,
                 },
-                { value: 'interactivity', label: 'Interactivity' },
+                { value: 'interactivity', label: 'Settings' },
             ]}
             activeTab={section}
             onTabChange={setSection}
@@ -161,7 +161,7 @@ export const ParameterSidebar: FC = () => {
                                 Parameters in this control
                             </Text>
                             <Text fz="xs" c="dimmed">
-                                Choose which parameter each chart is set by.
+                                Choose which parameter each tile is set by.
                             </Text>
                         </Stack>
                         {control.parameterKeys.map((key) => {

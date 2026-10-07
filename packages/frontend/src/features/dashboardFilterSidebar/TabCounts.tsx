@@ -126,7 +126,7 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} charts on this tab ${verb} ${subject}`}
+                        label={`${count.applied} of ${count.total} tiles on this tab ${verb} ${subject}`}
                     >
                         <Badge
                             size="xs"

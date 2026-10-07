@@ -91,7 +91,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
                         Not set by this control
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        This chart uses none of its parameters.
+                        This tile uses none of its parameters.
                     </Text>
                 </Paper>
             </div>
@@ -124,7 +124,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
                     </Text>
                     <Select
                         size="xs"
-                        aria-label={`${control.label} on this chart`}
+                        aria-label={`${control.label} on this tile`}
                         allowDeselect={false}
                         comboboxProps={{ withinPortal: true }}
                         value={tileKey ?? NOT_SET}

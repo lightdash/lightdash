@@ -27,6 +27,7 @@ import {
 } from './parameterControls';
 import {
     applyFieldToAll,
+    applyFieldToUnfilteredTiles,
     getFieldCount,
     getFilterFields,
     removeField,
@@ -35,7 +36,7 @@ import {
 import { useFilterSidebar } from './useFilterSidebar';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-const DEFAULT_HINT = 'Choose which field each chart is filtered by.';
+const DEFAULT_HINT = 'Choose which field each tile is filtered by.';
 
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,
@@ -241,15 +242,17 @@ export const FieldsAndCharts: FC = () => {
         <Stack gap="lg">
             <Stack gap="xs">
                 <Stack gap={2}>
-                    <Text fz="sm" fw={600}>
-                        Fields in this filter
-                    </Text>
+                    {!isUnplaced && (
+                        <Text fz="sm" fw={600}>
+                            Fields in this filter
+                        </Text>
+                    )}
                     <Text fz="xs" c="dimmed">
                         {isUnplaced
-                            ? 'Pick a field to filter by, or a parameter to control.'
+                            ? 'Select a field to filter or a parameter to control'
                             : waitingLabel === null
                               ? DEFAULT_HINT
-                              : `Not added yet. Click the dashed "+ ${waitingLabel}" on a chart, or All, to add it to this filter.`}
+                              : `Not added yet. Click the dashed "+ ${waitingLabel}" on a tile, or All, to add it to this filter.`}
                     </Text>
                 </Stack>
                 {fieldIds.map((fieldId) => {
@@ -407,10 +410,22 @@ export const FieldsAndCharts: FC = () => {
                                 parameters={[]}
                                 openOnMount
                                 onPickField={(field) => {
-                                    setWaitingField({
-                                        fieldId: getItemId(field),
-                                        tableName: field.table,
-                                    });
+                                    // The field joins the filter at once and
+                                    // takes the tiles nothing else reaches yet
+                                    const fieldId = getItemId(field);
+                                    listFieldId(fieldId);
+                                    updateFilter(
+                                        applyFieldToUnfilteredTiles(
+                                            editingRule,
+                                            {
+                                                fieldId,
+                                                tableName: field.table,
+                                            },
+                                            tiles,
+                                            filterableFieldsByTileUuid,
+                                            sqlColumnsByTile,
+                                        ),
+                                    );
                                     setIsAdding(false);
                                 }}
                             />

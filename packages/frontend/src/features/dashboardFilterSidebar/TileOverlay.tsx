@@ -46,7 +46,7 @@ const getTileTitle = (tile: DashboardTile): string => {
     if (tile.properties.title) return tile.properties.title;
     if ('chartName' in tile.properties && tile.properties.chartName)
         return tile.properties.chartName;
-    return 'this chart';
+    return 'this tile';
 };
 
 // Finds the target for a field id: a known field, else one already on the rule

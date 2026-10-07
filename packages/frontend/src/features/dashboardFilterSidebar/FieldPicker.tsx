@@ -28,7 +28,7 @@ type Props = {
     openOnMount?: boolean;
 };
 
-const pluralizeCharts = (count: number) => (count === 1 ? 'chart' : 'charts');
+const pluralizeCharts = (count: number) => (count === 1 ? 'tile' : 'tiles');
 
 export const FieldPicker: FC<Props> = ({
     fields,

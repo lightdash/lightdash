@@ -330,7 +330,7 @@ export const InteractivityQuestions: FC<Props> = ({
     const requiredSub = isRequired
         ? 'Viewers must set this filter to load the dashboard.'
         : requiredReason === null
-          ? 'Viewers would have to set it before the charts load'
+          ? 'Viewers would have to set it before the tiles load'
           : 'Remove the default value to require it';
 
     // Pick
@@ -424,7 +424,7 @@ export const InteractivityQuestions: FC<Props> = ({
                     )}
                     {isWhoChanged(filterRule, settings) && (
                         <Text size="xs" c="dimmed">
-                            Still filters the charts. URL and embed values are
+                            Still filters the tiles. URL and embed values are
                             ignored.
                         </Text>
                     )}

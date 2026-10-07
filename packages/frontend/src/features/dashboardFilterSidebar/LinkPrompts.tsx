@@ -40,7 +40,7 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
             </Text>
             <Select
                 size="xs"
-                aria-label={`Field for ${filterLabel} on this chart`}
+                aria-label={`Field for ${filterLabel} on this tile`}
                 placeholder="Pick a field"
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
@@ -151,8 +151,8 @@ export const LinkPrompts: FC = () => {
                             <Stack gap="sm">
                                 <Text fz="xs" c="dimmed">
                                     {rows.length === 1
-                                        ? 'A filter could reach this chart'
-                                        : 'Filters that could reach this chart'}
+                                        ? 'A filter could reach this tile'
+                                        : 'Filters that could reach this tile'}
                                 </Text>
                                 {rows.map((prompt) => (
                                     <LinkRow

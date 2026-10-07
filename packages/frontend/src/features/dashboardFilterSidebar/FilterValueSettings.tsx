@@ -91,6 +91,12 @@ export const FilterValueSettings: FC<Props> = ({
                     />
                 </Box>
             )}
+            {isDisabled && !hasRequirement && (
+                <Text size="xs" c="dimmed">
+                    Not set: each tile keeps its own values until a viewer picks
+                    one.
+                </Text>
+            )}
             {(!isDisabled || hasRequirement) && (
                 <>
                     <Select

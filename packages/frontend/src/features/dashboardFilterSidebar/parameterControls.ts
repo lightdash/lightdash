@@ -227,14 +227,14 @@ const countTabs = (
 ): Record<string, ControlTabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter(
-                (tile) => tile.tabUuid === tab.uuid && isPossible(tile),
-            );
+            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
             return [
                 tab.uuid,
                 {
                     total: tabTiles.length,
-                    applied: tabTiles.filter(isApplied).length,
+                    applied: tabTiles.filter(
+                        (tile) => isPossible(tile) && isApplied(tile),
+                    ).length,
                 },
             ];
         }),

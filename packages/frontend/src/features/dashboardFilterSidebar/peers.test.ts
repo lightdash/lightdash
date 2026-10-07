@@ -220,22 +220,22 @@ describe('peers', () => {
         );
     });
 
-    it('counts reached charts per tab, ignoring tiles that are not charts', () => {
+    it('counts reached tiles per tab out of every tile on the tab', () => {
         expect(
             getTabCounts(rule({ c: PAYMENTS }), tiles, tabs, fieldsByTile),
         ).toEqual({
-            t1: { applied: 2, total: 2 },
+            t1: { applied: 2, total: 3 },
             t2: { applied: 1, total: 2 },
         });
     });
 
-    it('counts charts per tab that use one field of the filter', () => {
+    it('counts tiles per tab that use one field of the filter', () => {
         const r = rule({ c: PAYMENTS });
         expect(
             getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
         ).toEqual({
-            t1: { applied: 2, total: 2 },
-            t2: { applied: 0, total: 0 },
+            t1: { applied: 2, total: 3 },
+            t2: { applied: 0, total: 2 },
         });
         expect(
             getTabCountsForField(
@@ -246,12 +246,12 @@ describe('peers', () => {
                 fieldsByTile,
             ),
         ).toEqual({
-            t1: { applied: 0, total: 1 },
-            t2: { applied: 1, total: 1 },
+            t1: { applied: 0, total: 3 },
+            t2: { applied: 1, total: 2 },
         });
     });
 
-    it('does not count a chart whose filter is disabled', () => {
+    it('does not count a tile whose filter is disabled', () => {
         expect(
             getTabCountsForField(
                 rule({ a: false }),
@@ -261,8 +261,8 @@ describe('peers', () => {
                 fieldsByTile,
             ),
         ).toEqual({
-            t1: { applied: 1, total: 2 },
-            t2: { applied: 0, total: 0 },
+            t1: { applied: 1, total: 3 },
+            t2: { applied: 0, total: 2 },
         });
     });
 });
@@ -367,13 +367,13 @@ describe('peers with SQL chart tiles', () => {
                 fieldsByTile,
                 sqlColumns,
             ).t2,
-        ).toEqual({ total: 0, applied: 0 });
+        ).toEqual({ total: 3, applied: 1 });
     });
 
-    it('ignores SQL tiles without a column of the kind', () => {
+    it('counts every tile on the tab, even a SQL tile without a column of the kind', () => {
         expect(
             getTabCounts(rule(), allTiles, tabs, fieldsByTile, { s: [] }).t2
                 .total,
-        ).toBe(2);
+        ).toBe(3);
     });
 });

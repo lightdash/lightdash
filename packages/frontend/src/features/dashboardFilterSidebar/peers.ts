@@ -178,6 +178,27 @@ export const applyFieldToAll = (
             rule,
         );
 
+// Maps the field onto every tile that offers it and this filter does not
+// reach yet; tiles already filtered by another field keep that field
+export const applyFieldToUnfilteredTiles = (
+    rule: DashboardFilterRule,
+    field: DashboardFieldTarget,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): DashboardFilterRule =>
+    tiles
+        .filter(
+            (tile) =>
+                doesTileOfferField(tile, field.fieldId, fieldsByTile) &&
+                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+                    null,
+        )
+        .reduce(
+            (next, tile) => setTileField(next, tile, field, fieldsByTile),
+            rule,
+        );
+
 export const removeFieldFromAll = (
     rule: DashboardFilterRule,
     fieldId: string,
@@ -240,11 +261,7 @@ export const getTabCounts = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter(
-                (tile) =>
-                    tile.tabUuid === tab.uuid &&
-                    isTileFilterable(tile, fieldsByTile, sqlColumnsByTile),
-            );
+            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
             return [
                 tab.uuid,
                 {
@@ -263,8 +280,7 @@ export const getTabCounts = (
         }),
     );
 
-// Per tab: how many charts the given field is on. Total counts every filterable
-// chart on the tab, so "2 of 4" reads the same as the filter-level count.
+// Per tab: how many tiles the given field is on, out of every tile on the tab.
 export const getTabCountsForField = (
     rule: DashboardFilterRule,
     fieldId: string,
@@ -275,11 +291,7 @@ export const getTabCountsForField = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter(
-                (tile) =>
-                    tile.tabUuid === tab.uuid &&
-                    doesTileOfferField(tile, fieldId, fieldsByTile),
-            );
+            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
             return [
                 tab.uuid,
                 {

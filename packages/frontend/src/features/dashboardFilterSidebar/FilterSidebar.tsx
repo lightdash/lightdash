@@ -92,7 +92,7 @@ export const FilterSidebar: FC = () => {
             ).length;
             return {
                 applied,
-                total: filterable.length,
+                total: tiles.length,
                 tabCount: applied > 0 ? 1 : 0,
             };
         }
@@ -153,8 +153,8 @@ export const FilterSidebar: FC = () => {
             ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
             : '';
     const landingCue = isUnplaced
-        ? 'No fields yet · reaches 0 charts'
-        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}${tabReach}`;
+        ? `No mappings yet · reaches 0 of ${reach.total} tiles`
+        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
     const showLabelError = () => {
         setLabelError(true);
         labelInputRef.current?.focus();
@@ -170,12 +170,12 @@ export const FilterSidebar: FC = () => {
             tabs={[
                 {
                     value: 'fields',
-                    label: 'Fields and charts',
+                    label: 'Fields and tiles',
                     count: fieldCount,
                 },
                 {
                     value: 'interactivity',
-                    label: 'Interactivity',
+                    label: 'Settings',
                     disabled: isUnplaced,
                     disabledReason: 'Pick a field first',
                     changed: isInteractivityChanged(
@@ -202,7 +202,7 @@ export const FilterSidebar: FC = () => {
                 <>
                     <TextInput
                         ref={labelInputRef}
-                        label="Filter label"
+                        label={isUnplaced ? 'Label' : 'Filter label'}
                         withAsterisk
                         required
                         aria-required
