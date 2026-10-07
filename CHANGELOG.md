@@ -1,3 +1,10 @@
+# [2.469.0](https://github.com/lightdash/lightdash/compare/2.468.0...2.469.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** a content-as-code lesson kind (CS-283) ([#30456](https://github.com/lightdash/lightdash/issues/30456)) ([ff4096c](https://github.com/lightdash/lightdash/commit/ff4096c6ea4a57d2db75bd0626469a2e90d7df75))
+
 # [2.468.0](https://github.com/lightdash/lightdash/compare/2.467.0...2.468.0) (2026-10-07)
 
 
