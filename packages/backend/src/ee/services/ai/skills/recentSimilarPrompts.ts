@@ -1,10 +1,4 @@
-export type RecentPromptCandidate = {
-    promptUuid: string;
-    threadUuid: string;
-    userUuid: string | null;
-    createdAt: Date;
-    text: string;
-};
+import type { AiAgentRecentUserPrompt } from '../../../models/AiAgentReviewClassifierModel';
 
 export type AiAgentReviewSimilarPrompt = {
     threadUuid: string;
@@ -13,8 +7,7 @@ export type AiAgentReviewSimilarPrompt = {
     similarity: number;
 };
 
-// Other threads on the same agent that asked for much the same thing recently.
-// Counts are over the matched prompts so the judge can see how many threads and
+// Counts are over the matched prompts so the judge sees how many threads and
 // people repeat the request without reading every row.
 export type AiAgentReviewRecentSimilarPrompts = {
     windowDays: number;
@@ -24,6 +17,7 @@ export type AiAgentReviewRecentSimilarPrompts = {
 };
 
 export const RECENT_SIMILAR_PROMPTS_WINDOW_DAYS = 30;
+export const RECENT_SIMILAR_PROMPTS_MAX_CANDIDATES = 300;
 const MIN_SIMILARITY = 0.3;
 const MAX_PROMPTS = 8;
 const MAX_TEXT_LENGTH = 400;
@@ -137,10 +131,7 @@ const tokenize = (text: string): Set<string> =>
 
 const jaccard = (a: Set<string>, b: Set<string>): number => {
     if (a.size === 0 || b.size === 0) return 0;
-    let shared = 0;
-    a.forEach((token) => {
-        if (b.has(token)) shared += 1;
-    });
+    const shared = [...a].filter((token) => b.has(token)).length;
     return shared / (a.size + b.size - shared);
 };
 
@@ -157,7 +148,7 @@ export const emptyRecentSimilarPrompts =
 
 export const rankRecentSimilarPrompts = (
     currentPrompt: string,
-    candidates: RecentPromptCandidate[],
+    candidates: AiAgentRecentUserPrompt[],
 ): AiAgentReviewRecentSimilarPrompts => {
     const current = tokenize(currentPrompt);
     const matched = candidates

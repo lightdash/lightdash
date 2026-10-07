@@ -15,8 +15,6 @@ import {
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
-    type AiAgentJudgeProjectContextEntry,
-    type AiAgentJudgeSkillProposal,
     type AiAgentKnowledgeDocumentSnapshot,
     type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
@@ -65,6 +63,7 @@ import { authorSkillProposal } from './ai/skills/authorSkillProposal';
 import {
     emptyRecentSimilarPrompts,
     rankRecentSimilarPrompts,
+    RECENT_SIMILAR_PROMPTS_MAX_CANDIDATES,
     RECENT_SIMILAR_PROMPTS_WINDOW_DAYS,
     type AiAgentReviewRecentSimilarPrompts,
 } from './ai/skills/recentSimilarPrompts';
@@ -72,6 +71,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
+import { toReviewTurnFinding } from './ai/utils/reviewAuthoring';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
@@ -1238,7 +1238,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         };
     }
 
-    /** A failed load degrades to no matches — it must never fail the review. */
+    // A failed load degrades to no matches; it must never fail the review.
     private async loadRecentSimilarPrompts(
         candidate: AiAgentReviewClassifierTurnCandidate,
     ): Promise<AiAgentReviewRecentSimilarPrompts> {
@@ -1252,7 +1252,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     agentUuid: candidate.subject.agentUuid,
                     excludeThreadUuid: candidate.subject.threadUuid,
                     since,
-                    limit: 300,
+                    limit: RECENT_SIMILAR_PROMPTS_MAX_CANDIDATES,
                 });
             return rankRecentSimilarPrompts(
                 candidate.userPrompt,
@@ -1824,25 +1824,49 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
+        const finding = toReviewTurnFinding(result.output);
         const projectContextEntry =
             result.output.promotedToFinding &&
             result.output.primaryRootCause === 'project_context'
-                ? await this.emitProjectContextEntry({
+                ? await this.authorFindingDraft({
                       candidate,
-                      evidencePacket,
                       model,
-                      judgeOutput: result.output,
+                      draft: 'ProjectContextEntry',
+                      author: async (draftTelemetry) =>
+                          authorProjectContextEntry({
+                              evidence: {
+                                  type: 'turn',
+                                  evidencePacket,
+                                  finding,
+                              },
+                              currentEntries:
+                                  await this.projectContextModel.getDocument(
+                                      candidate.subject.projectUuid,
+                                  ),
+                              model,
+                              telemetry: draftTelemetry,
+                          }),
                   })
                 : null;
 
         const skillProposal =
             result.output.promotedToFinding &&
             result.output.recommendation?.actionType === 'create_skill'
-                ? await this.emitSkillProposal({
+                ? await this.authorFindingDraft({
                       candidate,
-                      evidencePacket,
                       model,
-                      judgeOutput: result.output,
+                      draft: 'SkillProposal',
+                      author: (draftTelemetry) =>
+                          authorSkillProposal({
+                              evidence: {
+                                  evidencePacket,
+                                  finding,
+                                  existingSkills:
+                                      evidencePacket.agentConfig.skills,
+                              },
+                              model,
+                              telemetry: draftTelemetry,
+                          }),
                   })
                 : null;
 
@@ -1853,29 +1877,24 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         } as AiAgentReviewClassifierJudgeOutput;
     }
 
-    /**
-     * Follow-up call that drafts the skill behind a create_skill
-     * recommendation. Kept out of the main judge schema for the same grammar
-     * size reason as the project context entry; failure leaves the finding
-     * without a draft and the admin writes the skill by hand.
-     */
-    private async emitSkillProposal(input: {
+    // Second, smaller LLM call behind a promoted finding. Failure keeps the
+    // finding and drops only the draft, never the whole judgment.
+    private async authorFindingDraft<T>(input: {
         candidate: AiAgentReviewClassifierTurnCandidate;
-        evidencePacket: AiAgentReviewJudgeEvidencePacket;
         model: ReturnType<typeof getModel>;
-        judgeOutput: Omit<
-            AiAgentReviewClassifierJudgeOutput,
-            'projectContextEntry' | 'skillProposal'
-        >;
-    }): Promise<AiAgentJudgeSkillProposal | null> {
-        const { candidate, evidencePacket, model, judgeOutput } = input;
-        this.debugLog('SkillProposalRequest', {
+        draft: 'ProjectContextEntry' | 'SkillProposal';
+        author: (
+            telemetry: ReturnType<typeof getAiCallTelemetry>,
+        ) => Promise<T | null>;
+    }): Promise<T | null> {
+        const { candidate, model, draft } = input;
+        this.debugLog(`${draft}Request`, {
             promptUuid: candidate.subject.assistantPromptUuid,
             threadUuid: candidate.subject.threadUuid,
             judgeModelId: model.model.modelId,
         });
         const telemetry = getAiCallTelemetry({
-            functionId: 'aiAgentReviewClassifierJudgeSkillProposal',
+            functionId: `aiAgentReviewClassifierJudge${draft}`,
             feature: 'review-classifier',
             organizationUuid: candidate.subject.organizationUuid,
             projectUuid: candidate.subject.projectUuid,
@@ -1886,93 +1905,10 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             ...getLanguageModelAttribution(model.model),
         });
         try {
-            return await authorSkillProposal({
-                evidence: {
-                    evidencePacket,
-                    finding: {
-                        reviewItem: judgeOutput.reviewItem,
-                        promotionReason: judgeOutput.promotionReason,
-                        subcategories: judgeOutput.subcategories,
-                        recommendation: judgeOutput.recommendation,
-                        evidenceExcerpts: judgeOutput.evidenceExcerpts,
-                    },
-                    existingSkills: evidencePacket.agentConfig.skills,
-                },
-                model,
-                telemetry,
-            });
+            return await input.author(telemetry);
         } catch (error) {
             Logger.error(
-                'AI review skill proposal emission failed; keeping finding without a draft',
-                {
-                    promptUuid: candidate.subject.assistantPromptUuid,
-                    threadUuid: candidate.subject.threadUuid,
-                    errorMessage:
-                        error instanceof Error ? error.message : String(error),
-                },
-            );
-            return null;
-        }
-    }
-
-    /**
-     * Second, smaller LLM call that emits the structured project_context entry
-     * for a promoted project_context finding. Split from the main judge call
-     * because the combined schema exceeds the provider's strict-structured-
-     * output grammar size limit ("the compiled grammar is too large") and every
-     * judge call then fails. Failure here degrades to a finding without an
-     * entry (writeback preview reports unavailable) instead of losing the
-     * whole judgment.
-     */
-    private async emitProjectContextEntry(input: {
-        candidate: AiAgentReviewClassifierTurnCandidate;
-        evidencePacket: AiAgentReviewJudgeEvidencePacket;
-        model: ReturnType<typeof getModel>;
-        judgeOutput: Omit<
-            AiAgentReviewClassifierJudgeOutput,
-            'projectContextEntry' | 'skillProposal'
-        >;
-    }): Promise<AiAgentJudgeProjectContextEntry | null> {
-        const { candidate, evidencePacket, model, judgeOutput } = input;
-        this.debugLog('ProjectContextEntryRequest', {
-            promptUuid: candidate.subject.assistantPromptUuid,
-            threadUuid: candidate.subject.threadUuid,
-            judgeModelId: model.model.modelId,
-        });
-        const telemetry = getAiCallTelemetry({
-            functionId: 'aiAgentReviewClassifierJudgeProjectContextEntry',
-            feature: 'review-classifier',
-            organizationUuid: candidate.subject.organizationUuid,
-            projectUuid: candidate.subject.projectUuid,
-            agentUuid: candidate.subject.agentUuid,
-            threadUuid: candidate.subject.threadUuid,
-            promptUuid: candidate.subject.assistantPromptUuid,
-            keyManagement: model.keyManagement,
-            ...getLanguageModelAttribution(model.model),
-        });
-        try {
-            const currentEntries = await this.projectContextModel.getDocument(
-                candidate.subject.projectUuid,
-            );
-            return await authorProjectContextEntry({
-                evidence: {
-                    type: 'turn',
-                    evidencePacket,
-                    finding: {
-                        reviewItem: judgeOutput.reviewItem,
-                        promotionReason: judgeOutput.promotionReason,
-                        targetRefs: judgeOutput.targetRefs,
-                        subcategories: judgeOutput.subcategories,
-                        recommendation: judgeOutput.recommendation,
-                    },
-                },
-                currentEntries,
-                model,
-                telemetry,
-            });
-        } catch (error) {
-            Logger.error(
-                'AI review project context entry emission failed; keeping finding without an entry',
+                `AI review ${draft} emission failed; keeping finding without it`,
                 {
                     promptUuid: candidate.subject.assistantPromptUuid,
                     threadUuid: candidate.subject.threadUuid,

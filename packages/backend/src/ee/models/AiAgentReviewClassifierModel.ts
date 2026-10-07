@@ -324,6 +324,14 @@ type ListReviewSignalsArgs = {
     limit?: number;
 };
 
+export type AiAgentRecentUserPrompt = {
+    promptUuid: string;
+    threadUuid: string;
+    userUuid: string | null;
+    createdAt: Date;
+    text: string;
+};
+
 type GetPromptTextArgs = {
     organizationUuid: string;
     promptUuid: string;
@@ -1909,17 +1917,8 @@ export class AiAgentReviewClassifierModel {
         return remediations;
     }
 
-    /**
-     * Writeback PRs the agent itself opened in a given set of threads (via the
-     * editDbtProject / runAiWriteback tools). Used to warn the judge and to block
-     * remediation from opening a second PR on a thread that already has one.
-     */
-    /**
-     * Human prompts sent to this agent from other threads in the window, so the
-     * judge can see when several threads keep asking for the same procedure.
-     * Eval, scheduler and API threads are excluded: they are not people
-     * repeating themselves.
-     */
+    // Prompts people sent this agent from other threads in the window, so the
+    // judge can see when several threads keep asking for the same procedure.
     async findRecentUserPrompts(args: {
         organizationUuid: string;
         projectUuid: string;
@@ -1927,15 +1926,7 @@ export class AiAgentReviewClassifierModel {
         excludeThreadUuid: string;
         since: Date;
         limit: number;
-    }): Promise<
-        {
-            promptUuid: string;
-            threadUuid: string;
-            userUuid: string | null;
-            createdAt: Date;
-            text: string;
-        }[]
-    > {
+    }): Promise<AiAgentRecentUserPrompt[]> {
         const rows = await this.database(`${AiPromptTableName} as prompt`)
             .innerJoin(
                 `${AiThreadTableName} as thread`,
@@ -1946,7 +1937,7 @@ export class AiAgentReviewClassifierModel {
             .where('thread.project_uuid', args.projectUuid)
             .where('thread.agent_uuid', args.agentUuid)
             .whereNot('thread.ai_thread_uuid', args.excludeThreadUuid)
-            .whereIn('thread.created_from', ['web_app', 'slack'])
+            .whereIn('thread.created_from', AI_USER_THREAD_CREATED_FROM)
             .whereNotNull('prompt.created_by_user_uuid')
             .where('prompt.created_at', '>=', args.since)
             .select<
@@ -1976,6 +1967,11 @@ export class AiAgentReviewClassifierModel {
         }));
     }
 
+    /**
+     * Writeback PRs the agent itself opened in a given set of threads (via the
+     * editDbtProject / runAiWriteback tools). Used to warn the judge and to block
+     * remediation from opening a second PR on a thread that already has one.
+     */
     async getThreadWritebackPullRequests(
         threadUuids: string[],
     ): Promise<Map<string, { prUrl: string | null; createdAt: Date }[]>> {
@@ -3061,17 +3057,12 @@ export class AiAgentReviewClassifierModel {
                     .where('fingerprint', newFingerprint)
                     .first('status', 'dismissed_reason');
 
-                // A skill proposal is a suggestion on a correct answer, not a
-                // failure, so it waits in triage until an admin accepts it.
-                const isSkillProposal =
-                    finding.recommendation?.actionType === 'create_skill';
                 await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
                     .insert({
                         fingerprint: newFingerprint,
                         organization_uuid: turnSignal.subject.organizationUuid,
                         project_uuid: turnSignal.subject.projectUuid,
                         agent_uuid: turnSignal.subject.agentUuid,
-                        ...(isSkillProposal ? { status: 'triage' } : {}),
                     })
                     .onConflict('fingerprint')
                     .merge({ updated_at: trx.fn.now() });

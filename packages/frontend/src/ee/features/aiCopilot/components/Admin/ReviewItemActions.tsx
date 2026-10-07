@@ -131,6 +131,28 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     // In the header the stage's primary action reads as the app's primary
     // (filled dark) and Dismiss demotes to a quiet secondary beside it.
     const isHeader = mode === 'header';
+    // Saving the drafted skill is the card's remediation, so it is the primary
+    // action wherever the card is, triage included.
+    const createSkillButton =
+        skillDraftFiles && !isTerminal ? (
+            <Tooltip
+                label="Review the drafted skill and save it to this agent"
+                maw={260}
+            >
+                <Button
+                    size={buttonSize}
+                    radius={isHeader ? 'md' : undefined}
+                    color={isHeader ? 'dark' : 'indigo'}
+                    leftSection={<MantineIcon size="sm" icon={IconLicense} />}
+                    onClick={(event) => {
+                        stopPropagation(event);
+                        setSkillModalOpen(true);
+                    }}
+                >
+                    Create skill
+                </Button>
+            </Tooltip>
+        ) : null;
 
     return (
         <>
@@ -149,20 +171,25 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                 )
             ) : current.status === 'triage' ? (
                 <Group gap={4} wrap="nowrap">
-                    <Button
-                        size={buttonSize}
-                        color={isHeader ? 'dark' : 'indigo'}
-                        loading={updateStatus.isLoading}
-                        onClick={(event) => {
-                            stopPropagation(event);
-                            updateStatus.mutate({
-                                fingerprint: current.fingerprint,
-                                body: { status: 'open', dismissedReason: null },
-                            });
-                        }}
-                    >
-                        Accept
-                    </Button>
+                    {createSkillButton ?? (
+                        <Button
+                            size={buttonSize}
+                            color={isHeader ? 'dark' : 'indigo'}
+                            loading={updateStatus.isLoading}
+                            onClick={(event) => {
+                                stopPropagation(event);
+                                updateStatus.mutate({
+                                    fingerprint: current.fingerprint,
+                                    body: {
+                                        status: 'open',
+                                        dismissedReason: null,
+                                    },
+                                });
+                            }}
+                        >
+                            Accept
+                        </Button>
+                    )}
                     <Button
                         size={buttonSize}
                         variant="default"
@@ -225,31 +252,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                   </Button>
                               )}
 
-                        {skillDraftFiles && !isTerminal && (
-                            <Tooltip
-                                label="Review the drafted skill and save it to this agent"
-                                maw={260}
-                            >
-                                <Button
-                                    size={buttonSize}
-                                    radius={isHeader ? 'md' : undefined}
-                                    variant={isHeader ? 'filled' : 'default'}
-                                    color={isHeader ? 'dark' : undefined}
-                                    leftSection={
-                                        <MantineIcon
-                                            size="sm"
-                                            icon={IconLicense}
-                                        />
-                                    }
-                                    onClick={(event) => {
-                                        stopPropagation(event);
-                                        setSkillModalOpen(true);
-                                    }}
-                                >
-                                    Create skill
-                                </Button>
-                            </Tooltip>
-                        )}
+                        {createSkillButton}
 
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip

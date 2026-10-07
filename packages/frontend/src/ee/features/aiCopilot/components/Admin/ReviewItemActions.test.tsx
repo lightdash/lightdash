@@ -198,7 +198,7 @@ describe('ReviewItemActions', () => {
         expect(screen.getByText('skill modal')).toBeInTheDocument();
     });
 
-    it('keeps a skill proposal behind accept while it is in triage', () => {
+    it('offers to create the drafted skill straight from triage', () => {
         renderWithProviders(
             <MemoryRouter>
                 <ReviewItemActions
@@ -212,7 +212,10 @@ describe('ReviewItemActions', () => {
             </MemoryRouter>,
         );
 
-        expect(screen.getByText('Accept')).toBeInTheDocument();
-        expect(screen.queryByText('Create skill')).not.toBeInTheDocument();
+        expect(screen.queryByText('Accept')).not.toBeInTheDocument();
+        expect(screen.getByText('Dismiss')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Create skill'));
+
+        expect(screen.getByText('skill modal')).toBeInTheDocument();
     });
 });

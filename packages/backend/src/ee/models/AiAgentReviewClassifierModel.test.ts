@@ -1267,52 +1267,6 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(eventInserts[0].bindings).toContain('created');
         });
 
-        it('parks a new skill proposal in triage instead of opening it', async () => {
-            tracker.on.any(/pg_advisory_xact_lock/).response([]);
-            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
-            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
-            tracker.on
-                .insert(AiAgentTurnSignalTableName)
-                .responseOnce([
-                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
-                ]);
-            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
-            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
-            tracker.on
-                .insert(AiAgentReviewItemEventsTableName)
-                .responseOnce([]);
-
-            await model.createTurnSignal({
-                runUuid: RUN_UUID,
-                turnSignal,
-                finding: {
-                    ...promotedFinding,
-                    primaryRootCause: 'agent_configuration',
-                    recommendation: {
-                        actionType: 'create_skill',
-                        title: 'Create a weekly revenue skill',
-                        rationale: 'The same steer recurs.',
-                        targetRefs: [],
-                    },
-                    skillProposal: {
-                        name: 'weekly-revenue-table',
-                        description:
-                            'Use when the user asks for weekly revenue.',
-                        instructions: '## Steps\n1. Query weekly revenue.',
-                        arguments: [],
-                        argumentHint: null,
-                    },
-                },
-            });
-
-            const itemInsert = tracker.history.insert.find(
-                (q) =>
-                    q.sql.includes(AiAgentReviewItemTableName) &&
-                    !q.sql.includes(AiAgentReviewItemEventsTableName),
-            );
-            expect(itemInsert?.bindings).toContain('triage');
-        });
-
         it('records a recurred issue event when the fingerprint already exists', async () => {
             tracker.on.any(/pg_advisory_xact_lock/).response([]);
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);

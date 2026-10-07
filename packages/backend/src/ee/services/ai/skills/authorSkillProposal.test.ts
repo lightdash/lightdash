@@ -74,6 +74,7 @@ const evidence: SkillProposalAuthoringEvidence = {
             description: 'Recurring presentation steer.',
         },
         promotionReason: 'Standing instruction repeated across threads.',
+        targetRefs: [],
         subcategories: ['weekly-revenue-table'],
         recommendation: {
             actionType: 'create_skill',
@@ -153,13 +154,13 @@ describe('authorSkillProposal', () => {
         ).resolves.toBeNull();
     });
 
-    it('declares every named placeholder the draft uses, in lowercase', async () => {
+    it('lowercases declared arguments and the references to them', async () => {
         const result = await author({
             name: 'weekly-sales-review',
             description: 'Use when the user asks for the weekly sales review.',
             instructions:
                 '## Steps\n1. Query the period given as $PERIOD for $Region.\n2. Keep $ARGUMENTS out of it.',
-            arguments: ['period'],
+            arguments: ['Period', 'REGION'],
             argumentHint: null,
         });
 
@@ -167,6 +168,19 @@ describe('authorSkillProposal', () => {
         expect(result?.argumentHint).toBe('<period> <region>');
         expect(result?.instructions).toContain('$period for $region');
         expect(result?.instructions).toContain('$ARGUMENTS');
+    });
+
+    it('leaves an undeclared $WORD as the literal it is', async () => {
+        const result = await author({
+            name: 'weekly-revenue-gbp',
+            description: 'Use when the user asks for weekly revenue in GBP.',
+            instructions: '## Steps\n1. Show revenue in $GBP for $period.',
+            arguments: ['period'],
+            argumentHint: null,
+        });
+
+        expect(result?.arguments).toEqual(['period']);
+        expect(result?.instructions).toContain('in $GBP for $period');
     });
 
     it('leaves a free-text draft on $ARGUMENTS with no named arguments', async () => {

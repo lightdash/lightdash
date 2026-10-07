@@ -16,11 +16,7 @@ const SIGNALS_BEFORE = [
     'ambiguous',
 ];
 
-const SIGNALS_WITH_STANDING_INSTRUCTION = [
-    ...SIGNALS_BEFORE.slice(0, -1),
-    'standing_instruction',
-    'ambiguous',
-];
+const SIGNALS_AFTER = [...SIGNALS_BEFORE, 'standing_instruction'];
 
 // Widening a CHECK list: existing rows all satisfy the new constraint and the
 // previous backend never writes the new value, so rolling upgrades are safe.
@@ -34,6 +30,7 @@ export const classification: {
 
 const setCheckConstraint = async (knex: Knex, allowed: string[]) => {
     const list = allowed.map((value) => `'${value}'`).join(', ');
+    await knex.raw(`SET LOCAL lock_timeout = '5s'`);
     await knex.raw(`ALTER TABLE ?? DROP CONSTRAINT IF EXISTS ??`, [
         TURN_SIGNAL_TABLE,
         CHECK_CONSTRAINT,
@@ -45,7 +42,7 @@ const setCheckConstraint = async (knex: Knex, allowed: string[]) => {
 };
 
 export async function up(knex: Knex): Promise<void> {
-    await setCheckConstraint(knex, SIGNALS_WITH_STANDING_INSTRUCTION);
+    await setCheckConstraint(knex, SIGNALS_AFTER);
 }
 
 export async function down(knex: Knex): Promise<void> {

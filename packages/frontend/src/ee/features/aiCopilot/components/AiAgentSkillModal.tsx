@@ -270,18 +270,13 @@ type Props = {
     /** Agent to bind a new skill to on creation. */
     bindToAgentUuid: string | null;
     /** Prefilled files for a new skill, e.g. a draft proposed on the Issues board. */
-    draftFiles?: AiAgentSkillFiles;
-    onCreated?: (skill: AiAgentSkill) => void;
+    draftFiles: AiAgentSkillFiles | null;
+    onCreated: ((skill: AiAgentSkill) => void) | null;
     onClose: () => void;
 };
 
 /** Loads the current files when editing, then mounts the form once per skill. */
-export const AiAgentSkillModal = ({
-    skill,
-    draftFiles,
-    onCreated,
-    ...props
-}: Props) => {
+export const AiAgentSkillModal = ({ skill, draftFiles, ...props }: Props) => {
     const detail = useAiAgentSkill(skill?.uuid ?? null);
     if (skill && !detail.data) {
         return (
@@ -309,7 +304,6 @@ export const AiAgentSkillModal = ({
             key={skill?.uuid ?? 'new'}
             skill={skill}
             existingFiles={detail.data?.content.files ?? draftFiles ?? {}}
-            onCreated={onCreated ?? null}
             {...props}
         />
     );

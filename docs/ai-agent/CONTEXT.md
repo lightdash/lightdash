@@ -89,8 +89,8 @@ _Avoid_: command (for the unit), prompt template, action, macro
 An Issues board card the review judge files when users keep steering an
 agent through the same procedure or presentation convention on otherwise
 correct answers. It carries a drafted skill (name, description, instructions)
-and lands in triage; accepting it offers "Create skill", which opens the
-skill editor prefilled and resolves the card on save.
+and lands in triage, where "Create skill" opens the skill editor prefilled
+and resolves the card on save.
 _Avoid_: skill suggestion, auto-skill, skill finding
 
 ## MCP servers

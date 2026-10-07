@@ -4,69 +4,27 @@ import {
     aiAgentReviewClassifierJudgeSkillProposalCallSchema,
     isValidAiAgentSkillName,
     type AiAgentJudgeSkillProposal,
-    type AiAgentReviewClassifierJudgeOutput,
     type AiAgentSkillSnapshot,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
-import {
-    emitAiUsage,
-    languageModelUsageToTokens,
-} from '../../../../analytics/aiUsage';
 import type { AiAgentReviewJudgeEvidencePacket } from '../../AiAgentReviewClassifierService';
-import { defaultAgentOptions } from '../agents/agentV2';
 import type { getModel } from '../models';
 import type { getAiCallTelemetry } from '../utils/aiCallTelemetry';
-
-type TurnFinding = Pick<
-    AiAgentReviewClassifierJudgeOutput,
-    | 'reviewItem'
-    | 'promotionReason'
-    | 'subcategories'
-    | 'recommendation'
-    | 'evidenceExcerpts'
->;
+import {
+    createAuthoringLlmCall,
+    type AuthoringLlmCall,
+    type AuthoringMessage,
+    type ReviewTurnFinding,
+} from '../utils/reviewAuthoring';
 
 export type SkillProposalAuthoringEvidence = {
     evidencePacket: AiAgentReviewJudgeEvidencePacket;
-    finding: TurnFinding;
+    finding: ReviewTurnFinding;
     existingSkills: AiAgentSkillSnapshot[];
 };
 
-type AuthoringMessage = {
-    role: 'system' | 'user';
-    content: string;
-};
-
-type AuthoringLlmCallArgs = {
-    model: ReturnType<typeof getModel>;
-    telemetry: ReturnType<typeof getAiCallTelemetry>;
-    messages: AuthoringMessage[];
-};
-
-export type SkillProposalAuthoringLlmCall = (
-    args: AuthoringLlmCallArgs,
-) => Promise<unknown>;
-
-const callAuthoringLlm: SkillProposalAuthoringLlmCall = async ({
-    model,
-    telemetry,
-    messages,
-}) => {
-    const result = await generateText({
-        model: model.model,
-        ...defaultAgentOptions,
-        ...model.callOptions,
-        providerOptions: model.providerOptions,
-        ...telemetry,
-        output: Output.object({
-            schema: aiAgentReviewClassifierJudgeSkillProposalCallSchema,
-        }),
-        allowSystemInMessages: true,
-        messages,
-    });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.output;
-};
+const callAuthoringLlm = createAuthoringLlmCall(
+    aiAgentReviewClassifierJudgeSkillProposalCallSchema,
+);
 
 const systemPrompt = `You draft a reusable skill for a Lightdash AI agent from a review finding whose recommendation is create_skill: the user keeps steering the agent through the same procedure or presentation convention, and an admin will review this draft before saving it.
 
@@ -99,25 +57,23 @@ const buildAuthoringMessages = (
     },
 ];
 
-const NAMED_PLACEHOLDER = /\$(?!ARGUMENTS\b)([A-Za-z][A-Za-z0-9_-]*)/g;
+const NAMED_PLACEHOLDER = /\$([A-Za-z][A-Za-z0-9_-]*)/g;
 
-// The runtime only substitutes $ARGUMENTS, $N and placeholders declared in
-// `arguments`, so every $name the model wrote must be declared, in the exact
-// case the body uses. Lowercase both sides so the draft loads as written.
-const declareUsedPlaceholders = (
+// The runtime substitutes a named placeholder only when it matches a declared
+// argument exactly, so declared names and their references are both lowercased.
+// Anything undeclared ("$GBP", "$ARGUMENTS") is left as the literal it is.
+const normalizePlaceholders = (
     proposal: AiAgentJudgeSkillProposal,
 ): AiAgentJudgeSkillProposal => {
-    const found = new Set<string>();
+    const args = [
+        ...new Set(proposal.arguments.map((name) => name.toLowerCase())),
+    ];
+    const declared = new Set(args);
     const instructions = proposal.instructions.replace(
         NAMED_PLACEHOLDER,
-        (_, name: string) => {
-            const lower = name.toLowerCase();
-            found.add(lower);
-            return `$${lower}`;
-        },
+        (match, name: string) =>
+            declared.has(name.toLowerCase()) ? `$${name.toLowerCase()}` : match,
     );
-    const declared = proposal.arguments.map((name) => name.toLowerCase());
-    const args = [...new Set([...declared, ...found])];
     return {
         ...proposal,
         instructions,
@@ -147,7 +103,7 @@ export const authorSkillProposal = async ({
     evidence: SkillProposalAuthoringEvidence;
     model: ReturnType<typeof getModel>;
     telemetry: ReturnType<typeof getAiCallTelemetry>;
-    authoringLlmCall?: SkillProposalAuthoringLlmCall;
+    authoringLlmCall?: AuthoringLlmCall;
 }): Promise<AiAgentJudgeSkillProposal | null> => {
     const output = await authoringLlmCall({
         model,
@@ -159,6 +115,6 @@ export const authorSkillProposal = async ({
 
     return skillProposal &&
         isUsableProposal(skillProposal, evidence.existingSkills)
-        ? declareUsedPlaceholders(skillProposal)
+        ? normalizePlaceholders(skillProposal)
         : null;
 };

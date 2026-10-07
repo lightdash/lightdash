@@ -81,6 +81,7 @@ const evidence = {
         targetRefs: [],
         subcategories: [],
         recommendation: null,
+        evidenceExcerpts: [],
     },
 } satisfies ProjectContextEntryAuthoringEvidence;
 

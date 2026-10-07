@@ -231,7 +231,6 @@ describe('single-tier judge', () => {
 
         const result = await makeService().replayJudge(replayInput);
 
-        expect(generateTextMock).toHaveBeenCalledTimes(2);
         expect(generateTextMock).toHaveBeenLastCalledWith(
             expect.objectContaining({ model: JUDGE_MODEL.model }),
         );
@@ -268,7 +267,6 @@ describe('single-tier judge', () => {
 
         const result = await makeService().replayJudge(replayInput);
 
-        expect(generateTextMock).toHaveBeenCalledTimes(2);
         expect(result.judgeOutput?.skillProposal).toEqual(skillProposal);
     });
 

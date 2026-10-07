@@ -1,11 +1,9 @@
-import {
-    rankRecentSimilarPrompts,
-    type RecentPromptCandidate,
-} from './recentSimilarPrompts';
+import type { AiAgentRecentUserPrompt } from '../../../models/AiAgentReviewClassifierModel';
+import { rankRecentSimilarPrompts } from './recentSimilarPrompts';
 
 const candidate = (
-    overrides: Partial<RecentPromptCandidate> & { text: string },
-): RecentPromptCandidate => ({
+    overrides: Partial<AiAgentRecentUserPrompt> & { text: string },
+): AiAgentRecentUserPrompt => ({
     promptUuid: 'p',
     threadUuid: 't',
     userUuid: 'u',
