@@ -62,7 +62,7 @@ export const VALUE_ENDING_WORDS = new Set(['NULL', 'TRUE', 'FALSE', 'END']);
 
 export const STATEMENT_START_KEYWORDS = ['SELECT', 'WITH'];
 
-export const SET_OPERATION_KEYWORDS = [
+const SET_OPERATION_KEYWORDS = [
     'UNION ALL',
     'UNION DISTINCT',
     'UNION',

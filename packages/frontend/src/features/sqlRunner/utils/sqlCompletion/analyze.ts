@@ -174,7 +174,7 @@ const readAlias = (
 };
 
 /** Output column names of a query body: aliases or trailing identifiers. */
-export const getSelectOutputColumns = (
+const getSelectOutputColumns = (
     tokens: SqlToken[],
     quoteChar: string,
 ): string[] => {
@@ -211,7 +211,7 @@ export const getSelectOutputColumns = (
     });
 };
 
-export const collectCtes = (
+const collectCtes = (
     tokens: SqlToken[],
     quoteChar: string,
 ): CteDefinition[] => {
@@ -259,7 +259,7 @@ export const collectCtes = (
 };
 
 /** Tables referenced in FROM / JOIN at the top level of a query block. */
-export const collectBlockTables = (
+const collectBlockTables = (
     tokens: SqlToken[],
     quoteChar: string,
     ctes: CteDefinition[],
