@@ -1,3 +1,10 @@
+# [2.461.0](https://github.com/lightdash/lightdash/compare/2.460.1...2.461.0) (2026-10-07)
+
+
+### Features
+
+* **ai-agent:** suggest a skill on the Issues board when users keep asking for the same procedure ([#30629](https://github.com/lightdash/lightdash/issues/30629)) ([58d1361](https://github.com/lightdash/lightdash/commit/58d136121fc407eb2970751e47e86664b3f8fd9c))
+
 ## [2.460.1](https://github.com/lightdash/lightdash/compare/2.460.0...2.460.1) (2026-10-07)
 
 

@@ -27097,6 +27097,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['update_access'] },
                 { dataType: 'enum', enums: ['route_to_product_work'] },
                 { dataType: 'enum', enums: ['request_more_evidence'] },
+                { dataType: 'enum', enums: ['create_skill'] },
                 { dataType: 'enum', enums: ['no_action'] },
             ],
             validators: {},
@@ -27238,6 +27239,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['explore_tags'] },
                 { dataType: 'enum', enums: ['space_access'] },
                 { dataType: 'enum', enums: ['user_or_group_access'] },
+                { dataType: 'enum', enums: ['skills'] },
                 { dataType: 'enum', enums: ['unknown'] },
             ],
             validators: {},
@@ -44932,6 +44934,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentJudgeSkillProposal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                argumentHint: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                arguments: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                instructions: { dataType: 'string', required: true },
+                description: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentReviewItemSummary: {
         dataType: 'refAlias',
         type: {
@@ -44949,6 +44977,19 @@ const models: TsoaRoute.Models = {
                                     nestedProperties: {
                                         createdAt: {
                                             dataType: 'datetime',
+                                            required: true,
+                                        },
+                                        skillProposal: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                {
+                                                    ref: 'AiAgentJudgeSkillProposal',
+                                                },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
                                             required: true,
                                         },
                                         projectContextEntry: {
@@ -46099,6 +46140,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['acceptance_or_continuation'] },
                 { dataType: 'enum', enums: ['product_capability_request'] },
                 { dataType: 'enum', enums: ['human_intervention'] },
+                { dataType: 'enum', enums: ['standing_instruction'] },
                 { dataType: 'enum', enums: ['ambiguous'] },
             ],
             validators: {},
@@ -46118,6 +46160,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['assistant_no_answer'] },
                 { dataType: 'enum', enums: ['product_capability_request'] },
                 { dataType: 'enum', enums: ['human_intervention'] },
+                { dataType: 'enum', enums: ['standing_instruction'] },
             ],
             validators: {},
         },

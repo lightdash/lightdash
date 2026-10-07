@@ -28653,6 +28653,7 @@
                     "update_access",
                     "route_to_product_work",
                     "request_more_evidence",
+                    "create_skill",
                     "no_action"
                 ]
             },
@@ -28836,6 +28837,7 @@
                     "explore_tags",
                     "space_access",
                     "user_or_group_access",
+                    "skills",
                     "unknown"
                 ]
             },
@@ -43662,6 +43664,37 @@
                     "no_action"
                 ]
             },
+            "AiAgentJudgeSkillProposal": {
+                "properties": {
+                    "argumentHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "arguments": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "argumentHint",
+                    "arguments",
+                    "instructions",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
             "AiAgentReviewItemSummary": {
                 "allOf": [
                     {
@@ -43674,6 +43707,14 @@
                                     "createdAt": {
                                         "type": "string",
                                         "format": "date-time"
+                                    },
+                                    "skillProposal": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentJudgeSkillProposal"
+                                            }
+                                        ],
+                                        "nullable": true
                                     },
                                     "projectContextEntry": {
                                         "allOf": [
@@ -43733,6 +43774,7 @@
                                 },
                                 "required": [
                                     "createdAt",
+                                    "skillProposal",
                                     "projectContextEntry",
                                     "recommendation",
                                     "evidenceExcerpts",
@@ -44741,6 +44783,7 @@
                     "acceptance_or_continuation",
                     "product_capability_request",
                     "human_intervention",
+                    "standing_instruction",
                     "ambiguous"
                 ]
             },
@@ -44754,7 +44797,8 @@
                     "tool_error",
                     "assistant_no_answer",
                     "product_capability_request",
-                    "human_intervention"
+                    "human_intervention",
+                    "standing_instruction"
                 ]
             },
             "AiAgentReviewClassifierConfidence": {
@@ -69532,7 +69576,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.460.1",
+        "version": "2.461.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

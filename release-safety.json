@@ -1,14 +1,37 @@
 {
   "schemaVersion": "2",
-  "version": "2.460.1",
-  "previousVersion": "2.460.0",
-  "releaseDate": "2026-10-07T15:57:37.321Z",
+  "version": "2.461.0",
+  "previousVersion": "2.460.1",
+  "releaseDate": "2026-10-07T16:14:48.650Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 2,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 2,
+    "files": [
+      {
+        "name": "20261006150000_add_turn_signal_skill_proposal.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent_review_turn_signal"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261007130000_allow_standing_instruction_turn_signal.ts",
+        "edition": "ee",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +43,49 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/aiAgents/admin/review-items — added the new `create_skill` enum value to the `results/items/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/items/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/items/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/items/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "POST /api/v1/aiAgents/admin/review-items — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `201`",
+        "POST /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `201`",
+        "POST /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `201`",
+        "POST /api/v1/aiAgents/admin/review-items — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `201`",
+        "GET /api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid} — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid} — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/assignee — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/assignee — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/assignee — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/assignee — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/priority — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/priority — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/priority — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/priority — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "POST /api/v1/aiAgents/admin/review-items/{fingerprint}/writeback — added the new `create_skill` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "POST /api/v1/aiAgents/admin/review-items/{fingerprint}/writeback — added the new `skills` enum value to the `results/allOf[#/components/schemas/AiAgentReviewItem]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "POST /api/v1/aiAgents/admin/review-items/{fingerprint}/writeback — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "POST /api/v1/aiAgents/admin/review-items/{fingerprint}/writeback — added the new `skills` enum value to the `results/allOf[subschema #2]/latestFinding/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-signals — added the new `create_skill` enum value to the `results/items/finding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/actionType` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-signals — added the new `skills` enum value to the `results/items/finding/recommendation/allOf[#/components/schemas/AiAgentRecommendation]/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-signals — added the new `standing_instruction` enum value to the `results/items/implicitSignalSources/items/` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/review-signals — added the new `standing_instruction` enum value to the `results/items/signal` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `create_skill` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageUser_AiAgentUser_]/context/items/anyOf[subschema #9]/payload/anyOf[subschema #2]/recommendation/actionType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `skills` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageUser_AiAgentUser_]/context/items/anyOf[subschema #9]/payload/anyOf[subschema #2]/recommendation/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages — added the new `create_skill` enum value to the `results/context/items/anyOf[subschema #9]/payload/anyOf[subschema #2]/recommendation/actionType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages — added the new `skills` enum value to the `results/context/items/anyOf[subschema #9]/payload/anyOf[subschema #2]/recommendation/targetRefs/items/anyOf[subschema #3]/setting` response property for the response status `200`"
+      ],
+      "advisoryCount": 40
     },
     "mcp": {
       "checked": true,
