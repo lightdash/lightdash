@@ -355,6 +355,7 @@ export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './departments/departmentTree';
+export * from './departments/resolveDepartmentMembership';
 export * from './types/departments';
 export * from './types/roadmap';
 export * from './types/roles';
