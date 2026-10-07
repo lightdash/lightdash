@@ -1,3 +1,10 @@
+## [2.455.2](https://github.com/lightdash/lightdash/compare/2.455.1...2.455.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* **embed:** show explore access error instead of loading forever ([#30613](https://github.com/lightdash/lightdash/issues/30613)) ([ad607bc](https://github.com/lightdash/lightdash/commit/ad607bc71249426b7570363a785377579b8e53b0))
+
 ## [2.455.1](https://github.com/lightdash/lightdash/compare/2.455.0...2.455.1) (2026-10-07)
 
 
