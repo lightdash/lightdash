@@ -17,6 +17,7 @@ import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCaptu
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
+import { useAppVersion } from '../features/apps/hooks/useAppVersion';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -42,8 +43,9 @@ const SDK_ALIVE_FALLBACK_MS = 8_000;
 
 /**
  * Chrome-stripped variant of AppPreviewTest used by the headless browser
- * for scheduled-delivery screenshots. Always renders the latest ready
- * version — no version pinning, consistent with chart/dashboard schedulers.
+ * for server-side renders. Renders the latest ready version, consistent with
+ * chart/dashboard schedulers, unless `?version=` asks for a specific one —
+ * that version is rendered only if it is ready, with no fallback to another.
  *
  * Mounts a `ScreenshotReadyIndicator` once the iframe has loaded and all
  * SDK-bridge queries have settled — the backend `UnfurlService` waits on
@@ -75,16 +77,32 @@ export default function MinimalApp() {
     const latestReadyVersion =
         appQuery.data?.pages[0]?.latestReadyVersion ?? undefined;
 
+    const versionParam = searchParams.get('version');
+    const isVersionRequested = versionParam !== null;
+    const requestedVersion =
+        versionParam !== null && /^[1-9]\d*$/.test(versionParam)
+            ? Number(versionParam)
+            : undefined;
+    const requestedVersionQuery = useAppVersion(
+        projectUuid,
+        appUuid,
+        requestedVersion,
+    );
+    const isRequestedVersionLoading =
+        requestedVersion !== undefined && requestedVersionQuery.isLoading;
+    const readyRequestedVersion =
+        requestedVersionQuery.data?.status === 'ready'
+            ? requestedVersion
+            : undefined;
+    const version = isVersionRequested
+        ? readyRequestedVersion
+        : latestReadyVersion;
+
     const {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(
-        projectUuid,
-        appUuid,
-        latestReadyVersion,
-        'delivery',
-    );
+    } = useAppPreviewToken(projectUuid, appUuid, version, 'delivery');
 
     const previewOrigin = usePreviewOrigin();
 
@@ -235,6 +253,7 @@ export default function MinimalApp() {
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
+        requestedVersionQuery.error?.error?.statusCode === 403 ||
         visibleTokenError?.error?.statusCode === 403;
     if (isForbidden) {
         return <ForbiddenPanel />;
@@ -255,7 +274,9 @@ export default function MinimalApp() {
         );
     }
 
-    if (!appQuery.isLoading && !appQuery.error && !latestReadyVersion) {
+    const versionError = appQuery.error ?? requestedVersionQuery.error;
+    const isVersionLoading = appQuery.isLoading || isRequestedVersionLoading;
+    if (!isVersionLoading && !versionError && version === undefined) {
         return (
             <Box h="100vh">
                 <SuboptimalState
@@ -268,9 +289,8 @@ export default function MinimalApp() {
     }
 
     const isLoading =
-        appQuery.isLoading ||
-        (latestReadyVersion !== undefined && isTokenLoading);
-    const error = appQuery.error ?? visibleTokenError;
+        isVersionLoading || (version !== undefined && isTokenLoading);
+    const error = versionError ?? visibleTokenError;
 
     if (isLoading) {
         return (
@@ -291,7 +311,7 @@ export default function MinimalApp() {
     }
 
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
     if (!previewUrl || !token) return null;
 
@@ -303,7 +323,7 @@ export default function MinimalApp() {
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}
-                identityKey={`${appUuid}:${latestReadyVersion}`}
+                identityKey={`${appUuid}:${version}`}
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
