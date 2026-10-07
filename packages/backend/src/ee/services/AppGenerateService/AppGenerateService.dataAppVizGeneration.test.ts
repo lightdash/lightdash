@@ -4,6 +4,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     type DataAppVizSchema,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -106,6 +107,7 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

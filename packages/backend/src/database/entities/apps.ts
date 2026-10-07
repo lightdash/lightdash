@@ -137,6 +137,10 @@ export type DbAppVersion = {
     generation_usage: DataAppGenerationUsage | null;
     // Registry version string this app version was installed/updated from.
     registry_version: string | null;
+    // When the version's thumbnail was last written; null = no thumbnail.
+    thumbnail_captured_at: Date | null;
+    // True when the thumbnail was set by hand; null = no thumbnail.
+    thumbnail_is_manual: boolean | null;
     // Thread the version belongs to. Null only for rows written before
     // threads existed or by an old pod mid-rollout; reads coalesce to thread 1.
     app_thread_uuid: string | null;
@@ -249,6 +253,8 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'data_references'
             | 'generation_usage'
             | 'registry_version'
+            | 'thumbnail_captured_at'
+            | 'thumbnail_is_manual'
             | 'app_thread_uuid'
         >
     >

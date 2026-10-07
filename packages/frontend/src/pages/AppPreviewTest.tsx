@@ -425,6 +425,7 @@ export default function AppPreviewTest() {
                                     ? capturePreviewScreenshot
                                     : null
                             }
+                            previewVersion={version ?? null}
                             onViewNetwork={inspector.show}
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);

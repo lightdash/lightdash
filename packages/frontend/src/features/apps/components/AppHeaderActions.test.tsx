@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    useAppThumbnailDelete,
+    useAppThumbnailUrl,
+} from '../hooks/useAppThumbnail';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import AppHeaderActions from './AppHeaderActions';
 
@@ -117,6 +121,7 @@ const baseProps = {
     fullscreenToggle: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,
+    previewVersion: null,
     upgrade: null,
 };
 
@@ -200,5 +205,58 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         expect(
             screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('AppHeaderActions — Remove thumbnail', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedCanEdit.mockReturnValue(true);
+        vi.mocked(useAppThumbnailUrl).mockReturnValue({
+            data: { thumbnailUrl: 'https://example.com/thumbnail.png' },
+            isError: false,
+        } as ReturnType<typeof useAppThumbnailUrl>);
+    });
+
+    const removeThumbnailWhileViewing = async (
+        previewVersion: number | null,
+    ) => {
+        const deleteThumbnail = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(useAppThumbnailDelete).mockReturnValue({
+            mutateAsync: deleteThumbnail,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useAppThumbnailDelete>);
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                captureThumbnail={{ onCapture: vi.fn(), disabled: false }}
+                previewVersion={previewVersion}
+            />,
+        );
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'App actions' }));
+        await user.click(await screen.findByText('Remove thumbnail'));
+        return deleteThumbnail;
+    };
+
+    it('removes the thumbnail of the version on screen', async () => {
+        const deleteThumbnail = await removeThumbnailWhileViewing(2);
+
+        expect(deleteThumbnail).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            appUuid: 'app-1',
+            version: 2,
+        });
+    });
+
+    it("removes the latest ready version's thumbnail when no version is on screen", async () => {
+        const deleteThumbnail = await removeThumbnailWhileViewing(null);
+
+        expect(deleteThumbnail).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            appUuid: 'app-1',
+            version: null,
+        });
     });
 });

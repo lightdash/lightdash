@@ -5,13 +5,13 @@ import {
     FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
-    MissingConfigError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -133,6 +133,9 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock({
+            appModel: appModel as never,
+        }),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
@@ -419,11 +422,11 @@ describe('AppGenerateService data app vizs', () => {
         };
 
         it('gates a chart type thumbnail on the explore, not app view', async () => {
-            // Passing the ability gate surfaces the fixture's missing
-            // app-runtime storage instead of a ForbiddenError.
+            // Passing the ability gate reaches the lookup, which finds no
+            // stored image instead of a ForbiddenError.
             await expect(
                 getThumbnail(OrganizationMemberRole.EDITOR),
-            ).rejects.toThrow(MissingConfigError);
+            ).rejects.toThrow(NotFoundError);
         });
 
         it('refuses a viewer the thumbnail', async () => {

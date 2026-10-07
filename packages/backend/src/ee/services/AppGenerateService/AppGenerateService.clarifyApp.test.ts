@@ -2,6 +2,7 @@
 // reach the real sandbox or model client.
 import { DATA_APP_VIZ_TEMPLATE, type DataAppTemplate } from '@lightdash/common';
 import { generateText, NoOutputGeneratedError } from 'ai';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
@@ -112,6 +113,7 @@ function buildService() {
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

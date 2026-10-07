@@ -10,6 +10,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -192,6 +193,7 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
     });
 
     vi.spyOn(

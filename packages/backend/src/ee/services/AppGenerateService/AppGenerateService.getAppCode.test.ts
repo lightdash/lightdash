@@ -7,6 +7,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { pack } from 'tar-stream';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { assertCanViewApp } from './appAuthz';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -236,6 +237,7 @@ function buildService(overrides: {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

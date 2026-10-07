@@ -99,6 +99,13 @@ its upstream project. The first promotion creates a linked upstream app;
 later ones append a version to it.
 _Avoid_: publish, deploy, push, sync
 
+**Thumbnail**:
+A still image of one ready version of a data app, captured automatically
+when the version becomes ready or by hand from the running app. A data
+app's thumbnail is the thumbnail of its latest ready version.
+_Avoid_: screenshot (an image attached to a prompt as context), preview (the
+running app), cover image
+
 ### Threads
 
 **Thread**:

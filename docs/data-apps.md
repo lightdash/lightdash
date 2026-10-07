@@ -141,7 +141,7 @@ Unknown routes are rejected.
   deliveries, into the schedule, so a link or a delivery reopens the same view.
 - **Host colour scheme** — the app follows the host's light/dark mode through a handshake; capture surfaces force
   light.
-- **Thumbnails** — captured from the running app (or uploaded manually) for cards and previews.
+- **Thumbnails** — one per ready version, captured automatically when a build becomes ready or by hand from the running app. An app's card shows its latest ready version's thumbnail.
 - **Exports** — CSV/XLSX and PDF exports run through the normal Lightdash export pipeline; the app never serializes
   data itself.
 - **Embedding and dashboards** — apps render as dashboard tiles (dashboard filters propagate to linked charts) and in
@@ -340,6 +340,7 @@ truth for names and defaults.
 
 - `packages/common/src/ee/apps/` — shared types, version stages, data references, SDK bridge routes and features.
 - `packages/backend/src/ee/services/AppGenerateService/` — the pipeline, authorization, coding agent environments.
+- `packages/backend/src/ee/clients/AppThumbnailClient.ts` — thumbnail rules: capture, manual images, copies, which image an app shows. Callers authorize first.
 - `packages/backend/src/routers/appPreviewRouter.ts` — serving, tokens, CSP.
 - `packages/frontend/src/features/apps/` — builder, preview, bridge, inspector.
 - `packages/frontend/src/features/chartTypes/builder/` — standalone Chart Studio.

@@ -889,6 +889,47 @@ export class AppModel {
         );
     }
 
+    async hasAnyVersionThumbnail(appId: string): Promise<boolean> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId })
+            .whereNotNull('thumbnail_captured_at')
+            .first('app_version_id');
+        return row !== undefined;
+    }
+
+    /**
+     * Records that a version has a thumbnail. An automatic write never
+     * replaces a manual one; returns false when nothing was written.
+     */
+    async setVersionThumbnail(
+        appId: string,
+        version: number,
+        { isManual }: { isManual: boolean },
+    ): Promise<boolean> {
+        const updatedRows = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .modify((q) => {
+                if (!isManual) {
+                    void q.whereRaw('thumbnail_is_manual IS NOT TRUE');
+                }
+            })
+            .update({
+                thumbnail_captured_at:
+                    this.database.fn.now() as unknown as Date,
+                thumbnail_is_manual: isManual,
+            });
+        return updatedRows > 0;
+    }
+
+    async clearVersionThumbnail(appId: string, version: number): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                thumbnail_captured_at: null,
+                thumbnail_is_manual: null,
+            });
+    }
+
     async getLatestRenderableDataAppVizVersion(
         appId: string,
     ): Promise<DbAppVersionWithThread | null> {

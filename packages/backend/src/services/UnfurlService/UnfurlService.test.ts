@@ -454,6 +454,60 @@ describe('UnfurlService', () => {
         });
     });
 
+    describe('captureDataAppVersion', () => {
+        const CAPTURE_ARGS = {
+            projectUuid: '11111111-1111-4111-8111-111111111111',
+            appUuid: '22222222-2222-4222-8222-222222222222',
+            appName: 'Revenue app',
+            authUserUuid: '33333333-3333-4333-8333-333333333333',
+            organizationUuid: '44444444-4444-4444-8444-444444444444',
+            version: 3,
+        };
+        const neverSignalsReady = async (selector: string) => {
+            if (selector === SCREENSHOT_SELECTORS.READY_INDICATOR) {
+                throw new Error('Ready indicator never appeared');
+            }
+        };
+
+        it('returns an image of the requested version', async () => {
+            const { service, page } = setupScreenshot();
+
+            const image = await service.captureDataAppVersion(CAPTURE_ARGS);
+
+            expect(image).toEqual(Buffer.from('png-bytes'));
+            expect(page.goto.mock.calls[0][0]).toBe(
+                `http://headless-browser:8080/minimal/projects/${CAPTURE_ARGS.projectUuid}/apps/${CAPTURE_ARGS.appUuid}?version=3`,
+            );
+        });
+
+        it('fails when the version never signals that it rendered', async () => {
+            const { service, page } = setupScreenshot();
+            page.waitForSelector.mockImplementation(neverSignalsReady);
+
+            await expect(
+                service.captureDataAppVersion(CAPTURE_ARGS),
+            ).rejects.toThrow();
+        });
+
+        it('leaves exportDataApp returning an image for an app that never signals', async () => {
+            const { service, page } = setupScreenshot();
+            page.waitForSelector.mockImplementation(neverSignalsReady);
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+
+            const { version, ...exportArgs } = CAPTURE_ARGS;
+            const result = await service.exportDataApp({
+                ...exportArgs,
+                context: ScreenshotContext.SLACK,
+            });
+
+            expect(result.imageBuffer).toEqual(Buffer.from('png-bytes'));
+        });
+    });
+
     describe('exportDocumentPdf', () => {
         const EXPORT_ARGS = {
             projectUuid: 'project-uuid',
