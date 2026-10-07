@@ -1,3 +1,15 @@
+# [2.463.0](https://github.com/lightdash/lightdash/compare/2.462.0...2.463.0) (2026-10-07)
+
+
+### Bug Fixes
+
+* **filters:** enforce explore visibility in filter value search ([#30646](https://github.com/lightdash/lightdash/issues/30646)) ([cbcfb0a](https://github.com/lightdash/lightdash/commit/cbcfb0a9402dd6b8911a705c76d731a271f454c4))
+
+
+### Features
+
+* **ai-agent:** suggest saving analyses as Documents and track nudges ([#30648](https://github.com/lightdash/lightdash/issues/30648)) ([3d7f773](https://github.com/lightdash/lightdash/commit/3d7f773470d3dad56580975117d22350f42702ed)), closes [#30618](https://github.com/lightdash/lightdash/issues/30618)
+
 # [2.462.0](https://github.com/lightdash/lightdash/compare/2.461.0...2.462.0) (2026-10-07)
 
 

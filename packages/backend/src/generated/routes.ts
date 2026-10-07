@@ -26063,10 +26063,16 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
-                { dataType: 'enum', enums: ['generateDashboard'] },
-                { dataType: 'enum', enums: ['generateVisualization'] },
-                { dataType: 'enum', enums: ['runSql'] },
-                { dataType: 'enum', enums: ['findContent'] },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['generateDashboard'] },
+                        { dataType: 'enum', enums: ['generateVisualization'] },
+                        { dataType: 'enum', enums: ['runSql'] },
+                        { dataType: 'enum', enums: ['findContent'] },
+                    ],
+                },
+                { dataType: 'enum', enums: ['createContent'] },
             ],
             validators: {},
         },
@@ -28168,9 +28174,9 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateVisualization'] },
                 { dataType: 'enum', enums: ['runSql'] },
                 { dataType: 'enum', enums: ['findContent'] },
+                { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['analyzeFieldImpact'] },
                 { dataType: 'enum', enums: ['closePullRequest'] },
-                { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['createScheduledDelivery'] },
                 { dataType: 'enum', enums: ['delegateResearchTask'] },
                 { dataType: 'enum', enums: ['describeWarehouseTable'] },
