@@ -78,6 +78,15 @@ type AssertFn = (
     extraContext?: Record<string, unknown>,
 ) => Promise<{ projectUuid: string }>;
 
+const previewAccessContext = {
+    organizationUuid: ORG_UUID,
+    projectUuid: OWN_PREVIEW_UUID,
+    inheritsFromOrgOrProject: false,
+    access: [],
+    admins: [],
+    directOnly: false,
+};
+
 const buildService = () =>
     new AppGenerateService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
@@ -92,6 +101,8 @@ const buildService = () =>
                     app_id: 'app-1',
                     name: 'Preview app',
                     slug: 'preview-app',
+                    space_uuid: null,
+                    created_by_user_uuid: 'another-user',
                 },
             ]),
         } as never,
@@ -116,14 +127,10 @@ const buildService = () =>
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {
-            resolveAccess: vi.fn().mockResolvedValue({
-                organizationUuid: ORG_UUID,
-                projectUuid: OWN_PREVIEW_UUID,
-                inheritsFromOrgOrProject: false,
-                access: [],
-                admins: [],
-                directOnly: false,
-            }),
+            resolveAccess: vi.fn().mockResolvedValue(previewAccessContext),
+            resolveAccessBatch: vi
+                .fn()
+                .mockResolvedValue([{ context: previewAccessContext }]),
         } as never,
         coderService: {} as never,
         documentService: {} as never,
