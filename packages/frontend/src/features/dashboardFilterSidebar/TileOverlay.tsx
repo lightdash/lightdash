@@ -72,7 +72,7 @@ type TileOverlayProps = {
     fieldsMap: FieldsMap;
     filterFieldIds: string[];
     offeredField: DashboardFieldTarget | null;
-    highlightedFieldId: string | null;
+    activeFieldId: string | null;
     onChange: (rule: DashboardFilterRule) => void;
 };
 
@@ -84,7 +84,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
     fieldsMap,
     filterFieldIds,
     offeredField,
-    highlightedFieldId,
+    activeFieldId,
     onChange,
 }) => {
     const tileField = getTileField(rule, tile, fieldsByTile);
@@ -100,8 +100,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
         doesTileOfferField(tile, offeredField.fieldId, fieldsByTile);
     const isHighlighted =
         showOffer ||
-        (highlightedFieldId !== null &&
-            tileField?.fieldId === highlightedFieldId);
+        (activeFieldId !== null && tileField?.fieldId === activeFieldId);
 
     const setField = (field: DashboardFieldTarget | null) =>
         onChange(setTileField(rule, tile, field, fieldsByTile));
@@ -195,7 +194,7 @@ export const TileOverlays: FC = () => {
     const {
         editingRule,
         waitingField,
-        highlightedFieldId,
+        activeFieldId,
         listedFieldIds,
         updateFilter,
     } = useFilterSidebar();
@@ -231,8 +230,8 @@ export const TileOverlays: FC = () => {
     const filterFieldIds = getFilterFields(editingRule, listedFieldIds);
     const offeredField =
         waitingField ??
-        (highlightedFieldId !== null
-            ? getFieldTarget(highlightedFieldId, editingRule, fieldsMap)
+        (activeFieldId !== null
+            ? getFieldTarget(activeFieldId, editingRule, fieldsMap)
             : null);
 
     return (
@@ -249,7 +248,7 @@ export const TileOverlays: FC = () => {
                         fieldsMap={fieldsMap}
                         filterFieldIds={filterFieldIds}
                         offeredField={offeredField}
-                        highlightedFieldId={highlightedFieldId}
+                        activeFieldId={activeFieldId}
                         onChange={updateFilter}
                     />,
                     element,

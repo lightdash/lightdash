@@ -2,7 +2,8 @@ import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getTabCounts } from './peers';
+import { getFieldDisplayLabel } from './fieldGrains';
+import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
@@ -12,12 +13,13 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const { editingRule } = useFilterSidebar();
+    const { editingRule, activeFieldId } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -26,18 +28,34 @@ export const TabCounts: FC = () => {
     const isEnabled = editingRule !== null && dashboardTabs.length > 0;
     const targets = usePortalTargets(tabUuids, getTabSelector, isEnabled);
 
-    const counts = useMemo(
-        () =>
-            editingRule === null
-                ? {}
-                : getTabCounts(
-                      editingRule,
-                      dashboardTiles ?? [],
-                      dashboardTabs,
-                      fieldsByTile,
-                  ),
-        [editingRule, dashboardTiles, dashboardTabs, fieldsByTile],
-    );
+    const counts = useMemo(() => {
+        if (editingRule === null) return {};
+        const tiles = dashboardTiles ?? [];
+        return activeFieldId === null
+            ? getTabCounts(editingRule, tiles, dashboardTabs, fieldsByTile)
+            : getTabCountsForField(
+                  editingRule,
+                  activeFieldId,
+                  tiles,
+                  dashboardTabs,
+                  fieldsByTile,
+              );
+    }, [
+        editingRule,
+        activeFieldId,
+        dashboardTiles,
+        dashboardTabs,
+        fieldsByTile,
+    ]);
+
+    const activeField =
+        activeFieldId === null ? null : (fieldsMap[activeFieldId] ?? null);
+    const subject =
+        activeFieldId === null
+            ? 'this filter'
+            : activeField
+              ? getFieldDisplayLabel(activeField, Object.values(fieldsMap))
+              : activeFieldId;
 
     if (!isEnabled) return null;
 
@@ -50,7 +68,7 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} charts on this tab use this filter`}
+                        label={`${count.applied} of ${count.total} charts on this tab use ${subject}`}
                     >
                         <Badge
                             size="xs"

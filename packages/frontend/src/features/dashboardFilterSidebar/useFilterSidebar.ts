@@ -20,6 +20,10 @@ export type FilterSidebarContextValue = {
     setWaitingField: (field: DashboardFieldTarget | null) => void;
     highlightedFieldId: string | null;
     setHighlightedFieldId: (fieldId: string | null) => void;
+    hoveredFieldId: string | null;
+    setHoveredFieldId: (fieldId: string | null) => void;
+    /** Hovered field wins over the locked (clicked) one. */
+    activeFieldId: string | null;
     listedFieldIds: string[];
     listFieldId: (fieldId: string) => void;
     unlistFieldId: (fieldId: string) => void;

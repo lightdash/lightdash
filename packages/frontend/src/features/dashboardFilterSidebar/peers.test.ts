@@ -14,6 +14,7 @@ import {
     getFieldCount,
     getFilterFields,
     getTabCounts,
+    getTabCountsForField,
     getTileField,
     isTileChanged,
     removeField,
@@ -202,6 +203,43 @@ describe('peers', () => {
         ).toEqual({
             t1: { applied: 2, total: 2 },
             t2: { applied: 1, total: 2 },
+        });
+    });
+
+    it('counts charts per tab that use one field of the filter', () => {
+        const r = rule({ c: PAYMENTS });
+        expect(
+            getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
+        ).toEqual({
+            t1: { applied: 2, total: 2 },
+            t2: { applied: 0, total: 2 },
+        });
+        expect(
+            getTabCountsForField(
+                r,
+                'payments_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 0, total: 2 },
+            t2: { applied: 1, total: 2 },
+        });
+    });
+
+    it('does not count a chart whose filter is disabled', () => {
+        expect(
+            getTabCountsForField(
+                rule({ a: false }),
+                'orders_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 1, total: 2 },
+            t2: { applied: 0, total: 2 },
         });
     });
 });

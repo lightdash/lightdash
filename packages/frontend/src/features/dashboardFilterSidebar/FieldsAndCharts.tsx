@@ -6,14 +6,22 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Button, Stack, Text } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Select,
+    Stack,
+    Text,
+    type ComboboxItem,
+    type ComboboxItemGroup,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getFieldDisplayLabel } from './fieldGrains';
-import { FieldPicker } from './FieldPicker';
+import { foldFieldGrains, getFieldDisplayLabel } from './fieldGrains';
 import { FieldRow } from './FieldRow';
+import classes from './FieldsAndCharts.module.css';
 import {
     applyFieldToAll,
     getFieldCount,
@@ -46,6 +54,8 @@ export const FieldsAndCharts: FC = () => {
         setWaitingField,
         highlightedFieldId,
         setHighlightedFieldId,
+        hoveredFieldId,
+        setHoveredFieldId,
         listedFieldIds,
         listFieldId,
         unlistFieldId,
@@ -96,6 +106,35 @@ export const FieldsAndCharts: FC = () => {
 
     const [isAdding, setIsAdding] = useState(false);
 
+    const addOptions = useMemo(() => {
+        const byTable = new Map<string, ComboboxItem[]>();
+        const chartCounts = new Map<string, number>();
+        const fieldsByKey = new Map<string, DashboardFilterableField>();
+        foldFieldGrains(candidates).forEach((item) => {
+            const value = getItemId(item.field);
+            fieldsByKey.set(value, item.field);
+            chartCounts.set(
+                value,
+                editingRule === null
+                    ? 0
+                    : getFieldCount(
+                          editingRule,
+                          value,
+                          tiles,
+                          filterableFieldsByTileUuid,
+                      ).possible,
+            );
+            byTable.set(item.tableLabel, [
+                ...(byTable.get(item.tableLabel) ?? []),
+                { value, label: item.label },
+            ]);
+        });
+        const groups: ComboboxItemGroup<ComboboxItem>[] = [
+            ...byTable.entries(),
+        ].map(([group, items]) => ({ group, items }));
+        return { groups, chartCounts, fieldsByKey };
+    }, [candidates, editingRule, tiles, filterableFieldsByTileUuid]);
+
     if (editingRule === null) return null;
     const getField = (fieldId: string): DashboardFilterableField | null =>
         allFilterableFieldsMap[fieldId] ?? null;
@@ -105,6 +144,12 @@ export const FieldsAndCharts: FC = () => {
 
     const clearHighlight = (fieldId: string) => {
         if (highlightedFieldId === fieldId) setHighlightedFieldId(null);
+        if (hoveredFieldId === fieldId) setHoveredFieldId(null);
+    };
+
+    const hoverField = (fieldId: string, isHovered: boolean) => {
+        if (isHovered) setHoveredFieldId(fieldId);
+        else if (hoveredFieldId === fieldId) setHoveredFieldId(null);
     };
 
     const waitingRow =
@@ -171,6 +216,9 @@ export const FieldsAndCharts: FC = () => {
                             isHighlighted={highlightedFieldId === fieldId}
                             isNotSaved={!isTarget && count.applied === 0}
                             onToggleHighlight={() => toggleHighlight(fieldId)}
+                            onHoverChange={(isHovered) =>
+                                hoverField(fieldId, isHovered)
+                            }
                             onAll={() => {
                                 if (target === null) return;
                                 updateFilter(
@@ -239,6 +287,9 @@ export const FieldsAndCharts: FC = () => {
                         onToggleHighlight={() =>
                             toggleHighlight(waitingRow.fieldId)
                         }
+                        onHoverChange={(isHovered) =>
+                            hoverField(waitingRow.fieldId, isHovered)
+                        }
                         onAll={() => {
                             updateFilter(
                                 applyFieldToAll(
@@ -268,32 +319,41 @@ export const FieldsAndCharts: FC = () => {
                     Add a field
                 </Button>
                 {isAdding && (
-                    <FieldPicker
-                        fields={candidates}
-                        mode="single"
-                        chosen={[]}
-                        kind={null}
-                        onKindChange={() => undefined}
-                        lockedKind={
-                            targetFieldType === null
-                                ? undefined
-                                : getFilterTypeFromItemType(targetFieldType)
-                        }
-                        onToggle={(field) => {
+                    <Select
+                        className={classes.addFieldSelect}
+                        size="xs"
+                        searchable
+                        clearable={false}
+                        autoFocus
+                        defaultDropdownOpened
+                        placeholder="Search fields"
+                        nothingFoundMessage="No matching fields"
+                        comboboxProps={{ withinPortal: true }}
+                        data={addOptions.groups}
+                        value={null}
+                        renderOption={({ option }) => (
+                            <Group gap="xs" justify="space-between" flex={1}>
+                                <Text size="xs">{option.label}</Text>
+                                <Text size="xs" c="dimmed">
+                                    {addOptions.chartCounts.get(option.value) ??
+                                        0}{' '}
+                                    charts
+                                </Text>
+                            </Group>
+                        )}
+                        onChange={(value) => {
+                            const field =
+                                value === null
+                                    ? null
+                                    : (addOptions.fieldsByKey.get(value) ??
+                                      null);
+                            if (field === null) return;
                             setWaitingField({
                                 fieldId: getItemId(field),
                                 tableName: field.table,
                             });
                             setIsAdding(false);
                         }}
-                        getChartCount={(field) =>
-                            getFieldCount(
-                                editingRule,
-                                getItemId(field),
-                                tiles,
-                                filterableFieldsByTileUuid,
-                            ).possible
-                        }
                     />
                 )}
             </Stack>

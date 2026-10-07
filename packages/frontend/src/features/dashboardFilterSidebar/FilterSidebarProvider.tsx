@@ -76,6 +76,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
         null,
     );
+    const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
     // Session only: fields kept listed while they sit on no chart.
     const [listedFieldIds, setListedFieldIds] = useState<string[]>([]);
     // Kept for the page session: not cleared when the sidebar closes
@@ -118,6 +119,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         setActiveSection('interactivity');
         setWaitingField(null);
         setHighlightedFieldId(null);
+        setHoveredFieldId(null);
         setListedFieldIds([]);
     }, []);
 
@@ -303,6 +305,9 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             setWaitingField,
             highlightedFieldId,
             setHighlightedFieldId,
+            hoveredFieldId,
+            setHoveredFieldId,
+            activeFieldId: hoveredFieldId ?? highlightedFieldId,
             listedFieldIds,
             listFieldId,
             unlistFieldId,
@@ -349,6 +354,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             dashboardFilters,
             waitingField,
             highlightedFieldId,
+            hoveredFieldId,
             listedFieldIds,
             listFieldId,
             unlistFieldId,

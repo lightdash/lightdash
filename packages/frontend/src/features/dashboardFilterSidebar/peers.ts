@@ -213,3 +213,33 @@ export const getTabCounts = (
             ];
         }),
     );
+
+// Per tab: how many charts the given field is on. Total counts every filterable
+// chart on the tab, so "2 of 4" reads the same as the filter-level count.
+export const getTabCountsForField = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+): Record<string, TabCount> =>
+    Object.fromEntries(
+        tabs.map((tab) => {
+            const tabTiles = tiles.filter(
+                (tile) =>
+                    tile.tabUuid === tab.uuid &&
+                    isTileFilterable(tile, fieldsByTile),
+            );
+            return [
+                tab.uuid,
+                {
+                    total: tabTiles.length,
+                    applied: tabTiles.filter(
+                        (tile) =>
+                            getTileField(rule, tile, fieldsByTile)?.fieldId ===
+                            fieldId,
+                    ).length,
+                },
+            ];
+        }),
+    );

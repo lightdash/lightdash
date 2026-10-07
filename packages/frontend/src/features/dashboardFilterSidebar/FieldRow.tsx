@@ -25,6 +25,7 @@ type Props = {
     isHighlighted: boolean;
     isNotSaved: boolean;
     onToggleHighlight: () => void;
+    onHoverChange: (isHovered: boolean) => void;
     onAll: () => void;
     onNone: () => void;
     onRemove: () => void;
@@ -38,6 +39,7 @@ export const FieldRow: FC<Props> = ({
     isHighlighted,
     isNotSaved,
     onToggleHighlight,
+    onHoverChange,
     onAll,
     onNone,
     onRemove,
@@ -59,6 +61,10 @@ export const FieldRow: FC<Props> = ({
                 className={classes.rowMain}
                 data-highlighted={isHighlighted || undefined}
                 onClick={onToggleHighlight}
+                onMouseEnter={() => onHoverChange(true)}
+                onMouseLeave={() => onHoverChange(false)}
+                onFocus={() => onHoverChange(true)}
+                onBlur={() => onHoverChange(false)}
             >
                 <Text fz="sm" fw={600} truncate>
                     {label}
