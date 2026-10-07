@@ -788,12 +788,12 @@ const databricksConfig: WarehouseConfig = {
             return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
         }
 
-        // Databricks DOW: 0=Sunday, 1=Monday, ..., 6=Saturday
+        // Databricks DOW: 1=Sunday, 2=Monday, ..., 7=Saturday
         if (
             timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
             isWeekDay(startOfWeek)
         ) {
-            const nativeOffset = (startOfWeek + 1) % 7;
+            const nativeOffset = ((startOfWeek + 1) % 7) + 1;
             return `MOD(CAST(DATE_PART('DOW', ${originalSql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
         }
 

@@ -316,7 +316,7 @@ describe('TimeFrames', () => {
                 `MOD(CAST(DATE_PART('DOW', ${col}) AS INT) - 1 + 7, 7) + 1`,
             );
 
-            // Databricks: native DOW 0=Sun..6=Sat, offset for Monday = 1
+            // Databricks: native DOW 1=Sun..7=Sat, offset for Monday = 2
             expect(
                 timeFrameConfigs[tf].getSql(
                     SupportedDbtAdapter.DATABRICKS,
@@ -326,7 +326,7 @@ describe('TimeFrames', () => {
                     WeekDay.MONDAY,
                 ),
             ).toEqual(
-                `MOD(CAST(DATE_PART('DOW', ${col}) AS INT) - 1 + 7, 7) + 1`,
+                `MOD(CAST(DATE_PART('DOW', ${col}) AS INT) - 2 + 7, 7) + 1`,
             );
 
             // Trino: native DOW (ISO) 1=Mon..7=Sun, offset for Monday = 1
@@ -386,6 +386,19 @@ describe('TimeFrames', () => {
                 ),
             ).toEqual(
                 `MOD(CAST(DATE_PART('DOW', ${col}) AS INT) - 0 + 7, 7) + 1`,
+            );
+
+            // Databricks: offset for Sunday = (6+1)%7+1 = 1
+            expect(
+                timeFrameConfigs[tf].getSql(
+                    SupportedDbtAdapter.DATABRICKS,
+                    tf,
+                    col,
+                    dt,
+                    WeekDay.SUNDAY,
+                ),
+            ).toEqual(
+                `MOD(CAST(DATE_PART('DOW', ${col}) AS INT) - 1 + 7, 7) + 1`,
             );
 
             // Trino: offset for Sunday = 6+1 = 7
