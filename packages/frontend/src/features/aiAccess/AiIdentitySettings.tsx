@@ -5,10 +5,7 @@ import {
 import { Stack, Text, Title } from '@mantine/core';
 import { type ReactNode } from 'react';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
-import {
-    SnowflakeIdentityCard,
-    SnowflakeMarkerTest,
-} from './AiSnowflakeIdentity';
+import { SnowflakeIdentityCard } from './AiSnowflakeIdentity';
 import { AiWarehouseSignals } from './AiWarehouseSignals';
 
 export const AiIdentitySettings = ({
@@ -40,21 +37,6 @@ export const AiIdentitySettings = ({
                     </Text>
                 </Stack>
                 <AiWarehouseSignals marker={capabilities.marker} />
-            </Stack>
-        </SettingsCard>
-        <SettingsCard>
-            <Stack>
-                <Stack gap={4}>
-                    <Title order={5}>Test</Title>
-                    <Text c="dimmed" fz="xs">
-                        Check the marker.
-                    </Text>
-                </Stack>
-                <SnowflakeMarkerTest
-                    projectUuid={projectUuid}
-                    connection={connection}
-                    disabled={!capabilities.principals.person.available}
-                />
             </Stack>
         </SettingsCard>
     </Stack>

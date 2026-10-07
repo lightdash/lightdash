@@ -7,19 +7,23 @@ import {
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Button,
     Group,
+    Loader,
     Stack,
     Switch,
     Text,
     Title,
 } from '@mantine/core';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
+import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -28,8 +32,7 @@ import {
 } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeAiLoginPopup } from '../../hooks/useSnowflake';
 import useApp from '../../providers/App/useApp';
-import { AiMarkerTest } from './AiMarkerTest';
-import { useUpsertAiAccessPolicy } from './api';
+import { useAiMarkerCheck, useUpsertAiAccessPolicy } from './api';
 
 const useAgentCredential = (enabled: boolean) => {
     const query = useUserWarehouseCredentials({ enabled });
@@ -139,15 +142,61 @@ const VerifiedSessions = ({
     );
 };
 
-const SignedIn = ({ credential }: { credential: UserWarehouseCredentials }) => {
+const SignedIn = ({
+    credential,
+    projectUuid,
+    connection,
+}: {
+    credential: UserWarehouseCredentials;
+    projectUuid: string;
+    connection: string | null;
+}) => {
+    const check = useAiMarkerCheck(projectUuid, connection, credential.uuid);
+    const verified = !check.isError && check.data?.ok === true;
     const remove = useUserWarehouseCredentialsDeleteMutation(credential.uuid);
     const client = useQueryClient();
     return (
         <Group justify="space-between">
-            <Text size="sm">
-                You are signed in for agent sessions since{' '}
-                {new Date(credential.createdAt).toLocaleDateString()}.
-            </Text>
+            <Stack gap="xs">
+                <Text size="sm">
+                    You are signed in for agent sessions since{' '}
+                    {new Date(credential.createdAt).toLocaleDateString()}.
+                </Text>
+                <Group gap="xs" role="status">
+                    {check.isFetching ? (
+                        <>
+                            <Loader size="xs" />
+                            <Text size="sm" c="dimmed">
+                                Checking the warehouse session…
+                            </Text>
+                        </>
+                    ) : (
+                        <>
+                            <MantineIcon
+                                icon={verified ? IconCheck : IconX}
+                                color={verified ? 'green' : 'red'}
+                            />
+                            <Text size="sm" c={verified ? 'green' : 'red'}>
+                                {verified
+                                    ? check.data?.message ||
+                                      'Verified: the warehouse session carries the agent marker.'
+                                    : check.error?.error.message ||
+                                      check.data?.message ||
+                                      'The agent marker check failed.'}
+                            </Text>
+                            {!verified && (
+                                <Anchor
+                                    component="button"
+                                    size="sm"
+                                    onClick={() => void check.refetch()}
+                                >
+                                    Check again
+                                </Anchor>
+                            )}
+                        </>
+                    )}
+                </Group>
+            </Stack>
             <Button
                 variant="default"
                 loading={remove.isLoading}
@@ -164,7 +213,13 @@ const SignedIn = ({ credential }: { credential: UserWarehouseCredentials }) => {
     );
 };
 
-const YourSignIn = () => {
+const YourSignIn = ({
+    projectUuid,
+    connection,
+}: {
+    projectUuid: string;
+    connection: string | null;
+}) => {
     const { query, credential } = useAgentCredential(true);
     const login = useSnowflakeAiLoginPopup();
     return (
@@ -178,7 +233,11 @@ const YourSignIn = () => {
                     onRetry={() => void query.refetch()}
                 />
             ) : credential ? (
-                <SignedIn credential={credential} />
+                <SignedIn
+                    credential={credential}
+                    projectUuid={projectUuid}
+                    connection={connection}
+                />
             ) : (
                 <Group justify="space-between">
                     <Text size="sm">
@@ -245,41 +304,15 @@ export const SnowflakeIdentityCard = ({
                             policy={policy}
                             configured={configured}
                         />
-                        {configured && <YourSignIn />}
+                        {configured && (
+                            <YourSignIn
+                                projectUuid={projectUuid}
+                                connection={connection}
+                            />
+                        )}
                     </>
                 )}
             </Stack>
         </SettingsCard>
-    );
-};
-
-export const SnowflakeMarkerTest = ({
-    projectUuid,
-    connection,
-    disabled,
-}: {
-    projectUuid: string;
-    connection: string | null;
-    disabled: boolean;
-}) => {
-    const { health } = useApp();
-    const configured = health.data?.auth.snowflakeAi.enabled === true;
-    const { query, credential } = useAgentCredential(configured);
-    if (configured && query.isLoading) return <EmptyStateLoader />;
-    if (configured && query.isError)
-        return (
-            <InlineErrorState
-                message="Could not load your agent sign-in."
-                onRetry={() => void query.refetch()}
-            />
-        );
-    if (!configured || !credential)
-        return <Text size="sm">Sign in for agent sessions first.</Text>;
-    return (
-        <AiMarkerTest
-            projectUuid={projectUuid}
-            connection={connection}
-            disabled={disabled}
-        />
     );
 };

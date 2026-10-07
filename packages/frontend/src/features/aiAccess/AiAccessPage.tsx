@@ -62,10 +62,7 @@ const ProjectAccess = ({ projectUuid }: { projectUuid: string }) => {
         ? connection
         : null;
     return (
-        <SettingsPage
-            title="Agent identity"
-            description="Every query an agent runs is marked, so your warehouse can treat it differently."
-        >
+        <SettingsPage title="Agent identity">
             <SettingsPageContainer>
                 <Stack gap="xl">
                     <ConnectionAccess

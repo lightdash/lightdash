@@ -15,7 +15,7 @@ import {
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { expect, within } from 'storybook/test';
 import { SettingsPage } from '../components/common/Settings/SettingsPage';
@@ -79,9 +79,17 @@ const markerResult: AiMarkerTestResult = {
     message: 'The warehouse session carries the agent marker.',
 };
 
-type ScenarioProps = { configured: boolean; signedIn: boolean };
+type ScenarioProps = {
+    configured: boolean;
+    signedIn: boolean;
+    verified: boolean;
+};
 
-const SnowflakeScenario = ({ configured, signedIn }: ScenarioProps) => {
+const SnowflakeScenario = ({
+    configured,
+    signedIn,
+    verified,
+}: ScenarioProps) => {
     const [client] = useState(() => {
         const queryClient = createQueryClient({
             queries: {
@@ -117,31 +125,26 @@ const SnowflakeScenario = ({ configured, signedIn }: ScenarioProps) => {
               ]
             : [];
         queryClient.setQueryData(['user_warehouse_credentials'], credentials);
+        if (signedIn) {
+            queryClient.setQueryData(
+                [
+                    'ai-access',
+                    projectUuid,
+                    null,
+                    'marker/test',
+                    credentials[0].uuid,
+                ],
+                {
+                    ...markerResult,
+                    ok: verified,
+                    message: verified
+                        ? markerResult.message
+                        : 'The warehouse session does not carry the agent marker.',
+                },
+            );
+        }
         return queryClient;
     });
-
-    useEffect(() => {
-        const originalFetch = window.fetch;
-        window.fetch = async (input, init) => {
-            const url = input instanceof Request ? input.url : input.toString();
-            if (
-                new URL(url, window.location.origin).pathname ===
-                    `/api/v2/projects/${projectUuid}/ai-access/marker/test` &&
-                (init?.method ??
-                    (input instanceof Request ? input.method : 'GET')) ===
-                    'POST'
-            ) {
-                return new Response(
-                    JSON.stringify({ status: 'ok', results: markerResult }),
-                    { headers: { 'Content-Type': 'application/json' } },
-                );
-            }
-            return originalFetch(input, init);
-        };
-        return () => {
-            window.fetch = originalFetch;
-        };
-    }, []);
 
     const policy: AiAccessPolicy | null = configured
         ? {
@@ -165,10 +168,7 @@ const SnowflakeScenario = ({ configured, signedIn }: ScenarioProps) => {
             <QueryClientProvider client={client}>
                 <AppProviderMock>
                     <Box p="xl" maw={1120} mx="auto">
-                        <SettingsPage
-                            title="Agent identity"
-                            description="Every query an agent runs is marked, so your warehouse can treat it differently."
-                        >
+                        <SettingsPage title="Agent identity">
                             <AiIdentitySettings
                                 projectUuid={projectUuid}
                                 connection={null}
@@ -203,7 +203,7 @@ const meta = {
     parameters: { layout: 'fullscreen' },
     render: (args) => (
         <SnowflakeScenario
-            key={`${args.configured}-${args.signedIn}`}
+            key={`${args.configured}-${args.signedIn}-${args.verified}`}
             {...args}
         />
     ),
@@ -213,28 +213,30 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const BeforeSetup: Story = {
-    args: { configured: false, signedIn: false },
+    args: { configured: false, signedIn: false, verified: false },
 };
 
 export const RuleOnNotSignedIn: Story = {
     name: 'Configured, rule on, not signed in',
-    args: { configured: true, signedIn: false },
+    args: { configured: true, signedIn: false, verified: false },
 };
 
-export const SignedIn: Story = {
-    args: { configured: true, signedIn: true },
-};
-
-export const Tested: Story = {
-    args: { configured: true, signedIn: true },
-    play: async ({ canvasElement, userEvent }) => {
+export const SignedInVerified: Story = {
+    args: { configured: true, signedIn: true, verified: true },
+    play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
-        await userEvent.click(
-            await canvas.findByRole('button', { name: 'Test agent marker' }),
-        );
         await expect(
             await canvas.findByText(markerResult.message),
         ).toBeVisible();
-        await expect(canvas.getByText('Passed')).toBeVisible();
+    },
+};
+
+export const SignedInCheckFailed: Story = {
+    args: { configured: true, signedIn: true, verified: false },
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+        await expect(
+            await canvas.findByRole('button', { name: 'Check again' }),
+        ).toBeVisible();
     },
 };

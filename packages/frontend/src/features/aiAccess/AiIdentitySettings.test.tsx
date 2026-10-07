@@ -10,10 +10,17 @@ import {
     type AiAccessPolicy,
     type AiWarehouseCapabilities,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { lightdashApi } from '../../api';
+import {
+    renderHookWithProviders,
+    renderWithProviders,
+} from '../../testing/testUtils';
 import { AiIdentitySettings } from './AiIdentitySettings';
+import { useAiMarkerCheck } from './api';
+import type * as AiAccessApi from './api';
 const mutate = vi.fn();
 const login = vi.fn();
 const remove = vi.fn();
@@ -54,11 +61,10 @@ vi.mock(
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: toast }),
 }));
-vi.mock('./api', () => ({
+vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('./api', async (importOriginal) => ({
+    ...(await importOriginal<typeof AiAccessApi>()),
     useUpsertAiAccessPolicy: () => ({ mutate, isLoading: false }),
-}));
-vi.mock('./AiMarkerTest', () => ({
-    AiMarkerTest: () => <div>Marker test</div>,
 }));
 const capabilities: AiWarehouseCapabilities = {
     warehouseType: WarehouseTypes.POSTGRES,
@@ -137,6 +143,10 @@ describe('Snowflake agent sign-in', () => {
         vi.clearAllMocks();
         configured = false;
         credentials = [];
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ok: true,
+            message: 'The warehouse session carries the agent marker.',
+        });
     });
     it('shows setup SQL and disables enforcement before instance setup', async () => {
         renderSettings(null, snowflakeCapabilities);
@@ -169,9 +179,8 @@ describe('Snowflake agent sign-in', () => {
         expect(
             screen.queryByRole('button', { name: 'Save' }),
         ).not.toBeInTheDocument();
-        expect(
-            screen.getByText('Sign in for agent sessions first.'),
-        ).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalled();
     });
     it('offers personal sign-in and saves the person policy immediately', () => {
         configured = true;
@@ -201,9 +210,8 @@ describe('Snowflake agent sign-in', () => {
             screen.getByRole('button', { name: 'Sign in for agent sessions' }),
         );
         expect(login).toHaveBeenCalledOnce();
-        expect(
-            screen.getByText('Sign in for agent sessions first.'),
-        ).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalled();
         fireEvent.click(toggle);
         expect(mutate).toHaveBeenCalledWith(
             {
@@ -247,7 +255,9 @@ describe('Snowflake agent sign-in', () => {
         ).toHaveTextContent(
             new Date(snowflakeCredential.createdAt).toLocaleDateString(),
         );
-        expect(screen.getByText('Marker test')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Test agent marker' }),
+        ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
         expect(remove).toHaveBeenCalledWith(undefined, expect.any(Object));
         fireEvent.click(toggle);
@@ -263,5 +273,115 @@ describe('Snowflake agent sign-in', () => {
             },
             expect.any(Object),
         );
+    });
+    it('checks the signed-in warehouse session automatically and shows progress', async () => {
+        configured = true;
+        credentials = [snowflakeCredential];
+        let finish: (value: {
+            ok: boolean;
+            message: string;
+        }) => void = () => {};
+        vi.mocked(lightdashApi).mockReturnValue(
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+        );
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            screen.getByText('Checking the warehouse session…'),
+        ).toBeInTheDocument();
+        expect(lightdashApi).toHaveBeenCalledWith({
+            version: 'v2',
+            url: '/projects/project/ai-access/marker/test',
+            method: 'POST',
+            body: undefined,
+        });
+        await act(async () =>
+            finish({ ok: true, message: 'Verified by the warehouse.' }),
+        );
+        expect(
+            await screen.findByText('Verified by the warehouse.'),
+        ).toBeInTheDocument();
+    });
+    it('shows the verified fallback and keeps sign-out available', async () => {
+        configured = true;
+        credentials = [snowflakeCredential];
+        vi.mocked(lightdashApi).mockResolvedValue({ ok: true, message: '' });
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            await screen.findByText(
+                'Verified: the warehouse session carries the agent marker.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Sign out' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Check again' }),
+        ).not.toBeInTheDocument();
+    });
+    it('shows a failed marker and checks again on request', async () => {
+        configured = true;
+        credentials = [snowflakeCredential];
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            ok: false,
+            message: 'The session is not marked.',
+        });
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            await screen.findByText('The session is not marked.'),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
+        expect(
+            await screen.findByText(
+                'The warehouse session carries the agent marker.',
+            ),
+        ).toBeInTheDocument();
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+    });
+    it('shows API errors inline without an automatic retry', async () => {
+        configured = true;
+        credentials = [snowflakeCredential];
+        vi.mocked(lightdashApi).mockRejectedValue({
+            error: { message: 'The warehouse is unavailable.' },
+        });
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            await screen.findByText('The warehouse is unavailable.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Check again' }),
+        ).toBeInTheDocument();
+        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(1));
+    });
+    it('waits for sign-in and refreshes cached checks when login invalidates access', async () => {
+        const initialProps: { credentialUuid: string | undefined } = {
+            credentialUuid: undefined,
+        };
+        const { result, rerender } = renderHookWithProviders(
+            ({ credentialUuid }: { credentialUuid: string | undefined }) => ({
+                check: useAiMarkerCheck(
+                    'project',
+                    'connection',
+                    credentialUuid,
+                ),
+                client: useQueryClient(),
+            }),
+            undefined,
+            { initialProps },
+        );
+        expect(lightdashApi).not.toHaveBeenCalled();
+        rerender({ credentialUuid: snowflakeCredential.uuid });
+        await waitFor(() => expect(result.current.check.isSuccess).toBe(true));
+        expect(result.current.check.isStale).toBe(false);
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/ai-access/marker/test?connection=connection',
+            }),
+        );
+        await act(async () => {
+            await result.current.client.invalidateQueries(['ai-access']);
+        });
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
     });
 });
