@@ -848,6 +848,183 @@ describe('findMatch', () => {
         });
     });
 
+    it('does not match a whole-period IN_THE_CURRENT query against a to-date pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_CURRENT,
+                            values: [],
+                            settings: {
+                                unitOfTime: UnitOfTime.months,
+                                toDate: true,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_CURRENT,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                                settings: {
+                                    unitOfTime: UnitOfTime.months,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
+    it('matches an IN_THE_CURRENT query excluding today against a to-date pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_CURRENT,
+                            values: [],
+                            settings: {
+                                unitOfTime: UnitOfTime.months,
+                                toDate: true,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_CURRENT,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                                settings: {
+                                    unitOfTime: UnitOfTime.months,
+                                    toDate: true,
+                                    excludeToday: true,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_recent_rollup',
+            miss: null,
+        });
+    });
+
+    it('does not match a to-date NOT_IN_THE_CURRENT query against a whole-period pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.NOT_IN_THE_CURRENT,
+                            values: [],
+                            settings: {
+                                unitOfTime: UnitOfTime.months,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                                settings: {
+                                    unitOfTime: UnitOfTime.months,
+                                    toDate: true,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
     it('matches when NULL filtered rollups have identical query filters', () => {
         const explore = {
             ...baseExplore(),

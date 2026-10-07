@@ -7,10 +7,12 @@ import {
     isFilterRule,
     TimeFrames,
     timeframeToUnitOfTime,
+    UnitOfTime,
     type BaseFilterRule,
     type DateFilterRule,
+    type DateFilterSettings,
 } from '@lightdash/common';
-import { Flex, Text } from '@mantine/core';
+import { Checkbox, Flex, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -40,6 +42,14 @@ import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
 import FilterWeekPicker from './FilterWeekPicker';
 import FilterYearPicker from './FilterYearPicker';
+
+// "To date" only narrows units coarser than a day
+const unitsSupportingToDate: UnitOfTime[] = [
+    UnitOfTime.weeks,
+    UnitOfTime.months,
+    UnitOfTime.quarters,
+    UnitOfTime.years,
+];
 
 const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     props: FilterInputsProps<T>,
@@ -392,38 +402,97 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 </Flex>
             );
         case FilterOperator.IN_THE_CURRENT:
-        case FilterOperator.NOT_IN_THE_CURRENT:
-            return (
-                <FilterUnitOfTimeAutoComplete
-                    w="100%"
-                    disabled={disabled}
-                    isTimestamp={isTimestamp}
-                    unitOfTime={rule.settings?.unitOfTime}
-                    minUnitOfTime={
-                        isDimension(field) && field.timeInterval
-                            ? timeframeToUnitOfTime(field.timeInterval)
-                            : undefined
-                    }
-                    showOptionsInPlural={false}
-                    showCompletedOptions={false}
-                    data-autofocus={!rule.settings?.unitOfTime || undefined}
-                    completed={false}
-                    comboboxProps={{
-                        withinPortal: popoverProps?.withinPortal,
-                    }}
-                    onDropdownOpen={popoverProps?.onOpen}
-                    onDropdownClose={popoverProps?.onClose}
-                    onChange={(value) =>
-                        onChange({
-                            ...rule,
-                            settings: {
-                                unitOfTime: value.unitOfTime,
-                                completed: false,
-                            },
-                        })
-                    }
-                />
+        case FilterOperator.NOT_IN_THE_CURRENT: {
+            const currentSettings = rule.settings as
+                | DateFilterSettings
+                | undefined;
+            const isToDate = currentSettings?.toDate === true;
+            const supportsToDate = unitsSupportingToDate.includes(
+                currentSettings?.unitOfTime ?? UnitOfTime.days,
             );
+            const setCurrentSettings = (settings: DateFilterSettings) =>
+                onChange({
+                    ...rule,
+                    settings: { ...settings, completed: false },
+                });
+            return (
+                <Flex direction="column" gap="xs" w="100%">
+                    <FilterUnitOfTimeAutoComplete
+                        w="100%"
+                        disabled={disabled}
+                        isTimestamp={isTimestamp}
+                        unitOfTime={currentSettings?.unitOfTime}
+                        minUnitOfTime={
+                            isDimension(field) && field.timeInterval
+                                ? timeframeToUnitOfTime(field.timeInterval)
+                                : undefined
+                        }
+                        showOptionsInPlural={false}
+                        showCompletedOptions={false}
+                        data-autofocus={
+                            !currentSettings?.unitOfTime || undefined
+                        }
+                        completed={false}
+                        comboboxProps={{
+                            withinPortal: popoverProps?.withinPortal,
+                        }}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
+                        onChange={(value) =>
+                            setCurrentSettings(
+                                unitsSupportingToDate.includes(value.unitOfTime)
+                                    ? {
+                                          unitOfTime: value.unitOfTime,
+                                          toDate: currentSettings?.toDate,
+                                          excludeToday:
+                                              currentSettings?.excludeToday,
+                                      }
+                                    : { unitOfTime: value.unitOfTime },
+                            )
+                        }
+                    />
+                    {supportsToDate && (
+                        <Checkbox
+                            size="xs"
+                            label={getUiString('filters.currentPeriod.toDate')}
+                            disabled={disabled}
+                            checked={isToDate}
+                            onChange={(e) =>
+                                setCurrentSettings(
+                                    e.currentTarget.checked
+                                        ? {
+                                              unitOfTime:
+                                                  currentSettings?.unitOfTime,
+                                              toDate: true,
+                                          }
+                                        : {
+                                              unitOfTime:
+                                                  currentSettings?.unitOfTime,
+                                          },
+                                )
+                            }
+                        />
+                    )}
+                    {supportsToDate && isToDate && (
+                        <Checkbox
+                            size="xs"
+                            label={getUiString(
+                                'filters.currentPeriod.includeToday',
+                            )}
+                            disabled={disabled}
+                            checked={currentSettings?.excludeToday !== true}
+                            onChange={(e) =>
+                                setCurrentSettings({
+                                    unitOfTime: currentSettings?.unitOfTime,
+                                    toDate: true,
+                                    excludeToday: !e.currentTarget.checked,
+                                })
+                            }
+                        />
+                    )}
+                </Flex>
+            );
+        }
         case FilterOperator.IN_BETWEEN:
             const invalidStartValue = getInvalidDateFilterValue(
                 rule.values?.[0] ? [rule.values[0]] : undefined,

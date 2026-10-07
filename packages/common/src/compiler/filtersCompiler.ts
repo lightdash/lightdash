@@ -605,6 +605,30 @@ const renderDateOrTimestampFilterSql = ({
             : selected;
     }
 
+    // Current period range, optionally bounded at today or yesterday
+    const renderCurrentPeriodRangeSql = (): string => {
+        const unitOfTime: UnitOfTime = settings?.unitOfTime || UnitOfTime.days;
+        const now = () =>
+            getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                timezone,
+            );
+
+        const fromDate = boundaryFormatter(
+            now().startOf(unitOfTime).utc().toDate(),
+        );
+        const untilMoment = settings?.toDate
+            ? now()
+                  .subtract(settings.excludeToday ? 1 : 0, 'day')
+                  .endOf('day')
+            : now().endOf(unitOfTime);
+        const untilDate = boundaryFormatter(untilMoment.utc().toDate());
+
+        const castedFromDate = castValue(fromDate);
+        const castedUntilDate = castValue(untilDate);
+
+        return `((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate})`;
+    };
+
     // Multi-value equals/notEquals match any value, like string/number filters
     const castValues = (values: Date[]): string =>
         values.map((value) => castValue(literalFormatter(value))).join(',');
@@ -743,54 +767,10 @@ const renderDateOrTimestampFilterSql = ({
                 fromDate,
             )} AND (${dimensionSql}) <= ${castValue(toDate)})`;
         }
-        case FilterOperator.IN_THE_CURRENT: {
-            const unitOfTime: UnitOfTime =
-                settings?.unitOfTime || UnitOfTime.days;
-
-            const fromDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-            const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-
-            const castedFromDate = castValue(fromDate);
-            const castedUntilDate = castValue(untilDate);
-
-            return `((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate})`;
-        }
-        case FilterOperator.NOT_IN_THE_CURRENT: {
-            const unitOfTime: UnitOfTime =
-                settings?.unitOfTime || UnitOfTime.days;
-
-            const fromDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-            const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-
-            const castedFromDate = castValue(fromDate);
-            const castedUntilDate = castValue(untilDate);
-
-            return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
-        }
+        case FilterOperator.IN_THE_CURRENT:
+            return renderCurrentPeriodRangeSql();
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            return `(NOT ${renderCurrentPeriodRangeSql()})`;
         case FilterOperator.IN_PERIOD_TO_DATE: {
             const today =
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(

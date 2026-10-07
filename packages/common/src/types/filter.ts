@@ -229,6 +229,10 @@ export type DateFilterSettings = {
     unitOfTime?: UnitOfTime;
     /** For date filters, whether to include completed periods */
     completed?: boolean;
+    /** For "in the current" filters, end the range at today instead of the end of the period */
+    toDate?: boolean;
+    /** With `toDate`, end the range at yesterday instead of today. Ignored unless `toDate` is true */
+    excludeToday?: boolean;
 };
 
 export type DateFilterRule = FilterRule<
@@ -243,7 +247,8 @@ export const isDateFilterRule = (
 ): filter is DateFilterRule =>
     'unitOfTime' in (filter.settings || {}) ||
     'selectedPeriod' in (filter.settings || {}) ||
-    'completed' in (filter.settings || {});
+    'completed' in (filter.settings || {}) ||
+    'toDate' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 

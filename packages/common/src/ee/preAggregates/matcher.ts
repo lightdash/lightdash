@@ -416,6 +416,16 @@ const isCompletedDateFilter = (
     filterRule: FilterRule | MetricFilterRule,
 ): boolean => !!getDateFilterSettings(filterRule)?.completed;
 
+// Subset order of the "in the current" range for one unit:
+// whole period ⊇ to date ⊇ to date excluding today
+const getCurrentPeriodBoundOrder = (
+    filterRule: FilterRule | MetricFilterRule,
+): number => {
+    const settings = getDateFilterSettings(filterRule);
+    if (!settings?.toDate) return 0;
+    return settings.excludeToday ? 2 : 1;
+};
+
 const isRelativeDateFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
     preAggregateFilter: MetricFilterRule,
@@ -456,9 +466,15 @@ const isRelativeDateFilterEquivalentOrNarrower = (
                 return false;
             }
 
+            const preAggregateBoundOrder =
+                getCurrentPeriodBoundOrder(preAggregateFilter);
+            const queryBoundOrder = getCurrentPeriodBoundOrder(queryFilterRule);
+
             return preAggregateFilter.operator === FilterOperator.IN_THE_CURRENT
-                ? queryUnitOrder <= preAggregateUnitOrder
-                : queryUnitOrder >= preAggregateUnitOrder;
+                ? queryUnitOrder <= preAggregateUnitOrder &&
+                      queryBoundOrder >= preAggregateBoundOrder
+                : queryUnitOrder >= preAggregateUnitOrder &&
+                      queryBoundOrder <= preAggregateBoundOrder;
         }
         case FilterOperator.NOT_IN_THE_PAST:
             return (

@@ -30,6 +30,7 @@ import {
 } from './formatting';
 import {
     DEFAULT_UI_STRINGS,
+    interpolateUiString,
     type UiStringKey,
     type UiStringResolver,
 } from './i18n/uiStrings';
@@ -284,11 +285,21 @@ const getValueAsString = (
                     const settings = rule.settings as
                         | DateFilterSettings
                         | undefined;
-                    return resolveUiString(
+                    const unit = resolveUiString(
                         `filters.unitsOfTime.${
                             settings?.unitOfTime ?? UnitOfTime.days
                         }.singular`,
                         getUiString,
+                    );
+                    if (!settings?.toDate) return unit;
+                    return interpolateUiString(
+                        resolveUiString(
+                            settings.excludeToday
+                                ? 'filters.currentPeriod.toDateExcludingTodayValue'
+                                : 'filters.currentPeriod.toDateValue',
+                            getUiString,
+                        ),
+                        { unit },
                     );
                 }
                 case FilterOperator.EQUALS:
