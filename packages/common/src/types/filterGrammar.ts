@@ -3,8 +3,10 @@ import { type AnyType } from './any';
 import { ParseError, UnexpectedServerError } from './errors';
 import {
     FilterOperator,
+    type DateFilterSettings,
     type MetricFilterRule,
     type ModelRequiredFilterRule,
+    type UnitOfTime,
 } from './filter';
 import filterGrammar from './filterGrammar.grammar';
 // Precompiled, eval-free parser generated from `filterGrammar.grammar.ts`. Using
@@ -23,7 +25,22 @@ export type ParsedFilter = {
     values: AnyType[];
     is?: boolean;
     date_interval?: string;
+    to_date?: boolean;
+    exclude_today?: boolean;
 };
+
+const parseDateSettings = (
+    parsedFilter: ParsedFilter,
+): { settings: DateFilterSettings } | null =>
+    parsedFilter.date_interval
+        ? {
+              settings: {
+                  unitOfTime: parsedFilter.date_interval as UnitOfTime,
+                  ...(parsedFilter.to_date && { toDate: true }),
+                  ...(parsedFilter.exclude_today && { excludeToday: true }),
+              },
+          }
+        : null;
 
 const parseOperator = (
     operator: string,
@@ -107,13 +124,7 @@ export const parseFilters = (
                         key,
                     ),
                     values: parsedFilter.values || [1],
-                    ...(parsedFilter.date_interval
-                        ? {
-                              settings: {
-                                  unitOfTime: parsedFilter.date_interval,
-                              },
-                          }
-                        : null),
+                    ...parseDateSettings(parsedFilter),
                 },
             ];
         }
@@ -219,13 +230,7 @@ export const parseModelRequiredFilters = ({
                         key,
                     ),
                     values: parsedFilter.values || [1],
-                    ...(parsedFilter.date_interval
-                        ? {
-                              settings: {
-                                  unitOfTime: parsedFilter.date_interval,
-                              },
-                          }
-                        : null),
+                    ...parseDateSettings(parsedFilter),
                     required,
                 },
             ];

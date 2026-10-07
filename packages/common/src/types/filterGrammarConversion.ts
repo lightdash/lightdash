@@ -87,12 +87,15 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
                 const settings = filter.settings as DateFilterSettings;
                 const unitOfTime = settings.unitOfTime || UnitOfTime.days;
 
-                if (getCurrentPeriodBounds(settings).toDate) {
-                    throw new NotImplementedError(
-                        'Custom metric "to date" filter is not supported on dbt',
-                    );
+                const bounds = getCurrentPeriodBounds(settings);
+                if (bounds.excludeToday) {
+                    return [
+                        `${operator} ${unitOfTime} to date excluding today`,
+                    ];
                 }
-
+                if (bounds.toDate) {
+                    return [`${operator} ${unitOfTime} to date`];
+                }
                 return [`${operator} ${unitOfTime}`];
             }
             throw new NotImplementedError(

@@ -210,7 +210,7 @@ describe('convertMetricFilterToDbt', () => {
         );
     });
 
-    it('should throw for IN_THE_CURRENT filters bounded to date', () => {
+    it('should convert IN_THE_CURRENT filters bounded to date', () => {
         const filters: MetricFilterRule[] = [
             {
                 target: { fieldRef: 'field1' },
@@ -219,11 +219,79 @@ describe('convertMetricFilterToDbt', () => {
                 values: [1],
                 settings: { unitOfTime: UnitOfTime.months, toDate: true },
             },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.years,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field3' },
+                id: '3',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.weeks,
+                    toDate: false,
+                    excludeToday: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field4' },
+                id: '4',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
         ];
-        expect(() => convertMetricFilterToDbt(filters, 'customers')).toThrow(
-            NotImplementedError,
-        );
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual([
+            { field1: 'inTheCurrent months to date' },
+            { field2: 'notInTheCurrent years to date excluding today' },
+            { field3: 'inTheCurrent weeks' },
+            { field4: 'inTheCurrent days' },
+        ]);
     });
+
+    it.each([
+        [FilterOperator.IN_THE_CURRENT, { toDate: true }],
+        [FilterOperator.IN_THE_CURRENT, { toDate: true, excludeToday: true }],
+        [FilterOperator.NOT_IN_THE_CURRENT, { toDate: true }],
+        [
+            FilterOperator.NOT_IN_THE_CURRENT,
+            { toDate: true, excludeToday: true },
+        ],
+    ])(
+        'should round-trip %s to date %j through the dbt grammar',
+        (operator, bounds) => {
+            const filters: MetricFilterRule[] = [
+                {
+                    target: { fieldRef: 'field1' },
+                    id: '1',
+                    operator,
+                    values: [1],
+                    settings: { unitOfTime: UnitOfTime.quarters, ...bounds },
+                },
+            ];
+            const parsed = parseFilters(
+                convertMetricFilterToDbt(filters, 'customers'),
+            );
+            expect(parsed[0].operator).toEqual(operator);
+            expect(parsed[0].settings).toStrictEqual({
+                unitOfTime: UnitOfTime.quarters,
+                ...bounds,
+            });
+            expect(parsed[0].values).toEqual([1]);
+        },
+    );
 
     it('should convert IN_THE_CURRENT and NOT_IN_THE_CURRENT filters correctly', () => {
         const filters: MetricFilterRule[] = [

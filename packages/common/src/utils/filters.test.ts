@@ -718,6 +718,50 @@ describe('createFilterRuleFromModelRequiredFilterRule', () => {
             expectedRequiredResult('dimension', 'tableName'),
         );
     });
+
+    test('should carry current period bounds into settings', () => {
+        const result = createFilterRuleFromModelRequiredFilterRule(
+            {
+                ...modelRequiredFilterRule('order_date'),
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.months,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+            'tableName',
+        );
+        expect(result.settings).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+            excludeToday: true,
+        });
+    });
+
+    test('should not write absent bounds as undefined keys', () => {
+        const result = createFilterRuleFromModelRequiredFilterRule(
+            {
+                ...modelRequiredFilterRule('order_date'),
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+            'tableName',
+        );
+        expect(result.settings).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+        });
+        expect(result.settings).not.toHaveProperty('excludeToday');
+        expect(
+            createFilterRuleFromModelRequiredFilterRule(
+                modelRequiredFilterRule('order_date'),
+                'tableName',
+            ).settings,
+        ).toStrictEqual({ unitOfTime: 'years' });
+    });
 });
 
 describe('isFilterRuleInQuery', () => {

@@ -1893,6 +1893,12 @@ export const createFilterRuleFromModelRequiredFilterRule = (
     ...(filter.settings?.unitOfTime && {
         settings: {
             unitOfTime: filter.settings.unitOfTime,
+            ...(filter.settings.toDate !== undefined && {
+                toDate: filter.settings.toDate,
+            }),
+            ...(filter.settings.excludeToday !== undefined && {
+                excludeToday: filter.settings.excludeToday,
+            }),
         },
     }),
     required: filter.required === undefined ? true : filter.required,

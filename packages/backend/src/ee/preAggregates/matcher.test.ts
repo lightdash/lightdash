@@ -7,6 +7,7 @@ import {
     GroupValueMatchType,
     JoinRelationship,
     MetricType,
+    parseDbtPreAggregateDef,
     PreAggregateMissReason,
     preAggregateUtils,
     SupportedDbtAdapter,
@@ -901,6 +902,69 @@ describe('findMatch', () => {
         );
 
         expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
+    it('applies a dbt "inTheCurrent month to date" filter as a to-date pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                parseDbtPreAggregateDef(
+                    {
+                        name: 'orders_recent_rollup',
+                        dimensions: ['order_date'],
+                        metrics: ['order_count'],
+                        time_dimension: 'order_date',
+                        granularity: 'day',
+                        filters: [{ order_date: 'inTheCurrent month to date' }],
+                    },
+                    'orders',
+                ),
+            ],
+        };
+        expect(explore.preAggregates[0].filters?.[0].settings).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+        });
+
+        const queryWithSettings = (settings: { toDate?: boolean }) =>
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_CURRENT,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                                settings: {
+                                    unitOfTime: UnitOfTime.months,
+                                    ...settings,
+                                },
+                            },
+                        ],
+                    },
+                },
+            });
+
+        expect(
+            preAggregateUtils.findMatch(
+                queryWithSettings({ toDate: true }),
+                explore,
+            ),
+        ).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_recent_rollup',
+            miss: null,
+        });
+        expect(
+            preAggregateUtils.findMatch(queryWithSettings({}), explore).miss,
+        ).toStrictEqual({
             reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
             fieldId: 'orders_order_date',
         });

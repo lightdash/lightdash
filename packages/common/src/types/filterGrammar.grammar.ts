@@ -72,7 +72,17 @@ DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMB
 DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
-CURRENT_DATE_RESTRICTION = SPACE_SYMBOL* operator:CURRENT_DATE_OPERATOR SPACE_SYMBOL+ interval:CURRENT_DATE_INTERVAL {
+CURRENT_DATE_RESTRICTION
+  = SPACE_SYMBOL* operator:CURRENT_DATE_OPERATOR SPACE_SYMBOL+ interval:CURRENT_PERIOD_INTERVAL SPACE_SYMBOL+ 'to' SPACE_SYMBOL+ 'date' excludeToday:(SPACE_SYMBOL+ 'excluding' SPACE_SYMBOL+ 'today')? SPACE_SYMBOL* {
+    return {
+        type: operator,
+        values: [1],
+        date_interval: interval,
+        to_date: true,
+        ...(excludeToday ? { exclude_today: true } : {})
+    }
+   }
+  / SPACE_SYMBOL* operator:CURRENT_DATE_OPERATOR SPACE_SYMBOL+ interval:CURRENT_DATE_INTERVAL {
     return {
         type: operator,
         values: [1],
@@ -84,6 +94,9 @@ CURRENT_DATE_OPERATOR = '${FilterOperator.NOT_IN_THE_CURRENT}' / '${FilterOperat
 CURRENT_DATE_INTERVAL
   = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'quarters' / 'years'
   / singular:('millisecond' / 'second' / 'minute' / 'hour' / 'day' / 'week' / 'month' / 'quarter' / 'year') { return singular + 's' }
+CURRENT_PERIOD_INTERVAL
+  = 'weeks' / 'months' / 'quarters' / 'years'
+  / singular:('week' / 'month' / 'quarter' / 'year') { return singular + 's' }
 
 NUMBER
   = '-'? FLOAT ([Ee] [+-]? INTEGER)?
