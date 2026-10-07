@@ -1,42 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "2.464.0",
-  "previousVersion": "2.463.0",
-  "releaseDate": "2026-10-07T16:49:21.706Z",
+  "version": "2.465.0",
+  "previousVersion": "2.464.0",
+  "releaseDate": "2026-10-07T17:42:18.992Z",
   "migrations": {
-    "present": true,
-    "count": 2,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 2,
-    "files": [
-      {
-        "name": "20261007120000_add_luna_ai_thread_battle_profile.ts",
-        "edition": "ee",
-        "tables": [],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261007130000_create_ai_prompt_decision_shadow.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_prompt",
-          "ai_prompt_decision_shadow"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -44,15 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — added the new `luna` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — added the new `luna` enum value to the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `luna` enum value to the `results/items/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `luna` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `luna` enum value to the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — added the new `luna` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`"
-      ],
-      "advisoryCount": 6
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
@@ -65,14 +34,8 @@
   },
   "config": {
     "checked": true,
-    "breaking": true,
-    "changes": [
-      {
-        "type": "removed",
-        "name": "JEV_TIMEOUT_MS",
-        "previousDefault": "900"
-      }
-    ]
+    "breaking": false,
+    "changes": []
   },
   "upgrade": {
     "minPreviousVersion": "1.111.0",

@@ -1,3 +1,10 @@
+# [2.465.0](https://github.com/lightdash/lightdash/compare/2.464.0...2.465.0) (2026-10-07)
+
+
+### Features
+
+* **filters:** add "to date" and "exclude today" to the "in the current" date filter ([#30650](https://github.com/lightdash/lightdash/issues/30650)) ([da04c2f](https://github.com/lightdash/lightdash/commit/da04c2f43fc06a15c53167d455387b5fc3559708))
+
 # [2.464.0](https://github.com/lightdash/lightdash/compare/2.463.0...2.464.0) (2026-10-07)
 
 
