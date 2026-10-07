@@ -118,10 +118,9 @@ export const getFieldCount = (
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
 ): FieldCount => ({
-    possible: tiles.filter(
-        (tile) =>
-            doesTileOfferField(tile, fieldId, fieldsByTile) ||
-            isSqlTile(tile, sqlColumnsByTile),
+    // A SQL tile is reached through one of its own columns, never a field
+    possible: tiles.filter((tile) =>
+        doesTileOfferField(tile, fieldId, fieldsByTile),
     ).length,
     applied: tiles.filter(
         (tile) =>
@@ -276,7 +275,7 @@ export const getTabCountsForField = (
             const tabTiles = tiles.filter(
                 (tile) =>
                     tile.tabUuid === tab.uuid &&
-                    isTileFilterable(tile, fieldsByTile, sqlColumnsByTile),
+                    doesTileOfferField(tile, fieldId, fieldsByTile),
             );
             return [
                 tab.uuid,

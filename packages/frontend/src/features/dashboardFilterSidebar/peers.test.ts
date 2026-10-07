@@ -217,7 +217,7 @@ describe('peers', () => {
             getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
         ).toEqual({
             t1: { applied: 2, total: 2 },
-            t2: { applied: 0, total: 2 },
+            t2: { applied: 0, total: 0 },
         });
         expect(
             getTabCountsForField(
@@ -228,8 +228,8 @@ describe('peers', () => {
                 fieldsByTile,
             ),
         ).toEqual({
-            t1: { applied: 0, total: 2 },
-            t2: { applied: 1, total: 2 },
+            t1: { applied: 0, total: 1 },
+            t2: { applied: 1, total: 1 },
         });
     });
 
@@ -244,7 +244,7 @@ describe('peers', () => {
             ),
         ).toEqual({
             t1: { applied: 1, total: 2 },
-            t2: { applied: 0, total: 2 },
+            t2: { applied: 0, total: 0 },
         });
     });
 });
@@ -322,7 +322,8 @@ describe('peers with SQL chart tiles', () => {
                 fieldsByTile,
                 sqlColumns,
             ),
-        ).toEqual({ possible: 1, applied: 1 });
+            // a SQL column is reached per tile, so it is never "possible" as a field
+        ).toEqual({ possible: 0, applied: 1 });
         expect(
             getFieldCount(rule(), 'status', allTiles, fieldsByTile, sqlColumns)
                 .applied,
@@ -348,7 +349,7 @@ describe('peers with SQL chart tiles', () => {
                 fieldsByTile,
                 sqlColumns,
             ).t2,
-        ).toEqual({ total: 3, applied: 1 });
+        ).toEqual({ total: 0, applied: 0 });
     });
 
     it('ignores SQL tiles without a column of the kind', () => {
