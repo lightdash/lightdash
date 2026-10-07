@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     downloadQuery: vi.fn(async () => 'query-uuid'),
     chartType: 'data-app-viz' as ChartType,
     isEmbedded: false,
+    embedContentSubject: 'SavedChart' as 'SavedChart' | 'Dashboard',
     canManageExplore: true,
     canExportCsv: true,
     canExportImages: true,
@@ -67,9 +68,14 @@ vi.mock('../../../features/explorer/store', () => ({
 vi.mock('../../../providers/Ability/useAbilityContext', () => ({
     useAbilityContext: () => ({
         can: (
-            _action: string,
+            action: string,
             resource: { __caslSubjectType__: string; type?: string },
         ) => {
+            if (
+                action === 'export' &&
+                resource.__caslSubjectType__ !== mocks.embedContentSubject
+            )
+                return false;
             if (resource.__caslSubjectType__ === 'Explore')
                 return mocks.canManageExplore;
             if (
@@ -109,16 +115,23 @@ vi.mock('./ChartDownloadOptions', () => ({
 vi.mock('../../ExportSelector', () => ({
     default: ({
         getDownloadQueryUuid,
+        getGsheetLink,
     }: {
         getDownloadQueryUuid: (
             limit: number,
             limitType: string,
             pivot: boolean,
         ) => Promise<string>;
+        getGsheetLink?: () => unknown;
     }) => (
-        <Button onClick={() => void getDownloadQueryUuid(100, 'custom', false)}>
-            Download table data
-        </Button>
+        <>
+            <Button
+                onClick={() => void getDownloadQueryUuid(100, 'custom', false)}
+            >
+                Download table data
+            </Button>
+            {getGsheetLink && <Button>Google Sheets</Button>}
+        </>
     ),
 }));
 
@@ -129,6 +142,7 @@ const renderMenu = () =>
         <MantineProvider env="test">
             <ChartDownloadMenu
                 getDownloadQueryUuid={mocks.downloadQuery}
+                getGsheetLink={vi.fn()}
                 projectUuid="project-uuid"
             />
         </MantineProvider>,
@@ -138,6 +152,7 @@ describe('ChartDownloadMenu', () => {
     beforeEach(() => {
         mocks.chartType = ChartType.DATA_APP_VIZ;
         mocks.isEmbedded = false;
+        mocks.embedContentSubject = 'SavedChart';
         mocks.canManageExplore = true;
         mocks.canExportCsv = true;
         mocks.canExportImages = true;
@@ -260,6 +275,36 @@ describe('ChartDownloadMenu', () => {
     it('preserves embedded image permission without native Explore permission', () => {
         mocks.chartType = ChartType.CARTESIAN;
         mocks.isEmbedded = true;
+        mocks.canManageExplore = false;
+        renderMenu();
+        fireEvent.click(screen.getByTestId('export-csv-button'));
+        expect(
+            screen.getByRole('button', { name: 'Download existing chart' }),
+        ).toBeInTheDocument();
+    });
+
+    it.each(['SavedChart', 'Dashboard'] as const)(
+        'offers embedded table data export for a %s embed token',
+        (embedContentSubject) => {
+            mocks.chartType = ChartType.TABLE;
+            mocks.isEmbedded = true;
+            mocks.embedContentSubject = embedContentSubject;
+            mocks.canManageExplore = false;
+            renderMenu();
+            fireEvent.click(screen.getByTestId('export-csv-button'));
+            expect(
+                screen.getByRole('button', { name: 'Download table data' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Google Sheets' }),
+            ).toBeNull();
+        },
+    );
+
+    it('offers embedded image export for a dashboard embed token', () => {
+        mocks.chartType = ChartType.CARTESIAN;
+        mocks.isEmbedded = true;
+        mocks.embedContentSubject = 'Dashboard';
         mocks.canManageExplore = false;
         renderMenu();
         fireEvent.click(screen.getByTestId('export-csv-button'));

@@ -27,7 +27,10 @@ import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/reso
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
+import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmbeddedContent';
 import { Can } from '../../../providers/Ability';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
@@ -99,6 +102,19 @@ const ResultsCard: FC = memo(() => {
         [toggleExpandedSection],
     );
     const { user } = useApp();
+    const ability = useAbilityContext();
+    const { data: account } = useAccount();
+    const isEmbedded = account?.isJwtUser() === true;
+    const canEmbedExportCsv = useCanExportEmbeddedContent('csv');
+    const canExportResultsCsv =
+        canEmbedExportCsv ||
+        ability.can(
+            'manage',
+            subject('ExportCsv', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const getGsheetLink = async () => {
         if (projectUuid) {
@@ -217,13 +233,7 @@ const ResultsCard: FC = memo(() => {
                             </Can>
                         )}
 
-                        <Can
-                            I="manage"
-                            this={subject('ExportCsv', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {canExportResultsCsv && (
                             <Popover
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                                 disabled={disabled}
@@ -265,7 +275,7 @@ const ResultsCard: FC = memo(() => {
                                             getResultsCardDownloadQueryUuid
                                         }
                                         getGsheetLink={
-                                            mergeResults
+                                            mergeResults || isEmbedded
                                                 ? undefined
                                                 : getGsheetLink
                                         }
@@ -277,7 +287,7 @@ const ResultsCard: FC = memo(() => {
                                     />
                                 </Popover.Dropdown>
                             </Popover>
-                        </Can>
+                        )}
                     </Group>
                 )
             }
