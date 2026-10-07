@@ -424,11 +424,11 @@ import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    filterModelsForOrg,
     getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    getOrgModelCatalogue,
     MODEL_PRESETS,
     presetToModelOption,
     resolveKeyManagement,
@@ -1314,14 +1314,22 @@ export class AiAgentService extends BaseService {
         organizationUuid: string;
         projectUuid: string;
         modelConfig: AiAgentModelConfig | null;
-    }): Promise<AiAgentModelConfig | undefined> {
-        if (!modelConfig) return undefined;
-        const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+    }): Promise<AiAgentModelConfig | null> {
+        if (!modelConfig) return null;
+        const [copilotConfig, orgModelOverrides] = await Promise.all([
+            this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid,
-            });
-        return resolveModelConfigForPrompt(copilotConfig, modelConfig);
+            }),
+            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+                organizationUuid,
+            ),
+        ]);
+        return resolveModelConfigForPrompt(
+            copilotConfig,
+            orgModelOverrides,
+            modelConfig,
+        );
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -3826,10 +3834,12 @@ export class AiAgentService extends BaseService {
         ]);
         const defaultModel = getDefaultModel(copilotConfig);
 
-        const availablePresets = getAvailableModels(copilotConfig);
-        return filterModelsForOrg(availablePresets, orgModelOverrides).map(
-            (preset) =>
-                presetToModelOption(preset, defaultModel, availablePresets),
+        const catalogue = getOrgModelCatalogue(
+            getAvailableModels(copilotConfig),
+            orgModelOverrides,
+        );
+        return catalogue.offeredPresets.map((preset) =>
+            presetToModelOption(preset, defaultModel, catalogue),
         );
     }
 

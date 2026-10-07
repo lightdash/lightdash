@@ -161,7 +161,10 @@ describe('Vertex model routing', () => {
         const defaultModel = getDefaultModel(mixed);
         const models = getAvailableModels(mixed);
         const options = models.map((preset) =>
-            presetToModelOption(preset, defaultModel, models),
+            presetToModelOption(preset, defaultModel, {
+                availablePresets: models,
+                offeredPresets: models,
+            }),
         );
         expect(defaultModel).toEqual({
             provider: 'openai',

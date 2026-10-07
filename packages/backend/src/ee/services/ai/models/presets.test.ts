@@ -1,4 +1,4 @@
-import { keyGrantsModel } from './presets';
+import { keyGrantsModel, matchesPreset, MODEL_PRESETS } from './presets';
 
 describe('keyGrantsModel', () => {
     it('matches the exact id or a dated variant, not a longer id', () => {
@@ -24,4 +24,31 @@ describe('keyGrantsModel', () => {
             false,
         );
     });
+});
+
+describe('MODEL_PRESETS supersession', () => {
+    const allPresets = Object.values(MODEL_PRESETS).flat();
+    const deprecatedPresets = allPresets.filter((preset) => preset.deprecated);
+
+    it.each(deprecatedPresets.map((preset) => [preset.provider, preset.name]))(
+        '%s %s is superseded by a current preset of the same provider',
+        (provider, name) => {
+            const providerPresets = allPresets.filter(
+                (preset) => preset.provider === provider,
+            );
+            let current = providerPresets.find(
+                (preset) => preset.name === name,
+            );
+            for (let hops = 0; hops < providerPresets.length; hops += 1) {
+                if (!current?.supersededBy) break;
+                const { supersededBy } = current;
+                current = providerPresets.find((preset) =>
+                    matchesPreset(preset, supersededBy),
+                );
+            }
+            expect(current).toBeDefined();
+            expect(current?.deprecated).toBeFalsy();
+            expect(current?.supersededBy).toBeUndefined();
+        },
+    );
 });

@@ -1430,7 +1430,7 @@ export type AiModelOption = {
     default: boolean;
     supportsReasoning: boolean;
     deprecated: boolean;
-    /** Name of the current same-provider model that replaces a deprecated one */
+    /** Current same-provider model that replaces a deprecated one; null unless it is in this list */
     supersededBy: string | null;
 };
 

@@ -8,6 +8,7 @@ import {
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
+import type { LightdashConfig } from '../../../../config/parseConfig';
 import { overlayOrgProviderApiKeys } from '../OrgAiCopilotConfigResolver';
 import {
     applyStreamingCapability,
@@ -17,10 +18,13 @@ import {
     getDefaultModel,
     getFastModelForAccessibleKey,
     getModel,
+    getOrgModelCatalogue,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
     presetToModelOption,
     resolveModelConfigForPrompt,
+    resolveSupersedingPreset,
+    type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -33,6 +37,27 @@ vi.mock('ai', async () => {
 });
 
 const baseCopilotConfig = lightdashConfigMock.ai.copilot;
+
+const noOrgOverrides: OrgModelOverrides = {
+    modelVisibility: null,
+    keyAccessibleModelIds: null,
+};
+
+const orgOptions = (
+    config: LightdashConfig['ai']['copilot'],
+    overrides: OrgModelOverrides,
+) => {
+    const catalogue = getOrgModelCatalogue(
+        getAvailableModels(config),
+        overrides,
+    );
+    return catalogue.offeredPresets.map((preset) =>
+        presetToModelOption(preset, getDefaultModel(config), catalogue),
+    );
+};
+
+const instanceOptions = (config: LightdashConfig['ai']['copilot']) =>
+    orgOptions(config, noOrgOverrides);
 
 const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
     ...baseCopilotConfig,
@@ -421,13 +446,7 @@ describe('GPT Sol and Luna model lifecycle', () => {
                     },
                 },
             };
-            const options = getAvailableModels(config).map((preset) =>
-                presetToModelOption(
-                    preset,
-                    getDefaultModel(config),
-                    getAvailableModels(config),
-                ),
-            );
+            const options = instanceOptions(config);
             expect(options).toContainEqual(
                 expect.objectContaining({
                     name: modelName,
@@ -449,13 +468,7 @@ describe('GPT Sol and Luna model lifecycle', () => {
         ['gpt-6-sol', 'GPT-6 Sol'],
         ['gpt-6-luna', 'GPT-6 Luna'],
     ])('offers %s for agent selection', (modelName, displayName) => {
-        const options = getAvailableModels(baseCopilotConfig).map((preset) =>
-            presetToModelOption(
-                preset,
-                getDefaultModel(baseCopilotConfig),
-                getAvailableModels(baseCopilotConfig),
-            ),
-        );
+        const options = instanceOptions(baseCopilotConfig);
         expect(options).toContainEqual(
             expect.objectContaining({
                 name: modelName,
@@ -1311,15 +1324,22 @@ describe('deprecated model superseding', () => {
             },
         },
     };
-    const optionsFor = (config: typeof anthropicConfig) => {
-        const presets = getAvailableModels(config);
-        return presets.map((preset) =>
-            presetToModelOption(preset, getDefaultModel(config), presets),
-        );
+    const restrictedToSonnet5: OrgModelOverrides = {
+        modelVisibility: {
+            anthropic: {
+                enabled: true,
+                allowedModels: ['claude-sonnet-5', 'claude-haiku-4-5'],
+            },
+        },
+        keyAccessibleModelIds: null,
+    };
+    const pinnedSonnet5 = {
+        modelName: 'claude-sonnet-5',
+        modelProvider: 'anthropic',
     };
 
     it('names the current replacement on a deprecated model option', () => {
-        const options = optionsFor(anthropicConfig);
+        const options = instanceOptions(anthropicConfig);
         expect(options).toContainEqual(
             expect.objectContaining({
                 name: 'claude-sonnet-5',
@@ -1337,7 +1357,7 @@ describe('deprecated model superseding', () => {
     });
 
     it('follows the replacement chain past retired intermediates', () => {
-        const options = optionsFor(anthropicConfig);
+        const options = instanceOptions(anthropicConfig);
         expect(options).toContainEqual(
             expect.objectContaining({
                 name: 'claude-sonnet-4',
@@ -1362,7 +1382,7 @@ describe('deprecated model superseding', () => {
                 },
             },
         };
-        expect(optionsFor(restricted)).toContainEqual(
+        expect(instanceOptions(restricted)).toContainEqual(
             expect.objectContaining({
                 name: 'claude-sonnet-5',
                 deprecated: true,
@@ -1373,9 +1393,8 @@ describe('deprecated model superseding', () => {
 
     it('runs a prompt pinned to a deprecated model on its replacement, keeping the reasoning choice', () => {
         expect(
-            resolveModelConfigForPrompt(anthropicConfig, {
-                modelName: 'claude-sonnet-5',
-                modelProvider: 'anthropic',
+            resolveModelConfigForPrompt(anthropicConfig, noOrgOverrides, {
+                ...pinnedSonnet5,
                 reasoning: true,
             }),
         ).toEqual({
@@ -1391,16 +1410,24 @@ describe('deprecated model superseding', () => {
             modelProvider: 'anthropic',
             reasoning: false,
         };
-        expect(resolveModelConfigForPrompt(anthropicConfig, current)).toBe(
-            current,
-        );
+        expect(
+            resolveModelConfigForPrompt(
+                anthropicConfig,
+                noOrgOverrides,
+                current,
+            ),
+        ).toBe(current);
         const unknown = {
             modelName: 'not-a-preset',
             modelProvider: 'anthropic',
         };
-        expect(resolveModelConfigForPrompt(anthropicConfig, unknown)).toBe(
-            unknown,
-        );
+        expect(
+            resolveModelConfigForPrompt(
+                anthropicConfig,
+                noOrgOverrides,
+                unknown,
+            ),
+        ).toBe(unknown);
     });
 
     it('keeps a deprecated model when the instance ships no replacement for it', () => {
@@ -1413,11 +1440,91 @@ describe('deprecated model superseding', () => {
                 },
             },
         };
-        const pinned = {
-            modelName: 'claude-sonnet-5',
+        expect(
+            resolveModelConfigForPrompt(
+                restricted,
+                noOrgOverrides,
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+    });
+
+    it('keeps a prompt on the pinned model when the org has not allowed the replacement', () => {
+        expect(
+            resolveModelConfigForPrompt(
+                anthropicConfig,
+                restrictedToSonnet5,
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+    });
+
+    it('does not offer a replacement the org has not allowed', () => {
+        const options = orgOptions(anthropicConfig, restrictedToSonnet5);
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-5',
+                deprecated: true,
+                supersededBy: null,
+            }),
+        );
+        expect(options.map((option) => option.name)).not.toContain(
+            'claude-sonnet-5-5',
+        );
+    });
+
+    it('still reaches the replacement when only an intermediate is hidden from the org', () => {
+        expect(
+            resolveModelConfigForPrompt(anthropicConfig, noOrgOverrides, {
+                modelName: 'claude-opus-4-7',
+                modelProvider: 'anthropic',
+            }),
+        ).toEqual({
+            modelName: 'claude-opus-5-5',
             modelProvider: 'anthropic',
-        };
-        expect(resolveModelConfigForPrompt(restricted, pinned)).toBe(pinned);
+        });
+    });
+
+    it('offers a replacement hidden behind key access only when the org key can serve it', () => {
+        const preset = (
+            overrides: Pick<
+                ModelPreset<'anthropic'>,
+                'name' | 'deprecated' | 'supersededBy' | 'hiddenUnlessKeyAccess'
+            >,
+        ): ModelPreset<'anthropic'> => ({
+            provider: 'anthropic',
+            modelId: overrides.name,
+            displayName: overrides.name,
+            description: 'test preset',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: undefined,
+            ...overrides,
+        });
+        const retired = preset({
+            name: 'retired',
+            deprecated: true,
+            supersededBy: 'gated',
+        });
+        const gated = preset({ name: 'gated', hiddenUnlessKeyAccess: true });
+        const presets = [retired, gated];
+
+        expect(
+            resolveSupersedingPreset(
+                retired,
+                getOrgModelCatalogue(presets, noOrgOverrides),
+            ),
+        ).toBeNull();
+        expect(
+            resolveSupersedingPreset(
+                retired,
+                getOrgModelCatalogue(presets, {
+                    modelVisibility: null,
+                    keyAccessibleModelIds: { anthropic: ['gated'] },
+                }),
+            ),
+        ).toBe(gated);
     });
 
     it('resolves a Bedrock pin by preset name to the Bedrock replacement', () => {
@@ -1435,7 +1542,7 @@ describe('deprecated model superseding', () => {
             },
         };
         expect(
-            resolveModelConfigForPrompt(bedrockConfig, {
+            resolveModelConfigForPrompt(bedrockConfig, noOrgOverrides, {
                 modelName: 'claude-sonnet-4-5',
                 modelProvider: 'bedrock',
             }),

@@ -42,7 +42,9 @@ import {
     filterModelsForOrg,
     getAvailableModels,
     getDefaultModel,
+    getOrgModelCatalogue,
     presetToModelOption,
+    type ModelCatalogue,
 } from './ai/models';
 import {
     matchesPreset,
@@ -331,27 +333,28 @@ export class AiOrganizationSettingsService extends BaseService {
         ]);
         const defaultModel = getDefaultModel(copilotConfig);
         const allPresets = getAvailableModels(copilotConfig);
-        const toOption = (preset: (typeof allPresets)[number]): AiModelOption =>
-            presetToModelOption(preset, defaultModel, allPresets);
+        const toOptions = (catalogue: ModelCatalogue): AiModelOption[] =>
+            catalogue.offeredPresets.map((preset) =>
+                presetToModelOption(preset, defaultModel, catalogue),
+            );
         return {
-            effectiveOptions: filterModelsForOrg(allPresets, overrides).map(
-                toOption,
+            effectiveOptions: toOptions(
+                getOrgModelCatalogue(allPresets, overrides),
             ),
             // Admin picker ignores visibility so restricted models stay selectable
-            configurableOptions: filterModelsForOrg(allPresets, {
-                modelVisibility: null,
-                keyAccessibleModelIds: overrides.keyAccessibleModelIds,
-            }).map(toOption),
+            configurableOptions: toOptions(
+                getOrgModelCatalogue(allPresets, {
+                    modelVisibility: null,
+                    keyAccessibleModelIds: overrides.keyAccessibleModelIds,
+                }),
+            ),
             effectiveModelVisibility: overrides.modelVisibility,
             // The org brings its own Bedrock key, so every Bedrock preset is
             // selectable regardless of what this instance configures.
-            bedrockModelOptions: MODEL_PRESETS.bedrock.map((preset) =>
-                presetToModelOption(
-                    preset,
-                    defaultModel,
-                    MODEL_PRESETS.bedrock,
-                ),
-            ),
+            bedrockModelOptions: toOptions({
+                availablePresets: MODEL_PRESETS.bedrock,
+                offeredPresets: MODEL_PRESETS.bedrock,
+            }),
         };
     }
 
