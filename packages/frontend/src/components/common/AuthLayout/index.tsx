@@ -1,4 +1,5 @@
 import { Box, Card, Stack, Text, Title } from '@mantine/core';
+import { clsx } from 'clsx';
 import {
     useCallback,
     useMemo,
@@ -50,6 +51,7 @@ type Props = {
     withLegacyCard?: boolean;
     /** Shows customer logos on the brand panel in the split layout. */
     withCustomerLogos?: boolean;
+    withPinkBackground?: boolean;
     footer?: ReactNode;
 };
 
@@ -61,6 +63,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     cardId,
     withLegacyCard = true,
     withCustomerLogos = false,
+    withPinkBackground = false,
     footer,
     children,
 }) => {
@@ -135,7 +138,12 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <>
                 <DocumentTitle title={pageTitle} />
 
-                <Box className={classes.legacyRoot}>
+                <Box
+                    className={clsx(
+                        classes.legacyRoot,
+                        withPinkBackground && classes.pinkBackground,
+                    )}
+                >
                     <Stack className={classes.legacyContent}>
                         <Box mx="auto" my="lg">
                             <LightdashLogo />
@@ -187,7 +195,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                 </Box>
 
                 <Box
-                    className={classes.formPanel}
+                    className={clsx(
+                        classes.formPanel,
+                        withPinkBackground && classes.pinkBackground,
+                    )}
                     onFocusCapture={handleFormFocus}
                     onInputCapture={handleFormInput}
                     onSubmitCapture={handleFormSubmit}

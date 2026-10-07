@@ -148,6 +148,10 @@
     background-color: var(--mantine-color-body);
 }
 
+.pinkBackground {
+    background-color: var(--mantine-color-pink-2);
+}
+
 .legacyContent {
     width: 100%;
     max-width: rem(400px);

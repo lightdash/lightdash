@@ -30,6 +30,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
             withCustomerLogos
+            withPinkBackground
         >
             <LoginLanding />
         </AuthLayout>
