@@ -42,6 +42,7 @@ import {
     DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
     DashboardTileAsCode,
+    DashboardTileChartQuery,
     DashboardTileTarget,
     DashboardTileTypes,
     DimensionType,
@@ -2061,9 +2062,10 @@ export class CoderService extends BaseService {
 
     async convertTileWithSlugsToUuids(
         projectUuid: string,
-        tiles: DashboardTileAsCode[],
+        tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
+        const tiles = CoderService.withoutReadOnlyTileFields(tilesAsCode);
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -2387,7 +2389,73 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slugs: string[],
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
-        return this.findDashboardsAsCode(user, projectUuid, slugs);
+        const results = await this.findDashboardsAsCode(
+            user,
+            projectUuid,
+            slugs,
+        );
+        const chartSlugs = [
+            ...new Set(
+                results.dashboards.flatMap((dashboard) =>
+                    dashboard.tiles.flatMap((tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.chartSlug !== null
+                            ? [tile.properties.chartSlug]
+                            : [],
+                    ),
+                ),
+            ),
+        ];
+        const chartQueriesBySlug =
+            await this.savedChartModel.getLatestVersionQueriesBySlugs(
+                projectUuid,
+                chartSlugs,
+            );
+        return {
+            ...results,
+            dashboards: results.dashboards.map((dashboard) =>
+                CoderService.withTileChartQueries(
+                    dashboard,
+                    chartQueriesBySlug,
+                ),
+            ),
+        };
+    }
+
+    static withTileChartQueries(
+        dashboard: DashboardAsCode,
+        chartQueriesBySlug: Record<string, DashboardTileChartQuery>,
+    ): DashboardAsCode {
+        return {
+            ...dashboard,
+            tiles: dashboard.tiles.map((tile) => {
+                if (tile.type !== DashboardTileTypes.SAVED_CHART) {
+                    return tile;
+                }
+                const { chartSlug } = tile.properties;
+                const chartQuery =
+                    chartSlug === null
+                        ? null
+                        : (chartQueriesBySlug[chartSlug] ?? null);
+                return {
+                    ...tile,
+                    properties: { ...tile.properties, chartQuery },
+                };
+            }),
+        };
+    }
+
+    /** Read-only tile fields are reporting-only and must never reach a write. */
+    static withoutReadOnlyTileFields(
+        tiles: DashboardTileAsCode[],
+    ): DashboardTileAsCode[] {
+        return tiles.map((tile) => {
+            if (tile.type !== DashboardTileTypes.SAVED_CHART) {
+                return tile;
+            }
+            const { chartQuery, ...properties } = tile.properties;
+            return { ...tile, properties };
+        });
     }
 
     private async assertCanDownloadContentAsCode(

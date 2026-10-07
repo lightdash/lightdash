@@ -1772,6 +1772,167 @@ describe('CoderService', () => {
         });
     });
 
+    describe('dashboard read tile chart queries', () => {
+        const chartTile = (
+            tileSlug: string,
+            chartSlug: string | null,
+        ): AnyType => ({
+            type: DashboardTileTypes.SAVED_CHART,
+            uuid: undefined,
+            tileSlug,
+            x: 0,
+            y: 0,
+            h: 2,
+            w: 4,
+            tabSlug: null,
+            properties: { chartSlug, chartName: tileSlug, title: tileSlug },
+        });
+
+        it('reports the explore of every chart tile so filters can be targeted across explores', () => {
+            const result = CoderService.withTileChartQueries(
+                {
+                    tiles: [
+                        chartTile('orders-by-month', 'orders-by-month'),
+                        chartTile('customers-by-month', 'customers-by-month'),
+                        {
+                            type: DashboardTileTypes.MARKDOWN,
+                            uuid: undefined,
+                            tileSlug: undefined,
+                            x: 0,
+                            y: 2,
+                            h: 1,
+                            w: 4,
+                            properties: { title: 'Note', content: '' },
+                        },
+                    ],
+                } as AnyType,
+                {
+                    'orders-by-month': {
+                        exploreName: 'orders',
+                        fieldIds: ['orders_order_date_month', 'orders_count'],
+                    },
+                    'customers-by-month': {
+                        exploreName: 'customers',
+                        fieldIds: ['customers_created_month'],
+                    },
+                },
+            );
+
+            expect(result.tiles).toMatchObject([
+                {
+                    tileSlug: 'orders-by-month',
+                    properties: {
+                        chartQuery: {
+                            exploreName: 'orders',
+                            fieldIds: [
+                                'orders_order_date_month',
+                                'orders_count',
+                            ],
+                        },
+                    },
+                },
+                {
+                    tileSlug: 'customers-by-month',
+                    properties: {
+                        chartQuery: {
+                            exploreName: 'customers',
+                            fieldIds: ['customers_created_month'],
+                        },
+                    },
+                },
+                { type: DashboardTileTypes.MARKDOWN },
+            ]);
+            expect(result.tiles[2].properties).not.toHaveProperty('chartQuery');
+        });
+
+        it('keeps reading a dashboard whose tile chart is missing', () => {
+            const result = CoderService.withTileChartQueries(
+                {
+                    tiles: [
+                        chartTile('deleted-chart', 'deleted-chart'),
+                        chartTile('empty-tile', null),
+                    ],
+                } as AnyType,
+                {},
+            );
+
+            expect(result.tiles).toMatchObject([
+                {
+                    properties: {
+                        chartSlug: 'deleted-chart',
+                        chartQuery: null,
+                    },
+                },
+                { properties: { chartSlug: null, chartQuery: null } },
+            ]);
+        });
+
+        it('ignores the read-only chart query when tiles are written back', async () => {
+            const service = new CoderService({
+                directAccessService: {} as AnyType,
+                analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {} as AnyType,
+                contentAsCodeProjectSettingsModel: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: {
+                    find: vi.fn(async () => [
+                        { uuid: 'orders-chart-uuid', slug: 'orders-by-month' },
+                    ]),
+                    getSlugAliasMappingsForUuids: vi.fn(async () => []),
+                } as AnyType,
+                savedSqlModel: {
+                    find: vi.fn(async () => []),
+                } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => []),
+                } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
+            });
+
+            const { tiles } = await service.convertTileWithSlugsToUuids(
+                'project-uuid',
+                [
+                    {
+                        ...chartTile('orders-by-month', 'orders-by-month'),
+                        properties: {
+                            chartSlug: 'orders-by-month',
+                            chartName: 'Orders by month',
+                            chartQuery: {
+                                exploreName: 'payments',
+                                fieldIds: ['payments_amount'],
+                            },
+                        },
+                    },
+                ],
+            );
+
+            expect(tiles).toMatchObject([
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        chartSlug: 'orders-by-month',
+                        savedChartUuid: 'orders-chart-uuid',
+                    },
+                },
+            ]);
+            expect(tiles[0].properties).not.toHaveProperty('chartQuery');
+        });
+    });
+
     describe('transformDashboard - data app tiles', () => {
         const spaceSummary = [
             { uuid: 'space-uuid', name: 'My space', path: 'my_space' },
@@ -2461,6 +2622,9 @@ describe('content-as-code access split', () => {
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
             }),
+        },
+        savedChartModel: {
+            getLatestVersionQueriesBySlugs: vi.fn(async () => ({})),
         },
     } as AnyType);
 
