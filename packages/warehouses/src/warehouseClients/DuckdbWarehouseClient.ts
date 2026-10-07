@@ -1737,9 +1737,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
         await lock.acquire();
         try {
-            if (tokens.get(instanceCacheKey) === token) return;
-            await DuckdbWarehouseClient.createGcsSecret(db, s3Config, token);
-            tokens.set(instanceCacheKey, token);
+            // Re-read the token under the lock. Another session may have
+            // installed a newer one while this one waited, and the token
+            // fetched above must not overwrite it.
+            const current =
+                await DuckdbWarehouseClient.getGcsAccessToken(s3Config);
+            if (tokens.get(instanceCacheKey) === current) return;
+            await DuckdbWarehouseClient.createGcsSecret(db, s3Config, current);
+            tokens.set(instanceCacheKey, current);
         } finally {
             lock.release();
         }

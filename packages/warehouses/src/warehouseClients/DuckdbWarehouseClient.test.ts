@@ -1477,6 +1477,63 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretTokens().at(-1)).toBe('rotated-token');
     });
 
+    it('never installs a stale token over a newer one after waiting on the lock', async () => {
+        const runMock = vi.fn(async (_sql: string, _params?: unknown[]) => {});
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        let token = 'initial-token';
+        const getAccessToken = vi.fn(async () => token);
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    authMode: 'gcp_oauth',
+                    getAccessToken,
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'pre-aggregate-query-instance' },
+        );
+        await client.runQuery('SELECT 1');
+
+        // The token rotates between two sessions' fetches. The session holding
+        // the old token resolves last, so it reaches the lock after the newer
+        // token is already installed.
+        token = 'new-token';
+        getAccessToken
+            .mockImplementationOnce(async () => {
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 20);
+                });
+                return 'old-token';
+            })
+            .mockImplementationOnce(async () => 'new-token');
+        await Promise.all([
+            client.runQuery('SELECT 1'),
+            client.runQuery('SELECT 1'),
+        ]);
+
+        const installed = runMock.mock.calls
+            .filter(([sql]) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            )
+            .map(([, params]) => params?.[0]);
+        expect(installed).not.toContain('old-token');
+        expect(installed.at(-1)).toBe('new-token');
+    });
+
     it('retries the shared GCS secret after a failed replacement', async () => {
         let failSecret = true;
         const runMock = vi.fn(async (sql: string) => {
