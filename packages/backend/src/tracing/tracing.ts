@@ -21,6 +21,7 @@ import type {
     Link,
     Span as OtelSpan,
     SpanKind,
+    Tracer,
 } from '@opentelemetry/api';
 import {
     context,
@@ -531,6 +532,26 @@ const isIgnoredIncomingRequest = (
     );
 };
 
+/**
+ * instrumentation-knex names a span `${operation} ${db}.${table}`, falling
+ * back to `${db}` alone for schema-builder queries (knex.schema.hasTable),
+ * which carry no `method`. `db` is knex's `connection.database`, and that is
+ * undefined whenever the connection is configured from PG* env vars rather
+ * than PGCONNECTIONURI (docker-compose, Cloud). The OTLP protobuf serializer
+ * (gRPC and http/protobuf) throws on an undefined span name and drops the
+ * whole batch, so give those spans a name before they reach the SDK.
+ */
+class NamedKnexInstrumentation extends KnexInstrumentation {
+    protected get tracer(): Tracer {
+        const tracer = super.tracer;
+        // Prototype-chain wrapper: the SDK's startActiveSpan calls
+        // this.startSpan, so it routes through the override too.
+        const startSpan: Tracer['startSpan'] = (name, ...rest) =>
+            tracer.startSpan(name || 'knex', ...rest);
+        return Object.assign(Object.create(tracer) as Tracer, { startSpan });
+    }
+}
+
 export const createOtelInstrumentations = () => [
     new HttpInstrumentation({
         ignoreIncomingRequestHook: (req) =>
@@ -546,7 +567,7 @@ export const createOtelInstrumentations = () => [
     }),
     ...(otelDatabaseTracingEnabled()
         ? [
-              new KnexInstrumentation({
+              new NamedKnexInstrumentation({
                   requireParentSpan: true,
                   maxQueryLength: getOtelDatabaseTraceMaxQueryLength(),
               }),
