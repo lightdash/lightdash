@@ -354,6 +354,8 @@ export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './departments/departmentTree';
+export * from './types/departments';
 export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
