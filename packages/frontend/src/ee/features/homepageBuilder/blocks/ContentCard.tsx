@@ -120,12 +120,15 @@ const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
     </Group>
 );
 
-const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
+const ContentTitle: FC<Pick<Props, 'content' | 'star'>> = ({
     content,
-    onRemove,
     star,
 }) => (
-    <>
+    <Group gap={4} wrap="nowrap" miw={0}>
+        <Text size="sm" fw={600} truncate miw={0}>
+            {content.name}
+        </Text>
+        <VerifiedBadge content={content} />
         {star && (
             <FavoriteActionIcon
                 size="sm"
@@ -139,6 +142,14 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
                 }}
             />
         )}
+    </Group>
+);
+
+const CardActions: FC<Pick<Props, 'content' | 'onRemove'>> = ({
+    content,
+    onRemove,
+}) => (
+    <>
         {onRemove && (
             <ActionIcon
                 size="sm"
@@ -219,20 +230,15 @@ export const ContentCard: FC<Props> = ({
                 attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
-                <Group gap={5} wrap="nowrap" className={classes.resTileBody}>
-                    <Text size="sm" fw={600} truncate>
-                        {content.name}
-                    </Text>
-                    <VerifiedBadge content={content} />
-                </Group>
-                <ViewsCount content={content} projectUuid={projectUuid} />
-                <Box className={classes.tileActions}>
-                    <CardActions
-                        content={content}
-                        onRemove={onRemove}
-                        star={star}
-                    />
+                <Box className={classes.resTileBody}>
+                    <ContentTitle content={content} star={star} />
                 </Box>
+                <ViewsCount content={content} projectUuid={projectUuid} />
+                {onRemove && (
+                    <Box className={classes.tileActions}>
+                        <CardActions content={content} onRemove={onRemove} />
+                    </Box>
+                )}
             </MaybeLink>
         );
     }
@@ -248,22 +254,15 @@ export const ContentCard: FC<Props> = ({
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box className={classes.tileBody}>
-                    <Group gap={5} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        <VerifiedBadge content={content} />
-                    </Group>
+                    <ContentTitle content={content} star={star} />
                     <KindAndViews content={content} projectUuid={projectUuid} />
                     <TileExtra content={content} />
                 </Box>
-                <Box className={classes.tileActions}>
-                    <CardActions
-                        content={content}
-                        onRemove={onRemove}
-                        star={star}
-                    />
-                </Box>
+                {onRemove && (
+                    <Box className={classes.tileActions}>
+                        <CardActions content={content} onRemove={onRemove} />
+                    </Box>
+                )}
             </MaybeLink>
         );
     }
@@ -273,19 +272,10 @@ export const ContentCard: FC<Props> = ({
             <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box flex={1} miw={0}>
-                    <Group gap={4} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        <VerifiedBadge content={content} />
-                    </Group>
+                    <ContentTitle content={content} star={star} />
                     <KindAndViews content={content} projectUuid={projectUuid} />
                 </Box>
-                <CardActions
-                    content={content}
-                    onRemove={onRemove}
-                    star={star}
-                />
+                <CardActions content={content} onRemove={onRemove} />
             </Group>
         </MaybeLink>
     );
