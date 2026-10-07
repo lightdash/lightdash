@@ -242,6 +242,7 @@ describe('Agent identity draft', () => {
     it.each([
         AiAgentMarkerLevel.ADVISORY_SESSION,
         AiAgentMarkerLevel.IDENTIFY_ONLY,
+        AiAgentMarkerLevel.REQUEST_BOUND,
     ])('shows the coming-soon reason without controls for %s', (level) => {
         renderSettings(null, {
             ...capabilities,
@@ -259,9 +260,11 @@ describe('Agent identity draft', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                level === AiAgentMarkerLevel.IDENTIFY_ONLY
-                    ? 'The marker identifies agent queries in query history. It cannot restrict them.'
-                    : 'The marker is advisory on this warehouse. Any SQL in the session can change it.',
+                level === AiAgentMarkerLevel.REQUEST_BOUND
+                    ? "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it."
+                    : level === AiAgentMarkerLevel.IDENTIFY_ONLY
+                      ? 'The marker identifies agent queries in query history. It cannot restrict them.'
+                      : 'The marker is advisory on this warehouse. Any SQL in the session can change it.',
             ),
         ).toBeInTheDocument();
         expect(
@@ -275,6 +278,7 @@ describe('Agent identity draft', () => {
     it.each([
         AiAgentMarkerLevel.VERIFIED_SESSION,
         AiAgentMarkerLevel.IDENTIFY_ONLY,
+        AiAgentMarkerLevel.REQUEST_BOUND,
         AiAgentMarkerLevel.ADVISORY_SESSION,
     ])(
         'confirms switching an API policy on a person-only warehouse at %s',

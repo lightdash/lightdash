@@ -96,9 +96,11 @@ const IdentityStatement = ({
             <Text size="sm">
                 {level === AiAgentMarkerLevel.VERIFIED_SESSION
                     ? 'Snowflake verifies the session once the person has done the AI sign-in.'
-                    : level === AiAgentMarkerLevel.IDENTIFY_ONLY
-                      ? 'The marker identifies agent queries in query history. It cannot restrict them.'
-                      : 'The marker is advisory on this warehouse. Any SQL in the session can change it.'}
+                    : level === AiAgentMarkerLevel.REQUEST_BOUND
+                      ? "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it."
+                      : level === AiAgentMarkerLevel.IDENTIFY_ONLY
+                        ? 'The marker identifies agent queries in query history. It cannot restrict them.'
+                        : 'The marker is advisory on this warehouse. Any SQL in the session can change it.'}
             </Text>
             {!capabilities.principals.shared.available &&
                 level !== AiAgentMarkerLevel.VERIFIED_SESSION && (

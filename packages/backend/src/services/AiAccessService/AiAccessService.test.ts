@@ -199,11 +199,15 @@ const setup = () => {
     };
     const projects = {
         getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
-        getWarehouseCredentialsForProject: vi.fn(async () => connection),
+        getWarehouseCredentialsForProject: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> => connection,
+        ),
     };
     const connections = {
         getProject: vi.fn(async () => ({ projectUuid: 'project' })),
-        getCredentials: vi.fn(async () => connection),
+        getCredentials: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> => connection,
+        ),
     };
     const registry = vi.fn((): AiCredentialProvider => provider);
     const service = new AiAccessService({
@@ -352,6 +356,44 @@ describe('AiAccessService', () => {
                     "current_setting('lightdash.agent', true)",
                 ),
             );
+        },
+    );
+    test.each([true, false])(
+        'reports request-bound channels when the Trino probe succeeds (%s)',
+        async (succeeds) => {
+            const { service, projects } = setup();
+            projects.getWarehouseCredentialsForProject.mockResolvedValue({
+                type: WarehouseTypes.TRINO,
+                host: 'localhost',
+                port: 8080,
+                http_scheme: 'http',
+                user: 'agent',
+                password: '',
+                dbname: 'catalog',
+                schema: 'public',
+            });
+            const runQuery = vi.fn(async () => {
+                if (!succeeds) throw new Error('query failed');
+                return [{ result: 1 }];
+            });
+
+            const result = await service.testMarker(
+                account,
+                'project',
+                null,
+                runQuery,
+            );
+
+            expect(result.ok).toBe(succeeds);
+            expect(runQuery).toHaveBeenCalledWith('SELECT 1');
+            if (succeeds) {
+                expect(result.observed.channels).toBe(
+                    'Client tag, Extra credential, User-Agent, SQL comment',
+                );
+                expect(result.message).toBe(
+                    'The query carried the agent marker through the listed channels. Enforcement needs your access control plugin or policy to read it.',
+                );
+            }
         },
     );
     test('returns a failed marker result when the query fails', async () => {

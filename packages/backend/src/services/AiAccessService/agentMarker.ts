@@ -81,7 +81,7 @@ ALTER TABLE protected_data ROW LEVEL SECURITY ON;`,
                         where: 'query history, "agent":"true"',
                     },
                 ],
-                note: null,
+                note: 'Unity Catalog attribute-based policies (Beta) can branch on `request.client_id`, which is fixed by how the token was issued. To enforce on agents, register a separate OAuth app for agent sign-in and match its client id. Personal access tokens bypass it.',
                 enforce: null,
             };
         case WarehouseTypes.BIGQUERY:
@@ -93,7 +93,7 @@ ALTER TABLE protected_data ROW LEVEL SECURITY ON;`,
                         where: 'INFORMATION_SCHEMA.JOBS labels, agent=true',
                     },
                 ],
-                note: null,
+                note: 'Row access policies, policy tags and masking decide on identity only. Google recommends a separate identity for agents.',
                 enforce: null,
             };
         case WarehouseTypes.ATHENA:
@@ -102,36 +102,56 @@ ALTER TABLE protected_data ROW LEVEL SECURITY ON;`,
                 signals: [
                     {
                         name: 'SQL comment',
-                        where: 'query history, "agent":"true"',
+                        where: 'query history and CloudTrail, "agent":"true"',
                     },
                 ],
-                note: null,
+                note: 'Lake Formation can grant on session tags set at AssumeRole, which the query cannot change. That needs agents to assume their own role.',
                 enforce: null,
             };
         case WarehouseTypes.CLICKHOUSE:
             return {
-                level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                level: AiAgentMarkerLevel.ADVISORY_SESSION,
                 signals: [
                     {
                         name: 'log_comment',
                         where: 'system.query_log, "agent":"true"',
                     },
                 ],
-                note: null,
-                enforce: null,
+                note: "A row policy can read getSetting('SQL_agent'), but the query's SETTINGS clause can change it. Prefer the HTTP role parameter: it activates an agent role whose grants and row policies apply and which SQL cannot drop. EXECUTE AS is the only identity SQL cannot change, but is not available in ClickHouse Cloud. The app would need to send role=agent_role; this is not yet a feature here.",
+                enforce:
+                    'CREATE ROW POLICY agent_access ON protected_data USING NOT pii TO agent_role;',
             };
         case WarehouseTypes.TRINO:
             return {
-                level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                level: AiAgentMarkerLevel.REQUEST_BOUND,
                 signals: [
-                    { name: 'Client tag', where: 'client tags, agent=true' },
+                    {
+                        name: 'Client tag',
+                        where: 'agent=true; resource groups, session property managers and event listeners, not access control',
+                    },
+                    {
+                        name: 'Extra credential',
+                        where: 'agent=true; OPA identity.extraCredentials from Trino 484 with opa.identity.extra-credentials-keys=agent',
+                    },
+                    {
+                        name: 'User-Agent',
+                        where: 'lightdash-ai; Ranger clientType',
+                    },
                     {
                         name: 'SQL comment',
-                        where: 'system.runtime.queries query text, "agent":"true"',
+                        where: 'Ranger query text and system.runtime.queries query, "agent":"true"',
                     },
                 ],
-                note: 'Access control plugins can read client tags.',
-                enforce: null,
+                note: 'Agent SQL must not contain SET ROLE or SET SESSION AUTHORIZATION; this instance does not parse SQL, so grant agents no roles they must not use. The OPA example needs Trino 484 with opa.identity.extra-credentials-keys=agent.',
+                enforce: `package trino
+import rego.v1
+
+default rowFilters := []
+
+rowFilters := [{"expression": "NOT pii"}] if {
+    input.context.identity.extraCredentials.agent == "true"
+    input.action.resource.table.tableName == "protected_data"
+}`,
             };
         case WarehouseTypes.DUCKDB:
             return {

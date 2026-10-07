@@ -4,6 +4,7 @@ import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 const markerLabels: Record<AiAgentMarkerLevel, string> = {
     [AiAgentMarkerLevel.VERIFIED_SESSION]: 'Enforced by warehouse',
     [AiAgentMarkerLevel.ADVISORY_SESSION]: 'Session can change it',
+    [AiAgentMarkerLevel.REQUEST_BOUND]: 'Bound to the request',
     [AiAgentMarkerLevel.IDENTIFY_ONLY]: 'Visible in query history',
     [AiAgentMarkerLevel.NONE]: 'No marker',
 };

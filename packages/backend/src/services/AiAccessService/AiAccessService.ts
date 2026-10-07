@@ -521,6 +521,9 @@ export class AiAccessService extends BaseService {
             if (!result.ok) {
                 result.message =
                     'The warehouse session did not report the expected agent marker.';
+            } else if (marker.level === AiAgentMarkerLevel.REQUEST_BOUND) {
+                result.message =
+                    'The query carried the agent marker through the listed channels. Enforcement needs your access control plugin or policy to read it.';
             } else if (marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY) {
                 result.message =
                     'The query succeeded with agent tags sent through the listed channels. These tags identify queries; they do not enforce access.';

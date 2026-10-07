@@ -8,8 +8,8 @@ const levels: Record<WarehouseTypes, AiAgentMarkerLevel> = {
     [WarehouseTypes.DATABRICKS]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.BIGQUERY]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.ATHENA]: AiAgentMarkerLevel.IDENTIFY_ONLY,
-    [WarehouseTypes.CLICKHOUSE]: AiAgentMarkerLevel.IDENTIFY_ONLY,
-    [WarehouseTypes.TRINO]: AiAgentMarkerLevel.IDENTIFY_ONLY,
+    [WarehouseTypes.CLICKHOUSE]: AiAgentMarkerLevel.ADVISORY_SESSION,
+    [WarehouseTypes.TRINO]: AiAgentMarkerLevel.REQUEST_BOUND,
     [WarehouseTypes.DUCKDB]: AiAgentMarkerLevel.NONE,
 };
 
@@ -24,6 +24,8 @@ describe('describeAgentMarker', () => {
                 WarehouseTypes.SNOWFLAKE,
                 WarehouseTypes.POSTGRES,
                 WarehouseTypes.REDSHIFT,
+                WarehouseTypes.CLICKHOUSE,
+                WarehouseTypes.TRINO,
             ].includes(type),
         );
     });
@@ -46,6 +48,33 @@ describe('describeAgentMarker', () => {
             ],
             note: 'Session settings are advisory. Any SQL in the session can change them.',
         });
+    });
+
+    test('uses extra credentials for Trino access control rather than client tags', () => {
+        const marker = describeAgentMarker(WarehouseTypes.TRINO);
+        expect(marker.enforce).toContain(
+            'input.context.identity.extraCredentials.agent == "true"',
+        );
+        expect(marker.note).toContain(
+            'Trino 484 with opa.identity.extra-credentials-keys=agent',
+        );
+        expect(
+            marker.signals.find((signal) => signal.name === 'Client tag')
+                ?.where,
+        ).toContain('not access control');
+        expect(
+            marker.signals.find((signal) => signal.name === 'User-Agent')
+                ?.where,
+        ).toContain('Ranger clientType');
+    });
+
+    test('describes ClickHouse role enforcement as a feature not yet sent by the app', () => {
+        const marker = describeAgentMarker(WarehouseTypes.CLICKHOUSE);
+        expect(marker.enforce).toContain('USING NOT pii TO agent_role');
+        expect(marker.note).toContain(
+            'role=agent_role; this is not yet a feature here',
+        );
+        expect(marker.note).toContain("getSetting('SQL_agent')");
     });
 
     test('uses the verified Snowflake agent session expression', () => {

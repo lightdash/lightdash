@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
@@ -391,12 +392,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
 
             query = await session.query(
-                options?.tags
+                options?.tags || this.agentSession
                     ? {
                           query: alteredQuery,
                           extraHeaders: {
                               [TRINO_CLIENT_TAGS_HEADER]: Object.entries(
-                                  options.tags,
+                                  options.tags ?? {},
                               )
                                   .map(
                                       ([key, value]) =>
@@ -405,6 +406,13 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                                           )}=${sanitizeClientTag(value)}`,
                                   )
                                   .join(','),
+                              ...(this.agentSession
+                                  ? {
+                                        'X-Trino-Extra-Credential':
+                                            'agent=true',
+                                        'User-Agent': AI_AGENT_APPLICATION_NAME,
+                                    }
+                                  : {}),
                           },
                       }
                     : alteredQuery,
