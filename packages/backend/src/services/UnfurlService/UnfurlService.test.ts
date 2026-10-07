@@ -51,6 +51,15 @@ vi.mock('playwright', () => {
     };
 });
 
+const obscureMocks = vi.hoisted(() => ({
+    obscureThumbnailImage: vi.fn(),
+}));
+
+vi.mock('./obscureThumbnail', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./obscureThumbnail')>()),
+    obscureThumbnailImage: obscureMocks.obscureThumbnailImage,
+}));
+
 vi.mock('../../utils/ssrfProtection', () => ({
     validatePublicHttpUrl: ssrfMocks.validatePublicHttpUrl,
 }));
@@ -131,7 +140,13 @@ describe('UnfurlService', () => {
         vi.clearAllMocks();
     });
 
+    const createMockFrame = () => ({
+        addStyleTag: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue('rgba(0, 0, 0, 0)'),
+    });
+
     const createScreenshotMockPage = () => {
+        const appFrames = [createMockFrame(), createMockFrame()];
         const cdpSession = { send: vi.fn().mockResolvedValue(undefined) };
         const pageContext = {
             addCookies: vi.fn().mockResolvedValue(undefined),
@@ -142,6 +157,8 @@ describe('UnfurlService', () => {
         return {
             cdpSession,
             pageContext,
+            appFrames,
+            frames: vi.fn().mockReturnValue(appFrames),
             addInitScript: vi.fn().mockResolvedValue(undefined),
             context: vi.fn().mockReturnValue(pageContext),
             on: vi.fn(),
@@ -469,12 +486,22 @@ describe('UnfurlService', () => {
             }
         };
 
-        it('returns an image of the requested version', async () => {
+        beforeEach(() => {
+            obscureMocks.obscureThumbnailImage.mockImplementation(
+                async (png: Buffer) =>
+                    Buffer.concat([Buffer.from('blurred:'), png]),
+            );
+        });
+
+        it('returns a blurred image of the requested version', async () => {
             const { service, page } = setupScreenshot();
 
             const image = await service.captureDataAppVersion(CAPTURE_ARGS);
 
-            expect(image).toEqual(Buffer.from('png-bytes'));
+            expect(obscureMocks.obscureThumbnailImage).toHaveBeenCalledWith(
+                Buffer.from('png-bytes'),
+            );
+            expect(image).toEqual(Buffer.from('blurred:png-bytes'));
             expect(page.goto.mock.calls[0][0]).toBe(
                 `http://headless-browser:8080/minimal/projects/${CAPTURE_ARGS.projectUuid}/apps/${CAPTURE_ARGS.appUuid}?version=3`,
             );
@@ -487,6 +514,49 @@ describe('UnfurlService', () => {
             await expect(
                 service.captureDataAppVersion(CAPTURE_ARGS),
             ).rejects.toThrow();
+        });
+
+        it('obscures the text of every frame before the screenshot', async () => {
+            const { service, page } = setupScreenshot();
+
+            await service.captureDataAppVersion(CAPTURE_ARGS);
+
+            const screenshotAt = page.screenshot.mock.invocationCallOrder[0];
+            page.appFrames.forEach((frame) => {
+                expect(frame.addStyleTag).toHaveBeenCalledWith({
+                    content: expect.stringContaining(
+                        '-webkit-text-fill-color: transparent',
+                    ),
+                });
+                expect(
+                    frame.addStyleTag.mock.invocationCallOrder[0],
+                ).toBeLessThan(screenshotAt);
+                expect(frame.evaluate.mock.invocationCallOrder[0]).toBeLessThan(
+                    screenshotAt,
+                );
+            });
+        });
+
+        it('fails when a frame does not confirm its text is hidden', async () => {
+            const { service, page } = setupScreenshot();
+            page.appFrames[1].evaluate.mockResolvedValue('rgb(0, 0, 0)');
+
+            await expect(
+                service.captureDataAppVersion(CAPTURE_ARGS),
+            ).rejects.toThrow();
+            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
+        });
+
+        it('fails when the stylesheet cannot be added to a frame', async () => {
+            const { service, page } = setupScreenshot();
+            page.appFrames[0].addStyleTag.mockRejectedValue(
+                new Error('Frame was detached'),
+            );
+
+            await expect(
+                service.captureDataAppVersion(CAPTURE_ARGS),
+            ).rejects.toThrow();
+            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
         });
 
         it('leaves exportDataApp returning an image for an app that never signals', async () => {
@@ -505,6 +575,27 @@ describe('UnfurlService', () => {
             });
 
             expect(result.imageBuffer).toEqual(Buffer.from('png-bytes'));
+        });
+
+        it('leaves exportDataApp images unobscured', async () => {
+            const { service, page } = setupScreenshot();
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+
+            const { version, ...exportArgs } = CAPTURE_ARGS;
+            const result = await service.exportDataApp({
+                ...exportArgs,
+                context: ScreenshotContext.SLACK,
+            });
+
+            expect(result.imageBuffer).toEqual(Buffer.from('png-bytes'));
+            page.appFrames.forEach((frame) => {
+                expect(frame.addStyleTag).not.toHaveBeenCalled();
+            });
+            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
         });
     });
 

@@ -83,6 +83,7 @@ import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { countPdfPages } from './countPdfPages';
+import { obscureFramesText, obscureThumbnailImage } from './obscureThumbnail';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -1311,6 +1312,7 @@ export class UnfurlService extends BaseService {
             imageId,
             singleAttempt: false,
             requireReadyIndicator: false,
+            obscureText: false,
             failureMessage: 'Unable to export data app image',
         });
 
@@ -1326,8 +1328,8 @@ export class UnfurlService extends BaseService {
         return { imageBuffer, imageUrl };
     }
 
-    // Unhosted single-attempt render of one version; fails when the version never
-    // signals it rendered. The caller must check the version is ready.
+    // Unhosted single-attempt obscured render of one version; fails when the version
+    // never signals it rendered or text cannot be obscured. The caller must check the version is ready.
     async captureDataAppVersion({
         projectUuid,
         appUuid,
@@ -1355,6 +1357,7 @@ export class UnfurlService extends BaseService {
             imageId: `app-thumbnail_${snakeCaseName(appName)}_${useNanoid()}`,
             singleAttempt: true,
             requireReadyIndicator: true,
+            obscureText: true,
             failureMessage: 'Unable to capture data app version',
         });
     }
@@ -1372,6 +1375,7 @@ export class UnfurlService extends BaseService {
         imageId,
         singleAttempt,
         requireReadyIndicator,
+        obscureText,
         failureMessage,
     }: {
         projectUuid: UUID;
@@ -1388,6 +1392,8 @@ export class UnfurlService extends BaseService {
         singleAttempt: boolean;
         // True fails when the ready indicator never appears.
         requireReadyIndicator: boolean;
+        // True blurs all text before the screenshot and the image after it.
+        obscureText: boolean;
         failureMessage: string;
     }): Promise<Buffer> {
         const minimalAppUrl = new URL(
@@ -1424,6 +1430,7 @@ export class UnfurlService extends BaseService {
             selectedTabs: null,
             ...(singleAttempt ? { retries: 1 } : {}),
             requireSuccessfulRender: requireReadyIndicator,
+            obscureAppText: obscureText,
         });
         if (!result?.imageBuffer) {
             throw new UnexpectedServerError(failureMessage);
@@ -1733,6 +1740,7 @@ export class UnfurlService extends BaseService {
         pdfPagination = 'crop',
         signal,
         requireSuccessfulRender = false,
+        obscureAppText = false,
     }: {
         imageId: string;
         cookie: string;
@@ -1765,6 +1773,8 @@ export class UnfurlService extends BaseService {
         pdfPagination?: 'crop' | 'cssPaged' | 'a4';
         signal?: AbortSignal;
         requireSuccessfulRender?: boolean;
+        // Data app pages only: never produce a readable image.
+        obscureAppText?: boolean;
     }): Promise<
         | {
               imageBuffer?: Buffer;
@@ -2375,6 +2385,9 @@ export class UnfurlService extends BaseService {
                                 }),
                             APP_ANIMATION_BUFFER_MS,
                         );
+                        if (obscureAppText) {
+                            await obscureFramesText(page.frames());
+                        }
                     } else {
                         if (
                             lightdashPage === LightdashPage.DASHBOARD ||
@@ -2614,7 +2627,10 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    const path = `/tmp/${imageId}.png`;
+                    // An obscured capture never writes its unblurred screenshot to disk.
+                    const path = obscureAppText
+                        ? undefined
+                        : `/tmp/${imageId}.png`;
 
                     let finalSelector = selector;
 
@@ -2879,6 +2895,10 @@ export class UnfurlService extends BaseService {
                         });
                     }
 
+                    if (obscureAppText) {
+                        imageBuffer = await obscureThumbnailImage(imageBuffer);
+                    }
+
                     // Also generate PDF in the same browser session
                     const pdfBuffer = withPdf ? await generatePdf() : undefined;
 
@@ -2956,6 +2976,7 @@ export class UnfurlService extends BaseService {
                             pdfPagination,
                             signal,
                             requireSuccessfulRender,
+                            obscureAppText,
                         });
                     }
 

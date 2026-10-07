@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -18,6 +19,7 @@ import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 export const DataAppGeneralSettingsPage: FC = () => {
     const health = useHealth();
@@ -31,7 +33,13 @@ export const DataAppGeneralSettingsPage: FC = () => {
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateOrganizationSettings();
 
+    const automaticThumbnailsFlag = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppAutomaticThumbnails,
+    );
+
     const hasHeadlessBrowser = health.data?.hasHeadlessBrowser ?? false;
+    const automaticThumbnailsAvailable =
+        automaticThumbnailsFlag.data?.enabled === true;
 
     return (
         <SettingsPage
@@ -50,11 +58,14 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         </Button>
                     </Stack>
                 </SettingsCard>
-            ) : isInitialLoading || !settings || health.isInitialLoading ? (
+            ) : isInitialLoading ||
+              !settings ||
+              health.isInitialLoading ||
+              automaticThumbnailsFlag.isInitialLoading ? (
                 <Group justify="center" mt="xl">
                     <Loader size="sm" />
                 </Group>
-            ) : (
+            ) : automaticThumbnailsAvailable ? (
                 <Stack gap="md">
                     {!hasHeadlessBrowser && (
                         <Callout
@@ -82,9 +93,10 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                 <Text c="dimmed" fz="xs">
                                     Each data app version gets a thumbnail when
                                     it becomes ready, rendered as the user who
-                                    created it. Turning this off keeps existing
-                                    thumbnails, and thumbnails can still be
-                                    captured by hand.
+                                    created it. Text is blurred so values are
+                                    not readable. Turning this off keeps
+                                    existing thumbnails, and thumbnails can
+                                    still be captured by hand.
                                 </Text>
                             </Box>
                             <Switch
@@ -105,7 +117,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         </Group>
                     </SettingsCard>
                 </Stack>
-            )}
+            ) : null}
         </SettingsPage>
     );
 };

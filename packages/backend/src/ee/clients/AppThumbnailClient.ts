@@ -7,6 +7,7 @@ import {
 } from '@aws-sdk/client-s3';
 import {
     DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
     NotFoundError,
     ParameterError,
     resolveEffectiveOrganizationSettings,
@@ -16,6 +17,7 @@ import { createObjectUrlSigner } from '../../clients/Aws/ObjectUrlSigner';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type DbApp, type DbAppVersion } from '../../database/entities/apps';
 import { type AppModel } from '../../models/AppModel';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { getOrganizationSettingsInstanceDefaults } from '../../services/OrganizationSettingsService/getInstanceDefaults';
 import { type UnfurlService } from '../../services/UnfurlService/UnfurlService';
@@ -66,10 +68,12 @@ export type AppThumbnailClientArgs = {
     unfurlService: Pick<UnfurlService, 'captureDataAppVersion'>;
     storage: AppThumbnailStorage;
     organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
 
 export type AppThumbnailCaptureSkipReason =
     | 'no_headless_browser'
+    | 'feature_flag_off'
     | 'app_not_found'
     | 'custom_chart_type'
     | 'version_not_ready'
@@ -215,18 +219,22 @@ export class AppThumbnailClient {
 
     private readonly organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
 
+    private readonly featureFlagModel: AppThumbnailClientArgs['featureFlagModel'];
+
     constructor({
         lightdashConfig,
         appModel,
         unfurlService,
         storage,
         organizationSettingsModel,
+        featureFlagModel,
     }: AppThumbnailClientArgs) {
         this.lightdashConfig = lightdashConfig;
         this.appModel = appModel;
         this.unfurlService = unfurlService;
         this.storage = storage;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     /** Whether to enqueue a capture when a version of this app becomes ready. */
@@ -234,6 +242,9 @@ export class AppThumbnailClient {
         app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
     ): Promise<boolean> {
         if (this.uncapturableReason(app) !== null) return false;
+        if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
+            return false;
+        }
         const settings = resolveEffectiveOrganizationSettings(
             await this.organizationSettingsModel.get(app.organizationUuid),
             getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
@@ -242,8 +253,8 @@ export class AppThumbnailClient {
     }
 
     /**
-     * Captures a ready version's thumbnail, rendered as the version's creator.
-     * Best-effort: never throws, and never replaces a manual thumbnail.
+     * Captures a ready version's obscured thumbnail, rendered as the version's
+     * creator. Best-effort: never throws, and never replaces a manual thumbnail.
      */
     async captureVersion(
         ref: AppVersionRef,
@@ -255,6 +266,9 @@ export class AppThumbnailClient {
 
             const skipReason = this.uncapturableReason(app);
             if (skipReason) return { status: 'skipped', reason: skipReason };
+            if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
+                return { status: 'skipped', reason: 'feature_flag_off' };
+            }
 
             const version = await this.findVersion(ref.appUuid, ref.version);
             if (!version || version.status !== 'ready') {
@@ -409,6 +423,16 @@ export class AppThumbnailClient {
         return toThumbnailVersion(
             await this.appModel.getVersion(appUuid, version),
         );
+    }
+
+    private async isAutomaticCaptureFlagOn(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.EnableDataAppAutomaticThumbnails,
+        });
+        return enabled;
     }
 
     /** Why this app's versions can never be captured; null when they can. */

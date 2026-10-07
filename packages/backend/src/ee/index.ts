@@ -615,6 +615,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         }),
                         organizationSettingsModel:
                             models.getOrganizationSettingsModel(),
+                        featureFlagModel: models.getFeatureFlagModel(),
                     }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

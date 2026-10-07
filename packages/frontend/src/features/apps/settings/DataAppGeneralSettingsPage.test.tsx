@@ -18,6 +18,7 @@ type SettingsQuery = {
 const LABEL = 'Automatically capture thumbnails for data app versions';
 
 const {
+    automaticThumbnailsFlag,
     health,
     mutationState,
     refetchSettings,
@@ -34,6 +35,7 @@ const {
     };
 
     return {
+        automaticThumbnailsFlag: { enabled: true },
         health: { hasHeadlessBrowser: true },
         mutationState: { isLoading: false },
         refetchSettings: vi.fn(),
@@ -50,6 +52,13 @@ vi.mock('../../../hooks/organization/useOrganizationSettings', () => ({
     useUpdateOrganizationSettings: () => ({
         mutate: updateSettings,
         isLoading: mutationState.isLoading,
+    }),
+}));
+
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: automaticThumbnailsFlag.enabled },
+        isInitialLoading: false,
     }),
 }));
 
@@ -76,6 +85,7 @@ describe('DataAppGeneralSettingsPage', () => {
             error: undefined,
         };
         health.hasHeadlessBrowser = true;
+        automaticThumbnailsFlag.enabled = true;
         mutationState.isLoading = false;
         refetchSettings.mockReset();
         updateSettings.mockReset();
@@ -87,6 +97,30 @@ describe('DataAppGeneralSettingsPage', () => {
         const checkbox = screen.getByRole('switch', { name: LABEL });
         expect(checkbox).toBeChecked();
         expect(checkbox).toBeEnabled();
+        expect(
+            screen.queryByText('No headless browser is configured'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('says that thumbnail text is blurred', () => {
+        renderPage();
+
+        expect(
+            screen.getByText(/Text is blurred so values are not readable\./),
+        ).toBeInTheDocument();
+    });
+
+    it('hides automatic capture when the feature flag is off', () => {
+        automaticThumbnailsFlag.enabled = false;
+        health.hasHeadlessBrowser = false;
+        renderPage();
+
+        expect(
+            screen.queryByRole('switch', { name: LABEL }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Automatically capture thumbnails'),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText('No headless browser is configured'),
         ).not.toBeInTheDocument();

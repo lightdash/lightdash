@@ -62,12 +62,25 @@ export const organizationSettingsModelWith = (
     }),
 });
 
+/** Feature flags where each org's automatic thumbnail flag is read on every call. */
+export const featureFlagModelWith = (
+    enabled: (organizationUuid: string) => boolean,
+): AppThumbnailClientArgs['featureFlagModel'] => ({
+    get: async ({ user, featureFlagId }) => ({
+        id: featureFlagId,
+        enabled: user?.organizationUuid
+            ? enabled(user.organizationUuid)
+            : false,
+    }),
+});
+
 type AppThumbnailClientMockArgs = {
     appModel: AppThumbnailClientArgs['appModel'];
     headlessBrowserConfigured: boolean;
     captureDataAppVersion: AppThumbnailClientArgs['unfurlService']['captureDataAppVersion'];
     storage: AppThumbnailStorage;
     organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
+    featureFlagModel: AppThumbnailClientArgs['featureFlagModel'];
 };
 
 /** A thumbnail client on fakes: no headless browser and an empty bucket by default. */
@@ -79,6 +92,7 @@ export const buildAppThumbnailClientMock = ({
     },
     storage = createInMemoryAppThumbnailStorage().storage,
     organizationSettingsModel = organizationSettingsModelWith(() => null),
+    featureFlagModel = featureFlagModelWith(() => true),
 }: Partial<AppThumbnailClientMockArgs> = {}): AppThumbnailClient =>
     new AppThumbnailClient({
         lightdashConfig: {
@@ -94,4 +108,5 @@ export const buildAppThumbnailClientMock = ({
         unfurlService: { captureDataAppVersion },
         storage,
         organizationSettingsModel,
+        featureFlagModel,
     });

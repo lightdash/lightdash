@@ -106,6 +106,14 @@ app's thumbnail is the thumbnail of its latest ready version.
 _Avoid_: screenshot (an image attached to a prompt as context), preview (the
 running app), cover image
 
+**Obscured thumbnail**:
+An automatically captured thumbnail whose text and values have been made
+unreadable before it is stored, so it shows the app's layout and charts
+without the data the capturing user could see. Thumbnails set by hand are
+never obscured.
+_Avoid_: blurred thumbnail, redacted thumbnail, pixelated thumbnail (the
+mechanism, not the concept)
+
 ### Threads
 
 **Thread**:
