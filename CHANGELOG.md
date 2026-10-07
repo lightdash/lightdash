@@ -1,3 +1,10 @@
+# [2.450.0](https://github.com/lightdash/lightdash/compare/2.449.0...2.450.0) (2026-10-07)
+
+
+### Features
+
+* simplify analytics Explore field lists ([#30561](https://github.com/lightdash/lightdash/issues/30561)) ([c2a8897](https://github.com/lightdash/lightdash/commit/c2a8897703c1663432fff36e3ead8c111c12de13))
+
 # [2.449.0](https://github.com/lightdash/lightdash/compare/2.448.0...2.449.0) (2026-10-06)
 
 
