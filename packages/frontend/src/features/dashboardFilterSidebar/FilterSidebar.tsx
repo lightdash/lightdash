@@ -261,14 +261,22 @@ export const FilterSidebar: FC = () => {
         : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
     const title = isNew ? 'New filter' : filterRule.label || 'Filter';
-    const isDefaultIncomplete = isDefaultValueIncomplete(filterRule);
+    // A filter with no field has nothing to default; it applies with a label
+    const isDefaultIncomplete =
+        !isUnplaced && isDefaultValueIncomplete(filterRule);
     const canApply = (!isNew || hasLabel) && !isDefaultIncomplete;
     const blocker = !hasLabel
         ? 'Add a label to apply'
         : isDefaultIncomplete
           ? 'Choose a default value or turn it off'
           : null;
-    const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
+    const footerStatus =
+        blocker ??
+        (isUnplaced
+            ? 'Not saved until a field is added'
+            : isDirty
+              ? 'Not applied yet'
+              : null);
     const fieldCount = isUnplaced
         ? 0
         : getFilterFields(filterRule, listedFieldIds).length;
