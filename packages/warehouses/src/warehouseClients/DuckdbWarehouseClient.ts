@@ -28,7 +28,6 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
@@ -188,7 +187,6 @@ export type DuckdbConnectionCredentials =
 
 export type DuckdbWarehouseClientOptions = {
     agentSession?: boolean;
-    aiTransport?: AiTransport | null;
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;
     /** Resource limits for query sessions. When combined with instanceCacheKey, they apply to the shared warm instance. */

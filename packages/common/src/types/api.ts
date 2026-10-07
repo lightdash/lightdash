@@ -129,7 +129,6 @@ import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import type {
     ApiAiAccessForUserResponse,
-    ApiAiAccessPolicyResponse,
     ApiAiMarkerTestResponse,
     ApiAiWarehouseCapabilitiesResponse,
     OrganizationAgentIdentitySettings,
@@ -1559,7 +1558,6 @@ type ApiResults =
     | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
-    | ApiAiAccessPolicyResponse['results']
     | ApiAiWarehouseCapabilitiesResponse['results']
     | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']

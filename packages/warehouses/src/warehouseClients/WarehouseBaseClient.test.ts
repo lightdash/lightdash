@@ -1,11 +1,6 @@
-import {
-    AiTransportKind,
-    WarehouseDatabaseListingNotSupportedError,
-} from '@lightdash/common';
+import { WarehouseDatabaseListingNotSupportedError } from '@lightdash/common';
 import { BigqueryWarehouseClient } from './BigqueryWarehouseClient';
 import { credentials } from './BigqueryWarehouseClient.mock';
-import { PostgresWarehouseClient } from './PostgresWarehouseClient';
-import { credentials as postgresCredentials } from './PostgresWarehouseClient.mock';
 
 describe('WarehouseBaseClient database listing defaults', () => {
     test('listDatabases refuses with the not-supported error', async () => {
@@ -28,17 +23,5 @@ describe('WarehouseBaseClient database listing defaults', () => {
                 isDefault: false,
             }),
         ).rejects.toBeInstanceOf(WarehouseDatabaseListingNotSupportedError);
-    });
-});
-
-describe('WarehouseBaseClient AI transport', () => {
-    test('direct transport preserves SQL and bind values', () => {
-        const client = new PostgresWarehouseClient(postgresCredentials);
-        const values = ['one', 2];
-        const wrapped = client.wrapForTransport('SELECT $1, $2', values, {
-            kind: AiTransportKind.DIRECT,
-        });
-        expect(wrapped).toEqual({ sql: 'SELECT $1, $2', values });
-        expect(wrapped.values).toBe(values);
     });
 });

@@ -3,7 +3,6 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
-import { AiAccessPolicyModel } from './AiAccessPolicyModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
@@ -179,7 +178,6 @@ export type ModelManifest = {
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
-    aiAccessPolicyModel: AiAccessPolicyModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -998,16 +996,6 @@ export class ModelRepository
             'organizationAgentIdentitySettingsModel',
             () =>
                 new OrganizationAgentIdentitySettingsModel({
-                    database: this.database,
-                }),
-        );
-    }
-
-    public getAiAccessPolicyModel(): AiAccessPolicyModel {
-        return this.getModel(
-            'aiAccessPolicyModel',
-            () =>
-                new AiAccessPolicyModel({
                     database: this.database,
                 }),
         );

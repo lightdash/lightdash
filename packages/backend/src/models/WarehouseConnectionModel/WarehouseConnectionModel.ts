@@ -9,7 +9,6 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { AiAccessPoliciesTableName } from '../../database/entities/aiPrincipals';
 import {
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
@@ -517,17 +516,11 @@ export class WarehouseConnectionModel {
         project: WarehouseConnectionProject,
         warehouseConnectionUuid: string,
     ): Promise<void> {
-        const deleted = await this.database(WAREHOUSE_CONNECTIONS_TABLE)
+        await this.database(WAREHOUSE_CONNECTIONS_TABLE)
             .where('project_uuid', project.projectUuid)
             .where('warehouse_connection_uuid', warehouseConnectionUuid)
             .where('is_original', false)
             .delete();
-        if (deleted > 0) {
-            await this.database(AiAccessPoliciesTableName)
-                .where('project_uuid', project.projectUuid)
-                .where('warehouse_connection_uuid', warehouseConnectionUuid)
-                .delete();
-        }
     }
 
     async insertEvent(event: WarehouseConnectionEvent): Promise<void> {

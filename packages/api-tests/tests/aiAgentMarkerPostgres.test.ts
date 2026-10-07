@@ -1,10 +1,7 @@
 import {
-    AI_DIRECT_TRANSPORT,
-    AiPrincipalKind,
     FeatureFlags,
     SEED_PROJECT,
     type AiAccessForUser,
-    type AiAccessPolicy,
     type AiMarkerTestResult,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -19,9 +16,7 @@ const sql =
 
 describe('Postgres marked person agent identity', () => {
     let admin: ApiClient;
-    let originalPolicy: AiAccessPolicy | null = null;
     let clearFlag = false;
-    let restorePolicy = false;
     const baseUrl = `/api/v2/projects/${projectUuid}/ai-access`;
     const flagUrl = `/api/v2/feature-flag/${FeatureFlags.AiPrincipals}`;
 
@@ -34,36 +29,9 @@ describe('Postgres marked person agent identity', () => {
             );
             clearFlag = true;
         }
-        originalPolicy = (
-            await admin.get<Body<AiAccessPolicy | null>>(`${baseUrl}/policy`)
-        ).body.results;
-        if (originalPolicy) {
-            expect(
-                (
-                    await admin.put(`${baseUrl}/policy`, {
-                        enabled: true,
-                        principalKind: AiPrincipalKind.PERSON,
-                        transport: AI_DIRECT_TRANSPORT,
-                    })
-                ).status,
-            ).toBe(200);
-            restorePolicy = true;
-        }
     });
 
     afterAll(async () => {
-        if (restorePolicy && originalPolicy) {
-            const { enabled, principalKind, transport } = originalPolicy;
-            expect(
-                (
-                    await admin.put(`${baseUrl}/policy`, {
-                        enabled,
-                        principalKind,
-                        transport,
-                    })
-                ).status,
-            ).toBe(200);
-        }
         if (clearFlag) expect((await admin.delete(flagUrl)).status).toBe(200);
         for (const { client, uuid } of personalAccessTokens) {
             await client.delete(
@@ -78,7 +46,8 @@ describe('Postgres marked person agent identity', () => {
         expect(me.body.results).toMatchObject({
             identity: 'marked_person',
             enabled: true,
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
+            requirementSource: null,
             refusal: null,
         });
         const tested = await admin.post<Body<AiMarkerTestResult>>(

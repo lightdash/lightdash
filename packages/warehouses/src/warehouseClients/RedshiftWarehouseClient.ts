@@ -9,7 +9,6 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
 } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
@@ -69,7 +68,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
 
     constructor(
         credentials: CreateRedshiftCredentials,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);

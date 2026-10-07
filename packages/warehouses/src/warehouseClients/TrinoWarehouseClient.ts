@@ -14,7 +14,6 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -318,7 +317,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
     constructor(
         credentials: CreateTrinoCredentials,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         super(
             credentials,

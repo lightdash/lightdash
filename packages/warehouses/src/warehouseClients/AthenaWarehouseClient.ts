@@ -30,7 +30,6 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -308,7 +307,6 @@ type AwsCredentialProvider = ReturnType<typeof fromTemporaryCredentials>;
 
 export type AthenaWarehouseClientOptions = {
     agentSession?: boolean;
-    aiTransport?: AiTransport | null;
     // AWS credentials for web identity auth, resolved by the server.
     awsCredentials?: AwsCredentialProvider;
 };

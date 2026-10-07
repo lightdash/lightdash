@@ -42,7 +42,6 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
@@ -439,7 +438,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     constructor(
         credentials: CreateBigqueryCredentials,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         super(
             credentials,
@@ -987,12 +986,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             fields: WarehouseResults['fields'],
         ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        const { sql: transportSql } = this.aiTransport
-            ? this.wrapForTransport(sql, values, this.aiTransport)
-            : { sql };
         try {
             const queryPhaseStart = performance.now();
-            const [job] = await this.createJob(transportSql, {
+            const [job] = await this.createJob(sql, {
                 tags,
                 timezone,
             });

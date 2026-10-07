@@ -3,7 +3,6 @@ import {
     CreateWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
-    type AiTransport,
 } from '@lightdash/common';
 import { WarehouseClient } from './types';
 import {
@@ -29,7 +28,6 @@ export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
     AthenaWarehouseClientOptions & {
         agentSession?: boolean;
-        aiTransport?: AiTransport | null;
     };
 
 export const warehouseClientFromCredentials = (

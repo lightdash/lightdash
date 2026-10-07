@@ -3297,7 +3297,7 @@ export class ProjectService extends BaseService {
 
         const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
             databricksCompute || ''
-        }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid, aiPlan.transport]) : ''}`;
+        }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid]) : ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -3396,7 +3396,6 @@ export class ProjectService extends BaseService {
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
             {
-                aiTransport: aiPlan?.transport ?? null,
                 agentSession,
                 enableInstanceCache,
                 projectUuid,

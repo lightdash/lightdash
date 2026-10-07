@@ -6545,7 +6545,6 @@ describe('AsyncQueryService', () => {
                 expect(
                     mockProjectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
-                    aiTransport: null,
                     agentSession: false,
                     enableInstanceCache: false,
                     projectUuid: 'project uuid',

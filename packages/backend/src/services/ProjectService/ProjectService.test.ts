@@ -1,9 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
-    AI_DIRECT_TRANSPORT,
     AiAgentMarkerLevel,
-    AiTransportKind,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -1397,7 +1395,6 @@ describe('ProjectService', () => {
                 expect(
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
-                    aiTransport: null,
                     agentSession: false,
                     enableInstanceCache: expected,
                     projectUuid: targetProjectUuid,
@@ -1427,7 +1424,6 @@ describe('ProjectService', () => {
             expect(
                 vi.mocked(projectModel.getWarehouseClientFromCredentials),
             ).toHaveBeenCalledWith(expect.anything(), {
-                aiTransport: null,
                 agentSession: false,
                 enableInstanceCache: false,
                 projectUuid,
@@ -14168,7 +14164,6 @@ describe('AI principal credential routing', () => {
         identity: 'connected_person',
         identityUuid: 'ai-one',
         credentials,
-        transport: AI_DIRECT_TRANSPORT,
         assurances: [],
         audit: {
             personUuid: 'user',
@@ -14256,7 +14251,6 @@ describe('AI principal credential routing', () => {
         const configured = getMockedProjectService(lightdashConfigMock);
         const marked: AiExecutionPlan = {
             identity: 'marked_person',
-            transport: { kind: AiTransportKind.DIRECT },
             assurances: [
                 {
                     kind: 'agent_marker',
@@ -14396,7 +14390,7 @@ describe('AI principal credential routing', () => {
             projectModel.getWarehouseClientFromCredentials,
         ).toHaveBeenCalledWith(
             warehouseClientMock.credentials,
-            expect.objectContaining({ aiTransport: AI_DIRECT_TRANSPORT }),
+            expect.objectContaining({ agentSession: true }),
         );
         await first.sshTunnel.disconnect();
         await second.sshTunnel.disconnect();

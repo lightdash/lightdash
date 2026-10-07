@@ -1,7 +1,5 @@
 import {
-    AI_DIRECT_TRANSPORT,
     AiAgentMarkerLevel,
-    AiTransportKind,
     WarehouseTypes,
     type AiExecutionPlan,
 } from '@lightdash/common';
@@ -13,7 +11,6 @@ export const aiExecutionPlanMock: Extract<
 > = {
     identity: 'connected_person',
     identityUuid: 'connected-person-uuid',
-    transport: AI_DIRECT_TRANSPORT,
     credentials: {
         type: WarehouseTypes.POSTGRES,
         host: 'localhost',
@@ -38,7 +35,6 @@ export const markedPersonPlanMock: Extract<
     { identity: 'marked_person' }
 > = {
     identity: 'marked_person',
-    transport: { kind: AiTransportKind.DIRECT },
     assurances: [
         { kind: 'agent_marker', level: AiAgentMarkerLevel.IDENTIFY_ONLY },
     ],

@@ -16,7 +16,6 @@ import {
     WarehouseSqlBuilder,
     WarehouseTables,
     WeekDay,
-    type AiTransport,
     type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
@@ -34,15 +33,12 @@ export default abstract class WarehouseBaseClient<
 
     protected readonly agentSession: boolean;
 
-    protected readonly aiTransport: AiTransport | null;
-
     protected constructor(
         credentials: T,
         sqlBuilder: WarehouseSqlBuilder,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         this.agentSession = options?.agentSession ?? false;
-        this.aiTransport = options?.aiTransport ?? null;
         this.credentials = credentials;
         this.sqlBuilder = sqlBuilder;
     }
@@ -110,14 +106,6 @@ export default abstract class WarehouseBaseClient<
         },
     ): Promise<void>;
 
-    wrapForTransport(
-        sql: string,
-        values: AnyType[] | undefined,
-        _transport: AiTransport,
-    ): { sql: string; values: AnyType[] | undefined } {
-        return { sql, values };
-    }
-
     async executeAsyncQuery(
         {
             sql,
@@ -131,21 +119,18 @@ export default abstract class WarehouseBaseClient<
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        const { sql: transportSql, values: transportValues } = this.aiTransport
-            ? this.wrapForTransport(sql, values, this.aiTransport)
-            : { sql, values };
         let rowCount = 0;
 
         const phaseTimings: WarehousePhaseTimings = {};
         const startTime = performance.now();
         await this.streamQuery(
-            transportSql,
+            sql,
             async ({ rows, fields }) => {
                 rowCount = (rowCount ?? 0) + rows.length;
                 await resultsStreamCallback?.(rows, fields);
             },
             {
-                values: transportValues,
+                values,
                 queryParams,
                 tags,
                 timezone,

@@ -20,7 +20,6 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
@@ -293,7 +292,7 @@ export class PostgresClient<
     constructor(
         credentials: T,
         config: pg.PoolConfig,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         super(
             credentials,
@@ -968,7 +967,7 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
 
     constructor(
         credentials: CreatePostgresCredentials,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         const ssl = getSSLConfigFromMode(credentials);
         super(

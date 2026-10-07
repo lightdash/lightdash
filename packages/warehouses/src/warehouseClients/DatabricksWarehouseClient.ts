@@ -29,7 +29,6 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
@@ -488,7 +487,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     constructor(
         credentials: CreateDatabricksCredentials,
-        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean },
     ) {
         super(
             credentials,

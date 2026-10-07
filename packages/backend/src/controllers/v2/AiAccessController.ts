@@ -1,20 +1,16 @@
 import {
     ApiAiAccessForUserResponse,
-    ApiAiAccessPolicyResponse,
     ApiAiMarkerTestResponse,
     ApiAiWarehouseCapabilitiesResponse,
     ApiErrorPayload,
-    UpsertAiAccessPolicy,
     UUID,
 } from '@lightdash/common';
 import {
-    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
     Post,
-    Put,
     Query,
     Request,
     Response,
@@ -23,11 +19,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import {
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-} from '../authentication';
+import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/projects/{projectUuid}/ai-access')
@@ -50,52 +42,6 @@ export class AiAccessController extends BaseController {
                 req.account!,
                 projectUuid,
                 connection ?? null,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/policy')
-    @OperationId('getPolicyAiAccess')
-    async getPolicy(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Query() connection?: UUID,
-    ): Promise<ApiAiAccessPolicyResponse> {
-        const service = this.services.getAiAccessService();
-        return {
-            status: 'ok',
-            results: await service.getPolicy(
-                req.account!,
-                projectUuid,
-                connection ?? null,
-            ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Put('/policy')
-    @OperationId('upsertPolicyAiAccess')
-    async upsertPolicy(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Body() upsert: UpsertAiAccessPolicy,
-        @Query() connection?: UUID,
-    ): Promise<ApiAiAccessPolicyResponse> {
-        const service = this.services.getAiAccessService();
-        return {
-            status: 'ok',
-            results: await service.upsertPolicy(
-                req.account!,
-                projectUuid,
-                connection ?? null,
-                upsert,
             ),
         };
     }

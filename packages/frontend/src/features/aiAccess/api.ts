@@ -1,11 +1,9 @@
 import {
     FeatureFlags,
     type AiAccessForUser,
-    type AiAccessPolicy,
     type AiWarehouseCapabilities,
     type ApiError,
     type ApiResponse,
-    type UpsertAiAccessPolicy,
     type OrganizationAgentIdentitySettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -37,21 +35,8 @@ const get = <T extends ApiResponse['results']>(
 export const aiAccessApi = {
     capabilities: (project: string, connection: string | null) =>
         get<AiWarehouseCapabilities>(project, 'capabilities', connection),
-    policy: (project: string, connection: string | null) =>
-        get<AiAccessPolicy | null>(project, 'policy', connection),
     me: (project: string, connection: string | null) =>
         get<AiAccessForUser>(project, 'me', connection),
-    upsertPolicy: (
-        project: string,
-        connection: string | null,
-        policy: UpsertAiAccessPolicy,
-    ) =>
-        lightdashApi<AiAccessPolicy>({
-            version: 'v2',
-            url: aiAccessUrl(project, 'policy', connection),
-            method: 'PUT',
-            body: JSON.stringify(policy),
-        }),
 };
 const useAccessQuery = <T>(
     project: string,

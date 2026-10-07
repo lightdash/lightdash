@@ -19,7 +19,6 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -299,7 +298,6 @@ export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
 
 export type ClickhouseWarehouseClientOptions = {
     agentSession?: boolean;
-    aiTransport?: AiTransport | null;
     /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
     maxOpenConnections?: number;
 };

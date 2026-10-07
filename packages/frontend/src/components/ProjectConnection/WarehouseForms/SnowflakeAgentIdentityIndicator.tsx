@@ -16,27 +16,22 @@ const SnowflakeAgentIdentityIndicator = ({
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
     const { data: access } = useMyAiAccess(projectUuid, connection);
     if (!flag?.enabled || !access?.requirementSource) return null;
-    const organizationRequired = access.requirementSource === 'organization';
     return (
         <Group gap="xs" align="flex-start" wrap="nowrap">
             <MantineIcon icon={IconShieldLock} color="dimmed" />
             <Stack gap="xs">
                 <Text size="sm" c="dimmed">
-                    {organizationRequired
-                        ? 'Agent identity required by your organisation.'
-                        : 'Agent identity required on this connection.'}{' '}
-                    AI queries on this connection run only for people who have
-                    connected their agent.
+                    Agent identity required by your organisation. AI queries on
+                    this connection run only for people who have connected their
+                    agent.
                 </Text>
-                {organizationRequired && (
-                    <Anchor
-                        component={Link}
-                        to="/generalSettings/warehouseCredentials"
-                        size="sm"
-                    >
-                        Organisation settings
-                    </Anchor>
-                )}
+                <Anchor
+                    component={Link}
+                    to="/generalSettings/warehouseCredentials"
+                    size="sm"
+                >
+                    Organisation settings
+                </Anchor>
             </Stack>
         </Group>
     );

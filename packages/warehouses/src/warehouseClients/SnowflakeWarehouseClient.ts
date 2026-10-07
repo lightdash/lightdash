@@ -17,7 +17,6 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
@@ -791,7 +790,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         credentials: CreateSnowflakeCredentials,
         options?: {
             agentSession?: boolean;
-            aiTransport?: AiTransport | null;
             logger?: {
                 info: (
                     message: string,
@@ -1552,9 +1550,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        const { sql: transportSql, values: transportValues } = this.aiTransport
-            ? this.wrapForTransport(sql, values, this.aiTransport)
-            : { sql, values };
         const connectStart = performance.now();
         const connection = await this.getConnection();
         const connectMs = performance.now() - connectStart;
@@ -1570,10 +1565,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const { queryId, durationMs, totalRows, queryMs, fetchMs } =
                 await this.executeAsyncStatement(
                     connection,
-                    transportSql,
+                    sql,
                     resultsStreamCallback,
                     {
-                        values: transportValues,
+                        values,
                     },
                 );
 

@@ -5,8 +5,8 @@ Agents use the person's Snowflake identity through a separate OAuth integration.
 Snowflake verifies that the session is an agent session.
 The normal warehouse sign-in stays separate.
 The organisation rule requires the agent credential for agent queries on every Snowflake connection.
-An existing enabled connection person policy also requires it.
-When neither rule applies, agents use the marked person path.
+When the organisation rule is off, agents use the marked person path.
+Non-Snowflake connections always use the marked person path.
 
 ## Configure the instance
 
@@ -55,12 +55,10 @@ See [feature flag precedence and refresh](feature-flags.md).
 
 One organisation setting applies to every Snowflake connection in the organisation.
 Snowflake project Connection settings show a read-only indicator of the rule.
-The rule uses the person principal and direct transport.
+The rule uses the person's connected agent identity.
 Queries without an agent credential are refused while the rule is enabled.
 The switch does not create Snowflake access policies.
 Turning it off does not revoke issued Snowflake tokens.
-Existing enabled project person policies still apply when the organisation switch is off.
-Connection policy routes remain available for separate-principal API paths.
 
 The instance has one agent OAuth integration for one Snowflake account.
 A project on a second Snowflake account cannot complete the agent connection with that integration.
@@ -76,7 +74,7 @@ Select Disconnect to remove the stored agent credential.
 
 ## Set warehouse rules
 
-Snowflake owns the data rules. Lightdash does not create them.
+Snowflake owns the data rules. The application does not create them.
 Adapt these examples to your data and existing policies before you attach them.
 Use a role with the required policy privileges.
 
@@ -115,7 +113,7 @@ SELECT customer_id, name,
 FROM customers;
 ```
 
-Point the Lightdash project at the view, not the table.
+Point the project at the view, not the table.
 
 A session policy can limit the agent session's privileges:
 
@@ -160,8 +158,8 @@ Agent queries produce a structured info log line with the message `Agent query`
 before warehouse execution. Admins read it in the instance logs.
 Use the JSON log format to retain the structured fields.
 The fields are `queryUuid`, `projectUuid`, `warehouseConnectionUuid`, `userUuid`,
-`identity` (`marked_person` or `principal`), `principalKind`, `principalRef`,
-`transport`, and `context`. Agent query audits are not stored in an application table.
+`identity` (`marked_person` or `connected_person`), `principalKind`, `principalRef`,
+and `context`. Agent query audits are not stored in an application table.
 
 ## Known gap
 

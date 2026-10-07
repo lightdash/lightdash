@@ -22,20 +22,6 @@ export type AiAgentMarker = {
     enforce: string | null;
 };
 
-export enum AiPrincipalKind {
-    PERSON = 'person',
-}
-
-export enum AiTransportKind {
-    DIRECT = 'direct',
-}
-
-export type AiTransport = { kind: AiTransportKind.DIRECT };
-
-export const AI_DIRECT_TRANSPORT: AiTransport = {
-    kind: AiTransportKind.DIRECT,
-};
-
 export type AiAssurance =
     | { kind: 'agent_session_active' }
     | { kind: 'agent_marker'; level: AiAgentMarkerLevel }
@@ -47,22 +33,6 @@ export type AiWarehouseCapabilities = {
     warehouseType: WarehouseTypes;
 };
 
-export type AiAccessPolicy = {
-    aiAccessPolicyUuid: string;
-    projectUuid: string;
-    warehouseConnectionUuid: string | null;
-    enabled: boolean;
-    principalKind: AiPrincipalKind;
-    transport: AiTransport;
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-export type UpsertAiAccessPolicy = Pick<
-    AiAccessPolicy,
-    'enabled' | 'principalKind' | 'transport'
->;
-
 type AiExecutionAudit = {
     personUuid: string;
     principalRef: string;
@@ -73,14 +43,12 @@ export type AiExecutionPlan =
     | {
           identity: 'connected_person';
           identityUuid: string;
-          transport: AiTransport;
           credentials: CreateWarehouseCredentials;
           assurances: AiAssurance[];
           audit: AiExecutionAudit;
       }
     | {
           identity: 'marked_person';
-          transport: { kind: AiTransportKind.DIRECT };
           assurances: [{ kind: 'agent_marker'; level: AiAgentMarkerLevel }];
           audit: AiExecutionAudit & { userUuid: string | null };
       };
@@ -195,19 +163,14 @@ export type ApiOrganizationAgentIdentitySettingsResponse = {
 };
 
 export type AiAccessForUser = {
-    requirementSource: 'organization' | 'connection' | null;
+    requirementSource: 'organization' | null;
     identity: 'marked_person' | 'connected_person' | null;
     marker: AiAgentMarker | null;
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     enabled: boolean;
-    principalKind: AiPrincipalKind | null;
+    principalKind: 'person' | null;
     refusal: AiAccessRefusal | null;
-};
-
-export type ApiAiAccessPolicyResponse = {
-    status: 'ok';
-    results: AiAccessPolicy | null;
 };
 
 export type ApiAiWarehouseCapabilitiesResponse = {

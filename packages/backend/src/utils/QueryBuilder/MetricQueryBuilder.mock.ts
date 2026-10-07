@@ -29,7 +29,6 @@ import {
 } from '@lightdash/common';
 
 export const warehouseClientMock: WarehouseClient = {
-    wrapForTransport: (sql, values) => ({ sql, values }),
     getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.POSTGRES,
@@ -149,7 +148,6 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
-    wrapForTransport: (sql, values) => ({ sql, values }),
     getSessionTimezone: async () => null,
     getUnnestSql: getBigqueryUnnestSql,
     credentials: {

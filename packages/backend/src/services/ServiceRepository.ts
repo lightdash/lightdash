@@ -971,7 +971,6 @@ export class ServiceRepository
                             this.models.getUserWarehouseCredentialsModel(),
                     }),
                     lightdashConfig: this.context.lightdashConfig,
-                    aiAccessPolicyModel: this.models.getAiAccessPolicyModel(),
                     organizationAgentIdentitySettingsModel:
                         this.models.getOrganizationAgentIdentitySettingsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),

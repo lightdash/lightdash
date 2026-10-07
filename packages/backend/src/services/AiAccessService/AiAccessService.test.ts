@@ -1,14 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
-    AI_DIRECT_TRANSPORT,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
-    AiPrincipalKind,
     ForbiddenError,
     QueryExecutionContext,
     WarehouseTypes,
-    type AiAccessPolicy,
     type CreateWarehouseCredentials,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -16,7 +13,6 @@ import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { type AiAccessPolicyModel } from '../../models/AiAccessPolicyModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -67,16 +63,6 @@ const args: ResolvePlanArgs = {
     isRegisteredUser: true,
     isServiceAccount: false,
 };
-const policy: AiAccessPolicy = {
-    aiAccessPolicyUuid: 'policy',
-    projectUuid: 'project',
-    warehouseConnectionUuid: null,
-    enabled: true,
-    principalKind: AiPrincipalKind.PERSON,
-    transport: AI_DIRECT_TRANSPORT,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-};
 const account = buildAccount();
 account.user.ability = new Ability<PossibleAbilities>([
     { action: 'manage', subject: 'Project' },
@@ -92,10 +78,6 @@ const viewer = {
 };
 
 const setup = () => {
-    const model = {
-        upsertPolicy: vi.fn(async () => policy),
-        findPolicy: vi.fn(async (): Promise<AiAccessPolicy | null> => policy),
-    };
     const provider = {
         warehouseType: WarehouseTypes.SNOWFLAKE,
         configurationError: vi.fn((): string | null => null),
@@ -134,7 +116,7 @@ const setup = () => {
     };
     const registry = vi.fn((): AiCredentialProvider => provider);
     const organizationSettings = {
-        get: vi.fn(async () => ({ requireVerifiedAgentSessions: false })),
+        get: vi.fn(async () => ({ requireVerifiedAgentSessions: true })),
         upsert: vi.fn(
             async (
                 _organizationUuid: string,
@@ -146,7 +128,6 @@ const setup = () => {
         organizationAgentIdentitySettingsModel:
             organizationSettings as unknown as OrganizationAgentIdentitySettingsModel,
         lightdashConfig: {} as LightdashConfig,
-        aiAccessPolicyModel: model as unknown as AiAccessPolicyModel,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,
         warehouseConnectionModel:
@@ -161,7 +142,6 @@ const setup = () => {
     return {
         service,
         organizationSettings,
-        model,
         provider,
         flags,
         registry,
@@ -174,10 +154,9 @@ describe('AiAccessService', () => {
     describe('organization agent identity', () => {
         const snowflakeArgs = { ...args, connection: snowflake };
 
-        test('refuses without an agent credential even without a connection policy', async () => {
-            const { service, model, provider, organizationSettings, projects } =
+        test('refuses without an agent credential when the organisation requires it', async () => {
+            const { service, provider, organizationSettings, projects } =
                 setup();
-            model.findPolicy.mockResolvedValue(null);
             organizationSettings.get.mockResolvedValue({
                 requireVerifiedAgentSessions: true,
             });
@@ -203,12 +182,10 @@ describe('AiAccessService', () => {
             await expect(
                 service.resolvePlan(snowflakeArgs),
             ).rejects.toMatchObject({ refusal: { reason: 'needs_sign_in' } });
-            expect(model.upsertPolicy).not.toHaveBeenCalled();
         });
 
-        test('verifies a person plan with a credential without persisting a connection rule', async () => {
-            const { service, model, provider, organizationSettings } = setup();
-            model.findPolicy.mockResolvedValue(null);
+        test('verifies a connected person plan while the organisation requires it', async () => {
+            const { service, provider, organizationSettings } = setup();
             organizationSettings.get.mockResolvedValue({
                 requireVerifiedAgentSessions: true,
             });
@@ -219,11 +196,9 @@ describe('AiAccessService', () => {
             });
             expect(await service.resolvePlan(snowflakeArgs)).toMatchObject({
                 identity: 'connected_person',
-                transport: AI_DIRECT_TRANSPORT,
                 assurances: [{ kind: 'agent_session_active' }],
             });
             expect(provider.probe).toHaveBeenCalledOnce();
-            expect(model.upsertPolicy).not.toHaveBeenCalled();
             organizationSettings.get.mockResolvedValue({
                 requireVerifiedAgentSessions: false,
             });
@@ -233,49 +208,49 @@ describe('AiAccessService', () => {
         });
 
         test.each([
-            [true, false, 'organization'],
-            [true, true, 'organization'],
-            [false, true, 'connection'],
-            [false, false, null],
+            [true, null],
+            [true, 'extra'],
+            [false, null],
+            [false, 'extra'],
         ] as const)(
-            'reports the source with org=%s and connection=%s',
-            async (orgEnabled, connectionEnabled, requirementSource) => {
-                const {
-                    service,
-                    model,
-                    organizationSettings,
-                    projects,
-                    connections,
-                } = setup();
+            'uses only the organisation switch (%s) for Snowflake connection %s',
+            async (orgEnabled, connectionUuid) => {
+                const { service, organizationSettings, projects, connections } =
+                    setup();
                 organizationSettings.get.mockResolvedValue({
                     requireVerifiedAgentSessions: orgEnabled,
                 });
-                model.findPolicy.mockResolvedValue(
-                    connectionEnabled
-                        ? { ...policy, principalKind: AiPrincipalKind.PERSON }
-                        : null,
-                );
                 projects.getWarehouseCredentialsForBinding.mockResolvedValue(
                     snowflake,
                 );
                 connections.getCredentials.mockResolvedValue(snowflake);
                 expect(
-                    await service.getAiAccessForUser(snowflakeArgs),
-                ).toMatchObject({ requirementSource });
-                if (!orgEnabled && !connectionEnabled) {
-                    expect(
-                        await service.resolvePlan(snowflakeArgs),
-                    ).toMatchObject({ identity: 'marked_person' });
-                }
+                    await service.getMyAccess(
+                        viewer,
+                        'project',
+                        connectionUuid,
+                    ),
+                ).toMatchObject({
+                    requirementSource: orgEnabled ? 'organization' : null,
+                    identity: orgEnabled ? 'connected_person' : 'marked_person',
+                    refusal: null,
+                });
+                expect(
+                    await service.resolvePlan({
+                        ...snowflakeArgs,
+                        warehouseConnectionUuid: connectionUuid,
+                    }),
+                ).toMatchObject({
+                    identity: orgEnabled ? 'connected_person' : 'marked_person',
+                });
             },
         );
 
         test('ignores the organization setting for other warehouses', async () => {
-            const { service, model, organizationSettings } = setup();
+            const { service, organizationSettings } = setup();
             organizationSettings.get.mockResolvedValue({
                 requireVerifiedAgentSessions: true,
             });
-            model.findPolicy.mockResolvedValue(null);
             expect(await service.resolvePlan(args)).toMatchObject({
                 identity: 'marked_person',
             });
@@ -298,16 +273,11 @@ describe('AiAccessService', () => {
         });
     });
 
-    test('marks a person policy without minting credentials or isolating results', async () => {
-        const { service, model, provider } = setup();
-        model.findPolicy.mockResolvedValue({
-            ...policy,
-            principalKind: AiPrincipalKind.PERSON,
-        });
+    test('marks non-Snowflake queries without minting credentials or isolating results', async () => {
+        const { service, provider } = setup();
         const plan = await service.resolvePlan(args);
         expect(plan).toMatchObject({
             identity: 'marked_person',
-            transport: AI_DIRECT_TRANSPORT,
             audit: {
                 personUuid: args.userUuid,
                 principalRef: 'a.b+tag@example.test',
@@ -320,13 +290,12 @@ describe('AiAccessService', () => {
         expect(await service.getAiAccessForUser(args)).toMatchObject({
             enabled: true,
             identity: 'marked_person',
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
             refusal: null,
         });
     });
     test('keeps external callers separate from registered users', async () => {
-        const { service, model } = setup();
-        model.findPolicy.mockResolvedValue(null);
+        const { service } = setup();
         const plan = await service.resolvePlan({
             ...args,
             isRegisteredUser: false,
@@ -337,9 +306,8 @@ describe('AiAccessService', () => {
             audit: { personUuid: 'external-person', userUuid: null },
         });
     });
-    test('reports marked identity without a policy', async () => {
-        const { service, model } = setup();
-        model.findPolicy.mockResolvedValue(null);
+    test('reports marked identity for non-Snowflake connections', async () => {
+        const { service } = setup();
         expect(await service.getAiAccessForUser(args)).toMatchObject({
             enabled: true,
             identity: 'marked_person',
@@ -449,22 +417,6 @@ describe('AiAccessService', () => {
                 throw new Error('secret');
             }),
         ).toMatchObject({ ok: false, observed: {} });
-    });
-    test('denies policy changes to project developers', async () => {
-        const { service, model } = setup();
-        const developer = {
-            ...viewer,
-            user: {
-                ...viewer.user,
-                ability: new Ability<PossibleAbilities>([
-                    { action: 'update', subject: 'Project' },
-                ]),
-            },
-        };
-        await expect(
-            service.upsertPolicy(developer, 'project', null, policy),
-        ).rejects.toThrow(ForbiddenError);
-        expect(model.upsertPolicy).not.toHaveBeenCalled();
     });
     test('refuses embedded viewers distinctly from service accounts', async () => {
         const { service } = setup();
@@ -580,13 +532,13 @@ describe('AiAccessService', () => {
         {
             plan: markedPersonPlanMock,
             userUuid: 'person-uuid',
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
             principalRef: 'person@example.test',
         },
         {
             plan: aiExecutionPlanMock,
             userUuid: 'person-uuid',
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
             principalRef: 'ai_shared',
         },
         {
@@ -595,7 +547,7 @@ describe('AiAccessService', () => {
                 audit: { ...markedPersonPlanMock.audit, userUuid: null },
             },
             userUuid: null,
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
             principalRef: 'person@example.test',
         },
     ])(
@@ -622,7 +574,6 @@ describe('AiAccessService', () => {
                 identity: plan.identity,
                 principalKind,
                 principalRef,
-                transport: plan.transport,
                 context: QueryExecutionContext.AI,
             });
         },
@@ -638,26 +589,13 @@ describe('AiAccessService', () => {
         expect(flags.get).not.toHaveBeenCalled();
     });
     test('ignores a disabled flag', async () => {
-        const { service, model, flags } = setup();
+        const { service, flags, organizationSettings } = setup();
         flags.get.mockResolvedValue({ enabled: false });
         expect(await service.resolvePlan(args)).toBeNull();
-        expect(model.findPolicy).not.toHaveBeenCalled();
+        expect(organizationSettings.get).not.toHaveBeenCalled();
     });
-    test.each([null, { ...policy, enabled: false }])(
-        'defaults to marked person without an enabled policy: %s',
-        async (value) => {
-            const { service, model, provider } = setup();
-            model.findPolicy.mockResolvedValue(value);
-            expect(await service.resolvePlan(args)).toMatchObject({
-                identity: 'marked_person',
-                audit: { queryTags: { agent: 'true' } },
-            });
-            expect(provider.mint).not.toHaveBeenCalled();
-        },
-    );
-
-    test('uses a virtual identity for a legacy connection policy and verifies every execution', async () => {
-        const { service, model, provider } = setup();
+    test('uses a virtual identity for the organisation rule and verifies every execution', async () => {
+        const { service, provider } = setup();
         const first = await service.resolvePlan({
             ...args,
             connection: snowflake,
@@ -674,7 +612,6 @@ describe('AiAccessService', () => {
         expect(first).not.toHaveProperty('principal');
         expect(provider.mint).toHaveBeenCalledTimes(2);
         expect(provider.probe).toHaveBeenCalledTimes(2);
-        expect(model.upsertPolicy).not.toHaveBeenCalled();
         const other = await service.resolvePlan({
             ...args,
             connection: snowflake,
@@ -701,17 +638,6 @@ describe('AiAccessService', () => {
                 settingsUrl: '/generalSettings/warehouseCredentials',
             },
         });
-    });
-    test('saves the person policy without principal reconciliation', async () => {
-        const { service, model } = setup();
-        expect(
-            await service.upsertPolicy(account, 'project', null, policy),
-        ).toEqual(policy);
-        expect(model.upsertPolicy).toHaveBeenCalledWith(
-            'project',
-            null,
-            policy,
-        );
     });
     test('does not register separate-principal providers', () => {
         const registry = createAiCredentialProviderRegistry({

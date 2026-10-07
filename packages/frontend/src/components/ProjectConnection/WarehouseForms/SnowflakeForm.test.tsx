@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
     canManage: true,
     enabled: true,
     configured: true,
-    requirementSource: 'organization' as 'organization' | 'connection' | null,
+    requirementSource: 'organization' as 'organization' | null,
     readAccess: vi.fn(),
 }));
 vi.mock('../../../providers/App/useApp', () => ({
@@ -149,16 +149,6 @@ describe('SnowflakeForm agent identity requirement', () => {
             ).not.toBeInTheDocument();
         },
     );
-    it('shows a legacy connection requirement without an organisation link', () => {
-        mocks.requirementSource = 'connection';
-        renderWithProviders(<TestForm />);
-        expect(
-            screen.getByText(/Agent identity required on this connection/),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: 'Organisation settings' }),
-        ).not.toBeInTheDocument();
-    });
     it('shows the read-only requirement to non-managers', () => {
         mocks.canManage = false;
         renderWithProviders(<TestForm />);

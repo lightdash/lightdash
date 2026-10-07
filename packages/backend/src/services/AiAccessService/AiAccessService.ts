@@ -7,30 +7,24 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
-    AiPrincipalKind,
-    AiTransportKind,
     assertIsAccountWithOrg,
     assertUnreachable,
     FeatureFlags,
     ForbiddenError,
     isAiAccessQueryContext,
-    ParameterError,
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
     type AiAccessForUser,
-    type AiAccessPolicy,
     type AiExecutionPlan,
     type AiMarkerTestResult,
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
     type QueryExecutionContext,
-    type UpsertAiAccessPolicy,
 } from '@lightdash/common';
 import { v5 as uuidv5 } from 'uuid';
 import { type LightdashConfig } from '../../config/parseConfig';
-import { type AiAccessPolicyModel } from '../../models/AiAccessPolicyModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -55,19 +49,9 @@ export type ResolvePlanArgs = {
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
 
-type PolicyLookupArgs = Pick<
-    AccessArgs,
-    'projectUuid' | 'organizationUuid' | 'warehouseConnectionUuid' | 'userUuid'
->;
-
-type EffectiveAiAccessPolicy = AiAccessPolicy & {
-    requirementSource: AiAccessForUser['requirementSource'];
-};
-
 type AiAccessServiceArguments = {
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
-    aiAccessPolicyModel: AiAccessPolicyModel;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
     warehouseConnectionModel: WarehouseConnectionModel;
@@ -77,8 +61,6 @@ type AiAccessServiceArguments = {
 
 export class AiAccessService extends BaseService {
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
-
-    private readonly aiAccessPolicyModel: AiAccessPolicyModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -92,7 +74,6 @@ export class AiAccessService extends BaseService {
 
     constructor({
         organizationAgentIdentitySettingsModel,
-        aiAccessPolicyModel,
         featureFlagModel,
         userModel,
         projectModel,
@@ -102,7 +83,6 @@ export class AiAccessService extends BaseService {
         super();
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
-        this.aiAccessPolicyModel = aiAccessPolicyModel;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
@@ -201,40 +181,6 @@ export class AiAccessService extends BaseService {
             warehouseType: connection.type,
             marker: describeAgentMarker(connection.type),
         };
-    }
-
-    async getPolicy(
-        account: Account,
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-    ): Promise<AiAccessPolicy | null> {
-        await this.authorizeProject(account, projectUuid, 'manage');
-        return this.aiAccessPolicyModel.findPolicy(
-            projectUuid,
-            warehouseConnectionUuid,
-        );
-    }
-
-    async upsertPolicy(
-        account: Account,
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-        upsert: UpsertAiAccessPolicy,
-    ): Promise<AiAccessPolicy> {
-        const { connection } = await this.loadConnection(
-            account,
-            projectUuid,
-            warehouseConnectionUuid,
-        );
-        const configurationError = this.providerRegistry(
-            connection.type,
-        )?.configurationError();
-        if (configurationError) throw new ParameterError(configurationError);
-        return this.aiAccessPolicyModel.upsertPolicy(
-            projectUuid,
-            warehouseConnectionUuid,
-            upsert,
-        );
     }
 
     async testMarker(
@@ -377,14 +323,15 @@ export class AiAccessService extends BaseService {
                     ? plan.audit.userUuid
                     : plan.audit.personUuid,
             identity: plan.identity,
-            principalKind: AiPrincipalKind.PERSON,
+            principalKind: 'person',
             principalRef: plan.audit.principalRef,
-            transport: plan.transport,
             context,
         });
     }
 
-    private async isEnabled(args: PolicyLookupArgs): Promise<boolean> {
+    private async isEnabled(
+        args: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 userUuid: args.userUuid,
@@ -395,45 +342,12 @@ export class AiAccessService extends BaseService {
         return enabled;
     }
 
-    private async findEnabledPolicy(
-        args: PolicyLookupArgs & { connection: CreateWarehouseCredentials },
-    ): Promise<EffectiveAiAccessPolicy | null> {
-        if (args.connection.type === WarehouseTypes.SNOWFLAKE) {
-            const settings =
-                await this.organizationAgentIdentitySettingsModel.get(
-                    args.organizationUuid,
-                );
-            if (settings.requireVerifiedAgentSessions) {
-                return {
-                    aiAccessPolicyUuid: uuidv5(
-                        `organization-agent-identity:${args.organizationUuid}`,
-                        uuidv5.URL,
-                    ),
-                    projectUuid: args.projectUuid,
-                    warehouseConnectionUuid: args.warehouseConnectionUuid,
-                    enabled: true,
-                    principalKind: AiPrincipalKind.PERSON,
-                    transport: { kind: AiTransportKind.DIRECT },
-                    createdAt: new Date(0),
-                    updatedAt: new Date(0),
-                    requirementSource: 'organization',
-                };
-            }
-        }
-        const policy = await this.aiAccessPolicyModel.findPolicy(
-            args.projectUuid,
-            args.warehouseConnectionUuid,
+    private async requiresAgentIdentity(args: AccessArgs): Promise<boolean> {
+        if (args.connection.type !== WarehouseTypes.SNOWFLAKE) return false;
+        const settings = await this.organizationAgentIdentitySettingsModel.get(
+            args.organizationUuid,
         );
-        return policy?.enabled
-            ? {
-                  ...policy,
-                  requirementSource:
-                      args.connection.type === WarehouseTypes.SNOWFLAKE &&
-                      policy.principalKind === AiPrincipalKind.PERSON
-                          ? 'connection'
-                          : null,
-              }
-            : null;
+        return settings.requireVerifiedAgentSessions;
     }
 
     private async provider(args: AccessArgs): Promise<AiCredentialProvider> {
@@ -477,17 +391,13 @@ export class AiAccessService extends BaseService {
         return error;
     }
 
-    private logRefusal(
-        args: AccessArgs,
-        policy: AiAccessPolicy,
-        error: AiAccessRefusedError,
-    ): void {
+    private logRefusal(args: AccessArgs, error: AiAccessRefusedError): void {
         this.logger.warn('AI access query refused', {
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             userUuid: args.userUuid,
             reason: error.refusal.reason,
-            principalKind: policy.principalKind,
+            principalKind: 'person',
         });
     }
 
@@ -497,12 +407,7 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
-        const policy = await this.findEnabledPolicy(args);
-        if (
-            !policy ||
-            (policy.principalKind === AiPrincipalKind.PERSON &&
-                args.connection.type !== WarehouseTypes.SNOWFLAKE)
-        ) {
+        if (!(await this.requiresAgentIdentity(args))) {
             const email =
                 args.isRegisteredUser && !args.isServiceAccount
                     ? (await this.userModel.getUserDetailsByUuid(args.userUuid))
@@ -510,7 +415,6 @@ export class AiAccessService extends BaseService {
                     : null;
             return {
                 identity: 'marked_person',
-                transport: { kind: AiTransportKind.DIRECT },
                 assurances: [
                     {
                         kind: 'agent_marker',
@@ -549,10 +453,9 @@ export class AiAccessService extends BaseService {
             return {
                 identity: 'connected_person',
                 identityUuid: uuidv5(
-                    `${policy.aiAccessPolicyUuid}:${args.projectUuid}:${args.warehouseConnectionUuid}:${args.userUuid}`,
+                    `organization-agent-identity:${args.organizationUuid}:${args.projectUuid}:${args.warehouseConnectionUuid}:${args.userUuid}`,
                     uuidv5.URL,
                 ),
-                transport: policy.transport,
                 credentials,
                 assurances,
                 audit: {
@@ -565,7 +468,7 @@ export class AiAccessService extends BaseService {
             if (error instanceof AiAccessRefusedError) {
                 const refusalError =
                     AiAccessService.withRefusalSettingsUrl(error);
-                this.logRefusal(args, policy, refusalError);
+                this.logRefusal(args, refusalError);
                 throw refusalError;
             }
             throw error;
@@ -574,26 +477,19 @@ export class AiAccessService extends BaseService {
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {
         const enabled = await this.isEnabled(args);
-        const policy = enabled ? await this.findEnabledPolicy(args) : null;
-        const marked =
-            enabled &&
-            (!policy ||
-                (policy.principalKind === AiPrincipalKind.PERSON &&
-                    args.connection.type !== WarehouseTypes.SNOWFLAKE));
+        const required = enabled && (await this.requiresAgentIdentity(args));
         const result: AiAccessForUser = {
-            requirementSource: policy?.requirementSource ?? null,
-            identity: policy ? 'connected_person' : null,
+            requirementSource: required ? 'organization' : null,
+            identity: enabled ? 'marked_person' : null,
             marker: enabled ? describeAgentMarker(args.connection.type) : null,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             enabled,
-            principalKind: marked
-                ? AiPrincipalKind.PERSON
-                : (policy?.principalKind ?? null),
+            principalKind: enabled ? 'person' : null,
             refusal: null,
         };
-        if (marked) return { ...result, identity: 'marked_person' };
-        if (!policy) return result;
+        if (!required) return result;
+        result.identity = 'connected_person';
         try {
             const provider = await this.provider(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
@@ -612,7 +508,7 @@ export class AiAccessService extends BaseService {
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
             const refusalError = AiAccessService.withRefusalSettingsUrl(error);
-            this.logRefusal(args, policy, refusalError);
+            this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }
         return result;
