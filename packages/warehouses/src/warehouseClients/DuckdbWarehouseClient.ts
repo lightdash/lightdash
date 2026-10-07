@@ -127,6 +127,11 @@ export type DuckdbS3SessionConfig = {
       }
 );
 
+type GcpOAuthS3SessionConfig = Extract<
+    DuckdbS3SessionConfig,
+    { authMode: 'gcp_oauth' }
+>;
+
 export type DuckdbResourceLimits = {
     memoryLimit?: string; // e.g. '256MB'
     threads?: number; // e.g. 1
@@ -578,6 +583,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     >();
 
     private static readonly sharedInstanceSemaphores = new Map<
+        string,
+        AsyncSemaphore
+    >();
+
+    /**
+     * The Google access token each shared instance's GCS secret currently
+     * holds. Secrets belong to the instance, not the connection, so concurrent
+     * sessions replacing the same secret race in the catalog. Sessions skip
+     * the replacement while the token is unchanged.
+     */
+    private static readonly sharedInstanceGcsTokens = new Map<string, string>();
+
+    private static readonly sharedInstanceGcsSecretLocks = new Map<
         string,
         AsyncSemaphore
     >();
@@ -1323,6 +1341,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 };
             }
 
+            DuckdbWarehouseClient.sharedInstanceGcsTokens.delete(
+                instanceCacheKey,
+            );
             const createStart = performance.now();
             const instance = await DuckDBInstance.create(':memory:');
             const instanceCreateMs = performance.now() - createStart;
@@ -1389,6 +1410,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 DuckdbWarehouseClient.sharedInstanceResourceLimits.delete(
                     instanceCacheKey,
                 );
+                DuckdbWarehouseClient.sharedInstanceGcsTokens.delete(
+                    instanceCacheKey,
+                );
                 logger?.info(
                     `DuckDB shared instance cleared: ${instanceCacheKey}`,
                 );
@@ -1403,6 +1427,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstances.clear();
         DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
+        DuckdbWarehouseClient.sharedInstanceGcsTokens.clear();
+        DuckdbWarehouseClient.sharedInstanceGcsSecretLocks.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
             (budget) => budget.reset(),
@@ -1630,41 +1656,93 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         s3Config: DuckdbS3SessionConfig,
     ): Promise<void> {
-        const escape = (v: string) =>
-            DuckdbWarehouseClient.sqlBuilder.escapeString(v);
         if (s3Config.authMode === 'gcp_oauth') {
-            if (!s3Config.scope?.length) {
-                throw new Error('DuckDB GCP OAuth requires a storage scope');
-            }
-            let token: string;
-            try {
-                token = await s3Config.getAccessToken();
-                if (!token) throw new Error('Empty access token');
-            } catch {
-                throw new Error(
-                    'Unable to obtain a Google access token for DuckDB storage',
-                );
-            }
-            try {
-                await db.run(
-                    `CREATE OR REPLACE SECRET __lightdash_s3 (
-                        TYPE gcs,
-                        BEARER_TOKEN $1,
-                        ENDPOINT '${escape(s3Config.endpoint)}',
-                        SCOPE (${s3Config.scope.map((uri) => `'${escape(uri)}'`).join(', ')}),
-                        URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
-                        USE_SSL ${s3Config.useSsl}
-                    );`,
-                    [token],
-                );
-            } catch {
-                throw new Error(
-                    'Unable to configure GCP OAuth for DuckDB storage',
-                );
-            }
+            await DuckdbWarehouseClient.createGcsSecret(
+                db,
+                s3Config,
+                await DuckdbWarehouseClient.getGcsAccessToken(s3Config),
+            );
             return;
         }
         await db.run(DuckdbWarehouseClient.buildS3SecretSql(s3Config));
+    }
+
+    private static async getGcsAccessToken(
+        s3Config: GcpOAuthS3SessionConfig,
+    ): Promise<string> {
+        if (!s3Config.scope?.length) {
+            throw new Error('DuckDB GCP OAuth requires a storage scope');
+        }
+        try {
+            const token = await s3Config.getAccessToken();
+            if (!token) throw new Error('Empty access token');
+            return token;
+        } catch {
+            throw new Error(
+                'Unable to obtain a Google access token for DuckDB storage',
+            );
+        }
+    }
+
+    private static async createGcsSecret(
+        db: DuckdbConnection,
+        s3Config: GcpOAuthS3SessionConfig,
+        token: string,
+    ): Promise<void> {
+        const escape = (v: string) =>
+            DuckdbWarehouseClient.sqlBuilder.escapeString(v);
+        try {
+            await db.run(
+                `CREATE OR REPLACE SECRET __lightdash_s3 (
+                    TYPE gcs,
+                    BEARER_TOKEN $1,
+                    ENDPOINT '${escape(s3Config.endpoint)}',
+                    SCOPE (${s3Config.scope.map((uri) => `'${escape(uri)}'`).join(', ')}),
+                    URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
+                    USE_SSL ${s3Config.useSsl}
+                );`,
+                [token],
+            );
+        } catch (error) {
+            // Keep DuckDB's reason, but never the token: a failed statement
+            // can echo its parameters.
+            const reason = getErrorMessage(error)
+                .split(token)
+                .join('[redacted]');
+            throw new Error(
+                `Unable to configure GCP OAuth for DuckDB storage: ${reason}`,
+            );
+        }
+    }
+
+    /**
+     * Points a shared instance's GCS secret at the current token. The token
+     * provider caches tokens, so this only replaces the secret when the token
+     * rotates, once per instance under a lock.
+     */
+    private static async ensureSharedGcsSecret(
+        instanceCacheKey: string,
+        db: DuckdbConnection,
+        s3Config: GcpOAuthS3SessionConfig,
+    ): Promise<void> {
+        const tokens = DuckdbWarehouseClient.sharedInstanceGcsTokens;
+        const token = await DuckdbWarehouseClient.getGcsAccessToken(s3Config);
+        if (tokens.get(instanceCacheKey) === token) return;
+
+        const locks = DuckdbWarehouseClient.sharedInstanceGcsSecretLocks;
+        let lock = locks.get(instanceCacheKey);
+        if (!lock) {
+            lock = new AsyncSemaphore();
+            locks.set(instanceCacheKey, lock);
+        }
+        await lock.acquire();
+        try {
+            if (tokens.get(instanceCacheKey) === token) return;
+            await DuckdbWarehouseClient.createGcsSecret(db, s3Config, token);
+            tokens.set(instanceCacheKey, token);
+        } finally {
+            lock.release();
+        }
     }
 
     private static buildS3SecretSql(
@@ -1947,7 +2025,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         try {
             if (this.s3Config?.authMode === 'gcp_oauth') {
-                await DuckdbWarehouseClient.configureS3Secret(
+                await DuckdbWarehouseClient.ensureSharedGcsSecret(
+                    this.getRequiredInstanceCacheKey(),
                     sharedConnection.connection,
                     this.s3Config,
                 );
