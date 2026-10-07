@@ -79,6 +79,7 @@ import {
     type SignInSubject,
     type StoredSignInSubject,
     type SummaryExplore,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -7375,14 +7376,14 @@ export class ProjectModel {
             columns,
             parameterValues,
         }: CreateVirtualViewPayload,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         warehouseConnectionUuid: string | null = null,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
             sql,
             columns,
-            warehouseClient,
+            warehouseSqlBuilder,
             label,
             parameterValues,
         );
@@ -7415,14 +7416,14 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
         payload: UpdateVirtualViewPayload,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         expectedExplore?: Explore,
     ) {
         const translatedToExplore = createVirtualView(
             exploreName,
             payload.sql,
             payload.columns,
-            warehouseClient,
+            warehouseSqlBuilder,
             payload.name, // label
             payload.parameterValues,
         );

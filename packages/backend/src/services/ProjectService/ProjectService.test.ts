@@ -7,6 +7,7 @@ import {
     BigqueryTokenError,
     ConflictError,
     convertExplores,
+    createVirtualView,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
@@ -61,6 +62,8 @@ import {
     UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseConnectionError,
+    WarehouseTableType,
     WarehouseTypes,
     WeekDay,
     type AiExecutionPlan,
@@ -334,6 +337,28 @@ const projectModel = {
     findExploreSplitCandidates: vi.fn<
         ProjectModel['findExploreSplitCandidates']
     >(async () => []),
+    createVirtualView: vi.fn<ProjectModel['createVirtualView']>(
+        async (_projectUuid, payload, builder) =>
+            createVirtualView(
+                payload.name,
+                payload.sql,
+                payload.columns,
+                builder,
+                payload.name,
+                payload.parameterValues,
+            ),
+    ),
+    updateVirtualView: vi.fn<ProjectModel['updateVirtualView']>(
+        async (_projectUuid, name, payload, builder) =>
+            createVirtualView(
+                name,
+                payload.sql,
+                payload.columns,
+                builder,
+                payload.name,
+                payload.parameterValues,
+            ),
+    ),
     getExploreWarehouseConnectionUuid: vi.fn(
         async (): Promise<string | null> => null,
     ),
@@ -3818,6 +3843,92 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('compile-only warehouse work', () => {
+        test.each(['create', 'update'] as const)(
+            '%s virtual views without credentials or an SSH tunnel',
+            async (operation) => {
+                const configured = getMockedProjectService(lightdashConfigMock);
+                const virtualViewAccount = buildAccount();
+                virtualViewAccount.user.ability =
+                    new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'view' },
+                        { subject: 'VirtualView', action: 'create' },
+                    ]);
+                const payload = {
+                    name: 'orders_view',
+                    sql: 'select order_id from orders',
+                    columns: [
+                        { reference: 'order_id', type: DimensionType.NUMBER },
+                    ],
+                };
+                projectModel.findExploresFromCache.mockResolvedValueOnce(
+                    operation === 'create'
+                        ? []
+                        : [
+                              {
+                                  ...validExplore,
+                                  name: payload.name,
+                                  type: ExploreType.VIRTUAL,
+                              },
+                          ],
+                );
+                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                    {
+                        ...(warehouseClientMock.credentials as CreatePostgresCredentials),
+                        startOfWeek: WeekDay.SUNDAY,
+                        useSshTunnel: true,
+                        requireUserCredentials: true,
+                    },
+                );
+                const settings = vi.spyOn(
+                    configured,
+                    'getWarehouseSqlBuilderSettings',
+                );
+                const resolve = vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                );
+                const result =
+                    operation === 'create'
+                        ? await configured.createVirtualView(
+                              virtualViewAccount,
+                              projectUuid,
+                              payload,
+                              false,
+                          )
+                        : await configured.updateVirtualView(
+                              virtualViewAccount,
+                              projectUuid,
+                              payload.name,
+                              payload,
+                              false,
+                          );
+                expect(result).toEqual({ name: payload.name });
+                expect(settings).toHaveBeenCalledExactlyOnceWith(projectUuid, {
+                    kind: 'connection',
+                    warehouseConnectionUuid: null,
+                });
+                const builder =
+                    operation === 'create'
+                        ? projectModel.createVirtualView.mock.calls.at(-1)?.[2]
+                        : projectModel.updateVirtualView.mock.calls.at(-1)?.[3];
+                expect(builder?.getStartOfWeek()).toBe(WeekDay.SUNDAY);
+                expect(builder?.getAdapterType()).toBe(
+                    SupportedDbtAdapter.POSTGRES,
+                );
+                expect(resolve).not.toHaveBeenCalled();
+                expect(
+                    configured.userWarehouseCredentialsModel
+                        .findForProjectWithSecrets,
+                ).not.toHaveBeenCalled();
+                expect(SshTunnel).not.toHaveBeenCalled();
+                expect(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
+    });
+
     describe('scoped query tunnel lifecycle', () => {
         const fileUrl = 'https://example.test/results';
         const adminAccount = {
@@ -3847,7 +3958,68 @@ describe('ProjectService', () => {
             limit: 10,
             context: QueryExecutionContext.SQL_RUNNER,
         };
+        const warehouseTables = [
+            {
+                database: 'catalog_database',
+                schema: 'public',
+                table: 'orders',
+                tableType: WarehouseTableType.TABLE,
+            },
+        ];
+        const warehouseCatalog = {
+            catalog_database: {
+                public: {
+                    orders: { tableType: WarehouseTableType.TABLE },
+                },
+            },
+        };
+        const fields = { order_id: DimensionType.NUMBER };
         const cases = [
+            {
+                name: 'populateWarehouseTablesCache',
+                run: (configured: ProjectService) =>
+                    configured.populateWarehouseTablesCache(user, projectUuid),
+                expected: warehouseCatalog,
+                method: 'getAllTables' as const,
+                queryContext: null,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            },
+            ...[
+                QueryExecutionContext.AI,
+                QueryExecutionContext.MCP_RUN_SQL,
+            ].map((queryContext) => ({
+                name: `getWarehouseTables ${queryContext}`,
+                run: (configured: ProjectService) =>
+                    configured.getWarehouseTables(
+                        user,
+                        projectUuid,
+                        queryContext,
+                    ),
+                expected: warehouseCatalog,
+                method: 'getAllTables' as const,
+                queryContext,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            })),
+            {
+                name: 'getWarehouseFields',
+                run: (configured: ProjectService) =>
+                    configured.getWarehouseFields(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.AI,
+                        'orders',
+                        'public',
+                        'catalog_database',
+                    ),
+                expected: fields,
+                method: 'getFields' as const,
+                queryContext: QueryExecutionContext.AI,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            },
+
             {
                 name: 'runMetricQuery',
                 run: (configured: ProjectService) =>
@@ -4001,8 +4173,23 @@ describe('ProjectService', () => {
                     } as unknown as DownloadFileModel,
                 },
             );
+            Object.assign(configured.warehouseAvailableTablesModel, {
+                createAvailableTablesForProjectWarehouseCredentials: vi.fn(
+                    async () => undefined,
+                ),
+                createAvailableTablesForUserWarehouseCredentials: vi.fn(
+                    async () => undefined,
+                ),
+            });
             const client = {
                 ...warehouseClientMock,
+                getAllTables: vi.fn<WarehouseClient['getAllTables']>(
+                    async () => warehouseTables,
+                ),
+                getFields: vi.fn<WarehouseClient['getFields']>(async () => ({
+                    catalog_database: { public: { orders: fields } },
+                })),
+
                 runQuery: vi.fn(async () => resultsWith1Row),
                 streamQuery: vi.fn<WarehouseClient['streamQuery']>(
                     async (_sql, callback) => {
@@ -4017,16 +4204,21 @@ describe('ProjectService', () => {
                 configured.warehouseClientFactory,
                 'withWarehouseClient',
             );
-            return { configured, client, writer, scoped };
+            const resolve = vi.spyOn(
+                configured.warehouseClientFactory,
+                'resolveLoadedCredentials',
+            );
+            return { configured, client, writer, scoped, resolve };
         };
 
         test.each(cases)(
             '$name releases once after success and preserves the result',
             async (site) => {
-                const { configured, client, writer, scoped } = setup();
+                const { configured, client, writer, scoped, resolve } = setup();
                 await expect(site.run(configured)).resolves.toMatchObject(
                     site.expected,
                 );
+                expect(resolve).toHaveBeenCalledOnce();
                 expect(client[site.method]).toHaveBeenCalledOnce();
                 expect(
                     vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
@@ -4073,7 +4265,9 @@ describe('ProjectService', () => {
             '$name releases once and preserves the warehouse error',
             async (site) => {
                 const { configured, client } = setup();
-                const error = new Error('warehouse query failed');
+                const error = new WarehouseConnectionError(
+                    'warehouse query failed',
+                );
                 client[site.method].mockRejectedValueOnce(error);
                 await expect(site.run(configured)).rejects.toBe(error);
                 expect(client[site.method]).toHaveBeenCalledOnce();
@@ -4082,6 +4276,160 @@ describe('ProjectService', () => {
                 ).toHaveBeenCalledOnce();
             },
         );
+
+        test.each([
+            undefined,
+            QueryExecutionContext.SQL_RUNNER,
+            QueryExecutionContext.API,
+        ])(
+            'catalog cache reads resolve once without acquiring a client for %s',
+            async (context) => {
+                const configured = getMockedProjectService(lightdashConfigMock);
+                const getTables = vi.fn(async () => warehouseCatalog);
+                Object.assign(configured.warehouseAvailableTablesModel, {
+                    getTablesForProjectWarehouseCredentials: getTables,
+                });
+                const acquire = vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'acquireUnscoped',
+                );
+                const resolve = vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                );
+                await expect(
+                    configured.getWarehouseTables(user, projectUuid, context),
+                ).resolves.toEqual(warehouseCatalog);
+                expect(getTables).toHaveBeenCalledExactlyOnceWith(projectUuid);
+                expect(resolve).toHaveBeenCalledOnce();
+                expect(acquire).not.toHaveBeenCalled();
+                expect(SshTunnel).not.toHaveBeenCalled();
+            },
+        );
+
+        test('catalog cache reads use the personal credential cache without acquiring a client', async () => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            const getTables = vi.fn(async () => warehouseCatalog);
+            Object.assign(configured.warehouseAvailableTablesModel, {
+                getTablesForUserWarehouseCredentials: getTables,
+            });
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                {
+                    ...(warehouseClientMock.credentials as CreatePostgresCredentials),
+                    requireUserCredentials: true,
+                },
+            );
+            vi.spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            ).mockResolvedValue({
+                uuid: 'personal-catalog-credentials',
+                credentials:
+                    warehouseClientMock.credentials as CreatePostgresCredentials,
+            });
+            const acquire = vi.spyOn(
+                configured.warehouseClientFactory,
+                'acquireUnscoped',
+            );
+            await expect(
+                configured.getWarehouseTables(user, projectUuid),
+            ).resolves.toEqual(warehouseCatalog);
+            expect(getTables).toHaveBeenCalledExactlyOnceWith(
+                'personal-catalog-credentials',
+            );
+            expect(acquire).not.toHaveBeenCalled();
+            expect(SshTunnel).not.toHaveBeenCalled();
+        });
+
+        test('catalog cache writes release the tunnel after a failure', async () => {
+            const { configured } = setup();
+            const error = new Error('cache write failed');
+            vi.mocked(
+                configured.warehouseAvailableTablesModel
+                    .createAvailableTablesForProjectWarehouseCredentials,
+            ).mockRejectedValueOnce(error);
+            await expect(
+                configured.populateWarehouseTablesCache(user, projectUuid),
+            ).rejects.toBe(error);
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('catalog population writes to the personal credential cache', async () => {
+            const { configured } = setup();
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                {
+                    ...(warehouseClientMock.credentials as CreatePostgresCredentials),
+                    requireUserCredentials: true,
+                },
+            );
+            vi.spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            ).mockResolvedValue({
+                uuid: 'personal-catalog-credentials',
+                credentials:
+                    warehouseClientMock.credentials as CreatePostgresCredentials,
+            });
+            await expect(
+                configured.populateWarehouseTablesCache(user, projectUuid),
+            ).resolves.toEqual(warehouseCatalog);
+            expect(
+                configured.warehouseAvailableTablesModel
+                    .createAvailableTablesForUserWarehouseCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'personal-catalog-credentials',
+                warehouseTables,
+            );
+            expect(
+                configured.warehouseAvailableTablesModel
+                    .createAvailableTablesForProjectWarehouseCredentials,
+            ).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('field validation releases the tunnel before a missing schema error', async () => {
+            const { configured, client } = setup();
+            await expect(
+                configured.getWarehouseFields(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.SQL_RUNNER,
+                    'orders',
+                    undefined,
+                    'catalog_database',
+                ),
+            ).rejects.toThrow('Schema name is required');
+            expect(client.getFields).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('field lookup keeps the not-found translation and releases the tunnel', async () => {
+            const { configured, client } = setup();
+            client.getFields.mockRejectedValueOnce(
+                new Error('warehouse failure'),
+            );
+            await expect(
+                configured.getWarehouseFields(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.SQL_RUNNER,
+                    'orders',
+                    'public',
+                    'catalog_database',
+                ),
+            ).rejects.toThrow(
+                'Could not find table "orders" in schema "public" of database "catalog_database". Please verify the table exists and you have access to it.',
+            );
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
+        });
 
         test.each([
             [
@@ -14678,7 +15026,10 @@ describe('AI principal credential routing', () => {
             .mockResolvedValue(plan);
         const getAllTables = vi.fn().mockResolvedValue([]);
         const disconnect = vi.fn();
-        vi.spyOn(configured, '_getWarehouseClient').mockResolvedValue({
+        vi.spyOn(
+            configured.warehouseClientFactory,
+            'acquireUnscoped',
+        ).mockResolvedValue({
             warehouseClient: { getAllTables } as unknown as WarehouseClient,
             sshTunnel: {
                 disconnect,

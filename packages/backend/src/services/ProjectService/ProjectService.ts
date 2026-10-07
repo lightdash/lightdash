@@ -12554,43 +12554,43 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
-
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
-        );
-
-        const warehouseTables = await warehouseClient.getAllTables();
-
-        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
-            warehouseTables.map((t) => ({
-                ...t,
-                partition_column: t.partitionColumn || null,
-                table_type: t.tableType,
-            })),
-        );
-
-        if (credentials.userWarehouseCredentialsUuid) {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                credentials.userWarehouseCredentialsUuid,
-                warehouseTables,
-            );
-        } else {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
                 projectUuid,
-                warehouseTables,
-            );
-        }
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext: null },
+            ),
+            async ({ warehouseClient, warehouseCredentials: credentials }) => {
+                const warehouseTables = await warehouseClient.getAllTables();
 
-        await sshTunnel.disconnect();
+                const catalog =
+                    WarehouseAvailableTablesModel.toWarehouseCatalog(
+                        warehouseTables.map((t) => ({
+                            ...t,
+                            partition_column: t.partitionColumn || null,
+                            table_type: t.tableType,
+                        })),
+                    );
 
-        return catalog;
+                if (credentials.userWarehouseCredentialsUuid) {
+                    await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                        credentials.userWarehouseCredentialsUuid,
+                        warehouseTables,
+                    );
+                } else {
+                    await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                        projectUuid,
+                        warehouseTables,
+                    );
+                }
+
+                return catalog;
+            },
+        );
     }
 
     async getWarehouseTables(
@@ -12610,7 +12610,40 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
-        const { warehouseCredentials: credentials, aiPlan } =
+        if (
+            isAiAccessQueryContext(context ?? QueryExecutionContext.SQL_RUNNER)
+        ) {
+            return this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid: null,
+                    },
+                },
+                connectionContextFromUser(
+                    { userUuid: user.userUuid, isRegisteredUser: true },
+                    { organizationUuid, queryContext: context ?? null },
+                ),
+                async ({ warehouseClient }) => {
+                    const queryContext =
+                        context ?? QueryExecutionContext.SQL_RUNNER;
+                    const tables = await warehouseClient.getAllTables(
+                        undefined,
+                        withAgentMarkerTag({ query_context: queryContext }),
+                    );
+                    return WarehouseAvailableTablesModel.toWarehouseCatalog(
+                        tables.map((table) => ({
+                            ...table,
+                            partition_column: table.partitionColumn || null,
+                            table_type: table.tableType,
+                        })),
+                    );
+                },
+            );
+        }
+        const { warehouseCredentials: credentials } =
             await this.getWarehouseCredentialsWithConnection({
                 context,
                 projectUuid,
@@ -12619,29 +12652,6 @@ export class ProjectService
                 isRegisteredUser: true,
             });
 
-        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
-        if (aiPlan || isAiAccessQueryContext(queryContext)) {
-            const { warehouseClient, sshTunnel } =
-                await this._getWarehouseClient(projectUuid, credentials, {
-                    aiPlan,
-                    agentSession: isAiAccessQueryContext(queryContext),
-                });
-            try {
-                const tables = await warehouseClient.getAllTables(
-                    undefined,
-                    withAgentMarkerTag({ query_context: queryContext }),
-                );
-                return WarehouseAvailableTablesModel.toWarehouseCatalog(
-                    tables.map((table) => ({
-                        ...table,
-                        partition_column: table.partitionColumn || null,
-                        table_type: table.tableType,
-                    })),
-                );
-            } finally {
-                await sshTunnel.disconnect();
-            }
-        }
         let catalog: WarehouseTablesCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
@@ -12698,66 +12708,65 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const { warehouseCredentials: credentials, aiPlan } =
-            await this.getWarehouseCredentialsWithConnection({
-                context: queryContext,
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
                 projectUuid,
                 binding: { kind: 'connection', warehouseConnectionUuid: null },
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            });
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext },
+            ),
+            async ({ warehouseClient, warehouseCredentials: credentials }) => {
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: user.organizationUuid,
+                    project_uuid: projectUuid,
+                    user_uuid: user.userUuid,
+                    query_context: queryContext,
+                });
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
-            { aiPlan, agentSession: isAiAccessQueryContext(queryContext) },
+                let database =
+                    databaseName ??
+                    ProjectService.getWarehouseDatabase(credentials);
+                if (database === undefined) {
+                    throw new NotFoundError(
+                        'Database not found in warehouse credentials',
+                    );
+                }
+                if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+                    // TODO: credentials returning a lower case database name for snowflake (bug) - this hack works for unquoted database names
+                    database = database.toUpperCase();
+                }
+                if (!schemaName) {
+                    throw new ParameterError('Schema name is required');
+                }
+                if (!tableName) {
+                    throw new ParameterError('Table name is required');
+                }
+
+                try {
+                    const warehouseCatalog = await warehouseClient.getFields(
+                        tableName,
+                        schemaName,
+                        database,
+                        queryTags,
+                    );
+
+                    return warehouseCatalog[database][schemaName][tableName];
+                } catch (error) {
+                    this.logger.error('Error fetching warehouse fields', {
+                        error,
+                    });
+                    if (error instanceof WarehouseConnectionError) {
+                        throw error;
+                    }
+                    throw new NotFoundError(
+                        `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+                    );
+                }
+            },
         );
-
-        const queryTags: RunQueryTags = withAgentMarkerTag({
-            organization_uuid: user.organizationUuid,
-            project_uuid: projectUuid,
-            user_uuid: user.userUuid,
-            query_context: queryContext,
-        });
-
-        let database =
-            databaseName ?? ProjectService.getWarehouseDatabase(credentials);
-        if (database === undefined) {
-            throw new NotFoundError(
-                'Database not found in warehouse credentials',
-            );
-        }
-        if (credentials.type === WarehouseTypes.SNOWFLAKE) {
-            // TODO: credentials returning a lower case database name for snowflake (bug) - this hack works for unquoted database names
-            database = database.toUpperCase();
-        }
-        if (!schemaName) {
-            throw new ParameterError('Schema name is required');
-        }
-        if (!tableName) {
-            throw new ParameterError('Table name is required');
-        }
-
-        try {
-            const warehouseCatalog = await warehouseClient.getFields(
-                tableName,
-                schemaName,
-                database,
-                queryTags,
-            );
-
-            await sshTunnel.disconnect();
-
-            return warehouseCatalog[database][schemaName][tableName];
-        } catch (error) {
-            this.logger.error('Error fetching warehouse fields', { error });
-            if (error instanceof WarehouseConnectionError) {
-                throw error;
-            }
-            throw new NotFoundError(
-                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
-            );
-        }
     }
 
     private async getConnectionSqlRunnerContext(
@@ -15403,18 +15412,16 @@ export class ProjectService
             projectUuid,
             payload.warehouseConnectionUuid ?? null,
         );
-        const { warehouseClient } = await this._getWarehouseClient(
+        const settings = await this.getWarehouseSqlBuilderSettings(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                binding: {
-                    kind: 'connection',
-                    warehouseConnectionUuid: boundConnectionUuid,
-                },
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            {
+                kind: 'connection',
+                warehouseConnectionUuid: boundConnectionUuid,
+            },
+        );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            settings.type,
+            settings.startOfWeek ?? undefined,
         );
         const effectiveParameterValues = resolveParameterValues
             ? await this.resolveVirtualViewParameters(
@@ -15430,7 +15437,7 @@ export class ProjectService
                 ...payload,
                 parameterValues: effectiveParameterValues,
             },
-            warehouseClient,
+            warehouseSqlBuilder,
             boundConnectionUuid,
         );
 
@@ -15488,22 +15495,21 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials({
+        const boundConnectionUuid =
+            await this.projectModel.getExploreWarehouseConnectionUuid(
                 projectUuid,
-                binding: {
-                    kind: 'connection',
-                    warehouseConnectionUuid:
-                        await this.projectModel.getExploreWarehouseConnectionUuid(
-                            projectUuid,
-                            exploreName,
-                        ),
-                },
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+                exploreName,
+            );
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            {
+                kind: 'connection',
+                warehouseConnectionUuid: boundConnectionUuid,
+            },
+        );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            settings.type,
+            settings.startOfWeek ?? undefined,
         );
 
         const effectiveParameterValues = resolveParameterValues
@@ -15521,7 +15527,7 @@ export class ProjectService
                 ...payload,
                 parameterValues: effectiveParameterValues,
             },
-            warehouseClient,
+            warehouseSqlBuilder,
             expectedExplore,
         );
 
