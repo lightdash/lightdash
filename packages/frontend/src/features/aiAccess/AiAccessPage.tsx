@@ -15,7 +15,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
 import { AiIdentitySettings } from './AiIdentitySettings';
-import { useAiAccessCapabilities, useAiAccessPolicy } from './api';
+import { useAiAccessPolicy } from './api';
 const ConnectionAccess = ({
     projectUuid,
     connection,
@@ -26,15 +26,13 @@ const ConnectionAccess = ({
     connectionSelector: ReactNode;
 }) => {
     const policy = useAiAccessPolicy(projectUuid, connection);
-    const capabilities = useAiAccessCapabilities(projectUuid, connection);
-    if (policy.isLoading || capabilities.isLoading) return <EmptyStateLoader />;
-    if (policy.isError || capabilities.isError)
+    if (policy.isLoading) return <EmptyStateLoader />;
+    if (policy.isError)
         return (
             <InlineErrorState
                 message="Could not load agent identity settings."
                 onRetry={() => {
                     void policy.refetch();
-                    void capabilities.refetch();
                 }}
             />
         );
@@ -45,7 +43,6 @@ const ConnectionAccess = ({
             projectUuid={projectUuid}
             connection={connection}
             policy={policy.data}
-            capabilities={capabilities.data}
         />
     );
 };

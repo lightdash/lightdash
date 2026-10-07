@@ -64,7 +64,6 @@ vi.mock('./api', () => ({
         policyQuery(...args);
         return { data: null };
     },
-    useAiAccessCapabilities: () => ({ data: {} }),
 }));
 vi.mock('./AiIdentitySettings', () => ({
     AiIdentitySettings: ({

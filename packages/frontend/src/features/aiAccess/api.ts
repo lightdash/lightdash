@@ -135,13 +135,6 @@ const useAccessQuery = <T>(
             }),
     });
 };
-export const useAiAccessCapabilities = (
-    project: string,
-    connection: string | null,
-) =>
-    useAccessQuery(project, connection, 'capabilities', () =>
-        aiAccessApi.capabilities(project, connection),
-    );
 export const useAiAccessPolicy = (project: string, connection: string | null) =>
     useAccessQuery(project, connection, 'policy', () =>
         aiAccessApi.policy(project, connection),

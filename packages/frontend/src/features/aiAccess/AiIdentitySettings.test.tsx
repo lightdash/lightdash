@@ -1,12 +1,7 @@
 import {
-    AiAgentMarkerLevel,
-    AiCredentialMethod,
     AiPrincipalKind,
-    AiSetupScriptFormat,
     AiTransportKind,
-    WarehouseTypes,
     type AiAccessPolicy,
-    type AiWarehouseCapabilities,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -38,26 +33,6 @@ vi.mock('./api', async (importOriginal) => ({
     ...(await importOriginal<typeof AiAccessApi>()),
     useUpsertAiAccessPolicy: () => ({ mutate, isLoading: false }),
 }));
-const capabilities: AiWarehouseCapabilities = {
-    warehouseType: WarehouseTypes.POSTGRES,
-    marker: {
-        level: AiAgentMarkerLevel.IDENTIFY_ONLY,
-        signals: [],
-        note: null,
-        enforce: null,
-    },
-    setupFormat: AiSetupScriptFormat.SQL,
-    principals: {
-        person: { available: true, method: AiCredentialMethod.MARKER },
-        group: { available: true, method: AiCredentialMethod.KEY },
-        twin: { available: true, method: AiCredentialMethod.KEY },
-        shared: { available: true, method: AiCredentialMethod.KEY },
-    },
-    transports: {
-        direct: { available: true },
-        procedure: { available: false, reason: 'Unavailable' },
-    },
-};
 const policy: AiAccessPolicy = {
     aiAccessPolicyUuid: 'policy',
     projectUuid: 'project',
@@ -79,10 +54,7 @@ const policy: AiAccessPolicy = {
     createdAt: new Date(),
     updatedAt: new Date(),
 };
-const renderSettings = (
-    saved: AiAccessPolicy | null,
-    available = capabilities,
-) =>
+const renderSettings = (saved: AiAccessPolicy | null) =>
     renderWithProviders(
         <MemoryRouter>
             <AiIdentitySettings
@@ -90,25 +62,16 @@ const renderSettings = (
                 connection={null}
                 connectionSelector={null}
                 policy={saved}
-                capabilities={available}
             />
         </MemoryRouter>,
     );
-const snowflakeCapabilities: AiWarehouseCapabilities = {
-    ...capabilities,
-    warehouseType: WarehouseTypes.SNOWFLAKE,
-    marker: {
-        ...capabilities.marker,
-        level: AiAgentMarkerLevel.VERIFIED_SESSION,
-    },
-};
 describe('Snowflake agent identity', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         configured = false;
     });
     it('shows setup SQL and disables enforcement before instance setup', async () => {
-        renderSettings(null, snowflakeCapabilities);
+        renderSettings(null);
         expect(
             screen.getByText('Agents run as the marked person.'),
         ).toBeInTheDocument();
@@ -142,7 +105,7 @@ describe('Snowflake agent identity', () => {
     });
     it('saves the person policy immediately', () => {
         configured = true;
-        renderSettings(null, snowflakeCapabilities);
+        renderSettings(null);
         expect(
             screen.getByText('Agent sign-in integration configured.'),
         ).toBeInTheDocument();
@@ -175,15 +138,12 @@ describe('Snowflake agent identity', () => {
             label: 'Warehouse rules',
             url: 'https://example.com/rules',
         };
-        renderSettings(
-            {
-                ...policy,
-                principalKind: AiPrincipalKind.PERSON,
-                groupMappings: [],
-                policySource,
-            },
-            snowflakeCapabilities,
-        );
+        renderSettings({
+            ...policy,
+            principalKind: AiPrincipalKind.PERSON,
+            groupMappings: [],
+            policySource,
+        });
         const toggle = screen.getByRole('switch', {
             name: /^Require verified agent sessions/,
         });
@@ -204,7 +164,7 @@ describe('Snowflake agent identity', () => {
     });
     it('links to personal warehouse connections in the sign-in hint', () => {
         configured = true;
-        renderSettings(null, snowflakeCapabilities);
+        renderSettings(null);
         const link = screen.getByRole('link', {
             name: 'My warehouse connections',
         });
