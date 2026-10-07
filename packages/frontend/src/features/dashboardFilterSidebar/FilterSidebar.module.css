@@ -1,7 +1,7 @@
 /* The page scrolls as a whole, so the panel is pinned to stay in view. */
 .root {
     position: fixed;
-    top: var(--navbar-height);
+    top: var(--pinned-sidebar-top, var(--navbar-height));
     bottom: 0;
     display: flex;
     flex-direction: column;

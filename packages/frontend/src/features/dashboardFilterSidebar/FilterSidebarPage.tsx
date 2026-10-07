@@ -7,6 +7,7 @@ import { ParameterSidebar } from './ParameterSidebar';
 import { TabCounts } from './TabCounts';
 import { TileOverlays } from './TileOverlay';
 import { useFilterSidebar } from './useFilterSidebar';
+import { usePinnedSidebarTop } from './usePinnedSidebarTop';
 
 type Props = ComponentProps<typeof Page>;
 
@@ -16,6 +17,7 @@ const SIDEBAR_WIDTH = { defaultWidth: 380, minWidth: 320, maxWidth: 560 };
 // only isSidebarOpen changes when a filter is opened.
 const PageWithFilterSidebar: FC<Props> = (props) => {
     const { editing, isParametersOpen } = useFilterSidebar();
+    usePinnedSidebarTop();
     return (
         <Page
             {...props}
