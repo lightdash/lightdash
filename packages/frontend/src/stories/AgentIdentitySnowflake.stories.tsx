@@ -4,13 +4,9 @@ import {
     AiCredentialMethod,
     AiPrincipalKind,
     AiSetupScriptFormat,
-    SnowflakeAuthenticationType,
-    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AiAccessPolicy,
-    type AiMarkerTestResult,
     type AiWarehouseCapabilities,
-    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -25,7 +21,6 @@ import mockHealthResponse from '../testing/__mocks__/api/healthResponse.mock';
 import AppProviderMock from '../testing/__mocks__/providers/AppProvider.mock';
 
 const projectUuid = '3675b69e-8324-4110-bdca-059031aa8da3';
-const userUuid = '4575b69e-8324-4110-bdca-059031aa8da3';
 const unavailable = {
     available: false,
     reason: 'SERVICE_AGENT principals for Snowflake are coming soon.',
@@ -68,28 +63,12 @@ ALTER TABLE protected_data ADD ROW ACCESS POLICY agent_access ON (ai_allowed);`,
     },
 };
 
-const markerResult: AiMarkerTestResult = {
-    ok: true,
-    checkedAt: new Date(),
-    level: AiAgentMarkerLevel.VERIFIED_SESSION,
-    observed: {
-        agent: 'true',
-        query_tag: JSON.stringify({ agent: 'true', user_uuid: userUuid }),
-    },
-    message: 'The warehouse session carries the agent marker.',
-};
-
 type ScenarioProps = {
     configured: boolean;
-    signedIn: boolean;
-    verified: boolean;
+    ruleEnabled: boolean;
 };
 
-const SnowflakeScenario = ({
-    configured,
-    signedIn,
-    verified,
-}: ScenarioProps) => {
+const SnowflakeScenario = ({ configured, ruleEnabled }: ScenarioProps) => {
     const [client] = useState(() => {
         const queryClient = createQueryClient({
             queries: {
@@ -106,43 +85,6 @@ const SnowflakeScenario = ({
             siteUrl: 'https://analytics.example.com',
             auth: { ...health.auth, snowflakeAi: { enabled: configured } },
         });
-        const credentials: UserWarehouseCredentials[] = signedIn
-            ? [
-                  {
-                      uuid: '5675b69e-8324-4110-bdca-059031aa8da3',
-                      userUuid,
-                      purpose: UserWarehouseCredentialPurpose.AI,
-                      name: 'Agent sign-in',
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                      credentials: {
-                          type: WarehouseTypes.SNOWFLAKE,
-                          user: 'STORY_USER',
-                          authenticationType: SnowflakeAuthenticationType.SSO,
-                      },
-                      project: null,
-                  },
-              ]
-            : [];
-        queryClient.setQueryData(['user_warehouse_credentials'], credentials);
-        if (signedIn) {
-            queryClient.setQueryData(
-                [
-                    'ai-access',
-                    projectUuid,
-                    null,
-                    'marker/test',
-                    credentials[0].uuid,
-                ],
-                {
-                    ...markerResult,
-                    ok: verified,
-                    message: verified
-                        ? markerResult.message
-                        : 'The warehouse session does not carry the agent marker.',
-                },
-            );
-        }
         return queryClient;
     });
 
@@ -151,7 +93,7 @@ const SnowflakeScenario = ({
               aiAccessPolicyUuid: '6775b69e-8324-4110-bdca-059031aa8da3',
               projectUuid,
               warehouseConnectionUuid: null,
-              enabled: true,
+              enabled: ruleEnabled,
               principalKind: AiPrincipalKind.PERSON,
               transport: AI_DIRECT_TRANSPORT,
               sharedRef: null,
@@ -203,7 +145,7 @@ const meta = {
     parameters: { layout: 'fullscreen' },
     render: (args) => (
         <SnowflakeScenario
-            key={`${args.configured}-${args.signedIn}-${args.verified}`}
+            key={`${args.configured}-${args.ruleEnabled}`}
             {...args}
         />
     ),
@@ -213,30 +155,31 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const BeforeSetup: Story = {
-    args: { configured: false, signedIn: false, verified: false },
+    args: { configured: false, ruleEnabled: false },
 };
 
-export const RuleOnNotSignedIn: Story = {
-    name: 'Configured, rule on, not signed in',
-    args: { configured: true, signedIn: false, verified: false },
-};
-
-export const SignedInVerified: Story = {
-    args: { configured: true, signedIn: true, verified: true },
+export const RuleOff: Story = {
+    name: 'Configured, rule off',
+    args: { configured: true, ruleEnabled: false },
     play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
         await expect(
-            await canvas.findByText(markerResult.message),
-        ).toBeVisible();
+            canvas.getByRole('switch', {
+                name: /^Require verified agent sessions/,
+            }),
+        ).not.toBeChecked();
     },
 };
 
-export const SignedInCheckFailed: Story = {
-    args: { configured: true, signedIn: true, verified: false },
+export const RuleOn: Story = {
+    name: 'Configured, rule on',
+    args: { configured: true, ruleEnabled: true },
     play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
         await expect(
-            await canvas.findByRole('button', { name: 'Check again' }),
-        ).toBeVisible();
+            canvas.getByRole('switch', {
+                name: /^Require verified agent sessions/,
+            }),
+        ).toBeChecked();
     },
 };

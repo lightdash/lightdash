@@ -1,7 +1,6 @@
 import {
     FeatureFlags,
     type AiAccessForUser,
-    type AiMarkerTestResult,
     type AiAccessPolicy,
     type AiPrincipal,
     type AiSetupScript,
@@ -183,27 +182,3 @@ export const useUpsertAiAccessPolicy = (
     useAccessMutation(project, (policy: UpsertAiAccessPolicy) =>
         aiAccessApi.upsertPolicy(project, connection, policy),
     );
-export const useAiMarkerCheck = (
-    project: string,
-    connection: string | null,
-    credentialUuid: string | undefined,
-) =>
-    useQuery<AiMarkerTestResult, ApiError>({
-        queryKey: [
-            'ai-access',
-            project,
-            connection,
-            'marker/test',
-            credentialUuid,
-        ],
-        queryFn: () =>
-            lightdashApi<AiMarkerTestResult>({
-                version: 'v2',
-                url: aiAccessUrl(project, 'marker/test', connection),
-                method: 'POST',
-                body: undefined,
-            }),
-        enabled: !!project && !!credentialUuid,
-        staleTime: 5 * 60 * 1000,
-        retry: false,
-    });
