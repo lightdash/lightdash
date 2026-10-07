@@ -236,9 +236,11 @@ describe('layoutPack', () => {
         );
         const byId = new Map(circles.map((c) => [c.id, c]));
         expect(byId.get('Tiny')).toMatchObject({
-            r: MIN_CIRCLE_RADIUS,
             isAreaHonest: false,
         });
+        expect(byId.get('Tiny')?.r ?? 0).toBeGreaterThanOrEqual(
+            MIN_CIRCLE_RADIUS - 0.001,
+        );
         expect(byId.get('Huge')?.isAreaHonest).toBe(true);
     });
     it('returns nothing when there is nothing to draw', () => {
@@ -432,5 +434,88 @@ describe('large department', () => {
 
     it('handles nobody', () => {
         expect(layoutDots(0, 20)).toEqual({ dotRadius: 0, positions: [] });
+    });
+});
+
+describe('minimum radius inside the layout', () => {
+    const TOLERANCE = 0.5;
+    const oneLeaf = (name: string, parent: string | null, headcount: number) =>
+        d(name, parent, headcount, headcount);
+
+    const check = (
+        circles: ReturnType<typeof layoutPack>,
+        parentOf: (id: string) => string | null,
+    ) => {
+        const byId = new Map(circles.map((c) => [c.id, c]));
+        circles.forEach((c) => {
+            expect(c.r).toBeGreaterThanOrEqual(MIN_CIRCLE_RADIUS - 0.001);
+            expect(c.x - c.r).toBeGreaterThanOrEqual(-TOLERANCE);
+            expect(c.x + c.r).toBeLessThanOrEqual(720 + TOLERANCE);
+            expect(c.y - c.r).toBeGreaterThanOrEqual(-TOLERANCE);
+            expect(c.y + c.r).toBeLessThanOrEqual(720 + TOLERANCE);
+            const parentId = parentOf(c.id);
+            const parent = parentId === null ? null : byId.get(parentId);
+            if (parent) {
+                expect(
+                    Math.hypot(c.x - parent.x, c.y - parent.y) + c.r,
+                ).toBeLessThanOrEqual(parent.r + TOLERANCE);
+            }
+            circles
+                .filter(
+                    (o) => o.id !== c.id && parentOf(o.id) === parentOf(c.id),
+                )
+                .forEach((o) =>
+                    expect(
+                        Math.hypot(c.x - o.x, c.y - o.y),
+                    ).toBeGreaterThanOrEqual(c.r + o.r - TOLERANCE),
+                );
+        });
+    };
+
+    it.each([
+        [3000, 2],
+        [3000, 5],
+        [3000, 20],
+        [20000, 3],
+        [20000, 20],
+    ])('keeps %i people beside %i one-person departments apart', (big, n) => {
+        const tiny = Array.from({ length: n }, (_, i) =>
+            oneLeaf(`tiny${i}`, null, 1),
+        );
+        const circles = layoutPack(
+            buildPackInput([oneLeaf('Big', null, big), ...tiny], null),
+        );
+        check(circles, () => null);
+        const byId = new Map(circles.map((c) => [c.id, c]));
+        expect(byId.get('Big')?.isAreaHonest).toBe(true);
+        tiny.forEach((t) =>
+            expect(byId.get(t.departmentUuid)?.isAreaHonest).toBe(false),
+        );
+        expect(countPeople(circles)).toBe(big + n);
+    });
+
+    it('keeps nested one-person departments inside their parent and flags only the affected branch', () => {
+        const departments = [
+            oneLeaf('Big', null, 3000),
+            d('Group', null, 3010, 3010, 0),
+            oneLeaf('Core', 'Group', 3000),
+            oneLeaf('S1', 'Group', 1),
+            oneLeaf('S2', 'Group', 1),
+            oneLeaf('S3', 'Group', 1),
+        ];
+        const circles = layoutPack(buildPackInput(departments, null));
+        const parents = new Map(
+            departments.map((x) => [x.departmentUuid, x.parentDepartmentUuid]),
+        );
+        check(circles, (id) =>
+            id.startsWith('own:') ? id.slice(4) : (parents.get(id) ?? null),
+        );
+        const byId = new Map(circles.map((c) => [c.id, c]));
+        ['S1', 'S2', 'S3', 'Group'].forEach((id) =>
+            expect(byId.get(id)?.isAreaHonest).toBe(false),
+        );
+        ['Big', 'Core'].forEach((id) =>
+            expect(byId.get(id)?.isAreaHonest).toBe(true),
+        );
     });
 });

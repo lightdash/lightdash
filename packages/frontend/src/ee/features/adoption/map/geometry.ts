@@ -270,20 +270,57 @@ export const buildPackInput = (
     };
 };
 
+const MAX_PACK_PASSES = 8;
+
 export const layoutPack = (
     input: PackDatum,
     size: number = MAP_SIZE,
     minRadius: number = MIN_CIRCLE_RADIUS,
 ): PackedCircle[] => {
     if (input.children.length === 0) return [];
-    const root = hierarchy(input).sum((datum) =>
+    const trueValue = (datum: PackDatum): number =>
         datum.people === null
             ? 0
-            : Math.max(countBucketPeople(datum.people), 1),
-    );
-    return pack<PackDatum>()
-        .size([size, size])
-        .padding(CIRCLE_PADDING)(root)
+            : Math.max(countBucketPeople(datum.people), 1);
+    // Packing values start at the people count and are raised for leaves that
+    // would draw below the minimum radius, so packing itself keeps them apart
+    const packValues = new Map<string, number>();
+    const packOnce = () =>
+        pack<PackDatum>().size([size, size]).padding(CIRCLE_PADDING)(
+            hierarchy(input).sum(
+                (datum) => packValues.get(datum.id) ?? trueValue(datum),
+            ),
+        );
+
+    let packed = packOnce();
+    for (let pass = 0; pass < MAX_PACK_PASSES; pass += 1) {
+        let raised = false;
+        packed.leaves().forEach((leaf) => {
+            const value = packValues.get(leaf.data.id) ?? trueValue(leaf.data);
+            if (leaf.r >= minRadius - 1e-6 || value <= 0) return;
+            // Radius is proportional to sqrt(value), so scale value by the squared shortfall
+            packValues.set(
+                leaf.data.id,
+                value * (minRadius / leaf.r) ** 2 * 1.001,
+            );
+            raised = true;
+        });
+        if (!raised) break;
+        packed = packOnce();
+    }
+
+    // A node is not to scale if its own value or any descendant's was raised
+    const inflated = new Set<string>();
+    packed.eachAfter((node) => {
+        if (
+            packValues.has(node.data.id) ||
+            (node.children ?? []).some((child) => inflated.has(child.data.id))
+        ) {
+            inflated.add(node.data.id);
+        }
+    });
+
+    return packed
         .descendants()
         .filter((node) => node.depth > 0)
         .map((node) => ({
@@ -298,9 +335,9 @@ export const layoutPack = (
             depth: node.depth,
             x: node.x,
             y: node.y,
+            r: node.r,
             // Small departments stay clickable, at the cost of honest area
-            r: Math.max(node.r, minRadius),
-            isAreaHonest: node.r >= minRadius,
+            isAreaHonest: !inflated.has(node.data.id),
         }));
 };
 

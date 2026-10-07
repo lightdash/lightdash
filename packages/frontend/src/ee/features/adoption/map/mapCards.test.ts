@@ -84,4 +84,30 @@ describe('computeMapCards', () => {
             detail: 'Every target is met',
         });
     });
+    it('lets the first department in input order win a tie', () => {
+        const tied = computeMapCards(
+            [d('First', 10, 8, 2), d('Second', 10, 8, 2)],
+            attention,
+        );
+        expect(tied[0].departmentUuid).toBe('First');
+        expect(tied[2].departmentUuid).toBe('First');
+    });
+    it('returns four explanatory cards for an empty department list', () => {
+        const none = computeMapCards([], {
+            conflictCount: 0,
+            unassignedCount: 0,
+        });
+        expect(none.map((c) => c.key)).toEqual([
+            'biggestGap',
+            'furthestBehind',
+            'seatsUnused',
+            'unplaced',
+        ]);
+        expect(none.map((c) => [c.value, c.detail])).toEqual([
+            ['–', 'Add headcount to see gaps'],
+            ['–', 'No targets set'],
+            ['–', 'Everyone with an account is active'],
+            ['0 people', 'Everyone is placed'],
+        ]);
+    });
 });
