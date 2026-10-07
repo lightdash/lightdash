@@ -137,7 +137,6 @@ export const FieldPicker: FC<Props> = ({
                 size="sm"
                 searchable
                 clearable={false}
-                autoFocus
                 placeholder={searchLabel}
                 aria-label={searchLabel}
                 nothingFoundMessage={
