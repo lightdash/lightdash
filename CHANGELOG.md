@@ -1,3 +1,10 @@
+# [2.453.0](https://github.com/lightdash/lightdash/compare/2.452.0...2.453.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** walkthrough for an agent's knowledge documents (CS-238) ([#30451](https://github.com/lightdash/lightdash/issues/30451)) ([2d41746](https://github.com/lightdash/lightdash/commit/2d41746f134ef99455fb5c4461b77311841a2576)), closes [#30450](https://github.com/lightdash/lightdash/issues/30450)
+
 # [2.452.0](https://github.com/lightdash/lightdash/compare/2.451.0...2.452.0) (2026-10-07)
 
 
