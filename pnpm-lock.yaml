@@ -1359,12 +1359,21 @@ importers:
       d3-geo:
         specifier: 3.1.1
         version: 3.1.1
+      d3-hierarchy:
+        specifier: 3.1.2
+        version: 3.1.2
       d3-scale:
         specifier: 4.0.2
         version: 4.0.2
+      d3-selection:
+        specifier: 3.0.0
+        version: 3.0.0
       d3-time:
         specifier: 3.1.0
         version: 3.1.0
+      d3-zoom:
+        specifier: 3.0.0
+        version: 3.0.0
       date-fns:
         specifier: 4.1.0
         version: 4.1.0
@@ -1621,12 +1630,21 @@ importers:
       '@types/d3-geo':
         specifier: 3.1.0
         version: 3.1.0
+      '@types/d3-hierarchy':
+        specifier: 3.1.7
+        version: 3.1.7
       '@types/d3-scale':
         specifier: 4.0.8
         version: 4.0.8
+      '@types/d3-selection':
+        specifier: 3.0.12
+        version: 3.0.12
       '@types/d3-time':
         specifier: 3.0.4
         version: 3.0.4
+      '@types/d3-zoom':
+        specifier: 3.0.9
+        version: 3.0.9
       '@types/hast':
         specifier: 3.0.4
         version: 3.0.4
@@ -7252,6 +7270,9 @@ packages:
   '@types/d3-selection@3.0.11':
     resolution: {integrity: sha512-bhAXu23DJWsrI45xafYpkQ4NtcKMwWnAC/vKrd2l+nxMFuvOT3XMYTIj2opv8vq8AO5Yh7Qac/nSeP/3zjTK0w==}
 
+  '@types/d3-selection@3.0.12':
+    resolution: {integrity: sha512-Qe/KWYhEiIIxGs7HrAAjMfShxKldx19SJtr5zu53f3afPsdZNz7HHtdTLXo/kqeiWNXVycI24kSnfzBYkTzpgw==}
+
   '@types/d3-shape@3.1.8':
     resolution: {integrity: sha512-lae0iWfcDeR7qt7rA88BNiqdvPS5pFVPpo5OfjElwNaT2yyekbM0C9vK+yqBqEmHr6lDkRnYNoTBYlAgJa7a4w==}
 
@@ -7269,6 +7290,9 @@ packages:
 
   '@types/d3-zoom@3.0.8':
     resolution: {integrity: sha512-iqMC4/YlFCSlO8+2Ii1GGGliCAY4XdeG748w5vQUbevlbDu0zSjH/+jojorQVBK/se0j6DUFNPBGSqD3YWYnDw==}
+
+  '@types/d3-zoom@3.0.9':
+    resolution: {integrity: sha512-0sE1406XBYJGiqD3AusTl9ZqC//2mIXix51tbom25gDCA8ri4xnSZg28CaSE8Srl6FClqABUKfsn0qghgdepMA==}
 
   '@types/d3@7.4.3':
     resolution: {integrity: sha512-lZXZ9ckh5R8uiFVt8ogUNf+pIrK4EsWrx2Np75WvF/eTpJ0FMHNhjXk8CKEx/+gpHbNQyJWehbFaTvqmHWB3ww==}
@@ -23008,6 +23032,8 @@ snapshots:
 
   '@types/d3-selection@3.0.11': {}
 
+  '@types/d3-selection@3.0.12': {}
+
   '@types/d3-shape@3.1.8':
     dependencies:
       '@types/d3-path': 3.1.1
@@ -23023,6 +23049,11 @@ snapshots:
       '@types/d3-selection': 3.0.11
 
   '@types/d3-zoom@3.0.8':
+    dependencies:
+      '@types/d3-interpolate': 3.0.4
+      '@types/d3-selection': 3.0.11
+
+  '@types/d3-zoom@3.0.9':
     dependencies:
       '@types/d3-interpolate': 3.0.4
       '@types/d3-selection': 3.0.11
