@@ -1,3 +1,10 @@
+## [2.457.3](https://github.com/lightdash/lightdash/compare/2.457.2...2.457.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* name Knex schema-query spans so OTLP protobuf export stops dropping batches ([#30627](https://github.com/lightdash/lightdash/issues/30627)) ([5d79b2e](https://github.com/lightdash/lightdash/commit/5d79b2e89707ae25f5fa279a3eeb2c2336b9d692))
+
 ## [2.457.2](https://github.com/lightdash/lightdash/compare/2.457.1...2.457.2) (2026-10-07)
 
 
