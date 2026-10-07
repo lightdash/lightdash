@@ -13,6 +13,17 @@ const markerLabels: Record<AiAgentMarkerLevel, string> = {
     [AiAgentMarkerLevel.NONE]: 'Not available',
 };
 
+const whenNeeded: Record<AiAgentMarkerLevel, string> = {
+    [AiAgentMarkerLevel.VERIFIED_SESSION]:
+        'Not needed here: the warehouse verifies the agent session itself.',
+    [AiAgentMarkerLevel.ADVISORY_SESSION]:
+        'Needed for a hard boundary: the marker here is advisory, so the session can change it.',
+    [AiAgentMarkerLevel.IDENTIFY_ONLY]:
+        'Needed for a hard boundary: the marker here identifies queries but cannot restrict them.',
+    [AiAgentMarkerLevel.NONE]:
+        'Needed for any separation: this warehouse has no agent marker.',
+};
+
 export const AiIdentityModeCards = ({
     capabilities,
     separate,
@@ -27,6 +38,15 @@ export const AiIdentityModeCards = ({
     const person = capabilities.principals.person;
     const needsSignIn =
         person.available && person.method === AiCredentialMethod.SIGN_IN;
+    const separateKinds = [
+        capabilities.principals.twin,
+        capabilities.principals.group,
+        capabilities.principals.shared,
+    ];
+    const separateAvailable = separateKinds.some((kind) => kind.available);
+    const separateReason = separateKinds.find(
+        (kind): kind is { available: false; reason: string } => !kind.available,
+    )?.reason;
     return (
         <Radio.Group
             label="Identity mode"
@@ -67,15 +87,22 @@ export const AiIdentityModeCards = ({
                         </Text>
                     )}
                 </Stack>
-                <Stack className={classes.mode} gap="xs">
+                <Stack
+                    className={classes.mode}
+                    data-unavailable={!separateAvailable}
+                    gap="xs"
+                >
                     <Radio
                         value="principal"
                         label="Separate principal"
-                        disabled={disabled}
+                        disabled={disabled || !separateAvailable}
                     />
                     <Text size="sm">
                         A separate warehouse principal for a person, group or
                         everyone.
+                    </Text>
+                    <Text size="sm">
+                        {whenNeeded[capabilities.marker.level]}
                     </Text>
                     <Text size="sm">
                         Admin: create the principal and grant its access in the
@@ -84,6 +111,11 @@ export const AiIdentityModeCards = ({
                     <Text size="sm">
                         Person: use the principal assigned to them.
                     </Text>
+                    {!separateAvailable && separateReason && (
+                        <Text size="sm" c="dimmed">
+                            {separateReason}
+                        </Text>
+                    )}
                 </Stack>
             </SimpleGrid>
         </Radio.Group>
