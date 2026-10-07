@@ -19,13 +19,14 @@ import {
 import ViewsCountPopover from '../../../../components/common/ViewsCountPopover';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import type { HomepageFavorite } from '../hooks/useHomepageFavorites';
 import classes from './blockStyles.module.css';
 
 type Props = {
     content: SummaryContent;
     projectUuid: string;
     onRemove?: () => void;
-    star?: { isFavorite: boolean; onToggle: () => void };
+    star?: HomepageFavorite;
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
     variant?: 'row' | 'tile' | 'compact';
@@ -119,23 +120,36 @@ const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
     </Group>
 );
 
-const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
+const ContentTitle: FC<Pick<Props, 'content' | 'star'>> = ({
     content,
-    onRemove,
     star,
 }) => (
-    <>
+    <Group gap={4} wrap="nowrap" miw={0}>
+        <Text size="sm" fw={600} truncate miw={0}>
+            {content.name}
+        </Text>
+        <VerifiedBadge content={content} />
         {star && (
             <FavoriteActionIcon
                 size="sm"
                 isFavorite={star.isFavorite}
                 name={content.name}
+                disabled={star.isLoading}
                 onToggle={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     star.onToggle();
                 }}
             />
         )}
+    </Group>
+);
+
+const CardActions: FC<Pick<Props, 'content' | 'onRemove'>> = ({
+    content,
+    onRemove,
+}) => (
+    <>
         {onRemove && (
             <ActionIcon
                 size="sm"
@@ -162,6 +176,14 @@ const MaybeLink: FC<
         <Link
             to={to}
             className={`${className} ${classes.plainLink}`}
+            onClick={(event) => {
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('button')
+                ) {
+                    event.preventDefault();
+                }
+            }}
             {...attrs}
         >
             {children}
@@ -208,20 +230,15 @@ export const ContentCard: FC<Props> = ({
                 attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
-                <Group gap={5} wrap="nowrap" className={classes.resTileBody}>
-                    <Text size="sm" fw={600} truncate>
-                        {content.name}
-                    </Text>
-                    <VerifiedBadge content={content} />
-                </Group>
-                <ViewsCount content={content} projectUuid={projectUuid} />
-                <Box className={classes.tileActions}>
-                    <CardActions
-                        content={content}
-                        onRemove={onRemove}
-                        star={star}
-                    />
+                <Box className={classes.resTileBody}>
+                    <ContentTitle content={content} star={star} />
                 </Box>
+                <ViewsCount content={content} projectUuid={projectUuid} />
+                {onRemove && (
+                    <Box className={classes.tileActions}>
+                        <CardActions content={content} onRemove={onRemove} />
+                    </Box>
+                )}
             </MaybeLink>
         );
     }
@@ -237,22 +254,15 @@ export const ContentCard: FC<Props> = ({
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box className={classes.tileBody}>
-                    <Group gap={5} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        <VerifiedBadge content={content} />
-                    </Group>
+                    <ContentTitle content={content} star={star} />
                     <KindAndViews content={content} projectUuid={projectUuid} />
                     <TileExtra content={content} />
                 </Box>
-                <Box className={classes.tileActions}>
-                    <CardActions
-                        content={content}
-                        onRemove={onRemove}
-                        star={star}
-                    />
-                </Box>
+                {onRemove && (
+                    <Box className={classes.tileActions}>
+                        <CardActions content={content} onRemove={onRemove} />
+                    </Box>
+                )}
             </MaybeLink>
         );
     }
@@ -262,19 +272,10 @@ export const ContentCard: FC<Props> = ({
             <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box flex={1} miw={0}>
-                    <Group gap={4} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        <VerifiedBadge content={content} />
-                    </Group>
+                    <ContentTitle content={content} star={star} />
                     <KindAndViews content={content} projectUuid={projectUuid} />
                 </Box>
-                <CardActions
-                    content={content}
-                    onRemove={onRemove}
-                    star={star}
-                />
+                <CardActions content={content} onRemove={onRemove} />
             </Group>
         </MaybeLink>
     );

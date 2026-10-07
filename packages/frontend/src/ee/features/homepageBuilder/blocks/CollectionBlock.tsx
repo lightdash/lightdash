@@ -21,7 +21,6 @@ import {
     contentToResourceViewItem,
     isPersonalCollectionSource,
     MAX_COLLECTION_LIMIT,
-    ResourceViewItemType,
     type HomepageCollectionBlock,
     type HomepageCollectionItemRef,
     type HomepageCollectionSource,
@@ -59,8 +58,6 @@ import {
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
-import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
@@ -70,6 +67,10 @@ import { reorderCollectionItems } from '../configOps';
 import layoutClasses from '../homepageLayout.module.css';
 import { useCollectionItems } from '../hooks/useCollectionContent';
 import { useCollectionSourceContent } from '../hooks/useCollectionSourceContent';
+import {
+    useHomepageFavorites,
+    type HomepageFavorite,
+} from '../hooks/useHomepageFavorites';
 import { useReportRuntimeEmpty } from '../hooks/useRuntimeEmptyBlocks';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -77,28 +78,6 @@ import { ContentCard } from './ContentCard';
 import { ContentLayoutControl } from './ContentLayoutControl';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const toFavoriteType = (
-    content: SummaryContent,
-):
-    | ResourceViewItemType.CHART
-    | ResourceViewItemType.DASHBOARD
-    | ResourceViewItemType.DOCUMENT
-    | null => {
-    switch (content.contentType) {
-        case ContentType.CHART:
-            return ResourceViewItemType.CHART;
-        case ContentType.DASHBOARD:
-            return ResourceViewItemType.DASHBOARD;
-        case ContentType.DOCUMENT:
-            return ResourceViewItemType.DOCUMENT;
-        case ContentType.SPACE:
-        case ContentType.DATA_APP:
-            return null;
-        default:
-            return assertUnreachable(content, 'Unknown collection content');
-    }
-};
 
 const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => {
     return { contentType: content.contentType, uuid: content.uuid };
@@ -555,9 +534,7 @@ const CollectionContentGrid: FC<{
     itemSpan: number | null;
     contents: SummaryContent[];
     projectUuid: string;
-    starFor?: (
-        content: SummaryContent,
-    ) => { isFavorite: boolean; onToggle: () => void } | undefined;
+    starFor?: (content: SummaryContent) => HomepageFavorite | undefined;
 }> = ({ layout, itemSpan, contents, projectUuid, starFor }) => {
     if (layout === 'list') {
         return (
@@ -610,15 +587,10 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
         projectUuid,
         config,
     );
-    const { data: favorites } = useFavorites(projectUuid);
-    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const starFor = useHomepageFavorites(projectUuid);
     // Emptiness of a dynamic source is only knowable once its data lands, so
     // the page is told rather than inferring it from config.
     useReportRuntimeEmpty(block.id, contents.length === 0, isLoading);
-    const favoriteUuids = useMemo(
-        () => new Set((favorites ?? []).map((item) => item.data.uuid)),
-        [favorites],
-    );
     if (block.type !== 'collection') return null;
     // Nothing to show, and nothing on the way: render no header at all. The
     // page drops the row on the next commit.
@@ -634,19 +606,7 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                     itemSpan={itemSpan ?? null}
                     contents={contents}
                     projectUuid={projectUuid}
-                    starFor={(content) => {
-                        const favoriteType = toFavoriteType(content);
-                        return favoriteType
-                            ? {
-                                  isFavorite: favoriteUuids.has(content.uuid),
-                                  onToggle: () =>
-                                      toggleFavorite({
-                                          contentType: favoriteType,
-                                          contentUuid: content.uuid,
-                                      }),
-                              }
-                            : undefined;
-                    }}
+                    starFor={starFor}
                 />
             )}
         </Stack>
