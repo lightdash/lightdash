@@ -2,6 +2,8 @@
 
 Use content as code to download Lightdash resources into files, make reviewable changes, and upload the desired state. Use `lightdash deploy` separately for semantic-layer changes such as dbt models, metrics, dimensions, and joins.
 
+For editing one chart, dashboard, or app, and for where downloaded files live, follow the [Content Workflow](../SKILL.md#content-workflow): Lightdash is the source of truth, files go in a scratch directory, and nothing is committed unless the user asks. The `./lightdash` paths below stand for that scratch directory. This reference covers scopes, selectors, and the Agent-Safe Workflow for bulk and cross-scope changes.
+
 ## Scope and Coverage
 
 Content as code has two separate scopes. A project command never includes organization resources, and `--organization` switches to organization-only mode.
@@ -227,17 +229,18 @@ Supplying a content filter changes the command into a selective download and ski
 
 Follow this sequence for agent-driven changes:
 
-1. Check for uncommitted content-as-code changes or choose a fresh download path; do not overwrite work that has not been reviewed.
+1. Download into a fresh scratch directory outside the user's repository. If the repository already tracks content as code and the user wants to work there, check for uncommitted changes first; do not overwrite work that has not been reviewed.
 2. Run `lightdash config get-project` and confirm the intended target.
 3. Download `--include-all`; also download `--organization` when users, groups, roles, themes, or space access are involved.
 4. Inspect structured document fields rather than inferring resource identity or dependencies from filenames. For example, match charts using the top-level `tableName`, not arbitrary text occurrences.
 5. Preserve resource identities, slugs, filenames, folder conventions, and unknown fields unless the requested change requires modifying them. Slugs are portable references but are not guaranteed to be unique in every existing project.
 6. Make the smallest coherent edit across every affected resource. Update dashboard chart references, scheduled content, space definitions, and access together when applicable.
 7. Run `lightdash lint --path ./lightdash` for supported chart and dashboard validation. This is not a complete validator for every content-as-code resource.
-8. Review `git diff` and present it before uploading. There is currently no global content-as-code dry-run, transaction, or automatic rollback.
+8. Review the diff against the downloaded state and present it before uploading (copy the download aside before editing and run `diff -ru`, or use `git diff` when the content is tracked). There is currently no global content-as-code dry-run, transaction, or automatic rollback.
 9. Obtain explicit approval before mutating a shared or production Lightdash instance.
 10. Upload organization resources first when project access references users or groups, then upload project resources.
 11. Inspect every action summary and error. Re-download both scopes when download→upload→download stability must be confirmed.
+12. Delete the scratch directory. Do not copy the files into the repository or commit them unless the user asked for content in git.
 
 Never use `--force` merely to make an upload proceed. Use it only when overwriting unchanged-state detection or accepting a documented destructive change is intentional.
 
