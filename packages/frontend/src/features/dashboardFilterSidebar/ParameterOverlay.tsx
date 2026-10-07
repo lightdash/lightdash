@@ -22,15 +22,24 @@ export const ParameterOverlays: FC = () => {
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
+    const tileChartSavedParameters = useDashboardContext(
+        (c) => c.tileChartSavedParameters,
+    );
 
     const sources = useMemo(
         () =>
             getParameterSources({
                 parameterValues,
                 tileParameterReferences,
+                tileChartSavedParameters,
                 parameterDefinitions,
             }),
-        [parameterValues, tileParameterReferences, parameterDefinitions],
+        [
+            parameterValues,
+            tileParameterReferences,
+            tileChartSavedParameters,
+            parameterDefinitions,
+        ],
     );
     const tileUuids = useMemo(
         () =>
@@ -60,9 +69,17 @@ export const ParameterOverlays: FC = () => {
                             const label =
                                 parameterDefinitions[key]?.label ?? key;
                             return (
-                                <Badge key={key} tt="none">
-                                    {entry.source === 'chart'
-                                        ? `${label}: chart value`
+                                <Badge
+                                    key={key}
+                                    tt="none"
+                                    color={
+                                        entry.source === 'none'
+                                            ? 'yellow.8'
+                                            : undefined
+                                    }
+                                >
+                                    {entry.source === 'none'
+                                        ? `${label}: needs a value`
                                         : `${label}: ${formatParameterValue(entry.value)} ${getUiString(`parameters.source.${entry.source}`)}`}
                                 </Badge>
                             );

@@ -22,6 +22,9 @@ export const ParameterSidebar: FC = () => {
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
+    const tileChartSavedParameters = useDashboardContext(
+        (c) => c.tileChartSavedParameters,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
 
@@ -30,9 +33,15 @@ export const ParameterSidebar: FC = () => {
             getParameterSources({
                 parameterValues,
                 tileParameterReferences,
+                tileChartSavedParameters,
                 parameterDefinitions,
             }),
-        [parameterValues, tileParameterReferences, parameterDefinitions],
+        [
+            parameterValues,
+            tileParameterReferences,
+            tileChartSavedParameters,
+            parameterDefinitions,
+        ],
     );
 
     if (!isParametersOpen) return null;
@@ -61,8 +70,8 @@ export const ParameterSidebar: FC = () => {
             <Text fz="sm" truncate>
                 {getTileTitle(entry.tileUuid)}
             </Text>
-            {entry.source === 'chart' ? (
-                <Badge>chart value</Badge>
+            {entry.source === 'none' ? (
+                <Badge color="yellow.8">needs a value</Badge>
             ) : (
                 <Group gap="xxs" wrap="nowrap">
                     <Text fz="sm" fw={500}>
@@ -93,11 +102,11 @@ export const ParameterSidebar: FC = () => {
                             <Text fw={600}>
                                 {parameterDefinitions[key]?.label ?? key}
                             </Text>
-                            <Text fz="sm">
-                                {hasDashboardValue
-                                    ? formatParameterValue(dashboardValue)
-                                    : 'No dashboard value'}
-                            </Text>
+                            {hasDashboardValue ? (
+                                <Text fz="sm">
+                                    {formatParameterValue(dashboardValue)}
+                                </Text>
+                            ) : null}
                             <Text fz="xs" c="dimmed">
                                 {hasDashboardValue
                                     ? `Charts that follow this control use ${formatParameterValue(dashboardValue)}, from the dashboard.`

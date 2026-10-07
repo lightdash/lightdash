@@ -1957,6 +1957,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardParameterReferences,
         addParameterReferences,
         tileParameterReferences,
+        tileChartSavedParameters,
         setTileChartSavedParameters,
         missingRequiredParameters,
         pinnedParameters,

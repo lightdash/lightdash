@@ -30,7 +30,7 @@ seam in `features/dashboardTabs/index.tsx`.
 ## Parameters (read only)
 
 - `ParameterValuesButton` on the bar calls `openParameters`; `ParameterSidebar` and `ParameterOverlays` show where each chart's parameter value comes from. Nothing is edited.
-- `parameterSources.ts` resolves 'dashboard' or 'default' from the dashboard context; chart-saved values are not exposed by the context, so the rest shows as "chart value".
+- `parameterSources.ts` resolves each tile's source and value with the shipped `getDashboardTileParameterSource` and `getDashboardTileParameterOverrides`, using the per-tile chart-saved values the dashboard context exposes as `tileChartSavedParameters`; a referenced key with no value anywhere is `none` ("needs a value").
 - `isParametersOpen` is separate from `editing` and is false while a filter is being edited.
 
 ## Peer fields on today's saved shape

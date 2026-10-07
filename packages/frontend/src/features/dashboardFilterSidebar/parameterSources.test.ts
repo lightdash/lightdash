@@ -12,6 +12,7 @@ describe('getParameterSources', () => {
         const result = getParameterSources({
             parameterValues: {},
             tileParameterReferences: { a: ['region'], b: ['plan'], c: [] },
+            tileChartSavedParameters: {},
             parameterDefinitions: definitions,
         });
         expect(result.region.map((entry) => entry.tileUuid)).toEqual(['a']);
@@ -22,6 +23,7 @@ describe('getParameterSources', () => {
         const result = getParameterSources({
             parameterValues: { region: 'APAC' },
             tileParameterReferences: { a: ['region'], b: ['region'] },
+            tileChartSavedParameters: { a: { region: 'LATAM' } },
             parameterDefinitions: definitions,
         });
         expect(result.region).toEqual([
@@ -34,6 +36,7 @@ describe('getParameterSources', () => {
         const result = getParameterSources({
             parameterValues: {},
             tileParameterReferences: { a: ['region'] },
+            tileChartSavedParameters: { a: { region: 'LATAM' } },
             parameterDefinitions: definitions,
         });
         expect(result.region).toEqual([
@@ -41,14 +44,16 @@ describe('getParameterSources', () => {
         ]);
     });
 
-    it('marks a parameter with no dashboard value and no default as chart', () => {
+    it('uses the chart-saved value when there is no dashboard value and no default', () => {
         const result = getParameterSources({
             parameterValues: {},
-            tileParameterReferences: { a: ['plan'] },
+            tileParameterReferences: { a: ['plan'], b: ['plan'] },
+            tileChartSavedParameters: { a: { plan: 'pro' } },
             parameterDefinitions: definitions,
         });
         expect(result.plan).toEqual([
-            { tileUuid: 'a', value: null, source: 'chart' },
+            { tileUuid: 'a', value: 'pro', source: 'chart' },
+            { tileUuid: 'b', value: null, source: 'none' },
         ]);
     });
 });
