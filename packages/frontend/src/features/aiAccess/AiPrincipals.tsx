@@ -34,6 +34,18 @@ const principalLabels: Record<AiPrincipalKind, string> = {
     [AiPrincipalKind.TWIN]: 'Per person',
     [AiPrincipalKind.SHARED]: 'Shared',
 };
+const PrincipalEmptyMessage = () => (
+    <Text size="sm" c="dimmed">
+        Saving a group or shared policy creates the principal rows. Per-person
+        rows appear when each person first uses an agent.
+    </Text>
+);
+export const PrincipalsEmptyState = () => (
+    <Stack>
+        <Title order={5}>Principals</Title>
+        <PrincipalEmptyMessage />
+    </Stack>
+);
 export const Principals = ({
     projectUuid,
     connection,
@@ -61,10 +73,7 @@ export const Principals = ({
                     onRetry={() => void query.refetch()}
                 />
             ) : !query.data?.length ? (
-                <Text size="sm" c="dimmed">
-                    Saving a group or shared policy creates the principal rows.
-                    Per-person rows appear when each person first uses an agent.
-                </Text>
+                <PrincipalEmptyMessage />
             ) : (
                 <Table.ScrollContainer minWidth={800}>
                     <Table>

@@ -8,14 +8,23 @@ import {
     type AiWarehouseCapabilities,
     type UpsertAiAccessPolicy,
 } from '@lightdash/common';
-import { Button, Code, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+    Alert,
+    Button,
+    Code,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { useState, type ReactNode } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AiMarkerTest } from './AiMarkerTest';
 import { AiPolicyEditor } from './AiPolicyEditor';
 import { AiPolicySource } from './AiPolicySource';
-import { Principals } from './AiPrincipals';
+import { Principals, PrincipalsEmptyState } from './AiPrincipals';
 import { AiSetupScriptDrawer } from './AiSetupScriptDrawer';
 import { AiWarehouseSignals } from './AiWarehouseSignals';
 import { useUpsertAiAccessPolicy } from './api';
@@ -67,7 +76,7 @@ const markerStatement = (level: AiAgentMarkerLevel): string => {
         case AiAgentMarkerLevel.REQUEST_BOUND:
             return "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it.";
         case AiAgentMarkerLevel.IDENTIFY_ONLY:
-            return 'The marker identifies agent queries. It cannot restrict them.';
+            return 'The marker identifies agent queries here but cannot restrict them.';
         case AiAgentMarkerLevel.NONE:
             return 'This warehouse cannot mark agent queries.';
         default:
@@ -104,38 +113,21 @@ const IdentityStatement = ({
                     ) : (
                         'Agents run as a per-group or per-person principal saved through the API'
                     )
+                ) : level === AiAgentMarkerLevel.IDENTIFY_ONLY ? (
+                    'Agents need a separate principal on this warehouse.'
                 ) : (
                     'Agents run as the marked person'
                 )}
             </Text>
             <Text size="sm">{markerStatement(level)}</Text>
-            {!capabilities.principals.shared.available &&
-                level !== AiAgentMarkerLevel.VERIFIED_SESSION && (
-                    <Text size="sm" c="dimmed">
-                        {capabilities.principals.shared.reason}
-                    </Text>
-                )}
+            {level === AiAgentMarkerLevel.IDENTIFY_ONLY && !separate && (
+                <Alert color="yellow">
+                    Agents currently run as the person with no restriction.
+                </Alert>
+            )}
         </Stack>
     );
 };
-
-const PrincipalDisclosure = ({
-    opened,
-    onToggle,
-}: {
-    opened: boolean;
-    onToggle: () => void;
-}) => (
-    <Button
-        variant="subtle"
-        size="compact-sm"
-        style={{ alignSelf: 'flex-start' }}
-        aria-expanded={opened}
-        onClick={onToggle}
-    >
-        Need a hard boundary? Use a separate principal
-    </Button>
-);
 
 const PrincipalForm = ({
     value,
@@ -156,11 +148,22 @@ const PrincipalForm = ({
 }) => (
     <Stack>
         <AiPolicyEditor value={value} capabilities={capabilities} set={set} />
+        {!capabilities.principals.shared.available && (
+            <Text size="sm" c="dimmed">
+                {capabilities.principals.shared.reason}
+            </Text>
+        )}
         <Group>
-            <Button disabled={disabled} loading={loading} onClick={onSave}>
-                Save
-            </Button>
-            <Button variant="default" onClick={onSetup}>
+            {capabilities.principals.shared.available && (
+                <Button disabled={disabled} loading={loading} onClick={onSave}>
+                    Save
+                </Button>
+            )}
+            <Button
+                variant="default"
+                disabled={!capabilities.principals.shared.available}
+                onClick={onSetup}
+            >
                 Setup script
             </Button>
         </Group>
@@ -172,33 +175,23 @@ const IdentityCard = ({
     capabilities,
     policy,
     separate,
-    canUseSeparate,
-    savedSeparate,
-    disclosed,
-    onToggle,
     value,
     set,
     disabled,
     loading,
     onSave,
     onSetup,
-    onSwitch,
 }: {
     connectionSelector: ReactNode;
     capabilities: AiWarehouseCapabilities;
     policy: AiAccessPolicy | null;
     separate: boolean;
-    canUseSeparate: boolean;
-    savedSeparate: boolean;
-    disclosed: boolean;
-    onToggle: () => void;
     value: UpsertAiAccessPolicy;
     set: (patch: Partial<UpsertAiAccessPolicy>) => void;
     disabled: boolean;
     loading: boolean;
     onSave: () => void;
     onSetup: () => void;
-    onSwitch: () => void;
 }) => (
     <SettingsCard>
         <Stack>
@@ -214,10 +207,7 @@ const IdentityCard = ({
                 policy={policy}
                 separate={separate}
             />
-            {canUseSeparate && !savedSeparate && (
-                <PrincipalDisclosure opened={disclosed} onToggle={onToggle} />
-            )}
-            {canUseSeparate && (savedSeparate || disclosed) && (
+            {capabilities.marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY && (
                 <PrincipalForm
                     value={value}
                     capabilities={capabilities}
@@ -228,27 +218,6 @@ const IdentityCard = ({
                     onSetup={onSetup}
                 />
             )}
-            {savedSeparate &&
-                capabilities.marker.level !== AiAgentMarkerLevel.NONE && (
-                    <Stack gap="xs">
-                        {!canUseSeparate && (
-                            <Text size="sm" c="dimmed">
-                                This connection has a separate principal policy
-                                saved through the API.
-                            </Text>
-                        )}
-                        <Button
-                            variant="subtle"
-                            style={{ alignSelf: 'flex-start' }}
-                            loading={loading}
-                            onClick={onSwitch}
-                        >
-                            {canUseSeparate
-                                ? 'Switch back to marked person'
-                                : 'Switch to marked person'}
-                        </Button>
-                    </Stack>
-                )}
         </Stack>
     </SettingsCard>
 );
@@ -266,13 +235,11 @@ export const AiIdentitySettings = ({
     capabilities: AiWarehouseCapabilities;
     connectionSelector: ReactNode;
 }) => {
-    const canUseSeparate =
-        capabilities.marker.level !== AiAgentMarkerLevel.VERIFIED_SESSION &&
-        capabilities.principals.shared.available;
+    const needsPrincipal =
+        capabilities.marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY;
     const savedSeparate =
         policy !== null && policy.principalKind !== AiPrincipalKind.PERSON;
-    const separate = canUseSeparate && savedSeparate;
-    const [disclosed, setDisclosed] = useState(false);
+    const separate = needsPrincipal && savedSeparate;
     const [value, setValue] = useState(() => ({
         ...toInput(policy),
         sharedRef:
@@ -280,9 +247,7 @@ export const AiIdentitySettings = ({
                 ? policy.sharedRef
                 : null,
     }));
-    const [confirming, setConfirming] = useState<'person' | 'shared' | null>(
-        null,
-    );
+    const [confirming, setConfirming] = useState(false);
     const [script, setScript] = useState<{ principal: string | null } | null>(
         null,
     );
@@ -295,26 +260,17 @@ export const AiIdentitySettings = ({
         twinNameTemplate: null,
         groupMappings: [],
     };
-    const personInput: UpsertAiAccessPolicy = {
-        ...value,
-        enabled: true,
-        principalKind: AiPrincipalKind.PERSON,
-        transport: AI_DIRECT_TRANSPORT,
-        sharedRef: null,
-        twinNameTemplate: null,
-        groupMappings: [],
-    };
     const dirty =
         !policy?.enabled ||
         JSON.stringify(input) !== JSON.stringify(toInput(policy));
     const persist = (next: UpsertAiAccessPolicy) =>
-        save.mutate(next, { onSuccess: () => setConfirming(null) });
+        save.mutate(next, { onSuccess: () => setConfirming(false) });
     const onSave = () => {
         if (
             policy?.principalKind === AiPrincipalKind.GROUP ||
             policy?.principalKind === AiPrincipalKind.TWIN
         )
-            setConfirming('shared');
+            setConfirming(true);
         else persist(input);
     };
     return (
@@ -324,17 +280,12 @@ export const AiIdentitySettings = ({
                 capabilities={capabilities}
                 policy={policy}
                 separate={separate}
-                canUseSeparate={canUseSeparate}
-                savedSeparate={savedSeparate}
-                disclosed={disclosed}
-                onToggle={() => setDisclosed((opened) => !opened)}
                 value={value}
                 set={set}
                 disabled={!dirty || isInvalid(input, capabilities)}
                 loading={save.isLoading}
                 onSave={onSave}
                 onSetup={() => setScript({ principal: null })}
-                onSwitch={() => setConfirming('person')}
             />
             <SettingsCard>
                 <Stack>
@@ -366,6 +317,8 @@ export const AiIdentitySettings = ({
                                     setScript({ principal })
                                 }
                             />
+                        ) : needsPrincipal ? (
+                            <PrincipalsEmptyState />
                         ) : (
                             <AiMarkerTest
                                 projectUuid={projectUuid}
@@ -379,24 +332,14 @@ export const AiIdentitySettings = ({
                 </SettingsCard>
             )}
             <MantineModal
-                opened={confirming !== null}
-                onClose={() => setConfirming(null)}
-                title={
-                    confirming === 'shared'
-                        ? 'Replace principal setup?'
-                        : 'Switch to marked person?'
-                }
+                opened={confirming}
+                onClose={() => setConfirming(false)}
+                title="Replace principal setup?"
                 role="alertdialog"
-                description={
-                    confirming === 'shared'
-                        ? 'Agents will use one warehouse principal. Your per-group or per-person setup is removed.'
-                        : "Agents will use each person's own credentials. Your separate principal setup is removed."
-                }
+                description="Agents will use one warehouse principal. Your per-group or per-person setup is removed."
                 confirmLabel="Switch"
                 confirmLoading={save.isLoading}
-                onConfirm={() =>
-                    persist(confirming === 'person' ? personInput : input)
-                }
+                onConfirm={() => persist(input)}
             />
             {script && (
                 <AiSetupScriptDrawer
