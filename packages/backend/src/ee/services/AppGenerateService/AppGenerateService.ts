@@ -2588,6 +2588,20 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /** Best-effort: a thumbnail must never fail the flow that copies it. */
+    private async copyVersionThumbnail(
+        from: { appUuid: string; version: number },
+        to: { appUuid: string; version: number },
+    ): Promise<void> {
+        try {
+            await this.appThumbnailClient.copyThumbnail({ from, to });
+        } catch (error) {
+            this.logger.warn(
+                `App ${to.appUuid}: could not copy thumbnail of app ${from.appUuid} version ${from.version} to version ${to.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     /** Scheduler job body. Never throws: a failed capture is only logged. */
     async captureVersionThumbnail({
         appUuid,
@@ -8243,6 +8257,10 @@ export class AppGenerateService extends BaseService {
                 vizPreview: source.viz_preview,
             },
         );
+        await this.copyVersionThumbnail(
+            { appUuid, version: sourceVersion },
+            { appUuid, version: newVersion },
+        );
         await this.unverifyAppIfNotPreserved({
             user,
             appUuid,
@@ -8953,6 +8971,16 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        // Captured fresh upstream: the preview's thumbnail shows preview data.
+        await this.enqueueThumbnailCapture({
+            organizationUuid: upstreamOrganizationUuid,
+            projectUuid: upstreamProjectUuid,
+            userUuid: user.userUuid,
+            appUuid: targetAppUuid,
+            version: targetVersion,
+            isCustomChartType: isChartType,
+        });
+
         this.analytics.track({
             event: 'data_app.promoted',
             userId: user.userUuid,
@@ -9237,6 +9265,11 @@ export class AppGenerateService extends BaseService {
             );
             throw error;
         }
+
+        await this.copyVersionThumbnail(
+            { appUuid: sourceApp.app_id, version: sourceVersion.version },
+            { appUuid: newAppUuid, version: newVersion },
+        );
 
         this.analytics.track({
             event: 'data_app.duplicated',
@@ -13913,6 +13946,7 @@ export class AppGenerateService extends BaseService {
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
+        let becameReady = false;
         const heartbeat = setInterval(() => {
             void this.appModel
                 .touchVersionIfInProgress(appUuid, version)
@@ -14036,7 +14070,7 @@ export class AppGenerateService extends BaseService {
                 sourceTar,
             );
 
-            await this.appModel.updateVersionStatusIfInProgress(
+            becameReady = await this.appModel.updateVersionStatusIfInProgress(
                 appUuid,
                 version,
                 'ready',
@@ -14049,6 +14083,25 @@ export class AppGenerateService extends BaseService {
             clearInterval(heartbeat);
             if (sandbox !== undefined && sandboxUuid !== undefined) {
                 await this.suspendSandbox(sandboxUuid, sandbox, appUuid);
+            }
+        }
+
+        // Outside the build's try, so a thumbnail can never mark it failed.
+        if (becameReady) {
+            try {
+                const app = await this.appModel.getApp(appUuid, projectUuid);
+                await this.enqueueThumbnailCapture({
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: payload.userUuid,
+                    appUuid,
+                    version,
+                    isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
+                });
+            } catch (error) {
+                this.logger.warn(
+                    `App ${appUuid}: could not enqueue thumbnail capture for version ${version}: ${getErrorMessage(error)}`,
+                );
             }
         }
     }
