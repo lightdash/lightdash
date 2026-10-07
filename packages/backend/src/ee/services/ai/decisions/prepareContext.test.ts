@@ -300,6 +300,52 @@ describe('context preloading', () => {
         expect(criteria[1]).not.toHaveProperty('document_write');
     });
 
+    it('routes reports and accepted Document offers to document writing when Documents can be saved', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Write me a report on revenue.' },
+        ];
+        const turnIntents: {
+            instructions: string;
+            criteria: Record<string, string>;
+        }[] = [];
+        request.mockImplementation(async (_, init) => {
+            const body = JSON.parse(init?.body as string);
+            turnIntents.push(body.questions.turnIntent);
+            return Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('document_write') },
+            });
+        });
+        const runtime = {
+            loadAgentTools: getLoadAgentTools(),
+            createContent: {},
+        } as unknown as ToolSet;
+
+        args.enableDocuments = false;
+        await prepareRelevantContext(args, dependencies, runtime);
+        args.enableDocuments = true;
+        await prepareRelevantContext(args, dependencies, runtime);
+
+        const [off, on] = turnIntents;
+        expect(off.criteria).not.toHaveProperty('document_write');
+        expect(off.instructions).not.toContain('summary to share');
+        expect(on.criteria.document_write).toContain(
+            'a written report, write-up or summary to share',
+        );
+        expect(on.criteria.document_write).toContain(
+            'accepting an offer to save the analysis as a Document',
+        );
+        expect(on.instructions).toContain(
+            'a short reply accepting an offer to save the analysis as a Document, is also document_write',
+        );
+        expect(on.instructions).toContain(
+            'PDF report is still data_app_create',
+        );
+    });
+
     it('preloads the authoring skill with its resources for a document write-up', async () => {
         const { args, dependencies, request, loadSkill } = setup();
         args.enableDocuments = true;

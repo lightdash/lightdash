@@ -67,6 +67,7 @@ import {
     type CapabilitySectionArgs,
     type DeferredPromptSection,
 } from '../prompts/systemV2';
+import { DOCUMENT_OFFER_LINE } from '../prompts/systemV2ContentTools';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -502,6 +503,80 @@ const makeStreamSafePersist = (
             });
         }
     };
+};
+
+const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
+
+// Deep Research runs are never nudged toward Documents.
+const areDocumentNudgesEnabled = (args: AiAgentArgs): boolean =>
+    args.enableDocuments &&
+    args.enableDataAccess &&
+    args.enableContentTools &&
+    args.execution.mode === 'standard';
+
+const isDocumentInput = (input: unknown): boolean =>
+    !!input &&
+    typeof input === 'object' &&
+    'type' in input &&
+    input.type === 'document';
+
+/** An earlier reply made a chart, and no Document was offered or saved yet. */
+export const shouldOfferDocument = (
+    messageHistory: ModelMessage[],
+): boolean => {
+    const latestUserIndex = messageHistory.findLastIndex(
+        (message) => message.role === 'user',
+    );
+    let hasChart = false;
+    for (const message of messageHistory.slice(0, latestUserIndex)) {
+        if (message.role === 'assistant') {
+            const parts =
+                typeof message.content === 'string'
+                    ? [{ type: 'text' as const, text: message.content }]
+                    : message.content;
+            for (const part of parts) {
+                if (
+                    part.type === 'text' &&
+                    part.text.includes(DOCUMENT_OFFER_LINE)
+                ) {
+                    return false;
+                }
+                if (part.type === 'tool-call') {
+                    if (
+                        DOCUMENT_SAVE_TOOLS.has(part.toolName) &&
+                        isDocumentInput(part.input)
+                    ) {
+                        return false;
+                    }
+                    if (part.toolName === 'generateVisualization') {
+                        hasChart = true;
+                    }
+                }
+            }
+        }
+    }
+    return hasChart;
+};
+
+const withDocumentOfferHint = (
+    messageHistory: ModelMessage[],
+): ModelMessage[] => {
+    if (!shouldOfferDocument(messageHistory)) return messageHistory;
+    const lastUserIndex = messageHistory.findLastIndex(
+        (m) => m.role === 'user',
+    );
+    const lastUser = messageHistory[lastUserIndex];
+    if (lastUser?.role !== 'user') return messageHistory;
+    const hint = `\n\n(If your reply creates a chart or concludes a finding that took several steps, end it with this line on its own: "${DOCUMENT_OFFER_LINE}" Skip it if this reply saves a Document.)`;
+    const updatedContent =
+        typeof lastUser.content === 'string'
+            ? `${lastUser.content}${hint}`
+            : [...lastUser.content, { type: 'text' as const, text: hint }];
+    return [
+        ...messageHistory.slice(0, lastUserIndex),
+        { ...lastUser, content: updatedContent } as ModelMessage,
+        ...messageHistory.slice(lastUserIndex + 1),
+    ];
 };
 
 const withToolHints = (
@@ -1086,8 +1161,6 @@ export const getDataAnswerFastResponse = (
         return null;
     return metadata.fastResponse.trim() || null;
 };
-
-const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
 
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
@@ -2331,6 +2404,7 @@ const getCapabilitySectionArgs = (
         args.enableDataAccess &&
         args.enableContentTools &&
         args.enableDocuments,
+    enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
     enableDocumentCustomCharts:
@@ -2377,6 +2451,9 @@ export const getAgentMessages = (
             verifiedFieldUsage,
             preparedSeed,
         );
+        if (areDocumentNudgesEnabled(args)) {
+            messageHistory = withDocumentOfferHint(messageHistory);
+        }
     }
 
     // Project context is loaded on demand via the loadProjectContext tool; the

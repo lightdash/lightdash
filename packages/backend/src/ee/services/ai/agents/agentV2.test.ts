@@ -52,6 +52,7 @@ import {
     normalizeToolOutput,
     recordAgentStepUsage,
     scopeAgentConversation,
+    shouldOfferDocument,
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
@@ -2136,9 +2137,12 @@ describe('getAgentTools workstream tool gate', () => {
                 throw new Error('Expected a string system message');
             }
 
+            expect(systemMessage.content.includes('## Documents')).toBe(
+                documentsEnabled,
+            );
             expect(
                 systemMessage.content.includes(
-                    'Create a Document only when the user explicitly asks',
+                    'Want me to save this as a Document you can share?',
                 ),
             ).toBe(documentsEnabled);
             for (const name of [
@@ -3253,4 +3257,103 @@ describe('external MCP tool call activity', () => {
             });
         },
     );
+});
+
+describe('shouldOfferDocument', () => {
+    const chartTurn = (toolCallId: string): ModelMessage => ({
+        role: 'assistant',
+        content: [
+            {
+                type: 'tool-call',
+                toolCallId,
+                toolName: 'generateVisualization',
+                input: {},
+            },
+        ],
+    });
+
+    it('waits for a chart in an earlier reply', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+            ]),
+        ).toBe(false);
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Break it down by status' },
+            ]),
+        ).toBe(true);
+    });
+
+    it('offers only once per thread', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Break it down by status' },
+                chartTurn('chart-2'),
+                {
+                    role: 'assistant',
+                    content:
+                        'Here it is.\n\nWant me to save this as a Document you can share?',
+                },
+                { role: 'user', content: 'Which status grew fastest?' },
+            ]),
+        ).toBe(false);
+    });
+
+    it('adds the offer hint to the latest question only when Documents apply', () => {
+        const history: ModelMessage[] = [
+            { role: 'user', content: 'Revenue by month' },
+            chartTurn('chart-1'),
+            { role: 'user', content: 'Break it down by status' },
+        ];
+        const latestQuestion = (documents: boolean) => {
+            const args = buildAgentArgs();
+            args.enableDataAccess = true;
+            args.enableContentTools = true;
+            args.enableDocuments = documents;
+            args.messageHistory = history;
+            return getAgentMessages(
+                args,
+                [],
+                mcpToolSetup(),
+                {},
+                new Map(),
+                null,
+                { types: [], totalCount: 0 },
+            ).findLast((message) => message.role === 'user')?.content;
+        };
+
+        expect(JSON.stringify(latestQuestion(true))).toContain(
+            'end it with this line on its own: \\"Want me to save this as a Document you can share?\\"',
+        );
+        expect(JSON.stringify(latestQuestion(false))).not.toContain(
+            'save this as a Document',
+        );
+    });
+
+    it('stops offering once a Document was saved', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Write it up' },
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool-call',
+                            toolCallId: 'document-1',
+                            toolName: 'createContent',
+                            input: { type: 'document' },
+                        },
+                    ],
+                },
+                { role: 'user', content: 'And by region?' },
+            ]),
+        ).toBe(false);
+    });
 });

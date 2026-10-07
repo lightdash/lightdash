@@ -126,7 +126,7 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 
 {{data_access_section}}
 - Never invent data. Only describe what the query returned.
-- After generating a chart, you can offer to find related existing dashboards or charts.
+- After generating a chart, you can offer to find related existing dashboards or charts.{{document_nudges_section}}
 
 ## Limitations
 
