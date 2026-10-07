@@ -108,6 +108,7 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
 };
 export const convertMetricFilterToDbt = (
     filters: MetricFilterRule[] | undefined,
+    metricTable: string,
 ): DbtColumnLightdashMetric['filters'] => {
     if (!filters) return undefined;
 
@@ -119,7 +120,9 @@ export const convertMetricFilterToDbt = (
             const values: string[] = convertFilterOperatorToDbt(filter);
             const fieldRefParts = target.fieldRef.split('.');
             const fieldId =
-                fieldRefParts.length > 1 ? fieldRefParts[1] : target.fieldRef;
+                fieldRefParts.length === 2 && fieldRefParts[0] === metricTable
+                    ? fieldRefParts[1]
+                    : target.fieldRef;
             const dbtFilters = {
                 [fieldId]: values.length > 1 ? values : values[0],
             };

@@ -9,7 +9,9 @@ import {
     type CompiledDimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
+import { parseFilters } from '../types/filterGrammar';
 import { TimeFrames } from '../types/timeFrames';
+import { convertCustomMetricToDbt } from '../utils/convertCustomMetricsToYaml';
 import {
     ExploreCompiler,
     getTableColumnReferences,
@@ -590,6 +592,43 @@ describe('Default field labels render correctly for various input formats', () =
         'should handle special characters and mixed case %s',
         (input, expected) => {
             expect(friendlyName(input)).toBe(expected);
+        },
+    );
+});
+
+describe('custom metric write-back filter round-trip', () => {
+    test.each([
+        ['table1.shared', 'table1', 'shared'],
+        ['shared', 'table1', 'shared'],
+        ['table2.shared', 'table2', 'shared'],
+        ['table2.dim2', 'table2', 'dim2'],
+    ])(
+        'preserves the compiled filter target for %s',
+        (fieldRef, table, column) => {
+            const metric = {
+                ...tablesWithMetricsWithFilters.table1.metrics.metric1,
+                filters: [
+                    {
+                        id: 'filter',
+                        target: { fieldRef },
+                        operator: FilterOperator.EQUALS,
+                        values: [5],
+                    },
+                ],
+            };
+            const written = convertCustomMetricToDbt(metric);
+            const roundTripped = compiler.compileMetric(
+                { ...metric, filters: parseFilters(written.filters) },
+                tablesWithMetricsWithFilters,
+                [],
+            );
+            expect(roundTripped.compiledSql).toContain(
+                `(("${table}".${column}) IN (`,
+            );
+            expect(roundTripped.compiledSql).toBe(
+                compiler.compileMetric(metric, tablesWithMetricsWithFilters, [])
+                    .compiledSql,
+            );
         },
     );
 });
