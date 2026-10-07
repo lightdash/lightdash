@@ -4,6 +4,7 @@ import {
     LEARN_TERMINAL_REJECTION,
     PREVIEW_NAME_REQUIRED,
     previewName,
+    SLUGS_REQUIRED,
     toSpawnArgv,
 } from './allowlist';
 
@@ -75,13 +76,18 @@ describe('buildArgv', () => {
             buildArgv({ tool: 'dbt', subcommand: 'parse', args: [] }, ws),
         ).toEqual({ ok: true, argv: ['dbt', 'parse'] });
     });
-    it('accepts download with charts and a path inside the workspace', () => {
+    it('accepts download with a chart slug and a path inside the workspace', () => {
         expect(
             buildArgv(
                 {
                     tool: 'lightdash',
                     subcommand: 'download',
-                    args: ['--charts', '--path', 'lightdash/charts'],
+                    args: [
+                        '--charts',
+                        'revenue-by-payment-method',
+                        '--path',
+                        'lightdash/charts',
+                    ],
                 },
                 ws,
             ),
@@ -91,8 +97,59 @@ describe('buildArgv', () => {
                 'lightdash',
                 'download',
                 '--charts',
+                'revenue-by-payment-method',
                 '--path',
                 'lightdash/charts',
+            ],
+        });
+    });
+    it('accepts short flags and several slugs, as the CLI does', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'download',
+                    args: [
+                        '-c',
+                        'orders-over-time',
+                        'top-customers',
+                        '-d',
+                        'jaffle-shop-overview',
+                    ],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'download',
+                '-c',
+                'orders-over-time',
+                'top-customers',
+                '-d',
+                'jaffle-shop-overview',
+            ],
+        });
+    });
+    it('accepts --force on upload', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'upload',
+                    args: ['--force', '--charts', 'revenue-by-payment-method'],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'upload',
+                '--force',
+                '--charts',
+                'revenue-by-payment-method',
             ],
         });
     });
@@ -112,6 +169,22 @@ describe('buildArgv', () => {
         });
     });
     it.each([
+        [
+            '--force on download',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--force', '--charts', 'orders-over-time'],
+            },
+        ],
+        [
+            'charts on compile',
+            {
+                tool: 'lightdash',
+                subcommand: 'compile',
+                args: ['--charts', 'orders-over-time'],
+            },
+        ],
         ['unknown tool', { tool: 'bash' as never, subcommand: 'x', args: [] }],
         ['dbt run', { tool: 'dbt', subcommand: 'run', args: [] }],
         ['dbt seed', { tool: 'dbt', subcommand: 'seed', args: [] }],
@@ -199,6 +272,102 @@ describe('buildArgv', () => {
             ok: false,
             message: LEARN_TERMINAL_REJECTION,
         });
+    });
+
+    it.each([
+        ['a bare --charts', 'download', ['--charts']],
+        ['a bare -d', 'upload', ['-d']],
+        ['a flag for a slug', 'download', ['--charts', '-x']],
+        ['an uppercase slug', 'download', ['--charts', 'Orders']],
+        ['a slug with a slash', 'download', ['--charts', 'charts/orders']],
+        ['a slug that walks up', 'upload', ['-c', '..']],
+        [
+            'a chart URL, which the CLI itself would take',
+            'download',
+            ['-c', 'https://app.lightdash.cloud/projects/p/saved/c'],
+        ],
+        [
+            'nine slugs',
+            'download',
+            ['--charts', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+        ],
+        ['a slug of 256 characters', 'download', ['--charts', 'a'.repeat(256)]],
+        [
+            'the same flag twice, which the CLI would add together',
+            'download',
+            ['-c', 'a', '--charts', 'b'],
+        ],
+    ])(
+        'says what a slug flag takes when given %s',
+        (_name, subcommand, args) => {
+            expect(
+                buildArgv({ tool: 'lightdash', subcommand, args }, ws),
+            ).toEqual({
+                ok: false,
+                message: SLUGS_REQUIRED,
+            });
+        },
+    );
+
+    it('accepts exactly eight slugs, and a slug of exactly 255 characters', () => {
+        const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'download',
+                    args: ['--charts', ...eight],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: ['lightdash', 'download', '--charts', ...eight],
+        });
+        const longest = 'a'.repeat(255);
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'upload',
+                    args: ['-c', longest],
+                },
+                ws,
+            ),
+        ).toEqual({ ok: true, argv: ['lightdash', 'upload', '-c', longest] });
+    });
+
+    it('accepts charts and dashboards together, each flag once', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'download',
+                    args: ['-c', 'orders-over-time', '-d', 'jaffle-shop'],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'download',
+                '-c',
+                'orders-over-time',
+                '-d',
+                'jaffle-shop',
+            ],
+        });
+    });
+
+    it.each([
+        ['bundled short flags', ['-cd', 'orders-over-time']],
+        ['a flag with =value', ['--charts=orders-over-time']],
+        ['a short flag with its value attached', ['-corders-over-time']],
+    ])('does not read %s as a slug flag', (_name, args) => {
+        expect(
+            buildArgv({ tool: 'lightdash', subcommand: 'download', args }, ws),
+        ).toEqual({ ok: false, message: LEARN_TERMINAL_REJECTION });
     });
 
     it('accepts exactly 16 args', () => {
