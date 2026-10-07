@@ -11,6 +11,7 @@ import {
     Button,
     Group,
     Select,
+    Tooltip,
     Stack,
     Text,
     type ComboboxItem,
@@ -326,15 +327,21 @@ export const FieldsAndCharts: FC = () => {
                 )}
             </Stack>
             <Stack gap="xs" align="flex-start">
-                <Button
-                    variant="light"
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setIsAdding((open) => !open)}
+                <Tooltip
+                    label="Every field of this kind is already in the filter"
+                    disabled={candidates.length > 0}
                 >
-                    Add a field
-                </Button>
-                {isAdding && (
+                    <Button
+                        variant="light"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={() => setIsAdding((open) => !open)}
+                        data-disabled={candidates.length === 0 || undefined}
+                    >
+                        Add a field
+                    </Button>
+                </Tooltip>
+                {isAdding && candidates.length > 0 && (
                     <Select
                         className={classes.addFieldSelect}
                         size="xs"
