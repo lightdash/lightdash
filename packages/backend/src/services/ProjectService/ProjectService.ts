@@ -655,6 +655,16 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectService: ProjectService;
     }) => Promise<EnableLearnResults>;
+    /**
+     * Seeds a fresh training copy with the Enterprise samples copies do not
+     * carry (the training agent's knowledge document). Set by EE; core has
+     * none.
+     */
+    seedTrainingCopyEnterpriseContent?: (args: {
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string | null;
+    }) => Promise<void>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -819,6 +829,8 @@ export class ProjectService extends BaseService {
 
     provisionTrainingProject: ProjectServiceArguments['provisionTrainingProject'];
 
+    seedTrainingCopyEnterpriseContent: ProjectServiceArguments['seedTrainingCopyEnterpriseContent'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -873,6 +885,7 @@ export class ProjectService extends BaseService {
         onProjectCreated,
         provisionPlaygroundProject,
         provisionTrainingProject,
+        seedTrainingCopyEnterpriseContent,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -935,6 +948,8 @@ export class ProjectService extends BaseService {
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
         this.provisionTrainingProject = provisionTrainingProject;
+        this.seedTrainingCopyEnterpriseContent =
+            seedTrainingCopyEnterpriseContent;
     }
 
     /**
@@ -14391,24 +14406,12 @@ export class ProjectService extends BaseService {
             }),
         );
 
-        // Samples the copy does not carry over from the training project.
-        // Best effort: a sample that fails to seed leaves the copy usable for
-        // every other walkthrough rather than failing a copy that now exists.
-        try {
-            await this.seedSampleDocumentsInCopy(
-                user,
-                projectUuid,
-                training.createdByUserUuid,
-            );
-        } catch (error) {
-            // Reported as well as logged: the learner only sees a walkthrough
-            // step waiting for a document that is not there.
-            Logger.error(
-                `Training copy ${projectUuid}: sample content could not be seeded`,
-                error,
-            );
-            Sentry.captureException(error);
-        }
+        await this.seedSamplesInCopy(
+            user,
+            user.organizationUuid,
+            projectUuid,
+            training.createdByUserUuid,
+        );
 
         // The trainee layer on the new copy only exists in a freshly built
         // ability; the cached session user still reflects the old copies.
@@ -14416,6 +14419,50 @@ export class ProjectService extends BaseService {
 
         const preview = await this.projectModel.get(projectUuid);
         return { projectUuid, expiresAt: preview.expiresAt ?? null };
+    }
+
+    /**
+     * Samples a copy does not carry over from the training project. Best
+     * effort, each on its own: a sample that fails to seed leaves the copy
+     * usable for every other walkthrough, the other sample included, rather
+     * than failing a copy that now exists. A failure is reported as well as
+     * logged, because the learner only sees a walkthrough step waiting for
+     * something that is not there.
+     */
+    private async seedSamplesInCopy(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        createdByUserUuid: string | null,
+    ): Promise<void> {
+        const bestEffort = async (
+            sample: string,
+            seed: () => Promise<void> | undefined,
+        ) => {
+            try {
+                await seed();
+            } catch (error) {
+                Logger.error(
+                    `Training copy ${projectUuid}: the sample ${sample} could not be seeded`,
+                    error,
+                );
+                Sentry.captureException(error);
+            }
+        };
+        await bestEffort('document', () =>
+            this.seedSampleDocumentsInCopy(
+                user,
+                projectUuid,
+                createdByUserUuid,
+            ),
+        );
+        await bestEffort('knowledge document', () =>
+            this.seedTrainingCopyEnterpriseContent?.({
+                organizationUuid,
+                projectUuid,
+                createdByUserUuid,
+            }),
+        );
     }
 
     /**

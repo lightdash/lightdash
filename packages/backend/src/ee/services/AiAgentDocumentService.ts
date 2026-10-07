@@ -286,6 +286,7 @@ export class AiAgentDocumentService extends BaseService {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanManageDocuments(user, organizationUuid, projectUuid);
+        await this.assertNotTrainingProject(projectUuid, 'edited');
         const agent = await this.aiAgentService.getAgent(
             user,
             agentUuid,
@@ -446,6 +447,25 @@ export class AiAgentDocumentService extends BaseService {
         });
     }
 
+    /**
+     * A learner reads, toggles and deletes the documents of their training
+     * copy but neither adds nor rewrites one: either would spend the
+     * organization's document quota and run a summary on its AI credential.
+     */
+    private async assertNotTrainingProject(
+        projectUuid: string | null,
+        action: 'added' | 'edited',
+    ): Promise<void> {
+        if (
+            projectUuid &&
+            (await this.aiAgentDocumentModel.isTrainingProject(projectUuid))
+        ) {
+            throw new ForbiddenError(
+                `Knowledge documents cannot be ${action} in the training project`,
+            );
+        }
+    }
+
     private async persistDocument(
         user: SessionUser,
         organizationUuid: string,
@@ -456,6 +476,7 @@ export class AiAgentDocumentService extends BaseService {
             projectExplores: Explore[];
         },
     ): Promise<AiAgentDocument> {
+        await this.assertNotTrainingProject(scope.projectUuid, 'added');
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(

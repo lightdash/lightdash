@@ -40,6 +40,7 @@ export const CURRICULUM: string[] = [
     'create:AiAgentThread',
     'manage:AiAgent',
     'create:AiDeepResearch',
+    'manage:AiAgentDocument',
     'create:DataApp',
     'view:DataApp',
     'manage:DataApp',

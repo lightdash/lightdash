@@ -6,9 +6,11 @@ import {
     AiAgentDocumentSummary,
     AlreadyExistsError,
     NotFoundError,
+    ProjectType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { omit } from 'lodash';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     AiAgentDocumentAccessTableName,
     AiAgentDocumentTableName,
@@ -221,20 +223,77 @@ export class AiAgentDocumentModel {
     }
 
     /**
+     * SQL that holds unless the project is the organization's Learn training
+     * project or a learner's copy of it (a preview the training flow made).
+     * The same rule as `isTrainingProject`, negated, for use inside a scope.
+     */
+    private static notTrainingProjectSubquery(qb: Knex, projectUuid: string) {
+        return qb.raw(
+            `NOT EXISTS (
+                SELECT 1 FROM ?? AS training
+                WHERE training.project_uuid = ?
+                  AND (
+                      training.project_type = ?
+                      OR (training.project_type = ? AND training.provisioning_source = ?)
+                  )
+            )`,
+            [
+                ProjectTableName,
+                projectUuid,
+                ProjectType.TRAINING,
+                ProjectType.PREVIEW,
+                'training',
+            ],
+        );
+    }
+
+    /** Whether the project is the Learn training project or a learner's copy of it. */
+    async isTrainingProject(projectUuid: string): Promise<boolean> {
+        const row = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere((builder) => {
+                void builder
+                    .where('project_type', ProjectType.TRAINING)
+                    .orWhere((copy) => {
+                        void copy
+                            .where('project_type', ProjectType.PREVIEW)
+                            .andWhere('provisioning_source', 'training');
+                    });
+            })
+            .first('project_uuid');
+        return row !== undefined;
+    }
+
+    /**
      * A document is org level, and so reaches every agent, only when it has no
      * project and no grants. Access rows always restrict; having none is not a
      * wildcard, so a project document nobody was granted reaches no agent.
+     *
+     * An agent in a Learn training project or a learner's copy reaches only
+     * that project's own documents: organization documents stay with real
+     * projects, so a learner never reads company material through a copy.
      */
     private static agentScope(
         qb: Knex,
         agentUuid: string,
         projectUuid: string | null,
     ) {
+        const outsideTraining = (builder: Knex.QueryBuilder) => {
+            if (projectUuid) {
+                void builder.andWhere(
+                    AiAgentDocumentModel.notTrainingProjectSubquery(
+                        qb,
+                        projectUuid,
+                    ),
+                );
+            }
+        };
         return (builder: Knex.QueryBuilder) => {
             void builder.where((orgLevel) => {
                 void orgLevel
                     .whereNull(`${AiAgentDocumentTableName}.project_uuid`)
                     .andWhere(AiAgentDocumentModel.noAgentAccessSubquery(qb));
+                outsideTraining(orgLevel);
             });
             void builder.orWhere((granted) => {
                 void granted
@@ -242,9 +301,12 @@ export class AiAgentDocumentModel {
                         AiAgentDocumentModel.agentAccessSubquery(qb, agentUuid),
                     )
                     .andWhere((inScope) => {
-                        void inScope.whereNull(
-                            `${AiAgentDocumentTableName}.project_uuid`,
-                        );
+                        void inScope.where((orgWide) => {
+                            void orgWide.whereNull(
+                                `${AiAgentDocumentTableName}.project_uuid`,
+                            );
+                            outsideTraining(orgWide);
+                        });
                         if (projectUuid) {
                             void inScope.orWhere(
                                 `${AiAgentDocumentTableName}.project_uuid`,

@@ -134,6 +134,7 @@ import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
+import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -1286,6 +1287,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     // belong to the training project.
                                 }),
                             analytics: context.lightdashAnalytics,
+                        }),
+                    seedTrainingCopyEnterpriseContent: (args) =>
+                        seedTrainingCopyAgentDocuments({
+                            ...args,
+                            aiAgentModel: models.getAiAgentModel(),
+                            aiAgentDocumentModel:
+                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                         }),
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({

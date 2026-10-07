@@ -93,6 +93,34 @@ describe('AiAgentDocumentModel agent scope', () => {
             expect(bindings).not.toContain(PROJECT);
             // Granted branch still allows a granted document with no project
             expect(sql).toContain('"ai_agent_document"."project_uuid" is null');
+            expect(sql).not.toContain('as training');
+        });
+
+        it('keeps organization documents away from Learn training projects and copies', async () => {
+            const { sql, bindings } = await capture(() =>
+                model.findAllForAgent({
+                    organizationUuid: ORG,
+                    agentUuid: AGENT,
+                    projectUuid: PROJECT,
+                }),
+            );
+
+            // Both org-wide branches (ungranted and granted) carry the guard
+            expect(
+                sql.match(
+                    /not exists \( select 1 from "projects" as training/g,
+                ),
+            ).toHaveLength(2);
+            expect(sql).toContain(
+                'training.project_type = ? or (training.project_type = ? and training.provisioning_source = ?)',
+            );
+            expect(bindings).toEqual(
+                expect.arrayContaining(['TRAINING', 'PREVIEW', 'training']),
+            );
+            // The project's own documents are not guarded
+            expect(sql).toMatch(
+                /or "ai_agent_document"\."project_uuid" = \?\)\)\)/,
+            );
         });
     });
 

@@ -20,8 +20,6 @@ export const COMING_SOON_SCOPES = [
     'view:EmbedAiAgentDebug',
     'view:EmbedCompiledSql',
     'view:Analytics',
-    'view:AiAgentDocument',
-    'manage:AiAgentDocument',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
     // Withdrawn until Recently deleted has a product-agreed entry point (CS-311)

@@ -16,6 +16,7 @@ describe('walkthrough catalogue', () => {
         'manage:SpotlightTableConfig',
         'manage:VirtualView',
         'delete:VirtualView',
+        'manage:AiAgentDocument',
     ])('starts %s as a hands-on walkthrough, not reading', (scope) => {
         expect(
             buildLearnCatalogue().find((module) => module.scope === scope),
@@ -26,8 +27,6 @@ describe('walkthrough catalogue', () => {
 
     it.each([
         'view:Analytics',
-        'view:AiAgentDocument',
-        'manage:AiAgentDocument',
         'view:AiAgentSkill',
         'manage:AiAgentSkill',
         'view:ContentAsCode',
@@ -68,6 +67,7 @@ describe('walkthrough catalogue', () => {
     it.each([
         ['manage:ContentVerification', 'view:ContentVerification'],
         ['manage:SqlRunner', 'manage:CustomSql'],
+        ['manage:AiAgentDocument', 'view:AiAgentDocument'],
     ])('shows the lesson for %s once, covering %s', (primary, covered) => {
         const modules = buildLearnCatalogue();
         expect(modules.find((m) => m.scope === covered)).toBeUndefined();
@@ -95,9 +95,9 @@ describe('walkthrough catalogue', () => {
     it('offers only walkthroughs as available scope modules', () => {
         const modules = buildLearnCatalogue();
         const scopes = modules.filter((m) => m.kind === 'scope');
-        // 44 walkthroughs, two of them copies of a lesson shown once.
-        expect(scopes.filter((m) => m.available)).toHaveLength(42);
-        expect(scopes.filter((m) => !m.available)).toHaveLength(25);
+        // 46 walkthroughs, three of them copies of a lesson shown once.
+        expect(scopes.filter((m) => m.available)).toHaveLength(43);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(23);
         expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
             SANDBOX_LESSONS.length,
         );

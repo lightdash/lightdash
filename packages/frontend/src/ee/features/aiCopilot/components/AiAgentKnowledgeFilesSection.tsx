@@ -448,6 +448,15 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             ? 'violet'
                                                             : 'gray'
                                                     }
+                                                    // Walkthrough: an agent's knowledge documents.
+                                                    // See scripts/scope-tours.
+                                                    data-tour-scope="manage:AiAgentDocument"
+                                                    data-tour-step="1"
+                                                    data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/edit"
+                                                    data-tour-label="Knowledge documents the agent can consult"
+                                                    data-tour-docs="agents/effective-analytics-with-agents.mdx#knowledge-documents:1"
+                                                    data-tour-return="none"
+                                                    data-tour-resultdocs="agents/effective-analytics-with-agents.mdx#always-include-in-context:p2:1"
                                                 >
                                                     {doc.alwaysIncludeInContext
                                                         ? 'Always included'
@@ -475,6 +484,13 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             )
                                                         }
                                                         w="100%"
+                                                        // Anchor for scope walkthroughs (data-tour-via), by name
+                                                        data-tour-anchor="knowledge-document"
+                                                        data-tour-hint="Choose a document"
+                                                        data-tour-hint-named="Choose {value}"
+                                                        data-tour-value={
+                                                            row.name
+                                                        }
                                                     >
                                                         <Group
                                                             gap="sm"
@@ -565,6 +581,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                                 selectedDocument,
                                                             )
                                                         }
+                                                        // Anchor for scope walkthroughs (data-tour-via)
+                                                        data-tour-anchor="knowledge-document-open"
+                                                        data-tour-hint="Open the document"
                                                     >
                                                         <MantineIcon
                                                             icon={IconEye}
@@ -603,6 +622,29 @@ export const AiAgentKnowledgeFilesSection = ({
                                         <Switch
                                             size="xs"
                                             label="Always include in context"
+                                            // Walkthrough: an agent's knowledge documents. The
+                                            // markers sit on the wrapper because Mantine hands
+                                            // other props to the hidden input. See scripts/scope-tours.
+                                            wrapperProps={{
+                                                'data-tour-scope':
+                                                    'manage:AiAgentDocument',
+                                                'data-tour-step': '2',
+                                                'data-tour-route':
+                                                    '/projects/:projectUuid/ai-agents/:agentUuid/edit',
+                                                'data-tour-label':
+                                                    'Turn on Always include in context',
+                                                'data-tour-title':
+                                                    'Always include a knowledge document in context',
+                                                'data-tour-interactive': 'true',
+                                                'data-tour-covers':
+                                                    'view:AiAgentDocument',
+                                                'data-tour-via':
+                                                    '[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"] >> [data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"] >> [data-tour-anchor="agent-settings"] >> [data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"] >> [data-tour-anchor="knowledge-document-open"] >> [data-tour-anchor="modal-close"]',
+                                                'data-tour-then':
+                                                    '[data-tour-anchor="modal-confirm"]',
+                                                'data-tour-docs':
+                                                    'agents/effective-analytics-with-agents.mdx#always-include-in-context:1',
+                                            }}
                                             description="Adds the full document to every session. Uses more tokens."
                                             checked={
                                                 selectedDocument.alwaysIncludeInContext
@@ -666,6 +708,13 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     className={
                                                         styles.summaryReveal
                                                     }
+                                                    // Walkthrough: a look at the summary once the
+                                                    // document is chosen. See scripts/scope-tours.
+                                                    data-tour-scope="manage:AiAgentDocument"
+                                                    data-tour-look="1"
+                                                    data-tour-after='[data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"]'
+                                                    data-tour-label="Read the summary the agent sees"
+                                                    data-tour-docs="agents/effective-analytics-with-agents.mdx#how-they-work:2-3"
                                                 >
                                                     {
                                                         selectedDocument!
