@@ -3,6 +3,7 @@ import {
     FieldType,
     FilterOperator,
     FilterType,
+    TimeFrames,
     UnitOfTime,
     type DateFilterRule,
     type FilterableDimension,
@@ -24,21 +25,27 @@ const dateDimension: FilterableDimension = {
     hidden: false,
 };
 
-const buildRule = (settings: DateFilterRule['settings']): DateFilterRule => ({
+const buildRule = (
+    settings: DateFilterRule['settings'],
+    operator: FilterOperator = FilterOperator.IN_THE_CURRENT,
+): DateFilterRule => ({
     id: 'rule-1',
     target: { fieldId: 'orders_order_date' },
-    operator: FilterOperator.IN_THE_CURRENT,
+    operator,
     values: [1],
     settings,
 });
 
-const renderInputs = (rule: DateFilterRule) => {
+const renderInputs = (
+    rule: DateFilterRule,
+    field: FilterableDimension = dateDimension,
+) => {
     const onChange = vi.fn<(rule: DateFilterRule) => void>();
     renderWithProviders(
         <FiltersProvider itemsMap={{}}>
             <DateFilterInputs
                 filterType={FilterType.DATE}
-                field={dateDimension}
+                field={field}
                 rule={rule}
                 onChange={onChange}
             />
@@ -216,6 +223,45 @@ describe('DateFilterInputs in the current period bounds', () => {
         );
 
         await selectUnit(user, 'year');
+
+        expect(lastSettings()).toStrictEqual({
+            unitOfTime: UnitOfTime.years,
+            completed: false,
+        });
+    });
+
+    it('shows a saved "to date" unit the field granularity would hide', () => {
+        renderInputs(
+            buildRule({ unitOfTime: UnitOfTime.months, toDate: true }),
+            { ...dateDimension, timeInterval: TimeFrames.YEAR },
+        );
+
+        expect(screen.getByRole('combobox')).toHaveValue('month to date');
+        expect(screen.getByLabelText('Include today')).toBeChecked();
+    });
+
+    it('treats toDate on a day unit as the whole day', () => {
+        renderInputs(buildRule({ unitOfTime: UnitOfTime.days, toDate: true }));
+
+        expect(screen.getByRole('combobox')).toHaveValue('day');
+        expect(screen.queryByLabelText('Include today')).toBeNull();
+    });
+
+    it('does not offer "to date" units or write bounds for "in the last"', async () => {
+        const user = userEvent.setup();
+        const { lastSettings } = renderInputs(
+            buildRule(
+                { unitOfTime: UnitOfTime.months, completed: false },
+                FilterOperator.IN_THE_PAST,
+            ),
+        );
+
+        const labels = await optionLabels(user);
+        expect(labels.some((label) => label?.includes('to date'))).toBe(false);
+
+        await user.click(
+            screen.getByRole('option', { name: 'years', hidden: true }),
+        );
 
         expect(lastSettings()).toStrictEqual({
             unitOfTime: UnitOfTime.years,

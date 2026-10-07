@@ -296,6 +296,91 @@ describe('compareMetricAndCustomMetric', () => {
         expect(result6.isExactMatch).toEqual(false);
         expect(result6.isSuggestedMatch).toEqual(false);
     });
+
+    test('should not match a month-to-date custom metric with a whole-month metric', async () => {
+        const result = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: {
+                            unitOfTime: UnitOfTime.months,
+                            toDate: true,
+                        },
+                    }),
+                ],
+            },
+            metric: {
+                ...metric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: { unitOfTime: UnitOfTime.months },
+                    }),
+                ],
+            },
+        });
+        expect(result.isExactMatch).toEqual(false);
+        expect(result.isSuggestedMatch).toEqual(false);
+
+        const excludingToday = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: {
+                            unitOfTime: UnitOfTime.months,
+                            toDate: true,
+                            excludeToday: true,
+                        },
+                    }),
+                ],
+            },
+            metric: {
+                ...metric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: {
+                            unitOfTime: UnitOfTime.months,
+                            toDate: true,
+                        },
+                    }),
+                ],
+            },
+        });
+        expect(excludingToday.isExactMatch).toEqual(false);
+
+        const same = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: {
+                            unitOfTime: UnitOfTime.months,
+                            toDate: true,
+                        },
+                    }),
+                ],
+            },
+            metric: {
+                ...metric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: {
+                            unitOfTime: UnitOfTime.months,
+                            toDate: true,
+                        },
+                    }),
+                ],
+            },
+        });
+        expect(same.isExactMatch).toEqual(true);
+    });
 });
 
 describe('getDimensionsWithValidParameters', () => {
