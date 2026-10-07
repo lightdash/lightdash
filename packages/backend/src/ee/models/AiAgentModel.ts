@@ -763,6 +763,7 @@ export class AiAgentModel {
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
+                providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
                 version: `${AiAgentTableName}.version`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
@@ -903,6 +904,7 @@ export class AiAgentModel {
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
+                providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
                 version: `${AiAgentTableName}.version`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
@@ -2230,6 +2232,7 @@ export class AiAgentModel {
             | 'enableSqlMode'
             | 'adminOnly'
             | 'modelConfig'
+            | 'providerCredentialUuid'
             | 'version'
             | 'mcpServerUuids'
             | 'threadRetentionHours'
@@ -2266,6 +2269,8 @@ export class AiAgentModel {
                     enable_sql_mode: args.enableSqlMode ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
+                    ai_organization_provider_credential_uuid:
+                        args.providerCredentialUuid ?? null,
                     version: args.version,
                     is_system: args.isSystem ?? false,
                     thread_retention_hours: args.threadRetentionHours ?? null,
@@ -2372,6 +2377,8 @@ export class AiAgentModel {
                 enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
+                providerCredentialUuid:
+                    agent.ai_organization_provider_credential_uuid,
                 version: agent.version,
                 threadRetentionHours: agent.thread_retention_hours,
             };
@@ -2447,6 +2454,22 @@ export class AiAgentModel {
         }
     }
 
+    /**
+     * The agent's credential pin alone — for prompt- or thread-scoped paths
+     * that have no agent row loaded. Null agent (agent-less thread) or no pin
+     * both mean "no explicit credential".
+     */
+    async findProviderCredentialUuid(
+        agentUuid: string | null,
+    ): Promise<string | null> {
+        if (!agentUuid) return null;
+        const row = await this.database(AiAgentTableName)
+            .select('ai_organization_provider_credential_uuid')
+            .where('ai_agent_uuid', agentUuid)
+            .first();
+        return row?.ai_organization_provider_credential_uuid ?? null;
+    }
+
     async updateAgent(
         args: Omit<ApiUpdateAiAgent, 'uuid'> & {
             agentUuid: string;
@@ -2499,6 +2522,12 @@ export class AiAgentModel {
                         : {}),
                     ...(args.modelConfig !== undefined
                         ? { model_config: args.modelConfig }
+                        : {}),
+                    ...(args.providerCredentialUuid !== undefined
+                        ? {
+                              ai_organization_provider_credential_uuid:
+                                  args.providerCredentialUuid,
+                          }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -2674,6 +2703,8 @@ export class AiAgentModel {
                 enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
+                providerCredentialUuid:
+                    agent.ai_organization_provider_credential_uuid,
                 version: agent.version,
                 threadRetentionHours: agent.thread_retention_hours,
             };

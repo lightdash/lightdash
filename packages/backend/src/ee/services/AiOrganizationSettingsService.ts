@@ -1295,4 +1295,47 @@ export class AiOrganizationSettingsService extends BaseService {
             credentialUuid,
         );
     }
+
+    /**
+     * Validates an agent's credential pin at write time: the credential must
+     * belong to the organization and be readable, and a model the agent also
+     * pins must be one the credential can serve. Refused here rather than at
+     * the agent's first prompt, which would otherwise fail with no obvious
+     * cause. Callers hold manage rights on the agent, which is the same gate
+     * as reading the credential list.
+     */
+    async validateAgentProviderCredential(
+        organizationUuid: string,
+        credentialUuid: string,
+        modelConfig: AiAgentModelConfig | null,
+    ): Promise<void> {
+        const resolution =
+            await this.aiOrganizationProviderCredentialModel.findDecrypted(
+                organizationUuid,
+                credentialUuid,
+            );
+        if (resolution.status === 'none') {
+            throw new ParameterError('AI provider credential not found');
+        }
+        if (resolution.status === 'unreadable') {
+            throw new ParameterError(
+                'That credential cannot be read with the current encryption secret. Replace its API key before pinning an agent to it.',
+            );
+        }
+        if (!modelConfig) return;
+        const { credential } = resolution;
+        if (modelConfig.modelProvider !== credential.provider) {
+            throw new ParameterError(
+                `The agent's model runs on ${modelConfig.modelProvider}, but "${credential.label}" is a ${credential.provider} credential. Pick a ${credential.provider} model or clear the credential pin.`,
+            );
+        }
+        if (
+            credential.config.allowedModels.length > 0 &&
+            !credential.config.allowedModels.includes(modelConfig.modelName)
+        ) {
+            throw new ParameterError(
+                `The model "${modelConfig.modelName}" is not in the allowed models of the credential "${credential.label}".`,
+            );
+        }
+    }
 }

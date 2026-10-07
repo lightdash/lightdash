@@ -4744,6 +4744,7 @@ export class AppGenerateService extends BaseService {
         const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
             organizationUuid,
             projectUuid,
+            credentialUuid: null,
         });
         let modelOptions;
         try {
@@ -6985,6 +6986,7 @@ export class AppGenerateService extends BaseService {
         const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
             organizationUuid,
             projectUuid,
+            credentialUuid: null,
         });
 
         let modelOptions;

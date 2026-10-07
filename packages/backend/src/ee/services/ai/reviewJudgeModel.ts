@@ -30,6 +30,7 @@ export const resolveReviewJudgeModel = async ({
         ? await orgAiCopilotConfigResolver.getCopilotConfig({
               organizationUuid,
               projectUuid: null,
+              credentialUuid: null,
           })
         : instanceCopilotConfig;
     const model = getModel(copilotConfig, {

@@ -193,6 +193,14 @@ export const overlayOrgProviderApiKeys = (
 export type AiConfigScope = {
     organizationUuid: string | null | undefined;
     projectUuid: string | null;
+    /**
+     * Explicit credential pin (an agent-level selection), winning over the
+     * project and organization-default selection. Required for the same
+     * reason as `projectUuid`: an agent-scoped caller must state its pin — or
+     * state that it has none — so a forgotten pin is a compile error, not a
+     * silent resolve to another region's credential.
+     */
+    credentialUuid: string | null;
 };
 
 type Dependencies = {
@@ -241,9 +249,17 @@ export class OrgAiCopilotConfigResolver {
         // type-checks silently.
         {
             projectUuid,
+            credentialUuid = null,
             onUnreadable = 'fail-closed',
         }: {
             projectUuid: string | null;
+            /**
+             * Explicit credential pin; wins over the project and default
+             * selection. Optional here only because the resolver's own
+             * non-agent methods never carry one — the public `AiConfigScope`
+             * keeps it required.
+             */
+            credentialUuid?: string | null;
             /**
              * `fail-closed` throws when the selected credential cannot be read
              * — correct for anything that will serve a prompt.
@@ -257,19 +273,42 @@ export class OrgAiCopilotConfigResolver {
             onUnreadable?: 'fail-closed' | 'tolerate-unreadable';
         },
     ): Promise<AiOrgProviderApiKeys | null> {
+        const resolveSelected = () => {
+            if (credentialUuid) {
+                return this.aiOrganizationProviderCredentialModel.findDecrypted(
+                    organizationUuid,
+                    credentialUuid,
+                );
+            }
+            if (projectUuid) {
+                return this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
+                    organizationUuid,
+                    projectUuid,
+                );
+            }
+            return this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                organizationUuid,
+            );
+        };
         const [legacyKeys, resolution] = await Promise.all([
             this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             ),
-            projectUuid
-                ? this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
-                      organizationUuid,
-                      projectUuid,
-                  )
-                : this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
-                      organizationUuid,
-                  ),
+            resolveSelected(),
         ]);
+
+        if (credentialUuid && resolution.status === 'none') {
+            // An explicitly pinned credential that resolves to nothing is an
+            // org mismatch or a lost row — the FK stops ordinary deletion.
+            // Falling through would select a different region than the one
+            // deliberately pinned, so only admin display paths may tolerate it.
+            if (onUnreadable === 'fail-closed') {
+                throw new MissingConfigError(
+                    'The AI provider credential pinned to this agent no longer exists. Repoint the agent in its settings; AI features are unavailable until then.',
+                );
+            }
+            return legacyKeys;
+        }
 
         if (resolution.status === 'unreadable') {
             if (onUnreadable === 'fail-closed') {
@@ -289,12 +328,14 @@ export class OrgAiCopilotConfigResolver {
     async getCopilotConfig({
         organizationUuid,
         projectUuid,
+        credentialUuid,
     }: AiConfigScope): Promise<ResolvedCopilotConfig> {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
             projectUuid,
+            credentialUuid,
         });
         if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);

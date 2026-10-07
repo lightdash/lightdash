@@ -21,6 +21,11 @@ export type DbAiAgent = {
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
     /**
+     * AI provider credential this agent's prompts run on. Null resolves the
+     * project pin, then the organization default. FK with ON DELETE RESTRICT.
+     */
+    ai_organization_provider_credential_uuid: string | null;
+    /**
      * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
      * `agent-reasoning` was never enabled so this column was effectively
      * unused. Reasoning is now controlled per-prompt via `ai_prompt.model_config.reasoning`.

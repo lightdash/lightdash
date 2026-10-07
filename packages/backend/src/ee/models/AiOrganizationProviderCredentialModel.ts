@@ -19,6 +19,7 @@ import {
     ProjectAiSettingsTable,
     ProjectAiSettingsTableName,
 } from '../database/entities/ai';
+import { AiAgentTableName } from '../database/entities/aiAgent';
 import { buildProviderApiKeyHint } from './AiOrganizationSettingsModel';
 
 type Dependencies = {
@@ -308,6 +309,17 @@ export class AiOrganizationProviderCredentialModel {
         return rows.map((row) => row.project_uuid);
     }
 
+    async findAgentNamesUsingCredential(
+        credentialUuid: string,
+        database: Knex = this.database,
+    ): Promise<string[]> {
+        const rows = await database(AiAgentTableName)
+            .select('name')
+            .where('ai_organization_provider_credential_uuid', credentialUuid)
+            .orderBy('name', 'asc');
+        return rows.map((row) => row.name);
+    }
+
     async countByOrganizationUuid(
         organizationUuid: string,
         database: Knex = this.database,
@@ -475,6 +487,20 @@ export class AiOrganizationProviderCredentialModel {
             if (pinnedProjects.length > 0) {
                 throw new ParameterError(
                     `This credential is still used by ${pinnedProjects.length} project(s). Point them at another credential before deleting it.`,
+                );
+            }
+            const pinnedAgents = await this.findAgentNamesUsingCredential(
+                credentialUuid,
+                trx,
+            );
+            if (pinnedAgents.length > 0) {
+                const named = pinnedAgents.slice(0, 5).join(', ');
+                const overflow =
+                    pinnedAgents.length > 5
+                        ? ` and ${pinnedAgents.length - 5} more`
+                        : '';
+                throw new ParameterError(
+                    `This credential is still pinned to the agent(s) ${named}${overflow}. Point them at another credential before deleting it.`,
                 );
             }
 

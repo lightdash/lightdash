@@ -822,6 +822,7 @@ export class AiDeepResearchService extends BaseService {
         // Checked once here; the run's later steps are never interrupted.
         await this.aiAgentService.assertAgentCreditsAvailable(args.user, {
             projectUuid: args.projectUuid,
+            agentUuid: args.agentUuid,
             modelConfig: null,
             aiCreditCheck: { isEmbedViewer: false },
         });

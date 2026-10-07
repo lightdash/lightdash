@@ -249,7 +249,10 @@ type Dependencies = {
         | 'upsertMemoryReviewItem'
         | 'upsertMemoryReviewItemInTransaction'
     >;
-    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
+    aiAgentModel: Pick<
+        AiAgentModel,
+        'getAgent' | 'findThreadOwnership' | 'findProviderCredentialUuid'
+    >;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
     projectModel: Pick<
         ProjectModel,
@@ -1707,6 +1710,9 @@ export class AiAgentMemoryService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: args.partition.organizationUuid,
                 projectUuid: args.partition.projectUuid,
+                // A consolidation partition spans an owner's memories across
+                // agents, so the project selection applies.
+                credentialUuid: null,
             });
         // Rare and consequential where distillation is frequent and cheap: the
         // org's default model, reasoning on, with a two-call ceiling.
@@ -2027,6 +2033,12 @@ export class AiAgentMemoryService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: args.thread.organizationUuid,
                 projectUuid: args.thread.projectUuid,
+                // Distillation re-reads the agent's own transcript, so it must
+                // stay on that agent's pinned credential.
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        args.thread.agentUuid,
+                    ),
             });
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;

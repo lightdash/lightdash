@@ -145,6 +145,7 @@ export class AiService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: user.organizationUuid ?? null,
                     projectUuid: null,
+                    credentialUuid: null,
                 });
             // Configuration only: cached review submissions must not contact providers.
             if (config.providers.anthropic?.apiKey) return true;
@@ -232,6 +233,7 @@ export class AiService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: null,
+                credentialUuid: null,
             });
         return resolveKeyManagement(
             copilotConfig,
@@ -274,6 +276,8 @@ export class AiService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid: telemetry?.projectUuid ?? null,
+                // Ambient calls have no agent; the project selection applies.
+                credentialUuid: null,
             });
 
         const anthropicConfig = copilotConfig.providers.anthropic;

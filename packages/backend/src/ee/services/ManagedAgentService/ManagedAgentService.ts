@@ -437,6 +437,7 @@ export class ManagedAgentService extends BaseService {
                     this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid,
                         projectUuid,
+                        credentialUuid: null,
                     }),
                     this.aiOrganizationSettingsService.getDefaultModelConfig(
                         organizationUuid,

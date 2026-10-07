@@ -135,6 +135,7 @@ import {
     LightdashUser,
     MetricSourcedMergeQuery,
     MetricType,
+    MissingConfigError,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -2926,6 +2927,7 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid,
                     projectUuid,
+                    credentialUuid: agent.providerCredentialUuid,
                 });
             const modelOptions =
                 await this.orgAiCopilotConfigResolver.resolveFastModel(
@@ -3683,6 +3685,7 @@ export class AiAgentService extends BaseService {
             this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
+                credentialUuid: agent.providerCredentialUuid,
             }),
             this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                 organizationUuid,
@@ -4986,6 +4989,14 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (body.providerCredentialUuid) {
+            await this.aiOrganizationSettingsService.validateAgentProviderCredential(
+                organizationUuid,
+                body.providerCredentialUuid,
+                body.modelConfig ?? null,
+            );
+        }
+
         const agent = await this.aiAgentModel.createAgent({
             name: body.name,
             description: body.description,
@@ -5009,6 +5020,7 @@ export class AiAgentService extends BaseService {
             enableSqlMode: body.enableSqlMode ?? true,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
+            providerCredentialUuid: body.providerCredentialUuid ?? null,
             version: body.version,
             threadRetentionHours: body.threadRetentionHours ?? null,
         });
@@ -6734,6 +6746,22 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        // Validate the pair the agent will hold after this update, so both
+        // "pin a credential" and "change the model while pinned" are checked.
+        const nextProviderCredentialUuid =
+            body.providerCredentialUuid !== undefined
+                ? body.providerCredentialUuid
+                : agent.providerCredentialUuid;
+        if (nextProviderCredentialUuid) {
+            await this.aiOrganizationSettingsService.validateAgentProviderCredential(
+                organizationUuid,
+                nextProviderCredentialUuid,
+                (body.modelConfig !== undefined
+                    ? body.modelConfig
+                    : agent.modelConfig) ?? null,
+            );
+        }
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -6760,6 +6788,7 @@ export class AiAgentService extends BaseService {
             enableSqlMode: body.enableSqlMode,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
+            providerCredentialUuid: body.providerCredentialUuid,
             version: body.version,
             threadRetentionHours: body.threadRetentionHours,
         });
@@ -7081,6 +7110,10 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid: prompt.projectUuid,
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        prompt.agentUuid,
+                    ),
             });
         const latestCompaction =
             await this.aiAgentModel.findLatestThreadCompaction(threadUuid);
@@ -7382,6 +7415,7 @@ export class AiAgentService extends BaseService {
         if (aiCreditCheck !== null) {
             await this.assertAgentCreditsAvailable(user, {
                 projectUuid: prompt.projectUuid,
+                agentUuid: prompt.agentUuid,
                 modelConfig: prompt.modelConfig ?? null,
                 aiCreditCheck,
             });
@@ -8410,10 +8444,12 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         {
             projectUuid,
+            agentUuid,
             modelConfig,
             aiCreditCheck,
         }: {
             projectUuid: string | null;
+            agentUuid: string | null;
             modelConfig: AiAgentModelConfig | null;
             aiCreditCheck: AiCreditCheck;
         },
@@ -8425,6 +8461,10 @@ export class AiAgentService extends BaseService {
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid: user.organizationUuid ?? null,
                         projectUuid,
+                        credentialUuid:
+                            await this.aiAgentModel.findProviderCredentialUuid(
+                                agentUuid,
+                            ),
                     });
                 return getModel(copilotConfig, {
                     enableReasoning: modelConfig?.reasoning,
@@ -8569,6 +8609,10 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid,
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        agentUuid,
+                    ),
             });
         const configuredProviders = Object.keys(
             copilotConfig.providers,
@@ -8675,6 +8719,7 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: user.organizationUuid ?? null,
                     projectUuid: agent.projectUuid,
+                    credentialUuid: agent.providerCredentialUuid,
                 });
             const modelOptions = {
                 ...(await this.orgAiCopilotConfigResolver.resolveFastModel(
@@ -8747,6 +8792,7 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid: agent.projectUuid,
+                credentialUuid: agent.providerCredentialUuid,
             });
         const { model } = getModel(copilotConfig, {
             enableReasoning: false,
@@ -9756,6 +9802,8 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: payload.organizationUuid,
                     projectUuid: payload.projectUuid,
+                    // Artifact questions carry no agent context.
+                    credentialUuid: null,
                 });
             const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
@@ -13261,6 +13309,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: user.organizationUuid ?? null,
                     projectUuid: prompt.projectUuid,
+                    credentialUuid:
+                        await this.aiAgentModel.findProviderCredentialUuid(
+                            prompt.agentUuid,
+                        ),
                 });
             const generated = await generateChartMetadata(
                 {
@@ -14142,6 +14194,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (options.aiCreditCheck !== null) {
             await this.assertAgentCreditsAvailable(user, {
                 projectUuid: prompt.projectUuid,
+                agentUuid: prompt.agentUuid,
                 modelConfig: prompt.modelConfig ?? null,
                 aiCreditCheck: options.aiCreditCheck,
             });
@@ -14906,7 +14959,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: promptProject.organizationUuid,
                 projectUuid: prompt.projectUuid,
+                credentialUuid: agentSettings.providerCredentialUuid,
             });
+        // A pinned agent whose effective model runs on another provider would
+        // make the pin inert and send the prompt outside the pinned region.
+        // Save-time validation catches the direct cases; this guards drift
+        // (e.g. the org default model changing after the pin was saved).
+        const effectiveProvider =
+            prompt.modelConfig?.modelProvider ?? copilotConfig.defaultProvider;
+        if (
+            agentSettings.providerCredentialUuid &&
+            effectiveProvider !== 'bedrock'
+        ) {
+            throw new MissingConfigError(
+                `This agent is pinned to a Bedrock credential, but its model would run on ${effectiveProvider}. Pick a Bedrock model for the agent or clear its credential pin.`,
+            );
+        }
         let modelProperties = getModel(copilotConfig, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
@@ -18680,6 +18748,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid,
                         projectUuid: null,
+                        // Routing picks a project before any project or agent
+                        // scope exists, so it runs on the org default.
+                        credentialUuid: null,
                     });
                 const { model, keyManagement } = getModel(copilotConfig);
                 const routedProjectUuid = await routeProjectForSlack(
@@ -18803,6 +18874,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: null,
+                // Agent selection runs before an agent exists; once a
+                // channel-bound agent answers, its own pin applies.
+                credentialUuid: null,
             });
         const { model, keyManagement } = getModel(copilotConfig);
 
