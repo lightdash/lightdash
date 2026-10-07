@@ -1,7 +1,9 @@
 import {
     BYO_AI_PROVIDERS,
+    FeatureFlags,
     MissingConfigError,
     type AiOrgModelVisibility,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
     type DataAppModelVisibility,
 } from '@lightdash/common';
@@ -10,6 +12,7 @@ import {
     DEFAULT_BEDROCK_EMBEDDING_MODEL,
 } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import { AiOrganizationProviderCredentialModel } from '../../models/AiOrganizationProviderCredentialModel';
 import {
@@ -45,15 +48,43 @@ export type ReviewJudgeAvailability = {
     byoJudgeProvider: 'anthropic' | 'bedrock' | null;
 };
 
+// No conflict once the org supplies its own base URL: it replaces the instance gateway.
 const hasAnthropicByoGatewayConflict = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
-): boolean => Boolean(orgKeys.anthropic && config.providers.anthropic?.baseUrl);
+): boolean =>
+    Boolean(
+        orgKeys.anthropic &&
+        config.providers.anthropic?.baseUrl &&
+        !orgKeys.providerBaseUrls?.anthropic,
+    );
 
 const hasGoogleByoGatewayConflict = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
-): boolean => Boolean(orgKeys.google && config.providers.google?.baseUrl);
+): boolean =>
+    Boolean(
+        orgKeys.google &&
+        config.providers.google?.baseUrl &&
+        !orgKeys.providerBaseUrls?.google,
+    );
+
+// An org base URL replaces the instance endpoint AND its custom headers:
+// those headers are the instance gateway's credential and must not leak.
+const orgBaseUrlOverride = (
+    orgKeys: AiOrgProviderApiKeys,
+    provider: ByoAiApiKeyProvider,
+): { baseUrl: string; customHeaders: Record<string, string> } | undefined => {
+    const baseUrl = orgKeys.providerBaseUrls?.[provider];
+    return baseUrl ? { baseUrl, customHeaders: {} } : undefined;
+};
+
+const orgCatalogOptions = (
+    orgKeys: AiOrgProviderApiKeys,
+    provider: ByoAiApiKeyProvider,
+): { baseUrl?: string } => ({
+    baseUrl: orgKeys.providerBaseUrls?.[provider],
+});
 
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
@@ -62,9 +93,10 @@ const hasGoogleByoGatewayConflict = (
  * (the write path rejects them), so BYO can only swap the key of a provider
  * this instance already runs. Two exceptions: custom provider endpoints, whose
  * instance credential may authenticate an arbitrary gateway, so an org key is
- * rejected rather than sent to that endpoint; and Bedrock, which carries its
- * own region, so it is constructed rather than overlaid and replaces the
- * provider set outright.
+ * rejected rather than sent to that endpoint unless the org brings its own
+ * base URL, which replaces the endpoint and its headers; and Bedrock, which
+ * carries its own region, so it is constructed rather than overlaid and
+ * replaces the provider set outright.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
@@ -137,6 +169,7 @@ export const overlayOrgProviderApiKeys = (
         providers.anthropic = {
             ...providers.anthropic,
             apiKey: orgKeys.anthropic,
+            ...orgBaseUrlOverride(orgKeys, 'anthropic'),
         };
     }
 
@@ -149,6 +182,8 @@ export const overlayOrgProviderApiKeys = (
         providers.google = {
             ...providers.google,
             apiKey: orgKeys.google,
+            baseUrl:
+                orgKeys.providerBaseUrls?.google ?? providers.google.baseUrl,
         };
     }
 
@@ -156,6 +191,7 @@ export const overlayOrgProviderApiKeys = (
         providers.openai = {
             ...providers.openai,
             apiKey: orgKeys.openai,
+            ...orgBaseUrlOverride(orgKeys, 'openai'),
         };
     }
 
@@ -197,6 +233,7 @@ export type AiConfigScope = {
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     aiModelCatalog: AiModelCatalog;
@@ -204,6 +241,8 @@ type Dependencies = {
 
 export class OrgAiCopilotConfigResolver {
     private lightdashConfig: LightdashConfig;
+
+    private featureFlagModel: FeatureFlagModel;
 
     private aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
@@ -213,6 +252,7 @@ export class OrgAiCopilotConfigResolver {
 
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.aiOrganizationProviderCredentialModel =
@@ -279,11 +319,28 @@ export class OrgAiCopilotConfigResolver {
             }
             return legacyKeys;
         }
-        if (resolution.status === 'none') return legacyKeys;
-        return {
-            ...(legacyKeys ?? {}),
-            bedrock: resolution.credential.config,
-        };
+        const keys =
+            resolution.status === 'none'
+                ? legacyKeys
+                : {
+                      ...(legacyKeys ?? {}),
+                      bedrock: resolution.credential.config,
+                  };
+        return this.withCustomProvidersIfEnabled(organizationUuid, keys);
+    }
+
+    // Stored org provider config (keys, base URLs) only takes effect while
+    // the org flag is on, so it can be enabled per organization from Console.
+    private async withCustomProvidersIfEnabled(
+        organizationUuid: string,
+        keys: AiOrgProviderApiKeys | null,
+    ): Promise<AiOrgProviderApiKeys | null> {
+        if (!keys) return null;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.OrgAiCustomProviders,
+        });
+        return enabled ? keys : null;
     }
 
     async getCopilotConfig({
@@ -419,6 +476,7 @@ export class OrgAiCopilotConfigResolver {
                       : await this.aiModelCatalog.getAccessibleModelIds(
                             'anthropic',
                             orgKeys.anthropic,
+                            orgCatalogOptions(orgKeys, 'anthropic'),
                         ),
               }
             : null;
@@ -600,6 +658,7 @@ export class OrgAiCopilotConfigResolver {
         const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
             'anthropic',
             orgKeys.anthropic,
+            orgCatalogOptions(orgKeys, 'anthropic'),
         );
         const canJudgeOnByoKey = modelIds
             ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)

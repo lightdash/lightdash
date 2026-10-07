@@ -307,6 +307,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -468,6 +469,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -595,6 +597,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiCreditService<AiCreditService>(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -660,6 +663,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ), // TODO This should go in client repository as soon as it is available
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -790,6 +794,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiOrganizationSettingsService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -883,6 +888,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -900,6 +906,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -936,6 +943,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiOrganizationSettingsModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -962,6 +970,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
+                    featureFlagModel: models.getFeatureFlagModel(),
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
                     aiOrganizationProviderCredentialModel:
@@ -973,6 +982,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -1073,6 +1083,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         }),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:
@@ -1557,6 +1568,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         aiOrganizationProviderCredentialModel:

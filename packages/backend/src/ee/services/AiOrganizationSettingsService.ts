@@ -22,6 +22,7 @@ import {
     type AiModelOption,
     type AiOrgModelVisibility,
     type AiProviderCredentialsList,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
@@ -30,6 +31,7 @@ import {
     type UpdateAiProviderCredential,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
@@ -102,6 +104,20 @@ export const pickReplacementDefaultModelConfig = (
         reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
     };
 };
+
+/**
+ * Clearing an org base URL while the instance runs its own gateway would make
+ * every turn fail the gateway-conflict check, so reject it at write time.
+ */
+export const findBaseUrlRemovalsBlockedByInstanceGateway = (
+    providerApiKeys: UpdateAiProviderApiKeys,
+    configuredProviders: LightdashConfig['ai']['copilot']['providers'],
+): ByoAiApiKeyProvider[] =>
+    (['anthropic', 'google'] as const).filter(
+        (provider) =>
+            providerApiKeys.providerBaseUrls?.[provider] === null &&
+            Boolean(configuredProviders[provider]?.baseUrl),
+    );
 
 /**
  * Providers being SET to a key that this instance does not configure. BYO can
@@ -200,6 +216,7 @@ type AiOrganizationSettingsServiceDependencies = {
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    featureFlagModel: FeatureFlagModel;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -214,6 +231,8 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
+
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -232,6 +251,7 @@ export class AiOrganizationSettingsService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -470,6 +490,11 @@ export class AiOrganizationSettingsService extends BaseService {
                     bedrock: null,
                 },
                 bedrockConfig: null,
+                providerBaseUrls: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
@@ -735,9 +760,30 @@ export class AiOrganizationSettingsService extends BaseService {
                     'AI copilot is not enabled for this organization',
                 );
             }
+            const { enabled: customProvidersEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.OrgAiCustomProviders,
+                });
+            if (!customProvidersEnabled) {
+                throw new ForbiddenError(
+                    'Custom AI providers are not enabled for this organization',
+                );
+            }
         }
 
         if (aiSettingsUpdate.providerApiKeys !== undefined) {
+            const blockedRemovals = findBaseUrlRemovalsBlockedByInstanceGateway(
+                aiSettingsUpdate.providerApiKeys,
+                this.lightdashConfig.ai.copilot.providers,
+            );
+            if (blockedRemovals.length > 0) {
+                throw new ParameterError(
+                    `This instance routes ${blockedRemovals.join(
+                        ', ',
+                    )} through its own gateway, so an organization key needs a custom base URL. Remove the key instead.`,
+                );
+            }
             const unconfigured = findUnconfiguredProviderKeyWrites(
                 aiSettingsUpdate.providerApiKeys,
                 this.lightdashConfig.ai.copilot.providers,

@@ -6,6 +6,7 @@ import {
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationProviderCredentialModel,
@@ -181,6 +182,17 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('routes the org key through the org gateway URL', () => {
+        const result = overlayOrgProviderApiKeys(baseConfig, {
+            openai: 'org-openai-key',
+            providerBaseUrls: { openai: 'https://litellm.example.com' },
+        });
+        expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        expect(result.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
+    });
+
     it('overlays a Google key without changing the configured Gemini model', () => {
         const result = overlayOrgProviderApiKeys(allByoProvidersConfig, {
             google: 'org-google-key',
@@ -198,6 +210,41 @@ describe('overlayOrgProviderApiKeys', () => {
                 anthropic: 'org-anthropic-key',
             }),
         ).toThrow('Organization Anthropic API keys cannot be used');
+    });
+
+    it('replaces the instance Anthropic gateway with an org gateway instead of rejecting the key', () => {
+        const result = overlayOrgProviderApiKeys(anthropicGatewayConfig, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.apiKey).toBe('org-anthropic-key');
+        expect(result.providers.anthropic?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
+    });
+
+    it('does not send the instance gateway headers to the org gateway', () => {
+        const withHeaders: CopilotConfig = aiCopilotConfigSchema.parse({
+            ...anthropicGatewayConfig,
+            providers: {
+                ...anthropicGatewayConfig.providers,
+                anthropic: {
+                    ...anthropicGatewayConfig.providers.anthropic,
+                    customHeaders: { 'x-gateway-token': 'instance-secret' },
+                },
+            },
+        });
+        const result = overlayOrgProviderApiKeys(withHeaders, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.customHeaders).toEqual({});
+        // Without an org URL the instance headers still apply to the org key.
+        expect(
+            overlayOrgProviderApiKeys(baseConfig, {
+                openai: 'org-openai-key',
+            }).providers.openai?.customHeaders,
+        ).toEqual(baseConfig.providers.openai?.customHeaders);
     });
 
     it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {
@@ -344,6 +391,7 @@ const resolutionFor = (
 
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
+        customProvidersEnabled?: boolean;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -365,11 +413,17 @@ describe('OrgAiCopilotConfigResolver', () => {
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
+        customProvidersEnabled = true,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
                 ai: { copilot: instanceConfig },
             } as LightdashConfig,
+            featureFlagModel: {
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ enabled: customProvidersEnabled }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
                     .fn()
@@ -415,6 +469,35 @@ describe('OrgAiCopilotConfigResolver', () => {
             projectUuid: null,
         });
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    it('ignores stored org provider config while the org flag is off', async () => {
+        const orgKeys = {
+            openai: 'org-openai-key',
+            providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
+        };
+        const on = await makeResolver({ orgKeys }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+        });
+        expect(on.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com/v1',
+        );
+
+        // Off: every piece of org provider config is ignored, keys included,
+        // so the org resolves to the instance providers.
+        const off = await makeResolver({
+            orgKeys,
+            customProvidersEnabled: false,
+        }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+        });
+        expect(off.providers.openai?.apiKey).toBe('instance-openai-key');
+        expect(off.providers.openai?.baseUrl).toBe(
+            baseConfig.providers.openai?.baseUrl,
+        );
+        expect(off.byoProviders).toEqual([]);
     });
 
     describe('named provider credentials', () => {

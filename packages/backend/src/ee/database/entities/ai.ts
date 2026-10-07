@@ -10,6 +10,7 @@ import {
     type AiPromptThreadFileSnapshot,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
+    type AiProviderBaseUrls,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -639,6 +640,8 @@ export type DbAiOrganizationSettings = {
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: Partial<AiProviderApiKeyHints> | null;
+    // Gateway base URL per key provider; not secret, so stored beside the blob.
+    provider_base_urls: Partial<AiProviderBaseUrls> | null;
     thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
@@ -665,6 +668,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'provider_base_urls'
                 | 'thread_retention_hours'
             >
         >,
@@ -687,6 +691,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'data_app_model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
+            | 'provider_base_urls'
             | 'thread_retention_hours'
         >
     >
