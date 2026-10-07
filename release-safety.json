@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.466.0",
-  "previousVersion": "2.465.0",
-  "releaseDate": "2026-10-07T19:04:34.467Z",
+  "version": "2.467.0",
+  "previousVersion": "2.466.0",
+  "releaseDate": "2026-10-07T19:11:13.963Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261004120000_add_organization_to_ssh_key_pairs.ts",
-        "edition": "core",
-        "tables": [
-          "ssh_key_pairs"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

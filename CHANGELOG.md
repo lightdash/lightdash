@@ -1,3 +1,10 @@
+# [2.467.0](https://github.com/lightdash/lightdash/compare/2.466.0...2.467.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** the sandbox terminal accepts chart and dashboard slugs (CS-283) ([#30454](https://github.com/lightdash/lightdash/issues/30454)) ([c567db1](https://github.com/lightdash/lightdash/commit/c567db12c9de26e0ae113a9ff95e14e9267b3751))
+
 # [2.466.0](https://github.com/lightdash/lightdash/compare/2.465.0...2.466.0) (2026-10-07)
 
 
