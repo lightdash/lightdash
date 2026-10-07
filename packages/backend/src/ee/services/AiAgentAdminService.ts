@@ -2514,6 +2514,7 @@ export class AiAgentAdminService extends BaseService {
                 prompt: {
                     createdByUserUuid: user.userUuid,
                     prompt: workThreadPrompt,
+                    modelConfig: null,
                     // The finding and proposed change ride as pins (cards +
                     // structured agent context). The PR/preview pins are added
                     // once those exist — they post-date this seed.
@@ -3466,6 +3467,7 @@ export class AiAgentAdminService extends BaseService {
                         prompt: AiAgentAdminService.buildReviewVerificationPrompt(
                             remediation.linkedPrUrl,
                         ),
+                        modelConfig: null,
                         context: [
                             ...(remediation.sourceThreadUuid &&
                             remediation.sourcePromptUuid
@@ -3497,6 +3499,7 @@ export class AiAgentAdminService extends BaseService {
                     prompt: {
                         createdByUserUuid: userUuid,
                         prompt: remediation.retryPrompt,
+                        modelConfig: null,
                     },
                 }));
         }
