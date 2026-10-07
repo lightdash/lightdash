@@ -234,7 +234,10 @@ describe('DataAppAnalysisService.detect', () => {
     it('refuses saved rows on an enabled AI principal policy before reading them', async () => {
         const { service, aiAccessService, asyncQueryService, aiService } =
             buildService();
-        aiAccessService.getAiAccessForUser.mockResolvedValue({ enabled: true });
+        aiAccessService.getAiAccessForUser.mockResolvedValue({
+            enabled: true,
+            identity: 'principal',
+        });
         asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
             context: QueryExecutionContext.EXPLORE,
             warehouseConnectionUuid: 'connection',

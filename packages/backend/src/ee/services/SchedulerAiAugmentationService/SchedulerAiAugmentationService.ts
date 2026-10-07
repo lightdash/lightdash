@@ -246,7 +246,9 @@ export class SchedulerAiAugmentationService extends BaseService {
                 this.getQueryAiAccess(account, projectUuid, connection),
             ),
         );
-        const blocked = access.find((result) => result.enabled);
+        const blocked = access.find(
+            (result) => result.identity === 'principal',
+        );
         if (blocked) {
             this.logger.info(
                 'Skipping delivery AI augmentation because AI access runs as a separate principal',

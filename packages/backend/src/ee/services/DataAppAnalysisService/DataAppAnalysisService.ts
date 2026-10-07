@@ -569,7 +569,7 @@ export class DataAppAnalysisService extends BaseService {
                     projectUuid,
                     history.warehouseConnectionUuid ?? null,
                 );
-                if (access.enabled) {
+                if (access.identity === 'principal') {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.NO_POLICY,
                         {

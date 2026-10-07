@@ -12,7 +12,10 @@ type Dependencies = ConstructorParameters<
 
 const setup = (enabled: boolean) => {
     const aiAccessService = {
-        getAiAccessForUser: vi.fn().mockResolvedValue({ enabled }),
+        getAiAccessForUser: vi.fn().mockResolvedValue({
+            enabled,
+            identity: enabled ? 'principal' : null,
+        }),
     };
     const asyncQueryService = {
         executeSavedChartQueryAndGetResults: vi
