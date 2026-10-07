@@ -97,7 +97,10 @@ export const FieldPicker: FC<Props> = ({
         [parameterRows],
     );
     const counts = countPickableByKind(pickableFields, pickableParameters);
-    const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
+    // A kind with nothing to pick has no tile
+    const kinds = (lockedKind ? [lockedKind] : FIELD_KINDS).filter(
+        (item) => counts[item] > 0,
+    );
     const listsParameters = onPickParameter !== undefined;
     const searchLabel = listsParameters
         ? 'Search fields and parameters'
@@ -121,9 +124,6 @@ export const FieldPicker: FC<Props> = ({
                                 >
                                     <MantineIcon icon={meta.icon} />
                                     <Text fz="sm">{meta.label}</Text>
-                                    <Text fz="xs" c="dimmed">
-                                        {counts[item]}
-                                    </Text>
                                 </UnstyledButton>
                             );
                         })}
