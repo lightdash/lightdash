@@ -53,9 +53,61 @@ export type ContentAsCodeLesson = {
     resultDocs: DocsCitation;
 };
 
+const PAGE = 'workflow/content-as-code.mdx';
+const DOWNLOAD = 'lightdash download --charts revenue-by-payment-method';
+
 // Read by the walkthrough generator and checker (scripts/scope-tours).
 // ts-unused-exports:disable-next-line
-export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [];
+export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [
+    {
+        scope: 'view:ContentAsCode',
+        title: 'Download a chart as code',
+        chart: 'revenue-by-payment-method',
+        intro: `${PAGE}#disposable-editing-recommended:1`,
+        download: {
+            command: DOWNLOAD,
+            docs: [
+                `${PAGE}#lightdash-download:1`,
+                // The heading's slug keeps the flags' hyphens; sections split
+                // at every heading level, so this H5 owns the sentence.
+                `${PAGE}#use-lightdash-download--c-or-lightdash-download---charts-to-select-specific-charts:1`,
+            ],
+            // Where the files went: the page's sentence about "all of the
+            // charts and dashboards" would misdescribe a one-chart download.
+            outputDocs: `${PAGE}#specify-a-download-path:p2:1`,
+        },
+        resultDocs: `${PAGE}#disposable-editing-recommended:2`,
+    },
+    {
+        scope: 'create:ContentAsCode',
+        title: 'Change a chart in code and upload it',
+        chart: 'revenue-by-payment-method',
+        intro: `${PAGE}#lightdash-upload:p2:1`,
+        download: { command: DOWNLOAD, taughtIn: 'view:ContentAsCode' },
+        edit: {
+            from: 'name: Revenue by payment method',
+            to: 'name: Revenue by payment type',
+            docs: `${PAGE}#making-changes:li3:1`,
+        },
+        upload: {
+            // --force: each sandbox command rebuilds its files, so the CLI's
+            // change detection cannot tell an edit from a fresh copy; the
+            // docs' own workflow runs it too.
+            command:
+                'lightdash upload --force --charts revenue-by-payment-method',
+            docs: [
+                // The docs' step that runs this very command: the learner's
+                // copy is the preview environment it speaks of.
+                `${PAGE}#making-changes:li4`,
+                // p3: the docs' code example counts as the section's p2.
+                `${PAGE}#use-lightdash-upload--c-or-lightdash-upload---charts-to-select-specific-charts:p3:1`,
+            ],
+            outputDocs: `${PAGE}#lightdash-upload:1`,
+        },
+        // What the learner has just done from end to end.
+        resultDocs: `${PAGE}#disposable-editing-recommended:1-2`,
+    },
+];
 
 /**
  * Where a scope's lesson sits among the content-as-code lessons, in the

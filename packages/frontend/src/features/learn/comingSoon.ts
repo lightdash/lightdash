@@ -1,7 +1,7 @@
 /** Modules awaiting an interactive format. This inventory does not grant permissions. */
 export const COMING_SOON_SCOPES = [
-    'view:ContentAsCode',
-    'create:ContentAsCode',
+    // view and create are content-as-code lessons (codeLessons.ts); manage
+    // only waives upload checks a learner's copy already passes (CS-283).
     'manage:ContentAsCode',
     'promote:SavedChart',
     'promote:Dashboard',

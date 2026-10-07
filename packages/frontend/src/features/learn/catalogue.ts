@@ -108,7 +108,8 @@ export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
     [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]:
         'Administer people, roles, and organisation settings',
-    [DEVELOPER]: 'Model the semantic layer and ship it with the CLI',
+    [DEVELOPER]:
+        'Model the semantic layer and manage content as code with the CLI',
 };
 
 export const GROUP_LABELS: Record<LearnGroup, string> = {
@@ -124,7 +125,12 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
     [DEVELOPER]: 'Developer',
 };
 
-const stripBold = (text: string) => text.replace(/\*\*/g, '');
+/**
+ * A card's blurb is plain text: the docs' bold markers go, and a link reads
+ * as its label (the card shows two lines of text, not markdown).
+ */
+const plainText = (text: string) =>
+    text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\*\*/g, '');
 
 const minRoleFor = (scope: string): ProjectMemberRole | null =>
     SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope))?.role ?? null;
@@ -150,7 +156,7 @@ const docsModules = (): LearnModule[] =>
             gate: 'sandbox',
             minRole: minRoleFor(DOCS_LESSON_SCOPE),
             available: tour !== undefined,
-            blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
+            blurb: tour ? plainText(tour.steps[0]?.body ?? '') : '',
             stepCount: tour?.steps.length ?? 0,
         };
     });
@@ -200,7 +206,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                 gate: gateFor(scope),
                 minRole,
                 available: tour !== undefined,
-                blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
+                blurb: tour ? plainText(tour.steps[0]?.body ?? '') : '',
                 stepCount: tour?.steps.length ?? 0,
             };
         })

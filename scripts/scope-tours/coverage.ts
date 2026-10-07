@@ -36,6 +36,12 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
             },
         ]),
     ),
+    'manage:ContentAsCode': {
+        status: 'coming-soon',
+        reason: 'Its siblings are content-as-code lessons. Manage only waives upload checks (custom SQL, custom fields) that a learner already passes in their own copy, so a chart upload cannot show the difference: it needs an outcome of its own.',
+        ticket: 'CS-283',
+        tour: null,
+    },
     'manage:DeletedContent': {
         status: 'coming-soon',
         reason: 'Walkthrough withdrawn: its only reachable path was a Browse menu entry added for Learn, which was removed pending a product decision on where Recently deleted lives.',
