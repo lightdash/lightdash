@@ -1533,20 +1533,14 @@ describe('EmbedService', () => {
             );
         });
 
-        test('rejects autocomplete source fields hidden by embed user attributes', async () => {
-            const initialField = validExplore.tables.a.dimensions.dim1;
-            const field = validExplore.tables.b.dimensions.dim1;
-            const restrictedSourceExplore = {
-                ...validExplore,
-                name: 'autocomplete_source',
-                tables: {
-                    ...validExplore.tables,
-                    b: {
-                        ...validExplore.tables.b,
-                        requiredAttributes: { region: 'allowed' },
-                    },
-                },
-            };
+        test('forwards the embed account user attributes to the field values query builder', async () => {
+            // Attribute-gated visibility is enforced inside
+            // getFieldValuesMetricQuery; the embed path must hand it the
+            // JWT's user attributes.
+            const sentinel = new ForbiddenError('stop after builder');
+            const getFieldValuesMetricQueryMock = vi
+                .fn()
+                .mockRejectedValue(sentinel);
             const scopedService = new EmbedService({
                 ...EmbedServiceArgumentsMock,
                 embedModel: {
@@ -1563,18 +1557,14 @@ describe('EmbedService', () => {
                     }),
                 },
                 projectService: {
-                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
-                        metricQuery: {},
-                        explore: restrictedSourceExplore,
-                        field,
-                        initialExplore: validExplore,
-                        initialField,
-                        labelFieldId: null,
-                        staticResults: null,
-                    }),
+                    _getFieldValuesMetricQuery: getFieldValuesMetricQueryMock,
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const account = buildChartEmbedAccount([validExplore.name]);
+            account.access.controls = {
+                userAttributes: { is_admin: ['true'] },
+                intrinsicUserAttributes: {},
+            };
 
             await expect(
                 scopedService.searchFilterValues({
@@ -1588,71 +1578,13 @@ describe('EmbedService', () => {
                     tableName: 'a',
                     fieldId: 'a_dim1',
                 }),
-            ).rejects.toThrow(ForbiddenError);
-        });
+            ).rejects.toThrow(sentinel);
 
-        test('rejects autocomplete label fields hidden by embed user attributes', async () => {
-            const initialField = validExplore.tables.a.dimensions.dim1;
-            const field = validExplore.tables.b.dimensions.dim1;
-            const restrictedSourceExplore = {
-                ...validExplore,
-                name: 'autocomplete_source',
-                tables: {
-                    ...validExplore.tables,
-                    b: {
-                        ...validExplore.tables.b,
-                        dimensions: {
-                            ...validExplore.tables.b.dimensions,
-                            label: {
-                                ...validExplore.tables.b.dimensions.dim1,
-                                name: 'label',
-                                requiredAttributes: { region: 'allowed' },
-                            },
-                        },
-                    },
-                },
-            };
-            const scopedService = new EmbedService({
-                ...EmbedServiceArgumentsMock,
-                embedModel: {
-                    get: vi.fn().mockResolvedValue({
-                        dashboardUuids: [],
-                        allowAllDashboards: false,
-                        user: { userUuid: mockUserUuid },
-                    }),
-                },
-                projectModel: {
-                    getSummary: vi.fn().mockResolvedValue({
-                        projectUuid: mockProjectUuid,
-                        organizationUuid: mockOrganizationUuid,
-                    }),
-                },
-                projectService: {
-                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
-                        metricQuery: {},
-                        explore: restrictedSourceExplore,
-                        field,
-                        initialExplore: validExplore,
-                        initialField,
-                        labelFieldId: 'b_label',
-                        staticResults: null,
-                    }),
-                },
-            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
-
-            await expect(
-                scopedService.searchFilterValues({
-                    account: buildChartEmbedAccount([validExplore.name]),
-                    projectUuid: mockProjectUuid,
-                    filterUuid: 'filter-uuid',
-                    search: '',
-                    limit: 50,
-                    filters: undefined,
-                    forceRefresh: false,
-                    tableName: 'a',
-                    fieldId: 'a_dim1',
+            expect(getFieldValuesMetricQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userAttributes: { is_admin: ['true'] },
                 }),
-            ).rejects.toThrow(ForbiddenError);
+            );
         });
 
         test('scopes dashboard lookup to the requested project', async () => {

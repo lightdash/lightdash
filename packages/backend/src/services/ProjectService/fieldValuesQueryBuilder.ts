@@ -1,6 +1,9 @@
 import {
+    AuthorizationError,
     FilterOperator,
     findFieldByIdInExplore,
+    ForbiddenError,
+    getDimensionMapFromTables,
     getFilterAutocompleteLabelDimension,
     getItemId,
     isDimension,
@@ -10,14 +13,38 @@ import {
     ParameterError,
     searchFilterAutocompleteValues,
     type AndFilterGroup,
+    type CompiledDimension,
     type Dimension,
     type Explore,
     type ExploreError,
     type FilterAutocompleteValue,
     type FilterGroupItem,
     type MetricQuery,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { getFilteredExplore } from '../UserAttributesService/UserAttributeUtils';
+
+const FIELD_VALUES_FORBIDDEN_MESSAGE =
+    'You do not have permission to search values for this field';
+
+/** Dimensions visible to the caller after user-attribute filtering; a gated
+ *  base table surfaces as ForbiddenError rather than AuthorizationError. */
+const getVisibleDimensionMap = (
+    explore: Explore,
+    userAttributes: UserAttributeValueMap,
+): Record<string, CompiledDimension> => {
+    try {
+        return getDimensionMapFromTables(
+            getFilteredExplore(explore, userAttributes).tables,
+        );
+    } catch (e) {
+        if (e instanceof AuthorizationError) {
+            throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
+        }
+        throw e;
+    }
+};
 
 type ExploreResolver = {
     findExploreByTableName(
@@ -73,6 +100,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit,
     filters,
     exploreResolver,
+    userAttributes,
     authorizeInitialExplore,
 }: {
     projectUuid: string;
@@ -83,6 +111,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit: number;
     filters: AndFilterGroup | undefined;
     exploreResolver: ExploreResolver;
+    userAttributes: UserAttributeValueMap;
     authorizeInitialExplore?: (explore: Explore) => void;
 }): Promise<{
     metricQuery: MetricQuery;
@@ -152,6 +181,16 @@ export async function getFieldValuesMetricQuery({
         );
     }
 
+    // Attribute-gated tables/dimensions must not be enumerable, including
+    // through curated (static) values.
+    let visibleDimensions = getVisibleDimensionMap(
+        initialExplore,
+        userAttributes,
+    );
+    if (!(fieldId in visibleDimensions)) {
+        throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
+    }
+
     const { filterAutocomplete } = initialField;
     const staticResults =
         filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
@@ -208,6 +247,13 @@ export async function getFieldValuesMetricQuery({
                 `Filter autocomplete options source must be a dimension, but ${fieldId} is a ${sourceField.type}`,
             );
         }
+        visibleDimensions = getVisibleDimensionMap(
+            sourceExplore,
+            userAttributes,
+        );
+        if (!(fieldId in visibleDimensions)) {
+            throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
+        }
         field = sourceField;
     }
 
@@ -234,6 +280,9 @@ export async function getFieldValuesMetricQuery({
                 throw new ParameterError(
                     `Label field must be a dimension, but ${candidateLabelFieldId} is a ${resolvedLabelField.type}`,
                 );
+            }
+            if (!(candidateLabelFieldId in visibleDimensions)) {
+                throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
             }
             labelFieldId = candidateLabelFieldId;
         }
@@ -304,13 +353,12 @@ export async function getFieldValuesMetricQuery({
                       : filter,
               )
             : filters.and;
+        // Restricting to visible dimensions also stops gated dimensions being
+        // probed through sibling filters.
         const filtersCompatibleWithExplore = siblingFilters.filter(
             (filter) =>
                 isFilterRule(filter) &&
-                findFieldByIdInExplore(
-                    explore as Explore,
-                    filter.target.fieldId,
-                ),
+                filter.target.fieldId in visibleDimensions,
         );
         autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
     }
