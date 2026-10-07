@@ -57,7 +57,7 @@ const getOperatorSyntax = (
         case 'relativeDate':
             return `${definition.operator}=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`;
         case 'currentDate':
-            return `${definition.operator}=<unit> [1 unit]`;
+            return `${definition.operator}=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]`;
         case 'values':
             return `${ruleSyntaxByArgumentCount[argumentCount].replace(
                 '<operator>',
@@ -84,7 +84,7 @@ const getFilterTypeGrammar = (filterType: FilterType): string => {
 
     const dateGuidance =
         filterType === FilterType.DATE
-            ? `\n- Units: ${filterExpressionDateUnits.join(', ')}; completed=false includes partial, true completed only.`
+            ? `\n- Units: ${filterExpressionDateUnits.join(', ')}; completed=false includes partial, true completed only.\n- Current-period bounds: {toDate:true} ends the current week/month/quarter/year at today ("month to date"); {toDate:true,excludeToday:true} ends it at yesterday (today's partial data excluded). Not valid for days.`
             : '';
 
     return `### ${filterType}\nGrammar: <field> <operator form>\n${operators.join('\n')}${dateGuidance}`;

@@ -15,12 +15,14 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isDimension,
+    isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnitOfTime,
+    unitOfTimeSupportsToDate,
     type Explore,
     type FilterExpressionArgumentCount,
     type FilterExpressionAst,
@@ -69,6 +71,8 @@ type RawFilterRule = {
     settings?: {
         completed: boolean;
         unitOfTime: UnitOfTime;
+        toDate?: true;
+        excludeToday?: true;
     };
 };
 
@@ -911,6 +915,117 @@ const resolveRelativeDateRule = ({
     });
 };
 
+const currentPeriodBoundSettingNames = ['toDate', 'excludeToday'] as const;
+
+type CurrentPeriodBoundSettingName =
+    (typeof currentPeriodBoundSettingNames)[number];
+
+const isCurrentPeriodBoundSettingName = (
+    value: string,
+): value is CurrentPeriodBoundSettingName =>
+    currentPeriodBoundSettingNames.some((name) => name === value);
+
+const resolveCurrentPeriodBounds = ({
+    expressionInput,
+    rule,
+    field,
+    source,
+    unit,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    source: FilterExpressionSource;
+    unit: RelativeDateUnit;
+}): ResolutionResult<{ toDate?: true; excludeToday?: true }> => {
+    const { settings } = rule;
+    if (!settings) return success({});
+
+    const bounds: { toDate?: boolean; excludeToday?: boolean } = {};
+    for (const setting of settings.entries) {
+        const name = setting.name.value;
+        if (!isCurrentPeriodBoundSettingName(name)) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.name.span,
+                    problem: `Unknown current-period setting "${name}".`,
+                    guidance:
+                        'Use only toDate and excludeToday in the settings object, or remove it.',
+                }),
+            );
+        }
+        if (bounds[name] !== undefined) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.name.span,
+                    problem: `Current-period setting "${name}" may appear only once.`,
+                    guidance: 'Remove the duplicate setting.',
+                }),
+            );
+        }
+        const value = strictBoolean(setting.value);
+        if (value === null) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.value.span,
+                    problem: `The ${name} setting must be exactly true or false.`,
+                    guidance: `Set ${name} to true, or remove it.`,
+                    example: getLosslessBooleanRepairExample({
+                        expressionInput,
+                        rule,
+                        scalar: setting.value,
+                    }),
+                }),
+            );
+        }
+        bounds[name] = value;
+    }
+
+    const toDate = bounds.toDate === true;
+    const excludeToday = bounds.excludeToday === true;
+
+    if (excludeToday && !toDate) {
+        return failure(
+            invalidValueError({
+                source,
+                rule,
+                field,
+                span: settings.span,
+                problem: '"excludeToday" requires toDate:true.',
+                guidance: 'Add toDate:true, or remove excludeToday.',
+            }),
+        );
+    }
+
+    if (toDate && !unitOfTimeSupportsToDate(unit)) {
+        return failure(
+            invalidValueError({
+                source,
+                rule,
+                field,
+                span: settings.span,
+                problem: `"toDate" is not valid for ${unit}.`,
+                guidance:
+                    'Use weeks, months, quarters, or years with toDate, or remove the settings object.',
+            }),
+        );
+    }
+
+    return success({
+        ...(toDate ? { toDate: true as const } : {}),
+        ...(excludeToday ? { excludeToday: true as const } : {}),
+    });
+};
+
 const resolveCurrentDateRule = ({
     expressionInput,
     rule,
@@ -945,13 +1060,26 @@ const resolveCurrentDateRule = ({
         );
     }
 
+    const boundsResult = resolveCurrentPeriodBounds({
+        expressionInput,
+        rule,
+        field,
+        source,
+        unit: unitScalar.value,
+    });
+    if (!boundsResult.success) return boundsResult;
+
     return success({
         fieldId: field.id,
         fieldType: field.fieldType,
         fieldFilterType: field.filterType,
         operator: rule.operator.value,
         values: [1],
-        settings: { unitOfTime: unitScalar.value, completed: false },
+        settings: {
+            unitOfTime: unitScalar.value,
+            completed: false,
+            ...boundsResult.data,
+        },
     });
 };
 
@@ -1005,7 +1133,8 @@ const resolveRule = ({
 
     if (
         rule.settings &&
-        !isFilterExpressionRelativeDateOperator(rule.operator.value)
+        !isFilterExpressionRelativeDateOperator(rule.operator.value) &&
+        !isFilterExpressionCurrentDateOperator(rule.operator.value)
     ) {
         return failure(
             invalidValueError({

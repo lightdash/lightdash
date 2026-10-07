@@ -4374,7 +4374,7 @@
                                                                             },
                                                                             {
                                                                                 "additionalProperties": false,
-                                                                                "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n};\n}",
+                                                                                "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Add settings.toDate for \"month to date\" style requests. Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n  toDate?: true; // optional; ends the current week/month/quarter/year at today (\"month to date\"); not for days\n  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded\n};\n}",
                                                                                 "properties": {
                                                                                     "fieldFilterType": {
                                                                                         "const": "date",
@@ -4424,6 +4424,16 @@
                                                                                             "completed": {
                                                                                                 "const": false,
                                                                                                 "description": "Always false for current-period filters.",
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "excludeToday": {
+                                                                                                "const": true,
+                                                                                                "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like \"month to date excluding today\" or \"compare completed days only\". Requires toDate; omit otherwise.",
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "toDate": {
+                                                                                                "const": true,
+                                                                                                "description": "Set true to end the period at the end of today instead of the end of the period, for requests like \"month to date\", \"quarter to date\", or \"this year so far\". Only valid with weeks, months, quarters, or years; omit otherwise.",
                                                                                                 "type": "boolean"
                                                                                             },
                                                                                             "unitOfTime": {
@@ -5606,7 +5616,7 @@
                                                         },
                                                         {
                                                             "additionalProperties": false,
-                                                            "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n};\n}",
+                                                            "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Add settings.toDate for \"month to date\" style requests. Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n  toDate?: true; // optional; ends the current week/month/quarter/year at today (\"month to date\"); not for days\n  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded\n};\n}",
                                                             "properties": {
                                                                 "fieldFilterType": {
                                                                     "const": "date",
@@ -5656,6 +5666,16 @@
                                                                         "completed": {
                                                                             "const": false,
                                                                             "description": "Always false for current-period filters.",
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "excludeToday": {
+                                                                            "const": true,
+                                                                            "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like \"month to date excluding today\" or \"compare completed days only\". Requires toDate; omit otherwise.",
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "toDate": {
+                                                                            "const": true,
+                                                                            "description": "Set true to end the period at the end of today instead of the end of the period, for requests like \"month to date\", \"quarter to date\", or \"this year so far\". Only valid with weeks, months, quarters, or years; omit otherwise.",
                                                                             "type": "boolean"
                                                                         },
                                                                         "unitOfTime": {
@@ -6725,7 +6745,7 @@
                                                         },
                                                         {
                                                             "additionalProperties": false,
-                                                            "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n};\n}",
+                                                            "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Add settings.toDate for \"month to date\" style requests. Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n  toDate?: true; // optional; ends the current week/month/quarter/year at today (\"month to date\"); not for days\n  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded\n};\n}",
                                                             "properties": {
                                                                 "fieldFilterType": {
                                                                     "const": "date",
@@ -6775,6 +6795,16 @@
                                                                         "completed": {
                                                                             "const": false,
                                                                             "description": "Always false for current-period filters.",
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "excludeToday": {
+                                                                            "const": true,
+                                                                            "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like \"month to date excluding today\" or \"compare completed days only\". Requires toDate; omit otherwise.",
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "toDate": {
+                                                                            "const": true,
+                                                                            "description": "Set true to end the period at the end of today instead of the end of the period, for requests like \"month to date\", \"quarter to date\", or \"this year so far\". Only valid with weeks, months, quarters, or years; omit otherwise.",
                                                                             "type": "boolean"
                                                                         },
                                                                         "unitOfTime": {
@@ -8632,7 +8662,7 @@
                                                 },
                                                 {
                                                     "additionalProperties": false,
-                                                    "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n};\n}",
+                                                    "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Add settings.toDate for \"month to date\" style requests. Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n  toDate?: true; // optional; ends the current week/month/quarter/year at today (\"month to date\"); not for days\n  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded\n};\n}",
                                                     "properties": {
                                                         "fieldFilterType": {
                                                             "const": "date",
@@ -8682,6 +8712,16 @@
                                                                 "completed": {
                                                                     "const": false,
                                                                     "description": "Always false for current-period filters.",
+                                                                    "type": "boolean"
+                                                                },
+                                                                "excludeToday": {
+                                                                    "const": true,
+                                                                    "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like \"month to date excluding today\" or \"compare completed days only\". Requires toDate; omit otherwise.",
+                                                                    "type": "boolean"
+                                                                },
+                                                                "toDate": {
+                                                                    "const": true,
+                                                                    "description": "Set true to end the period at the end of today instead of the end of the period, for requests like \"month to date\", \"quarter to date\", or \"this year so far\". Only valid with weeks, months, quarters, or years; omit otherwise.",
                                                                     "type": "boolean"
                                                                 },
                                                                 "unitOfTime": {
@@ -9751,7 +9791,7 @@
                                                 },
                                                 {
                                                     "additionalProperties": false,
-                                                    "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n};\n}",
+                                                    "description": "Use for current date requests such as \"today\", \"this week\", \"this month\", or \"this year\". Add settings.toDate for \"month to date\" style requests. Type shape: {\n  fieldId: \"orders_order_date\"; // use the actual field id\n  fieldType: \"date\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"date\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"inTheCurrent\" | \"notInTheCurrent\"; // | means or\n  values: [1]; // exactly one array value; always [1] for current-period filters\n  settings: {\n  completed: false; // false includes current partial period; true means completed periods only\n  unitOfTime: \"days\" | \"weeks\" | \"months\" | \"quarters\" | \"years\";\n  toDate?: true; // optional; ends the current week/month/quarter/year at today (\"month to date\"); not for days\n  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded\n};\n}",
                                                     "properties": {
                                                         "fieldFilterType": {
                                                             "const": "date",
@@ -9801,6 +9841,16 @@
                                                                 "completed": {
                                                                     "const": false,
                                                                     "description": "Always false for current-period filters.",
+                                                                    "type": "boolean"
+                                                                },
+                                                                "excludeToday": {
+                                                                    "const": true,
+                                                                    "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like \"month to date excluding today\" or \"compare completed days only\". Requires toDate; omit otherwise.",
+                                                                    "type": "boolean"
+                                                                },
+                                                                "toDate": {
+                                                                    "const": true,
+                                                                    "description": "Set true to end the period at the end of today instead of the end of the period, for requests like \"month to date\", \"quarter to date\", or \"this year so far\". Only valid with weeks, months, quarters, or years; omit otherwise.",
                                                                     "type": "boolean"
                                                                 },
                                                                 "unitOfTime": {

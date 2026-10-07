@@ -160,10 +160,11 @@ Grammar: <field> <operator form>
 - \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
 - \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
 - \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheCurrent=<unit> [1 unit]\`
-- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]\`
+- \`notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]\`
 - \`inBetween=<first value>,<second value> [2 values]\`
 - Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+- Current-period bounds: {toDate:true} ends the current week/month/quarter/year at today ("month to date"); {toDate:true,excludeToday:true} ends it at yesterday (today's partial data excluded). Not valid for days.
 
 ### boolean
 Grammar: <field> <operator form>
@@ -473,10 +474,11 @@ Grammar: <field> <operator form>
 - \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
 - \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
 - \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheCurrent=<unit> [1 unit]\`
-- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]\`
+- \`notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]\`
 - \`inBetween=<first value>,<second value> [2 values]\`
 - Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+- Current-period bounds: {toDate:true} ends the current week/month/quarter/year at today ("month to date"); {toDate:true,excludeToday:true} ends it at yesterday (today's partial data excluded). Not valid for days.
 
 ### boolean
 Grammar: <field> <operator form>
@@ -4531,7 +4533,7 @@ Recommended Dashboard Structure:
             "mergeConfig": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema130",
+                  "$ref": "#/definitions/__schema134",
                 },
                 {
                   "type": "null",
@@ -4554,7 +4556,7 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema118",
+                  "$ref": "#/definitions/__schema122",
                 },
                 "limit": {
                   "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -4581,7 +4583,7 @@ Recommended Dashboard Structure:
                 "tableCalculations": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/__schema115",
+                      "$ref": "#/definitions/__schema119",
                     },
                     {
                       "type": "null",
@@ -4665,14 +4667,14 @@ Use them whenever the question needs math the metric query alone can't express: 
           "type": "string",
         },
         "__schema107": {
-          "description": "Use for before/after comparisons against one explicit date or datetime.",
-          "enum": [
-            "lessThan",
-            "lessThanOrEqual",
-            "greaterThan",
-            "greaterThanOrEqual",
-          ],
-          "type": "string",
+          "const": true,
+          "description": "Set true to end the period at the end of today instead of the end of the period, for requests like "month to date", "quarter to date", or "this year so far". Only valid with weeks, months, quarters, or years; omit otherwise.",
+          "type": "boolean",
+        },
+        "__schema109": {
+          "const": true,
+          "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like "month to date excluding today" or "compare completed days only". Requires toDate; omit otherwise.",
+          "type": "boolean",
         },
         "__schema11": {
           "anyOf": [
@@ -4718,7 +4720,17 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
         },
-        "__schema112": {
+        "__schema111": {
+          "description": "Use for before/after comparisons against one explicit date or datetime.",
+          "enum": [
+            "lessThan",
+            "lessThanOrEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+          ],
+          "type": "string",
+        },
+        "__schema116": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
             "$ref": "#/definitions/__schema77",
@@ -4727,7 +4739,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "minItems": 1,
           "type": "array",
         },
-        "__schema114": {
+        "__schema118": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
             "$ref": "#/definitions/__schema77",
@@ -4736,7 +4748,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "minItems": 2,
           "type": "array",
         },
-        "__schema115": {
+        "__schema119": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -4803,56 +4815,6 @@ All branches of an IF must return the same type.",
             "type": "object",
           },
           "type": "array",
-        },
-        "__schema118": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema42",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "type": {
-              "description": "Type of filter group operation",
-              "enum": [
-                "and",
-                "or",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
-          ],
-          "type": [
-            "object",
-            "null",
-          ],
         },
         "__schema12": {
           "items": {
@@ -4969,7 +4931,57 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema121": {
+        "__schema122": {
+          "additionalProperties": false,
+          "properties": {
+            "dimensions": {
+              "items": {
+                "$ref": "#/definitions/__schema125",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "metrics": {
+              "items": {
+                "$ref": "#/definitions/__schema125",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "tableCalculations": {
+              "items": {
+                "$ref": "#/definitions/__schema42",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "type": {
+              "description": "Type of filter group operation",
+              "enum": [
+                "and",
+                "or",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "type",
+            "dimensions",
+            "metrics",
+            "tableCalculations",
+          ],
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema125": {
           "anyOf": [
             {
               "$ref": "#/definitions/__schema14",
@@ -5018,13 +5030,13 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema130": {
+        "__schema134": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema131",
+                "$ref": "#/definitions/__schema135",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -5032,7 +5044,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema132",
+                "$ref": "#/definitions/__schema136",
               },
               "minItems": 1,
               "type": "array",
@@ -5059,7 +5071,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema131": {
+        "__schema135": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -5081,7 +5093,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema118",
+                  "$ref": "#/definitions/__schema122",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema4",
@@ -5107,13 +5119,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema132": {
+        "__schema136": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema133",
+                "$ref": "#/definitions/__schema137",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -5131,7 +5143,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema133": {
+        "__schema137": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -5711,7 +5723,7 @@ All branches of an IF must return the same type.",
             },
             {
               "additionalProperties": false,
-              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. Type shape: {
   fieldId: "orders_order_date"; // use the actual field id
   fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
@@ -5720,6 +5732,8 @@ All branches of an IF must return the same type.",
   settings: {
   completed: false; // false includes current partial period; true means completed periods only
   unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days
+  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded
 };
 }",
               "properties": {
@@ -5791,10 +5805,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema107",
+                  "$ref": "#/definitions/__schema111",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema112",
+                  "$ref": "#/definitions/__schema116",
                 },
               },
               "required": [
@@ -5837,7 +5851,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema114",
+                  "$ref": "#/definitions/__schema118",
                 },
               },
               "required": [
@@ -5969,6 +5983,12 @@ All branches of an IF must return the same type.",
               "const": false,
               "description": "Always false for current-period filters.",
               "type": "boolean",
+            },
+            "excludeToday": {
+              "$ref": "#/definitions/__schema109",
+            },
+            "toDate": {
+              "$ref": "#/definitions/__schema107",
             },
             "unitOfTime": {
               "$ref": "#/definitions/__schema101",
@@ -12455,14 +12475,14 @@ Example B — "Revenue by month with year-over-year comparison"
           "type": "string",
         },
         "__schema106": {
-          "description": "Use for before/after comparisons against one explicit date or datetime.",
-          "enum": [
-            "lessThan",
-            "lessThanOrEqual",
-            "greaterThan",
-            "greaterThanOrEqual",
-          ],
-          "type": "string",
+          "const": true,
+          "description": "Set true to end the period at the end of today instead of the end of the period, for requests like "month to date", "quarter to date", or "this year so far". Only valid with weeks, months, quarters, or years; omit otherwise.",
+          "type": "boolean",
+        },
+        "__schema108": {
+          "const": true,
+          "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like "month to date excluding today" or "compare completed days only". Requires toDate; omit otherwise.",
+          "type": "boolean",
         },
         "__schema11": {
           "items": {
@@ -12579,7 +12599,17 @@ Example B — "Revenue by month with year-over-year comparison"
           },
           "type": "array",
         },
-        "__schema111": {
+        "__schema110": {
+          "description": "Use for before/after comparisons against one explicit date or datetime.",
+          "enum": [
+            "lessThan",
+            "lessThanOrEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+          ],
+          "type": "string",
+        },
+        "__schema115": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
             "$ref": "#/definitions/__schema76",
@@ -12588,7 +12618,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "minItems": 1,
           "type": "array",
         },
-        "__schema113": {
+        "__schema117": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
             "$ref": "#/definitions/__schema76",
@@ -12597,7 +12627,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "minItems": 2,
           "type": "array",
         },
-        "__schema114": {
+        "__schema118": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -12665,12 +12695,45 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema117": {
+        "__schema12": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "filter": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/__schema13",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema25",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema41",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema65",
+                  },
+                ],
+              },
+              "table": {
+                "description": "Table name this filter field belongs to",
+                "type": "string",
+              },
+            },
+            "required": [
+              "filter",
+              "table",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "__schema121": {
           "additionalProperties": false,
           "properties": {
             "dimensions": {
               "items": {
-                "$ref": "#/definitions/__schema120",
+                "$ref": "#/definitions/__schema124",
               },
               "type": [
                 "array",
@@ -12679,7 +12742,7 @@ All branches of an IF must return the same type.",
             },
             "metrics": {
               "items": {
-                "$ref": "#/definitions/__schema120",
+                "$ref": "#/definitions/__schema124",
               },
               "type": [
                 "array",
@@ -12715,40 +12778,7 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema12": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "filter": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/__schema13",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema25",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema41",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema65",
-                  },
-                ],
-              },
-              "table": {
-                "description": "Table name this filter field belongs to",
-                "type": "string",
-              },
-            },
-            "required": [
-              "filter",
-              "table",
-            ],
-            "type": "object",
-          },
-          "type": "array",
-        },
-        "__schema120": {
+        "__schema124": {
           "anyOf": [
             {
               "$ref": "#/definitions/__schema13",
@@ -12859,7 +12889,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema130": {
+        "__schema134": {
           "anyOf": [
             {
               "type": "string",
@@ -12874,7 +12904,7 @@ All branches of an IF must return the same type.",
           ],
           "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
         },
-        "__schema132": {
+        "__schema136": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -12934,13 +12964,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema134": {
+        "__schema138": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema135",
+                "$ref": "#/definitions/__schema139",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -12948,7 +12978,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema136",
+                "$ref": "#/definitions/__schema140",
               },
               "minItems": 1,
               "type": "array",
@@ -12975,7 +13005,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema135": {
+        "__schema139": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -12997,7 +13027,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema117",
+                  "$ref": "#/definitions/__schema121",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema3",
@@ -13023,13 +13053,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema136": {
+        "__schema140": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema137",
+                "$ref": "#/definitions/__schema141",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -13047,7 +13077,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema137": {
+        "__schema141": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -13550,7 +13580,7 @@ All branches of an IF must return the same type.",
             },
             {
               "additionalProperties": false,
-              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. Type shape: {
   fieldId: "orders_order_date"; // use the actual field id
   fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
@@ -13559,6 +13589,8 @@ All branches of an IF must return the same type.",
   settings: {
   completed: false; // false includes current partial period; true means completed periods only
   unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days
+  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded
 };
 }",
               "properties": {
@@ -13630,10 +13662,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema106",
+                  "$ref": "#/definitions/__schema110",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema111",
+                  "$ref": "#/definitions/__schema115",
                 },
               },
               "required": [
@@ -13676,7 +13708,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema113",
+                  "$ref": "#/definitions/__schema117",
                 },
               },
               "required": [
@@ -13810,6 +13842,12 @@ All branches of an IF must return the same type.",
               "const": false,
               "description": "Always false for current-period filters.",
               "type": "boolean",
+            },
+            "excludeToday": {
+              "$ref": "#/definitions/__schema108",
+            },
+            "toDate": {
+              "$ref": "#/definitions/__schema106",
             },
             "unitOfTime": {
               "$ref": "#/definitions/__schema100",
@@ -13948,7 +13986,7 @@ All branches of an IF must return the same type.",
                 },
                 "fieldMapping": {
                   "additionalProperties": {
-                    "$ref": "#/definitions/__schema130",
+                    "$ref": "#/definitions/__schema134",
                   },
                   "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                   "type": "object",
@@ -13956,7 +13994,7 @@ All branches of an IF must return the same type.",
                 "options": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema132",
+                      "$ref": "#/definitions/__schema136",
                     },
                   ],
                   "default": null,
@@ -13981,7 +14019,7 @@ All branches of an IF must return the same type.",
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema134",
+              "$ref": "#/definitions/__schema138",
             },
             {
               "type": "null",
@@ -14004,7 +14042,7 @@ All branches of an IF must return the same type.",
               "type": "string",
             },
             "filters": {
-              "$ref": "#/definitions/__schema117",
+              "$ref": "#/definitions/__schema121",
             },
             "limit": {
               "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -14031,7 +14069,7 @@ All branches of an IF must return the same type.",
             "tableCalculations": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema114",
+                  "$ref": "#/definitions/__schema118",
                 },
                 {
                   "type": "null",
@@ -16001,7 +16039,16 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema101": {
+        "__schema103": {
+          "description": "Exactly one explicit ISO date/datetime threshold.",
+          "items": {
+            "$ref": "#/definitions/__schema64",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema105": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
             "$ref": "#/definitions/__schema64",
@@ -16340,7 +16387,7 @@ Usage Tips:
             },
             {
               "additionalProperties": false,
-              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. Type shape: {
   fieldId: "orders_order_date"; // use the actual field id
   fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
@@ -16349,6 +16396,8 @@ Usage Tips:
   settings: {
   completed: false; // false includes current partial period; true means completed periods only
   unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days
+  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded
 };
 }",
               "properties": {
@@ -16420,10 +16469,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema94",
+                  "$ref": "#/definitions/__schema98",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema99",
+                  "$ref": "#/definitions/__schema103",
                 },
               },
               "required": [
@@ -16466,7 +16515,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema101",
+                  "$ref": "#/definitions/__schema105",
                 },
               },
               "required": [
@@ -16777,6 +16826,12 @@ Usage Tips:
               "description": "Always false for current-period filters.",
               "type": "boolean",
             },
+            "excludeToday": {
+              "$ref": "#/definitions/__schema96",
+            },
+            "toDate": {
+              "$ref": "#/definitions/__schema94",
+            },
             "unitOfTime": {
               "$ref": "#/definitions/__schema88",
             },
@@ -16799,6 +16854,16 @@ Usage Tips:
           "type": "string",
         },
         "__schema94": {
+          "const": true,
+          "description": "Set true to end the period at the end of today instead of the end of the period, for requests like "month to date", "quarter to date", or "this year so far". Only valid with weeks, months, quarters, or years; omit otherwise.",
+          "type": "boolean",
+        },
+        "__schema96": {
+          "const": true,
+          "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like "month to date excluding today" or "compare completed days only". Requires toDate; omit otherwise.",
+          "type": "boolean",
+        },
+        "__schema98": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -16807,15 +16872,6 @@ Usage Tips:
             "greaterThanOrEqual",
           ],
           "type": "string",
-        },
-        "__schema99": {
-          "description": "Exactly one explicit ISO date/datetime threshold.",
-          "items": {
-            "$ref": "#/definitions/__schema64",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
         },
       },
       "properties": {

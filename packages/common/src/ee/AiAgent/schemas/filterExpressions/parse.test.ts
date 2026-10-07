@@ -139,6 +139,31 @@ describe('parseFilterExpression', () => {
         });
     });
 
+    it('parses current-period bounds as named settings', () => {
+        expect(
+            withoutSpans(
+                'orders_order_date inTheCurrent=months{toDate:true,excludeToday:true}',
+            ),
+        ).toMatchObject({
+            rules: [
+                {
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    arguments: [{ kind: 'bare', value: 'months' }],
+                    settings: [
+                        {
+                            name: 'toDate',
+                            value: { kind: 'bare', value: 'true' },
+                        },
+                        {
+                            name: 'excludeToday',
+                            value: { kind: 'bare', value: 'true' },
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
     it.each([
         ['AND', 'and'],
         ['and', 'and'],
