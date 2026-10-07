@@ -16,19 +16,22 @@ const SIDEBAR_WIDTH = { defaultWidth: 380, minWidth: 320, maxWidth: 560 };
 // The sidebar element is always passed so the page tree keeps its shape;
 // only isSidebarOpen changes when a filter is opened.
 const PageWithFilterSidebar: FC<Props> = (props) => {
-    const { editing, parameterKey } = useFilterSidebar();
+    const { editingControlId, isSidebarOpen } = useFilterSidebar();
     usePinnedSidebarTop();
     return (
         <Page
             {...props}
             sidebar={
-                <>
-                    <FilterSidebar />
+                editingControlId !== null ? (
                     <ParameterSidebar />
-                </>
+                ) : (
+                    <FilterSidebar />
+                )
             }
-            sidebarTitle={parameterKey !== null ? 'Parameter' : 'Edit filter'}
-            isSidebarOpen={editing !== null || parameterKey !== null}
+            sidebarTitle={
+                editingControlId !== null ? 'Edit control' : 'Edit filter'
+            }
+            isSidebarOpen={isSidebarOpen}
             noSidebarPadding
             sidebarWidthProps={SIDEBAR_WIDTH}
         />

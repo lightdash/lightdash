@@ -10,17 +10,15 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAdjustmentsHorizontal,
     IconCalendar,
     IconChevronUp,
     IconEye,
     IconEyeOff,
     IconFilter,
 } from '@tabler/icons-react';
-import { type ComponentProps, type FC, type ReactNode } from 'react';
+import { type ComponentProps, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
-import PinnedParameters from '../../components/PinnedParameters';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import DashboardFilters from '../dashboardFilters';
@@ -28,10 +26,9 @@ import { type DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBa
 import classes from '../dashboardFilters/DashboardFiltersBar.module.css';
 import FilterGroupSeparator from '../dashboardFilters/FilterGroupSeparator';
 import { DateZoom } from '../dateZoom';
-import { Parameters } from '../parameters';
 import { AddFilter } from './AddFilter';
 import { FilterPills } from './FilterPills';
-import { ParameterValuesButton } from './ParameterValuesButton';
+import { ParameterControlPills } from './ParameterControlPills';
 import { RequirementsButton } from './RequirementsButton';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
@@ -42,16 +39,6 @@ export const FilterBar: FC<Props> = ({
     hasTilesThatSupportFilters,
     hasDashboardTiles,
     parameters,
-    shadowedReservedNames,
-    parameterValues,
-    onParameterChange,
-    onParameterClearAll,
-    isParameterLoading,
-    missingRequiredParameters,
-    pinnedParameters,
-    onParameterPin,
-    parameterOrder,
-    onParameterReorder,
     isDateZoomDisabled,
     onCollapse,
 }) => {
@@ -70,23 +57,6 @@ export const FilterBar: FC<Props> = ({
         allFilters.metrics.length > 0 ||
         allFilters.tableCalculations.length > 0;
     const hasParameters = Object.keys(parameters).length > 0;
-
-    const parametersSeparator: ReactNode = (
-        <FilterGroupSeparator
-            icon={IconAdjustmentsHorizontal}
-            tooltipLabel={
-                <Box>
-                    <Text fw={500} fz="xs">
-                        Parameters
-                    </Text>
-                    <Text fz="xs">
-                        Adjust preset inputs that change how the dashboard's
-                        numbers are calculated.
-                    </Text>
-                </Box>
-            }
-        />
-    );
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
@@ -147,37 +117,10 @@ export const FilterBar: FC<Props> = ({
                             {isEditMode && <RequirementsButton />}
 
                             {hasDashboardTiles && hasParameters && (
-                                <>
-                                    {renderFilters && (
-                                        <Divider orientation="vertical" />
-                                    )}
-
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={
-                                            compact
-                                                ? undefined
-                                                : parametersSeparator
-                                        }
-                                    />
-                                    <PinnedParameters isEditMode={isEditMode} />
-                                    <ParameterValuesButton />
-                                </>
+                                <ParameterControlPills
+                                    isEditMode={isEditMode}
+                                    activeTabUuid={activeTabUuid}
+                                />
                             )}
                         </Group>
                     )}

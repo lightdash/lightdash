@@ -7,9 +7,13 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     countFieldsByKind,
+    countPickableByKind,
     filterFieldsByKind,
+    filterParametersByKind,
     getFieldKind,
     groupFieldsByExplore,
+    matchesParameterSearch,
+    type PickableParameter,
 } from './fieldKinds';
 
 const makeField = (
@@ -82,5 +86,45 @@ describe('groupFieldsByExplore', () => {
             chartCount: 1,
             fields: [created, status],
         });
+    });
+});
+
+const region: PickableParameter = {
+    key: 'region',
+    label: 'Region',
+    kind: FilterType.STRING,
+    chartCount: 2,
+};
+const threshold: PickableParameter = {
+    key: 'threshold',
+    label: 'Minimum revenue',
+    kind: FilterType.NUMBER,
+    chartCount: 1,
+};
+
+describe('parameters in the picker', () => {
+    it('filters parameters by kind and keeps all with no kind', () => {
+        expect(filterParametersByKind([region, threshold], null)).toEqual([
+            region,
+            threshold,
+        ]);
+        expect(
+            filterParametersByKind([region, threshold], FilterType.NUMBER),
+        ).toEqual([threshold]);
+    });
+
+    it('adds parameters to the kind tile counts', () => {
+        const counts = countPickableByKind(
+            [makeField('status', DimensionType.STRING)],
+            [region, threshold],
+        );
+        expect(counts).toEqual({ string: 2, number: 1, date: 0, boolean: 0 });
+    });
+
+    it('matches search on label or key, never on empty text', () => {
+        expect(matchesParameterSearch(threshold, 'reven')).toBe(true);
+        expect(matchesParameterSearch(threshold, 'THRESH')).toBe(true);
+        expect(matchesParameterSearch(threshold, 'region')).toBe(false);
+        expect(matchesParameterSearch(threshold, '  ')).toBe(false);
     });
 });

@@ -59,6 +59,10 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
+        dashboardParameters: {},
+        parameterValues: {},
+        parameterDefinitions: {},
+        setParameter: vi.fn(),
     };
     latest.filters = dashboardFilters;
     latest.changed = haveFiltersChanged;

@@ -4,17 +4,23 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type ParameterValue,
 } from '@lightdash/common';
 import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
 import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    getControlsFromSavedValues,
+    type ParameterControl,
+} from './parameterControls';
 import {
     getFilterSessionSettings,
     patchFilterSessionSettings,
@@ -83,13 +89,46 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const [sessionSettings, setSessionSettings] =
         useState<SessionSettingsByFilterId>({});
 
-    const [parameterKey, setParameterKey] = useState<string | null>(null);
-    // Only shows while no filter is being edited
-    const openParameter = useCallback(
-        (key: string) => setParameterKey(key),
-        [],
+    const dashboardParameters = useDashboardContext(
+        (c) => c.dashboardParameters,
     );
-    const closeParameter = useCallback(() => setParameterKey(null), []);
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+    const setParameter = useDashboardContext((c) => c.setParameter);
+
+    // Session only: one control per saved parameter value until authored
+    const [parameterControls, setParameterControls] = useState<
+        ParameterControl[]
+    >([]);
+    const [editingControlId, setEditingControlId] = useState<string | null>(
+        null,
+    );
+    const controlSnapshot = useRef<{
+        control: ParameterControl;
+        values: Record<string, ParameterValue | null>;
+    } | null>(null);
+    const hasSeededControls = useRef(false);
+    useEffect(() => {
+        if (
+            hasSeededControls.current ||
+            Object.keys(parameterDefinitions).length === 0
+        )
+            return;
+        hasSeededControls.current = true;
+        const savedValues = Object.fromEntries(
+            Object.values(dashboardParameters).map((p) => [
+                p.parameterName,
+                p.value,
+            ]),
+        );
+        setParameterControls((current) =>
+            current.length === 0
+                ? getControlsFromSavedValues(savedValues, parameterDefinitions)
+                : current,
+        );
+    }, [dashboardParameters, parameterDefinitions]);
 
     const getSessionSettings = useCallback(
         (filterId: string) =>
@@ -152,6 +191,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     );
 
     const openNew = useCallback(() => {
+        controlSnapshot.current = null;
+        setEditingControlId(null);
         setState((current) =>
             current !== null
                 ? current
@@ -245,6 +286,84 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         resetSession();
     }, [isEmpty, resetSession]);
 
+    const openControl = useCallback(
+        (id: string) => {
+            const control = parameterControls.find((c) => c.id === id);
+            if (control === undefined) return;
+            // An edited filter is applied first, as open() does for filters
+            if (state !== null && !isEmpty) resetSession();
+            controlSnapshot.current = {
+                control,
+                values: Object.fromEntries(
+                    control.parameterKeys.map((key) => [
+                        key,
+                        parameterValues[key] ?? null,
+                    ]),
+                ),
+            };
+            setEditingControlId(id);
+        },
+        [parameterControls, parameterValues, state, isEmpty, resetSession],
+    );
+
+    const addControl = useCallback(
+        (control: ParameterControl) => {
+            if (state !== null && !isEmpty) resetSession();
+            setParameterControls((current) => [...current, control]);
+            controlSnapshot.current = null;
+            setEditingControlId(control.id);
+        },
+        [state, isEmpty, resetSession],
+    );
+
+    const updateControl = useCallback(
+        (id: string, patch: Partial<Omit<ParameterControl, 'id'>>) => {
+            setParameterControls((current) =>
+                current.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+            );
+        },
+        [],
+    );
+
+    const removeControl = useCallback((id: string) => {
+        setParameterControls((current) => current.filter((c) => c.id !== id));
+        setEditingControlId((current) => (current === id ? null : current));
+    }, []);
+
+    const setControlValue = useCallback(
+        (id: string, value: ParameterValue | null) => {
+            const control = parameterControls.find((c) => c.id === id);
+            control?.parameterKeys.forEach((key) => setParameter(key, value));
+        },
+        [parameterControls, setParameter],
+    );
+
+    const closeControl = useCallback(() => {
+        controlSnapshot.current = null;
+        setEditingControlId(null);
+    }, []);
+
+    // A new control (no snapshot) is dropped; an opened one is restored
+    const cancelControl = useCallback(() => {
+        const snapshot = controlSnapshot.current;
+        if (editingControlId === null) return;
+        if (snapshot === null) {
+            setParameterControls((current) =>
+                current.filter((c) => c.id !== editingControlId),
+            );
+        } else {
+            setParameterControls((current) =>
+                current.map((c) =>
+                    c.id === editingControlId ? snapshot.control : c,
+                ),
+            );
+            Object.entries(snapshot.values).forEach(([key, value]) =>
+                setParameter(key, value),
+            );
+        }
+        closeControl();
+    }, [editingControlId, setParameter, closeControl]);
+
     const clearFields = useCallback(() => {
         if (state === null || state.isNew || state.filterId === null) return;
         const rule = findFilterRule(dashboardFilters, state.filterId);
@@ -295,9 +414,16 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
 
     const value = useMemo<FilterSidebarContextValue>(
         () => ({
-            parameterKey: state === null ? parameterKey : null,
-            openParameter,
-            closeParameter,
+            parameterControls,
+            editingControlId,
+            isSidebarOpen: state !== null || editingControlId !== null,
+            openControl,
+            addControl,
+            updateControl,
+            removeControl,
+            setControlValue,
+            closeControl,
+            cancelControl,
             editing: state === null ? null : { filterId: state.filterId },
             isNew: state?.isNew ?? false,
             isEmpty,
@@ -370,9 +496,15 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             listedFieldIds,
             listFieldId,
             unlistFieldId,
-            parameterKey,
-            openParameter,
-            closeParameter,
+            parameterControls,
+            editingControlId,
+            openControl,
+            addControl,
+            updateControl,
+            removeControl,
+            setControlValue,
+            closeControl,
+            cancelControl,
         ],
     );
 

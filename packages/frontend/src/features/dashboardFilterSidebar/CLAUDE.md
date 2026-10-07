@@ -27,12 +27,13 @@ seam in `features/dashboardTabs/index.tsx`.
 - `openNew` opens with no field; `addFirstField` appends a draft rule (no
   value, empty label) so it previews; `cancel` drops it with the snapshot.
 
-## Parameters (read only)
+## Parameters (controls)
 
-- `ParameterValuesButton` ("Parameters") is a Menu of the parameters on the active tab; each item calls `openParameter(key)`. `ParameterSidebar` shows one parameter with the filter sidebar's chrome (header, Interactivity and Charts tabs, Close footer); `ParameterOverlays` chips show only the open parameter.
-- Placeholders, not behaviour: the Viewer controls rows (Visibility, Required, Allowed values, Placement) are disabled with a "Later" badge, "+ Combine a parameter" is disabled, and each chart's "Follows the dashboard" Select is disabled. Nothing is edited.
-- `parameterSources.ts` resolves each tile's source and value with the shipped `getDashboardTileParameterSource` and `getDashboardTileParameterOverrides`, using the per-tile chart-saved values the dashboard context exposes as `tileChartSavedParameters`; a referenced key with no value anywhere is `none` ("needs a value").
-- `parameterKey` is separate from `editing` and is null while a filter is being edited.
+- A `ParameterControl` (`parameterControls.ts`) overrides N dashboard parameters of one kind (`ParameterKind`: string, number or date; never boolean). "Add" lists free parameters next to fields in `FieldPicker`; ticking parameters and pressing Continue calls `addControl` with a fresh uuid, an empty label, the kind of the first key, the keys and empty `tileTargets`. Fields and parameters are exclusive in one pick.
+- Saved: only the values, written through the dashboard's parameter values (`getControlValue` reads the first key). A dashboard saved today loads one control per saved value (`getControlsFromSavedValues`).
+- Session-only until a saved shape exists: the control itself (id, label, which keys it groups), its chart targeting (`tileTargets[tileUuid] = false` skips a chart), hidden tabs (`hiddenTabUuids`) and placement (`bar` or `more`). The sidebar marks these "Not saved".
+- `getFreeParameterKeys` lists the keys of a kind referenced by a tile and not yet taken by a control; `getControlTiles` and `doesControlApplyToTile` resolve targeting from `tileParameterReferences`.
+- `parameterSources.ts` resolves each tile's source and value with the shipped `getDashboardTileParameterSource` and `getDashboardTileParameterOverrides`, using `tileChartSavedParameters`; a referenced key with no value anywhere is `none` ("needs a value").
 
 ## Peer fields on today's saved shape
 

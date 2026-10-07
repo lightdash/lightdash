@@ -3,6 +3,7 @@ import {
     getFilterTypeFromItemType,
     type DashboardFilterableField,
 } from '@lightdash/common';
+import { type ParameterKind } from './parameterControls';
 
 export type FieldKind = FilterType;
 
@@ -37,6 +38,46 @@ export const countFieldsByKind = (
             number
         >,
     );
+
+export type PickableParameter = {
+    key: string;
+    label: string;
+    kind: ParameterKind;
+    chartCount: number;
+};
+
+export const filterParametersByKind = (
+    parameters: PickableParameter[],
+    kind: FieldKind | null,
+): PickableParameter[] =>
+    kind === null
+        ? parameters
+        : parameters.filter((parameter) => parameter.kind === kind);
+
+/** Kind tile counts: fields plus parameters of that kind. */
+export const countPickableByKind = (
+    fields: DashboardFilterableField[],
+    parameters: PickableParameter[],
+): Record<FieldKind, number> =>
+    parameters.reduce(
+        (counts, parameter) => ({
+            ...counts,
+            [parameter.kind]: counts[parameter.kind] + 1,
+        }),
+        countFieldsByKind(fields),
+    );
+
+export const matchesParameterSearch = (
+    parameter: PickableParameter,
+    search: string,
+): boolean => {
+    const needle = search.trim().toLowerCase();
+    return (
+        needle !== '' &&
+        (parameter.label.toLowerCase().includes(needle) ||
+            parameter.key.toLowerCase().includes(needle))
+    );
+};
 
 export type ExploreGroup = {
     table: string;

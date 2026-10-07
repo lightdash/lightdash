@@ -31,18 +31,11 @@ vi.mock('./RequirementsButton', () => ({
 vi.mock('./AddFilter', () => ({
     AddFilter: () => <button>Add filter (edit)</button>,
 }));
-vi.mock('./ParameterValuesButton', () => ({
-    ParameterValuesButton: () => <button>Parameter values</button>,
+vi.mock('./ParameterControlPills', () => ({
+    ParameterControlPills: () => <div data-testid="parameter-controls" />,
 }));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
-}));
-vi.mock('../parameters', () => ({
-    Parameters: () => <div data-testid="parameters" />,
-}));
-
-vi.mock('../../components/PinnedParameters', () => ({
-    default: () => <div data-testid="pinned-parameters" />,
 }));
 
 vi.mock('../dateZoom', () => ({
@@ -118,7 +111,7 @@ describe('FilterBar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('renders parameters only when the tab has some', () => {
+    it('renders parameter controls only when the tab has parameters', () => {
         renderWithProviders(
             <FilterBar
                 {...baseProps}
@@ -128,8 +121,7 @@ describe('FilterBar', () => {
             />,
         );
 
-        expect(screen.getByTestId('parameters')).toBeInTheDocument();
-        expect(screen.getByTestId('pinned-parameters')).toBeInTheDocument();
+        expect(screen.getByTestId('parameter-controls')).toBeInTheDocument();
     });
 
     it('collapses into a drawer trigger on compact viewports in view mode', () => {

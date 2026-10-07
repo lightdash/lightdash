@@ -20,6 +20,7 @@ import {
     IconHash,
     IconSearch,
     IconToggleLeft,
+    IconVariable,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -31,10 +32,13 @@ import {
 } from './fieldGrains';
 import {
     FIELD_KINDS,
-    countFieldsByKind,
+    countPickableByKind,
     filterFieldsByKind,
+    filterParametersByKind,
     groupFieldsByExplore,
+    matchesParameterSearch,
     type FieldKind,
+    type PickableParameter,
 } from './fieldKinds';
 import classes from './FieldPicker.module.css';
 
@@ -53,6 +57,9 @@ type Props = {
     getChartCount: (field: DashboardFilterableField) => number;
     chosen: DashboardFilterableField[];
     onToggle: (field: DashboardFilterableField) => void;
+    parameters: PickableParameter[];
+    chosenParameterKeys: string[];
+    onToggleParameter: (key: string) => void;
     kind: FieldKind | null;
     onKindChange: (kind: FieldKind | null) => void;
     lockedKind?: FieldKind;
@@ -66,6 +73,9 @@ export const FieldPicker: FC<Props> = ({
     getChartCount,
     chosen,
     onToggle,
+    parameters,
+    chosenParameterKeys,
+    onToggleParameter,
     kind,
     onKindChange,
     lockedKind,
@@ -91,7 +101,23 @@ export const FieldPicker: FC<Props> = ({
                 : [],
         [fields, search, isSearching],
     );
-    const counts = countFieldsByKind(isSearching ? matches : fields);
+    const parameterMatches = useMemo(
+        () =>
+            isSearching
+                ? parameters.filter((parameter) =>
+                      matchesParameterSearch(parameter, search),
+                  )
+                : [],
+        [parameters, search, isSearching],
+    );
+    const kindParameters = filterParametersByKind(parameters, activeKind);
+    const chosenParameters = parameters.filter((parameter) =>
+        chosenParameterKeys.includes(parameter.key),
+    );
+    const counts = countPickableByKind(
+        isSearching ? matches : fields,
+        isSearching ? parameterMatches : parameters,
+    );
     const chipLabel = (field: DashboardFilterableField) =>
         getFieldDisplayLabel(field, fields);
     const searchGroups = useMemo(() => {
@@ -158,6 +184,51 @@ export const FieldPicker: FC<Props> = ({
         );
     };
 
+    const renderParameterRow = (parameter: PickableParameter) => {
+        const isChosen = chosenParameterKeys.includes(parameter.key);
+        return (
+            <UnstyledButton
+                key={parameter.key}
+                className={classes.fieldRow}
+                aria-label={parameter.label}
+                aria-pressed={mode === 'multi' ? isChosen : undefined}
+                onClick={() => onToggleParameter(parameter.key)}
+            >
+                {mode === 'multi' && (
+                    <Checkbox
+                        size="xs"
+                        checked={isChosen}
+                        readOnly
+                        tabIndex={-1}
+                        aria-hidden
+                    />
+                )}
+                <MantineIcon icon={IconVariable} color="dimmed" aria-hidden />
+                <Text fz="sm" truncate className={classes.rowText}>
+                    {parameter.label}
+                </Text>
+                <Text fz="xs" c="dimmed" truncate>
+                    {parameter.chartCount}{' '}
+                    {pluralizeCharts(parameter.chartCount)}
+                </Text>
+            </UnstyledButton>
+        );
+    };
+
+    const renderParameterGroup = (items: PickableParameter[]) =>
+        items.length > 0 && (
+            <Stack gap={0}>
+                <Group gap="xs" className={classes.groupHeader}>
+                    <Text fz="xs" fw={600} className={classes.rowText}>
+                        Parameters
+                    </Text>
+                </Group>
+                <Stack gap={0} pl="md">
+                    {items.map(renderParameterRow)}
+                </Stack>
+            </Stack>
+        );
+
     return (
         <Stack gap="sm">
             <TextInput
@@ -170,11 +241,12 @@ export const FieldPicker: FC<Props> = ({
             />
             {isSearching ? (
                 <Stack gap={0}>
-                    {matches.length === 0 && (
+                    {matches.length === 0 && parameterMatches.length === 0 && (
                         <Text fz="xs" c="dimmed" px="xs">
                             No fields match
                         </Text>
                     )}
+                    {renderParameterGroup(parameterMatches)}
                     {searchGroups.map((group) => (
                         <Stack key={group.table} gap={0}>
                             <Group
@@ -217,27 +289,46 @@ export const FieldPicker: FC<Props> = ({
                 </Stack>
             ) : (
                 <>
-                    {mode === 'multi' && chosen.length > 0 && (
-                        <Group gap="xs">
-                            <Text fz="xs" c="dimmed">
-                                Chosen
-                            </Text>
-                            {chosen.map((field) => (
-                                <Group
-                                    key={getDashboardFilterableFieldKey(field)}
-                                    gap={2}
-                                    className={classes.chip}
-                                >
-                                    <Text fz="xs">{chipLabel(field)}</Text>
-                                    <CloseButton
-                                        size="xs"
-                                        aria-label={`Remove ${chipLabel(field)}`}
-                                        onClick={() => onToggle(field)}
-                                    />
-                                </Group>
-                            ))}
-                        </Group>
-                    )}
+                    {mode === 'multi' &&
+                        (chosen.length > 0 || chosenParameters.length > 0) && (
+                            <Group gap="xs">
+                                <Text fz="xs" c="dimmed">
+                                    Chosen
+                                </Text>
+                                {chosenParameters.map((parameter) => (
+                                    <Group
+                                        key={parameter.key}
+                                        gap={2}
+                                        className={classes.chip}
+                                    >
+                                        <Text fz="xs">{parameter.label}</Text>
+                                        <CloseButton
+                                            size="xs"
+                                            aria-label={`Remove ${parameter.label}`}
+                                            onClick={() =>
+                                                onToggleParameter(parameter.key)
+                                            }
+                                        />
+                                    </Group>
+                                ))}
+                                {chosen.map((field) => (
+                                    <Group
+                                        key={getDashboardFilterableFieldKey(
+                                            field,
+                                        )}
+                                        gap={2}
+                                        className={classes.chip}
+                                    >
+                                        <Text fz="xs">{chipLabel(field)}</Text>
+                                        <CloseButton
+                                            size="xs"
+                                            aria-label={`Remove ${chipLabel(field)}`}
+                                            onClick={() => onToggle(field)}
+                                        />
+                                    </Group>
+                                ))}
+                            </Group>
+                        )}
                     <SimpleGrid cols={lockedKind ? 1 : 2} spacing="xs">
                         {kinds.map((item) => {
                             const meta = KIND_META[item];
@@ -261,12 +352,14 @@ export const FieldPicker: FC<Props> = ({
                             );
                         })}
                     </SimpleGrid>
+                    {renderParameterGroup(kindParameters)}
                     <Stack gap={0}>
-                        {explores.length === 0 && (
-                            <Text fz="xs" c="dimmed" px="xs">
-                                No fields to add
-                            </Text>
-                        )}
+                        {explores.length === 0 &&
+                            kindParameters.length === 0 && (
+                                <Text fz="xs" c="dimmed" px="xs">
+                                    No fields to add
+                                </Text>
+                            )}
                         {explores.map((explore) => {
                             const isOpen = openTable === explore.table;
                             const rows = foldFieldGrains(explore.fields);

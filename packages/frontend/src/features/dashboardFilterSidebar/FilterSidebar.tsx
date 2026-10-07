@@ -1,4 +1,8 @@
-import { getItemId, type DashboardFilterableField } from '@lightdash/common';
+import {
+    FilterType,
+    getItemId,
+    type DashboardFilterableField,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -14,14 +18,25 @@ import {
 } from '@mantine/core';
 import { IconChevronLeft, IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getFieldDisplayLabel } from './fieldGrains';
-import { type FieldKind } from './fieldKinds';
+import {
+    FIELD_KINDS,
+    type FieldKind,
+    type PickableParameter,
+} from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
 import classes from './FilterSidebar.module.css';
 import { Interactivity } from './Interactivity';
+import {
+    getFreeParameterKeys,
+    getParameterKind,
+    getParameterLabel,
+    type ParameterKind,
+} from './parameterControls';
 import {
     getFilterFields,
     getTabCounts,
@@ -53,8 +68,13 @@ export const FilterSidebar: FC = () => {
         apply,
         backToPicker,
         isDirty,
+        parameterControls,
+        addControl,
     } = useFilterSidebar();
     const [chosen, setChosen] = useState<DashboardFilterableField[]>([]);
+    const [chosenParameterKeys, setChosenParameterKeys] = useState<string[]>(
+        [],
+    );
     const [kind, setKind] = useState<FieldKind | null>(null);
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
@@ -94,39 +114,112 @@ export const FilterSidebar: FC = () => {
             </Menu.Dropdown>
         </Menu>
     );
+    // Fields and parameters are exclusive: ticking one kind clears the other
     const toggleChosen = useCallback((field: DashboardFilterableField) => {
         const id = getItemId(field);
+        setChosenParameterKeys([]);
         setChosen((current) =>
             current.some((item) => getItemId(item) === id)
                 ? current.filter((item) => getItemId(item) !== id)
                 : [...current, field],
         );
     }, []);
-    // The first chosen field starts the filter; the rest are listed at 0 charts
+    const toggleChosenParameter = useCallback((key: string) => {
+        setChosen([]);
+        setChosenParameterKeys((current) =>
+            current.includes(key)
+                ? current.filter((item) => item !== key)
+                : [...current, key],
+        );
+    }, []);
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
+    );
+    // Parameters no control overrides yet, one row per key with its chart count
+    const pickableParameters = useMemo<PickableParameter[]>(() => {
+        const kinds = (kind === null ? FIELD_KINDS : [kind]).filter(
+            (item): item is ParameterKind => item !== FilterType.BOOLEAN,
+        );
+        return kinds.flatMap((parameterKind) =>
+            getFreeParameterKeys(
+                parameterKind,
+                parameterControls,
+                parameterDefinitions,
+                tileParameterReferences,
+            ).map((key) => ({
+                key,
+                label: getParameterLabel(key, parameterDefinitions),
+                kind: parameterKind,
+                chartCount: Object.values(tileParameterReferences).filter(
+                    (keys) => keys.includes(key),
+                ).length,
+            })),
+        );
+    }, [
+        kind,
+        parameterControls,
+        parameterDefinitions,
+        tileParameterReferences,
+    ]);
+    // The first chosen field starts the filter; the rest are listed at 0 charts.
+    // Chosen parameters become one control of their kind instead.
     const handleContinue = useCallback(() => {
+        if (chosenParameterKeys.length > 0) {
+            const [firstKey] = chosenParameterKeys;
+            const definition =
+                firstKey === undefined
+                    ? undefined
+                    : parameterDefinitions[firstKey];
+            if (definition === undefined) return;
+            addControl({
+                id: uuidv4(),
+                label: '',
+                kind: getParameterKind(definition),
+                parameterKeys: chosenParameterKeys,
+                tileTargets: {},
+            });
+            setChosenParameterKeys([]);
+            setKind(null);
+            return;
+        }
         const [first, ...rest] = chosen;
         if (first === undefined) return;
         addFirstField(first);
         rest.forEach((field) => listFieldId(getItemId(field)));
         setKind(null);
-    }, [chosen, addFirstField, listFieldId]);
+    }, [
+        chosen,
+        chosenParameterKeys,
+        parameterDefinitions,
+        addControl,
+        addFirstField,
+        listFieldId,
+    ]);
     // Chosen fields survive Back to the picker; they clear on apply or cancel
     const handleCancel = useCallback(() => {
         setChosen([]);
+        setChosenParameterKeys([]);
         setKind(null);
         cancel();
     }, [cancel]);
     const handleApply = useCallback(() => {
         setChosen([]);
+        setChosenParameterKeys([]);
         setKind(null);
         apply();
     }, [apply]);
+    const chosenCount = chosen.length + chosenParameterKeys.length;
     const chosenStatus =
-        chosen.length === 0
-            ? 'Pick one or more fields'
-            : `${chosen.length} ${chosen.length === 1 ? 'field' : 'fields'} chosen`;
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+        chosenParameterKeys.length > 0
+            ? `${chosenParameterKeys.length} ${chosenParameterKeys.length === 1 ? 'parameter' : 'parameters'} chosen`
+            : chosen.length === 0
+              ? 'Pick one or more fields'
+              : `${chosen.length} ${chosen.length === 1 ? 'field' : 'fields'} chosen`;
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -239,6 +332,9 @@ export const FilterSidebar: FC = () => {
                         getChartCount={getNewFieldChartCount}
                         chosen={chosen}
                         onToggle={toggleChosen}
+                        parameters={pickableParameters}
+                        chosenParameterKeys={chosenParameterKeys}
+                        onToggleParameter={toggleChosenParameter}
                         kind={kind}
                         onKindChange={setKind}
                     />
@@ -252,7 +348,7 @@ export const FilterSidebar: FC = () => {
                             Cancel
                         </Button>
                         <Button
-                            disabled={chosen.length === 0}
+                            disabled={chosenCount === 0}
                             onClick={handleContinue}
                         >
                             Continue
@@ -295,6 +391,9 @@ export const FilterSidebar: FC = () => {
                         getChartCount={getNewFieldChartCount}
                         chosen={[]}
                         onToggle={addFirstField}
+                        parameters={[]}
+                        chosenParameterKeys={[]}
+                        onToggleParameter={toggleChosenParameter}
                         kind={kind}
                         onKindChange={setKind}
                     />

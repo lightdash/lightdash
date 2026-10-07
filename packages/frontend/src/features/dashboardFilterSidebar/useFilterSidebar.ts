@@ -2,8 +2,10 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type ParameterValue,
 } from '@lightdash/common';
 import { createContext, useContext } from 'react';
+import { type ParameterControl } from './parameterControls';
 import { type FilterSessionSettings } from './sessionSettings';
 
 export type FilterSidebarSection = 'fields' | 'interactivity';
@@ -44,10 +46,23 @@ export type FilterSidebarContextValue = {
     backToPicker: () => void;
     apply: () => void;
     isDirty: boolean;
-    /** Key of the parameter shown in the sidebar; null while a filter is being edited. */
-    parameterKey: string | null;
-    openParameter: (key: string) => void;
-    closeParameter: () => void;
+    /** Session controls, one per saved parameter value until authored. */
+    parameterControls: ParameterControl[];
+    editingControlId: string | null;
+    isSidebarOpen: boolean;
+    openControl: (id: string) => void;
+    /** Adds the control and opens it. */
+    addControl: (control: ParameterControl) => void;
+    updateControl: (
+        id: string,
+        patch: Partial<Omit<ParameterControl, 'id'>>,
+    ) => void;
+    removeControl: (id: string) => void;
+    /** Writes the value to every parameter of the control. */
+    setControlValue: (id: string, value: ParameterValue | null) => void;
+    closeControl: () => void;
+    /** Restores the control and its parameter values as they were on open. */
+    cancelControl: () => void;
 };
 
 export const FilterSidebarContext =
