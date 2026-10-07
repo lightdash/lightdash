@@ -949,3 +949,7 @@ a .hoverCard:hover,
         animation: none;
     }
 }
+.favoriteAction:disabled {
+    color: var(--ai-color);
+    background-color: var(--ai-bg);
+}

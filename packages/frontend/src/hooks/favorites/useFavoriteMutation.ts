@@ -7,6 +7,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
+export type FavoriteMutationVariables = {
+    contentType: ContentType;
+    contentUuid: string;
+};
+
 const toggleFavorite = async (
     projectUuid: string,
     contentType: ContentType,
@@ -25,9 +30,9 @@ export const useFavoriteMutation = (projectUuid: string | undefined) => {
     return useMutation<
         ToggleFavoriteResponse,
         ApiError,
-        { contentType: ContentType; contentUuid: string }
+        FavoriteMutationVariables
     >({
-        mutationKey: ['favorite_toggle'],
+        mutationKey: ['favorite_toggle', projectUuid],
         mutationFn: ({ contentType, contentUuid }) => {
             if (!projectUuid) {
                 return Promise.reject(new Error('No project UUID'));
