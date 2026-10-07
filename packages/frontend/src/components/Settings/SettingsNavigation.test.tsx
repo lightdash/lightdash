@@ -21,7 +21,6 @@ const sections: SettingsNavigationSection[] = [
                 children: [
                     ['Agent data scope', 'agentDataScope'],
                     ['AI region', 'aiRegion'],
-                    ['Agent identity', 'aiAccess'],
                 ].map(([label, path]) => ({
                     label,
                     to: `${base}/${path}`,
@@ -39,7 +38,7 @@ const renderNavigation = (path: string, searchQuery = '') =>
     render(
         <MantineProvider>
             <MemoryRouter initialEntries={[path]}>
-                <Link to={`${base}/aiAccess`}>Open identity</Link>
+                <Link to={`${base}/aiRegion`}>Open AI region</Link>
                 <SettingsNavigation
                     sections={sections}
                     searchQuery={searchQuery}
@@ -49,7 +48,7 @@ const renderNavigation = (path: string, searchQuery = '') =>
     );
 
 describe('SettingsNavigation groups', () => {
-    it.each(['agentDataScope', 'aiRegion', 'aiAccess', 'agentSettings'])(
+    it.each(['agentDataScope', 'aiRegion', 'agentSettings'])(
         'opens the group at %s',
         (page) => {
             renderNavigation(`${base}/${page}`);
@@ -64,14 +63,14 @@ describe('SettingsNavigation groups', () => {
         expect(
             screen.getByRole('link', { name: 'Agent settings' }),
         ).not.toHaveAttribute('data-expanded', 'true');
-        fireEvent.click(screen.getByRole('link', { name: 'Open identity' }));
+        fireEvent.click(screen.getByRole('link', { name: 'Open AI region' }));
         expect(
             screen.getByRole('link', { name: 'Agent settings' }),
         ).toHaveAttribute('data-expanded', 'true');
     });
 
     it('opens the group while filtering outside its pages', () => {
-        renderNavigation(`${base}/settings`, 'principal');
+        renderNavigation(`${base}/settings`, 'region');
         expect(
             screen.getByRole('link', { name: 'Agent settings' }),
         ).toHaveAttribute('data-expanded', 'true');

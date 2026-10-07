@@ -8,6 +8,7 @@ export const ProjectFormProvider: FC<
     isDbtSource,
     isProjectExtraConnection,
     projectUuid,
+    warehouseConnectionUuid,
     children,
 }) => {
     const value = useMemo(
@@ -16,8 +17,15 @@ export const ProjectFormProvider: FC<
             isDbtSource,
             isProjectExtraConnection,
             projectUuid,
+            warehouseConnectionUuid,
         }),
-        [savedProject, isDbtSource, isProjectExtraConnection, projectUuid],
+        [
+            savedProject,
+            isDbtSource,
+            isProjectExtraConnection,
+            projectUuid,
+            warehouseConnectionUuid,
+        ],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

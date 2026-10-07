@@ -85,18 +85,18 @@ describe('SnowflakeAiSignInSection', () => {
         'offers sign-in when no AI-purpose credential exists',
         ({ credentials }) => {
             renderSection(credentials);
-            expect(screen.getByText('Not signed in')).toBeInTheDocument();
+            expect(screen.getByText('Agent not connected')).toBeInTheDocument();
             expect(
                 screen.getByRole('button', {
-                    name: 'Sign in for agent sessions',
+                    name: 'Connect agent',
                 }),
             ).toBeEnabled();
             expect(
-                screen.queryByRole('button', { name: 'Sign out' }),
+                screen.queryByRole('button', { name: 'Disconnect' }),
             ).not.toBeInTheDocument();
             expect(
                 screen.getByText(
-                    'AI agents and MCP use this separate Snowflake sign-in.',
+                    'AI agents and MCP use this connection to your Snowflake warehouse.',
                 ),
             ).toBeInTheDocument();
         },
@@ -106,16 +106,16 @@ describe('SnowflakeAiSignInSection', () => {
         renderSection([credential]);
         expect(
             screen.getByText(
-                `Signed in for agent sessions since ${credential.createdAt.toLocaleDateString()}`,
+                `Agent connected since ${credential.createdAt.toLocaleDateString()}`,
             ),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', {
-                name: 'Sign in for agent sessions',
+                name: 'Connect agent',
             }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Sign out' }),
+            screen.getByRole('button', { name: 'Disconnect' }),
         ).toHaveAttribute('data-variant', 'default');
     });
 
@@ -129,7 +129,7 @@ describe('SnowflakeAiSignInSection', () => {
         );
         renderSection();
         const button = screen.getByRole('button', {
-            name: 'Sign in for agent sessions',
+            name: 'Connect agent',
         });
         fireEvent.click(button);
         await waitFor(() =>
@@ -151,7 +151,7 @@ describe('SnowflakeAiSignInSection', () => {
 
     it('requires confirmation in the existing modal before signing out', async () => {
         renderSection([credential]);
-        fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
         expect(
             await screen.findByRole('dialog', { name: 'Delete credentials' }),
         ).toBeInTheDocument();

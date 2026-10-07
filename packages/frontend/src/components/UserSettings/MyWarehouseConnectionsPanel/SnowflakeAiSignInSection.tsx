@@ -22,9 +22,10 @@ export const SnowflakeAiSignInSection = ({
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>Snowflake agent sign-in</Title>
+                <Title order={5}>Agent connection</Title>
                 <Text c="dimmed" fz="sm">
-                    AI agents and MCP use this separate Snowflake sign-in.
+                    AI agents and MCP use this connection to your Snowflake
+                    warehouse.
                 </Text>
                 <Group gap="sm">
                     {credential ? (
@@ -35,14 +36,14 @@ export const SnowflakeAiSignInSection = ({
                                 size={16}
                             />
                             <Text fz="sm">
-                                Signed in for agent sessions since{' '}
+                                Agent connected since{' '}
                                 {new Date(
                                     credential.createdAt,
                                 ).toLocaleDateString()}
                             </Text>
                         </Group>
                     ) : (
-                        <Text fz="sm">Not signed in</Text>
+                        <Text fz="sm">Agent not connected</Text>
                     )}
                     {credential ? (
                         <Button
@@ -50,7 +51,7 @@ export const SnowflakeAiSignInSection = ({
                             variant="default"
                             onClick={() => setIsRemoving(true)}
                         >
-                            Sign out
+                            Disconnect
                         </Button>
                     ) : (
                         <Button
@@ -58,7 +59,7 @@ export const SnowflakeAiSignInSection = ({
                             onClick={() => login.mutate()}
                             loading={login.isLoading}
                         >
-                            Sign in for agent sessions
+                            Connect agent
                         </Button>
                     )}
                 </Group>

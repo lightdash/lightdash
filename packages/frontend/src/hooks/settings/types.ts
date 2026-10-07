@@ -59,7 +59,6 @@ export type SettingsNavigationSection = {
  * router, sidebar nav, and a future settings search all derive from it.
  */
 export type SettingsContext = {
-    aiPrincipalsEnabled?: boolean;
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;

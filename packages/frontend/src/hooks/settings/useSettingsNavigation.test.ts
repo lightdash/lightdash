@@ -23,7 +23,6 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
 ): SettingsContext => ({
-    aiPrincipalsEnabled: false,
     user: undefined,
     health: undefined,
     organization: undefined,
@@ -201,19 +200,18 @@ describe('AI credits settings navigation', () => {
 
 describe('Agent settings navigation', () => {
     it.each([
-        [WarehouseTypes.SNOWFLAKE, true, true, true, true],
-        [WarehouseTypes.SNOWFLAKE, true, true, false, true],
-        [WarehouseTypes.SNOWFLAKE, true, true, true, false],
-        [WarehouseTypes.SNOWFLAKE, true, false, false, false],
-        [WarehouseTypes.POSTGRES, true, true, true, true],
-        [WarehouseTypes.POSTGRES, true, false, false, false],
-        [WarehouseTypes.SNOWFLAKE, false, true, true, true],
-        [WarehouseTypes.SNOWFLAKE, false, false, false, false],
+        [WarehouseTypes.SNOWFLAKE, true, true, true],
+        [WarehouseTypes.SNOWFLAKE, true, false, true],
+        [WarehouseTypes.SNOWFLAKE, true, true, false],
+        [WarehouseTypes.SNOWFLAKE, false, false, false],
+        [WarehouseTypes.POSTGRES, true, true, true],
+        [WarehouseTypes.POSTGRES, false, false, false],
+        [WarehouseTypes.SNOWFLAKE, false, true, true],
+        [WarehouseTypes.SNOWFLAKE, false, false, false],
     ])(
-        'gates %s with flag %s',
+        'gates %s for project manager %s',
         (
             projectWarehouseType,
-            aiPrincipalsEnabled,
             canManageProject,
             isAiCopilotEnabledOrTrial,
             canManageOrgAiAgent,
@@ -221,7 +219,6 @@ describe('Agent settings navigation', () => {
             const { result } = renderHook(() =>
                 useSettingsNavigation(
                     settingsContext({
-                        aiPrincipalsEnabled,
                         isAiCopilotEnabledOrTrial,
                         canManageOrgAiAgent,
                         organization: {
@@ -290,11 +287,6 @@ describe('Agent settings navigation', () => {
                 ...(isAiCopilotEnabledOrTrial ? ['Agent data scope'] : []),
                 ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
                     ? ['AI region']
-                    : []),
-                ...(aiPrincipalsEnabled &&
-                canManageProject &&
-                projectWarehouseType === WarehouseTypes.SNOWFLAKE
-                    ? ['Agent identity']
                     : []),
             ];
             if (expectedLabels.length === 0) {

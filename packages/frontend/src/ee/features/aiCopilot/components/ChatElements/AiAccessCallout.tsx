@@ -42,12 +42,14 @@ export const AiAccessCallout = ({
                 <Stack gap="sm" flex={1}>
                     {requiresSignIn && variant === 'card' && (
                         <Title order={5}>
-                            Sign in to your warehouse for agent sessions
+                            Connect your agent to your warehouse
                         </Title>
                     )}
                     <Text size="sm" c="dimmed">
                         {requiresSignIn
-                            ? 'Your warehouse checks that agent queries come from your own verified session.'
+                            ? variant === 'inline'
+                                ? 'Connect your agent to your warehouse to run this.'
+                                : 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.'
                             : refusal.message}
                     </Text>
                     {refusal.action === AiAccessRefusalAction.SIGN_IN && (
@@ -66,7 +68,7 @@ export const AiAccessCallout = ({
                                     })
                                 }
                             >
-                                Sign in for agent sessions
+                                Connect agent
                             </Button>
                         </Group>
                     )}
@@ -75,24 +77,11 @@ export const AiAccessCallout = ({
                             {login.error.message}
                         </Text>
                     )}
-                    {requiresSignIn && variant === 'card' && (
-                        <Text size="xs" c="dimmed">
-                            Manage your sessions in{' '}
-                            <Anchor
-                                component={Link}
-                                to="/generalSettings/myWarehouseConnections"
-                                size="xs"
-                            >
-                                My warehouse connections
-                            </Anchor>
-                            .
-                        </Text>
-                    )}
                     {refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
                         canUpdate && (
                             <Anchor
                                 component={Link}
-                                to={`/generalSettings/projectManagement/${projectUuid}/aiAccess`}
+                                to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                 size="sm"
                             >
                                 {t('aiAccess.settings')}

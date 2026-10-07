@@ -60,22 +60,23 @@ describe('AI access callout', () => {
         render(AiAccessRefusalAction.SIGN_IN);
         expect(
             screen.getByRole('heading', {
-                name: 'Sign in to your warehouse for agent sessions',
+                name: 'Connect your agent to your warehouse',
             }),
         ).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'My warehouse connections' }),
-        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
-        );
+            screen.getByText(
+                'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.',
+            ),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
         expect(mocks.login).toHaveBeenCalled();
     });
     it('disables sign-in while the popup is open', () => {
         mocks.isLoading = true;
         render(AiAccessRefusalAction.SIGN_IN);
         expect(
-            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+            screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeDisabled();
     });
     it('shows the popup error and allows another attempt', () => {
@@ -85,7 +86,7 @@ describe('AI access callout', () => {
             mocks.error.message,
         );
         expect(
-            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+            screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeEnabled();
     });
     it('renders a compact inline sign-in action', () => {
@@ -100,7 +101,12 @@ describe('AI access callout', () => {
         );
         expect(screen.queryByRole('heading')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+            screen.getByText(
+                'Connect your agent to your warehouse to run this.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeEnabled();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
@@ -111,7 +117,7 @@ describe('AI access callout', () => {
             screen.getByRole('link', { name: 'Review agent identity' }),
         ).toHaveAttribute(
             'href',
-            '/generalSettings/projectManagement/project/aiAccess',
+            '/generalSettings/projectManagement/project/settings',
         );
         expect(mocks.can).toHaveBeenCalledWith(
             'manage',

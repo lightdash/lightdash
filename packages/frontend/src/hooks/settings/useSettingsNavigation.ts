@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { WarehouseTypes } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -102,7 +101,6 @@ export const useSettingsNavigation = (
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
-        aiPrincipalsEnabled,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
@@ -820,22 +818,6 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (
-                aiPrincipalsEnabled &&
-                project.warehouseConnection?.type ===
-                    WarehouseTypes.SNOWFLAKE &&
-                ability?.can('manage', subject('Project', project))
-            ) {
-                agentSettingsChildren.push({
-                    label: 'Agent identity',
-                    to: `${base}/aiAccess`,
-                    icon: IconDatabaseCog,
-                    keywords: ['principal', 'warehouse', 'permissions'],
-                    children: [],
-                    exact: true,
-                });
-            }
-
             const projectItems: SettingsNavigationItem[] = [
                 {
                     label: 'Connection settings',
@@ -1287,7 +1269,6 @@ export const useSettingsNavigation = (
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
-        aiPrincipalsEnabled,
         track,
     ]);
 };

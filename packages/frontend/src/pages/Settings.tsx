@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType, WarehouseTypes } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
@@ -92,7 +92,6 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { getAgentSettingsLanding } from '../features/aiAccess/agentSettingsLanding';
-import { AiAccessPage } from '../features/aiAccess/AiAccessPage';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
@@ -206,15 +205,10 @@ const Settings: FC = () => {
         projectError,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,
-        aiPrincipalsEnabled,
     } = context;
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
-            {
-                path: '/projectManagement/:projectUuid/aiAccess',
-                element: <AiAccessPage />,
-            },
             {
                 path: '/appearance',
                 element: <AppearanceSettingsPanel />,
@@ -550,12 +544,6 @@ const Settings: FC = () => {
                 canAccessAgentDataScope: isAiCopilotEnabledOrTrial,
                 canAccessAiRegion:
                     isAiCopilotEnabledOrTrial && canManageOrgAiAgent,
-                canManageAgentIdentity: Boolean(
-                    aiPrincipalsEnabled &&
-                    project.warehouseConnection?.type ===
-                        WarehouseTypes.SNOWFLAKE &&
-                    user?.ability.can('manage', subject('Project', project)),
-                ),
             });
             if (agentSettingsLanding) {
                 allowedRoutes.push({
@@ -900,7 +888,6 @@ const Settings: FC = () => {
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         projectSettingsAccess,
-        aiPrincipalsEnabled,
     ]);
     const routeElements = useRoutes(routes);
 

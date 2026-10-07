@@ -11,6 +11,7 @@ export type ProjectFormContext = {
     // Set with isDbtSource: the project the source is being added to, for the
     // fields that read the project's own warehouse connection.
     projectUuid?: string;
+    warehouseConnectionUuid?: string | null;
 };
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);
