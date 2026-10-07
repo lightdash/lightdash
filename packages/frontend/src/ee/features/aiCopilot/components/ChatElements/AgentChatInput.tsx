@@ -1505,6 +1505,7 @@ export const AgentChatInput = ({
                 <AiAccessGate
                     projectUuid={projectUuid}
                     refusal={accessGate.refusal}
+                    isLoading={accessGate.isLoading}
                     variant={
                         accessCalloutVariant ??
                         (messageCount === 0 ? 'card' : 'inline')
@@ -1565,6 +1566,7 @@ export const AgentChatInput = ({
             <AiAccessGate
                 projectUuid={projectUuid}
                 refusal={accessGate.refusal}
+                isLoading={accessGate.isLoading}
                 variant={
                     accessCalloutVariant ??
                     (messageCount === 0 ? 'card' : 'inline')

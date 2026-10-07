@@ -15,11 +15,15 @@ import { LauncherPanel } from './LauncherPanel';
 
 const state = vi.hoisted(() => ({
     refusal: null as AiAccessRefusal | null,
+    isLoading: false,
     submit: vi.fn(),
     login: vi.fn(),
 }));
 vi.mock('../../../../../features/aiAccess/api', () => ({
-    useMyAiAccess: () => ({ data: { refusal: state.refusal } }),
+    useMyAiAccess: () => ({
+        data: { refusal: state.refusal },
+        isLoading: state.isLoading,
+    }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
     useSnowflakeAiLoginPopup: () => ({
@@ -131,6 +135,7 @@ const panel = (activeThreadId: string | null) => (
 describe('LauncherPanel AI access', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        state.isLoading = false;
         state.refusal = {
             code: 'ai_access_refused',
             reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -141,25 +146,37 @@ describe('LauncherPanel AI access', () => {
     });
 
     it.each([null, 'thread-1'])(
+        'shows only a placeholder while loading for %s',
+        (threadId) => {
+            state.isLoading = true;
+            renderWithProviders(panel(threadId));
+            expect(
+                screen.getByTestId('ai-access-placeholder'),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Connect agent' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it.each([null, 'thread-1'])(
         'gates the composer with an inline sign-in callout for %s',
         (threadId) => {
             renderWithProviders(panel(threadId));
-            const editor = screen.getByRole('textbox');
-            expect(editor).toHaveAttribute('contenteditable', 'false');
-            expect(editor.closest('fieldset')).toBeDisabled();
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
             expect(
-                screen.getByRole('button', { name: 'Send message' }),
-            ).toBeDisabled();
+                screen.queryByRole('button', { name: 'Send message' }),
+            ).not.toBeInTheDocument();
             const signIn = screen.getByRole('button', {
-                name: 'Sign in for agent sessions',
+                name: 'Connect agent',
             });
             expect(signIn).toBeEnabled();
             expect(
                 screen.queryByRole('heading', {
-                    name: 'Sign in to your warehouse for agent sessions',
+                    name: 'Connect your agent to your warehouse',
                 }),
             ).not.toBeInTheDocument();
-            fireEvent.keyDown(editor, { key: 'Enter' });
             expect(state.submit).not.toHaveBeenCalled();
             fireEvent.click(signIn);
             expect(state.login).toHaveBeenCalled();
@@ -179,11 +196,8 @@ describe('LauncherPanel AI access', () => {
                 ),
             );
             expect(
-                screen.getByRole('textbox').closest('fieldset'),
-            ).toBeEnabled();
-            expect(
                 screen.queryByRole('button', {
-                    name: 'Sign in for agent sessions',
+                    name: 'Connect agent',
                 }),
             ).not.toBeInTheDocument();
         },

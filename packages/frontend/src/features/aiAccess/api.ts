@@ -143,14 +143,22 @@ export const useMyAiAccess = (
     project: string | undefined,
     connection: string | null = null,
 ) => {
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
-    return useAccessQuery(
+    const { data: flag, isLoading: isFlagLoading } = useServerFeatureFlag(
+        FeatureFlags.AiPrincipals,
+    );
+    const query = useAccessQuery(
         project ?? '',
         connection,
         'me',
         () => aiAccessApi.me(project!, connection),
         flag?.enabled === true,
     );
+    return {
+        ...query,
+        isLoading:
+            !!project &&
+            (isFlagLoading || (flag?.enabled === true && query.isLoading)),
+    };
 };
 const useAccessMutation = <T, V>(
     project: string,

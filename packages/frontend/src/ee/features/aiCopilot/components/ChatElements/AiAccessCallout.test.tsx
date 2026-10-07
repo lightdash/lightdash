@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiAccessCallout } from './AiAccessCallout';
+import { AiAccessGate } from './AiAccessGate';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 const mocks = vi.hoisted(() => ({
     can: vi.fn(),
@@ -56,6 +57,48 @@ describe('AI access callout', () => {
         mocks.isLoading = false;
         mocks.error = null;
     });
+    it.each(['card', 'inline'] as const)(
+        'replaces the composer with the %s callout, then restores it',
+        (variant) => {
+            const content = (isLoading: boolean, refused: boolean) => (
+                <MemoryRouter>
+                    <AiAccessGate
+                        projectUuid="project"
+                        refusal={refused ? refusal : null}
+                        isLoading={isLoading}
+                        variant={variant}
+                    >
+                        <textarea aria-label="Composer" />
+                    </AiAccessGate>
+                </MemoryRouter>
+            );
+            const { rerender } = renderWithProviders(content(true, true));
+            expect(
+                screen.getByTestId('ai-access-placeholder'),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Connect agent' }),
+            ).not.toBeInTheDocument();
+            rerender(content(false, true));
+            expect(
+                screen.queryByTestId('ai-access-placeholder'),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            ).toBeEnabled();
+            expect(!!screen.queryByRole('heading')).toBe(variant === 'card');
+            rerender(content(false, false));
+            expect(
+                screen.getByRole('textbox', { name: 'Composer' }),
+            ).toBeEnabled();
+            expect(
+                screen.queryByRole('button', { name: 'Connect agent' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
     it('offers agent session sign-in', () => {
         render(AiAccessRefusalAction.SIGN_IN);
         expect(

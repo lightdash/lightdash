@@ -29,6 +29,7 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
+import { useAiAccessGate } from '../../../features/aiAccess/useAiAccessGate';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -100,6 +101,7 @@ const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const accessGate = useAiAccessGate(projectUuid);
     const { track } = useTracking();
     const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
@@ -520,7 +522,7 @@ const AiAgentNewThreadPage: FC = () => {
                         </Stack>
                     )}
 
-                    {showBattleSetup && (
+                    {showBattleSetup && !accessGate.disabled && (
                         <BattleModeSetup
                             enabled={battleMode}
                             onEnabledChange={setBattleMode}

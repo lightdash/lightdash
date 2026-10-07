@@ -17,10 +17,16 @@ import {
 } from '../Launcher/AiAgentsLauncherPortal';
 import { AgentChatInput } from './AgentChatInput';
 
-const access = vi.hoisted(() => ({ refusal: null as AiAccessRefusal | null }));
+const access = vi.hoisted(() => ({
+    refusal: null as AiAccessRefusal | null,
+    isLoading: false,
+}));
 
 vi.mock('../../../../../features/aiAccess/api', () => ({
-    useMyAiAccess: () => ({ data: { refusal: access.refusal } }),
+    useMyAiAccess: () => ({
+        data: { refusal: access.refusal },
+        isLoading: access.isLoading,
+    }),
 }));
 
 vi.mock('../../../../../hooks/useSnowflake', () => ({
@@ -83,12 +89,19 @@ const renderInput = (withModels = false) => {
             </MemoryRouter>
         </Provider>,
     );
-    return { ...result, onSubmit, element: screen.getByRole('textbox') };
+    return {
+        ...result,
+        onSubmit,
+        get element() {
+            return screen.getByRole('textbox');
+        },
+    };
 };
 
 describe('AgentChatInput keyboard handling', () => {
     beforeEach(() => {
         store.dispatch(resetActivePanel());
+        access.isLoading = false;
         access.refusal = null;
     });
 
@@ -104,7 +117,7 @@ describe('AgentChatInput keyboard handling', () => {
         );
     });
 
-    it('disables the composer until the access refusal clears', () => {
+    it('hides the composer until the access refusal clears', () => {
         access.refusal = {
             code: 'ai_access_refused',
             reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -112,15 +125,14 @@ describe('AgentChatInput keyboard handling', () => {
             message: 'Sign in to run agent queries.',
             settingsUrl: null,
         };
-        const { onSubmit, element, rerender } = renderInput();
-        expect(element).toHaveAttribute('contenteditable', 'false');
+        const { onSubmit, rerender } = renderInput();
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Send message' }),
-        ).toBeDisabled();
+            screen.queryByRole('button', { name: 'Send message' }),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+            screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeEnabled();
-        fireEvent.keyDown(element, { key: 'Enter' });
         expect(onSubmit).not.toHaveBeenCalled();
 
         access.refusal = null;
@@ -139,7 +151,7 @@ describe('AgentChatInput keyboard handling', () => {
         );
         expect(
             screen.queryByRole('button', {
-                name: 'Sign in for agent sessions',
+                name: 'Connect agent',
             }),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('textbox')).toHaveAttribute(
@@ -151,7 +163,7 @@ describe('AgentChatInput keyboard handling', () => {
         ).toBeEnabled();
     });
 
-    it('disables the model picker and suggestion chips when sign-in is required', () => {
+    it('hides the model picker and suggestion chips when sign-in is required', () => {
         access.refusal = {
             code: 'ai_access_refused',
             reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -161,15 +173,31 @@ describe('AgentChatInput keyboard handling', () => {
         };
         renderInput(true);
         expect(
-            screen.getByRole('button', { name: 'Select model' }),
-        ).toBeDisabled();
+            screen.queryByRole('button', { name: 'Select model' }),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Show revenue', hidden: true }),
-        ).toBeDisabled();
-        expect(screen.getByRole('textbox').closest('fieldset')).toHaveAttribute(
-            'data-access-refused',
-            'true',
-        );
+            screen.queryByRole('button', {
+                name: 'Show revenue',
+                hidden: true,
+            }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('reserves space without a composer or callout while access loads', () => {
+        access.isLoading = true;
+        renderInput(true);
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect agent' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Show revenue',
+                hidden: true,
+            }),
+        ).not.toBeInTheDocument();
     });
 
     it('does not send on Shift+Enter', () => {
