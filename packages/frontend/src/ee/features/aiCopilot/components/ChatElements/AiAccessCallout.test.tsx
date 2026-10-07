@@ -66,6 +66,8 @@ describe('AI access callout', () => {
                         projectUuid="project"
                         refusal={refused ? refusal : null}
                         isLoading={isLoading}
+                        isError={false}
+                        refetch={vi.fn()}
                         variant={variant}
                     >
                         <textarea aria-label="Composer" />

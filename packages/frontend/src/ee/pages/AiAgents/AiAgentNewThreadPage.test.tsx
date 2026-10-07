@@ -12,7 +12,7 @@ import AiAgentNewThreadPage from './AiAgentNewThreadPage';
 
 const { composerProps, access } = vi.hoisted(() => ({
     composerProps: vi.fn(),
-    access: { isLoading: false, disabled: false },
+    access: { isLoading: false, isError: false, disabled: false },
 }));
 
 vi.mock('../../../features/aiAccess/useAiAccessGate', () => ({
@@ -155,13 +155,15 @@ describe('AiAgentNewThreadPage embed controls', () => {
         window.history.replaceState(null, '', '/');
         vi.clearAllMocks();
         access.isLoading = false;
+        access.isError = false;
         access.disabled = false;
     });
 
-    it.each(['loading', 'refused', 'allowed'])(
+    it.each(['loading', 'refused', 'error', 'allowed'])(
         'shows Battle mode only when access is allowed: %s',
         (state) => {
             access.isLoading = state === 'loading';
+            access.isError = state === 'error';
             access.disabled = state !== 'allowed';
             renderPage(false, 1);
             const battle = screen.queryByRole('switch', {

@@ -71,6 +71,8 @@ describe('useAiAccessGate', () => {
         expect(result.current).toEqual({
             refusal: undefined,
             isLoading: true,
+            isError: false,
+            refetch: expect.any(Function),
             disabled: true,
         });
         expect(me).not.toHaveBeenCalled();
@@ -82,9 +84,48 @@ describe('useAiAccessGate', () => {
             expect(result.current).toEqual({
                 refusal,
                 isLoading: false,
+                isError: false,
+                refetch: expect.any(Function),
                 disabled: true,
             }),
         );
+    });
+
+    it('disables the composer when the access query fails', async () => {
+        vi.spyOn(aiAccessApi, 'me').mockRejectedValue({
+            error: { message: 'Access check failed' },
+        });
+        const { result } = setup('project-1');
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        expect(result.current.disabled).toBe(true);
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.refusal).toBeUndefined();
+    });
+
+    it('disables the composer when a previously successful check fails', async () => {
+        const me = vi
+            .spyOn(aiAccessApi, 'me')
+            .mockResolvedValue(accessResult(false));
+        const { result, client } = setup('project-1');
+        await waitFor(() => expect(result.current.disabled).toBe(false));
+        me.mockRejectedValue({ error: { message: 'Access check failed' } });
+        await act(async () => {
+            await client.invalidateQueries(['ai-access']);
+        });
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        expect(result.current.disabled).toBe(true);
+    });
+
+    it('ignores a cached error when the flag is turned off', async () => {
+        vi.spyOn(aiAccessApi, 'me').mockRejectedValue({
+            error: { message: 'Access check failed' },
+        });
+        const { result, rerender } = setup('project-1');
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        flag.enabled = false;
+        rerender({ project: 'project-1' });
+        expect(result.current.isError).toBe(false);
+        expect(result.current.disabled).toBe(false);
     });
 
     it('recovers after the login popup invalidates ai-access', async () => {
@@ -101,6 +142,8 @@ describe('useAiAccessGate', () => {
             expect(result.current).toEqual({
                 refusal: null,
                 isLoading: false,
+                isError: false,
+                refetch: expect.any(Function),
                 disabled: false,
             }),
         );
@@ -116,6 +159,8 @@ describe('useAiAccessGate', () => {
             expect(result.current).toEqual({
                 refusal: undefined,
                 isLoading: false,
+                isError: false,
+                refetch: expect.any(Function),
                 disabled: false,
             });
             expect(me).not.toHaveBeenCalled();
@@ -129,6 +174,8 @@ describe('useAiAccessGate', () => {
         expect(result.current).toEqual({
             refusal: undefined,
             isLoading: false,
+            isError: false,
+            refetch: expect.any(Function),
             disabled: false,
         });
         expect(me).not.toHaveBeenCalled();

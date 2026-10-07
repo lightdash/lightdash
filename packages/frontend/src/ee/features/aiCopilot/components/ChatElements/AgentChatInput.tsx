@@ -1506,6 +1506,8 @@ export const AgentChatInput = ({
                     projectUuid={projectUuid}
                     refusal={accessGate.refusal}
                     isLoading={accessGate.isLoading}
+                    isError={accessGate.isError}
+                    refetch={accessGate.refetch}
                     variant={
                         accessCalloutVariant ??
                         (messageCount === 0 ? 'card' : 'inline')
@@ -1567,6 +1569,8 @@ export const AgentChatInput = ({
                 projectUuid={projectUuid}
                 refusal={accessGate.refusal}
                 isLoading={accessGate.isLoading}
+                isError={accessGate.isError}
+                refetch={accessGate.refetch}
                 variant={
                     accessCalloutVariant ??
                     (messageCount === 0 ? 'card' : 'inline')

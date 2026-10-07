@@ -40,6 +40,8 @@ describe('useAmbientAiEnabled', () => {
         vi.mocked(useAiAccessGate).mockReturnValue({
             refusal: undefined,
             isLoading: false,
+            isError: false,
+            refetch: vi.fn(),
             disabled: false,
         });
     });
@@ -61,6 +63,20 @@ describe('useAmbientAiEnabled', () => {
         vi.mocked(useAiAccessGate).mockReturnValue({
             refusal: undefined,
             isLoading: true,
+            isError: false,
+            refetch: vi.fn(),
+            disabled: true,
+        });
+        const { result } = renderHook(() => useAmbientAiEnabled());
+        expect(result.current).toBe(false);
+    });
+
+    it('disables ambient AI when the access check fails', () => {
+        vi.mocked(useAiAccessGate).mockReturnValue({
+            refusal: undefined,
+            isLoading: false,
+            isError: true,
+            refetch: vi.fn(),
             disabled: true,
         });
         const { result } = renderHook(() => useAmbientAiEnabled());
@@ -77,6 +93,8 @@ describe('useAmbientAiEnabled', () => {
                 settingsUrl: null,
             },
             isLoading: false,
+            isError: false,
+            refetch: vi.fn(),
             disabled: true,
         });
         const { result } = renderHook(() => useAmbientAiEnabled());

@@ -20,12 +20,15 @@ import { AgentChatInput } from './AgentChatInput';
 const access = vi.hoisted(() => ({
     refusal: null as AiAccessRefusal | null,
     isLoading: false,
+    isError: false,
 }));
 
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
         data: { refusal: access.refusal },
         isLoading: access.isLoading,
+        isError: access.isError,
+        refetch: vi.fn(),
     }),
 }));
 
@@ -102,6 +105,7 @@ describe('AgentChatInput keyboard handling', () => {
     beforeEach(() => {
         store.dispatch(resetActivePanel());
         access.isLoading = false;
+        access.isError = false;
         access.refusal = null;
     });
 
@@ -183,6 +187,34 @@ describe('AgentChatInput keyboard handling', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
+
+    it.each([false, true])(
+        'hides the composer, model picker and suggestions when the access check fails (models: %s)',
+        (withModels) => {
+            access.isError = true;
+            const { onSubmit } = renderInput(withModels);
+            expect(
+                screen.getByText(/We could not check your agent connection/),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Try again' }),
+            ).toBeEnabled();
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Send message' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Select model' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Show revenue',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument();
+            expect(onSubmit).not.toHaveBeenCalled();
+        },
+    );
 
     it('reserves space without a composer or callout while access loads', () => {
         access.isLoading = true;

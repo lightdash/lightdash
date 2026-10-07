@@ -75,6 +75,7 @@ export const useMyAiAccess = (
     );
     return {
         ...query,
+        isError: !!project && flag?.enabled === true && query.isError,
         isLoading:
             !!project &&
             (isFlagLoading || (flag?.enabled === true && query.isLoading)),
