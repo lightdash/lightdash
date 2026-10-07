@@ -1707,6 +1707,9 @@ export class AiAgentMemoryService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: args.partition.organizationUuid,
                 projectUuid: args.partition.projectUuid,
+                // A consolidation partition spans an owner's memories across
+                // agents, so the project selection applies.
+                credentialUuid: null,
             });
         // Rare and consequential where distillation is frequent and cheap: the
         // org's default model, reasoning on, with a two-call ceiling.
@@ -2027,6 +2030,7 @@ export class AiAgentMemoryService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: args.thread.organizationUuid,
                 projectUuid: args.thread.projectUuid,
+                credentialUuid: null,
             });
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;
