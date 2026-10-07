@@ -1,3 +1,8 @@
+.picker {
+    min-height: 0;
+    flex: 1;
+}
+
 .kindTile {
     flex: 1 1 0;
     display: flex;
@@ -14,26 +19,18 @@
     background-color: var(--mantine-color-default-hover);
 }
 
-.exploreRow,
-.groupHeader {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-xs);
+/* The list scrolls inside the sidebar; the tiles and search stay put */
+.list {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
+    padding: 4px;
 }
 
-.exploreRow:hover {
-    background-color: var(--mantine-color-default-hover);
-}
-
-.chevron {
-    transition: transform 150ms ease;
-}
-
-.chevronOpen {
-    transform: rotate(90deg);
+.groupHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 4px;
 }
 
 .fieldRow {
@@ -41,7 +38,7 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
-    padding: 4px var(--mantine-spacing-xs);
+    padding: 6px var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-sm);
 }
 

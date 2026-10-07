@@ -1,9 +1,6 @@
+import { FilterType, type DashboardFilterableField } from '@lightdash/common';
 import {
-    FilterType,
-    getDashboardFilterableFieldKey,
-    type DashboardFilterableField,
-} from '@lightdash/common';
-import {
+    Box,
     Group,
     SimpleGrid,
     Stack,
@@ -14,7 +11,6 @@ import {
 import {
     IconAbc,
     IconCalendar,
-    IconChevronRight,
     IconHash,
     IconSearch,
     IconToggleLeft,
@@ -23,24 +19,16 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    foldFieldGrains,
-    getFieldDisplayLabel,
-    matchesSearch,
-} from './fieldGrains';
+import { foldFieldGrains, matchesSearch } from './fieldGrains';
 import {
     FIELD_KINDS,
     countPickableByKind,
     filterFieldsByKind,
     filterParametersByKind,
-    groupFieldsByExplore,
     matchesParameterSearch,
     type PickableParameter,
 } from './fieldKinds';
 import classes from './FieldPicker.module.css';
-
-const MAX_SEARCH_RESULTS = 12;
-const MAX_EXPLORE_FIELDS = 8;
 
 const KIND_META = {
     [FilterType.DATE]: { label: 'Date', icon: IconCalendar },
@@ -74,7 +62,6 @@ export const FieldPicker: FC<Props> = ({
     lockedKind,
 }) => {
     const [search, setSearch] = useState('');
-    const [openTable, setOpenTable] = useState<string | null>(null);
     const activeKind = lockedKind ?? null;
     const pickableFields = useMemo(
         () => filterFieldsByKind(fields, activeKind),
@@ -87,118 +74,41 @@ export const FieldPicker: FC<Props> = ({
                 : filterParametersByKind(parameters, activeKind),
         [parameters, activeKind, onPickParameter],
     );
-    const explores = useMemo(
-        () => groupFieldsByExplore(pickableFields, getChartCount),
-        [pickableFields, getChartCount],
-    );
-    const isSearching = search.trim() !== '';
-    const matches = useMemo(
+    // One row per field, grains folded, sorted by explore then by name
+    const rows = useMemo(
         () =>
-            isSearching
-                ? pickableFields.filter((field) => matchesSearch(field, search))
-                : [],
-        [pickableFields, search, isSearching],
+            foldFieldGrains(
+                pickableFields.filter((field) => matchesSearch(field, search)),
+            ).sort(
+                (a, b) =>
+                    a.tableLabel.localeCompare(b.tableLabel) ||
+                    a.label.localeCompare(b.label),
+            ),
+        [pickableFields, search],
     );
-    const parameterMatches = useMemo(
+    const parameterRows = useMemo(
         () =>
-            isSearching
-                ? pickableParameters.filter((parameter) =>
-                      matchesParameterSearch(parameter, search),
-                  )
-                : [],
-        [pickableParameters, search, isSearching],
+            pickableParameters.filter((parameter) =>
+                matchesParameterSearch(parameter, search),
+            ),
+        [pickableParameters, search],
     );
     const counts = countPickableByKind(pickableFields, pickableParameters);
-    const chipLabel = (field: DashboardFilterableField) =>
-        getFieldDisplayLabel(field, fields);
-    const searchGroups = useMemo(() => {
-        let remaining = MAX_SEARCH_RESULTS;
-        return groupFieldsByExplore(matches, getChartCount).flatMap(
-            (explore) => {
-                if (remaining <= 0) return [];
-                const shown = explore.fields.slice(0, remaining);
-                remaining -= shown.length;
-                const seen = new Set<string>();
-                const duplicateLabels = new Set<string>();
-                explore.fields.forEach((field) => {
-                    const label = getFieldDisplayLabel(field, fields);
-                    if (seen.has(label)) duplicateLabels.add(label);
-                    seen.add(label);
-                });
-                return [
-                    {
-                        table: explore.table,
-                        label: explore.label,
-                        matchCount: explore.fields.length,
-                        fields: shown,
-                        duplicateLabels,
-                    },
-                ];
-            },
-        );
-    }, [matches, fields, getChartCount]);
-
-    const renderFieldRow = (
-        field: DashboardFilterableField,
-        label: string,
-        detail: string,
-    ) => (
-        <UnstyledButton
-            key={getDashboardFilterableFieldKey(field)}
-            className={classes.fieldRow}
-            aria-label={label}
-            onClick={() => onPickField(field)}
-        >
-            <FieldIcon item={field} size={14} aria-hidden />
-            <Text fz="sm" truncate className={classes.rowText}>
-                {label}
-            </Text>
-            <Text fz="xs" c="dimmed" truncate>
-                {detail}
-            </Text>
-        </UnstyledButton>
-    );
-
-    const renderParameterRow = (parameter: PickableParameter) => (
-        <UnstyledButton
-            key={parameter.key}
-            className={classes.fieldRow}
-            aria-label={parameter.label}
-            onClick={() => onPickParameter?.(parameter.key)}
-        >
-            <MantineIcon icon={IconVariable} color="dimmed" aria-hidden />
-            <Text fz="sm" truncate className={classes.rowText}>
-                {parameter.label}
-            </Text>
-            <Text fz="xs" c="dimmed" truncate>
-                {parameter.chartCount} {pluralizeCharts(parameter.chartCount)}
-            </Text>
-        </UnstyledButton>
-    );
-
-    const renderParameterGroup = (items: PickableParameter[]) =>
-        items.length > 0 && (
-            <Stack gap={0}>
-                <Group gap="xs" className={classes.groupHeader}>
-                    <Text fz="xs" fw={600} className={classes.rowText}>
-                        Parameters
-                    </Text>
-                </Group>
-                <Stack gap={0} pl="md">
-                    {items.map(renderParameterRow)}
-                </Stack>
-            </Stack>
-        );
+    const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
+    const listsParameters = onPickParameter !== undefined;
+    const searchLabel = listsParameters
+        ? 'Search fields and parameters'
+        : 'Search fields';
 
     return (
-        <Stack gap="sm">
-            {onPickKind !== undefined && (
+        <Stack gap="sm" className={classes.picker}>
+            {onPickKind && (
                 <>
-                    <Text fw={600} fz="sm">
+                    <Text fz="sm" fw={600}>
                         What do you want to control?
                     </Text>
                     <SimpleGrid cols={2} spacing="xs">
-                        {FIELD_KINDS.map((item) => {
+                        {kinds.map((item) => {
                             const meta = KIND_META[item];
                             return (
                                 <UnstyledButton
@@ -221,152 +131,72 @@ export const FieldPicker: FC<Props> = ({
                 </>
             )}
             <TextInput
-                placeholder={
-                    onPickParameter === undefined
-                        ? 'Search fields'
-                        : 'Search fields and parameters'
-                }
+                placeholder={searchLabel}
                 autoFocus
-                aria-label={
-                    onPickParameter === undefined
-                        ? 'Search fields'
-                        : 'Search fields and parameters'
-                }
+                aria-label={searchLabel}
                 leftSection={<MantineIcon icon={IconSearch} />}
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
             />
-            {isSearching ? (
-                <Stack gap={0}>
-                    {matches.length === 0 && parameterMatches.length === 0 && (
-                        <Text fz="xs" c="dimmed" px="xs">
-                            No fields match
+            <Box className={classes.list}>
+                {rows.length === 0 && parameterRows.length === 0 && (
+                    <Text fz="xs" c="dimmed" px="xs">
+                        {listsParameters
+                            ? 'No fields or parameters match'
+                            : 'No fields match'}
+                    </Text>
+                )}
+                {rows.map((row) => {
+                    const count = getChartCount(row.field);
+                    return (
+                        <UnstyledButton
+                            key={row.key}
+                            className={classes.fieldRow}
+                            aria-label={`${row.tableLabel} ${row.label}`}
+                            onClick={() => onPickField(row.field)}
+                        >
+                            <FieldIcon item={row.field} size={14} aria-hidden />
+                            <Text fz="sm" truncate className={classes.rowText}>
+                                <Text span c="dimmed">
+                                    {row.tableLabel}
+                                </Text>{' '}
+                                {row.label}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {count} {pluralizeCharts(count)}
+                            </Text>
+                        </UnstyledButton>
+                    );
+                })}
+                {parameterRows.length > 0 && (
+                    <Group className={classes.groupHeader}>
+                        <Text fz="xs" c="dimmed">
+                            Parameters
                         </Text>
-                    )}
-                    {renderParameterGroup(parameterMatches)}
-                    {searchGroups.map((group) => (
-                        <Stack key={group.table} gap={0}>
-                            <Group
-                                gap="xs"
-                                className={classes.groupHeader}
-                                wrap="nowrap"
-                            >
-                                <Text
-                                    fz="sm"
-                                    fw={600}
-                                    truncate
-                                    className={classes.rowText}
-                                >
-                                    {group.label}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {group.matchCount}{' '}
-                                    {group.matchCount === 1
-                                        ? 'match'
-                                        : 'matches'}
-                                </Text>
-                            </Group>
-                            <Stack gap={0} pl="md">
-                                {group.fields.map((field) =>
-                                    renderFieldRow(
-                                        field,
-                                        group.duplicateLabels.has(
-                                            chipLabel(field),
-                                        ) && field.label !== chipLabel(field)
-                                            ? `${chipLabel(field)} · ${field.label
-                                                  .slice(
-                                                      chipLabel(field).length,
-                                                  )
-                                                  .trim()
-                                                  .toLowerCase()}`
-                                            : chipLabel(field),
-                                        `${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
-                                    ),
-                                )}
-                            </Stack>
-                        </Stack>
-                    ))}
-                    {matches.length > MAX_SEARCH_RESULTS && (
-                        <Text fz="xs" c="dimmed" px="xs">
-                            {matches.length - MAX_SEARCH_RESULTS} more fields.
-                            Keep typing
+                    </Group>
+                )}
+                {parameterRows.map((parameter) => (
+                    <UnstyledButton
+                        key={parameter.key}
+                        className={classes.fieldRow}
+                        aria-label={parameter.label}
+                        onClick={() => onPickParameter?.(parameter.key)}
+                    >
+                        <MantineIcon
+                            icon={IconVariable}
+                            color="dimmed"
+                            aria-hidden
+                        />
+                        <Text fz="sm" truncate className={classes.rowText}>
+                            {parameter.label}
                         </Text>
-                    )}
-                </Stack>
-            ) : (
-                <>
-                    {renderParameterGroup(pickableParameters)}
-                    <Stack gap={0}>
-                        {explores.length === 0 &&
-                            pickableParameters.length === 0 && (
-                                <Text fz="xs" c="dimmed" px="xs">
-                                    No fields to add
-                                </Text>
-                            )}
-                        {explores.map((explore) => {
-                            const isOpen = openTable === explore.table;
-                            const rows = foldFieldGrains(explore.fields);
-                            return (
-                                <Stack key={explore.table} gap={0}>
-                                    <UnstyledButton
-                                        className={classes.exploreRow}
-                                        aria-expanded={isOpen}
-                                        onClick={() =>
-                                            setOpenTable(
-                                                isOpen ? null : explore.table,
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconChevronRight}
-                                            className={`${classes.chevron} ${isOpen ? classes.chevronOpen : ''}`}
-                                        />
-                                        <Text
-                                            fz="sm"
-                                            fw={600}
-                                            truncate
-                                            className={classes.rowText}
-                                        >
-                                            {explore.label}
-                                        </Text>
-                                        <Text fz="xs" c="dimmed">
-                                            {explore.chartCount}{' '}
-                                            {pluralizeCharts(
-                                                explore.chartCount,
-                                            )}
-                                        </Text>
-                                    </UnstyledButton>
-                                    {isOpen && (
-                                        <Stack gap={0} pl="md">
-                                            {rows
-                                                .slice(0, MAX_EXPLORE_FIELDS)
-                                                .map((row) =>
-                                                    renderFieldRow(
-                                                        row.field,
-                                                        row.label,
-                                                        `${getChartCount(row.field)} ${pluralizeCharts(getChartCount(row.field))}`,
-                                                    ),
-                                                )}
-                                            {rows.length >
-                                                MAX_EXPLORE_FIELDS && (
-                                                <Text
-                                                    fz="xs"
-                                                    c="dimmed"
-                                                    px="xs"
-                                                >
-                                                    {rows.length -
-                                                        MAX_EXPLORE_FIELDS}{' '}
-                                                    more. Type to search
-                                                </Text>
-                                            )}
-                                        </Stack>
-                                    )}
-                                </Stack>
-                            );
-                        })}
-                    </Stack>
-                </>
-            )}
+                        <Text fz="xs" c="dimmed">
+                            {parameter.chartCount}{' '}
+                            {pluralizeCharts(parameter.chartCount)}
+                        </Text>
+                    </UnstyledButton>
+                ))}
+            </Box>
         </Stack>
     );
 };
