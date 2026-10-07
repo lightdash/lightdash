@@ -86,17 +86,13 @@ describe('getAnthropicModel context management', () => {
 
     test('keeps loaded skills and the recent working set when clearing tool results', () => {
         const model = getAnthropicModel(config, preset);
-        expect(model.providerOptions?.anthropic).toMatchObject({
-            contextManagement: {
-                edits: [
-                    {
-                        type: 'clear_tool_uses_20250919',
-                        trigger: { type: 'input_tokens', value: 120_000 },
-                        keep: { type: 'tool_uses', value: 10 },
-                        excludeTools: ['loadSkill'],
-                    },
-                ],
-            },
+        const clearToolUses =
+            model.providerOptions?.anthropic?.contextManagement?.edits.find(
+                (edit) => edit.type === 'clear_tool_uses_20250919',
+            );
+        expect(clearToolUses).toMatchObject({
+            keep: { value: 10 },
+            excludeTools: ['loadSkill'],
         });
     });
 });

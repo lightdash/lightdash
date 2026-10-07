@@ -13,10 +13,12 @@ import { AiModel } from './types';
 
 const PROVIDER = 'anthropic';
 
+const TOOL_RESULT_CLEARING_TRIGGER_INPUT_TOKENS = 120_000;
+const TOOL_RESULT_CLEARING_MIN_INPUT_TOKENS = 5_000;
+// Covers the charts inspected just before an edit; earlier reads can still be cleared.
+const TOOL_RESULTS_KEPT_AFTER_CLEARING = 10;
 // Skills are instructions the agent follows until the end of the run, not data.
 const TOOL_RESULTS_EXEMPT_FROM_CLEARING: ToolName[] = ['loadSkill'];
-// Enough to keep a content read plus the charts inspected just before an edit.
-const TOOL_RESULTS_KEPT_AFTER_CLEARING = 10;
 
 export const getAnthropicModel = (
     config: NonNullable<
@@ -77,7 +79,7 @@ export const getAnthropicModel = (
                                 type: 'clear_tool_uses_20250919',
                                 trigger: {
                                     type: 'input_tokens',
-                                    value: 120_000,
+                                    value: TOOL_RESULT_CLEARING_TRIGGER_INPUT_TOKENS,
                                 },
                                 keep: {
                                     type: 'tool_uses',
@@ -85,7 +87,7 @@ export const getAnthropicModel = (
                                 },
                                 clearAtLeast: {
                                     type: 'input_tokens',
-                                    value: 5_000,
+                                    value: TOOL_RESULT_CLEARING_MIN_INPUT_TOKENS,
                                 },
                                 excludeTools: TOOL_RESULTS_EXEMPT_FROM_CLEARING,
                             },
