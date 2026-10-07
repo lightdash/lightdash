@@ -13871,6 +13871,7 @@ export class ProjectService extends BaseService {
             popularCharts,
             popularSqlCharts,
             popularDashboards,
+            popularApps,
             recentCharts,
             recentSqlCharts,
             recentDashboards,
@@ -13889,6 +13890,11 @@ export class ProjectService extends BaseService {
                 spaceUuids,
                 { mostPopular: true },
                 grantedDashboardUuids,
+            ),
+            this.spaceModel.getMostPopularApps(
+                projectUuid,
+                spaceUuids,
+                granted?.[DirectAccessResourceType.APP],
             ),
             this.spaceModel.getSpaceQueries(
                 spaceUuids,
@@ -13912,6 +13918,7 @@ export class ProjectService extends BaseService {
                 ...popularCharts,
                 ...popularSqlCharts,
                 ...popularDashboards,
+                ...popularApps,
             ]
                 .sort((a, b) => b.views - a.views)
                 .slice(

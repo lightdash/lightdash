@@ -34,6 +34,7 @@ import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditData
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import classes from './AppPreviewTest.module.css';
@@ -79,6 +80,14 @@ export default function AppPreviewTest() {
     });
 
     const version = explicitVersion ?? latestReadyVersion;
+
+    useRecordContentView(
+        projectUuid,
+        'data_app',
+        appSpaceUuid && version && !appQuery.isError
+            ? firstPage?.appUuid
+            : undefined,
+    );
 
     // No successful build yet — distinguish "still building" (poll so the
     // preview swaps in automatically when the build finishes) from "failed" /

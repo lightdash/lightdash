@@ -1,5 +1,6 @@
 import { type ApiSuccess } from '../../types/api/success';
 import { type ProjectMemberRole } from '../../types/projectMemberRole';
+import { type RecentContentItem } from '../../types/recentContent';
 
 export type HomepageMarkdownBlock = {
     id: string;
@@ -324,11 +325,7 @@ export type UpdateHomepageGroupPrioritiesRequest = {
 
 export type ApiHomepageAssignmentsResponse = ApiSuccess<HomepageAssignment[]>;
 
-export type HomepageRecentlyViewedItem = {
-    contentType: 'chart' | 'dashboard';
-    uuid: string;
-    viewedAt: Date;
-};
+export type HomepageRecentlyViewedItem = RecentContentItem;
 
 export type ApiRecentlyViewedResponse = ApiSuccess<
     HomepageRecentlyViewedItem[]

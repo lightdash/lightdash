@@ -535,6 +535,7 @@ const getMockedProjectService = (
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
             | 'spacePermissionService'
+            | 'spaceModel'
             | 'provisionPlaygroundProject'
             | 'provisionTrainingProject'
             | 'seedTrainingCopyEnterpriseContent'
@@ -565,7 +566,8 @@ const getMockedProjectService = (
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
-        spaceModel: spaceModel as unknown as SpaceModel,
+        spaceModel:
+            overrides.spaceModel ?? (spaceModel as unknown as SpaceModel),
         documentModel: documentModel as unknown as DocumentModel,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
@@ -13986,6 +13988,52 @@ describe('ProjectService.getExploreResponse', () => {
         expect(result.tables.a.dimensions.dim1.compiledSql).toBe('"a".dim1');
         expect(result.joinedTables[0].compiledSqlOn).toBe(
             '("a".dim1) = ("b".dim1)',
+        );
+    });
+});
+
+describe('homepage popularity', () => {
+    it('ranks apps with charts and dashboards before the shared limit, without changing recently updated', async () => {
+        const chart = { uuid: 'chart', views: 20, updatedAt: new Date() };
+        const dashboard = {
+            uuid: 'dashboard',
+            views: 10,
+            updatedAt: new Date(),
+        };
+        const app = { uuid: 'app', contentType: 'data_app', views: 15 };
+        const getMostPopularApps = vi.fn().mockResolvedValue([app]);
+        const model = {
+            find: vi
+                .fn()
+                .mockResolvedValue([{ uuid: 'visible' }, { uuid: 'hidden' }]),
+            getSpaceQueries: vi.fn().mockResolvedValue([chart]),
+            getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
+            getSpaceDashboards: vi.fn().mockResolvedValue([dashboard]),
+            getMostPopularApps,
+            MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: 2,
+        };
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spaceModel: model as unknown as SpaceModel,
+            spacePermissionService: {
+                getAccessibleSpaceUuids: vi.fn().mockResolvedValue(['visible']),
+            } as unknown as SpacePermissionService,
+        });
+        const result = await service.getMostPopularAndRecentlyUpdated(
+            { ...user, organizationUuid: projectSummary.organizationUuid },
+            projectSummary.projectUuid,
+        );
+        expect(result.mostPopular.map((item) => item.uuid)).toEqual([
+            'chart',
+            'app',
+        ]);
+        expect(result.recentlyUpdated.map((item) => item.uuid)).toEqual([
+            'chart',
+            'dashboard',
+        ]);
+        expect(getMostPopularApps).toHaveBeenCalledWith(
+            projectSummary.projectUuid,
+            ['visible'],
+            [],
         );
     });
 });

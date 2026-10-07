@@ -3,6 +3,7 @@ import {
     SearchItemType,
     type ChartContent,
     type DashboardContent,
+    type DataAppContent,
     type RecentContentEntry,
 } from '@lightdash/common';
 import { getRecentContentSearchItems } from './getRecentContentSearchItems';
@@ -75,5 +76,29 @@ describe('recently viewed omnibar items', () => {
 
     it('handles an empty history', () => {
         expect(getRecentContentSearchItems([], 'project-uuid')).toEqual([]);
+    });
+
+    it('links recent data apps to the app viewer using their UUID', () => {
+        const app = {
+            ...dashboard,
+            contentType: ContentType.DATA_APP,
+            uuid: 'app-uuid',
+            slug: 'synthetic-slug',
+        } as unknown as DataAppContent;
+        const [item] = getRecentContentSearchItems(
+            [
+                {
+                    contentType: 'data_app',
+                    uuid: app.uuid,
+                    viewedAt: new Date(),
+                    content: app,
+                },
+            ],
+            'jaffle-shop',
+        );
+        expect(item.type).toBe(SearchItemType.DATA_APP);
+        expect(item.location.pathname).toBe(
+            '/projects/jaffle-shop/apps/app-uuid/view',
+        );
     });
 });

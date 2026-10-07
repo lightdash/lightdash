@@ -1,17 +1,16 @@
 import {
-    ContentType,
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
-import {
-    IconChartBar,
-    IconClock,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import {
+    getResourceUrl,
+    getResourceName,
+} from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
@@ -27,7 +26,6 @@ const RecentRow: FC<{
 }> = ({ content, projectUuid, viewedAt }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
-    const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
         <Link
             to={getResourceUrl(
@@ -38,11 +36,7 @@ const RecentRow: FC<{
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             <div className={classes.iconSquare}>
-                {isDashboard ? (
-                    <IconLayoutDashboard size={16} />
-                ) : (
-                    <IconChartBar size={16} />
-                )}
+                <ResourceIcon item={contentToResourceViewItem(content)} />
             </div>
             <div className={classes.flexFill}>
                 <div className={classes.rowName}>
@@ -51,7 +45,7 @@ const RecentRow: FC<{
                     </TruncatedText>
                 </div>
                 <div className={classes.rowMeta}>
-                    {isDashboard ? 'Dashboard' : 'Chart'}
+                    {getResourceName(content.contentType)}
                 </div>
             </div>
             {viewedAt ? (
@@ -76,7 +70,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     if (contents.length === 0) {
         return (
             <div className={classes.dashedEmpty}>
-                Charts and dashboards you open will show up here.
+                Charts, dashboards and data apps you open will show up here.
             </div>
         );
     }
