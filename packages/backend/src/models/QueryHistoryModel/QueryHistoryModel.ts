@@ -259,6 +259,25 @@ export class QueryHistoryModel {
         };
     }
 
+    async recordAiSignInCredential(
+        queryUuid: string,
+        projectUuid: string,
+        userUuid: string,
+        aiSignInCredentialUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere('created_by_user_uuid', userUuid)
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{aiSignInCredentialUuid}', to_jsonb(?::text), true)",
+                    [aiSignInCredentialUuid],
+                ),
+            );
+    }
+
     async update(
         queryUuid: string,
         projectUuid: string,

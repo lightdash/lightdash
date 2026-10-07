@@ -68,6 +68,7 @@ export type ApiAiMarkerTestResponse = {
 export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 
 export enum AiAccessRefusalReason {
+    RESULT_NOT_AGENT_PRODUCED = 'result_not_agent_produced',
     PRINCIPAL_FAILED = 'principal_failed',
     NEEDS_SIGN_IN = 'needs_sign_in',
     WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
@@ -94,6 +95,8 @@ export const getAiAccessRefusalMessage = (
     reason: AiAccessRefusalReason,
 ): string => {
     switch (reason) {
+        case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
+            return 'AI cannot use these results because your current agent connection did not produce them. Run the query again through your agent.';
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
             return 'The last check of your AI principal failed. Ask an admin to review it.';
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
@@ -119,6 +122,7 @@ export const getAiAccessRefusalAction = (
             return AiAccessRefusalAction.SIGN_IN;
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
             return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
         case AiAccessRefusalReason.SERVICE_ACCOUNT:

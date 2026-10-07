@@ -32,7 +32,7 @@ type Create = Pick<
 type Update = Pick<
     DbUserWarehouseCredentials,
     'name' | 'warehouse_type' | 'encrypted_credentials' | 'updated_at'
->;
+> & { user_warehouse_credentials_uuid?: string };
 
 export type DbProjectUserWarehouseCredentialPreference = {
     user_uuid: string;

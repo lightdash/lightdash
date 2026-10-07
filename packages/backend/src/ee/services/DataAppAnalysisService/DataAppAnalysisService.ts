@@ -1,5 +1,4 @@
 import {
-    AiAccessRefusedError,
     assertRegisteredAccount,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     EE_SCHEDULER_TASKS,
@@ -342,12 +341,6 @@ export class DataAppAnalysisService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
-    private readonly projectModel: ProjectModel;
-
-    private readonly warehouseConnectionModel: WarehouseConnectionModel;
-
-    private readonly aiAccessService: AiAccessService;
-
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly aiService: AiService;
@@ -370,9 +363,6 @@ export class DataAppAnalysisService extends BaseService {
         this.externalConnectionModel = deps.externalConnectionModel;
         this.featureFlagModel = deps.featureFlagModel;
         this.spacePermissionService = deps.spacePermissionService;
-        this.aiAccessService = deps.aiAccessService;
-        this.projectModel = deps.projectModel;
-        this.warehouseConnectionModel = deps.warehouseConnectionModel;
         this.asyncQueryService = deps.asyncQueryService;
         this.aiService = deps.aiService;
         this.aiAgentService = deps.aiAgentService;
@@ -496,36 +486,6 @@ export class DataAppAnalysisService extends BaseService {
         return { user, appVersion: latestReady.version };
     }
 
-    private async getQueryAiAccess(
-        account: Account,
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-    ) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        const connection =
-            warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForBinding(
-                      projectUuid,
-                      { kind: 'connection', warehouseConnectionUuid: null },
-                  )
-                : await this.warehouseConnectionModel.getCredentials(
-                      await this.warehouseConnectionModel.getProject(
-                          projectUuid,
-                      ),
-                      warehouseConnectionUuid,
-                  );
-        return this.aiAccessService.getAiAccessForUser({
-            projectUuid,
-            warehouseConnectionUuid,
-            organizationUuid,
-            connection,
-            userUuid: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-    }
-
     /**
      * Reads every source under the viewer's own account (ownership and
      * project/explore access are enforced by the query history read) and
@@ -564,17 +524,6 @@ export class DataAppAnalysisService extends BaseService {
                         'unsupported_context',
                     );
                 }
-                const access = await this.getQueryAiAccess(
-                    account,
-                    projectUuid,
-                    history.warehouseConnectionUuid ?? null,
-                );
-                if (access.refusal) {
-                    throw new AiAccessRefusedError(
-                        access.refusal.reason,
-                        access.refusal,
-                    );
-                }
                 const { rows, fields, truncated, displayTimezone } =
                     await this.asyncQueryService
                         .getRawAsyncQueryResults({
@@ -582,6 +531,7 @@ export class DataAppAnalysisService extends BaseService {
                             projectUuid,
                             queryUuid: source.queryUuid,
                             maxRows: MAX_ROWS_PER_CHART,
+                            aiAccessOnly: true,
                         })
                         .catch((e: unknown) => {
                             if (e instanceof ResultsExpiredError) {

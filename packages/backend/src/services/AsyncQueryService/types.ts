@@ -432,6 +432,8 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
 export type BoundDuckdbQueryReferences = {
+    hasAgentResults?: boolean;
+    aiSignInCredentialUuid?: string;
     referenceCtes: string[];
     resultFileUris: string[];
 };

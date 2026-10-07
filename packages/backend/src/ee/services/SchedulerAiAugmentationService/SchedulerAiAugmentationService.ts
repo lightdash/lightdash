@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
     ForbiddenError,
@@ -404,11 +405,21 @@ export class SchedulerAiAugmentationService extends BaseService {
         deliveryQueries: SchedulerDeliveryQuery[] | undefined;
     }): Promise<string> {
         if (deliveryQueries && deliveryQueries.length > 0) {
-            return this.getDeliveryQueriesContent(
-                account,
-                projectUuid,
-                deliveryQueries,
-            );
+            try {
+                return await this.getDeliveryQueriesContent(
+                    account,
+                    projectUuid,
+                    deliveryQueries,
+                );
+            } catch (error) {
+                if (
+                    !(error instanceof AiAccessRefusedError) ||
+                    error.refusal.reason !==
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED
+                ) {
+                    throw error;
+                }
+            }
         }
         if (dashboard) {
             return this.getDashboardDeliveryContent(
@@ -438,6 +449,7 @@ export class SchedulerAiAugmentationService extends BaseService {
                     projectUuid,
                     queryUuid,
                     maxRows: MAX_ROWS_PER_CHART,
+                    aiAccessOnly: true,
                 });
             return appendCsvSection(
                 acc,

@@ -53,8 +53,10 @@ import {
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import { type UserModel } from '../../../models/UserModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import {
@@ -326,6 +328,7 @@ type Dependencies = {
     schedulerClient: CommercialSchedulerClient;
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
+    userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     executor?: AiDeepResearchExecutor;
 };
 
@@ -575,6 +578,8 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly executor: AiDeepResearchExecutor | undefined;
 
+    private readonly userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+
     constructor({
         analytics,
         aiDeepResearchRunModel,
@@ -585,6 +590,7 @@ export class AiDeepResearchService extends BaseService {
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
+        userModel,
         executor,
     }: Dependencies) {
         super();
@@ -597,6 +603,7 @@ export class AiDeepResearchService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.asyncQueryService = asyncQueryService;
         this.queryHistoryModel = queryHistoryModel;
+        this.userModel = userModel;
         this.executor = executor;
     }
 
@@ -1787,14 +1794,17 @@ export class AiDeepResearchService extends BaseService {
                 return null;
             }
 
-            const page = await this.asyncQueryService.getResultsPageFromS3(
-                queryUuid,
-                queryHistory.resultsFileName,
-                queryHistory.context,
-                1,
-                AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
-                (row) => row,
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                run.created_by_user_uuid,
+                run.organization_uuid,
             );
+            const page = await this.asyncQueryService.getRawAsyncQueryResults({
+                account: fromSession(user),
+                projectUuid: run.project_uuid,
+                queryUuid,
+                maxRows: AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                aiAccessOnly: true,
+            });
             const baseEvidence = {
                 queryUuid,
                 rowCount: queryHistory.totalRowCount ?? page.rows.length,

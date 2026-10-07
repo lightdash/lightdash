@@ -10,6 +10,7 @@ export type AiMintArgs<T extends CreateWarehouseCredentials> = {
 };
 
 export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
+    identityUuid: string;
     credentials: T;
     assurances: AiAssurance[];
     expiresAt: Date | null;

@@ -5,9 +5,11 @@ import {
     AiAgentMarkerLevel,
     ForbiddenError,
     QueryExecutionContext,
+    QueryHistoryStatus,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type PossibleAbilities,
+    type QueryHistory,
 } from '@lightdash/common';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -16,6 +18,7 @@ import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -88,6 +91,7 @@ const setup = () => {
             async (): Promise<
                 AiMintedCredentials<CreateWarehouseCredentials>
             > => ({
+                identityUuid: 'agent-credential',
                 credentials: snowflake,
                 assurances: [{ kind: 'agent_session_active' }],
                 expiresAt: null,
@@ -114,6 +118,10 @@ const setup = () => {
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
     };
+    const historyModel = {
+        getDuckdbExecution: vi.fn().mockResolvedValue(null),
+        get: vi.fn(),
+    };
     const registry = vi.fn((): AiCredentialProvider => provider);
     const organizationSettings = {
         get: vi.fn(async () => ({ requireVerifiedAgentSessions: true })),
@@ -130,6 +138,7 @@ const setup = () => {
         lightdashConfig: {} as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,
+        queryHistoryModel: historyModel as unknown as QueryHistoryModel,
         warehouseConnectionModel:
             connections as unknown as WarehouseConnectionModel,
         userModel: {
@@ -141,6 +150,7 @@ const setup = () => {
     });
     return {
         service,
+        historyModel,
         organizationSettings,
         provider,
         flags,
@@ -151,6 +161,177 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    describe('stored result provenance', () => {
+        const history = (
+            credential?: string,
+            context = QueryExecutionContext.EXPLORE,
+        ) =>
+            ({
+                status: QueryHistoryStatus.READY,
+                context,
+                warehouseConnectionUuid: null,
+                requestParameters: { aiSignInCredentialUuid: credential },
+            }) as QueryHistory;
+
+        test.each([undefined, 'agent-credential'])(
+            'checks Snowflake lineage on a composed result with source %s',
+            async (credential) => {
+                const { service, historyModel, connections } = setup();
+                connections.getCredentials.mockResolvedValue(snowflake);
+                historyModel.getDuckdbExecution.mockImplementation(
+                    async (uuid) =>
+                        uuid === 'composed'
+                            ? { references: { source: 'source' } }
+                            : null,
+                );
+                historyModel.get.mockResolvedValue({
+                    ...history(credential),
+                    queryUuid: 'source',
+                    warehouseConnectionUuid: 'extra',
+                });
+                const reading = service.assertCanReadResults(
+                    account,
+                    'project',
+                    { ...history(credential), queryUuid: 'composed' },
+                );
+                if (credential) {
+                    await expect(reading).resolves.toMatchObject({
+                        identity: 'connected_person',
+                    });
+                } else {
+                    await expect(reading).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                }
+            },
+        );
+
+        test('does not upgrade an old composed result when its source is re-run with an agent credential', async () => {
+            const { service, historyModel, connections } = setup();
+            connections.getCredentials.mockResolvedValue(snowflake);
+            historyModel.getDuckdbExecution.mockImplementation(async (uuid) =>
+                uuid === 'composed'
+                    ? { references: { source: 'source' } }
+                    : null,
+            );
+            historyModel.get.mockResolvedValue({
+                ...history('agent-credential'),
+                queryUuid: 'source',
+                warehouseConnectionUuid: 'extra',
+            });
+            await expect(
+                service.assertCanReadResults(account, 'project', {
+                    ...history(),
+                    queryUuid: 'composed',
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+        });
+
+        test.each([undefined, 'old-credential'])(
+            'refuses results from %s',
+            async (credential) => {
+                const { service, projects } = setup();
+                projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                    snowflake,
+                );
+                await expect(
+                    service.assertCanReadResults(
+                        account,
+                        'project',
+                        history(credential),
+                    ),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    },
+                });
+            },
+        );
+
+        test('reads only results from the current agent credential', async () => {
+            const { service, projects, provider } = setup();
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                snowflake,
+            );
+            await expect(
+                service.assertCanReadResults(
+                    account,
+                    'project',
+                    history('agent-credential', QueryExecutionContext.AI),
+                ),
+            ).resolves.toMatchObject({
+                identity: 'connected_person',
+                identityUuid: 'agent-credential',
+            });
+            expect(provider.probe).toHaveBeenCalledOnce();
+        });
+
+        test('refuses previously agent-produced results after disconnect', async () => {
+            const { service, projects, provider } = setup();
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                snowflake,
+            );
+            provider.mint.mockRejectedValue(
+                new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+            );
+            await expect(
+                service.assertCanReadResults(
+                    account,
+                    'project',
+                    history('agent-credential', QueryExecutionContext.AI),
+                ),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    action: 'sign_in',
+                },
+            });
+        });
+
+        test.each([WarehouseTypes.SNOWFLAKE, WarehouseTypes.POSTGRES])(
+            'keeps marked-person reads for %s',
+            async (type) => {
+                const { service, projects, organizationSettings, provider } =
+                    setup();
+                projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                    type === WarehouseTypes.SNOWFLAKE ? snowflake : connection,
+                );
+                organizationSettings.get.mockResolvedValue({
+                    requireVerifiedAgentSessions: false,
+                });
+                await expect(
+                    service.assertCanReadResults(account, 'project', history()),
+                ).resolves.toMatchObject({ identity: 'marked_person' });
+                expect(provider.mint).not.toHaveBeenCalled();
+            },
+        );
+
+        test('checks the result connection rather than the project default', async () => {
+            const { service, connections } = setup();
+            connections.getCredentials.mockResolvedValue(snowflake);
+            await expect(
+                service.assertCanReadResults(account, 'project', {
+                    ...history(),
+                    warehouseConnectionUuid: 'extra',
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            expect(connections.getCredentials).toHaveBeenCalledWith(
+                expect.anything(),
+                'extra',
+            );
+        });
+    });
+
     describe('organization agent identity', () => {
         const snowflakeArgs = { ...args, connection: snowflake };
 
@@ -190,6 +371,7 @@ describe('AiAccessService', () => {
                 requireVerifiedAgentSessions: true,
             });
             provider.mint.mockResolvedValue({
+                identityUuid: 'agent-credential',
                 credentials: snowflake,
                 assurances: [{ kind: 'agent_session_active' }],
                 expiresAt: null,

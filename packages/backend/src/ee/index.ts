@@ -415,6 +415,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             clients.getSchedulerClient() as CommercialSchedulerClient,
                         asyncQueryService: repository.getAsyncQueryService(),
                         queryHistoryModel: models.getQueryHistoryModel(),
+                        userModel: models.getUserModel(),
                         executor: (run, executionContext) =>
                             executorHolder.execute!(run, executionContext),
                     });

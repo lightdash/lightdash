@@ -25,6 +25,7 @@ import {
     UserWarehouseCredentialsWithSecrets,
     WarehouseTypes,
 } from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import { Knex } from 'knex';
 import {
     normalizeDatabricksHost,
@@ -257,6 +258,7 @@ export class UserWarehouseCredentialsModel {
                 ),
             )
             .merge({
+                user_warehouse_credentials_uuid: randomUUID(),
                 encrypted_credentials: encryptedCredentials,
                 updated_at: new Date(),
             })

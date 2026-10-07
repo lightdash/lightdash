@@ -94,6 +94,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 refreshToken,
             );
         return {
+            identityUuid: credential.uuid,
             credentials: {
                 ...merged,
                 token: accessToken,

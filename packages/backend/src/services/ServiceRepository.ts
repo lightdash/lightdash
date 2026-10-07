@@ -975,6 +975,7 @@ export class ServiceRepository
                         this.models.getOrganizationAgentIdentitySettingsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     userModel: this.models.getUserModel(),

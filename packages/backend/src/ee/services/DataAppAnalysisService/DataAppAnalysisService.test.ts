@@ -234,43 +234,32 @@ const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
 describe('DataAppAnalysisService.detect', () => {
     it('refuses saved rows when the agent is disconnected', async () => {
-        const { service, aiAccessService, asyncQueryService, aiService } =
-            buildService();
+        const { service, asyncQueryService, aiService } = buildService();
         const error = new AiAccessRefusedError(
             AiAccessRefusalReason.NEEDS_SIGN_IN,
         );
-        aiAccessService.getAiAccessForUser.mockResolvedValue({
-            enabled: true,
-            refusal: error.refusal,
-        });
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(error);
         await expect(
             service.detect(buildAccount(), 'proj-1', 'app-1', request),
         ).rejects.toMatchObject({ refusal: error.refusal });
-        expect(
-            asyncQueryService.getRawAsyncQueryResults,
-        ).not.toHaveBeenCalled();
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
     });
-    it('reads saved rows for a connected person', async () => {
-        const { service, aiAccessService, asyncQueryService, aiService } =
-            buildService();
-        aiAccessService.getAiAccessForUser.mockResolvedValue({
-            enabled: true,
-            identity: 'connected_person',
-        });
-        asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
-            context: QueryExecutionContext.EXPLORE,
-            warehouseConnectionUuid: 'connection',
-        });
-        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
-        expect(aiAccessService.getAiAccessForUser).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'proj-1',
-                warehouseConnectionUuid: 'connection',
-            }),
+    it('refuses normal-session rows for a connected person', async () => {
+        const { service, asyncQueryService, aiService } = buildService();
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
         );
-        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalled();
-        expect(aiService.detectDataAppAnomalies).toHaveBeenCalled();
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(error);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ refusal: error.refusal });
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
     });
     it('reads saved rows as the person when no policy applies', async () => {
         const { service, asyncQueryService } = buildService();
@@ -278,9 +267,7 @@ describe('DataAppAnalysisService.detect', () => {
         expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: expect.any(String) }),
         );
-        expect(
-            asyncQueryService.getRawAsyncQueryResults,
-        ).not.toHaveBeenCalledWith(
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ aiAccessOnly: true }),
         );
     });

@@ -12,6 +12,8 @@ import {
     FeatureFlags,
     ForbiddenError,
     isAiAccessQueryContext,
+    QueryExecutionContext,
+    QueryHistoryStatus,
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
@@ -21,13 +23,13 @@ import {
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
-    type QueryExecutionContext,
+    type QueryHistory,
 } from '@lightdash/common';
-import { v5 as uuidv5 } from 'uuid';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
@@ -54,6 +56,7 @@ type AiAccessServiceArguments = {
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
+    queryHistoryModel: QueryHistoryModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     userModel: UserModel;
     providerRegistry: AiCredentialProviderRegistry;
@@ -68,6 +71,8 @@ export class AiAccessService extends BaseService {
 
     private readonly warehouseConnectionModel: WarehouseConnectionModel;
 
+    private readonly queryHistoryModel: QueryHistoryModel;
+
     private readonly userModel: UserModel;
 
     private readonly providerRegistry: AiCredentialProviderRegistry;
@@ -77,6 +82,7 @@ export class AiAccessService extends BaseService {
         featureFlagModel,
         userModel,
         projectModel,
+        queryHistoryModel,
         warehouseConnectionModel,
         providerRegistry,
     }: AiAccessServiceArguments) {
@@ -86,6 +92,7 @@ export class AiAccessService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
+        this.queryHistoryModel = queryHistoryModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
         this.providerRegistry = providerRegistry;
     }
@@ -441,10 +448,11 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            const { credentials, assurances } = await provider.mint({
-                connection: args.connection,
-                person: { userUuid: args.userUuid, email },
-            });
+            const { credentials, assurances, identityUuid } =
+                await provider.mint({
+                    connection: args.connection,
+                    person: { userUuid: args.userUuid, email },
+                });
             const probe = await provider.probe(credentials, assurances);
             if (!probe.ok)
                 throw new AiAccessRefusedError(
@@ -452,10 +460,7 @@ export class AiAccessService extends BaseService {
                 );
             return {
                 identity: 'connected_person',
-                identityUuid: uuidv5(
-                    `organization-agent-identity:${args.organizationUuid}:${args.projectUuid}:${args.warehouseConnectionUuid}:${args.userUuid}`,
-                    uuidv5.URL,
-                ),
+                identityUuid,
                 credentials,
                 assurances,
                 audit: {
@@ -473,6 +478,90 @@ export class AiAccessService extends BaseService {
             }
             throw error;
         }
+    }
+
+    async assertCanReadResults(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+        ancestors = new Set<string>(),
+    ): Promise<AiExecutionPlan | null> {
+        if (ancestors.has(queryHistory.queryUuid)) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            );
+        }
+        const { connection, organizationUuid } = await this.loadConnection(
+            account,
+            projectUuid,
+            queryHistory.warehouseConnectionUuid ?? null,
+            'view',
+        );
+        const plan = await this.resolvePlan({
+            projectUuid,
+            organizationUuid,
+            warehouseConnectionUuid:
+                queryHistory.warehouseConnectionUuid ?? null,
+            connection,
+            context: QueryExecutionContext.AI,
+            userUuid: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+        if (queryHistory.status === QueryHistoryStatus.READY) {
+            const execution = await this.queryHistoryModel.getDuckdbExecution(
+                queryHistory.queryUuid,
+            );
+            const sources = Object.values(execution?.references ?? {});
+            if (sources.length > 0) {
+                const nextAncestors = new Set(ancestors).add(
+                    queryHistory.queryUuid,
+                );
+                const sourcePlans = await Promise.all(
+                    sources.map(async (queryUuid) => {
+                        const source = await this.queryHistoryModel.get(
+                            queryUuid,
+                            projectUuid,
+                            account,
+                        );
+                        return this.assertCanReadResults(
+                            account,
+                            projectUuid,
+                            source,
+                            nextAncestors,
+                        );
+                    }),
+                );
+                const connectedPlan = sourcePlans.find(
+                    (sourcePlan) => sourcePlan?.identity === 'connected_person',
+                );
+                if (
+                    sourcePlans.some(
+                        (sourcePlan) =>
+                            sourcePlan?.identity === 'connected_person' &&
+                            sourcePlan.identityUuid !==
+                                queryHistory.requestParameters
+                                    .aiSignInCredentialUuid,
+                    )
+                ) {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    );
+                }
+                return connectedPlan ?? plan;
+            }
+        }
+        if (
+            plan?.identity === 'connected_person' &&
+            queryHistory.status === QueryHistoryStatus.READY &&
+            queryHistory.requestParameters.aiSignInCredentialUuid !==
+                plan.identityUuid
+        ) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            );
+        }
+        return plan;
     }
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {

@@ -1418,6 +1418,7 @@ export class McpService extends BaseService {
             queryUuid,
             page: 1,
             pageSize,
+            aiAccessOnly: true,
         });
 
         if (result.status !== QueryHistoryStatus.READY) {
@@ -3438,6 +3439,7 @@ export class McpService extends BaseService {
                                     account,
                                     projectUuid,
                                     queryUuid,
+                                    aiAccessOnly: true,
                                 },
                             );
                         const exploreUrl = await this.buildMetricExploreUrl({
@@ -3557,6 +3559,7 @@ export class McpService extends BaseService {
                                         account,
                                         projectUuid,
                                         queryUuid: renderTool.queryUuid,
+                                        aiAccessOnly: true,
                                     },
                                 );
 
@@ -3899,6 +3902,7 @@ export class McpService extends BaseService {
                                         account,
                                         projectUuid,
                                         queryUuid: args.queryUuid,
+                                        aiAccessOnly: true,
                                     },
                                 );
                             const exploreUrl = await this.buildMetricExploreUrl(

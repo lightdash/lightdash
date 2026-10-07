@@ -33,6 +33,34 @@ describe('QueryHistoryModel connection attribution', () => {
 });
 
 describe('QueryHistoryModel', () => {
+    test('records the actual agent credential in the existing request metadata', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.recordAiSignInCredential(
+                'query',
+                'project',
+                'person',
+                'credential',
+            );
+            const update = tracker.history.update[0];
+            expect(update.sql).toContain('jsonb_set');
+            expect(update.sql).toContain('aiSignInCredentialUuid');
+            expect(update.bindings).toEqual([
+                'credential',
+                'query',
+                'project',
+                'person',
+            ]);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
     test('isolates cached results by principal after the connection segment', () => {
         const identifiers = {
             sql: 'SELECT 1',

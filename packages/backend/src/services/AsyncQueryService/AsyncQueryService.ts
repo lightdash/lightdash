@@ -1627,15 +1627,12 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        if (
-            aiAccessOnly &&
-            (await this.isAiAccessCacheBypassEnabled(
+        if (aiAccessOnly || isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
                 account,
-                QueryExecutionContext.AI,
-            )) &&
-            !isAiAccessQueryContext(queryHistory.context)
-        ) {
-            throw new ForbiddenError('Query was not started by AI access');
+                projectUuid,
+                queryHistory,
+            );
         }
 
         const {
@@ -1918,6 +1915,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        if (isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
+
         await this.assertQueryHistoryReadAccess(
             account,
             projectUuid,
@@ -2252,6 +2257,14 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             queryHistory,
         );
+
+        if (isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -3420,7 +3433,11 @@ export class AsyncQueryService extends ProjectService {
         };
         const enriched = {
             ...history,
-            requestParameters: { ...history.requestParameters, queryUsage },
+            requestParameters: {
+                ...history.requestParameters,
+                queryUsage,
+                aiSignInCredentialUuid: undefined,
+            },
         };
         const result = binding
             ? await this.queryHistoryModel.create(account, enriched, binding)
@@ -3779,6 +3796,14 @@ export class AsyncQueryService extends ProjectService {
                     isServiceAccount,
                 });
             const { warehouseCredentials, aiPlan } = resolvedCredentials;
+            if (aiPlan?.identity === 'connected_person') {
+                await this.queryHistoryModel.recordAiSignInCredential(
+                    queryUuid,
+                    projectUuid,
+                    userUuid,
+                    aiPlan.identityUuid,
+                );
+            }
             if (aiPlan) {
                 this.aiAccessService.recordQuery({
                     queryUuid,
@@ -5004,10 +5029,11 @@ export class AsyncQueryService extends ProjectService {
                             : undefined;
 
                     const bypassResultsCache =
-                        await this.isAiAccessCacheBypassEnabled(
+                        aiPrincipalUuid !== null ||
+                        (await this.isAiAccessCacheBypassEnabled(
                             account,
                             context,
-                        );
+                        ));
                     const sharedCacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
@@ -8562,9 +8588,18 @@ export class AsyncQueryService extends ProjectService {
                 };
             },
         );
+        const credentialUuids = Object.values(queryHistoryByTableName).map(
+            (history) => history.requestParameters?.aiSignInCredentialUuid,
+        );
+        const credentialUuid = credentialUuids[0];
         return {
             referenceCtes: bound.map(({ referenceCte }) => referenceCte),
             resultFileUris: bound.map(({ resultFileUri }) => resultFileUri),
+            ...(credentialUuids.some(Boolean) ? { hasAgentResults: true } : {}),
+            ...(credentialUuid &&
+            credentialUuids.every((uuid) => uuid === credentialUuid)
+                ? { aiSignInCredentialUuid: credentialUuid }
+                : {}),
         };
     }
 
@@ -9589,6 +9624,14 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 references,
             });
+            if (bound.aiSignInCredentialUuid) {
+                await this.queryHistoryModel.recordAiSignInCredential(
+                    queryUuid,
+                    projectUuid,
+                    actor.userUuid,
+                    bound.aiSignInCredentialUuid,
+                );
+            }
             const warehouseClient = this.resolveDuckdbQueryEngine(
                 engine,
                 bound,
@@ -9615,7 +9658,8 @@ export class AsyncQueryService extends ProjectService {
                       })
                     : cacheKey;
             const bypassResultsCache = isAiAccessQueryContext(context)
-                ? (
+                ? Boolean(bound.hasAgentResults) ||
+                  (
                       await this.featureFlagModel.get({
                           user: {
                               organizationUuid,
@@ -11481,6 +11525,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        if (isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
 
         const resultsStream = await this.getResultsStorageClientForContext(
             queryHistory.context,
@@ -11533,15 +11584,12 @@ export class AsyncQueryService extends ProjectService {
         });
         assertIsAccountWithOrg(account);
 
-        if (
-            aiAccessOnly &&
-            (await this.isAiAccessCacheBypassEnabled(
+        if (aiAccessOnly || isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
                 account,
-                QueryExecutionContext.AI,
-            )) &&
-            !isAiAccessQueryContext(queryHistory.context)
-        ) {
-            throw new ForbiddenError('Query was not started by AI access');
+                projectUuid,
+                queryHistory,
+            );
         }
 
         if (queryHistory.status !== QueryHistoryStatus.READY) {
@@ -11813,6 +11861,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        if (isAiAccessQueryContext(queryHistory.context)) {
+            await this.aiAccessService.assertCanReadResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
 
         if (!queryHistory.resultsFileName) {
             throw new Error('Results file name not found for query');

@@ -110,6 +110,28 @@ describe('SchedulerAiAugmentationService AI access', () => {
         ).not.toHaveBeenCalled();
         expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
     });
+    test('re-queries normal-session delivery results through the agent', async () => {
+        const { service, asyncQueryService, aiService } = setup(true);
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(
+            new AiAccessRefusedError(
+                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            ),
+        );
+        await expect(
+            service.runForDelivery({
+                scheduler,
+                createdBy: 'user',
+                deliveryQueries,
+            }),
+        ).resolves.toBe('summary');
+        expect(
+            asyncQueryService.executeSavedChartQueryAndGetResults,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
+            expect.anything(),
+        );
+        expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
+    });
     test('uses the AI context when fresh delivery queries are needed', async () => {
         const { service, asyncQueryService } = setup(false);
         await service.runForDelivery({ scheduler, createdBy: 'user' });
@@ -139,6 +161,7 @@ describe('SchedulerAiAugmentationService AI access', () => {
                 projectUuid: 'project',
                 queryUuid: 'query',
                 maxRows: expect.any(Number),
+                aiAccessOnly: true,
             });
             expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
         },

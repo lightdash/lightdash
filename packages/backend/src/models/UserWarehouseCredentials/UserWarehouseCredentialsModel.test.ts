@@ -351,6 +351,49 @@ describe('UserWarehouseCredentialsModel', () => {
             ]);
         });
 
+        test('a new agent sign-in changes its credential UUID', async () => {
+            const merge = vi.fn();
+            const returning = vi.fn(async () => [
+                {
+                    user_warehouse_credentials_uuid:
+                        merge.mock.calls.at(-1)?.[0]
+                            .user_warehouse_credentials_uuid,
+                },
+            ]);
+            const builder = {
+                insert: vi.fn(),
+                onConflict: vi.fn(),
+                merge,
+                returning,
+            };
+            builder.insert.mockReturnValue(builder);
+            builder.onConflict.mockReturnValue(builder);
+            merge.mockReturnValue(builder);
+            const database = Object.assign(
+                vi.fn(() => builder),
+                { raw: vi.fn() },
+            ) as unknown as Knex;
+            const model = new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil: passthroughEncryption,
+            });
+            const first = await model.upsertAiSnowflakeCredential(
+                'user-1',
+                'first-token',
+            );
+            const second = await model.upsertAiSnowflakeCredential(
+                'user-1',
+                'second-token',
+            );
+            expect(first).not.toBe(second);
+            expect(first).toMatch(/^[a-f0-9-]{36}$/);
+            expect(builder.insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                }),
+            );
+        });
+
         test('AI lookup asks only for the AI purpose', async () => {
             const row = makeRow('ai-credential', {
                 type: WarehouseTypes.SNOWFLAKE,

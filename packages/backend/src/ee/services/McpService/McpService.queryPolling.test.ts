@@ -1625,6 +1625,7 @@ describe('MCP async query polling', () => {
                 queryUuid,
                 page: 1,
                 pageSize: 50_000,
+                aiAccessOnly: true,
             }),
         );
         expect(shareService.createShareUrl).toHaveBeenCalledWith(
