@@ -70,7 +70,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const [state, setState] = useState<SidebarState | null>(null);
     const [emptyDraft, setEmptyDraft] = useState<EmptyDraft | null>(null);
     const [activeSection, setActiveSection] =
-        useState<FilterSidebarSection>('fields');
+        useState<FilterSidebarSection>('interactivity');
     const [waitingField, setWaitingField] =
         useState<DashboardFieldTarget | null>(null);
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
@@ -115,7 +115,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const resetSession = useCallback(() => {
         setState(null);
         setEmptyDraft(null);
-        setActiveSection('fields');
+        setActiveSection('interactivity');
         setWaitingField(null);
         setHighlightedFieldId(null);
         setListedFieldIds([]);

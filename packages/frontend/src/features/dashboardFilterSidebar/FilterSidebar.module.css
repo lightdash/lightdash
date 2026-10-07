@@ -40,15 +40,9 @@
     display: inline-flex;
 }
 
-.removePill {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    opacity: 0;
-    transition: opacity 100ms ease;
-}
-
-.pill:hover .removePill,
-.pill:focus-within .removePill {
-    opacity: 1;
+.changedDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-primary-color-filled);
 }

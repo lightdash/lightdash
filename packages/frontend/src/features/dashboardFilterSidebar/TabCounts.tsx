@@ -1,4 +1,4 @@
-import { Badge } from '@mantine/core';
+import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -48,14 +48,19 @@ export const TabCounts: FC = () => {
                 const count = counts[tab.uuid];
                 if (!element || !count) return null;
                 return createPortal(
-                    <Badge
-                        size="xs"
-                        variant="light"
-                        color={count.applied > 0 ? 'blue' : 'gray'}
-                        className={classes.count}
+                    <Tooltip
+                        fz="xs"
+                        label={`${count.applied} of ${count.total} charts on this tab use this filter`}
                     >
-                        {count.applied} of {count.total}
-                    </Badge>,
+                        <Badge
+                            size="xs"
+                            variant="light"
+                            color="gray"
+                            className={classes.count}
+                        >
+                            {count.applied} of {count.total}
+                        </Badge>
+                    </Tooltip>,
                     element,
                     tab.uuid,
                 );

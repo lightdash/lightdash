@@ -3,7 +3,7 @@ import {
     isFilterLockedOnTab,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
@@ -111,6 +111,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 const name = isDraft
                     ? 'New filter'
                     : filter.label || labels?.field || 'Filter';
+                const hasNoDefault =
+                    filter.disabled ||
+                    filter.values === undefined ||
+                    filter.values.length === 0;
                 const sessionSettings = getSessionSettings(filter.id);
                 const isHidden =
                     !!tabKey && isHiddenOnTab(sessionSettings, tabKey);
@@ -122,6 +126,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 const eyeLabel = isHidden
                     ? 'Hidden from viewers. Click to show.'
                     : 'Visible to viewers. Click to hide.';
+                const slotClass =
+                    isLocked || isHidden
+                        ? pillClasses.lockSlotActive
+                        : pillClasses.lockSlot;
                 return (
                     <Tooltip
                         key={filter.id}
@@ -132,9 +140,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                 : 'filters.notAppliedToAnyTiles',
                         )}
                     >
-                        <Box
-                            className={`${classes.pill} ${pillActionClasses.pill}`}
-                        >
+                        <Box className={classes.pill}>
                             <Button
                                 size="xs"
                                 variant="default"
@@ -151,15 +157,122 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                         ? pillActionClasses.hiddenPill
                                         : '',
                                 ].join(' ')}
+                                rightSection={
+                                    editing === null && (
+                                        <Group gap={2} wrap="nowrap">
+                                            {tabKey && (
+                                                <Box
+                                                    component="span"
+                                                    className={slotClass}
+                                                >
+                                                    <Tooltip
+                                                        fz="xs"
+                                                        label={lockLabel}
+                                                    >
+                                                        <ActionIcon
+                                                            size="xs"
+                                                            radius="xl"
+                                                            disabled={isHidden}
+                                                            aria-label={
+                                                                lockLabel
+                                                            }
+                                                            aria-pressed={
+                                                                isLocked
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleLock(
+                                                                    filter,
+                                                                    tabKey,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    isLocked
+                                                                        ? IconLock
+                                                                        : IconLockOpen
+                                                                }
+                                                                size="sm"
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                            {tabKey && (
+                                                <Box
+                                                    component="span"
+                                                    className={slotClass}
+                                                >
+                                                    <Tooltip
+                                                        fz="xs"
+                                                        label={eyeLabel}
+                                                    >
+                                                        <ActionIcon
+                                                            size="xs"
+                                                            radius="xl"
+                                                            aria-label={
+                                                                eyeLabel
+                                                            }
+                                                            aria-pressed={
+                                                                isHidden
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                updateSessionSettings(
+                                                                    filter.id,
+                                                                    toggleHiddenOnTab(
+                                                                        sessionSettings,
+                                                                        tabKey,
+                                                                    ),
+                                                                );
+                                                            }}
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    isHidden
+                                                                        ? IconEyeOff
+                                                                        : IconEye
+                                                                }
+                                                                size="sm"
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                            <Tooltip
+                                                fz="xs"
+                                                label="Remove filter"
+                                            >
+                                                <ActionIcon
+                                                    size="xs"
+                                                    radius="xl"
+                                                    aria-label="Remove filter"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removeFilterById(
+                                                            filter.id,
+                                                        );
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconX}
+                                                        size="sm"
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    )
+                                }
                                 onClick={() => open(filter.id)}
                             >
                                 <Text fz="inherit" span>
                                     <Text fw={600} span>
                                         {name}
                                     </Text>{' '}
-                                    {filter.disabled || labels === null ? (
+                                    {labels === null || hasNoDefault ? (
                                         <Text span c="dimmed">
-                                            is any value
+                                            {'\u00b7 no default'}
                                         </Text>
                                     ) : (
                                         <>
@@ -173,82 +286,6 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                     )}
                                 </Text>
                             </Button>
-                            {editing === null && tabKey && (
-                                <Box
-                                    className={[
-                                        pillActionClasses.actions,
-                                        isLocked || isHidden
-                                            ? pillActionClasses.actionsPinned
-                                            : '',
-                                    ].join(' ')}
-                                >
-                                    <Tooltip label={lockLabel}>
-                                        <ActionIcon
-                                            size="xs"
-                                            radius="xl"
-                                            variant="default"
-                                            disabled={isHidden}
-                                            aria-label={lockLabel}
-                                            aria-pressed={isLocked}
-                                            onClick={() =>
-                                                toggleLock(filter, tabKey)
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isLocked
-                                                        ? IconLock
-                                                        : IconLockOpen
-                                                }
-                                                size="sm"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip label={eyeLabel}>
-                                        <ActionIcon
-                                            size="xs"
-                                            radius="xl"
-                                            variant="default"
-                                            aria-label={eyeLabel}
-                                            aria-pressed={isHidden}
-                                            onClick={() =>
-                                                updateSessionSettings(
-                                                    filter.id,
-                                                    toggleHiddenOnTab(
-                                                        sessionSettings,
-                                                        tabKey,
-                                                    ),
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isHidden
-                                                        ? IconEyeOff
-                                                        : IconEye
-                                                }
-                                                size="sm"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Box>
-                            )}
-                            {editing === null && (
-                                <Tooltip label="Remove filter">
-                                    <ActionIcon
-                                        size="xs"
-                                        radius="xl"
-                                        variant="default"
-                                        aria-label="Remove filter"
-                                        className={classes.removePill}
-                                        onClick={() =>
-                                            removeFilterById(filter.id)
-                                        }
-                                    >
-                                        <MantineIcon icon={IconX} size="sm" />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
                         </Box>
                     </Tooltip>
                 );

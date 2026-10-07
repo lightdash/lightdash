@@ -6,7 +6,11 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { foldFieldGrains, matchesSearch } from './fieldGrains';
+import {
+    foldFieldGrains,
+    getFieldDisplayLabel,
+    matchesSearch,
+} from './fieldGrains';
 
 const dimension = (
     name: string,
@@ -81,5 +85,22 @@ describe('matchesSearch', () => {
         expect(matchesSearch(createdMonth, 'MONTH')).toBe(true);
         expect(matchesSearch(status, 'ord')).toBe(true);
         expect(matchesSearch(status, 'created')).toBe(false);
+    });
+});
+
+describe('getFieldDisplayLabel', () => {
+    it('names a time grain by its base dimension', () => {
+        expect(getFieldDisplayLabel(createdDay, [createdRaw, createdDay])).toBe(
+            'Created',
+        );
+        expect(getFieldDisplayLabel(createdMonth, [createdMonth])).toBe(
+            'Created',
+        );
+    });
+
+    it('keeps the label of a plain field', () => {
+        expect(getFieldDisplayLabel(status, [status, createdDay])).toBe(
+            'Status',
+        );
     });
 });

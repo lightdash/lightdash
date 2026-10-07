@@ -90,6 +90,21 @@ export const foldFieldGrains = (
     });
 };
 
+/** The one name a field goes by: its base dimension's label for a time grain. */
+export const getFieldDisplayLabel = (
+    field: DashboardFilterableField,
+    fields: DashboardFilterableField[],
+): string => {
+    const grainLabel = getGrainLabel(field);
+    if (!grainLabel) return field.label;
+    const groupKey = getGroupKey(field);
+    const base = fields.find(
+        (candidate) =>
+            getGroupKey(candidate) === groupKey && !getGrainLabel(candidate),
+    );
+    return base?.label ?? stripGrainSuffix(field.label, grainLabel);
+};
+
 export const matchesSearch = (
     field: DashboardFilterableField,
     search: string,

@@ -1,5 +1,5 @@
 import {
-    FilterOperator,
+    type FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
     isRelativeDateFilterOperator,
@@ -8,12 +8,11 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Box, Select, Stack, Switch, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../components/common/Filters/FilterInputs/utils';
 import FilterOperatorOption from '../../components/common/Filters/FilterOperatorOption';
-import { getPlaceholderByFilterTypeAndOperator } from '../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 
 type Props = {
@@ -39,10 +38,6 @@ export const FilterValueSettings: FC<Props> = ({
     const isDisabled = !!filterRule.disabled;
     const hasRequirement =
         !!filterRule.required || !!filterRule.requiredGroupId;
-    const isNullOperator = [
-        FilterOperator.NULL,
-        FilterOperator.NOT_NULL,
-    ].includes(filterRule.operator);
 
     const handleOperator = (operator: FilterRule['operator']) => {
         // Absolute dates are already normalized; defaults could shift timezones
@@ -80,48 +75,6 @@ export const FilterValueSettings: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <Select
-                aria-label="Operator"
-                allowDeselect={false}
-                size="xs"
-                data={operatorOptions}
-                value={filterRule.operator}
-                onChange={(value) =>
-                    value && handleOperator(value as FilterRule['operator'])
-                }
-                renderOption={({ option }) => (
-                    <FilterOperatorOption
-                        operator={option.value as FilterOperator}
-                        label={option.label}
-                    />
-                )}
-            />
-            {isDisabled && !hasRequirement && !isNullOperator && (
-                <TextInput
-                    disabled
-                    size="xs"
-                    placeholder={getPlaceholderByFilterTypeAndOperator({
-                        getUiString,
-                        type: filterType,
-                        operator: filterRule.operator,
-                        disabled: true,
-                    })}
-                />
-            )}
-            {(!isDisabled || hasRequirement) && (
-                <FilterInputComponent
-                    filterType={filterType}
-                    field={item}
-                    rule={filterRule}
-                    onChange={(next) => onChange(next as DashboardFilterRule)}
-                />
-            )}
-            {hasRequirement && (filterRule.values ?? []).length > 0 && (
-                <Text size="xs" c="ldGray.7">
-                    Temporary filter values for required filters will be removed
-                    on dashboard save
-                </Text>
-            )}
             {!hasRequirement && (
                 <Box w="max-content">
                     <Switch
@@ -133,6 +86,43 @@ export const FilterValueSettings: FC<Props> = ({
                         }
                     />
                 </Box>
+            )}
+            {(!isDisabled || hasRequirement) && (
+                <>
+                    <Select
+                        aria-label="Operator"
+                        allowDeselect={false}
+                        size="xs"
+                        data={operatorOptions}
+                        value={filterRule.operator}
+                        onChange={(value) =>
+                            value &&
+                            handleOperator(value as FilterRule['operator'])
+                        }
+                        renderOption={({ option }) => (
+                            <FilterOperatorOption
+                                operator={option.value as FilterOperator}
+                                label={option.label}
+                            />
+                        )}
+                    />
+                    {(!isDisabled || hasRequirement) && (
+                        <FilterInputComponent
+                            filterType={filterType}
+                            field={item}
+                            rule={filterRule}
+                            onChange={(next) =>
+                                onChange(next as DashboardFilterRule)
+                            }
+                        />
+                    )}
+                    {hasRequirement && (filterRule.values ?? []).length > 0 && (
+                        <Text size="xs" c="ldGray.7">
+                            Temporary filter values for required filters will be
+                            removed on dashboard save
+                        </Text>
+                    )}
+                </>
             )}
         </Stack>
     );

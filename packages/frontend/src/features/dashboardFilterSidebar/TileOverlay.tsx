@@ -1,5 +1,4 @@
 import {
-    getItemLabelWithoutTableName,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -13,6 +12,7 @@ import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getFieldDisplayLabel } from './fieldGrains';
 import {
     doesTileOfferField,
     getFilterFields,
@@ -33,7 +33,9 @@ type FieldsMap = Record<string, FilterableDimension>;
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string => {
     const field = fieldsMap[fieldId];
-    return field ? getItemLabelWithoutTableName(field) : fieldId;
+    return field
+        ? getFieldDisplayLabel(field, Object.values(fieldsMap))
+        : fieldId;
 };
 
 const getTileTitle = (tile: DashboardTile): string => {
@@ -135,6 +137,9 @@ const TileOverlay: FC<TileOverlayProps> = ({
                 onTouchStart={stopPropagation}
             >
                 <Stack gap="xs">
+                    <Text fz="xs" c="dimmed">
+                        {tileField ? 'Filtered by' : 'Not filtered'}
+                    </Text>
                     <Select
                         size="xs"
                         aria-label={`${filterLabel} on ${tileTitle}`}
@@ -176,7 +181,8 @@ const TileOverlay: FC<TileOverlayProps> = ({
                             }
                             onClick={() => setField(offeredField)}
                         >
-                            Use {getFieldLabel(offeredField.fieldId, fieldsMap)}
+                            {tileField ? 'Switch to' : 'Use'}{' '}
+                            {getFieldLabel(offeredField.fieldId, fieldsMap)}
                         </Button>
                     ) : null}
                 </Stack>

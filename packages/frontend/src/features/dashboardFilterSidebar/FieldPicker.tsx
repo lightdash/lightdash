@@ -1,7 +1,6 @@
 import {
     FilterType,
     getDashboardFilterableFieldKey,
-    isDimension,
     type DashboardFilterableField,
 } from '@lightdash/common';
 import {
@@ -24,7 +23,11 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { foldFieldGrains, matchesSearch } from './fieldGrains';
+import {
+    foldFieldGrains,
+    getFieldDisplayLabel,
+    matchesSearch,
+} from './fieldGrains';
 import {
     FIELD_KINDS,
     countFieldsByKind,
@@ -71,7 +74,6 @@ export const FieldPicker: FC<Props> = ({
     const [openTable, setOpenTable] = useState<string | null>(null);
     const chosenKeys = new Set(chosen.map(getDashboardFilterableFieldKey));
     const activeKind = lockedKind ?? kind;
-    const counts = useMemo(() => countFieldsByKind(fields), [fields]);
     const explores = useMemo(
         () =>
             groupFieldsByExplore(
@@ -84,19 +86,10 @@ export const FieldPicker: FC<Props> = ({
     const matches = isSearching
         ? fields.filter((field) => matchesSearch(field, search))
         : [];
+    const counts = countFieldsByKind(isSearching ? matches : fields);
     const currentOpen = openTable ?? explores[0]?.table ?? null;
-    // A folded grain shows as its base dimension, so the chip says the same
-    const chipLabel = (field: DashboardFilterableField) => {
-        if (!isDimension(field) || !field.timeIntervalBaseDimensionName) {
-            return field.label;
-        }
-        const base = fields.find(
-            (item) =>
-                item.table === field.table &&
-                item.name === field.timeIntervalBaseDimensionName,
-        );
-        return base?.label ?? field.label;
-    };
+    const chipLabel = (field: DashboardFilterableField) =>
+        getFieldDisplayLabel(field, fields);
     const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
 
     const renderFieldRow = (
@@ -155,7 +148,7 @@ export const FieldPicker: FC<Props> = ({
                         .map((field) =>
                             renderFieldRow(
                                 field,
-                                field.label,
+                                chipLabel(field),
                                 `${field.tableLabel || field.table} · ${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
                             ),
                         )}
@@ -182,7 +175,7 @@ export const FieldPicker: FC<Props> = ({
                                     <Text fz="xs">{chipLabel(field)}</Text>
                                     <CloseButton
                                         size="xs"
-                                        aria-label={`Unchoose ${field.label}`}
+                                        aria-label={`Remove ${chipLabel(field)}`}
                                         onClick={() => onToggle(field)}
                                     />
                                 </Group>
@@ -248,8 +241,7 @@ export const FieldPicker: FC<Props> = ({
                                             {explore.chartCount}{' '}
                                             {pluralizeCharts(
                                                 explore.chartCount,
-                                            )}{' '}
-                                            · {explore.fields.length} fields
+                                            )}
                                         </Text>
                                     </UnstyledButton>
                                     {isOpen && (

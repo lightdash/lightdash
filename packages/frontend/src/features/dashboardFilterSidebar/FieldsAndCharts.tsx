@@ -6,9 +6,12 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { Button, Stack, Text } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldPicker } from './FieldPicker';
 import { FieldRow } from './FieldRow';
 import {
@@ -20,8 +23,7 @@ import {
 } from './peers';
 import { useFilterSidebar } from './useFilterSidebar';
 
-const DEFAULT_HINT =
-    'Click a chart to change what it uses. Pick a row to see which charts use it.';
+const DEFAULT_HINT = 'Choose which field each chart is filtered by.';
 
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,
@@ -92,8 +94,9 @@ export const FieldsAndCharts: FC = () => {
         });
     }, [allFilterableFields, fieldIds, waitingField, targetFieldType]);
 
-    if (editingRule === null) return null;
+    const [isAdding, setIsAdding] = useState(false);
 
+    if (editingRule === null) return null;
     const getField = (fieldId: string): DashboardFilterableField | null =>
         allFilterableFieldsMap[fieldId] ?? null;
 
@@ -108,10 +111,26 @@ export const FieldsAndCharts: FC = () => {
         waitingField !== null && !fieldIds.includes(waitingField.fieldId)
             ? waitingField
             : null;
+
+    // One name per field; a grain is shown only when two rows would collide
+    const visibleFieldIds =
+        waitingRow === null ? fieldIds : [...fieldIds, waitingRow.fieldId];
+    const displayLabels = visibleFieldIds.map((fieldId) => {
+        const field = getField(fieldId);
+        return field
+            ? getFieldDisplayLabel(field, allFilterableFields ?? [])
+            : fieldId;
+    });
+    const getRowLabel = (fieldId: string): string => {
+        const index = visibleFieldIds.indexOf(fieldId);
+        const display = displayLabels[index] ?? fieldId;
+        const isDuplicate =
+            displayLabels.filter((label) => label === display).length > 1;
+        return isDuplicate ? (getField(fieldId)?.label ?? fieldId) : display;
+    };
+
     const waitingLabel =
-        waitingRow === null
-            ? null
-            : (getField(waitingRow.fieldId)?.label ?? waitingRow.fieldId);
+        waitingRow === null ? null : getRowLabel(waitingRow.fieldId);
 
     return (
         <Stack gap="lg">
@@ -143,7 +162,7 @@ export const FieldsAndCharts: FC = () => {
                     return (
                         <FieldRow
                             key={fieldId}
-                            label={field?.label ?? fieldId}
+                            label={getRowLabel(fieldId)}
                             tableLabel={
                                 field?.tableLabel ?? target?.tableName ?? ''
                             }
@@ -239,36 +258,44 @@ export const FieldsAndCharts: FC = () => {
                     />
                 )}
             </Stack>
-            <Stack gap="xs">
-                <Text fz="sm" fw={600}>
+            <Stack gap="xs" align="flex-start">
+                <Button
+                    variant="light"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsAdding((open) => !open)}
+                >
                     Add a field
-                </Text>
-                <FieldPicker
-                    fields={candidates}
-                    mode="single"
-                    chosen={[]}
-                    kind={null}
-                    onKindChange={() => undefined}
-                    lockedKind={
-                        targetFieldType === null
-                            ? undefined
-                            : getFilterTypeFromItemType(targetFieldType)
-                    }
-                    onToggle={(field) =>
-                        setWaitingField({
-                            fieldId: getItemId(field),
-                            tableName: field.table,
-                        })
-                    }
-                    getChartCount={(field) =>
-                        getFieldCount(
-                            editingRule,
-                            getItemId(field),
-                            tiles,
-                            filterableFieldsByTileUuid,
-                        ).possible
-                    }
-                />
+                </Button>
+                {isAdding && (
+                    <FieldPicker
+                        fields={candidates}
+                        mode="single"
+                        chosen={[]}
+                        kind={null}
+                        onKindChange={() => undefined}
+                        lockedKind={
+                            targetFieldType === null
+                                ? undefined
+                                : getFilterTypeFromItemType(targetFieldType)
+                        }
+                        onToggle={(field) => {
+                            setWaitingField({
+                                fieldId: getItemId(field),
+                                tableName: field.table,
+                            });
+                            setIsAdding(false);
+                        }}
+                        getChartCount={(field) =>
+                            getFieldCount(
+                                editingRule,
+                                getItemId(field),
+                                tiles,
+                                filterableFieldsByTileUuid,
+                            ).possible
+                        }
+                    />
+                )}
             </Stack>
         </Stack>
     );

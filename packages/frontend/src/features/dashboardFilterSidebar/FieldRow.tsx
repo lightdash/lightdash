@@ -1,7 +1,6 @@
-import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FieldsAndCharts.module.css';
-import { NotSavedBadge } from './NotSavedBadge';
 import { type FieldCount } from './peers';
 
 const pluralizeCharts = (count: number): string =>
@@ -47,40 +46,37 @@ export const FieldRow: FC<Props> = ({
         <Stack className={rowClassName} gap={0}>
             <UnstyledButton
                 className={classes.rowMain}
-                aria-pressed={isHighlighted}
+                data-highlighted={isHighlighted || undefined}
                 onClick={onToggleHighlight}
             >
-                <Group gap="xs" wrap="nowrap">
-                    <Text fz="sm" fw={600} truncate>
-                        {label}
-                    </Text>
-                    {isNotSaved && (
-                        <NotSavedBadge tooltip="A field on no charts is not saved yet. It will be gone after a reload." />
-                    )}
-                </Group>
-                <Text fz="xs" c="dimmed" truncate>
-                    {isWaiting
-                        ? `${tableLabel} · not added yet`
-                        : `${tableLabel} · ${count.applied} of ${
-                              count.possible
-                          } ${pluralizeCharts(count.possible)}`}
+                <Text fz="sm" fw={600} truncate>
+                    {label}
                 </Text>
             </UnstyledButton>
-            <Box
-                className={`${classes.rowActions} ${
-                    isWaiting ? classes.rowActionsVisible : ''
-                }`}
+            <Group
+                className={classes.rowActions}
+                justify="space-between"
+                gap="xs"
+                wrap="nowrap"
             >
-                <Group gap={4} wrap="wrap">
+                <Text fz="xs" c="dimmed" truncate>
+                    {isNotSaved
+                        ? `${tableLabel} · Not on any chart yet`
+                        : isWaiting
+                          ? `${tableLabel} · not added yet`
+                          : `${tableLabel} · ${count.applied} of ${
+                                count.possible
+                            } ${pluralizeCharts(count.possible)}`}
+                </Text>
+                <Group gap={4} wrap="nowrap" flex="0 0 auto">
                     {showAll && (
                         <Button
                             size="compact-xs"
                             variant="subtle"
-                            aria-label={`Use ${label} on all ${count.possible} ${tableLabel} charts`}
+                            aria-label={`Apply ${label} to all ${count.possible} ${tableLabel} charts`}
                             onClick={onAll}
                         >
-                            Use on all {count.possible}{' '}
-                            {pluralizeCharts(count.possible)}
+                            Apply to all {count.possible}
                         </Button>
                     )}
                     {showNone && (
@@ -90,12 +86,12 @@ export const FieldRow: FC<Props> = ({
                             color="gray"
                             aria-label={
                                 count.applied === 1
-                                    ? `Stop using ${label} on the 1 chart`
-                                    : `Stop using ${label} on all ${count.applied} charts`
+                                    ? `Clear ${label} from the 1 chart`
+                                    : `Clear ${label} from all ${count.applied} charts`
                             }
                             onClick={onNone}
                         >
-                            Use on no charts
+                            Clear from charts
                         </Button>
                     )}
                     {
@@ -106,11 +102,11 @@ export const FieldRow: FC<Props> = ({
                             aria-label={`Remove ${label} from this filter`}
                             onClick={onRemove}
                         >
-                            Remove
+                            Remove field
                         </Button>
                     }
                 </Group>
-            </Box>
+            </Group>
         </Stack>
     );
 };

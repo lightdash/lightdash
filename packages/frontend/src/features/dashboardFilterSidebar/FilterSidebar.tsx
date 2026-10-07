@@ -15,6 +15,7 @@ import { IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getFieldDisplayLabel } from './fieldGrains';
 import { type FieldKind } from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
@@ -214,18 +215,18 @@ export const FilterSidebar: FC = () => {
                         Pick fields
                     </Text>
                     <FieldPicker
-                        mode="multi"
+                        mode="single"
                         fields={allFilterableFields ?? []}
                         getChartCount={getNewFieldChartCount}
-                        chosen={chosen}
-                        onToggle={toggleChosen}
+                        chosen={[]}
+                        onToggle={addFirstField}
                         kind={kind}
                         onKindChange={setKind}
                     />
                 </Stack>
                 <Stack gap="xs" p="md" className={classes.footer}>
                     <Text fz="xs" c="dimmed">
-                        {chosenStatus}
+                        Pick a field
                     </Text>
                     <Group justify="space-between" gap="xs">
                         <Button
@@ -239,12 +240,7 @@ export const FilterSidebar: FC = () => {
                             <Button variant="default" onClick={cancel}>
                                 Cancel
                             </Button>
-                            <Button
-                                disabled={chosen.length === 0}
-                                onClick={handleContinue}
-                            >
-                                Continue
-                            </Button>
+                            <Button disabled>Apply</Button>
                         </Group>
                     </Group>
                 </Stack>
@@ -255,10 +251,12 @@ export const FilterSidebar: FC = () => {
     if (filterRule === null || reach === null) return null;
 
     const field = allFilterableFieldsMap[filterRule.target.fieldId] ?? null;
-    const fieldLabel = field?.label ?? null;
+    const fieldLabel = field
+        ? getFieldDisplayLabel(field, allFilterableFields ?? [])
+        : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
-    const statusName = filterRule.label || fieldLabel || 'Filter';
-    const title = isNew ? 'New filter' : statusName;
+    const reachSubject = hasLabel ? filterRule.label : 'This filter';
+    const title = isNew ? 'New filter' : filterRule.label || 'Filter';
     const statusSuffix = isNew
         ? hasLabel
             ? ''
@@ -325,7 +323,6 @@ export const FilterSidebar: FC = () => {
                     }}
                 >
                     <Tabs.List mb="md">
-                        <Tabs.Tab value="fields">Fields and charts</Tabs.Tab>
                         <Tabs.Tab
                             value="interactivity"
                             rightSection={
@@ -337,16 +334,14 @@ export const FilterSidebar: FC = () => {
                                     <Box
                                         role="img"
                                         aria-label="Changed from the default"
-                                        w={6}
-                                        h={6}
-                                        bg="blue.6"
-                                        style={{ borderRadius: '50%' }}
+                                        className={classes.changedDot}
                                     />
                                 ) : null
                             }
                         >
                             Interactivity
                         </Tabs.Tab>
+                        <Tabs.Tab value="fields">Fields and charts</Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel value="fields">
                         <FieldsAndCharts />
@@ -363,8 +358,9 @@ export const FilterSidebar: FC = () => {
 
             <Stack gap="xs" p="md" className={classes.footer}>
                 <Text fz="xs" c="dimmed">
-                    {statusName} filters {reach.applied} of {reach.total} charts
-                    on {reach.tabCount} {reach.tabCount === 1 ? 'tab' : 'tabs'}
+                    {reachSubject} reaches {reach.applied} of {reach.total}{' '}
+                    {reach.total === 1 ? 'chart' : 'charts'} on {reach.tabCount}{' '}
+                    {reach.tabCount === 1 ? 'tab' : 'tabs'}
                     {statusSuffix}
                 </Text>
                 <Group justify="space-between" gap="xs">
@@ -384,7 +380,7 @@ export const FilterSidebar: FC = () => {
                             Cancel
                         </Button>
                         <Button onClick={apply} disabled={isNew && !hasLabel}>
-                            {isNew ? 'Add filter' : 'Apply'}
+                            Apply
                         </Button>
                     </Group>
                 </Group>

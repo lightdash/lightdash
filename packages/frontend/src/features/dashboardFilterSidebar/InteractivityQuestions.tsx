@@ -284,7 +284,7 @@ export const InteractivityQuestions: FC<Props> = ({
             : 'Required'
         : requiredReason === null
           ? 'Not required'
-          : 'Cannot be required';
+          : `Cannot be required: ${requiredReason}`;
     const requiredSub = isRequired
         ? 'Viewers must set this filter to load the dashboard.'
         : (requiredReason ??
@@ -333,19 +333,19 @@ export const InteractivityQuestions: FC<Props> = ({
         settings.picker !== 'standard' || settings.operators === 'all'
             ? null
             : settings.operators === 'one' && onlyOperatorLabel
-              ? `Only "${onlyOperatorLabel}"`
+              ? `Only ${onlyOperatorLabel}`
               : `${settings.allowedOperators.length} operators`;
     const pickSummary =
         [
             pickerSummaries[settings.picker],
             operatorsSummary,
             filterRule.singleValue && settings.picker !== 'calendar'
-                ? 'one value'
+                ? 'One value'
                 : null,
             settings.hasBoundaries ? 'with boundaries' : null,
         ]
             .filter((part) => part !== null)
-            .join(', ') || 'Anything: every operator, several values';
+            .join(', ') || 'Any operator, several values';
     const boundariesSub = !settings.hasBoundaries
         ? 'None. Viewers can pick any value.'
         : filterType === FilterType.DATE
@@ -355,8 +355,8 @@ export const InteractivityQuestions: FC<Props> = ({
     return (
         <Stack gap={0}>
             <QuestionRow
-                label="Who can see and change it"
-                action="Edit"
+                label="Visibility"
+                action="Change"
                 summary={whoSummary}
                 isChanged={isWhoChanged(filterRule, settings)}
                 {...rowProps('who')}
@@ -388,7 +388,7 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Required"
-                action="Set"
+                action="Change"
                 summary={requiredSummary}
                 isChanged={isRequired}
                 {...rowProps('required')}
@@ -462,8 +462,8 @@ export const InteractivityQuestions: FC<Props> = ({
             </QuestionRow>
 
             <QuestionRow
-                label="What viewers can pick"
-                action="Edit"
+                label="Allowed values"
+                action="Change"
                 summary={pickSummary}
                 isChanged={!isPickDefault(settings) || !!filterRule.singleValue}
                 {...rowProps('pick')}
@@ -565,8 +565,8 @@ export const InteractivityQuestions: FC<Props> = ({
             </QuestionRow>
 
             <QuestionRow
-                label="Where it sits"
-                action="Move"
+                label="Placement"
+                action="Change"
                 summary={
                     settings.placement === 'bar' ? 'On the bar' : 'Under More'
                 }

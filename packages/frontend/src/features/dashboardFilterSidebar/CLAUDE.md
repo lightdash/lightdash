@@ -63,3 +63,5 @@ Lost on reload, marked "Not saved". What saving each would need:
 
 - `FieldPicker` is controlled: the caller owns `chosen` and `kind` (a `FilterType`); `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore.
 - New-filter flow: Continue calls `addFirstField(chosen[0])` then `listFieldId` for the rest; "Add a field" uses `mode="single"` with `lockedKind`.
+- A field has one name everywhere: `getFieldDisplayLabel` in `fieldGrains.ts` names a time grain by its base dimension ("Created", never "Created day").
+- The sidebar lands on Interactivity after Continue; the footer's only commit verb is "Apply" and its subject is the label or "This filter".

@@ -3,6 +3,10 @@
     border-radius: var(--mantine-radius-sm);
 }
 
+.rowMain[data-highlighted] {
+    outline: none;
+}
+
 .rowHighlighted {
     border-color: var(--mantine-primary-color-filled);
     background-color: var(--mantine-primary-color-light);
@@ -13,19 +17,13 @@
 }
 
 .rowMain {
-    flex: 1;
+    display: block;
+    width: 100%;
     min-width: 0;
-    padding: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
     border-radius: var(--mantine-radius-sm);
 }
 
 .rowActions {
     padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
-    opacity: 0;
-}
-
-.row:hover .rowActions,
-.row:focus-within .rowActions,
-.rowActionsVisible {
-    opacity: 1;
 }
