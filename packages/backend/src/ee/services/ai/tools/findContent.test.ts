@@ -3,6 +3,7 @@ import {
     toolFindContentOutputSchema,
     toolGetDashboardChartsOutputSchema,
     type ContentVerificationInfo,
+    type DashboardChartSummary,
     type DashboardSearchResult,
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
@@ -56,13 +57,14 @@ const makeVerification = (
 
 const makeMockChart = (
     i: number,
-    overrides: Partial<DashboardSearchResult['charts'][number]> = {},
-): DashboardSearchResult['charts'][number] => ({
+    overrides: Partial<DashboardChartSummary> = {},
+): DashboardChartSummary => ({
     uuid: `chart-uuid-${i}`,
     name: `Chart ${i}`,
     description: i % 2 === 0 ? `Description for chart ${i}` : undefined,
     chartType: ChartKind.VERTICAL_BAR,
     viewsCount: i * 10,
+    exploreName: i % 2 === 0 ? 'orders' : 'customers',
     verification: null,
     ...overrides,
 });
@@ -940,6 +942,8 @@ describe('getGetDashboardCharts', () => {
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(3);
+        expect(output.result).toContain('exploreName="orders"');
+        expect(output.result).toContain('exploreName="customers"');
 
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,
@@ -958,6 +962,7 @@ describe('getGetDashboardCharts', () => {
                     description: 'Description for chart 0',
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 0,
+                    exploreName: 'orders',
                     verification: null,
                 },
                 {
@@ -966,6 +971,7 @@ describe('getGetDashboardCharts', () => {
                     description: null,
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 10,
+                    exploreName: 'customers',
                     verification: null,
                 },
                 {
@@ -974,6 +980,7 @@ describe('getGetDashboardCharts', () => {
                     description: 'Description for chart 2',
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 20,
+                    exploreName: 'orders',
                     verification: null,
                 },
             ],

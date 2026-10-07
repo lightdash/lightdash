@@ -20,6 +20,7 @@ import {
     CustomChartType,
     CustomChartTypeLibrary,
     DashboardAsCode,
+    DashboardChartSummary,
     DashboardSearchResult,
     DataAppBuildTemplate,
     DataAppSearchResult,
@@ -323,7 +324,7 @@ export type GetDashboardChartsFn = (args: {
     pageSize: number;
 }) => Promise<{
     dashboardName: string;
-    charts: DashboardSearchResult['charts'];
+    charts: DashboardChartSummary[];
     pagination: {
         page: number;
         pageSize: number;

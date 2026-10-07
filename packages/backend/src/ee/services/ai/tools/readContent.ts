@@ -22,6 +22,11 @@ const toolDefinition = readContentToolDefinition.for('agent');
 
 type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
 
+// Shown with every dashboard read so a first filter edit has the right shape
+// without a round trip through the skill reference.
+const DASHBOARD_READ_HINT =
+    'Filter rules under /filters/dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; never patch chartQuery. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.';
+
 const contentResult = ({
     content,
     href,
@@ -30,7 +35,13 @@ const contentResult = ({
     content: unknown;
     href: string;
     type: ReadContentResult['type'];
-}) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
+}) =>
+    [
+        `<${type} href="${href}" />`,
+        ...(type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
+        '---',
+        JSON.stringify(content, null, 2),
+    ].join('\n');
 
 const toStructuredContent = (
     read: ReadContentResult,

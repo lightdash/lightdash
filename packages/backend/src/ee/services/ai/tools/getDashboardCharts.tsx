@@ -1,5 +1,5 @@
 import {
-    DashboardSearchResult,
+    DashboardChartSummary,
     getDashboardChartsToolDefinition,
     ToolGetDashboardChartsStructuredContent,
 } from '@lightdash/common';
@@ -20,14 +20,13 @@ const toolDefinition = getDashboardChartsToolDefinition.for('agent');
 
 type DashboardChart = ToolGetDashboardChartsStructuredContent['charts'][number];
 
-const toDashboardChart = (
-    chart: DashboardSearchResult['charts'][number],
-): DashboardChart => ({
+const toDashboardChart = (chart: DashboardChartSummary): DashboardChart => ({
     uuid: chart.uuid,
     name: chart.name,
     description: chart.description ?? null,
     chartType: chart.chartType,
     viewsCount: chart.viewsCount,
+    exploreName: chart.exploreName,
     verification: chart.verification
         ? {
               verifiedBy: `${chart.verification.verifiedBy.firstName} ${chart.verification.verifiedBy.lastName}`,
@@ -42,6 +41,7 @@ const renderChart = (chart: DashboardChart) => (
         chartUuid={chart.uuid}
         chartType={chart.chartType}
         viewsCount={chart.viewsCount}
+        exploreName={chart.exploreName}
     >
         <name>{chart.name}</name>
         {chart.description && <description>{chart.description}</description>}
