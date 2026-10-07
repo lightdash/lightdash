@@ -19,6 +19,7 @@ import {
 import {
     FilterOperator,
     flattenFilterGroup,
+    getCurrentPeriodBounds,
     isAndFilterGroup,
     isFilterGroup,
     UnitOfTime,
@@ -421,9 +422,9 @@ const isCompletedDateFilter = (
 const getCurrentPeriodBoundOrder = (
     filterRule: FilterRule | MetricFilterRule,
 ): number => {
-    const settings = getDateFilterSettings(filterRule);
-    if (!settings?.toDate) return 0;
-    return settings.excludeToday ? 2 : 1;
+    const bounds = getCurrentPeriodBounds(getDateFilterSettings(filterRule));
+    if (!bounds.toDate) return 0;
+    return bounds.excludeToday ? 2 : 1;
 };
 
 const isRelativeDateFilterEquivalentOrNarrower = (

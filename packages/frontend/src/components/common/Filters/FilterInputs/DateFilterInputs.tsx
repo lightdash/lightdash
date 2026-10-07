@@ -7,12 +7,13 @@ import {
     isFilterRule,
     TimeFrames,
     timeframeToUnitOfTime,
-    UnitOfTime,
+    unitOfTimeSupportsToDate,
     type BaseFilterRule,
     type DateFilterRule,
     type DateFilterSettings,
+    type UnitOfTime,
 } from '@lightdash/common';
-import { Checkbox, Flex, Text } from '@mantine/core';
+import { Checkbox, Flex, Stack, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -42,14 +43,6 @@ import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
 import FilterWeekPicker from './FilterWeekPicker';
 import FilterYearPicker from './FilterYearPicker';
-
-// "To date" only narrows units coarser than a day
-const unitsSupportingToDate: UnitOfTime[] = [
-    UnitOfTime.weeks,
-    UnitOfTime.months,
-    UnitOfTime.quarters,
-    UnitOfTime.years,
-];
 
 const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     props: FilterInputsProps<T>,
@@ -407,16 +400,27 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 | DateFilterSettings
                 | undefined;
             const isToDate = currentSettings?.toDate === true;
-            const supportsToDate = unitsSupportingToDate.includes(
-                currentSettings?.unitOfTime ?? UnitOfTime.days,
-            );
-            const setCurrentSettings = (settings: DateFilterSettings) =>
+            const isExcludeToday =
+                isToDate && currentSettings?.excludeToday === true;
+            const supportsToDate =
+                currentSettings?.unitOfTime !== undefined &&
+                unitOfTimeSupportsToDate(currentSettings.unitOfTime);
+            const setCurrentSettings = (
+                unitOfTime: UnitOfTime | undefined,
+                bounds: { toDate: boolean; excludeToday: boolean },
+            ) =>
                 onChange({
                     ...rule,
-                    settings: { ...settings, completed: false },
+                    settings: {
+                        unitOfTime,
+                        completed: false,
+                        ...(bounds.toDate && { toDate: true }),
+                        ...(bounds.toDate &&
+                            bounds.excludeToday && { excludeToday: true }),
+                    },
                 });
             return (
-                <Flex direction="column" gap="xs" w="100%">
+                <Stack gap="xs" w="100%">
                     <FilterUnitOfTimeAutoComplete
                         w="100%"
                         disabled={disabled}
@@ -440,14 +444,13 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
                             setCurrentSettings(
-                                unitsSupportingToDate.includes(value.unitOfTime)
+                                value.unitOfTime,
+                                unitOfTimeSupportsToDate(value.unitOfTime)
                                     ? {
-                                          unitOfTime: value.unitOfTime,
-                                          toDate: currentSettings?.toDate,
-                                          excludeToday:
-                                              currentSettings?.excludeToday,
+                                          toDate: isToDate,
+                                          excludeToday: isExcludeToday,
                                       }
-                                    : { unitOfTime: value.unitOfTime },
+                                    : { toDate: false, excludeToday: false },
                             )
                         }
                     />
@@ -459,16 +462,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             checked={isToDate}
                             onChange={(e) =>
                                 setCurrentSettings(
-                                    e.currentTarget.checked
-                                        ? {
-                                              unitOfTime:
-                                                  currentSettings?.unitOfTime,
-                                              toDate: true,
-                                          }
-                                        : {
-                                              unitOfTime:
-                                                  currentSettings?.unitOfTime,
-                                          },
+                                    currentSettings?.unitOfTime,
+                                    {
+                                        toDate: e.currentTarget.checked,
+                                        excludeToday: false,
+                                    },
                                 )
                             }
                         />
@@ -480,17 +478,19 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 'filters.currentPeriod.includeToday',
                             )}
                             disabled={disabled}
-                            checked={currentSettings?.excludeToday !== true}
+                            checked={!isExcludeToday}
                             onChange={(e) =>
-                                setCurrentSettings({
-                                    unitOfTime: currentSettings?.unitOfTime,
-                                    toDate: true,
-                                    excludeToday: !e.currentTarget.checked,
-                                })
+                                setCurrentSettings(
+                                    currentSettings?.unitOfTime,
+                                    {
+                                        toDate: true,
+                                        excludeToday: !e.currentTarget.checked,
+                                    },
+                                )
                             }
                         />
                     )}
-                </Flex>
+                </Stack>
             );
         }
         case FilterOperator.IN_BETWEEN:

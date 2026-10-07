@@ -2954,6 +2954,47 @@ describe('in the current period bounds (toDate / excludeToday)', () => {
             ).toStrictEqual(range("('2020-01-01 00:00:00+00:00')", todayEnd));
         });
 
+        test('toDate is ignored for units of a day or finer', () => {
+            expect(
+                render({
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    settings: {
+                        unitOfTime: UnitOfTime.hours,
+                        toDate: true,
+                        excludeToday: true,
+                    },
+                    adapter,
+                }),
+            ).toStrictEqual(
+                range(
+                    "('2020-04-04 06:00:00+00:00')",
+                    "('2020-04-04 06:59:59+00:00')",
+                ),
+            );
+        });
+
+        test('week to date uses the configured start of week', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
+                        id: 'id',
+                        target: { fieldId: 'fieldId' },
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [1],
+                        settings: {
+                            unitOfTime: UnitOfTime.weeks,
+                            toDate: true,
+                        },
+                    },
+                    adapterType: adapter,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(range("('2020-03-29 00:00:00+00:00')", todayEnd));
+        });
+
         test('first day of the month with excludeToday emits an empty range', () => {
             vi.setSystemTime(new Date('01 Apr 2020 06:12:30 GMT').getTime());
             expect(

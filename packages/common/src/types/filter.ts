@@ -97,6 +97,19 @@ export const getUnitsOfTimeGreaterOrEqual = (
     return unitsInOrder.slice(index);
 };
 
+/** "To date" bounds only narrow units coarser than a day */
+export const unitOfTimeSupportsToDate = (unit: UnitOfTime): boolean =>
+    getUnitsOfTimeGreaterOrEqual(UnitOfTime.weeks).includes(unit);
+
+export const getCurrentPeriodBounds = (
+    settings: DateFilterSettings | undefined,
+): { toDate: boolean; excludeToday: boolean } => {
+    const toDate =
+        settings?.toDate === true &&
+        unitOfTimeSupportsToDate(settings.unitOfTime ?? UnitOfTime.days);
+    return { toDate, excludeToday: toDate && settings?.excludeToday === true };
+};
+
 export type FieldTarget = {
     /** Field ID to filter on */
     fieldId: string;

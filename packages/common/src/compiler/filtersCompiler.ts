@@ -15,6 +15,7 @@ import {
 } from '../types/field';
 import {
     FilterOperator,
+    getCurrentPeriodBounds,
     isDateFilterRule,
     isFilterTarget,
     isMetricFilterTarget,
@@ -616,9 +617,10 @@ const renderDateOrTimestampFilterSql = ({
         const fromDate = boundaryFormatter(
             now().startOf(unitOfTime).utc().toDate(),
         );
-        const untilMoment = settings?.toDate
+        const bounds = getCurrentPeriodBounds(settings);
+        const untilMoment = bounds.toDate
             ? now()
-                  .subtract(settings.excludeToday ? 1 : 0, 'day')
+                  .subtract(bounds.excludeToday ? 1 : 0, 'day')
                   .endOf('day')
             : now().endOf(unitOfTime);
         const untilDate = boundaryFormatter(untilMoment.utc().toDate());
