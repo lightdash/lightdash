@@ -40,6 +40,8 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version &&
         healthState.data?.mode === LightdashMode.DEFAULT;
+    // Cloud plans are per organization; the instance license says nothing about them
+    const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
     const licenseStatus = healthState.data?.license;
     const licenseDisplay = licenseStatus?.valid
         ? {
@@ -144,7 +146,9 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 >
                     <Stack gap="md">
                         <Text fz="sm" c="dimmed">
-                            Instance details and licensing status.
+                            {isCloud
+                                ? 'Instance details.'
+                                : 'Instance details and licensing status.'}
                         </Text>
 
                         <Paper radius="md" p="md">
@@ -160,28 +164,32 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     </Text>
                                 </Group>
 
-                                <Divider />
+                                {!isCloud && (
+                                    <>
+                                        <Divider />
 
-                                <Group
-                                    justify="space-between"
-                                    align="center"
-                                    wrap="nowrap"
-                                >
-                                    <Box>
-                                        <Text fz="sm" fw={500}>
-                                            Enterprise license
-                                        </Text>
-                                        <Text fz="xs" c="dimmed">
-                                            {licenseDisplay.description}
-                                        </Text>
-                                    </Box>
-                                    <Badge
-                                        color={licenseDisplay.color}
-                                        flex="none"
-                                    >
-                                        {licenseDisplay.badge}
-                                    </Badge>
-                                </Group>
+                                        <Group
+                                            justify="space-between"
+                                            align="center"
+                                            wrap="nowrap"
+                                        >
+                                            <Box>
+                                                <Text fz="sm" fw={500}>
+                                                    Enterprise license
+                                                </Text>
+                                                <Text fz="xs" c="dimmed">
+                                                    {licenseDisplay.description}
+                                                </Text>
+                                            </Box>
+                                            <Badge
+                                                color={licenseDisplay.color}
+                                                flex="none"
+                                            >
+                                                {licenseDisplay.badge}
+                                            </Badge>
+                                        </Group>
+                                    </>
+                                )}
                             </Stack>
                         </Paper>
 
