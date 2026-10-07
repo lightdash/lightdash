@@ -1,3 +1,10 @@
+# [2.454.0](https://github.com/lightdash/lightdash/compare/2.453.0...2.454.0) (2026-10-07)
+
+
+### Features
+
+* gate usage capture and processing by organization ([#30603](https://github.com/lightdash/lightdash/issues/30603)) ([c6cf96e](https://github.com/lightdash/lightdash/commit/c6cf96e39a26dba8da029e6ce7f5ca8bca75362a))
+
 # [2.453.0](https://github.com/lightdash/lightdash/compare/2.452.0...2.453.0) (2026-10-07)
 
 
