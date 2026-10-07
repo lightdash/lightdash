@@ -25,8 +25,10 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getAllReferences,
     getDimensionMapFromTables,
     getItemId,
+    getMissingAdditionalMetricReferences,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -69,6 +71,7 @@ import {
     type ContentVerificationInfo,
     type Explore,
     type ExploreError,
+    type MetricQuery,
     type SpaceAccess,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -985,6 +988,38 @@ export class SavedChartService
         });
     }
 
+    private async validateMetricReferences(
+        projectUuid: string,
+        metricQuery: MetricQuery,
+    ): Promise<void> {
+        const metrics = (metricQuery.additionalMetrics ?? []).filter((metric) =>
+            getAllReferences(metric.sql).some((ref) => ref !== 'TABLE'),
+        );
+        if (metrics.length === 0) return;
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            metricQuery.exploreName,
+        );
+        if (!explore || isExploreError(explore)) {
+            throw new ParameterError(
+                'Cannot validate custom metric references because the explore is unavailable',
+            );
+        }
+        for (const metric of metrics) {
+            const missing = getMissingAdditionalMetricReferences(
+                metric,
+                explore,
+                metricQuery.customDimensions,
+            );
+            if (missing.length > 0) {
+                throw new ParameterError(
+                    `Custom metric "${metric.label ?? metric.name}" references missing fields: ${missing.join(', ')}`,
+                );
+            }
+        }
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -1123,6 +1158,11 @@ export class SavedChartService
         if (chartVersion.merge && !merge) {
             throw new ParameterError('Invalid saved merge definition.');
         }
+
+        await this.validateMetricReferences(
+            projectUuid,
+            chartVersion.metricQuery,
+        );
 
         const verificationAfterUpdate =
             await this.getVerificationAfterChartUpdate({
@@ -2331,6 +2371,11 @@ export class SavedChartService
                 'Unable to save chart; no space or dashboard provided.',
             );
         }
+
+        await this.validateMetricReferences(
+            projectUuid,
+            chartToSave.metricQuery,
+        );
 
         const chartToCreate = resolvedSpaceUuid
             ? {

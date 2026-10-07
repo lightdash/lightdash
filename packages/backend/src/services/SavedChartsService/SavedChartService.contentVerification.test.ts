@@ -7,10 +7,12 @@ import {
     DimensionType,
     ExploreSplitError,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
     type CreateSavedChartVersion,
+    type Explore,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
@@ -139,7 +141,7 @@ const spacePermissionService = {
 };
 
 const projectModel = {
-    getExploreFromCache: vi.fn(async () => null),
+    getExploreFromCache: vi.fn(async (): Promise<Explore | null> => null),
     getUuidBySlug: vi.fn(async () => 'resolved-project-uuid'),
     getSummary: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
@@ -360,6 +362,55 @@ describe('SavedChartService - Content Verification', () => {
             spaceUuid: 'space-uuid',
             dashboardUuid: null,
         };
+
+        it('rejects missing metric references before creating or saving a chart version', async () => {
+            const explore = {
+                tables: {
+                    orders: { name: 'orders', dimensions: {}, metrics: {} },
+                },
+            } as unknown as Explore;
+            const metricQuery = {
+                ...baseChart.metricQuery,
+                additionalMetrics: [
+                    {
+                        name: 'adjusted_total',
+                        label: 'Adjusted total',
+                        table: 'orders',
+                        type: MetricType.SUM,
+                        sql: '${orders.deleted_dimension}',
+                    },
+                ],
+            };
+            vi.mocked(projectModel.getExploreFromCache).mockResolvedValueOnce(
+                explore,
+            );
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery,
+                }),
+            ).rejects.toThrow(
+                'Custom metric "Adjusted total" references missing fields: orders.deleted_dimension',
+            );
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+
+            vi.mocked(projectModel.getExploreFromCache).mockResolvedValueOnce(
+                explore,
+            );
+            await expect(
+                service.createVersion(
+                    fromSession(adminUser, 'session-cookie'),
+                    'chart-uuid',
+                    {
+                        tableName: baseChart.tableName,
+                        metricQuery,
+                        chartConfig: baseChart.chartConfig,
+                        tableConfig: baseChart.tableConfig,
+                    },
+                ),
+            ).rejects.toThrow('orders.deleted_dimension');
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
 
         it('rejects custom SQL dimensions without CustomFields permission', async () => {
             await expect(
