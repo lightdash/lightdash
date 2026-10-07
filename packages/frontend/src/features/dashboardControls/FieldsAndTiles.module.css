@@ -1,5 +1,48 @@
 .row {
-    padding: var(--mantine-spacing-xs);
+    position: relative;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
+}
+
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.rowHighlighted,
+.rowHighlighted:hover {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-light);
+}
+
+.rowMain {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.rowMain[data-highlighted] {
+    outline: none;
+}
+
+/* The name button covers the whole card, so a click anywhere toggles it */
+.rowMain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.rowActions button {
+    position: relative;
+    z-index: 1;
+}
+
+.rowActions {
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+}
+
+.addFieldSelect {
+    align-self: stretch;
 }

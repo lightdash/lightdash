@@ -44,8 +44,41 @@ never called a filter. User-facing copy says *tile*, never *chart*.
   is more than one tab), body and a right-aligned footer. Add chrome there.
 - `ControlSidebar` edits the control from `useControlsSidebar`. A placeholder is
   titled "New control" and cannot be applied until it has a field.
-- `FieldsAndTiles` shows the inline `FieldPicker` for a placeholder and the
-  filter's field once it has one. `FieldPicker` is one searchable dropdown with
+- `FieldsAndTiles` shows the inline `FieldPicker` for a placeholder, and
+  otherwise one `FieldRow` per field of the filter plus "Add a field". `FieldPicker` is one searchable dropdown with
   time grains folded into one row per field (`fieldGrains.ts`).
 - `ControlsBar` carries the same `data-tour-*` anchors as `DashboardFiltersBar`;
   keep them in step when either changes.
+
+## Fields and tiles
+
+A filter control can hold several fields, on today's saved shape (`peers.ts`):
+
+- The first field is the rule's `target`.
+- Another field on a tile is `tileTargets[tileUuid] = { fieldId, tableName }`.
+- A tile left out is `tileTargets[tileUuid] = false`.
+- A tile uses exactly one field of the filter, and a field belongs to a filter
+  only through a tile mapping (`getFilterFields`).
+- A field on no tile cannot be saved, so it *waits*: `waitingFieldIds` in the
+  provider lists fields added with "Add a field" when every tile they fit
+  already had one, and fields that lost their last tile. They show at
+  "0 of N tiles", every tile card that could take them offers them, and they
+  are gone when the sidebar closes. "Add a field" offers any field of the
+  filter's kind that some tile offers.
+- SQL chart tiles are mapped per tile with `isSqlColumn` targets
+  (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
+  fields of the filter.
+- Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
+  dashboard, not only the filterable ones.
+- Highlight has two states on a tile, set as `data-highlighted`: `mapped`
+  (the tile is on the active field: its dashed edit border becomes a solid
+  hairline in `--mantine-color-blue-5` with a soft blurred glow of the same
+  blue) and `available` (the tile offers the field but is on another one or on
+  none: the dashed border at full strength). The highlighted sidebar row uses
+  the same blue. No ink: `--mantine-primary-color-filled` reads too heavy here.
+- A tab with a count badge keeps its natural width (`TabCounts.module.css`),
+  so the tab strip scrolls instead of cutting the names.
+- `TileOverlays` portals a veil and a "Filtered by" card into each
+  `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
+  "x of N" badge into each tab node. Both resolve targets with
+  `usePortalTargets` and render nothing for a placeholder.

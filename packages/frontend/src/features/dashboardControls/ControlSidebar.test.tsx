@@ -1,4 +1,9 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    type DashboardFilterRule,
+    type DashboardTab,
+    type DashboardTile,
+} from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -20,6 +25,11 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
 
+const mockSqlColumnsByTile = vi.hoisted(() => ({}));
+vi.mock('./useSqlColumnsByTile', () => ({
+    useSqlColumnsByTile: () => mockSqlColumnsByTile,
+}));
+
 vi.mock('./FieldsAndTiles', () => ({
     FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
 }));
@@ -36,6 +46,14 @@ const field = {
     sql: '${TABLE}.status',
     hidden: false,
 };
+
+const REGION = { fieldId: 'orders_region', tableName: 'orders' };
+
+const tile = (uuid: string, tabUuid: string | undefined) =>
+    ({ uuid, tabUuid, type: DashboardTileTypes.SAVED_CHART }) as DashboardTile;
+
+const tab = (uuid: string, order: number) =>
+    ({ uuid, name: uuid, order }) as DashboardTab;
 
 const makeRule = (
     overrides: Partial<DashboardFilterRule>,
@@ -60,6 +78,15 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         open: vi.fn(),
         openNew: vi.fn(),
         addFirstField: vi.fn(),
+        clearFields: vi.fn(),
+        highlightedFieldId: null,
+        setHighlightedFieldId: vi.fn(),
+        hoveredFieldId: null,
+        setHoveredFieldId: vi.fn(),
+        activeFieldId: null,
+        waitingFieldIds: [],
+        addWaitingField: vi.fn(),
+        removeWaitingField: vi.fn(),
         updateFilter: vi.fn(),
         removeFilter: vi.fn(),
         removeFilterById: vi.fn(),
@@ -77,7 +104,72 @@ describe('ControlSidebar', () => {
         mockDashboardContext.current = {
             allFilterableFields: [field],
             allFilterableFieldsMap: { [FIELD_ID]: field },
+            dashboardTiles: [
+                tile('a', undefined),
+                tile('b', undefined),
+                tile('c', undefined),
+            ],
+            dashboardTabs: [],
+            filterableFieldsByTileUuid: {
+                a: [field],
+                b: [field, { ...field, name: 'region', label: 'Region' }],
+            },
         };
+    });
+
+    it('summarises the reach of a filter over every tile', () => {
+        setSidebar({});
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByText('1 field · reaches 2 of 3 tiles'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('No mapping yet')).not.toBeInTheDocument();
+
+        setSidebar({
+            editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
+        });
+        rerender(<ControlSidebar />);
+        expect(
+            screen.getByText('2 fields · reaches 1 of 3 tiles'),
+        ).toBeInTheDocument();
+    });
+
+    it('uses the singular for a dashboard with one tile', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [tile('a', undefined)],
+        };
+        setSidebar({});
+        renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByText('1 field · reaches 1 of 1 tile'),
+        ).toBeInTheDocument();
+    });
+
+    it('adds the tabs the filter reaches when the dashboard has several', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't2')],
+            dashboardTabs: [tab('t1', 0), tab('t2', 1)],
+        };
+        setSidebar({});
+        renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByText('1 field · reaches 2 of 3 tiles on 1 of 2 tabs'),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves the tabs out when the dashboard has a single tab', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't1')],
+            dashboardTabs: [tab('t1', 0)],
+        };
+        setSidebar({});
+        renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByText('1 field · reaches 2 of 3 tiles'),
+        ).toBeInTheDocument();
     });
 
     it('renders nothing when no control is being edited', () => {

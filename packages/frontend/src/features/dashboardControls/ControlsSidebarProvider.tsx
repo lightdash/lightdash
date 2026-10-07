@@ -16,6 +16,7 @@ import {
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getFilterFields } from './peers';
 import {
     findFilterRule,
     isFilterRuleDirty,
@@ -58,11 +59,22 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
     const [activeSection, setActiveSection] =
         useState<ControlsSidebarSection>('fields');
+    const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
+        null,
+    );
+    const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
+    // Keyed by filter so a stale entry never leaks into another filter
+    const [waiting, setWaiting] = useState<{
+        filterId: string;
+        fieldIds: string[];
+    } | null>(null);
 
     const close = useCallback(() => {
         setState(null);
         setPlaceholder(null);
         setActiveSection('fields');
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
     }, []);
 
     // Opening another filter keeps the current edits (they only live in the
@@ -73,6 +85,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 return;
             setPlaceholder(null);
             setActiveSection('fields');
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
             setState({
                 filterId,
                 isNew: false,
@@ -105,8 +119,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const addFirstField = useCallback(
         (field: DashboardFilterableField) => {
             if (placeholder === null) return;
-            // Operator and tile targets come from the field; identity and
-            // label come from the placeholder
+            // Operator, values and tile targets come from the field; identity,
+            // label and settings come from the placeholder
             const rule: DashboardFilterRule = {
                 ...createDashboardFilterRuleFromField({
                     field,
@@ -115,6 +129,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 }),
                 id: placeholder.id,
                 label: placeholder.label,
+                lockedTabUuids: placeholder.lockedTabUuids,
+                required: placeholder.required,
+                requiredGroupId: placeholder.requiredGroupId,
+                singleValue: placeholder.singleValue,
             };
             setDashboardFilters((filters) =>
                 isMetric(field)
@@ -138,11 +156,92 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 setPlaceholder(next);
                 return;
             }
+            // A field that just lost its last tile stays listed, waiting
+            const previous = findFilterRule(dashboardFilters, next.id);
+            const kept = new Set(getFilterFields(next));
+            const dropped = (
+                previous === null ? [] : getFilterFields(previous)
+            ).filter((fieldId) => !kept.has(fieldId));
+            if (dropped.length > 0) {
+                setWaiting((current) => ({
+                    filterId: next.id,
+                    fieldIds: [
+                        ...new Set([
+                            ...(current?.filterId === next.id
+                                ? current.fieldIds
+                                : []),
+                            ...dropped,
+                        ]),
+                    ],
+                }));
+            }
             setDashboardFilters((filters) => replaceFilterRule(filters, next));
             setHaveFiltersChanged(true);
         },
-        [placeholder, setDashboardFilters, setHaveFiltersChanged],
+        [
+            placeholder,
+            dashboardFilters,
+            setDashboardFilters,
+            setHaveFiltersChanged,
+        ],
     );
+
+    const addWaitingField = useCallback(
+        (fieldId: string) => {
+            if (state === null) return;
+            const { filterId } = state;
+            setWaiting((current) => ({
+                filterId,
+                fieldIds: [
+                    ...new Set([
+                        ...(current?.filterId === filterId
+                            ? current.fieldIds
+                            : []),
+                        fieldId,
+                    ]),
+                ],
+            }));
+        },
+        [state],
+    );
+
+    const removeWaitingField = useCallback(
+        (fieldId: string) =>
+            setWaiting((current) =>
+                current === null
+                    ? null
+                    : {
+                          ...current,
+                          fieldIds: current.fieldIds.filter(
+                              (id) => id !== fieldId,
+                          ),
+                      },
+            ),
+        [],
+    );
+
+    const clearFields = useCallback(() => {
+        if (state === null || placeholder !== null) return;
+        const rule = findFilterRule(dashboardFilters, state.filterId);
+        if (rule === null) return;
+        setPlaceholder({
+            ...rule,
+            target: PLACEHOLDER_TARGET,
+            tileTargets: {},
+            values: [],
+            disabled: true,
+        });
+        setDashboardFilters((filters) => removeFilterRule(filters, rule.id));
+        setHaveFiltersChanged(true);
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
+    }, [
+        state,
+        placeholder,
+        dashboardFilters,
+        setDashboardFilters,
+        setHaveFiltersChanged,
+    ]);
 
     const removeFilterById = useCallback(
         (filterId: string) => {
@@ -157,7 +256,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     // Starts from the snapshot so the edits made in this session are not kept
     const removeFilter = useCallback(() => {
         if (state === null) return;
-        if (placeholder === null) {
+        if (state.isNew) {
+            setDashboardFilters(state.snapshot.dashboardFilters);
+            setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
+        } else {
             setDashboardFilters(
                 removeFilterRule(
                     state.snapshot.dashboardFilters,
@@ -167,7 +269,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setHaveFiltersChanged(true);
         }
         close();
-    }, [state, placeholder, setDashboardFilters, setHaveFiltersChanged, close]);
+    }, [state, setDashboardFilters, setHaveFiltersChanged, close]);
 
     const cancel = useCallback(() => {
         if (state === null) return;
@@ -199,6 +301,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         [state, placeholder, dashboardFilters],
     );
 
+    const waitingFieldIds = useMemo(() => {
+        if (state === null || waiting?.filterId !== state.filterId) return [];
+        const current = new Set(
+            editingRule === null ? [] : getFilterFields(editingRule),
+        );
+        return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
+    }, [state, waiting, editingRule]);
+
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
             editing: state === null ? null : { filterId: state.filterId },
@@ -211,6 +321,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             open,
             openNew,
             addFirstField,
+            clearFields,
+            waitingFieldIds,
+            addWaitingField,
+            removeWaitingField,
+            highlightedFieldId,
+            setHighlightedFieldId,
+            hoveredFieldId,
+            setHoveredFieldId,
+            activeFieldId: hoveredFieldId ?? highlightedFieldId,
             updateFilter,
             removeFilter,
             removeFilterById,
@@ -233,6 +352,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             open,
             openNew,
             addFirstField,
+            clearFields,
+            waitingFieldIds,
+            addWaitingField,
+            removeWaitingField,
+            highlightedFieldId,
+            hoveredFieldId,
             updateFilter,
             removeFilter,
             removeFilterById,

@@ -1,10 +1,17 @@
 import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
-import { useCallback, useId, useRef, useState, type FC } from 'react';
+import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import {
+    getFilterFields,
+    getTabCounts,
+    getTileField,
+    isTileFilterable,
+} from './peers';
 import { useControlsSidebar } from './useControlsSidebar';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const LABEL_ERROR = 'Add a label so viewers know what this filters';
 
@@ -48,7 +55,56 @@ export const ControlSidebar: FC = () => {
         (c) => c.allFilterableFields,
     );
 
-    if (editing === null || editingRule === null) return null;
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+
+    const reach = useMemo(() => {
+        if (editingRule === null) return null;
+        const tiles = dashboardTiles ?? [];
+        if (dashboardTabs.length === 0) {
+            const applied = tiles.filter(
+                (tile) =>
+                    isTileFilterable(
+                        tile,
+                        filterableFieldsByTileUuid,
+                        sqlColumnsByTile,
+                    ) &&
+                    getTileField(
+                        editingRule,
+                        tile,
+                        filterableFieldsByTileUuid,
+                        sqlColumnsByTile,
+                    ) !== null,
+            ).length;
+            return { applied, total: tiles.length, tabCount: 0 };
+        }
+        const counts = Object.values(
+            getTabCounts(
+                editingRule,
+                tiles,
+                dashboardTabs,
+                filterableFieldsByTileUuid,
+                sqlColumnsByTile,
+            ),
+        );
+        return {
+            applied: counts.reduce((sum, count) => sum + count.applied, 0),
+            total: counts.reduce((sum, count) => sum + count.total, 0),
+            tabCount: counts.filter((count) => count.applied > 0).length,
+        };
+    }, [
+        editingRule,
+        dashboardTiles,
+        dashboardTabs,
+        filterableFieldsByTileUuid,
+        sqlColumnsByTile,
+    ]);
+
+    if (editing === null || editingRule === null || reach === null) return null;
     const filterRule = editingRule;
 
     const field = allFilterableFieldsMap[filterRule.target.fieldId] ?? null;
@@ -69,6 +125,14 @@ export const ControlSidebar: FC = () => {
           : null;
     const canApply = blocker === null;
     const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
+    const fieldCount = getFilterFields(filterRule).length;
+    const tabReach =
+        dashboardTabs.length > 1
+            ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
+            : '';
+    const subtitle = isPlaceholder
+        ? 'No mapping yet'
+        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
     const showLabelError = () => {
         setLabelError(true);
         labelInputRef.current?.focus();
@@ -77,7 +141,7 @@ export const ControlSidebar: FC = () => {
     return (
         <EditorShell
             title={title}
-            subtitle={isPlaceholder ? 'No mapping yet' : null}
+            subtitle={subtitle}
             menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
             onCancel={cancel}

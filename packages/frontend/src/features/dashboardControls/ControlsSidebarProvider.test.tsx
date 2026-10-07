@@ -183,6 +183,88 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    it('clearFields turns a filter into a placeholder that keeps its label and settings', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                label: 'A',
+                lockedTabUuids: ['t1'],
+            }),
+        );
+        act(() => result.current.clearFields());
+        expect(result.current.isPlaceholder).toBe(true);
+        expect(result.current.editingRule?.label).toBe('A');
+        expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+
+        act(() => result.current.addFirstField(statusField));
+        const placed = latest.filters.dimensions.find((r) => r.id === 'a');
+        expect(placed?.target.fieldId).toBe('orders_status');
+        expect(placed?.label).toBe('A');
+        expect(placed?.lockedTabUuids).toEqual(['t1']);
+    });
+
+    it('cancel after clearFields restores the original filter', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.clearFields());
+        act(() => result.current.cancel());
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.changed).toBe(false);
+    });
+
+    it('keeps an added field waiting until it is removed or another filter opens', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.addWaitingField('orders_region'));
+        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+        expect(latest.filters).toEqual(initialFilters);
+
+        act(() => result.current.removeWaitingField('orders_region'));
+        expect(result.current.waitingFieldIds).toEqual([]);
+
+        act(() => result.current.addWaitingField('orders_region'));
+        act(() => result.current.open('b'));
+        expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    it('keeps a field listed as waiting when it loses its last tile', () => {
+        const { result } = setup();
+        const peer = { fieldId: 'orders_region', tableName: 'orders' };
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                tileTargets: { t1: peer },
+            }),
+        );
+        expect(result.current.waitingFieldIds).toEqual([]);
+
+        act(() => result.current.updateFilter(rule('a', ['1'])));
+        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+
+        // Back on a tile, it is a field of the filter again
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                tileTargets: { t1: peer },
+            }),
+        );
+        expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    it('the hovered field wins over the highlighted one', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.setHighlightedFieldId('x'));
+        expect(result.current.activeFieldId).toBe('x');
+        act(() => result.current.setHoveredFieldId('y'));
+        expect(result.current.activeFieldId).toBe('y');
+        act(() => result.current.apply());
+        expect(result.current.activeFieldId).toBeNull();
+    });
+
     it('closes when the dashboard leaves edit mode', () => {
         const { result, rerender } = setup();
         act(() => result.current.open('a'));

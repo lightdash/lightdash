@@ -22,6 +22,25 @@ export type ControlsSidebarContextValue = {
     openNew: () => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
+    /**
+     * Removes every field of the edited filter, turning it back into a
+     * placeholder that keeps its label and settings. Cancel restores it.
+     */
+    clearFields: () => void;
+    /** Field whose tiles are outlined after a click on its row. */
+    highlightedFieldId: string | null;
+    setHighlightedFieldId: (fieldId: string | null) => void;
+    hoveredFieldId: string | null;
+    setHoveredFieldId: (fieldId: string | null) => void;
+    /** The hovered field wins over the clicked one. */
+    activeFieldId: string | null;
+    /**
+     * Fields listed on the edited filter that are on no tile yet. They only
+     * live while the sidebar is open: a field is saved through a tile.
+     */
+    waitingFieldIds: string[];
+    addWaitingField: (fieldId: string) => void;
+    removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /** Removes the edited filter and closes the sidebar. */
     removeFilter: () => void;

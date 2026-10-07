@@ -1,0 +1,77 @@
+/* Square on purpose: it has to catch the pointer in the tile's corners too */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-xs);
+    cursor: default;
+}
+
+/* The veil, strong enough that the card is what the eye lands on. It has the
+   tile card's corner so the ring traces it */
+.overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-xs);
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-body) 75%,
+        transparent
+    );
+    box-shadow:
+        inset 0 0 0 1px transparent,
+        0 0 10px 0 transparent;
+    transition: box-shadow 150ms ease-out;
+}
+
+/* On the active field: the tile's dashed edit border becomes a solid hairline
+   in the same blue, with a soft glow around it */
+.overlay[data-highlighted]::before {
+    box-shadow:
+        inset 0 0 0 1px var(--mantine-color-blue-5),
+        0 0 10px 0
+            color-mix(in srgb, var(--mantine-color-blue-5) 14%, transparent);
+}
+
+/* Could take the field: the dashed edit border at full strength, nothing more */
+.overlay[data-highlighted='available']::before {
+    box-shadow:
+        inset 0 0 0 1px var(--mantine-color-body),
+        0 0 10px 0 transparent;
+}
+
+.overlay[data-highlighted='available']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px dashed var(--mantine-color-blue-5);
+    border-radius: var(--mantine-radius-xs);
+    pointer-events: none;
+}
+
+.unfilterable::before {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-body) 90%,
+        transparent
+    );
+}
+
+/* A veiled tile cannot be dragged, resized or hovered */
+[data-tile-uuid]:has(> .overlay) > :not(.overlay) {
+    pointer-events: none;
+}
+
+[data-tile-uuid]:has(> .overlay) > :global(.react-resizable-handle) {
+    display: none;
+}
+
+.card {
+    position: relative;
+    width: 280px;
+    max-width: 90%;
+}

@@ -1,0 +1,11 @@
+.count {
+    flex-shrink: 0;
+    margin-left: var(--mantine-spacing-xs);
+    text-transform: none;
+}
+
+/* A tab with a count keeps its natural width, so the strip scrolls instead of
+   squeezing the name */
+:has(> [role='tab'] > .count) {
+    flex-shrink: 0;
+}
