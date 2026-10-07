@@ -36,6 +36,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { DeprecatedModelNotice } from '../../DeprecatedModelNotice';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
@@ -100,6 +101,7 @@ export const AiGeneralSettingsPage = () => {
         selectedModel: selectedDefaultModel,
         selectedModelKey: selectedDefaultModelKey,
         showReasoningDefault,
+        supersedingModel: supersedingDefaultModel,
         visibleModelOptions: visibleDefaultModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions: defaultModelOptions,
@@ -260,6 +262,27 @@ export const AiGeneralSettingsPage = () => {
                                         }}
                                     />
                                 </Flex>
+
+                                {selectedDefaultModel &&
+                                    supersedingDefaultModel && (
+                                        <DeprecatedModelNotice
+                                            model={selectedDefaultModel}
+                                            replacement={
+                                                supersedingDefaultModel
+                                            }
+                                            disabled={isUpdatingSettings}
+                                            onSwitch={() =>
+                                                updateSettings({
+                                                    defaultAiAgentModelConfig:
+                                                        getAiAgentModelConfig(
+                                                            supersedingDefaultModel,
+                                                            defaultModelConfig?.reasoning ??
+                                                                false,
+                                                        ) ?? null,
+                                                })
+                                            }
+                                        />
+                                    )}
 
                                 {showReasoningDefault && (
                                     <>

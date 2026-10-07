@@ -77,6 +77,7 @@ import classes from './AiAgentFormSetup.module.css';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { AiAgentSkillsSection } from './AiAgentSkillsSection';
+import { DeprecatedModelNotice } from './DeprecatedModelNotice';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
@@ -288,6 +289,7 @@ export const AiAgentFormSetup = ({
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
+        supersedingModel,
         visibleModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions,
@@ -683,6 +685,25 @@ export const AiAgentFormSetup = ({
                                     );
                                 }}
                             />
+
+                            {selectedModel && supersedingModel && (
+                                <DeprecatedModelNotice
+                                    model={selectedModel}
+                                    replacement={supersedingModel}
+                                    disabled={isSavingAgent ?? false}
+                                    onSwitch={() => {
+                                        form.setFieldValue(
+                                            'modelConfig',
+                                            getAiAgentModelConfig(
+                                                supersedingModel,
+                                                form.values.modelConfig
+                                                    ?.reasoning ?? false,
+                                            ) ?? null,
+                                        );
+                                        onSubmit();
+                                    }}
+                                />
+                            )}
 
                             {showReasoningDefault && (
                                 <Switch

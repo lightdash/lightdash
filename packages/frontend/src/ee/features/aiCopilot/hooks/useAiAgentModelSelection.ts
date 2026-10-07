@@ -4,7 +4,9 @@ import { useCallback, useMemo, useReducer } from 'react';
 import {
     filterDeprecatedModelsForPicker,
     getModelKey,
+    getSupersedingModel,
     matchesModelConfig,
+    resolveModelForNewChat,
 } from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useModelOptions } from './useModelOptions';
@@ -54,14 +56,17 @@ const getDefaultModelSelection = (
     modelConfig: AiAgentModelConfig | null | undefined,
 ) => {
     const configuredModel = getConfiguredModelOption(modelOptions, modelConfig);
-    const model = configuredModel ?? getSystemDefaultModelOption(modelOptions);
+    const model = configuredModel
+        ? resolveModelForNewChat(modelOptions ?? [], configuredModel)
+        : getSystemDefaultModelOption(modelOptions);
 
     if (!model) return undefined;
 
     return {
         model,
         extendedThinking:
-            configuredModel?.supportsReasoning === true &&
+            configuredModel !== undefined &&
+            model.supportsReasoning &&
             modelConfig?.reasoning === true,
     };
 };
@@ -104,6 +109,13 @@ export const useDefaultAiAgentModel = ({
             ),
         [modelOptions, selectedModelKey],
     );
+    const supersedingModel = useMemo(
+        () =>
+            selectedModel
+                ? getSupersedingModel(modelOptions ?? [], selectedModel)
+                : null,
+        [modelOptions, selectedModel],
+    );
     const fallbackModel = useMemo(
         () =>
             getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
@@ -121,6 +133,7 @@ export const useDefaultAiAgentModel = ({
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
+        supersedingModel,
         visibleModelOptions,
     };
 };
@@ -219,7 +232,10 @@ export const useAiAgentModelSelection = ({
                 : undefined,
         [isDefaultModelConfigReady, modelOptions, resolvedDefaultModelConfig],
     );
-    const storedModel = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModelOption = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModel = storedModelOption
+        ? resolveModelForNewChat(modelOptions ?? [], storedModelOption)
+        : undefined;
     const effectiveSelectedModelKey =
         selectedModelKey ??
         (storedModel ? getModelKey(storedModel) : null) ??
