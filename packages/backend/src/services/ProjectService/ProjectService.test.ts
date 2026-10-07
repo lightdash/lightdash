@@ -95,7 +95,10 @@ import {
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
+    type WarehouseConnection,
     type WarehouseLocation,
+    type WarehouseTables,
+    type WarehouseTableSchema,
 } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
@@ -172,7 +175,10 @@ import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
-import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
+import {
+    connectionContextFromUser,
+    WarehouseCredentialKind,
+} from '../WarehouseClientFactory/ConnectionContext';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
@@ -262,6 +268,12 @@ vi.mock('worker_threads', async () => {
 });
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    canConnectToPostgresDatabaseName: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).canConnectToPostgresDatabaseName,
+    unopenablePostgresDatabaseMessage: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).unopenablePostgresDatabaseMessage,
     checkSnowflakeAgentSessionWithToken: vi.fn(),
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE: (
         await importOriginal<typeof import('@lightdash/warehouses')>()
@@ -4475,6 +4487,383 @@ describe('ProjectService', () => {
         );
     });
 
+    describe('connection SQL runner scoped clients', () => {
+        const registeredAccount = account as RegisteredAccount;
+        const connectionUuid = 'sql-runner-extra-uuid';
+        const credentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse.internal',
+            port: 5432,
+            user: 'warehouse-user',
+            password: 'password',
+            dbname: 'default_database',
+            schema: 'public',
+        };
+        const tables: WarehouseTables = [
+            {
+                database: 'listed_database',
+                schema: 'public',
+                table: 'orders',
+                tableType: WarehouseTableType.TABLE,
+            },
+        ];
+        const fields: WarehouseTableSchema = { order_id: DimensionType.NUMBER };
+        const catalog = {
+            listed_database: {
+                public: {
+                    orders: {
+                        partitionColumn: undefined,
+                        tableType: WarehouseTableType.TABLE,
+                    },
+                },
+            },
+        };
+        const scope = {
+            projectUuid,
+            warehouseConnectionUuid: connectionUuid,
+            userWarehouseCredentialsUuid: null,
+        };
+        const setup = () => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            const connection: WarehouseConnection = {
+                warehouseConnectionUuid: connectionUuid,
+                projectUuid,
+                name: 'SQL runner connection',
+                isOriginal: false,
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: null,
+                listAllDatabases: false,
+                additionalDatabases: ['listed_database'],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+            vi.spyOn(
+                configured.projectModel,
+                'getConnectionRoute',
+            ).mockResolvedValueOnce('multi');
+            vi.spyOn(
+                configured.projectModel,
+                'resolveWarehouseCredentialReadWithRoute',
+            ).mockResolvedValueOnce({
+                route: 'multi',
+                target: {
+                    kind: 'extra',
+                    warehouseConnectionUuid: connectionUuid,
+                },
+                originalWarehouseConnectionUuid: 'original-uuid',
+            });
+            const project = {
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                connectionMode: 'multi' as const,
+                originalWarehouseType: WarehouseTypes.POSTGRES,
+            };
+            Object.assign(configured.warehouseConnectionModel, {
+                getProject: vi
+                    .fn<WarehouseConnectionModel['getProject']>()
+                    .mockResolvedValue(project),
+                get: vi
+                    .fn<WarehouseConnectionModel['get']>()
+                    .mockResolvedValue(connection),
+                getExtraCredentialSource: vi
+                    .fn<WarehouseConnectionModel['getExtraCredentialSource']>()
+                    .mockResolvedValue({
+                        credentials,
+                        organizationWarehouseCredentialsUuid: null,
+                    }),
+                list: vi
+                    .fn<WarehouseConnectionModel['list']>()
+                    .mockResolvedValue([connection]),
+            });
+            const getTables = vi
+                .fn<WarehouseConnectionTablesModel['getTables']>()
+                .mockResolvedValue(null);
+            const replaceTables = vi
+                .fn<WarehouseConnectionTablesModel['replaceTables']>()
+                .mockResolvedValue(undefined);
+            const clearTables = vi
+                .fn<WarehouseConnectionTablesModel['clearTables']>()
+                .mockResolvedValue(undefined);
+            Object.assign(configured.warehouseConnectionTablesModel, {
+                getTables,
+                replaceTables,
+                clearTables,
+            });
+            const client = {
+                ...warehouseClientMock,
+                getTablesForDatabase: vi
+                    .fn<WarehouseClient['getTablesForDatabase']>()
+                    .mockResolvedValue(tables),
+                getFields: vi
+                    .fn<WarehouseClient['getFields']>()
+                    .mockResolvedValue({
+                        listed_database: { public: { orders: fields } },
+                    }),
+            };
+            const disconnect = vi
+                .fn<() => Promise<void>>()
+                .mockResolvedValue(undefined);
+            const acquire = vi
+                .spyOn(configured.warehouseClientFactory, 'acquireUnscoped')
+                .mockResolvedValue({
+                    warehouseClient: client,
+                    sshTunnel: {
+                        disconnect,
+                    } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                    tunnelConnectMs: null,
+                });
+            const resolve = vi.spyOn(
+                configured.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            );
+            return {
+                configured,
+                connection,
+                client,
+                acquire,
+                resolve,
+                disconnect,
+                getTables,
+                replaceTables,
+                clearTables,
+            };
+        };
+
+        test('a connection table cache hit resolves credentials and builds no client', async () => {
+            const { configured, getTables, acquire, resolve, disconnect } =
+                setup();
+            getTables.mockResolvedValue(catalog);
+            await expect(
+                configured.getConnectionTables(
+                    registeredAccount,
+                    projectUuid,
+                    connectionUuid,
+                    'listed_database',
+                ),
+            ).resolves.toEqual(catalog);
+            expect(resolve).toHaveBeenCalledExactlyOnceWith(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid: connectionUuid,
+                    },
+                },
+                connectionContextFromUser(
+                    {
+                        userUuid: registeredAccount.user.userUuid,
+                        isRegisteredUser: true,
+                    },
+                    {
+                        organizationUuid: projectSummary.organizationUuid,
+                        queryContext: null,
+                    },
+                ),
+            );
+            expect(getTables).toHaveBeenCalledExactlyOnceWith(
+                scope,
+                'listed_database',
+            );
+            expect(acquire).not.toHaveBeenCalled();
+            expect(disconnect).not.toHaveBeenCalled();
+        });
+
+        test('a connection table cache miss builds one client and releases once', async () => {
+            const {
+                configured,
+                getTables,
+                replaceTables,
+                client,
+                acquire,
+                resolve,
+                disconnect,
+            } = setup();
+            await expect(
+                configured.getConnectionTables(
+                    registeredAccount,
+                    projectUuid,
+                    connectionUuid,
+                    'listed_database',
+                ),
+            ).resolves.toEqual(catalog);
+            expect(getTables).toHaveBeenCalledExactlyOnceWith(
+                scope,
+                'listed_database',
+            );
+            expect(resolve).toHaveBeenCalledOnce();
+            expect(acquire).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                expect.objectContaining(credentials),
+                { aiPlan: null, agentSession: false },
+                undefined,
+                projectSummary.organizationUuid,
+            );
+            expect(client.getTablesForDatabase).toHaveBeenCalledExactlyOnceWith(
+                {
+                    name: 'listed_database',
+                    database: 'listed_database',
+                    schema: null,
+                    isDefault: false,
+                },
+                { query_context: QueryExecutionContext.SQL_RUNNER },
+            );
+            expect(replaceTables).toHaveBeenCalledExactlyOnceWith(
+                scope,
+                'listed_database',
+                tables,
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+        });
+
+        test.each(['success', 'warehouse failure', 'other failure'] as const)(
+            'connection fields use listed-database credentials and release once on %s',
+            async (outcome) => {
+                const { configured, client, acquire, resolve, disconnect } =
+                    setup();
+                const error =
+                    outcome === 'warehouse failure'
+                        ? new WarehouseConnectionError('field read failed')
+                        : new Error('field read failed');
+                if (outcome !== 'success')
+                    client.getFields.mockRejectedValueOnce(error);
+                const result = configured.getConnectionTableFields(
+                    registeredAccount,
+                    projectUuid,
+                    connectionUuid,
+                    {
+                        databaseName: 'listed_database',
+                        schemaName: 'public',
+                        tableName: 'orders',
+                    },
+                );
+                if (outcome === 'success')
+                    await expect(result).resolves.toEqual(fields);
+                else if (outcome === 'warehouse failure')
+                    await expect(result).rejects.toBe(error);
+                else
+                    await expect(result).rejects.toThrow(
+                        'Could not find table "orders" in schema "public" of database "listed_database". Please verify the table exists and you have access to it.',
+                    );
+                expect(resolve).toHaveBeenCalledOnce();
+                expect(acquire).toHaveBeenCalledExactlyOnceWith(
+                    projectUuid,
+                    expect.objectContaining({
+                        ...credentials,
+                        dbname: 'listed_database',
+                    }),
+                    { aiPlan: null, agentSession: false },
+                    undefined,
+                    projectSummary.organizationUuid,
+                );
+                expect(client.getFields).toHaveBeenCalledExactlyOnceWith(
+                    'orders',
+                    'public',
+                    'listed_database',
+                    {
+                        organization_uuid:
+                            registeredAccount.organization.organizationUuid,
+                        project_uuid: projectUuid,
+                        user_uuid: registeredAccount.user.userUuid,
+                        query_context: QueryExecutionContext.SQL_RUNNER,
+                    },
+                );
+                expect(disconnect).toHaveBeenCalledOnce();
+            },
+        );
+
+        test('refreshing connection tables clears the cache without building a client', async () => {
+            const {
+                configured,
+                connection,
+                clearTables,
+                acquire,
+                resolve,
+                disconnect,
+            } = setup();
+            connection.listAllDatabases = true;
+            await expect(
+                configured.refreshConnectionTables(
+                    registeredAccount,
+                    projectUuid,
+                    connectionUuid,
+                ),
+            ).resolves.toBeUndefined();
+            expect(clearTables).toHaveBeenCalledExactlyOnceWith(scope);
+            expect(resolve).toHaveBeenCalledOnce();
+            expect(acquire).not.toHaveBeenCalled();
+            expect(disconnect).not.toHaveBeenCalled();
+        });
+
+        test('a static database listing builds no client', async () => {
+            const { configured, acquire, resolve } = setup();
+            vi.spyOn(
+                configured.projectModel,
+                'getConnectionRoute',
+            ).mockResolvedValueOnce('multi');
+            await expect(
+                configured.getConnectionDatabases(
+                    registeredAccount,
+                    projectUuid,
+                    connectionUuid,
+                ),
+            ).resolves.toMatchObject({
+                databases: [
+                    {
+                        name: 'default_database',
+                        database: 'default_database',
+                        schema: null,
+                        isDefault: true,
+                    },
+                    {
+                        name: 'listed_database',
+                        database: 'listed_database',
+                        schema: null,
+                        isDefault: false,
+                    },
+                ],
+                truncated: false,
+            });
+            expect(resolve).toHaveBeenCalledOnce();
+            expect(acquire).not.toHaveBeenCalled();
+        });
+
+        test('connection agent reads keep discarding the resolved AI plan at construction', async () => {
+            const { configured, acquire, resolve, disconnect } = setup();
+            const plan: AiExecutionPlan = {
+                identity: 'connected_person',
+                identityUuid: 'ai-identity',
+                credentials,
+                assurances: [],
+                audit: {
+                    personUuid: registeredAccount.user.userUuid,
+                    principalRef: 'agent',
+                    queryTags: {},
+                },
+            };
+            const resolvePlan = vi
+                .spyOn(configured.aiAccessService, 'resolvePlan')
+                .mockResolvedValue(plan);
+            await configured.getConnectionTables(
+                registeredAccount,
+                projectUuid,
+                connectionUuid,
+                'listed_database',
+                QueryExecutionContext.AI,
+            );
+            expect(resolve).toHaveBeenCalledOnce();
+            expect(resolvePlan).toHaveBeenCalledOnce();
+            expect(acquire).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                expect.objectContaining(credentials),
+                { aiPlan: null, agentSession: true },
+                undefined,
+                projectSummary.organizationUuid,
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+        });
+    });
+
     test('rejects SQL Runner on managed analytics before executing a query', async () => {
         vi.spyOn(analyticsMock, 'track');
         projectModel.getSummary.mockResolvedValueOnce({
@@ -4599,6 +4988,20 @@ describe('ProjectService', () => {
         const context = vi.fn(async () => ({
             connection,
             credentials,
+            resolution: {
+                warehouseCredentials: credentials,
+                aiPlan: null,
+                warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                connectionRoute: null,
+                credentialKind: WarehouseCredentialKind.SHARED,
+            },
+            connectionContext: connectionContextFromUser(
+                { userUuid: user.userUuid },
+                {
+                    organizationUuid: projectSummary.organizationUuid,
+                    queryContext: null,
+                },
+            ),
             organizationUuid: projectSummary.organizationUuid,
         }));
         Object.assign(service, { getConnectionSqlRunnerContext: context });
@@ -4690,6 +5093,20 @@ describe('ProjectService', () => {
             getConnectionSqlRunnerContext: vi.fn(async () => ({
                 connection,
                 credentials,
+                resolution: {
+                    warehouseCredentials: credentials,
+                    aiPlan: null,
+                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                    connectionRoute: null,
+                    credentialKind: WarehouseCredentialKind.SHARED,
+                },
+                connectionContext: connectionContextFromUser(
+                    { userUuid: user.userUuid },
+                    {
+                        organizationUuid: projectSummary.organizationUuid,
+                        queryContext: null,
+                    },
+                ),
                 organizationUuid: projectSummary.organizationUuid,
             })),
         });
@@ -4736,6 +5153,20 @@ describe('ProjectService', () => {
             getConnectionSqlRunnerContext: vi.fn(async () => ({
                 connection,
                 credentials,
+                resolution: {
+                    warehouseCredentials: credentials,
+                    aiPlan: null,
+                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                    connectionRoute: null,
+                    credentialKind: WarehouseCredentialKind.SHARED,
+                },
+                connectionContext: connectionContextFromUser(
+                    { userUuid: user.userUuid },
+                    {
+                        organizationUuid: projectSummary.organizationUuid,
+                        queryContext: null,
+                    },
+                ),
                 organizationUuid: projectSummary.organizationUuid,
             })),
         });

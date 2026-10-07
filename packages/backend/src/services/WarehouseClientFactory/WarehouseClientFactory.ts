@@ -62,6 +62,17 @@ export type WarehouseClientRef =
           preloadedOrgWarehouseCredentialsUuid?: string | null;
       }
     | {
+          kind: 'resolved';
+          projectUuid: string;
+          credentials: CreateWarehouseCredentials & {
+              userWarehouseCredentialsUuid?: string;
+          };
+          aiPlan: AiExecutionPlan | null;
+          warehouseConnectionUuid: string | null;
+          connectionRoute: ConnectionRouteWithOriginal | null;
+          overrides?: WarehouseClientOverrides;
+      }
+    | {
           kind: 'compile';
           projectUuid: string;
           credentials: CreateWarehouseCredentials;
@@ -73,6 +84,16 @@ export type WarehouseClientRef =
           credentials: CreateWarehouseCredentials;
           tunnelOptions?: SshTunnelOptions;
       };
+
+export type ResolvedWarehouseConnection = {
+    warehouseCredentials: CreateWarehouseCredentials & {
+        userWarehouseCredentialsUuid?: string;
+    };
+    aiPlan: AiExecutionPlan | null;
+    warehouseConnectionUuid: string | null;
+    connectionRoute: ConnectionRouteWithOriginal | null;
+    credentialKind: WarehouseCredentialKind;
+};
 
 export type ScopedWarehouseConnection = {
     warehouseClient: WarehouseClient;
@@ -169,6 +190,40 @@ export class WarehouseClientFactory {
         return { ...credentials, ...(aiPlan ? { aiPlan } : {}) };
     }
 
+    private getCredentialKind(
+        credentials: ResolvedWarehouseConnection['warehouseCredentials'],
+        aiPlan: AiExecutionPlan | null,
+        purpose: ConnectionContext['purpose'],
+    ): WarehouseCredentialKind {
+        if (purpose === 'compile') return WarehouseCredentialKind.COMPILE;
+        if (aiPlan?.identity === 'connected_person')
+            return WarehouseCredentialKind.AI_SERVICE_ACCOUNT;
+        if (credentials.userWarehouseCredentialsUuid)
+            return WarehouseCredentialKind.PERSONAL;
+        return WarehouseCredentialKind.SHARED;
+    }
+
+    async resolveWarehouseCredentials(
+        ref: Extract<WarehouseClientRef, { kind: 'binding' }>,
+        context: ConnectionContext,
+    ): Promise<ResolvedWarehouseConnection> {
+        const base = await this.credentialSource.loadBase(ref, context);
+        const { aiPlan: resolvedPlan, ...warehouseCredentials } =
+            await this.resolveLoadedCredentials(base, context);
+        const aiPlan = resolvedPlan ?? null;
+        return {
+            warehouseCredentials,
+            aiPlan,
+            warehouseConnectionUuid: base.warehouseConnectionUuid,
+            connectionRoute: base.connectionRoute,
+            credentialKind: this.getCredentialKind(
+                warehouseCredentials,
+                aiPlan,
+                context.purpose,
+            ),
+        };
+    }
+
     async withWarehouseClient<T>(
         ref: WarehouseClientRef,
         context: ConnectionContext,
@@ -178,17 +233,32 @@ export class WarehouseClientFactory {
         let aiPlan: AiExecutionPlan | null = null;
         let warehouseConnectionUuid: string | null = null;
         let connectionRoute: ConnectionRouteWithOriginal | null = null;
+        let credentialKind: WarehouseCredentialKind | undefined;
         let overrides: Parameters<WarehouseClientFactory['acquireUnscoped']>[2];
         let tunnelOptions: SshTunnelOptions | undefined;
         switch (ref.kind) {
             case 'binding': {
-                const base = await this.credentialSource.loadBase(ref, context);
-                const { aiPlan: resolvedPlan, ...credentials } =
-                    await this.resolveLoadedCredentials(base, context);
-                warehouseCredentials = credentials;
-                aiPlan = resolvedPlan ?? null;
-                warehouseConnectionUuid = base.warehouseConnectionUuid;
-                connectionRoute = base.connectionRoute;
+                ({
+                    warehouseCredentials,
+                    aiPlan,
+                    warehouseConnectionUuid,
+                    connectionRoute,
+                    credentialKind,
+                } = await this.resolveWarehouseCredentials(ref, context));
+                overrides = {
+                    ...ref.overrides,
+                    aiPlan,
+                    agentSession:
+                        context.queryContext !== null &&
+                        isAiAccessQueryContext(context.queryContext),
+                };
+                break;
+            }
+            case 'resolved': {
+                warehouseCredentials = ref.credentials;
+                aiPlan = ref.aiPlan;
+                warehouseConnectionUuid = ref.warehouseConnectionUuid;
+                connectionRoute = ref.connectionRoute;
                 overrides = {
                     ...ref.overrides,
                     aiPlan,
@@ -214,14 +284,11 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
-        let credentialKind = WarehouseCredentialKind.SHARED;
-        if (ref.kind === 'compile' || context.purpose === 'compile') {
-            credentialKind = WarehouseCredentialKind.COMPILE;
-        } else if (aiPlan?.identity === 'connected_person') {
-            credentialKind = WarehouseCredentialKind.AI_SERVICE_ACCOUNT;
-        } else if (warehouseCredentials.userWarehouseCredentialsUuid) {
-            credentialKind = WarehouseCredentialKind.PERSONAL;
-        }
+        credentialKind ??= this.getCredentialKind(
+            warehouseCredentials,
+            aiPlan,
+            ref.kind === 'compile' ? 'compile' : context.purpose,
+        );
         const { warehouseClient, sshTunnel, tunnelConnectMs } =
             await this.acquireUnscoped(
                 ref.projectUuid,

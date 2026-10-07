@@ -473,6 +473,7 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import {
     WarehouseClientFactory,
+    type ResolvedWarehouseConnection,
     type WarehouseClientRef,
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import type {
@@ -12805,55 +12806,72 @@ export class ProjectService
             project,
             warehouseConnectionUuid,
         );
-        const { warehouseCredentials: credentials } =
-            await this.getWarehouseCredentialsWithConnection({
-                context,
-                projectUuid,
-                binding: {
-                    kind: 'connection',
-                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+        const connectionContext = connectionContextFromUser(
+            { userUuid: account.user.userUuid, isRegisteredUser: true },
+            { organizationUuid, queryContext: context ?? null },
+        );
+        const resolution =
+            await this.warehouseClientFactory.resolveWarehouseCredentials(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid:
+                            connection.warehouseConnectionUuid,
+                    },
                 },
-                userId: account.user.userUuid,
-                isRegisteredUser: true,
-            });
-        return { connection, credentials, organizationUuid };
+                connectionContext,
+            );
+        return {
+            connection,
+            resolution,
+            credentials: resolution.warehouseCredentials,
+            organizationUuid,
+            connectionContext,
+        };
     }
 
     private async withConnectionWarehouseClient<T>(
         projectUuid: string,
-        credentials: CreateWarehouseCredentials,
+        resolution: ResolvedWarehouseConnection,
         run: (warehouseClient: WarehouseClient) => Promise<T>,
+        connectionContext: ConnectionContext,
         context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<T> {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
-            { agentSession: isAiAccessQueryContext(context) },
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'resolved',
+                projectUuid,
+                credentials: resolution.warehouseCredentials,
+                aiPlan: null,
+                warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                connectionRoute: resolution.connectionRoute,
+            },
+            { ...connectionContext, queryContext: context },
+            ({ warehouseClient }) => run(warehouseClient),
         );
-        try {
-            return await run(warehouseClient);
-        } finally {
-            await sshTunnel.disconnect();
-        }
     }
 
     private async listConnectionSqlRunnerDatabases(
         projectUuid: string,
         connection: WarehouseConnection,
-        credentials: CreateWarehouseCredentials,
+        resolution: ResolvedWarehouseConnection,
+        connectionContext: ConnectionContext,
         context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseDatabaseListing> {
         return listConnectionDatabases({
             connection,
-            credentials,
+            credentials: resolution.warehouseCredentials,
             listAllDatabases: () =>
                 this.withConnectionWarehouseClient(
                     projectUuid,
-                    credentials,
+                    resolution,
                     (warehouseClient) =>
                         warehouseClient.listDatabases(
                             withAgentMarkerTag({ query_context: context }),
                         ),
+                    connectionContext,
                     context,
                 ),
         });
@@ -12901,14 +12919,19 @@ export class ProjectService
         warehouseConnectionUuid: string,
         context?: QueryExecutionContext,
     ): Promise<WarehouseDatabaseListing> {
-        const { connection, credentials, organizationUuid } =
-            await this.getConnectionSqlRunnerContext(
-                account,
-                projectUuid,
-                warehouseConnectionUuid,
-                undefined,
-                context,
-            );
+        const {
+            connection,
+            credentials,
+            resolution,
+            organizationUuid,
+            connectionContext,
+        } = await this.getConnectionSqlRunnerContext(
+            account,
+            projectUuid,
+            warehouseConnectionUuid,
+            undefined,
+            context,
+        );
         const connectionAnalytics = await this.getConnectionAnalyticsProperties(
             {
                 projectUuid,
@@ -12926,7 +12949,8 @@ export class ProjectService
             const listing = await this.listConnectionSqlRunnerDatabases(
                 projectUuid,
                 connection,
-                credentials,
+                resolution,
+                connectionContext,
                 context,
             );
             trackSafely(() => {
@@ -12965,7 +12989,7 @@ export class ProjectService
         listedDatabaseName: string,
         context?: QueryExecutionContext,
     ): Promise<WarehouseTablesCatalog> {
-        const { connection, credentials } =
+        const { connection, credentials, resolution, connectionContext } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
@@ -12977,7 +13001,8 @@ export class ProjectService
             await this.listConnectionSqlRunnerDatabases(
                 projectUuid,
                 connection,
-                credentials,
+                resolution,
+                connectionContext,
                 context,
             ),
             listedDatabaseName,
@@ -12996,7 +13021,7 @@ export class ProjectService
 
         const warehouseTables = await this.withConnectionWarehouseClient(
             projectUuid,
-            credentials,
+            resolution,
             (warehouseClient) =>
                 supportsConnectionDatabaseListing(credentials.type)
                     ? warehouseClient.getTablesForDatabase(
@@ -13013,6 +13038,7 @@ export class ProjectService
                                   context ?? QueryExecutionContext.SQL_RUNNER,
                           }),
                       ),
+            connectionContext,
             context,
         );
         await this.warehouseConnectionTablesModel.replaceTables(
@@ -13062,7 +13088,7 @@ export class ProjectService
         }: { databaseName: string; schemaName: string; tableName: string },
         queryContext: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseTableSchema> {
-        const { connection, credentials } =
+        const { connection, credentials, resolution, connectionContext } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
@@ -13074,7 +13100,8 @@ export class ProjectService
             await this.listConnectionSqlRunnerDatabases(
                 projectUuid,
                 connection,
-                credentials,
+                resolution,
+                connectionContext,
                 queryContext,
             ),
             databaseName,
@@ -13096,7 +13123,10 @@ export class ProjectService
         try {
             const warehouseCatalog = await this.withConnectionWarehouseClient(
                 projectUuid,
-                listedDatabaseCredentials,
+                {
+                    ...resolution,
+                    warehouseCredentials: listedDatabaseCredentials,
+                },
                 (warehouseClient) =>
                     warehouseClient.getFields(
                         tableName,
@@ -13104,6 +13134,7 @@ export class ProjectService
                         database,
                         queryTags,
                     ),
+                connectionContext,
                 queryContext,
             );
             const fields =

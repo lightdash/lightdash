@@ -1,6 +1,7 @@
 import {
     AiAgentMarkerLevel,
     AthenaAuthenticationType,
+    DatabricksAuthenticationType,
     DuckdbConnectionType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
@@ -191,6 +192,252 @@ beforeEach(() => {
 });
 
 describe('WarehouseClientFactory', () => {
+    test.each([
+        {
+            aiPlan: null,
+            personal: false,
+            purpose: 'query' as const,
+            kind: WarehouseCredentialKind.SHARED,
+        },
+        {
+            aiPlan: null,
+            personal: true,
+            purpose: 'query' as const,
+            kind: WarehouseCredentialKind.PERSONAL,
+        },
+        {
+            aiPlan: plan,
+            personal: false,
+            purpose: 'query' as const,
+            kind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+        },
+        {
+            aiPlan: markedPlan,
+            personal: true,
+            purpose: 'query' as const,
+            kind: WarehouseCredentialKind.PERSONAL,
+        },
+        {
+            aiPlan: null,
+            personal: false,
+            purpose: 'compile' as const,
+            kind: WarehouseCredentialKind.COMPILE,
+        },
+    ])(
+        'resolves $kind credentials without constructing and matches the binding scope',
+        async ({ aiPlan, personal, purpose, kind }) => {
+            const {
+                factory,
+                credentialSource,
+                aiAccessService,
+                projectModel,
+                base,
+            } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(aiPlan);
+            credentialSource.finish.mockResolvedValue({
+                ...credentials,
+                userWarehouseCredentialsUuid: personal
+                    ? 'personal-uuid'
+                    : undefined,
+            });
+            const context = contextFor(
+                aiPlan ? QueryExecutionContext.AI : null,
+                purpose,
+            );
+            const resolution = await factory.resolveWarehouseCredentials(
+                bindingRef,
+                context,
+            );
+            expect(resolution).toStrictEqual({
+                warehouseCredentials: {
+                    ...credentials,
+                    userWarehouseCredentialsUuid: personal
+                        ? 'personal-uuid'
+                        : undefined,
+                },
+                aiPlan,
+                warehouseConnectionUuid: base.warehouseConnectionUuid,
+                connectionRoute: base.connectionRoute,
+                credentialKind: kind,
+            });
+            expect(credentialSource.loadBase).toHaveBeenCalledExactlyOnceWith(
+                bindingRef,
+                context,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+            expect(SshTunnel).not.toHaveBeenCalled();
+            const scoped = await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({
+                    warehouseClient: _client,
+                    tunnelConnectMs: _time,
+                    ...resolved
+                }) => resolved,
+            );
+            expect(scoped).toStrictEqual(resolution);
+        },
+    );
+
+    test.each([QueryExecutionContext.AI, QueryExecutionContext.EXPLORE, null])(
+        'a resolved ref carries the plan and derives agentSession for %s without resolving again',
+        async (queryContext) => {
+            const { factory, credentialSource, aiAccessService, projectModel } =
+                buildFixture();
+            const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: { ...credentials, dbname: 'listed-database' },
+                aiPlan: plan,
+                warehouseConnectionUuid: 'extra-uuid',
+                connectionRoute: {
+                    route: 'multi',
+                    originalWarehouseConnectionUuid: 'original-uuid',
+                },
+            };
+            const acquire = vi.spyOn(factory, 'acquireUnscoped');
+            const agentSession = queryContext === QueryExecutionContext.AI;
+            await expect(
+                factory.withWarehouseClient(
+                    ref,
+                    contextFor(queryContext),
+                    async (connection) => {
+                        expect(connection).toMatchObject({
+                            warehouseCredentials: ref.credentials,
+                            aiPlan: plan,
+                            warehouseConnectionUuid: 'extra-uuid',
+                            connectionRoute: ref.connectionRoute,
+                            credentialKind:
+                                WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+                        });
+                        expect(disconnect).not.toHaveBeenCalled();
+                        return 'result';
+                    },
+                ),
+            ).resolves.toBe('result');
+            expect(credentialSource.loadBase).not.toHaveBeenCalled();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+            expect(acquire).toHaveBeenCalledExactlyOnceWith(
+                'project-uuid',
+                ref.credentials,
+                { aiPlan: plan, agentSession },
+                undefined,
+                'org-uuid',
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                ref.credentials,
+                expect.objectContaining({ agentSession }),
+            );
+            expect(Object.keys(factory.warehouseClients)).toEqual([
+                `${agentSession ? 'agent:' : ''}project-uuid${JSON.stringify([plan.identityUuid])}`,
+            ]);
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    test.each(['callback', 'construction'] as const)(
+        'a resolved ref releases once after a %s failure',
+        async (failure) => {
+            const { factory, projectModel, credentialSource, aiAccessService } =
+                buildFixture();
+            const error = new Error('resolved query failed');
+            if (failure === 'construction') {
+                projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                    () => {
+                        throw error;
+                    },
+                );
+            }
+            await expect(
+                factory.withWarehouseClient(
+                    {
+                        kind: 'resolved',
+                        projectUuid: 'project-uuid',
+                        credentials: sshCredentials[0],
+                        aiPlan: null,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: null,
+                    },
+                    contextFor(),
+                    async () => {
+                        throw error;
+                    },
+                ),
+            ).rejects.toBe(error);
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(credentialSource.loadBase).not.toHaveBeenCalled();
+            expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
+        {
+            credentials: {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                password: 'password',
+                database: 'database',
+                schema: 'public',
+                warehouse: 'base-warehouse',
+            },
+            overrides: { snowflakeVirtualWarehouse: 'listed-warehouse' },
+            expected: { warehouse: 'listed-warehouse' },
+        },
+        {
+            credentials: {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                serverHostName: 'warehouse.internal',
+                httpPath: '/base',
+                personalAccessToken: 'token',
+                catalog: 'catalog',
+                database: 'database',
+                compute: [{ name: 'listed-compute', httpPath: '/listed' }],
+            },
+            overrides: { databricksCompute: 'listed-compute' },
+            expected: { httpPath: '/listed' },
+        },
+    ] satisfies {
+        credentials: CreateWarehouseCredentials;
+        overrides: {
+            snowflakeVirtualWarehouse?: string;
+            databricksCompute?: string;
+        };
+        expected: { warehouse?: string; httpPath?: string };
+    }[])(
+        'a resolved ref honours $credentials.type overrides',
+        async ({ credentials: creds, overrides, expected }) => {
+            const { factory, projectModel } = buildFixture();
+            await factory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid: 'project-uuid',
+                    credentials: creds,
+                    aiPlan: null,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                    overrides,
+                },
+                contextFor(),
+                async () => undefined,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                { ...creds, ...expected },
+                expect.objectContaining({ agentSession: false }),
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
     test.each(sshCredentials)(
         'releases a $type tunnel after a successful callback',
         async (creds) => {
