@@ -29,6 +29,32 @@ describe.skipIf(!stubUrl)(
         let previousSettings: OrganizationAgentIdentitySettings | undefined;
         let clearFlag = false;
 
+        const completeSignIn = async (
+            client: ApiClient,
+            redirect: string,
+            code = 'api-test-code',
+        ) => {
+            const start = await client.get(
+                `/api/v1/login/snowflake-ai?redirect=${encodeURIComponent(redirect)}`,
+                { failOnStatusCode: false },
+            );
+            expect(start.status).toBe(302);
+            const authorizeUrl = new URL(start.headers.get('location')!);
+            expect(authorizeUrl.origin).toBe(new URL(stubUrl!).origin);
+            const state = authorizeUrl.searchParams.get('state');
+            expect(state).toBeTruthy();
+            const callbackUrl = new URL(
+                authorizeUrl.searchParams.get('redirect_uri')!,
+            );
+            expect(callbackUrl.origin).toBe(siteUrl.origin);
+            expect(callbackUrl.pathname).toBe(
+                '/api/v1/oauth/redirect/snowflake-ai',
+            );
+            callbackUrl.searchParams.set('code', code);
+            callbackUrl.searchParams.set('state', state!);
+            return client.get(callbackUrl.href, { failOnStatusCode: false });
+        };
+
         beforeAll(async () => {
             const health = await new ApiClient().get<
                 Body<{ auth: { snowflakeAi: { enabled: boolean } } }>
@@ -273,6 +299,67 @@ describe.skipIf(!stubUrl)(
                     result: { rows: [{ GREETING: 'hello' }] },
                 },
             });
+        });
+
+        it('returns to the local client after sign-in', async () => {
+            const callback = await completeSignIn(
+                person!,
+                'http://localhost:4321/done',
+            );
+            expect(callback.status).toBe(302);
+            expect(callback.headers.get('location')).toBe(
+                'http://localhost:4321/done',
+            );
+        });
+
+        it('ignores an external redirect and returns to the site root', async () => {
+            const callback = await completeSignIn(
+                person!,
+                'https://evil.example/x',
+            );
+            expect(callback.status).toBe(302);
+            expect(callback.headers.get('location')).toBe(
+                new URL('/', SITE_URL).href,
+            );
+        });
+
+        it('reports a non-agent session without storing an AI credential', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            const callback = await completeSignIn(
+                client,
+                '/agent-connected',
+                'plain-code',
+            );
+            expect(callback.status).toBe(302);
+            expect(callback.headers.get('location')).toBe(
+                new URL('/agent-connected?error=not_agent_session', SITE_URL)
+                    .href,
+            );
+            const credentials = await client.get<
+                Body<UserWarehouseCredentials[]>
+            >('/api/v1/user/warehouseCredentials');
+            expect(credentials.status).toBe(200);
+            expect(
+                credentials.body.results.filter(
+                    ({ purpose }) =>
+                        purpose === UserWarehouseCredentialPurpose.AI,
+                ),
+            ).toEqual([]);
+        });
+
+        it('serves the connect page to an unauthenticated browser but protects OAuth', async () => {
+            const browser = new ApiClient();
+            const page = await browser.get(
+                `/agent/connect?project=${projectUuid}&redirect=/agent-connected`,
+            );
+            expect(page.status).toBe(200);
+            expect(page.headers.get('content-type')).toContain('text/html');
+            const start = await browser.get('/api/v1/login/snowflake-ai', {
+                failOnStatusCode: false,
+            });
+            expect(start.status).toBe(401);
         });
     },
 );

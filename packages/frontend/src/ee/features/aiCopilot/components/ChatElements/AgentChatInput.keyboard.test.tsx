@@ -30,7 +30,6 @@ vi.mock('../../../../../features/aiAccess/api', () => ({
         isLoading: access.isLoading,
         isFetching: false,
         isError: access.isError,
-        isAccessRequired: true,
         refetch: vi.fn(),
     }),
 }));

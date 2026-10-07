@@ -921,6 +921,16 @@ const PRIVATE_ROUTES: RouteObject[] = [
             ...MINIMAL_ROUTES,
             ...APP_ROUTES,
             {
+                path: '/agent/connect',
+                lazy: async () => {
+                    const AgentConnect = await loadLazyRouteDefault(
+                        './pages/AgentConnect',
+                        () => import('./pages/AgentConnect'),
+                    );
+                    return { Component: AgentConnect };
+                },
+            },
+            {
                 path: '/',
                 element: <Navigate to="/projects" replace />,
             },

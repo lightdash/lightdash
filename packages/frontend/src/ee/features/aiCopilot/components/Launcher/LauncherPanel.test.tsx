@@ -25,7 +25,6 @@ vi.mock('../../../../../features/aiAccess/api', () => ({
         data: { refusal: state.refusal },
         isLoading: state.isLoading,
         isFetching: false,
-        isAccessRequired: true,
     }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
