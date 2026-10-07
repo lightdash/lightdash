@@ -26,6 +26,7 @@ import {
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import {
+    DOCUMENT_NUDGES_GUIDANCE,
     getContentToolsSection,
     getDocumentToolsSection,
 } from './systemV2ContentTools';
@@ -68,6 +69,7 @@ export type CapabilitySectionArgs = {
     enableFastMetadata?: boolean;
     enableContentTools?: boolean;
     enableDocuments?: boolean;
+    enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
     enableGenerateDataApp?: boolean;
     slackChannelId?: string | null;
@@ -98,6 +100,7 @@ const getCapabilitySections = (
               args.enableDocuments
                   ? getDocumentToolsSection(
                         args.enableDocumentCustomCharts ?? false,
+                        args.enableDocumentNudges ?? false,
                     )
                   : '',
           ]
@@ -154,6 +157,7 @@ export const getSystemPromptV2 = (args: {
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
     enableDocuments?: boolean;
+    enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
     enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
@@ -380,6 +384,12 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{data_access_section}}',
             getDataAccessSection(enableDataAccess, slackLinksOnly),
+        )
+        .replace(
+            '{{document_nudges_section}}',
+            args.enableDocuments && args.enableDocumentNudges
+                ? DOCUMENT_NUDGES_GUIDANCE
+                : '',
         )
         .replace('{{run_sql_section}}', getCapabilitySection('runSql'))
         .replace(

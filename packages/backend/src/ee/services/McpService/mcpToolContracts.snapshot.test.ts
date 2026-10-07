@@ -331,6 +331,23 @@ describe('MCP tool contracts', () => {
         }
     });
 
+    it('offers to save Documents from create_content only when Documents are enabled', async () => {
+        const service = makeMcpService();
+        const offer = 'offer once to save it as a Document the user can share';
+        const createContentDescription = async (documentsEnabled: boolean) => {
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({ documentsEnabled }),
+            );
+            return mockRegisteredMcpTools.find(
+                ({ name }) => name === 'create_content',
+            )?.config.description;
+        };
+
+        expect(await createContentDescription(true)).toContain(offer);
+        expect(await createContentDescription(false)).not.toContain(offer);
+    });
+
     it('uses the grep-fields MCP analyst prompt', () => {
         const prompt = getMcpAnalystPrompt(defaultMcpAnalystPromptOptions);
 
@@ -759,6 +776,7 @@ describe('MCP tool contracts', () => {
                           runSqlEnabled: true,
                           runMetricQueryEnabled: true,
                           filterExpressionsEnabled: false,
+                          documentsEnabled: false,
                       })
                     : null,
         }));

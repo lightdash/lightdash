@@ -47,6 +47,7 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
     filterExpressionsEnabled: boolean,
+    documentsEnabled: boolean,
 ): string => `## Query Building Workflow
 
 ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
@@ -57,7 +58,7 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scop
 5. \`get_query_result\`: poll running queries; never resubmit the original query.
 6. \`render_chart\`: render completed metric queries when a chart is wanted.
 7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
+8. \`find_content\`: search dashboards, charts, ${documentsEnabled ? 'Data Apps, and Documents' : 'and Data Apps'}.
 
 ## Rules
 
@@ -70,10 +71,12 @@ export const getMcpAnalystPrompt = ({
     runSqlEnabled,
     runMetricQueryEnabled,
     filterExpressionsEnabled,
+    documentsEnabled,
 }: {
     runSqlEnabled: boolean;
     runMetricQueryEnabled: boolean;
     filterExpressionsEnabled: boolean;
+    documentsEnabled: boolean;
 }): string => {
     if (!runSqlEnabled && !runMetricQueryEnabled) {
         return CONTENT_ONLY_PROMPT;
@@ -81,5 +84,9 @@ export const getMcpAnalystPrompt = ({
     if (!runMetricQueryEnabled) {
         return SQL_ONLY_PROMPT;
     }
-    return buildMcpAnalystPrompt(runSqlEnabled, filterExpressionsEnabled);
+    return buildMcpAnalystPrompt(
+        runSqlEnabled,
+        filterExpressionsEnabled,
+        documentsEnabled,
+    );
 };

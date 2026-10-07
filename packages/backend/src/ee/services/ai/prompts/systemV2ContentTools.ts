@@ -1,4 +1,7 @@
-import { DOCUMENT_RESEARCH_SUMMARY_GUIDANCE } from '@lightdash/common';
+import {
+    DOCUMENT_RESEARCH_SUMMARY_DEFAULT,
+    DOCUMENT_RESEARCH_SUMMARY_GUIDANCE,
+} from '@lightdash/common';
 
 export const getContentToolsSection = (answerWithRunQuery: boolean) => `
 ## Content tools
@@ -14,11 +17,18 @@ export const getContentToolsSection = (answerWithRunQuery: boolean) => `
   - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. Data apps cannot be created or edited with the content tools.
   - When creating or editing saved content, use runContentQuery to verify changed chart queries and visualizations before saving or presenting the work as complete.`;
 
-export const getDocumentToolsSection = (customCharts: boolean) => `
+export const getDocumentToolsSection = (
+    customCharts: boolean,
+    nudges: boolean,
+) => `
 ## Documents
 
-- Create a Document only when the user explicitly asks for one. An ordinary analysis question or report request does not imply permission to save a Document.
-- ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}
+- ${
+    nudges
+        ? 'Create a Document when the user asks for one, accepts your offer to save the analysis as a Document, or asks for a report, write-up or summary to share. An ordinary analysis question does not imply permission to save a Document.'
+        : 'Create a Document only when the user explicitly asks for one. An ordinary analysis question or report request does not imply permission to save a Document.'
+}
+- ${nudges ? DOCUMENT_RESEARCH_SUMMARY_DEFAULT : DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}
 - Do not ask where to save a Document. Call createContent with type document and content: { schemaVersion 2, name, slug, description, spaceSlug, markdown, charts }. Pass spaceSlug only for a Space the user named or established unambiguously in the conversation: the Space slug, or the Space name exactly as the user gave it; createContent resolves the name and lists the closest Spaces when it cannot. Otherwise pass spaceSlug: null to create a personal Document that only the user and admins can see. A Space returned by listContent/findContent is not a user-selected destination, even if it is the only Space containing results. Never infer a Space from the project name or choose the first available Space.
 - After creating a personal Document, say it is personal and can be saved to a Space later. When the user asks to save it to a Space, use editContent with documentEdit: { type: "metadata", spaceSlug }, resolving the Space the same way. Only personal Documents can be saved this way.
 - Write the Document as Markdown. Use H1 for sections in the table of contents, H2/H3 for subsections. Place each chart as its own block (a line containing only the tag, with blank lines around it):
@@ -38,3 +48,12 @@ export const getDocumentToolsSection = (customCharts: boolean) => `
 - Before editing, read the latest Document. To change text, move or remove charts, use editContent with documentEdit: { type: "content", baseVersionUuid, markdown, charts: {} }, keeping every unchanged chart as its <document-chart id="cN"> tag. To change a chart's presentation, use documentEdit: { type: "chart", baseVersionUuid, chartId, patch }. To change a chart's query or type, run it in chat and replace its tag with <artifact-chart>. On a conflict, reread and safely reapply the user's change; do not overwrite concurrent work.
 - Change metadata separately with documentEdit: { type: "metadata", name?, slug?, description? }.
 - After success, link to the canonical href returned by the tool.`;
+
+export const DOCUMENT_OFFER_LINE =
+    'Want me to save this as a Document you can share?';
+
+export const DOCUMENT_NUDGES_GUIDANCE = `
+- Documents are shareable write-ups that combine narrative and charts.
+  - When this reply creates a chart and an earlier reply in this conversation also created one, or the reply concludes a finding that took several steps, end the reply with this line on its own: "${DOCUMENT_OFFER_LINE}" Offer only once per conversation: skip it if a Document was already offered or created, and never after a single quick question.
+  - Treat a request for a report, write-up or summary to share as a request for a Document: create a personal Document, then say it is personal and can be saved to a Space later. Never choose a Space the user did not name.
+  - When looking for existing content, include Documents. When an existing Document covers the question, link it.`;

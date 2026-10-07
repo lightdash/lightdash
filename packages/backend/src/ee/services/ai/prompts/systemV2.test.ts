@@ -340,6 +340,72 @@ describe('getSystemPromptV2 custom chart types', () => {
         expect(disabled).toContain('custom charts are unsupported');
         expect(disabled).not.toContain('custom chart type. Run the query');
     });
+
+    test('offers and surfaces Documents only with Document nudges', () => {
+        const documentArgs = {
+            availableExplores: [],
+            enableDataAccess: true,
+            enableContentTools: true,
+            enableDocuments: true,
+        };
+        const offer =
+            'end the reply with this line on its own: "Want me to save this as a Document you can share?"';
+
+        const nudged = promptText({
+            ...documentArgs,
+            enableDocumentNudges: true,
+        });
+        expect(nudged).toContain(offer);
+        expect(nudged).toContain('Offer only once per conversation');
+        expect(nudged).toContain(
+            'When looking for existing content, include Documents',
+        );
+        expect(nudged).toContain(
+            'Treat a request for a report, write-up or summary to share as a request for a Document: create a personal Document',
+        );
+        expect(nudged).toContain(
+            'accepts your offer to save the analysis as a Document, or asks for a report, write-up or summary to share',
+        );
+        expect(nudged).not.toContain(
+            'Create a Document only when the user explicitly asks for one',
+        );
+        expect(nudged).not.toContain(
+            'This guidance does not authorize creating a Document',
+        );
+
+        const notNudged = promptText(documentArgs);
+        expect(notNudged).not.toContain(offer);
+        expect(notNudged).toContain(
+            'Create a Document only when the user explicitly asks for one',
+        );
+        expect(notNudged).toContain(
+            'This guidance does not authorize creating a Document',
+        );
+
+        expect(
+            promptText({
+                ...documentArgs,
+                enableDocuments: false,
+                enableDocumentNudges: true,
+            }),
+        ).not.toContain(offer);
+    });
+
+    test('keeps the Document offer when content tool instructions are deferred', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            enableContentTools: true,
+            enableDocuments: true,
+            enableDocumentNudges: true,
+            deferredSections: new Set(['contentTools']),
+        });
+
+        expect(content).not.toContain('## Documents');
+        expect(content).toContain(
+            'Want me to save this as a Document you can share?',
+        );
+    });
 });
 
 describe('getSystemPromptV2 merge queries', () => {

@@ -339,9 +339,13 @@ const mcpReadContentTool = withProjectScopeInput(
 const mcpResolveUrlTool = withProjectScopeInput(
     resolveUrlToolDefinition.for('mcp'),
 );
-const mcpCreateContentTool = withProjectScopeInput(
+const mcpCreateContentDocumentTool = withProjectScopeInput(
     mcpCreateContentToolDefinition.for('mcp'),
 );
+const mcpCreateContentTool = {
+    ...mcpCreateContentDocumentTool,
+    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree. Pass a spaceSlug only for a Space the user named, so the Document stays personal.`,
+};
 const mcpEditContentTool = withProjectScopeInput(
     mcpEditContentToolDefinition.for('mcp'),
 );
@@ -609,6 +613,7 @@ export class McpService extends BaseService {
                 runSqlEnabled: false,
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
+                documentsEnabled: false,
             });
             this.setupHandlers();
         } catch (error) {
@@ -621,6 +626,7 @@ export class McpService extends BaseService {
         runSqlEnabled: boolean;
         runMetricQueryEnabled: boolean;
         filterExpressionsEnabled: boolean;
+        documentsEnabled: boolean;
     }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
@@ -650,6 +656,7 @@ export class McpService extends BaseService {
                         runSqlEnabled: args.runSqlEnabled,
                         runMetricQueryEnabled: args.runMetricQueryEnabled,
                         filterExpressionsEnabled: args.filterExpressionsEnabled,
+                        documentsEnabled: args.documentsEnabled,
                     }),
                 },
             ),
@@ -4025,6 +4032,7 @@ export class McpService extends BaseService {
                     runSqlEnabled: options.runSqlEnabled,
                     runMetricQueryEnabled: options.runMetricQueryEnabled,
                     filterExpressionsEnabled: options.filterExpressionsEnabled,
+                    documentsEnabled: options.documentsEnabled,
                 });
 
                 return {
