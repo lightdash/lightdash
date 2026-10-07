@@ -6382,6 +6382,11 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
+        const { userAttributes } = await this.getUserAttributes({ account });
+        const mergedUserAttributes = userAttributeOverrides
+            ? { ...userAttributes, ...userAttributeOverrides }
+            : userAttributes;
+
         const {
             metricQuery,
             explore,
@@ -6398,6 +6403,7 @@ export class AsyncQueryService extends ProjectService {
             maxLimit,
             filters,
             exploreResolver: this.projectModel,
+            userAttributes: mergedUserAttributes,
         });
 
         // The field's config turns warehouse fetching off: serve curated

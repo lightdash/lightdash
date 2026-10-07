@@ -2758,63 +2758,27 @@ export class EmbedService extends BaseService {
                 await this.projectModel.getSummary(projectUuid));
         }
 
-        const {
-            metricQuery,
-            explore,
-            field,
-            initialExplore,
-            initialField,
-            labelFieldId,
-            staticResults,
-        } = await this.projectService._getFieldValuesMetricQuery({
-            projectUuid,
-            table: resolvedTableName,
-            initialFieldId: resolvedFieldId,
-            search,
-            limit,
-            filters,
-            organizationUuid,
-            authorizeInitialExplore: dashboard
-                ? undefined
-                : (initialExploreForAuthorization) =>
-                      this.assertCanQueryExplore(
-                          account,
-                          organizationUuid,
-                          projectUuid,
-                          initialExploreForAuthorization.name,
-                      ),
-        });
-
-        if (!dashboard) {
-            const { userAttributes } = this.getAccessControls(account);
-            const filteredInitialExplore = getFilteredExplore(
-                initialExplore,
+        const { userAttributes } = this.getAccessControls(account);
+        const { metricQuery, explore, field, staticResults } =
+            await this.projectService._getFieldValuesMetricQuery({
+                projectUuid,
+                table: resolvedTableName,
+                initialFieldId: resolvedFieldId,
+                search,
+                limit,
+                filters,
+                organizationUuid,
                 userAttributes,
-            );
-            const filteredSourceExplore = getFilteredExplore(
-                explore,
-                userAttributes,
-            );
-            const initialFieldId = getItemId(initialField);
-            const sourceFieldId = getItemId(field);
-            const sourceDimensions = getDimensionMapFromTables(
-                filteredSourceExplore.tables,
-            );
-            if (
-                !(initialField.table in filteredInitialExplore.tables) ||
-                !(
-                    initialFieldId in
-                    getDimensionMapFromTables(filteredInitialExplore.tables)
-                ) ||
-                !(field.table in filteredSourceExplore.tables) ||
-                !(sourceFieldId in sourceDimensions) ||
-                (labelFieldId !== null && !(labelFieldId in sourceDimensions))
-            ) {
-                throw new ForbiddenError(
-                    'You do not have permission to search values for this field',
-                );
-            }
-        }
+                authorizeInitialExplore: dashboard
+                    ? undefined
+                    : (initialExploreForAuthorization) =>
+                          this.assertCanQueryExplore(
+                              account,
+                              organizationUuid,
+                              projectUuid,
+                              initialExploreForAuthorization.name,
+                          ),
+            });
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.

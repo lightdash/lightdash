@@ -10854,6 +10854,7 @@ export class ProjectService extends BaseService {
         limit,
         filters,
         organizationUuid: organizationUuidArg,
+        userAttributes,
         authorizeInitialExplore,
     }: {
         projectUuid: string;
@@ -10863,6 +10864,7 @@ export class ProjectService extends BaseService {
         limit: unknown;
         filters: AndFilterGroup | undefined;
         organizationUuid?: string;
+        userAttributes: UserAttributeValueMap;
         authorizeInitialExplore?: (explore: Explore) => void;
     }) {
         const { organizationUuid } = organizationUuidArg
@@ -10882,6 +10884,7 @@ export class ProjectService extends BaseService {
             maxLimit,
             filters,
             exploreResolver: this.projectModel,
+            userAttributes,
             authorizeInitialExplore,
         });
     }
@@ -10912,6 +10915,15 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ user });
+        const mergedUserAttributes = userAttributeOverrides
+            ? {
+                  ...userAttributes,
+                  ...userAttributeOverrides,
+              }
+            : userAttributes;
+
         const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
@@ -10921,6 +10933,7 @@ export class ProjectService extends BaseService {
                 limit,
                 filters,
                 organizationUuid,
+                userAttributes: mergedUserAttributes,
             });
 
         // The field's config turns warehouse fetching off: serve curated
@@ -10951,7 +10964,6 @@ export class ProjectService extends BaseService {
 
         const [
             warehouseCredentials,
-            { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             combinedParameters,
             projectTimezone,
@@ -10963,7 +10975,6 @@ export class ProjectService extends BaseService {
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
-            this.getUserAttributes({ user }),
             this.getAvailableParameters(projectUuid, explore),
             this.combineParameters(projectUuid, explore, parameters),
             this.getQueryTimezoneForProject(projectUuid),
@@ -10978,13 +10989,6 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-
-        const mergedUserAttributes = userAttributeOverrides
-            ? {
-                  ...userAttributes,
-                  ...userAttributeOverrides,
-              }
-            : userAttributes;
 
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
