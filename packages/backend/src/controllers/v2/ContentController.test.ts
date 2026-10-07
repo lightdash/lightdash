@@ -202,6 +202,7 @@ describe('ContentController', () => {
                             undefined,
                             undefined,
                             undefined,
+                            undefined,
                             dataAppVizsFilter,
                             undefined,
                             sharedWithMe,
