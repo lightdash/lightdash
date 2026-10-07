@@ -480,7 +480,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:ContentVerification',
-        description: 'View verified charts, dashboards, and data apps',
+        description:
+            'View verified charts, dashboards, data apps, and Documents',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -488,7 +489,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:ContentVerification',
-        description: 'Verify and unverify charts, dashboards, and data apps',
+        description:
+            'Verify and unverify charts, dashboards, data apps, and Documents',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -497,7 +499,7 @@ const scopes: Scope[] = [
     {
         name: 'manage:VerifiedContent',
         description:
-            'Edit or delete verified charts, dashboards, and data apps (without this, verified content is read-only)',
+            'Edit or delete verified charts, dashboards, data apps, and Documents (without this, verified content is read-only)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],

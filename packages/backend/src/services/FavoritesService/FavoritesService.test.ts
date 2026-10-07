@@ -20,6 +20,7 @@ const userUuid = 'reader';
 const spaceUuid = 'space';
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -105,6 +106,11 @@ const setup = () => {
         listSummariesByUuid: vi.fn().mockResolvedValue([document]),
     };
     const documentService = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         documentModel,
         projectModel,
         featureFlagModel,

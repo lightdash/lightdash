@@ -76,6 +76,7 @@ const previous = versionOf(1, 'Earlier findings');
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    canMutateVerifiedContent,
     ContentReviewContentType,
     DirectAccessResourceType,
     ContentType,
@@ -9,6 +10,8 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCode,
     IconDatabaseExport,
     IconHistory,
@@ -32,6 +35,10 @@ import { RequestReviewModal } from '../../ee/features/contentReview';
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
+import {
+    useUnverifyDocumentMutation,
+    useVerifyDocumentMutation,
+} from '../../hooks/useContentVerification';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -91,7 +98,27 @@ const DocumentActions = ({
     const { writableSpaces } = useDocumentCreationSpaces(document.projectUuid);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
-    const canDelete = useCanDeleteDocument(document);
+    const verificationTarget = {
+        organizationUuid: document.organizationUuid,
+        projectUuid: document.projectUuid,
+    };
+    const canDelete =
+        useCanDeleteDocument(document) &&
+        !!user.data &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            verificationTarget,
+            document.verification,
+            user.data.userUuid,
+        );
+    const canManageVerification =
+        !isPersonal &&
+        user.data?.ability.can(
+            'manage',
+            subject('ContentVerification', verificationTarget),
+        ) === true;
+    const verifyDocument = useVerifyDocumentMutation();
+    const unverifyDocument = useUnverifyDocumentMutation();
     const exportPdf = useExportDocumentPdf();
     const canPromote = canEdit;
     const { data: project } = useProject(document.projectUuid);
@@ -201,6 +228,41 @@ const DocumentActions = ({
                             onClick={() => setDuplicateOpen(true)}
                         >
                             Duplicate
+                        </Menu.Item>
+                    )}
+                    {canManageVerification && (
+                        <Menu.Item
+                            leftSection={
+                                document.verification ? (
+                                    <IconCircleCheckFilled
+                                        size={18}
+                                        style={{
+                                            color: 'var(--mantine-color-green-6)',
+                                        }}
+                                    />
+                                ) : (
+                                    <IconCircleCheck size={18} />
+                                )
+                            }
+                            disabled={
+                                verifyDocument.isLoading ||
+                                unverifyDocument.isLoading
+                            }
+                            onClick={() => {
+                                const target = {
+                                    projectUuid: document.projectUuid,
+                                    documentUuid: document.documentUuid,
+                                };
+                                if (document.verification) {
+                                    unverifyDocument.mutate(target);
+                                } else {
+                                    verifyDocument.mutate(target);
+                                }
+                            }}
+                        >
+                            {document.verification
+                                ? 'Remove verification'
+                                : 'Verify'}
                         </Menu.Item>
                     )}
                     {canRequestReview && (

@@ -425,6 +425,8 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
                     appModel: this.models.getAppModel(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                     directAccessService: this.getDirectAccessService(),
                     documentModel: this.models.getDocumentModel(),
                     spaceModel: this.models.getSpaceModel(),

@@ -278,7 +278,7 @@ const ProjectSettings: FC<{
                 element: (
                     <ProjectSettingsPage
                         title="Verified content"
-                        description="Review verified charts, dashboards, and data apps in this project."
+                        description="Review verified charts, dashboards, data apps, and Documents in this project."
                     >
                         <VerifiedContentPanel projectUuid={projectUuid} />
                     </ProjectSettingsPage>

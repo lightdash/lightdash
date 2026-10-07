@@ -437,7 +437,7 @@ export class ContentReviewRequestService extends BaseService {
         }
     }
 
-    // Verification only exists for explorer charts and dashboards today
+    // SQL charts have no verification
     private static toVerifiableContentType(
         contentType: ContentReviewContentType,
     ): ContentType | null {
@@ -446,8 +446,9 @@ export class ContentReviewRequestService extends BaseService {
                 return ContentType.CHART;
             case ContentReviewContentType.DASHBOARD:
                 return ContentType.DASHBOARD;
-            case ContentReviewContentType.SQL_CHART:
             case ContentReviewContentType.DOCUMENT:
+                return ContentType.DOCUMENT;
+            case ContentReviewContentType.SQL_CHART:
                 return null;
             default:
                 return assertUnreachable(

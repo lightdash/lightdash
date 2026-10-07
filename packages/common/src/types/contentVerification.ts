@@ -44,10 +44,16 @@ export type VerifiedDataAppListItem = VerifiedContentListItemBase & {
     slug: string;
 };
 
+export type VerifiedDocumentListItem = VerifiedContentListItemBase & {
+    contentType: ContentType.DOCUMENT;
+    slug: string;
+};
+
 export type VerifiedContentListItem =
     | VerifiedChartListItem
     | VerifiedDashboardListItem
-    | VerifiedDataAppListItem;
+    | VerifiedDataAppListItem
+    | VerifiedDocumentListItem;
 
 export type ApiContentVerificationResponse = {
     status: 'ok';

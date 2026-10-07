@@ -23,6 +23,7 @@ const versionUuid = 'document-version';
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -107,6 +108,11 @@ const setup = () => {
         ),
     };
     const service = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         analytics: { track: vi.fn() },
         documentModel,
         featureFlagModel,

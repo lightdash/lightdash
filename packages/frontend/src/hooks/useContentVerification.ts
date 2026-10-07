@@ -249,3 +249,83 @@ export const useUnverifyDashboardMutation = () => {
         },
     );
 };
+
+type DocumentVerificationTarget = {
+    projectUuid: string;
+    documentUuid: string;
+};
+
+const documentVerificationUrl = ({
+    projectUuid,
+    documentUuid,
+}: DocumentVerificationTarget) =>
+    `/projects/${projectUuid}/documents/${documentUuid}/verification`;
+
+const invalidateDocumentVerification = async (
+    queryClient: ReturnType<typeof useQueryClient>,
+) => {
+    await queryClient.invalidateQueries(['spaces']);
+    await queryClient.invalidateQueries(['content']);
+    await queryClient.invalidateQueries(['document']);
+    await queryClient.invalidateQueries(['verified-content-homepage']);
+    await queryClient.invalidateQueries(['verified-content']);
+};
+
+export const useVerifyDocumentMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ContentVerificationInfo,
+        ApiError,
+        DocumentVerificationTarget
+    >(
+        (target) =>
+            lightdashApi<ApiContentVerificationResponse['results']>({
+                url: documentVerificationUrl(target),
+                method: 'POST',
+                body: undefined,
+            }),
+        {
+            mutationKey: ['document_verify'],
+            onSuccess: async () => {
+                await invalidateDocumentVerification(queryClient);
+                showToastSuccess({ title: 'Document verified' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to verify Document',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useUnverifyDocumentMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<void, ApiError, DocumentVerificationTarget>(
+        async (target) => {
+            await lightdashApi<null>({
+                url: documentVerificationUrl(target),
+                method: 'DELETE',
+                body: undefined,
+            });
+        },
+        {
+            mutationKey: ['document_unverify'],
+            onSuccess: async () => {
+                await invalidateDocumentVerification(queryClient);
+                showToastSuccess({ title: 'Document verification removed' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to remove Document verification',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};

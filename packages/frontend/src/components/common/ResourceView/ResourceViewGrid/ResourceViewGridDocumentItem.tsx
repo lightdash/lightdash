@@ -1,7 +1,7 @@
 import type { ResourceViewDocumentItem } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine/core';
 import { type ReactNode } from 'react';
-import { ResourceIcon } from '../../ResourceIcon';
+import { VerifiedResourceIcon } from '../../ResourceIcon';
 import TruncatedText from '../../TruncatedText';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -23,7 +23,10 @@ const ResourceViewGridDocumentItem = ({
         <Stack gap="md">
             <Group wrap="nowrap">
                 {dragIcon}
-                <ResourceIcon item={item} />
+                <VerifiedResourceIcon
+                    item={item}
+                    verification={item.data.verification}
+                />
                 <TruncatedText maxWidth="100%" fw={600}>
                     {item.data.name}
                 </TruncatedText>

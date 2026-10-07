@@ -3,6 +3,7 @@ import {
     buildMergeQueryFromSaved,
     ChartType,
     ConflictError,
+    ContentType,
     DirectAccessResourceType,
     DOCUMENT_SCHEMA_VERSION,
     FeatureFlags,
@@ -19,6 +20,7 @@ import {
     PromotionAction,
     SCHEDULER_TASKS,
     type ContentAsCodeUpsertAction,
+    type ContentVerificationInfo,
     type CreateDocumentRequest,
     type Document,
     type DocumentAsCode,
@@ -49,6 +51,7 @@ import type {
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { AppModel } from '../../models/AppModel';
+import type { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import type {
     DocumentContentUpdate,
     DocumentModel,
@@ -67,6 +70,10 @@ import type {
     AccessTarget,
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
+import {
+    assertCanMutateVerifiedContent,
+    getVerificationAfterUpdate,
+} from '../verifiedContentGuards';
 
 /** Who made a Document change, for analytics. */
 export type DocumentChangeContext = {
@@ -104,6 +111,10 @@ type DocumentServiceArguments = {
         | 'findAppsByUuids'
         | 'getVersion'
         | 'getLatestRenderableDataAppVizVersion'
+    >;
+    contentVerificationModel: Pick<
+        ContentVerificationModel,
+        'getByContent' | 'verify' | 'unverify'
     >;
     documentModel: DocumentModel;
     directAccessService: DirectAccessService;
@@ -162,6 +173,7 @@ export class DocumentService extends BaseService {
                 'You do not have permission to delete this Document',
             );
         }
+        await this.assertCanMutateVerifiedDocument(account, document);
         return document;
     }
 
@@ -415,6 +427,7 @@ export class DocumentService extends BaseService {
         const document = await this.get(account, projectUuid, documentUuid);
         DocumentService.assertSpaceScope(document, allowedSpaceUuids);
         await this.assertCanUpdate(account, document);
+        await this.assertCanMutateVerifiedDocument(account, document);
         DocumentService.validateMetadata(input);
         if (Object.values(input).every((value) => value === undefined)) {
             throw new ParameterError(
@@ -425,11 +438,17 @@ export class DocumentService extends BaseService {
             document.organizationUuid,
             input.ownerUserUuid,
         );
-        const updated = await this.dependencies.documentModel.updateMetadata(
-            projectUuid,
-            documentUuid,
-            { ...input, expectedSpaceUuid: document.spaceUuid },
-        );
+        const updated = {
+            ...(await this.dependencies.documentModel.updateMetadata(
+                projectUuid,
+                documentUuid,
+                { ...input, expectedSpaceUuid: document.spaceUuid },
+            )),
+            verification: await this.keepVerificationAfterUpdate(
+                account,
+                document,
+            ),
+        };
         if (
             input.ownerUserUuid !== undefined &&
             input.ownerUserUuid !== document.ownerUserUuid
@@ -477,6 +496,7 @@ export class DocumentService extends BaseService {
         const document = await this.get(account, projectUuid, documentUuid);
         DocumentService.assertSpaceScope(document, allowedSpaceUuids);
         await this.assertCanUpdate(account, document);
+        await this.assertCanMutateVerifiedDocument(account, document);
         if (document.version.versionUuid !== input.baseVersionUuid) {
             throw new ConflictError(
                 'Document has changed. Reload it and retry with the latest version UUID',
@@ -493,12 +513,18 @@ export class DocumentService extends BaseService {
             previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
-        const updated = await this.dependencies.documentModel.updateContent(
-            projectUuid,
-            documentUuid,
-            { ...input, content, expectedSpaceUuid: document.spaceUuid },
-            account.user.userUuid,
-        );
+        const updated = {
+            ...(await this.dependencies.documentModel.updateContent(
+                projectUuid,
+                documentUuid,
+                { ...input, content, expectedSpaceUuid: document.spaceUuid },
+                account.user.userUuid,
+            )),
+            verification: await this.keepVerificationAfterUpdate(
+                account,
+                document,
+            ),
+        };
         this.dependencies.analytics.track({
             event: 'document.updated',
             userId: account.user.userUuid,
@@ -570,6 +596,145 @@ export class DocumentService extends BaseService {
         }
     }
 
+    private verificationGuardDeps(account: RegisteredAccount) {
+        return {
+            contentVerificationModel:
+                this.dependencies.contentVerificationModel,
+            ability: this.createAuditedAbility(account),
+            user: account.user,
+        };
+    }
+
+    private async assertCanMutateVerifiedDocument(
+        account: RegisteredAccount,
+        document: Pick<
+            Document,
+            'documentUuid' | 'projectUuid' | 'organizationUuid'
+        >,
+    ): Promise<void> {
+        await assertCanMutateVerifiedContent(
+            this.verificationGuardDeps(account),
+            {
+                contentType: ContentType.DOCUMENT,
+                contentUuid: document.documentUuid,
+                projectUuid: document.projectUuid,
+                organizationUuid: document.organizationUuid,
+            },
+        );
+    }
+
+    /** Verification survives an edit by its verifier or a verification manager. */
+    private async keepVerificationAfterUpdate(
+        account: RegisteredAccount,
+        document: Document,
+    ): Promise<ContentVerificationInfo | null> {
+        const verification = await getVerificationAfterUpdate(
+            this.verificationGuardDeps(account),
+            {
+                contentType: ContentType.DOCUMENT,
+                contentUuid: document.documentUuid,
+                projectUuid: document.projectUuid,
+                organizationUuid: document.organizationUuid,
+            },
+        );
+        if (verification === null && document.verification !== null) {
+            await this.dependencies.contentVerificationModel.unverify(
+                ContentType.DOCUMENT,
+                document.documentUuid,
+            );
+        }
+        return verification;
+    }
+
+    private assertCanManageVerification(
+        account: RegisteredAccount,
+        document: Document,
+        message: string,
+    ): void {
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: document.organizationUuid,
+                    projectUuid: document.projectUuid,
+                    metadata: { projectUuid: document.projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(message);
+        }
+    }
+
+    async verify(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        const document = await this.get(account, projectUuid, documentUuid);
+        this.assertCanManageVerification(
+            account,
+            document,
+            'Only admins can verify Documents',
+        );
+        if (document.spaceUuid === null) {
+            throw new ParameterError(
+                'Save this Document to a Space before verifying it',
+            );
+        }
+        await this.dependencies.contentVerificationModel.verify(
+            ContentType.DOCUMENT,
+            document.documentUuid,
+            projectUuid,
+            account.user.userUuid,
+        );
+        const verification =
+            await this.dependencies.contentVerificationModel.getByContent(
+                ContentType.DOCUMENT,
+                document.documentUuid,
+            );
+        if (!verification) {
+            throw new Error('Failed to verify Document');
+        }
+        this.dependencies.analytics.track({
+            event: 'content_verification.created',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DOCUMENT,
+                contentId: document.documentUuid,
+            },
+        });
+        return verification;
+    }
+
+    async unverify(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<void> {
+        const document = await this.get(account, projectUuid, documentUuid);
+        this.assertCanManageVerification(
+            account,
+            document,
+            'Only admins can remove Document verification',
+        );
+        await this.dependencies.contentVerificationModel.unverify(
+            ContentType.DOCUMENT,
+            document.documentUuid,
+        );
+        this.dependencies.analytics.track({
+            event: 'content_verification.deleted',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DOCUMENT,
+                contentId: document.documentUuid,
+            },
+        });
+    }
+
     private async assertCanUpdate(
         account: RegisteredAccount,
         document: Document,
@@ -610,6 +775,7 @@ export class DocumentService extends BaseService {
             throw new ParameterError('Documents must belong to a Space');
         }
         const document = await this.get(account, projectUuid, documentUuid);
+        await this.assertCanMutateVerifiedDocument(account, document);
         // Moving content out of a Space needs Space access, not a direct grant
         const source: AccessTarget =
             document.spaceUuid === null
@@ -671,6 +837,7 @@ export class DocumentService extends BaseService {
         { tx }: { tx?: Knex } = {},
     ): Promise<void> {
         const document = await this.get(account, projectUuid, documentUuid);
+        await this.assertCanMutateVerifiedDocument(account, document);
         const [{ context }] =
             await this.dependencies.spacePermissionService.resolveAccessBatch(
                 account.user.userUuid,

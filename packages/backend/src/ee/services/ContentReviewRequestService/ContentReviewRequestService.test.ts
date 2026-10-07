@@ -837,7 +837,7 @@ describe('ContentReviewRequestService', () => {
             expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
         });
 
-        test('approve moves the Document through its approved-move path and never verifies', async () => {
+        test('approve moves the Document through its approved-move path and can verify it', async () => {
             const {
                 service,
                 contentReviewRequestModel,
@@ -850,10 +850,10 @@ describe('ContentReviewRequestService', () => {
                 PROJECT,
                 pendingRequest.uuid,
             );
-            expect(detail.canVerify).toBe(false);
+            expect(detail.canVerify).toBe(true);
 
             await service.approve(verifier, PROJECT, pendingRequest.uuid, {
-                verify: false,
+                verify: true,
                 note: null,
             });
 
@@ -871,7 +871,12 @@ describe('ContentReviewRequestService', () => {
                 expect.objectContaining({ reviewedByUserUuid: REVIEWER }),
                 expect.anything(),
             );
-            expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+            expect(contentVerificationModel.verify).toHaveBeenCalledWith(
+                ContentType.DOCUMENT,
+                DOCUMENT,
+                PROJECT,
+                REVIEWER,
+            );
         });
     });
 

@@ -68,6 +68,21 @@ export const documentContentConfiguration: ContentConfiguration = {
                     'owner_user.user_id',
                 ).andOnVal('owner_email.is_primary', true);
             })
+            .leftJoin('content_verification', function verificationJoin() {
+                this.on(
+                    'content_verification.content_uuid',
+                    '=',
+                    'documents.document_uuid',
+                ).andOnVal(
+                    'content_verification.content_type',
+                    ContentType.DOCUMENT,
+                );
+            })
+            .leftJoin(
+                'users as verified_by_user',
+                'verified_by_user.user_uuid',
+                'content_verification.verified_by_user_uuid',
+            )
             .select([
                 knex.raw('? as content_type', [ContentType.DOCUMENT]),
                 knex.raw('?::integer as content_type_rank', [
@@ -99,10 +114,12 @@ export const documentContentConfiguration: ContentConfiguration = {
                 'documents.deleted_by_user_uuid',
                 'deleted_by_user.first_name as deleted_by_user_first_name',
                 'deleted_by_user.last_name as deleted_by_user_last_name',
-                knex.raw('null::timestamp as verified_at'),
-                knex.raw('null::uuid as verified_by_user_uuid'),
-                knex.raw('null::text as verified_by_user_first_name'),
-                knex.raw('null::text as verified_by_user_last_name'),
+                knex.raw(
+                    'content_verification.verified_at::timestamp as verified_at',
+                ),
+                'verified_by_user.user_uuid as verified_by_user_uuid',
+                'verified_by_user.first_name as verified_by_user_first_name',
+                'verified_by_user.last_name as verified_by_user_last_name',
                 'documents.document_owner_user_uuid as owner_user_uuid',
                 'owner_user.first_name as owner_user_first_name',
                 'owner_user.last_name as owner_user_last_name',
@@ -229,7 +246,20 @@ export const documentContentConfiguration: ContentConfiguration = {
         views: 0,
         firstViewedAt: null,
         lastViewedAt: null,
-        verification: null,
+        verification:
+            value.verified_at !== null &&
+            value.verified_by_user_uuid !== null &&
+            value.verified_by_user_first_name !== null &&
+            value.verified_by_user_last_name !== null
+                ? {
+                      verifiedBy: {
+                          userUuid: value.verified_by_user_uuid,
+                          firstName: value.verified_by_user_first_name,
+                          lastName: value.verified_by_user_last_name,
+                      },
+                      verifiedAt: value.verified_at,
+                  }
+                : null,
         owner: value.owner_user_uuid
             ? {
                   userUuid: value.owner_user_uuid,

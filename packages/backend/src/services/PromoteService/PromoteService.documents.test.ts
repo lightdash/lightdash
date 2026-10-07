@@ -71,6 +71,7 @@ const makeDocument = (
     content: DocumentContent = markdown('# Findings'),
 ): Document => ({
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,

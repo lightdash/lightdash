@@ -36,10 +36,24 @@ const mocks = vi.hoisted(() => ({
     promote: vi.fn(),
     canRequestReview: false,
     reviewModal: vi.fn(),
+    verify: vi.fn(),
+    unverify: vi.fn(),
+    verification: null as Document['verification'],
+    spaceUuid: 'space' as string | null,
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         user: { data: { ability: { can: () => mocks.canPin } } },
+    }),
+}));
+vi.mock('../../hooks/useContentVerification', () => ({
+    useVerifyDocumentMutation: () => ({
+        mutate: mocks.verify,
+        isLoading: false,
+    }),
+    useUnverifyDocumentMutation: () => ({
+        mutate: mocks.unverify,
+        isLoading: false,
     }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -150,6 +164,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid: 'document',
@@ -212,10 +227,75 @@ describe('Document actions', () => {
                     document={{
                         ...document,
                         pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                        verification: mocks.verification,
+                        spaceUuid: mocks.spaceUuid,
                     }}
                 />
             </MantineProvider>,
         );
+
+    describe('verification', () => {
+        beforeEach(() => {
+            mocks.verify.mockReset();
+            mocks.unverify.mockReset();
+            mocks.verification = null;
+            mocks.spaceUuid = 'space';
+        });
+        const openMenu = () => {
+            renderActions();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+        };
+
+        it('lets a verification manager verify the Document', async () => {
+            openMenu();
+            fireEvent.click(
+                await screen.findByRole('menuitem', { name: 'Verify' }),
+            );
+            expect(mocks.verify).toHaveBeenCalledWith({
+                projectUuid: 'project',
+                documentUuid: 'document',
+            });
+        });
+
+        it('offers to remove verification from a verified Document', async () => {
+            mocks.verification = {
+                verifiedBy: {
+                    userUuid: 'admin',
+                    firstName: 'A',
+                    lastName: 'B',
+                },
+                verifiedAt: new Date('2026-10-01'),
+            };
+            openMenu();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove verification',
+                }),
+            );
+            expect(mocks.unverify).toHaveBeenCalledWith({
+                projectUuid: 'project',
+                documentUuid: 'document',
+            });
+        });
+
+        it.each([
+            ['a personal Document', { spaceUuid: null, canPin: true }],
+            [
+                'a user who cannot manage verification',
+                { spaceUuid: 'space', canPin: false },
+            ],
+        ] as const)('hides verification for %s', async (_case, state) => {
+            mocks.spaceUuid = state.spaceUuid;
+            mocks.canPin = state.canPin;
+            openMenu();
+            await screen.findByRole('menuitem', { name: 'Version history' });
+            expect(
+                screen.queryByRole('menuitem', { name: 'Verify' }),
+            ).not.toBeInTheDocument();
+        });
+    });
 
     it.each([false, true])(
         'toggles the exact Document with current pin state %s',
