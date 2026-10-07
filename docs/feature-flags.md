@@ -211,11 +211,10 @@ revoke Snowflake tokens. This flag does not enforce AI access restrictions.
 
 ## Agent identity
 
-`ai-principals` enables the Agent identity page for Snowflake projects and its
-API. It also permits Snowflake agent sign-in, so `snowflake-ai-sign-in` is optional
-for that path.
+`ai-principals` enables the organisation "Require agent identity" switch on the
+Warehouse credentials page and its API, the agent connection section in My
+warehouse connections, and the connect gate in the AI chat. It also permits
+Snowflake agent sign-in, so `snowflake-ai-sign-in` is optional for that path.
 Both OAuth routes and the callback accept either resolved flag. The Enterprise
 licence and instance OAuth configuration remain required. Turning off only one
 flag does not block sign-in while the other flag is enabled.
-
-See the [Snowflake agent sign-in runbook](agent-identity-snowflake.md).
