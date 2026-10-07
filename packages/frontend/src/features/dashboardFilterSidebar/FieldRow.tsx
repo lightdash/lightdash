@@ -1,4 +1,4 @@
-import { Box, Button, Group, Text, UnstyledButton } from '@mantine/core';
+import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FieldsAndCharts.module.css';
 import { NotSavedBadge } from './NotSavedBadge';
@@ -46,12 +46,7 @@ export const FieldRow: FC<Props> = ({
         .join(' ');
 
     return (
-        <Group
-            className={rowClassName}
-            justify="space-between"
-            wrap="nowrap"
-            gap="xs"
-        >
+        <Stack className={rowClassName} gap={0}>
             <UnstyledButton
                 className={classes.rowMain}
                 aria-pressed={isHighlighted}
@@ -78,7 +73,7 @@ export const FieldRow: FC<Props> = ({
                     isWaiting ? classes.rowActionsVisible : ''
                 }`}
             >
-                <Group gap={4} wrap="nowrap">
+                <Group gap={4} wrap="wrap">
                     {showAll && (
                         <Button
                             size="compact-xs"
@@ -118,6 +113,6 @@ export const FieldRow: FC<Props> = ({
                     )}
                 </Group>
             </Box>
-        </Group>
+        </Stack>
     );
 };

@@ -20,7 +20,7 @@
 }
 
 .rowActions {
-    padding-right: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
     opacity: 0;
 }
 

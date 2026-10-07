@@ -10,15 +10,15 @@ import {
     Badge,
     Button,
     Group,
-    Popover,
-    Radio,
+    Paper,
+    Select,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import { IconChevronDown, IconPlus } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { IconFilter, IconPlus } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -69,6 +69,9 @@ const getFieldTarget = (
     return fromTile ?? null;
 };
 
+const stopPropagation = (event: { stopPropagation: () => void }) =>
+    event.stopPropagation();
+
 type TileOverlayProps = {
     tile: DashboardTile;
     rule: DashboardFilterRule;
@@ -92,8 +95,6 @@ const TileOverlay: FC<TileOverlayProps> = ({
     highlightedFieldId,
     onChange,
 }) => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-
     const tileField = getTileField(rule, tile, fieldsByTile);
     const defaultField = getDefaultTileField(rule, tile, fieldsByTile);
     const isChanged = isTileChanged(rule, tile, fieldsByTile);
@@ -103,7 +104,6 @@ const TileOverlay: FC<TileOverlayProps> = ({
             fieldId === tileField?.fieldId,
     );
     const isFilterable = isTileFilterable(tile, fieldsByTile);
-    const canBeFiltered = isFilterable && options.length > 0;
     const showOffer =
         offeredField !== null &&
         offeredField.fieldId !== tileField?.fieldId &&
@@ -112,8 +112,6 @@ const TileOverlay: FC<TileOverlayProps> = ({
         showOffer ||
         (highlightedFieldId !== null &&
             tileField?.fieldId === highlightedFieldId);
-    const isLookingForField =
-        offeredField !== null || highlightedFieldId !== null;
 
     const setField = (field: DashboardFieldTarget | null) =>
         onChange(setTileField(rule, tile, field, fieldsByTile));
@@ -122,153 +120,98 @@ const TileOverlay: FC<TileOverlayProps> = ({
         return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
     }
 
+    if (options.length === 0) {
+        return (
+            <div className={classes.overlay}>
+                <Text fz="xs" c="dimmed">
+                    No matching field
+                </Text>
+            </div>
+        );
+    }
+
     const tileTitle = getTileTitle(tile);
-    const chipLabel = tileField
-        ? `Filtered by ${getFieldLabel(tileField.fieldId, fieldsMap)}`
-        : 'Not filtered';
+    const usedField = tileField ? fieldsMap[tileField.fieldId] : undefined;
 
     return (
         <div
-            className={`${classes.overlay} ${classes.filterable}`}
+            className={classes.overlay}
             data-highlighted={isHighlighted || undefined}
         >
-            <Group gap="xxs" className={classes.chips} wrap="wrap">
-                {canBeFiltered ? (
-                    <Popover
-                        opened={isMenuOpen}
-                        onChange={setIsMenuOpen}
-                        position="top-start"
-                        withinPortal
-                    >
-                        <Popover.Target>
-                            <Tooltip
-                                label="Change which field this chart uses"
-                                disabled={isMenuOpen}
-                            >
-                                <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    className={
-                                        tileField
-                                            ? classes.chip
-                                            : classes.chipDashed
-                                    }
-                                    rightSection={
-                                        <MantineIcon
-                                            icon={IconChevronDown}
-                                            size={14}
-                                            color="dimmed"
-                                        />
-                                    }
-                                    aria-haspopup="menu"
-                                    aria-expanded={isMenuOpen}
-                                    aria-label={`${filterLabel} on ${tileTitle}`}
-                                    onClick={() =>
-                                        setIsMenuOpen((open) => !open)
-                                    }
-                                >
-                                    {chipLabel}
-                                </Button>
-                            </Tooltip>
-                        </Popover.Target>
-                        <Popover.Dropdown>
-                            <Stack gap="xs">
-                                <Text fz="sm" fw={600}>
-                                    {filterLabel} on this chart
-                                </Text>
-                                <Radio.Group
-                                    value={tileField?.fieldId ?? NOT_FILTERED}
-                                    onChange={(value) =>
-                                        setField(
-                                            value === NOT_FILTERED
-                                                ? null
-                                                : getFieldTarget(
-                                                      value,
-                                                      rule,
-                                                      fieldsMap,
-                                                  ),
-                                        )
-                                    }
-                                >
-                                    <Stack gap="xxs">
-                                        {options.map((fieldId) => (
-                                            <Radio
-                                                key={fieldId}
-                                                size="xs"
-                                                value={fieldId}
-                                                label={getFieldLabel(
-                                                    fieldId,
-                                                    fieldsMap,
-                                                )}
-                                            />
-                                        ))}
-                                        <Radio
-                                            size="xs"
-                                            value={NOT_FILTERED}
-                                            label="Not filtered"
-                                        />
-                                    </Stack>
-                                </Radio.Group>
-                                <Group justify="space-between">
-                                    {isChanged ? (
-                                        <Button
-                                            size="compact-xs"
-                                            variant="subtle"
-                                            onClick={() =>
-                                                setField(defaultField)
-                                            }
-                                        >
-                                            Back to the default
-                                        </Button>
-                                    ) : (
-                                        <span />
-                                    )}
-                                    <Button
-                                        size="compact-xs"
-                                        variant="default"
-                                        onClick={() => setIsMenuOpen(false)}
-                                    >
-                                        Done
-                                    </Button>
-                                </Group>
-                            </Stack>
-                        </Popover.Dropdown>
-                    </Popover>
-                ) : (
-                    isLookingForField &&
-                    !showOffer && (
-                        <Text className={classes.note} fz="xs">
-                            No matching field
-                        </Text>
-                    )
-                )}
-                {isChanged && (
-                    <Badge size="xs" className={classes.badge}>
-                        Changed
-                    </Badge>
-                )}
-                {showOffer && offeredField && (
-                    <Tooltip
-                        label={`Use ${getFieldLabel(
-                            offeredField.fieldId,
-                            fieldsMap,
-                        )} on this chart`}
-                    >
+            <Paper
+                shadow="md"
+                p="sm"
+                radius="md"
+                className={classes.card}
+                onMouseDown={stopPropagation}
+                onTouchStart={stopPropagation}
+            >
+                <Stack gap="xs">
+                    <Select
+                        size="xs"
+                        aria-label={`${filterLabel} on ${tileTitle}`}
+                        allowDeselect={false}
+                        comboboxProps={{ withinPortal: true }}
+                        leftSection={
+                            usedField ? (
+                                <FieldIcon item={usedField} size={14} />
+                            ) : (
+                                <MantineIcon
+                                    icon={IconFilter}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            )
+                        }
+                        data={[
+                            ...options.map((fieldId) => ({
+                                value: fieldId,
+                                label: getFieldLabel(fieldId, fieldsMap),
+                            })),
+                            { value: NOT_FILTERED, label: 'Not filtered' },
+                        ]}
+                        value={tileField?.fieldId ?? NOT_FILTERED}
+                        onChange={(value) =>
+                            setField(
+                                value === null || value === NOT_FILTERED
+                                    ? null
+                                    : getFieldTarget(value, rule, fieldsMap),
+                            )
+                        }
+                    />
+                    {showOffer && offeredField ? (
                         <Button
+                            variant="light"
                             size="compact-xs"
-                            variant="default"
-                            className={classes.chipDashed}
                             leftSection={
                                 <MantineIcon icon={IconPlus} size={14} />
                             }
-                            aria-label={`${filterLabel} on ${tileTitle}`}
                             onClick={() => setField(offeredField)}
                         >
                             Use {getFieldLabel(offeredField.fieldId, fieldsMap)}
                         </Button>
-                    </Tooltip>
-                )}
-            </Group>
+                    ) : (
+                        <Group justify="space-between">
+                            {isChanged ? (
+                                <Badge size="xs">Changed</Badge>
+                            ) : (
+                                <Text fz="xs" c="dimmed">
+                                    Default
+                                </Text>
+                            )}
+                            {isChanged && (
+                                <Button
+                                    variant="subtle"
+                                    size="compact-xs"
+                                    onClick={() => setField(defaultField)}
+                                >
+                                    Back to the default
+                                </Button>
+                            )}
+                        </Group>
+                    )}
+                </Stack>
+            </Paper>
         </div>
     );
 };
