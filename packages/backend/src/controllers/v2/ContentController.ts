@@ -12,6 +12,7 @@ import {
     ContentActionDelete,
     ContentActionMove,
     ContentType,
+    ForbiddenError,
     ParameterError,
 } from '@lightdash/common';
 import {
@@ -31,7 +32,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { getAccountApiAccessContext, toSessionUser } from '../../auth/account';
+import {
+    getAccountApiAccessContext,
+    getEmbedContentListingSpaceUuids,
+    toSessionUser,
+} from '../../auth/account';
 import { ContentArgs } from '../../models/ContentModel/ContentModelTypes';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
@@ -67,6 +72,19 @@ export class ContentController extends BaseController {
         @Query() sharedWithMe?: boolean,
     ): Promise<ApiContentResponse> {
         const { user } = getAccountApiAccessContext(req.account!);
+        const listingSpaceUuids = getEmbedContentListingSpaceUuids(
+            req.account!,
+        );
+        if (
+            listingSpaceUuids !== undefined &&
+            (sharedWithMe ||
+                dataAppVizsFilter === 'only' ||
+                spaceUuids?.some((uuid) => !listingSpaceUuids.includes(uuid)))
+        ) {
+            throw new ForbiddenError(
+                'Embed token does not allow listing content outside its spaces',
+            );
+        }
         this.setStatus(200);
         return {
             status: 'ok',
@@ -74,7 +92,10 @@ export class ContentController extends BaseController {
                 user,
                 {
                     projectUuids,
-                    spaceUuids,
+                    spaceUuids:
+                        listingSpaceUuids !== undefined && !spaceUuids?.length
+                            ? listingSpaceUuids
+                            : spaceUuids,
                     uuids,
                     contentTypes,
                     search,

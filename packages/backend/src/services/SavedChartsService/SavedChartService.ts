@@ -81,7 +81,10 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { getAccountWriteContext } from '../../auth/account';
+import {
+    getAccountWriteContext,
+    getEmbedActorChartSpaceUuids,
+} from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1932,9 +1935,10 @@ export class SavedChartService
         let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
-            const writeSpaceUuid =
-                account.authentication.data.writeActions?.spaceUuid;
-            if (embedWriteUser && writeSpaceUuid === space.uuid) {
+            if (
+                embedWriteUser &&
+                getEmbedActorChartSpaceUuids(account).includes(space.uuid)
+            ) {
                 permissionActor = embedWriteUser;
                 const spaceCtx =
                     await this.spacePermissionService.resolveAccess(

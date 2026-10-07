@@ -43,7 +43,7 @@ type Props = {
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
     allowedTileTypes?: DashboardTileTypes[];
-    spaceUuid?: string;
+    chartSpaceUuids?: string[];
     // Overrides the default "New chart" navigation (which leaves for the
     // project's table picker). Embeds use this to build the chart in place.
     onNewChart?: () => void;
@@ -57,7 +57,7 @@ const AddTileButton: FC<Props> = ({
     dashboardTabs,
     radius,
     allowedTileTypes,
-    spaceUuid,
+    chartSpaceUuids,
     onNewChart,
 }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
@@ -321,7 +321,7 @@ const AddTileButton: FC<Props> = ({
                 <AddChartTilesModal
                     onClose={() => setIsAddChartTilesModalOpen(false)}
                     onAddTiles={onAddTiles}
-                    spaceUuid={spaceUuid}
+                    spaceUuids={chartSpaceUuids}
                 />
             )}
 

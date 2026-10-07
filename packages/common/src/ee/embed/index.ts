@@ -117,10 +117,18 @@ export type ChartInteractivityOptions = z.infer<
     typeof ChartInteractivityOptionsSchema
 >;
 
+export const EMBED_MAX_SOURCE_SPACE_UUIDS = 100;
+
+export const EmbedSourceSpaceUuidsSchema = z
+    .array(z.string().uuid())
+    .max(EMBED_MAX_SOURCE_SPACE_UUIDS);
+
 export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
+    /** Extra spaces whose charts dashboards may reference; the write actor still needs view access. */
+    sourceSpaceUuids?: string[];
     /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
     permissionsMode?: 'default' | 'roles';
 };
@@ -130,6 +138,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
         spaceUuid: z.string().uuid(),
+        sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
         permissionsMode: z.enum(['default', 'roles']).optional(),
     })
     .refine(

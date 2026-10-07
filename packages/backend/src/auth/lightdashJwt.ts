@@ -2,6 +2,7 @@
 import {
     CreateEmbedJwt,
     EmbedJwtSchema,
+    EmbedSourceSpaceUuidsSchema,
     ForbiddenError,
     getErrorMessage,
     isDashboardUuidContent,
@@ -60,6 +61,11 @@ export function decodeLightdashJwt(
                 .optional()
                 .parse(decodedToken.writeActions?.permissionsMode);
         }
+
+        // EmbedJwtSchema below only logs failures, so this authorization claim is enforced here.
+        EmbedSourceSpaceUuidsSchema.optional().parse(
+            decodedToken.writeActions?.sourceSpaceUuids,
+        );
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {

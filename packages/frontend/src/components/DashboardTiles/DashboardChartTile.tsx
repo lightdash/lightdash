@@ -643,6 +643,7 @@ interface DashboardChartTileMainProps extends Pick<
     onExplore?: (options: { chart: SavedChart }) => void;
     // Embed dashboard builder: opens the chart in the in-place editor
     onEditChart?: (chart: SavedChart) => void;
+    canEditChart?: (chart: SavedChart) => boolean;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
     hasDashboardColorPalette?: boolean;
@@ -2133,6 +2134,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         canViewExplore: canViewExploreOverride,
         onExplore,
         onEditChart,
+        canEditChart,
         embeddedDashboardInteractions,
         colorPaletteOverride,
         darkColorPaletteOverride,
@@ -2149,6 +2151,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         explore,
         executeQueryResponse: { metricQuery },
     } = dashboardChartReadyQuery;
+    const showEditChart =
+        onEditChart !== undefined &&
+        props.isEditMode &&
+        (canEditChart?.(chart) ?? true);
     const projectUuid = useProjectUuid();
     const { canViewExplore } = useContextMenuPermissions({
         organizationUuid: chart.organizationUuid,
@@ -2302,9 +2308,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     (canExportImages &&
                         !isTableChartConfig(chart.chartConfig.config)) ||
                     isEmbeddedExploreEnabled ||
-                    (onEditChart && props.isEditMode) ? (
+                    showEditChart ? (
                         <>
-                            {onEditChart && props.isEditMode && (
+                            {showEditChart && onEditChart && (
                                 <Menu.Item
                                     leftSection={
                                         <MantineIcon icon={IconFilePencil} />

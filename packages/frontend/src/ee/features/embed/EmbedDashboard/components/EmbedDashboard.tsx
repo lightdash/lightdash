@@ -105,6 +105,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
     onEditChart?: (chart: SavedChart) => void;
+    canEditChart?: (chart: SavedChart) => boolean;
     onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
 }> = ({
@@ -123,6 +124,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile,
     onEditTile,
     onEditChart,
+    canEditChart,
     onExplore,
     useDashboardEditorTileQueries,
 }) => (
@@ -185,6 +187,7 @@ const EmbedDashboardGrid: FC<{
                                         onDelete={() => onDeleteTile(tile)}
                                         onEdit={onEditTile}
                                         onEditChart={onEditChart}
+                                        canEditChart={canEditChart}
                                         onExplore={onExplore}
                                         embeddedDashboardInteractions={{
                                             canDrillDown:
@@ -584,6 +587,21 @@ const EmbedDashboard: FC<{
         canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
         canExplore: dashboard?.canExplore === true,
     });
+    const chartSpaceUuids = useMemo(
+        () =>
+            writeActions
+                ? [
+                      writeActions.spaceUuid,
+                      ...(writeActions.sourceSpaceUuids ?? []),
+                  ]
+                : undefined,
+        [writeActions],
+    );
+    // Charts referenced from source spaces are read-only here.
+    const canEditChart = useCallback(
+        (chart: SavedChart) => chart.spaceUuid === writeActions?.spaceUuid,
+        [writeActions?.spaceUuid],
+    );
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
@@ -852,7 +870,7 @@ const EmbedDashboard: FC<{
                     activeTabUuid={activeTab?.uuid}
                     dashboardTabs={dashboardTabs}
                     allowedTileTypes={EMBED_EDIT_TILE_TYPES}
-                    spaceUuid={writeActions?.spaceUuid}
+                    chartSpaceUuids={chartSpaceUuids}
                     disabled={isSaving}
                     onNewChart={
                         canUseChartBuilder
@@ -937,6 +955,7 @@ const EmbedDashboard: FC<{
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
                 onEditChart={canUseChartBuilder ? setChartToEdit : undefined}
+                canEditChart={canEditChart}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
             />

@@ -354,9 +354,10 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                             projectUuid={projectUuid}
                                             value={writeActions}
                                             onChange={setWriteActions}
-                                            fixedSpaceUuid={
+                                            fixedWriteSpaceUuid={
                                                 selectedDashboardSpaceUuid
                                             }
+                                            allowSourceSpaces
                                         />
                                     ) : null
                                 }
@@ -377,7 +378,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                             projectUuid={projectUuid}
                                             value={writeActions}
                                             onChange={setWriteActions}
-                                            fixedSpaceUuid={
+                                            fixedWriteSpaceUuid={
                                                 selectedChartSpaceUuid
                                             }
                                         />

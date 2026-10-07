@@ -15,6 +15,8 @@ import {
     fromSession,
     getAccountApiAccessContext,
     getAccountWriteContext,
+    getEmbedActorChartSpaceUuids,
+    getEmbedContentListingSpaceUuids,
 } from './account';
 import { defaultSessionUser } from './account.mock';
 import { serializeAccount } from './serializeAccount';
@@ -662,6 +664,98 @@ describe('account', () => {
                     }),
                 ),
             ).toThrowError(ForbiddenError);
+        });
+
+        describe('embed chart source spaces', () => {
+            const writeActions = {
+                spaceUuid: 'write-space-uuid',
+                serviceAccountUserUuid: mockSessionUser.userUuid,
+            };
+
+            it('includes source spaces for dashboard tokens', () => {
+                const account = buildJwtAccount({
+                    writeActions: {
+                        ...writeActions,
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([
+                    'write-space-uuid',
+                    'source-space-uuid',
+                ]);
+                expect(getEmbedContentListingSpaceUuids(account)).toEqual([
+                    'write-space-uuid',
+                    'source-space-uuid',
+                ]);
+            });
+
+            it('ignores source spaces for non-dashboard tokens', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'chart',
+                        contentId: 'chart-uuid',
+                    },
+                    writeActions: {
+                        ...writeActions,
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([
+                    'write-space-uuid',
+                ]);
+            });
+
+            it('returns no spaces without a write actor', () => {
+                const account = buildJwtAccount({
+                    writeActions: {
+                        ...writeActions,
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([]);
+            });
+
+            it('leaves content listing unscoped without the claim', () => {
+                const account = buildJwtAccount({
+                    writeActions,
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(
+                    getEmbedContentListingSpaceUuids(account),
+                ).toBeUndefined();
+            });
+
+            it('ignores source spaces for apiAccess tokens without a write space', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'apiAccess',
+                        serviceAccountUserUuid: mockSessionUser.userUuid,
+                    },
+                    writeActions: {
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    } as CreateEmbedJwt['writeActions'],
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([]);
+                expect(
+                    getEmbedContentListingSpaceUuids(account),
+                ).toBeUndefined();
+            });
+
+            it('leaves content listing unscoped for registered accounts', () => {
+                expect(
+                    getEmbedContentListingSpaceUuids(
+                        fromSession(mockSessionUser, 'session-cookie'),
+                    ),
+                ).toBeUndefined();
+            });
         });
     });
 });
