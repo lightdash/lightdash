@@ -610,6 +610,36 @@ describe('Formatting', () => {
                     }),
                 ).toEqual('100,000,000');
             });
+
+            test('when round is negative it should round negative numbers like positive ones', () => {
+                const number = -123456789.12345;
+
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -1,
+                    }),
+                ).toEqual('-123,456,790');
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -2,
+                    }),
+                ).toEqual('-123,456,800');
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -3,
+                    }),
+                ).toEqual('-123,457,000');
+                expect(
+                    applyCustomFormat(-1234, {
+                        type: CustomFormatType.CURRENCY,
+                        currency: Format.USD,
+                        round: -2,
+                    }),
+                ).toEqual('-$1,200');
+            });
         });
 
         test('applyCustomFormat should return the right format and round', () => {

@@ -433,8 +433,10 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
 
     if (round < 0) {
         return {
+            // Count integer digits of the magnitude so a minus sign does not
+            // add a significant digit to negative values.
             maximumSignificantDigits: Math.max(
-                Math.floor(value).toString().length + round,
+                Math.floor(Math.abs(value)).toString().length + round,
                 1,
             ),
             maximumFractionDigits: 0,
