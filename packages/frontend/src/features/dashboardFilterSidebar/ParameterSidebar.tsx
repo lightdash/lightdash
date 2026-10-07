@@ -100,7 +100,6 @@ export const ParameterSidebar: FC = () => {
         <EditorShell
             title={control.label || 'New parameter control'}
             subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} ${count.possible === 1 ? 'chart' : 'charts'}${tabReach}`}
-            onBack={isNew ? cancelControl : undefined}
             menu={
                 isNew ? null : (
                     <Menu.Item
