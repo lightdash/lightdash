@@ -113,7 +113,10 @@
     align-items: center;
     justify-content: center;
     padding: var(--mantine-spacing-xl);
-    background-color: var(--mantine-color-body);
+    background-color: light-dark(
+        var(--mantine-color-pink-1),
+        var(--mantine-color-pink-9)
+    );
 }
 
 .formContent {
@@ -145,7 +148,10 @@
     align-items: center;
     min-height: 100dvh;
     padding: var(--mantine-spacing-lg) var(--mantine-spacing-md);
-    background-color: var(--mantine-color-body);
+    background-color: light-dark(
+        var(--mantine-color-pink-1),
+        var(--mantine-color-pink-9)
+    );
 }
 
 .legacyContent {
