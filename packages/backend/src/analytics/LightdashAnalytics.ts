@@ -3517,6 +3517,10 @@ export type AiAgentResponseStreamed = BaseTrack & {
         turnIntent: string | null;
         surface: 'slack' | 'web_app';
         executionMode: 'standard' | 'deep_research';
+        // Document nudges: applied to this turn, reply ended with the offer, or this turn saved a Document the previous reply offered.
+        documentNudgesEnabled: boolean;
+        documentOfferShown: boolean;
+        documentOfferAccepted: boolean;
     };
 };
 
@@ -3889,6 +3893,8 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;
+        // Server-added "Save this analysis as a Document" chip.
+        documentChipShown: boolean;
     };
 };
 
