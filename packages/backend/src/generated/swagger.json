@@ -13488,7 +13488,11 @@
             "ApiHomepageLinkMetadataResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_HomepageLinkMetadata_"
             },
-            "HomepageRecentlyViewedItem": {
+            "RecentContentType": {
+                "type": "string",
+                "enum": ["chart", "dashboard", "data_app"]
+            },
+            "RecentContentItem": {
                 "properties": {
                     "viewedAt": {
                         "type": "string",
@@ -13498,12 +13502,14 @@
                         "type": "string"
                     },
                     "contentType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
+                        "$ref": "#/components/schemas/RecentContentType"
                     }
                 },
                 "required": ["viewedAt", "uuid", "contentType"],
                 "type": "object"
+            },
+            "HomepageRecentlyViewedItem": {
+                "$ref": "#/components/schemas/RecentContentItem"
             },
             "ApiSuccess_HomepageRecentlyViewedItem-Array_": {
                 "properties": {
@@ -64414,26 +64420,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "RecentContentType": {
-                "type": "string",
-                "enum": ["chart", "dashboard"]
-            },
-            "RecentContentItem": {
-                "properties": {
-                    "viewedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/RecentContentType"
-                    }
-                },
-                "required": ["viewedAt", "uuid", "contentType"],
-                "type": "object"
-            },
             "ChartContent": {
                 "properties": {
                     "contentType": {
@@ -64777,6 +64763,322 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Pick_Content.Exclude_keyofContent.space-or-pinnedList__": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "description",
+                    "name",
+                    "slug",
+                    "verification",
+                    "uuid",
+                    "createdAt",
+                    "views",
+                    "firstViewedAt",
+                    "organization",
+                    "project",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DataAppContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DATA_APP"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "latestVersionNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "latestVersionStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppVersionStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "latestReadyVersionNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "order": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["order", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "template": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppTemplate"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "description",
+                    "name",
+                    "slug",
+                    "verification",
+                    "uuid",
+                    "createdAt",
+                    "views",
+                    "firstViewedAt",
+                    "organization",
+                    "project",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "directAccessRoles",
+                    "space",
+                    "latestVersionNumber",
+                    "latestVersionStatus",
+                    "latestReadyVersionNumber",
+                    "pinnedList",
+                    "template"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "RecentContentEntry": {
                 "allOf": [
                     {
@@ -64791,6 +65093,9 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/DashboardContent"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DataAppContent"
                                     }
                                 ]
                             }
@@ -67962,6 +68267,16 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "lastUpdatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -67980,16 +68295,6 @@
                             }
                         },
                         "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
                         "type": "object",
                         "nullable": true
                     },
@@ -68012,9 +68317,9 @@
                     "organization",
                     "project",
                     "createdBy",
+                    "pinnedList",
                     "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "pinnedList"
+                    "lastUpdatedBy"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -68098,6 +68403,16 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "lastUpdatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -68116,16 +68431,6 @@
                             }
                         },
                         "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
                         "type": "object",
                         "nullable": true
                     },
@@ -68175,328 +68480,12 @@
                     "organization",
                     "project",
                     "createdBy",
+                    "pinnedList",
                     "lastUpdatedAt",
                     "lastUpdatedBy",
-                    "pinnedList",
                     "directAccessRoles",
                     "owner",
                     "space"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "Pick_Content.Exclude_keyofContent.space-or-pinnedList__": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "description",
-                    "name",
-                    "slug",
-                    "verification",
-                    "uuid",
-                    "createdAt",
-                    "views",
-                    "firstViewedAt",
-                    "organization",
-                    "project",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DataAppContent": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DATA_APP"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "directAccessRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceMemberRole"
-                        },
-                        "type": "array"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "latestVersionNumber": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "latestVersionStatus": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AppVersionStatus"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "latestReadyVersionNumber": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "order": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["order", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "template": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppTemplate"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "description",
-                    "name",
-                    "slug",
-                    "verification",
-                    "uuid",
-                    "createdAt",
-                    "views",
-                    "firstViewedAt",
-                    "organization",
-                    "project",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "directAccessRoles",
-                    "space",
-                    "latestVersionNumber",
-                    "latestVersionStatus",
-                    "latestReadyVersionNumber",
-                    "pinnedList",
-                    "template"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -69456,7 +69445,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.455.4",
+        "version": "2.456.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

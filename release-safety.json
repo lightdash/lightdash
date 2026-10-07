@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.455.4",
-  "previousVersion": "2.455.3",
-  "releaseDate": "2026-10-07T11:44:26.311Z",
+  "version": "2.456.0",
+  "previousVersion": "2.455.4",
+  "releaseDate": "2026-10-07T12:07:05.950Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261007120000_allow_recent_data_apps.ts",
+        "edition": "core",
+        "tables": [
+          "user_recent_content"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +33,11 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/homepage/recently-viewed — added the new `data_app` enum value to the `results/items/contentType` response property for the response status `200`",
+        "GET /api/v2/content/recently-viewed — added the new `data_app` enum value to the `results/items/allOf[#/components/schemas/RecentContentItem]/contentType` response property for the response status `200`"
+      ],
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,

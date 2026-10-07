@@ -12947,24 +12947,35 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_HomepageLinkMetadata_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HomepageRecentlyViewedItem: {
+    RecentContentType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['chart'] },
+                { dataType: 'enum', enums: ['dashboard'] },
+                { dataType: 'enum', enums: ['data_app'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RecentContentItem: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 viewedAt: { dataType: 'datetime', required: true },
                 uuid: { dataType: 'string', required: true },
-                contentType: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['chart'] },
-                        { dataType: 'enum', enums: ['dashboard'] },
-                    ],
-                    required: true,
-                },
+                contentType: { ref: 'RecentContentType', required: true },
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageRecentlyViewedItem: {
+        dataType: 'refAlias',
+        type: { ref: 'RecentContentItem', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess_HomepageRecentlyViewedItem-Array_': {
@@ -65888,31 +65899,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    RecentContentType: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['chart'] },
-                { dataType: 'enum', enums: ['dashboard'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    RecentContentItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                viewedAt: { dataType: 'datetime', required: true },
-                uuid: { dataType: 'string', required: true },
-                contentType: { ref: 'RecentContentType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartContent: {
         dataType: 'refObject',
         properties: {
@@ -66185,6 +66171,284 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Content.Exclude_keyofContent.space-or-pinnedList__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                contentType: { ref: 'ContentType', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+                verification: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentVerificationInfo' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                uuid: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                views: { dataType: 'double', required: true },
+                firstViewedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                organization: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                project: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                createdBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                lastUpdatedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                lastUpdatedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                lastViewedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppContent: {
+        dataType: 'refObject',
+        properties: {
+            contentType: { ref: 'ContentType.DATA_APP', required: true },
+            description: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            name: { dataType: 'string', required: true },
+            slug: { dataType: 'string', required: true },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ContentVerificationInfo' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            uuid: { dataType: 'string', required: true },
+            createdAt: { dataType: 'datetime', required: true },
+            views: { dataType: 'double', required: true },
+            firstViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            organization: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            project: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            createdBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastUpdatedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastUpdatedBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                    { dataType: 'undefined' },
+                ],
+            },
+            directAccessRoles: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
+                required: true,
+            },
+            space: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            name: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            latestVersionNumber: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'double' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            latestVersionStatus: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AppVersionStatus' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            latestReadyVersionNumber: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'double' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            pinnedList: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            order: { dataType: 'double', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            template: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'DataAppTemplate' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     RecentContentEntry: {
         dataType: 'refAlias',
         type: {
@@ -66199,6 +66463,7 @@ const models: TsoaRoute.Models = {
                             subSchemas: [
                                 { ref: 'ChartContent' },
                                 { ref: 'DashboardContent' },
+                                { ref: 'DataAppContent' },
                             ],
                             required: true,
                         },
@@ -69373,6 +69638,19 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                pinnedList: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 lastUpdatedAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -69395,19 +69673,6 @@ const models: TsoaRoute.Models = {
                                     dataType: 'string',
                                     required: true,
                                 },
-                                uuid: { dataType: 'string', required: true },
-                            },
-                        },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                pinnedList: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
                                 uuid: { dataType: 'string', required: true },
                             },
                         },
@@ -69492,6 +69757,19 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            pinnedList: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             lastUpdatedAt: {
                 dataType: 'union',
                 subSchemas: [
@@ -69508,19 +69786,6 @@ const models: TsoaRoute.Models = {
                         nestedProperties: {
                             lastName: { dataType: 'string', required: true },
                             firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            pinnedList: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
                             uuid: { dataType: 'string', required: true },
                         },
                     },
@@ -69559,284 +69824,6 @@ const models: TsoaRoute.Models = {
                             uuid: { dataType: 'string', required: true },
                         },
                     },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Content.Exclude_keyofContent.space-or-pinnedList__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                contentType: { ref: 'ContentType', required: true },
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                name: { dataType: 'string', required: true },
-                slug: { dataType: 'string', required: true },
-                verification: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ContentVerificationInfo' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                uuid: { dataType: 'string', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-                views: { dataType: 'double', required: true },
-                firstViewedAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'datetime' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                organization: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        name: { dataType: 'string', required: true },
-                        uuid: { dataType: 'string', required: true },
-                    },
-                    required: true,
-                },
-                project: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        name: { dataType: 'string', required: true },
-                        uuid: { dataType: 'string', required: true },
-                    },
-                    required: true,
-                },
-                createdBy: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                lastName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                firstName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                uuid: { dataType: 'string', required: true },
-                            },
-                        },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                lastUpdatedAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'datetime' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                lastUpdatedBy: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                lastName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                firstName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                uuid: { dataType: 'string', required: true },
-                            },
-                        },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                lastViewedAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'datetime' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppContent: {
-        dataType: 'refObject',
-        properties: {
-            contentType: { ref: 'ContentType.DATA_APP', required: true },
-            description: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            name: { dataType: 'string', required: true },
-            slug: { dataType: 'string', required: true },
-            verification: {
-                dataType: 'union',
-                subSchemas: [
-                    { ref: 'ContentVerificationInfo' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            uuid: { dataType: 'string', required: true },
-            createdAt: { dataType: 'datetime', required: true },
-            views: { dataType: 'double', required: true },
-            firstViewedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            organization: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            project: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            createdBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastViewedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                    { dataType: 'undefined' },
-                ],
-            },
-            directAccessRoles: {
-                dataType: 'array',
-                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
-                required: true,
-            },
-            space: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            name: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            latestVersionNumber: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'double' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            latestVersionStatus: {
-                dataType: 'union',
-                subSchemas: [
-                    { ref: 'AppVersionStatus' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            latestReadyVersionNumber: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'double' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            pinnedList: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            order: { dataType: 'double', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            template: {
-                dataType: 'union',
-                subSchemas: [
-                    { ref: 'DataAppTemplate' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,

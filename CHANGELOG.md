@@ -1,3 +1,11 @@
+# [2.456.0](https://github.com/lightdash/lightdash/compare/2.455.4...2.456.0) (2026-10-07)
+
+
+### Features
+
+* favorite content directly from homepage lists ([#30609](https://github.com/lightdash/lightdash/issues/30609)) ([bfacd77](https://github.com/lightdash/lightdash/commit/bfacd7735ecb1797b900738d54e5416974bb9bb5))
+* include data apps in homepage recent and popular content ([#30608](https://github.com/lightdash/lightdash/issues/30608)) ([9b9556a](https://github.com/lightdash/lightdash/commit/9b9556a43d2fd92cd802b0944bef77711a068955))
+
 ## [2.455.4](https://github.com/lightdash/lightdash/compare/2.455.3...2.455.4) (2026-10-07)
 
 
