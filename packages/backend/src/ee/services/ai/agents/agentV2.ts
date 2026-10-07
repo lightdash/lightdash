@@ -21,6 +21,7 @@ import {
     type ModelMessage,
     type OnToolCallFinishEvent,
     type Output,
+    type ProviderMetadata,
     type TextStreamPart,
     type ToolCallPart,
     type ToolSet,
@@ -258,12 +259,22 @@ const createAgentStepUsageRecorder = ({
               'agent',
           )
         : null;
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
     let isFirstStep = true;
 
     const record = async (step: {
         usage: LanguageModelUsage;
         toolCalls?: ReadonlyArray<{ toolName: string }>;
+        providerMetadata?: ProviderMetadata;
     }) => {
+        const appliedEdits =
+            step.providerMetadata?.anthropic?.contextManagement;
+        if (appliedEdits !== undefined) {
+            logger(
+                'Context Management',
+                `Prompt UUID ${args.promptUuid}: ${JSON.stringify(appliedEdits)}`,
+            );
+        }
         const tokens = await recordAgentStepUsage({
             usage: step.usage,
             telemetry:
@@ -1571,15 +1582,40 @@ export const buildPrepareStep = ({
             );
         }
 
-        const stepMessages = pruneSupersededContentReads(
+        const compactedMessages =
             args.decisions &&
-                stepNumber === 0 &&
-                intentToolGate?.intent === 'chart_from_previous' &&
-                forced.toolChoice &&
-                steers.length === 0
+            stepNumber === 0 &&
+            intentToolGate?.intent === 'chart_from_previous' &&
+            forced.toolChoice &&
+            steers.length === 0
                 ? compactChartDiscovery(messages)
-                : messages,
-        );
+                : messages;
+        const stepMessages = pruneSupersededContentReads(compactedMessages);
+        if (stepMessages !== compactedMessages) {
+            const replacedReads = stepMessages.reduce(
+                (count, message, index) => {
+                    const before = compactedMessages[index];
+                    if (
+                        message === before ||
+                        message.role !== 'tool' ||
+                        before.role !== 'tool'
+                    )
+                        return count;
+                    return (
+                        count +
+                        message.content.filter(
+                            (part, partIndex) =>
+                                part !== before.content[partIndex],
+                        ).length
+                    );
+                },
+                0,
+            );
+            logger(
+                'Content Reads',
+                `Step ${stepNumber} for prompt UUID ${args.promptUuid}: replaced ${replacedReads} earlier content read(s) with stubs`,
+            );
+        }
         if (
             stepMessages === messages &&
             extraMessages.length === 0 &&
