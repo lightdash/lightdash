@@ -52,21 +52,23 @@ const storedAiOrgProviderApiKeyFields = {
 
 // Keep known provider keys strongly typed and exhaustive, but strip unknown
 // future-provider keys so mixed-version deploys do not invalidate the whole blob.
-const storedAiOrgProviderApiKeysSchema = z.object({
-    ...storedAiOrgProviderApiKeyFields,
-    // Gateway each org key is sent to; only meaningful alongside that key.
-    providerBaseUrls: z
-        .object({
-            anthropic: z.string().optional(),
-            google: z.string().optional(),
-            openai: z.string().optional(),
-        } satisfies Record<ByoAiApiKeyProvider, z.ZodTypeAny>)
-        .optional(),
-});
+const storedAiOrgProviderApiKeysSchema = z.object(
+    storedAiOrgProviderApiKeyFields,
+);
+
+// Gateway each org key is sent to; only meaningful alongside that key. Stored
+// in its own nullable column, not in the encrypted blob.
+const storedProviderBaseUrlsSchema = z.object({
+    anthropic: z.string().optional(),
+    google: z.string().optional(),
+    openai: z.string().optional(),
+} satisfies Record<ByoAiApiKeyProvider, z.ZodTypeAny>);
 
 export type AiOrgProviderApiKeys = z.infer<
     typeof storedAiOrgProviderApiKeysSchema
->;
+> & {
+    providerBaseUrls?: z.infer<typeof storedProviderBaseUrlsSchema>;
+};
 
 export const parseAiOrgProviderApiKeys = (
     value: unknown,
@@ -75,6 +77,15 @@ export const parseAiOrgProviderApiKeys = (
     if (!result.success) return null;
 
     return result.data;
+};
+
+const parseProviderBaseUrls = (
+    value: unknown,
+): AiOrgProviderApiKeys['providerBaseUrls'] => {
+    const result = storedProviderBaseUrlsSchema.safeParse(value);
+    return result.success && Object.keys(result.data).length > 0
+        ? result.data
+        : undefined;
 };
 
 const emptyProviderApiKeyHints = (): AiProviderApiKeyHints => ({
@@ -225,15 +236,25 @@ export class AiOrganizationSettingsModel {
     }
 
     private decryptProviderApiKeys(
-        encrypted: Buffer | null,
+        row: Pick<
+            DbAiOrganizationSettings,
+            'encrypted_provider_api_keys' | 'provider_base_urls'
+        >,
     ): AiOrgProviderApiKeys {
-        if (!encrypted) return {};
+        if (!row.encrypted_provider_api_keys) return {};
         try {
             const keys = parseAiOrgProviderApiKeys(
-                JSON.parse(this.encryptionUtil.decrypt(encrypted)),
+                JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        row.encrypted_provider_api_keys,
+                    ),
+                ),
             );
             if (!keys) throw new Error('Invalid provider key data');
-            return keys;
+            const providerBaseUrls = parseProviderBaseUrls(
+                row.provider_base_urls,
+            );
+            return providerBaseUrls ? { ...keys, providerBaseUrls } : keys;
         } catch {
             Logger.warn(
                 'Failed to decrypt AI provider API keys; treating as unset',
@@ -242,7 +263,10 @@ export class AiOrganizationSettingsModel {
         }
     }
 
-    private encryptProviderApiKeys(keys: AiOrgProviderApiKeys): Buffer | null {
+    private encryptProviderApiKeys({
+        providerBaseUrls: _,
+        ...keys
+    }: AiOrgProviderApiKeys): Buffer | null {
         if (!BYO_AI_PROVIDERS.some((provider) => keys[provider])) return null;
         return this.encryptionUtil.encrypt(JSON.stringify(keys));
     }
@@ -250,9 +274,7 @@ export class AiOrganizationSettingsModel {
     private mapDbToEntity(
         db: DbAiOrganizationSettings,
     ): StoredAiOrganizationSettings {
-        const keys = this.decryptProviderApiKeys(
-            db.encrypted_provider_api_keys,
-        );
+        const keys = this.decryptProviderApiKeys(db);
         return {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
@@ -320,17 +342,18 @@ export class AiOrganizationSettingsModel {
         organizationUuid: string,
     ): Promise<AiOrgProviderApiKeys | null> {
         const row = await this.database(AiOrganizationSettingsTableName)
-            .select('encrypted_provider_api_keys')
+            .select('encrypted_provider_api_keys', 'provider_base_urls')
             .where('organization_uuid', organizationUuid)
             .first<
-                | Pick<DbAiOrganizationSettings, 'encrypted_provider_api_keys'>
+                | Pick<
+                      DbAiOrganizationSettings,
+                      'encrypted_provider_api_keys' | 'provider_base_urls'
+                  >
                 | undefined
             >();
 
         if (!row?.encrypted_provider_api_keys) return null;
-        const keys = this.decryptProviderApiKeys(
-            row.encrypted_provider_api_keys,
-        );
+        const keys = this.decryptProviderApiKeys(row);
         return BYO_AI_PROVIDERS.some((provider) => keys[provider])
             ? keys
             : null;
@@ -365,6 +388,7 @@ export class AiOrganizationSettingsModel {
                 data_app_model_visibility: data.dataAppModelVisibility,
                 encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
                 provider_api_key_hints: buildProviderApiKeyHints(keys),
+                provider_base_urls: keys.providerBaseUrls ?? null,
                 thread_retention_hours: data.threadRetentionHours ?? null,
             })
             .returning('*');
@@ -396,6 +420,7 @@ export class AiOrganizationSettingsModel {
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'provider_base_urls'
                 | 'thread_retention_hours'
             >
         > = {};
@@ -455,13 +480,14 @@ export class AiOrganizationSettingsModel {
             const providerApiKeyUpdates = data.providerApiKeys;
             return database.transaction(async (trx) => {
                 const currentRow = await trx(AiOrganizationSettingsTableName)
-                    .select('encrypted_provider_api_keys')
+                    .select('encrypted_provider_api_keys', 'provider_base_urls')
                     .where('organization_uuid', organizationUuid)
                     .forUpdate()
                     .first<
                         | Pick<
                               DbAiOrganizationSettings,
-                              'encrypted_provider_api_keys'
+                              | 'encrypted_provider_api_keys'
+                              | 'provider_base_urls'
                           >
                         | undefined
                     >();
@@ -472,9 +498,7 @@ export class AiOrganizationSettingsModel {
                     );
                 }
 
-                const existingKeys = this.decryptProviderApiKeys(
-                    currentRow.encrypted_provider_api_keys,
-                );
+                const existingKeys = this.decryptProviderApiKeys(currentRow);
                 const mergedKeys = applyProviderApiKeyUpdates(
                     existingKeys,
                     providerApiKeyUpdates,
@@ -483,6 +507,8 @@ export class AiOrganizationSettingsModel {
                     this.encryptProviderApiKeys(mergedKeys);
                 updateData.provider_api_key_hints =
                     buildProviderApiKeyHints(mergedKeys);
+                updateData.provider_base_urls =
+                    mergedKeys.providerBaseUrls ?? null;
 
                 const [row] = await trx<AiOrganizationSettingsTable>(
                     AiOrganizationSettingsTableName,
