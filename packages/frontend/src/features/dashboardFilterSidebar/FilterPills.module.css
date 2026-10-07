@@ -3,7 +3,7 @@
     opacity: 0.6;
 }
 
-/* Pending, not disabled: dashed but readable */
-.unplacedPill {
+/* Pending, not disabled: dashed but readable. Nested to outrank the button border */
+.pill .unplacedPill {
     border-style: dashed;
 }
