@@ -31,6 +31,7 @@ import {
 import { isInteractivityChanged } from './sessionSettings';
 import { findFilterRule, isDefaultValueIncomplete } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const LABEL_ERROR = 'Add a label so viewers know what this filters';
 
@@ -143,6 +144,7 @@ export const FilterSidebar: FC = () => {
         editingFilterId === null
             ? null
             : findFilterRule(dashboardFilters, editingFilterId);
+    const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
 
     const getNewFieldChartCount = useCallback(
         (candidate: DashboardFilterableField) => {
@@ -164,7 +166,11 @@ export const FilterSidebar: FC = () => {
         const tiles = dashboardTiles ?? [];
         if (dashboardTabs.length === 0) {
             const filterable = tiles.filter((tile) =>
-                isTileFilterable(tile, filterableFieldsByTileUuid),
+                isTileFilterable(
+                    tile,
+                    filterableFieldsByTileUuid,
+                    sqlColumnsByTile,
+                ),
             );
             const applied = filterable.filter(
                 (tile) =>
@@ -172,6 +178,7 @@ export const FilterSidebar: FC = () => {
                         filterRule,
                         tile,
                         filterableFieldsByTileUuid,
+                        sqlColumnsByTile,
                     ) !== null,
             ).length;
             return {
@@ -186,6 +193,7 @@ export const FilterSidebar: FC = () => {
                 tiles,
                 dashboardTabs,
                 filterableFieldsByTileUuid,
+                sqlColumnsByTile,
             ),
         );
         return {
@@ -193,7 +201,13 @@ export const FilterSidebar: FC = () => {
             total: counts.reduce((sum, count) => sum + count.total, 0),
             tabCount: counts.filter((count) => count.applied > 0).length,
         };
-    }, [filterRule, dashboardTiles, dashboardTabs, filterableFieldsByTileUuid]);
+    }, [
+        filterRule,
+        dashboardTiles,
+        dashboardTabs,
+        filterableFieldsByTileUuid,
+        sqlColumnsByTile,
+    ]);
 
     if (editing === null) return null;
 

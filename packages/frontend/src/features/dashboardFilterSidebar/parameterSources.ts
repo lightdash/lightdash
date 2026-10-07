@@ -71,3 +71,27 @@ export const formatParameterValue = (value: ParameterValue | null): string =>
 
 export const getTileSelector = (tileUuid: string) =>
     `[data-tile-uuid="${tileUuid}"]`;
+
+type TileWithTab = { uuid: string; tabUuid?: string | null };
+
+// Keys referenced by at least one tile on the tab; null tab means any tile.
+export const getParameterKeysOnTab = ({
+    tileParameterReferences,
+    dashboardTiles,
+    tabUuid,
+}: {
+    tileParameterReferences: Record<string, string[]>;
+    dashboardTiles: TileWithTab[];
+    tabUuid: string | null;
+}): string[] => {
+    const tileUuids = dashboardTiles
+        .filter((tile) => tabUuid === null || tile.tabUuid === tabUuid)
+        .map((tile) => tile.uuid);
+    return Array.from(
+        new Set(
+            tileUuids.flatMap(
+                (tileUuid) => tileParameterReferences[tileUuid] ?? [],
+            ),
+        ),
+    );
+};

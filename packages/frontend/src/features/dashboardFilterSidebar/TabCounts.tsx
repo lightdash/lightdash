@@ -7,6 +7,7 @@ import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // Mantine renders each tab with id "<tabsId>-tab-<value>"; value is the tab uuid
 const getTabSelector = (tabUuid: string) =>
@@ -20,6 +21,7 @@ export const TabCounts: FC = () => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
+    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -32,13 +34,20 @@ export const TabCounts: FC = () => {
         if (editingRule === null) return {};
         const tiles = dashboardTiles ?? [];
         return activeFieldId === null
-            ? getTabCounts(editingRule, tiles, dashboardTabs, fieldsByTile)
+            ? getTabCounts(
+                  editingRule,
+                  tiles,
+                  dashboardTabs,
+                  fieldsByTile,
+                  sqlColumnsByTile,
+              )
             : getTabCountsForField(
                   editingRule,
                   activeFieldId,
                   tiles,
                   dashboardTabs,
                   fieldsByTile,
+                  sqlColumnsByTile,
               );
     }, [
         editingRule,
@@ -46,6 +55,7 @@ export const TabCounts: FC = () => {
         dashboardTiles,
         dashboardTabs,
         fieldsByTile,
+        sqlColumnsByTile,
     ]);
 
     const activeField =

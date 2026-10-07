@@ -33,6 +33,7 @@ import {
     removeFieldFromAll,
 } from './peers';
 import { useFilterSidebar } from './useFilterSidebar';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const DEFAULT_HINT =
     'Choose which field each chart is filtered by. Hover a field to see its charts.';
@@ -77,6 +78,7 @@ export const FieldsAndCharts: FC = () => {
     );
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
+    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
     const fieldIds = useMemo(
         () =>
@@ -140,6 +142,7 @@ export const FieldsAndCharts: FC = () => {
                           value,
                           tiles,
                           filterableFieldsByTileUuid,
+                          sqlColumnsByTile,
                       ).possible,
             );
             byTable.set(item.tableLabel, [
@@ -151,7 +154,13 @@ export const FieldsAndCharts: FC = () => {
             ...byTable.entries(),
         ].map(([group, items]) => ({ group, items }));
         return { groups, chartCounts, fieldsByKey };
-    }, [candidates, editingRule, tiles, filterableFieldsByTileUuid]);
+    }, [
+        candidates,
+        editingRule,
+        tiles,
+        filterableFieldsByTileUuid,
+        sqlColumnsByTile,
+    ]);
 
     if (editingRule === null) return null;
     const getField = (fieldId: string): DashboardFilterableField | null =>
@@ -215,6 +224,7 @@ export const FieldsAndCharts: FC = () => {
                         fieldId,
                         tiles,
                         filterableFieldsByTileUuid,
+                        sqlColumnsByTile,
                     );
                     const isTarget = editingRule.target.fieldId === fieldId;
                     const target = getRuleFieldTarget(
@@ -297,6 +307,7 @@ export const FieldsAndCharts: FC = () => {
                                 waitingRow.fieldId,
                                 tiles,
                                 filterableFieldsByTileUuid,
+                                sqlColumnsByTile,
                             ).possible,
                         }}
                         isWaiting

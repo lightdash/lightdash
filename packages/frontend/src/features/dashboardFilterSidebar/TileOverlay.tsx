@@ -19,11 +19,14 @@ import {
     getTileField,
     isTileFilterable,
     setTileField,
+    toSqlColumnTarget,
+    type SqlColumn,
     type FieldsByTile,
 } from './peers';
 import classes from './TileOverlay.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const getTileSelector = (tileUuid: string) => `[data-tile-uuid="${tileUuid}"]`;
 
@@ -69,6 +72,7 @@ type TileOverlayProps = {
     rule: DashboardFilterRule;
     filterLabel: string;
     fieldsByTile: FieldsByTile;
+    sqlColumns: SqlColumn[];
     fieldsMap: FieldsMap;
     filterFieldIds: string[];
     offeredField: DashboardFieldTarget | null;
@@ -81,19 +85,24 @@ const TileOverlay: FC<TileOverlayProps> = ({
     rule,
     filterLabel,
     fieldsByTile,
+    sqlColumns,
     fieldsMap,
     filterFieldIds,
     offeredField,
     activeFieldId,
     onChange,
 }) => {
-    const tileField = getTileField(rule, tile, fieldsByTile);
-    const options = filterFieldIds.filter(
-        (fieldId) =>
-            doesTileOfferField(tile, fieldId, fieldsByTile) ||
-            fieldId === tileField?.fieldId,
-    );
-    const isFilterable = isTileFilterable(tile, fieldsByTile);
+    const sqlColumnsByTile = { [tile.uuid]: sqlColumns };
+    const tileField = getTileField(rule, tile, fieldsByTile, sqlColumnsByTile);
+    const isSqlTile = sqlColumns.length > 0;
+    const options = isSqlTile
+        ? sqlColumns.map((column) => column.reference)
+        : filterFieldIds.filter(
+              (fieldId) =>
+                  doesTileOfferField(tile, fieldId, fieldsByTile) ||
+                  fieldId === tileField?.fieldId,
+          );
+    const isFilterable = isTileFilterable(tile, fieldsByTile, sqlColumnsByTile);
     const showOffer =
         offeredField !== null &&
         offeredField.fieldId !== tileField?.fieldId &&
@@ -103,7 +112,9 @@ const TileOverlay: FC<TileOverlayProps> = ({
         (activeFieldId !== null && tileField?.fieldId === activeFieldId);
 
     const setField = (field: DashboardFieldTarget | null) =>
-        onChange(setTileField(rule, tile, field, fieldsByTile));
+        onChange(
+            setTileField(rule, tile, field, fieldsByTile, sqlColumnsByTile),
+        );
 
     if (!isFilterable) {
         return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
@@ -120,7 +131,8 @@ const TileOverlay: FC<TileOverlayProps> = ({
     }
 
     const tileTitle = getTileTitle(tile);
-    const usedField = tileField ? fieldsMap[tileField.fieldId] : undefined;
+    const usedField =
+        tileField && !isSqlTile ? fieldsMap[tileField.fieldId] : undefined;
 
     return (
         <div
@@ -158,7 +170,9 @@ const TileOverlay: FC<TileOverlayProps> = ({
                         data={[
                             ...options.map((fieldId) => ({
                                 value: fieldId,
-                                label: getFieldLabel(fieldId, fieldsMap),
+                                label: isSqlTile
+                                    ? fieldId
+                                    : getFieldLabel(fieldId, fieldsMap),
                             })),
                             { value: NOT_FILTERED, label: 'Not filtered' },
                         ]}
@@ -167,7 +181,9 @@ const TileOverlay: FC<TileOverlayProps> = ({
                             setField(
                                 value === null || value === NOT_FILTERED
                                     ? null
-                                    : getFieldTarget(value, rule, fieldsMap),
+                                    : isSqlTile
+                                      ? toSqlColumnTarget(value)
+                                      : getFieldTarget(value, rule, fieldsMap),
                             )
                         }
                     />
@@ -204,6 +220,7 @@ export const TileOverlays: FC = () => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
+    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
     const tiles = useMemo(
         () =>
@@ -245,6 +262,7 @@ export const TileOverlays: FC = () => {
                         rule={editingRule}
                         filterLabel={filterLabel}
                         fieldsByTile={fieldsByTile}
+                        sqlColumns={sqlColumnsByTile[tile.uuid] ?? []}
                         fieldsMap={fieldsMap}
                         filterFieldIds={filterFieldIds}
                         offeredField={offeredField}

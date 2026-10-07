@@ -1,4 +1,5 @@
 import {
+    getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -7,12 +8,35 @@ import {
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type DimensionType,
+    type FilterType,
 } from '@lightdash/common';
 import { getFilterTileRelation } from '../dashboardFilters/FilterConfiguration/utils';
 
 export type FieldsByTile =
     | Record<string, DashboardFilterableField[]>
     | undefined;
+
+export type SqlColumn = { reference: string; type: DimensionType };
+// SQL chart tiles keyed by uuid, each with the columns of the filter's kind.
+export type SqlColumnsByTile = Record<string, SqlColumn[]>;
+
+const SQL_COLUMN_TABLE = 'mock_table';
+
+export const getSqlColumnsOfKind = (
+    columns: SqlColumn[],
+    kind: FilterType,
+): SqlColumn[] =>
+    columns.filter((column) => getFilterTypeFromItemType(column.type) === kind);
+
+export const toSqlColumnTarget = (reference: string): DashboardFieldTarget => ({
+    fieldId: reference,
+    tableName: SQL_COLUMN_TABLE,
+    isSqlColumn: true,
+});
+
+const isSqlTile = (tile: DashboardTile, sqlColumnsByTile: SqlColumnsByTile) =>
+    (sqlColumnsByTile[tile.uuid]?.length ?? 0) > 0;
 
 export type FieldCount = { applied: number; possible: number };
 export type TabCount = { applied: number; total: number };
@@ -28,7 +52,10 @@ export const doesTileOfferField = (
 export const isTileFilterable = (
     tile: DashboardTile,
     fieldsByTile: FieldsByTile,
-): boolean => fieldsByTile?.[tile.uuid] !== undefined;
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): boolean =>
+    fieldsByTile?.[tile.uuid] !== undefined ||
+    isSqlTile(tile, sqlColumnsByTile);
 
 // Mirrors the shipped "auto" relation, data app tiles included.
 export const getDefaultTileField = (
@@ -41,15 +68,18 @@ export const getDefaultTileField = (
         ? rule.target
         : null;
 
+// A SQL tile is only ever mapped explicitly; auto means not filtered.
 export const getTileField = (
     rule: DashboardFilterRule,
     tile: DashboardTile,
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): DashboardFieldTarget | null => {
     const { relation, tileConfig } = getFilterTileRelation(rule, tile.uuid);
     if (relation === 'disabled') return null;
     if (relation === 'mapped' && isDashboardFieldTarget(tileConfig))
         return tileConfig;
+    if (isSqlTile(tile, sqlColumnsByTile)) return null;
     return getDefaultTileField(rule, tile, fieldsByTile);
 };
 
@@ -83,12 +113,17 @@ export const getFieldCount = (
     fieldId: string,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): FieldCount => ({
-    possible: tiles.filter((tile) =>
-        doesTileOfferField(tile, fieldId, fieldsByTile),
+    possible: tiles.filter(
+        (tile) =>
+            doesTileOfferField(tile, fieldId, fieldsByTile) ||
+            isSqlTile(tile, sqlColumnsByTile),
     ).length,
     applied: tiles.filter(
-        (tile) => getTileField(rule, tile, fieldsByTile)?.fieldId === fieldId,
+        (tile) =>
+            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)
+                ?.fieldId === fieldId,
     ).length,
 });
 
@@ -109,8 +144,11 @@ export const setTileField = (
     tile: DashboardTile,
     field: DashboardFieldTarget | null,
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): DashboardFilterRule => {
-    const fallback = getDefaultTileField(rule, tile, fieldsByTile);
+    const fallback = isSqlTile(tile, sqlColumnsByTile)
+        ? null
+        : getDefaultTileField(rule, tile, fieldsByTile);
     const others = Object.fromEntries(
         Object.entries(rule.tileTargets ?? {}).filter(
             ([tileUuid]) => tileUuid !== tile.uuid,
@@ -193,13 +231,14 @@ export const getTabCounts = (
     tiles: DashboardTile[],
     tabs: DashboardTab[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
             const tabTiles = tiles.filter(
                 (tile) =>
                     tile.tabUuid === tab.uuid &&
-                    isTileFilterable(tile, fieldsByTile),
+                    isTileFilterable(tile, fieldsByTile, sqlColumnsByTile),
             );
             return [
                 tab.uuid,
@@ -207,7 +246,12 @@ export const getTabCounts = (
                     total: tabTiles.length,
                     applied: tabTiles.filter(
                         (tile) =>
-                            getTileField(rule, tile, fieldsByTile) !== null,
+                            getTileField(
+                                rule,
+                                tile,
+                                fieldsByTile,
+                                sqlColumnsByTile,
+                            ) !== null,
                     ).length,
                 },
             ];
@@ -222,13 +266,14 @@ export const getTabCountsForField = (
     tiles: DashboardTile[],
     tabs: DashboardTab[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
             const tabTiles = tiles.filter(
                 (tile) =>
                     tile.tabUuid === tab.uuid &&
-                    isTileFilterable(tile, fieldsByTile),
+                    isTileFilterable(tile, fieldsByTile, sqlColumnsByTile),
             );
             return [
                 tab.uuid,
@@ -236,8 +281,12 @@ export const getTabCountsForField = (
                     total: tabTiles.length,
                     applied: tabTiles.filter(
                         (tile) =>
-                            getTileField(rule, tile, fieldsByTile)?.fieldId ===
-                            fieldId,
+                            getTileField(
+                                rule,
+                                tile,
+                                fieldsByTile,
+                                sqlColumnsByTile,
+                            )?.fieldId === fieldId,
                     ).length,
                 },
             ];

@@ -1,6 +1,8 @@
 import {
     DashboardTileTypes,
+    DimensionType,
     FilterOperator,
+    FilterType,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -13,6 +15,7 @@ import {
     getDefaultTileField,
     getFieldCount,
     getFilterFields,
+    getSqlColumnsOfKind,
     getTabCounts,
     getTabCountsForField,
     getTileField,
@@ -20,6 +23,8 @@ import {
     removeField,
     removeFieldFromAll,
     setTileField,
+    toSqlColumnTarget,
+    type SqlColumnsByTile,
 } from './peers';
 
 const field = (table: string, name: string) =>
@@ -241,5 +246,115 @@ describe('peers', () => {
             t1: { applied: 1, total: 2 },
             t2: { applied: 0, total: 2 },
         });
+    });
+});
+
+describe('peers with SQL chart tiles', () => {
+    const sqlTile = {
+        uuid: 's',
+        tabUuid: 't2',
+        type: DashboardTileTypes.SQL_CHART,
+    } as DashboardTile;
+    const sqlColumns: SqlColumnsByTile = {
+        s: [{ reference: 'status', type: DimensionType.STRING }],
+    };
+    const allTiles = [...tiles, sqlTile];
+    const SQL_STATUS = toSqlColumnTarget('status');
+
+    it('keeps only columns of the filter kind', () => {
+        const columns = [
+            { reference: 'status', type: DimensionType.STRING },
+            { reference: 'amount', type: DimensionType.NUMBER },
+        ];
+        expect(getSqlColumnsOfKind(columns, FilterType.STRING)).toEqual([
+            columns[0],
+        ]);
+        expect(getSqlColumnsOfKind(columns, FilterType.DATE)).toEqual([]);
+    });
+
+    it('writes the isSqlColumn target shape', () => {
+        expect(SQL_STATUS).toEqual({
+            fieldId: 'status',
+            tableName: 'mock_table',
+            isSqlColumn: true,
+        });
+    });
+
+    it('is not filtered on auto and uses its mapped column', () => {
+        expect(getTileField(rule(), sqlTile, fieldsByTile, sqlColumns)).toBe(
+            null,
+        );
+        expect(
+            getTileField(
+                rule({ s: SQL_STATUS }),
+                sqlTile,
+                fieldsByTile,
+                sqlColumns,
+            ),
+        ).toEqual(SQL_STATUS);
+    });
+
+    it('setTileField keeps the SQL entry and clears it back to auto', () => {
+        const mapped = setTileField(
+            rule(),
+            sqlTile,
+            SQL_STATUS,
+            fieldsByTile,
+            sqlColumns,
+        );
+        expect(mapped.tileTargets).toEqual({ s: SQL_STATUS });
+        const cleared = setTileField(
+            mapped,
+            sqlTile,
+            null,
+            fieldsByTile,
+            sqlColumns,
+        );
+        expect(cleared.tileTargets).toBeUndefined();
+    });
+
+    it('counts a SQL tile among possible and applied', () => {
+        expect(
+            getFieldCount(
+                rule({ s: SQL_STATUS }),
+                'status',
+                allTiles,
+                fieldsByTile,
+                sqlColumns,
+            ),
+        ).toEqual({ possible: 1, applied: 1 });
+        expect(
+            getFieldCount(rule(), 'status', allTiles, fieldsByTile, sqlColumns)
+                .applied,
+        ).toBe(0);
+    });
+
+    it('counts a SQL tile in its tab', () => {
+        expect(
+            getTabCounts(
+                rule({ s: SQL_STATUS }),
+                allTiles,
+                tabs,
+                fieldsByTile,
+                sqlColumns,
+            ).t2,
+        ).toEqual({ total: 3, applied: 1 });
+        expect(
+            getTabCountsForField(
+                rule({ s: SQL_STATUS }),
+                'status',
+                allTiles,
+                tabs,
+                fieldsByTile,
+                sqlColumns,
+            ).t2,
+        ).toEqual({ total: 3, applied: 1 });
+    });
+
+    it('ignores SQL tiles without a column of the kind', () => {
+        expect(
+            getTabCounts(rule(), allTiles, tabs, fieldsByTile, { s: [] }).t2
+                .total,
+        ).toBe(2);
     });
 });

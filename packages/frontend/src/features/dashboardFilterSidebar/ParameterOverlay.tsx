@@ -13,7 +13,7 @@ import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
 
 export const ParameterOverlays: FC = () => {
-    const { isParametersOpen } = useFilterSidebar();
+    const { parameterKey } = useFilterSidebar();
     const getUiString = useUiStrings();
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const tileParameterReferences = useDashboardContext(
@@ -43,25 +43,27 @@ export const ParameterOverlays: FC = () => {
     );
     const tileUuids = useMemo(
         () =>
-            Object.keys(tileParameterReferences).filter(
-                (tileUuid) => tileParameterReferences[tileUuid].length > 0,
+            Object.keys(tileParameterReferences).filter((tileUuid) =>
+                parameterKey === null
+                    ? false
+                    : tileParameterReferences[tileUuid].includes(parameterKey),
             ),
-        [tileParameterReferences],
+        [tileParameterReferences, parameterKey],
     );
     const targets = usePortalTargets(
         tileUuids,
         getTileSelector,
-        isParametersOpen,
+        parameterKey !== null,
     );
 
-    if (!isParametersOpen) return null;
+    if (parameterKey === null) return null;
 
     return (
         <>
             {Object.entries(targets).map(([tileUuid, element]) =>
                 createPortal(
                     <Group gap="xxs" wrap="wrap" className={classes.chips}>
-                        {tileParameterReferences[tileUuid]?.map((key) => {
+                        {[parameterKey].map((key) => {
                             const entry = sources[key]?.find(
                                 (source) => source.tileUuid === tileUuid,
                             );

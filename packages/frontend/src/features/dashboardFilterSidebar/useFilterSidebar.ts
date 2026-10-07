@@ -44,9 +44,10 @@ export type FilterSidebarContextValue = {
     backToPicker: () => void;
     apply: () => void;
     isDirty: boolean;
-    isParametersOpen: boolean;
-    openParameters: () => void;
-    closeParameters: () => void;
+    /** Key of the parameter shown in the sidebar; null while a filter is being edited. */
+    parameterKey: string | null;
+    openParameter: (key: string) => void;
+    closeParameter: () => void;
 };
 
 export const FilterSidebarContext =
