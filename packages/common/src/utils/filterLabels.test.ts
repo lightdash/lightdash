@@ -94,6 +94,15 @@ describe('getConditionalRuleLabel composed values', () => {
         expect(label.value).toEqual('month');
     });
 
+    it('renders the whole period when the unit is a day or finer', () => {
+        const rule: FilterRule = {
+            ...inTheCurrentRule,
+            settings: { unitOfTime: UnitOfTime.hours, toDate: true },
+        };
+        const label = getConditionalRuleLabel(rule, FilterType.DATE, 'Field');
+        expect(label.value).toEqual('hour');
+    });
+
     it('renders "to date" when toDate is on', () => {
         const rule: FilterRule = {
             ...inTheCurrentRule,

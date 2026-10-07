@@ -101,9 +101,11 @@ export const getUnitsOfTimeGreaterOrEqual = (
 export const unitOfTimeSupportsToDate = (unit: UnitOfTime): boolean =>
     getUnitsOfTimeGreaterOrEqual(UnitOfTime.weeks).includes(unit);
 
+export type CurrentPeriodBounds = { toDate: boolean; excludeToday: boolean };
+
 export const getCurrentPeriodBounds = (
     settings: DateFilterSettings | undefined,
-): { toDate: boolean; excludeToday: boolean } => {
+): CurrentPeriodBounds => {
     const toDate =
         settings?.toDate === true &&
         unitOfTimeSupportsToDate(settings.unitOfTime ?? UnitOfTime.days);

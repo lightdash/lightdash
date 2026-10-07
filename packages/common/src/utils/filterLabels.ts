@@ -14,6 +14,7 @@ import {
 import {
     FilterOperator,
     FilterType,
+    getCurrentPeriodBounds,
     isFilterRule,
     UnitOfTime,
     type BaseFilterRule,
@@ -291,10 +292,11 @@ const getValueAsString = (
                         }.singular`,
                         getUiString,
                     );
-                    if (!settings?.toDate) return unit;
+                    const bounds = getCurrentPeriodBounds(settings);
+                    if (!bounds.toDate) return unit;
                     return interpolateUiString(
                         resolveUiString(
-                            settings.excludeToday
+                            bounds.excludeToday
                                 ? 'filters.currentPeriod.toDateExcludingTodayValue'
                                 : 'filters.currentPeriod.toDateValue',
                             getUiString,

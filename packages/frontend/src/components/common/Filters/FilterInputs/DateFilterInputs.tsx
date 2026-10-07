@@ -9,6 +9,7 @@ import {
     timeframeToUnitOfTime,
     unitOfTimeSupportsToDate,
     type BaseFilterRule,
+    type CurrentPeriodBounds,
     type DateFilterRule,
     type DateFilterSettings,
     type UnitOfTime,
@@ -407,7 +408,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 unitOfTimeSupportsToDate(currentSettings.unitOfTime);
             const setCurrentSettings = (
                 unitOfTime: UnitOfTime | undefined,
-                bounds: { toDate: boolean; excludeToday: boolean },
+                bounds: CurrentPeriodBounds,
             ) =>
                 onChange({
                     ...rule,

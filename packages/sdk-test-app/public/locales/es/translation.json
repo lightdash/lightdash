@@ -182,7 +182,7 @@
         "filters.currentPeriod.toDate": "Hasta la fecha",
         "filters.currentPeriod.includeToday": "Incluir hoy",
         "filters.currentPeriod.toDateValue": "{unit} hasta la fecha",
-        "filters.currentPeriod.toDateExcludingTodayValue": "{unit} hasta la fecha, sin hoy",
+        "filters.currentPeriod.toDateExcludingTodayValue": "{unit} hasta la fecha, excluyendo hoy",
         "filters.unitsOfTime.milliseconds.singular": "milisegundo",
         "filters.unitsOfTime.milliseconds.plural": "milisegundos",
         "filters.unitsOfTime.milliseconds.completedSingular": "milisegundo completo",

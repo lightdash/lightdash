@@ -66,6 +66,13 @@ describe('DateFilterInputs in the current period bounds', () => {
         expect(screen.queryByLabelText('Include today')).toBeNull();
     });
 
+    it('hides both toggles when no unit is selected yet', () => {
+        renderInputs(buildRule({}));
+
+        expect(screen.queryByLabelText('To date')).toBeNull();
+        expect(screen.queryByLabelText('Include today')).toBeNull();
+    });
+
     it('hides both toggles for units of a day or finer', () => {
         renderInputs(buildRule({ unitOfTime: UnitOfTime.days }));
 
