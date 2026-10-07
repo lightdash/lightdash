@@ -1,3 +1,10 @@
+## [2.457.2](https://github.com/lightdash/lightdash/compare/2.457.1...2.457.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* **spaces:** show group custom-role members in the space share picker ([#30626](https://github.com/lightdash/lightdash/issues/30626)) ([9c92cfb](https://github.com/lightdash/lightdash/commit/9c92cfbe4d5ed289a4f88c2d89240f31b1a55766)), closes [#30580](https://github.com/lightdash/lightdash/issues/30580)
+
 ## [2.457.1](https://github.com/lightdash/lightdash/compare/2.457.0...2.457.1) (2026-10-07)
 
 
