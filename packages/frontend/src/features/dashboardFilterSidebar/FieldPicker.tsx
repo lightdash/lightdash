@@ -1,6 +1,7 @@
 import {
     FilterType,
     getDashboardFilterableFieldKey,
+    isDimension,
     type DashboardFilterableField,
 } from '@lightdash/common';
 import {
@@ -84,6 +85,18 @@ export const FieldPicker: FC<Props> = ({
         ? fields.filter((field) => matchesSearch(field, search))
         : [];
     const currentOpen = openTable ?? explores[0]?.table ?? null;
+    // A folded grain shows as its base dimension, so the chip says the same
+    const chipLabel = (field: DashboardFilterableField) => {
+        if (!isDimension(field) || !field.timeIntervalBaseDimensionName) {
+            return field.label;
+        }
+        const base = fields.find(
+            (item) =>
+                item.table === field.table &&
+                item.name === field.timeIntervalBaseDimensionName,
+        );
+        return base?.label ?? field.label;
+    };
     const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
 
     const renderFieldRow = (
@@ -96,6 +109,10 @@ export const FieldPicker: FC<Props> = ({
             <UnstyledButton
                 key={key}
                 className={classes.fieldRow}
+                aria-label={label}
+                aria-pressed={
+                    mode === 'multi' ? chosenKeys.has(key) : undefined
+                }
                 onClick={() => onToggle(field)}
             >
                 {mode === 'multi' && (
@@ -104,6 +121,7 @@ export const FieldPicker: FC<Props> = ({
                         checked={chosenKeys.has(key)}
                         readOnly
                         tabIndex={-1}
+                        aria-hidden
                     />
                 )}
                 <Text fz="sm" truncate className={classes.rowText}>
@@ -161,7 +179,7 @@ export const FieldPicker: FC<Props> = ({
                                     gap={2}
                                     className={classes.chip}
                                 >
-                                    <Text fz="xs">{field.label}</Text>
+                                    <Text fz="xs">{chipLabel(field)}</Text>
                                     <CloseButton
                                         size="xs"
                                         aria-label={`Unchoose ${field.label}`}
