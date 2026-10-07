@@ -19,6 +19,7 @@ import {
 } from '@lightdash/warehouses';
 import { type BoundProjectDbtSource } from '../models/ProjectDbtSourcesModel';
 import { type CompileConnection } from '../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { assertDucklakeConnectionAllowed } from '../utils/ducklakeConnectionPolicy';
 
 export type CompilableDbtSource = BoundProjectDbtSource & {
     dbtConnection: DbtProjectConfig;
@@ -275,12 +276,15 @@ export const warehouseClientForCompileGroup = (
     credentials: CreateWarehouseCredentials,
     listedDatabases: WarehouseListedDatabases,
     onSkippedDatabase: (database: string) => void,
+    allowMultiOrgs: boolean,
     options?: WarehouseClientOptions,
-): WarehouseClient =>
-    credentials.type === WarehouseTypes.POSTGRES
+): WarehouseClient => {
+    assertDucklakeConnectionAllowed(credentials, allowMultiOrgs);
+    return credentials.type === WarehouseTypes.POSTGRES
         ? new ListedDatabasesPostgresWarehouseClient(
               credentials,
               listedDatabases,
               onSkippedDatabase,
           )
         : warehouseClientFromCredentials(credentials, options);
+};

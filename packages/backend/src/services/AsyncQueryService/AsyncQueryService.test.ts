@@ -1135,6 +1135,7 @@ describe('AsyncQueryService', () => {
             expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
                 s3Config: {
                     endpoint: 'mock_endpoint',
+                    scope: ['s3://mock_bucket/'],
                     region: 'mock_region',
                     caCertFile: '/etc/ssl/certs/ca-certificates.crt',
                     accessKey: undefined,
@@ -1656,7 +1657,7 @@ describe('AsyncQueryService', () => {
             });
         });
 
-        test('reads external-source files on the pre-aggregate bucket session', async () => {
+        test('scopes external SQL to the resolved external-source files', async () => {
             const createExecutionWarehouseClient = vi.fn(
                 () => warehouseClientMock,
             );
@@ -1672,7 +1673,9 @@ describe('AsyncQueryService', () => {
                 } as unknown as ComposeEngineClient,
                 externalSourceTableResolver: vi.fn(async () => ({
                     external_source_table_uuid: 'table-uuid',
-                    external_source_scope: null,
+                    external_source_scope: [
+                        's3://mock_preagg_bucket/external-sources/file.parquet',
+                    ],
                     external_source_created_by_user_uuid: null,
                     version: 3,
                     locator: {
@@ -1699,7 +1702,9 @@ describe('AsyncQueryService', () => {
 
             expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
                 storage: 'externalSources',
-                scope: null,
+                scope: [
+                    's3://mock_preagg_bucket/external-sources/file.parquet',
+                ],
             });
         });
 

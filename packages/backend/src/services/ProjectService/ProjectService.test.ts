@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    assertRegisteredAccount,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -19,6 +20,8 @@ import {
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     EMPTY_WAREHOUSE_LOCATION,
     ExploreType,
     FeatureFlags,
@@ -14035,5 +14038,45 @@ describe('homepage popularity', () => {
             ['visible'],
             [],
         );
+    });
+});
+
+describe('shared-instance connection policy', () => {
+    it('rejects DuckLake connection tests before executing warehouse work', async () => {
+        assertRegisteredAccount(sessionAccount);
+        const service = getMockedProjectService({
+            ...lightdashConfigMock,
+            allowMultiOrgs: true,
+        });
+        const factory = vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        );
+        factory.mockClear();
+        await expect(
+            service.testWarehouseConnectionCredentials(
+                sessionAccount,
+                'synthetic-org',
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.DUCKLAKE,
+                    schema: 'main',
+                    catalog: {
+                        type: DucklakeCatalogType.POSTGRES,
+                        host: 'example.invalid',
+                        port: 5432,
+                        database: 'catalog',
+                        user: 'user',
+                        password: 'synthetic',
+                    },
+                    dataPath: {
+                        type: DucklakeDataPathType.S3,
+                        url: 's3://example/data/',
+                        accessKeyId: 'synthetic',
+                        secretAccessKey: 'synthetic',
+                    },
+                },
+            ),
+        ).rejects.toThrow('DuckLake connections are not supported');
+        expect(factory).not.toHaveBeenCalled();
     });
 });

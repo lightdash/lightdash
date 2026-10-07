@@ -216,6 +216,7 @@ import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
+import { assertDucklakeConnectionAllowed } from '../../utils/ducklakeConnectionPolicy';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     acquireProjectSlugLock,
@@ -7331,6 +7332,10 @@ export class ProjectModel {
         credentials: CreateWarehouseCredentials,
         options?: Parameters<typeof warehouseClientFromCredentials>[1],
     ) {
+        assertDucklakeConnectionAllowed(
+            credentials,
+            this.lightdashConfig.allowMultiOrgs,
+        );
         return warehouseClientFromCredentials(credentials, {
             // The client is shared by all concurrent async query jobs
             maxOpenConnections:

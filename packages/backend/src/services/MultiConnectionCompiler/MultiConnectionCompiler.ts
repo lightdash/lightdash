@@ -85,6 +85,7 @@ type CompiledExtraGroup = {
 };
 
 type MultiConnectionCompilerArguments = {
+    allowMultiOrgs: boolean;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
@@ -121,6 +122,8 @@ const withErrorSource = (
 };
 
 export class MultiConnectionCompiler {
+    private readonly allowMultiOrgs: boolean;
+
     private readonly projectModel: ProjectModel;
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
@@ -128,6 +131,7 @@ export class MultiConnectionCompiler {
     private readonly warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 
     constructor(args: MultiConnectionCompilerArguments) {
+        this.allowMultiOrgs = args.allowMultiOrgs;
         this.projectModel = args.projectModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.warehouseConnectionCompileModel =
@@ -227,6 +231,7 @@ export class MultiConnectionCompiler {
                     const warning = `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`;
                     if (!warnings.includes(warning)) warnings.push(warning);
                 },
+                this.allowMultiOrgs,
                 await this.getWarehouseClientOptions(
                     projectUuid,
                     warehouseCredentials,
@@ -357,6 +362,7 @@ export class MultiConnectionCompiler {
                         `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
                     );
                 },
+                this.allowMultiOrgs,
                 await this.getWarehouseClientOptions(
                     projectUuid,
                     primary.warehouseCredentials,

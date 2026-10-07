@@ -9239,12 +9239,12 @@ export class AsyncQueryService extends ProjectService {
             externalSourceSalt,
         });
 
-        // External-source files live in the pre-aggregates bucket, so the
-        // session is that bucket's. Throws MissingConfigError without it
+        // External-source files live in the pre-aggregates bucket. Restrict the
+        // session to the files resolved for this request.
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'externalSources',
-                scope: null,
+                scope: resolvedTables.map(({ locator }) => locator.uri),
             });
 
         const queryTags: RunQueryTags = {

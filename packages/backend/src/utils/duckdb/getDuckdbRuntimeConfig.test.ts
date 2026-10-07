@@ -68,6 +68,15 @@ describe('DuckDB GCP OAuth storage', () => {
             ).resolves.toMatchObject({ rows: [{ value: 84 }] });
             expect(authorizationHeaders).toContain('Bearer first-token');
 
+            // Reads outside the configured storage scope must not reach storage.
+            const requestCount = authorizationHeaders.length;
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM read_json('s3://other-results/first.jsonl')",
+                ),
+            ).rejects.toThrow();
+            expect(authorizationHeaders).toHaveLength(requestCount);
+
             token = 'refreshed-token';
             authorizationHeaders = [];
             await expect(

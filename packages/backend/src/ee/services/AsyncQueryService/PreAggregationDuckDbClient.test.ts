@@ -195,6 +195,7 @@ describe('PreAggregationDuckDbClient', () => {
                 type: 'duckdb_s3',
                 s3Config: {
                     endpoint: 'mock_endpoint',
+                    scope: ['s3://mock_preagg_bucket/'],
                     region: 'mock_region',
                     accessKey: undefined,
                     secretKey: undefined,

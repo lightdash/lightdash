@@ -47,6 +47,7 @@ export const getDuckdbRuntimeConfig = (
         secretKey: s3Config.secretKey,
         forcePathStyle: s3Config.forcePathStyle === true,
         useSsl,
+        scope: [`s3://${s3Config.bucket}/`],
     };
 
     switch (s3Config.authMode) {
@@ -55,7 +56,6 @@ export const getDuckdbRuntimeConfig = (
                 ...runtimeConfig,
                 authMode: 'gcp_oauth',
                 getAccessToken: getGcpAccessToken,
-                scope: [`s3://${s3Config.bucket}/`],
             };
         case 'default':
         case undefined:

@@ -17,6 +17,8 @@ import {
     DbtProjectType,
     DimensionType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     ExploreType,
     FieldType,
     MetricType,
@@ -102,6 +104,29 @@ function queryMatcher(
 
 describe('ProjectModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
+
+    it('rejects saved DuckLake credentials before creating a client on shared instances', () => {
+        const sharedModel = new ProjectModel({
+            database,
+            lightdashConfig: { ...lightdashConfigMock, allowMultiOrgs: true },
+            encryptionUtil: encryptionUtilMock,
+        });
+        expect(() =>
+            sharedModel.getWarehouseClientFromCredentials({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
+                schema: 'main',
+                catalog: {
+                    type: DucklakeCatalogType.DUCKDB,
+                    path: '/tmp/synthetic.ducklake',
+                },
+                dataPath: {
+                    type: DucklakeDataPathType.LOCAL,
+                    path: '/tmp/synthetic-data',
+                },
+            }),
+        ).toThrow('DuckLake connections are not supported');
+    });
 
     const model = new ProjectModel({
         database,

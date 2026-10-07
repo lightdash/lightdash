@@ -44,7 +44,7 @@ const SCOPED_SESSION_RESOURCE_LIMITS: DuckdbResourceLimits = {
  */
 export type ComposeEngineSession =
     | { storage: 'results'; scope: string[] | null }
-    | { storage: 'externalSources'; scope: string | null };
+    | { storage: 'externalSources'; scope: string | string[] | null };
 
 type ComposeEngineStorage = ComposeEngineSession['storage'];
 
@@ -189,7 +189,9 @@ export class ComposeEngineClient {
             case 'results':
                 return session.scope;
             case 'externalSources':
-                return session.scope === null ? null : [session.scope];
+                return typeof session.scope === 'string'
+                    ? [session.scope]
+                    : session.scope;
             default:
                 return assertUnreachable(
                     session,

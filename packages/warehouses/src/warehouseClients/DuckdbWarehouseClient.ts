@@ -999,6 +999,31 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
+    /** Restrict storage sessions once, before sharing the initialized instance. */
+    private async restrictStorageFileAccess(
+        db: DuckdbConnection,
+    ): Promise<void> {
+        if (!this.allowsPreAggregateFileReads) return;
+
+        const scope = this.s3Config?.scope ?? [];
+        const literals = (paths: string[]) =>
+            paths
+                .map(
+                    (filePath) =>
+                        `'${DuckdbWarehouseClient.escapeDuckdbString(filePath)}'`,
+                )
+                .join(',');
+        await db.run(
+            `SET allowed_paths = [${literals(scope.filter((filePath) => !filePath.endsWith('/')))}];`,
+        );
+        await db.run(
+            `SET allowed_directories = [${literals(scope.filter((filePath) => filePath.endsWith('/')))}];`,
+        );
+        // The native boundary also covers implicit file scans, while preserving
+        // internal temporary files used for disk spilling.
+        await db.run('SET enable_external_access = false;');
+    }
+
     private static async bootstrapQuerySession(
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
@@ -1062,6 +1087,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
         }
 
+        await client.restrictStorageFileAccess(db);
         await DuckdbWarehouseClient.hardenInstance(db);
 
         const bootstrapMs = performance.now() - bootstrapStart;
@@ -1834,6 +1860,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
         }
 
+        await this.restrictStorageFileAccess(db);
         await DuckdbWarehouseClient.hardenInstance(db);
 
         this.logger?.info(

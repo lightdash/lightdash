@@ -418,6 +418,7 @@ import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
+import { assertDucklakeConnectionAllowed } from '../../utils/ducklakeConnectionPolicy';
 import {
     redactExploreSql,
     redactFieldSql,
@@ -911,6 +912,7 @@ export class ProjectService extends BaseService {
         this.warehouseConnectionIdentityModel =
             warehouseConnectionIdentityModel;
         this.multiConnectionCompiler = new MultiConnectionCompiler({
+            allowMultiOrgs: this.lightdashConfig.allowMultiOrgs,
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -2433,6 +2435,10 @@ export class ProjectService extends BaseService {
             organizationWarehouseCredentialsUuid?: string;
         },
     >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+        assertDucklakeConnectionAllowed(
+            rawArgs.warehouseConnection,
+            this.lightdashConfig.allowMultiOrgs,
+        );
         // Normalize submitted credentials so in-flight connection tests and
         // compiles never see legacy values that violate the credentials types
         const args: T = {
@@ -6296,6 +6302,7 @@ export class ProjectService extends BaseService {
                 cachedWarehouse,
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
+                this.lightdashConfig.allowMultiOrgs,
                 dbtPartialParse && projectUuid !== null
                     ? getDbtPartialParseBaselinePath({
                           projectUuid,
@@ -6976,6 +6983,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse,
             dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
+            this.lightdashConfig.allowMultiOrgs,
             dbtPartialParse
                 ? getDbtPartialParseBaselinePath({
                       projectUuid,
@@ -7031,6 +7039,7 @@ export class ProjectService extends BaseService {
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
+            this.lightdashConfig.allowMultiOrgs,
             partialParseBaselinePath,
             this.analytics,
             undefined,
@@ -7603,6 +7612,7 @@ export class ProjectService extends BaseService {
                 shared.cachedWarehouse,
                 shared.dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
+                this.lightdashConfig.allowMultiOrgs,
                 null,
                 this.analytics,
                 // Keep the primary source's lightdash.config.yml / project_context.yml

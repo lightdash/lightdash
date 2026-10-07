@@ -14,6 +14,7 @@ import {
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
+import { assertDucklakeConnectionAllowed } from '../utils/ducklakeConnectionPolicy';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
@@ -36,6 +37,7 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     environmentVariableAllowlist: string[],
+    allowMultiOrgs: boolean,
     partialParseBaselinePath: string | null,
     analytics?: LightdashAnalytics,
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
@@ -46,6 +48,7 @@ export const projectAdapterFromConfig = async (
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
     );
+    assertDucklakeConnectionAllowed(warehouseCredentials, allowMultiOrgs);
     const warehouseClient = warehouseClientFromCredentials(
         warehouseCredentials,
         warehouseClientOptions,

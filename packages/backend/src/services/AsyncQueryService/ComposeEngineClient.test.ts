@@ -51,6 +51,7 @@ const CA_BUNDLE = '/etc/ssl/certs/ca-certificates.crt';
 const resolveCaCertFile = () => CA_BUNDLE;
 
 const resultsSession = {
+    scope: ['s3://results-bucket/'],
     endpoint: 'results.example.com',
     region: 'results-region',
     accessKey: 'results-access-key',
@@ -61,6 +62,7 @@ const resultsSession = {
 };
 
 const preAggregateSession = {
+    scope: ['s3://preagg-bucket/'],
     endpoint: 'preagg.example.com:9000',
     region: 'preagg-region',
     accessKey: 'preagg-access-key',
@@ -227,6 +229,37 @@ describe('ComposeEngineClient', () => {
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
             s3Config: { ...preAggregateSession, scope: [scope] },
+            resourceLimits: { memoryLimit: '512MB', threads: 2 },
+            organizationConcurrencyLimit:
+                withPreAggregateBucket.externalSources
+                    .maxConcurrentDuckdbQueriesPerOrganization,
+        });
+    });
+
+    test('multiple external-source files share one isolated scope', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            lightdashConfig: withPreAggregateBucket,
+            createDuckdbWarehouseClient,
+        });
+        const scope = [
+            's3://preagg-bucket/external-sources/first.parquet',
+            's3://preagg-bucket/external-sources/second.parquet',
+        ];
+
+        client.createExecutionWarehouseClient({
+            storage: 'externalSources',
+            scope,
+        });
+        client.createExecutionWarehouseClient({
+            storage: 'externalSources',
+            scope,
+        });
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
+            s3Config: { ...preAggregateSession, scope },
             resourceLimits: { memoryLimit: '512MB', threads: 2 },
             organizationConcurrencyLimit:
                 withPreAggregateBucket.externalSources

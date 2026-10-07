@@ -668,6 +668,36 @@ describe('DuckdbWarehouseClient', () => {
         });
     });
 
+    it('confines storage-backed query sessions before binding user SQL', async () => {
+        const extractStatements = createMockExtractStatements();
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock, { extractStatements }),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'localhost:9000',
+                region: 'us-east-1',
+                forcePathStyle: true,
+                useSsl: false,
+            },
+        });
+        await client.runQuery('SELECT 1 AS val');
+        expect(runMock).toHaveBeenCalledWith(
+            'SET enable_external_access = false;',
+        );
+        const confinementCall = runMock.mock.calls.findIndex(
+            ([sql]) => sql === 'SET enable_external_access = false;',
+        );
+        expect(runMock.mock.invocationCallOrder[confinementCall]).toBeLessThan(
+            extractStatements.mock.invocationCallOrder[0],
+        );
+    });
+
     it('should stream results in multiple chunks', async () => {
         const chunk1 = [{ id: 1 }, { id: 2 }];
         const chunk2 = [{ id: 3 }];

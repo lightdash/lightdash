@@ -433,6 +433,7 @@ describe('Multi-connection compile on the real schema', () => {
             database,
         });
         compiler = new MultiConnectionCompiler({
+            allowMultiOrgs: false,
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
