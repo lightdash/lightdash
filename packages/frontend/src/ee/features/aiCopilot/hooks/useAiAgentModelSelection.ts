@@ -329,7 +329,7 @@ export const useAiAgentModelSelection = ({
         selectedModelKey === null && storedModel === undefined;
     const agentDefault = useMemo<AgentDefaultOption>(
         () => ({
-            model: defaultModelSelection?.model,
+            model: defaultModelSelection?.model ?? null,
             isSelected: isAgentDefaultSelected,
             onSelect: handleAgentDefaultSelect,
         }),

@@ -23,7 +23,7 @@ import {
 // Opt-in for composers only: settings pickers set the agent's own model and
 // have no default to fall back to.
 export type AgentDefaultOption = {
-    model: AiModelOption | undefined;
+    model: AiModelOption | null;
     isSelected: boolean;
     onSelect: () => void;
 };

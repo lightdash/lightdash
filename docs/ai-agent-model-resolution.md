@@ -9,7 +9,7 @@ thread's history shows which model answered each turn.
 
 1. **Explicit pick** — the model the user chose in the composer's model picker.
 2. **Agent model** — the model set on the agent (agent settings).
-3. **Organization default** — the default model in the organization's AI
+3. **Organization default** — the model set in the organization's AI
    settings.
 4. **Instance default** — the server's built-in default when nothing above is
    configured.
@@ -17,7 +17,10 @@ thread's history shows which model answered each turn.
 A thread does not remember the model of its first message. When an admin moves
 an agent to a new model, every thread that has no explicit pick follows on its
 next prompt; the composer in an existing thread shows the model the next
-message will use before it is sent.
+message will use before it is sent. One gap: an embed does not load the
+organization's AI settings, so for an agent with no model of its own the
+embedded composer shows the instance default while the server still resolves
+the organization default.
 
 ## Explicit picks and "Agent default"
 
@@ -25,10 +28,10 @@ A pick is stored per agent and per browser, not per thread: picking a model
 in one thread applies to the other threads and new threads of that agent in
 the same browser. The first entry in the picker, **Agent default**, shows the
 model the agent currently resolves to and is marked selected whenever no pick
-is stored. Choosing it clears the stored pick so the composer follows the
-agent again.
+is stored. Choosing it clears the stored pick and turns extended thinking off,
+so the composer follows the agent again.
 
-Toggling extended thinking on the default model sends that model explicitly
+Toggling extended thinking on the agent's model sends that model explicitly
 for the prompt, because reasoning needs a concrete model, but it does not
 store a pick.
 

@@ -66,4 +66,27 @@ describe('ModelSelector', () => {
 
         expect(onSelect).toHaveBeenCalledTimes(1);
     });
+
+    it('marks only the agent default while it is selected, even when a model is still set', async () => {
+        renderWithProviders(
+            <ModelSelector
+                models={models}
+                value="anthropic:other-model"
+                onChange={vi.fn()}
+                agentDefault={{
+                    model: agentModel,
+                    isSelected: true,
+                    onSelect: vi.fn(),
+                }}
+            />,
+        );
+
+        const menu = await openMenu();
+        const [agentDefaultRow, ...modelRows] = menu.getAllByRole('menuitem');
+
+        expect(agentDefaultRow.querySelector('svg')).toBeInTheDocument();
+        modelRows.forEach((row) => {
+            expect(row.querySelector('svg')).not.toBeInTheDocument();
+        });
+    });
 });
