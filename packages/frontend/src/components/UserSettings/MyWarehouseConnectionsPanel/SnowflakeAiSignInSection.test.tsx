@@ -85,7 +85,12 @@ describe('SnowflakeAiSignInSection', () => {
         'offers sign-in when no AI-purpose credential exists',
         ({ credentials }) => {
             renderSection(credentials);
-            expect(screen.getByText('Agent not connected')).toBeInTheDocument();
+            expect(
+                screen.getByRole('heading', { name: 'Agent connection' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByText('Agent not connected'),
+            ).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', {
                     name: 'Connect agent',

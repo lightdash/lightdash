@@ -42,9 +42,7 @@ export const SnowflakeAiSignInSection = ({
                                 ).toLocaleDateString()}
                             </Text>
                         </Group>
-                    ) : (
-                        <Text fz="sm">Agent not connected</Text>
-                    )}
+                    ) : null}
                     {credential ? (
                         <Button
                             size="xs"
