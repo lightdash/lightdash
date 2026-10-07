@@ -7,6 +7,7 @@ import {
     NotFoundError,
     SessionUser,
 } from '@lightdash/common';
+import memoize from 'lodash/memoize';
 import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -27,7 +28,7 @@ type Dependencies = {
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
-        | 'getCachedExploreNames'
+        | 'getAnalyticsModelCounts'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
     >;
@@ -37,6 +38,21 @@ type Dependencies = {
     >;
     userModel: Pick<UserModel, 'invalidateSessionUserCache'>;
 };
+
+// Definitions are static for the running release; compile once, not per status request.
+const expectedModelCounts = memoize(() =>
+    createAnalyticsExplores().map((explore) => ({
+        name: explore.name,
+        fields: Object.values(explore.tables).reduce(
+            (total, table) =>
+                total +
+                Object.keys(table.dimensions).length +
+                Object.keys(table.metrics).length,
+            0,
+        ),
+        hiddenJoins: explore.joinedTables.filter((join) => join.hidden).length,
+    })),
+);
 
 export class AnalyticsProjectService extends BaseService {
     constructor(private readonly dependencies: Dependencies) {
@@ -74,9 +90,10 @@ export class AnalyticsProjectService extends BaseService {
         const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
             charts.map(({ slug }) => slug),
         );
-        const [exploreNames, dashboards, charts] = await Promise.all([
-            this.dependencies.projectModel.getCachedExploreNames(
+        const [models, dashboards, charts] = await Promise.all([
+            this.dependencies.projectModel.getAnalyticsModelCounts(
                 project.projectUuid,
+                analyticsExploreNames,
             ),
             this.dependencies.dashboardModel.find({
                 projectUuid: project.projectUuid,
@@ -88,9 +105,14 @@ export class AnalyticsProjectService extends BaseService {
             }),
         ]);
         // Ignore custom models, dashboards and charts when checking managed content.
-        const managedModelCount = exploreNames.filter((name) =>
-            analyticsExploreNames.some((expected) => expected === name),
-        ).length;
+        const modelsAreCurrent = expectedModelCounts().every((expected) =>
+            models.some(
+                (model) =>
+                    model.name === expected.name &&
+                    model.fields === expected.fields &&
+                    model.hiddenJoins === expected.hiddenJoins,
+            ),
+        );
         return {
             project: {
                 projectUuid: project.projectUuid,
@@ -99,7 +121,7 @@ export class AnalyticsProjectService extends BaseService {
                 url: `/projects/${project.slug ?? project.projectUuid}/tables`,
                 createdAt: new Date(project.createdAt).toISOString(),
                 hasContentUpdates:
-                    managedModelCount !== analyticsExploreNames.length ||
+                    !modelsAreCurrent ||
                     dashboards.length !== dashboardSlugs.length ||
                     charts.length !== chartSlugs.length,
             },

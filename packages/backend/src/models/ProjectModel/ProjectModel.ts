@@ -2947,6 +2947,26 @@ export class ProjectModel {
         );
     }
 
+    async getAnalyticsModelCounts(
+        projectUuid: string,
+        names: readonly string[],
+    ) {
+        return this.database(CachedExploreTableName)
+            .select<{ name: string; fields: number; hiddenJoins: number }[]>([
+                'name',
+                this.database.raw(
+                    `
+                    jsonb_array_length(jsonb_path_query_array(explore, '$.tables.*.dimensions.*'))
+                    + jsonb_array_length(jsonb_path_query_array(explore, '$.tables.*.metrics.*')) AS fields,
+                    jsonb_array_length(jsonb_path_query_array(explore, ?)) AS "hiddenJoins"
+                `,
+                    ['$.joinedTables[*] ? (@.hidden == true)'],
+                ),
+            ])
+            .where('project_uuid', projectUuid)
+            .whereIn('name', [...names]);
+    }
+
     async getCachedExploreNames(projectUuid: string): Promise<string[]> {
         const rows = await this.database(CachedExploreTableName)
             .select<{ name: string }[]>('name')
