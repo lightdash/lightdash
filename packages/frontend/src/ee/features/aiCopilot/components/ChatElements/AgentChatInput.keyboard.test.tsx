@@ -27,7 +27,9 @@ vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
         data: { refusal: access.refusal },
         isLoading: access.isLoading,
+        isFetching: false,
         isError: access.isError,
+        isAccessRequired: true,
         refetch: vi.fn(),
     }),
 }));
