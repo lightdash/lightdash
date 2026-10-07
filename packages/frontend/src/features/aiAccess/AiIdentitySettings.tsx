@@ -3,6 +3,7 @@ import {
     AiAgentMarkerLevel,
     AiPrincipalKind,
     AiTransportKind,
+    assertUnreachable,
     type AiAccessPolicy,
     type AiWarehouseCapabilities,
     type UpsertAiAccessPolicy,
@@ -59,6 +60,20 @@ const isInvalid = (
         !value.sharedRef?.trim()
     );
 };
+const markerStatement = (level: AiAgentMarkerLevel): string => {
+    switch (level) {
+        case AiAgentMarkerLevel.VERIFIED_SESSION:
+            return 'Snowflake verifies the session once the person has done the AI sign-in.';
+        case AiAgentMarkerLevel.REQUEST_BOUND:
+            return "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it.";
+        case AiAgentMarkerLevel.IDENTIFY_ONLY:
+            return 'The marker identifies agent queries. It cannot restrict them.';
+        case AiAgentMarkerLevel.NONE:
+            return 'This warehouse cannot mark agent queries.';
+        default:
+            return assertUnreachable(level, 'Unknown agent marker level');
+    }
+};
 const IdentityStatement = ({
     capabilities,
     policy,
@@ -93,15 +108,7 @@ const IdentityStatement = ({
                     'Agents run as the marked person'
                 )}
             </Text>
-            <Text size="sm">
-                {level === AiAgentMarkerLevel.VERIFIED_SESSION
-                    ? 'Snowflake verifies the session once the person has done the AI sign-in.'
-                    : level === AiAgentMarkerLevel.REQUEST_BOUND
-                      ? "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it."
-                      : level === AiAgentMarkerLevel.IDENTIFY_ONLY
-                        ? 'The marker identifies agent queries in query history. It cannot restrict them.'
-                        : 'The marker is advisory on this warehouse. Any SQL in the session can change it.'}
-            </Text>
+            <Text size="sm">{markerStatement(level)}</Text>
             {!capabilities.principals.shared.available &&
                 level !== AiAgentMarkerLevel.VERIFIED_SESSION && (
                     <Text size="sm" c="dimmed">
@@ -260,7 +267,7 @@ export const AiIdentitySettings = ({
     connectionSelector: ReactNode;
 }) => {
     const canUseSeparate =
-        capabilities.marker.level === AiAgentMarkerLevel.ADVISORY_SESSION &&
+        capabilities.marker.level !== AiAgentMarkerLevel.VERIFIED_SESSION &&
         capabilities.principals.shared.available;
     const savedSeparate =
         policy !== null && policy.principalKind !== AiPrincipalKind.PERSON;

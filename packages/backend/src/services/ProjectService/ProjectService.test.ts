@@ -14298,7 +14298,7 @@ describe('AI principal credential routing', () => {
             assurances: [
                 {
                     kind: 'agent_marker',
-                    level: AiAgentMarkerLevel.ADVISORY_SESSION,
+                    level: AiAgentMarkerLevel.IDENTIFY_ONLY,
                 },
             ],
             audit: {

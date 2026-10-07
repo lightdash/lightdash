@@ -61,7 +61,7 @@ export const markedPersonPlanMock: Extract<
     identity: 'marked_person',
     transport: { kind: AiTransportKind.DIRECT },
     assurances: [
-        { kind: 'agent_marker', level: AiAgentMarkerLevel.ADVISORY_SESSION },
+        { kind: 'agent_marker', level: AiAgentMarkerLevel.IDENTIFY_ONLY },
     ],
     audit: {
         personUuid: 'person-uuid',

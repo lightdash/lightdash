@@ -10,7 +10,6 @@ export const AI_AGENT_SESSION_SETTING = 'lightdash.agent';
 
 export enum AiAgentMarkerLevel {
     VERIFIED_SESSION = 'verified_session',
-    ADVISORY_SESSION = 'advisory_session',
     REQUEST_BOUND = 'request_bound',
     IDENTIFY_ONLY = 'identify_only',
     NONE = 'none',

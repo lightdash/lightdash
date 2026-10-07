@@ -29,7 +29,7 @@ ALTER TABLE protected_data ADD ROW ACCESS POLICY agent_access ON (ai_allowed);`,
             };
         case WarehouseTypes.POSTGRES:
             return {
-                level: AiAgentMarkerLevel.ADVISORY_SESSION,
+                level: AiAgentMarkerLevel.IDENTIFY_ONLY,
                 signals: [
                     {
                         name: 'application_name',
@@ -44,14 +44,12 @@ ALTER TABLE protected_data ADD ROW ACCESS POLICY agent_access ON (ai_allowed);`,
                         where: 'end of the query text, "agent":"true"',
                     },
                 ],
-                note: 'Session settings are advisory. Any SQL in the session can change them.',
-                enforce: `ALTER TABLE protected_data ENABLE ROW LEVEL SECURITY;
-CREATE POLICY agent_access ON protected_data
-USING (current_setting('lightdash.agent', true) IS DISTINCT FROM 'true' OR ai_allowed);`,
+                note: 'The session setting and application name identify agent sessions in pg_stat_activity. They are not a control: any SQL in the session can change them. Use a separate principal for a hard boundary.',
+                enforce: null,
             };
         case WarehouseTypes.REDSHIFT:
             return {
-                level: AiAgentMarkerLevel.ADVISORY_SESSION,
+                level: AiAgentMarkerLevel.IDENTIFY_ONLY,
                 signals: [
                     {
                         name: 'application_name',
@@ -66,11 +64,8 @@ USING (current_setting('lightdash.agent', true) IS DISTINCT FROM 'true' OR ai_al
                         where: 'sys_query_history query_text, "agent":"true"',
                     },
                 ],
-                note: 'Session settings are advisory. Any SQL in the session can change them.',
-                enforce: `CREATE RLS POLICY agent_access WITH (ai_allowed BOOLEAN)
-USING (COALESCE(current_setting('lightdash.agent', false), 'false') <> 'true' OR ai_allowed);
-ATTACH RLS POLICY agent_access ON protected_data TO PUBLIC;
-ALTER TABLE protected_data ROW LEVEL SECURITY ON;`,
+                note: 'The session context variable and application name identify agent sessions. They are not a control: any SQL in the session can change them. Use a separate principal for a hard boundary.',
+                enforce: null,
             };
         case WarehouseTypes.DATABRICKS:
             return {
@@ -110,16 +105,15 @@ ALTER TABLE protected_data ROW LEVEL SECURITY ON;`,
             };
         case WarehouseTypes.CLICKHOUSE:
             return {
-                level: AiAgentMarkerLevel.ADVISORY_SESSION,
+                level: AiAgentMarkerLevel.IDENTIFY_ONLY,
                 signals: [
                     {
                         name: 'log_comment',
                         where: 'system.query_log, "agent":"true"',
                     },
                 ],
-                note: "A row policy can read getSetting('SQL_agent'), but the query's SETTINGS clause can change it. Prefer the HTTP role parameter: it activates an agent role whose grants and row policies apply and which SQL cannot drop. EXECUTE AS is the only identity SQL cannot change, but is not available in ClickHouse Cloud. The app would need to send role=agent_role; this is not yet a feature here.",
-                enforce:
-                    'CREATE ROW POLICY agent_access ON protected_data USING NOT pii TO agent_role;',
+                note: "The log comment identifies agent queries in system.query_log. A custom setting is not a control: the query's own SETTINGS clause can change it. A hard boundary needs a separate user or a role switched on per request.",
+                enforce: null,
             };
         case WarehouseTypes.TRINO:
             return {

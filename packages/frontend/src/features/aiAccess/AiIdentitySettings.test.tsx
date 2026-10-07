@@ -22,7 +22,7 @@ vi.mock('./AiSetupScriptDrawer', () => ({ AiSetupScriptDrawer: () => null }));
 const capabilities: AiWarehouseCapabilities = {
     warehouseType: WarehouseTypes.POSTGRES,
     marker: {
-        level: AiAgentMarkerLevel.ADVISORY_SESSION,
+        level: AiAgentMarkerLevel.IDENTIFY_ONLY,
         signals: [],
         note: null,
         enforce: null,
@@ -218,6 +218,27 @@ describe('Agent identity draft', () => {
         ).toBeInTheDocument();
         expect(mutate).not.toHaveBeenCalled();
     });
+    it.each(Object.values(AiAgentMarkerLevel))(
+        'offers a hard boundary when shared is available and the marker is not verified: %s',
+        (level) => {
+            renderSettings(null, {
+                ...capabilities,
+                marker: { ...capabilities.marker, level },
+            });
+            const disclosure = screen.queryByRole('button', {
+                name: 'Need a hard boundary? Use a separate principal',
+            });
+            if (level === AiAgentMarkerLevel.VERIFIED_SESSION) {
+                expect(disclosure).not.toBeInTheDocument();
+            } else {
+                expect(disclosure).toBeInTheDocument();
+                fireEvent.click(disclosure!);
+                expect(
+                    screen.getByLabelText('Principal reference'),
+                ).toBeInTheDocument();
+            }
+        },
+    );
     it('shows only the marked person statement for verified sessions even when shared is available', () => {
         renderSettings(null, {
             ...capabilities,
@@ -240,7 +261,6 @@ describe('Agent identity draft', () => {
         expect(screen.queryByRole('radio')).not.toBeInTheDocument();
     });
     it.each([
-        AiAgentMarkerLevel.ADVISORY_SESSION,
         AiAgentMarkerLevel.IDENTIFY_ONLY,
         AiAgentMarkerLevel.REQUEST_BOUND,
     ])('shows the coming-soon reason without controls for %s', (level) => {
@@ -262,9 +282,7 @@ describe('Agent identity draft', () => {
             screen.getByText(
                 level === AiAgentMarkerLevel.REQUEST_BOUND
                     ? "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it."
-                    : level === AiAgentMarkerLevel.IDENTIFY_ONLY
-                      ? 'The marker identifies agent queries in query history. It cannot restrict them.'
-                      : 'The marker is advisory on this warehouse. Any SQL in the session can change it.',
+                    : 'The marker identifies agent queries. It cannot restrict them.',
             ),
         ).toBeInTheDocument();
         expect(
@@ -279,7 +297,6 @@ describe('Agent identity draft', () => {
         AiAgentMarkerLevel.VERIFIED_SESSION,
         AiAgentMarkerLevel.IDENTIFY_ONLY,
         AiAgentMarkerLevel.REQUEST_BOUND,
-        AiAgentMarkerLevel.ADVISORY_SESSION,
     ])(
         'confirms switching an API policy on a person-only warehouse at %s',
         (level) => {
@@ -318,6 +335,10 @@ describe('Agent identity draft', () => {
     it('shows the dotted message without Identity controls or Test for no marker', () => {
         renderSettings(policy, {
             ...capabilities,
+            principals: {
+                ...capabilities.principals,
+                shared: { available: false, reason: 'Unavailable' },
+            },
             marker: { ...capabilities.marker, level: AiAgentMarkerLevel.NONE },
         });
         expect(

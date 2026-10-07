@@ -3,12 +3,12 @@ import { describeAgentMarker } from './agentMarker';
 
 const levels: Record<WarehouseTypes, AiAgentMarkerLevel> = {
     [WarehouseTypes.SNOWFLAKE]: AiAgentMarkerLevel.VERIFIED_SESSION,
-    [WarehouseTypes.POSTGRES]: AiAgentMarkerLevel.ADVISORY_SESSION,
-    [WarehouseTypes.REDSHIFT]: AiAgentMarkerLevel.ADVISORY_SESSION,
+    [WarehouseTypes.POSTGRES]: AiAgentMarkerLevel.IDENTIFY_ONLY,
+    [WarehouseTypes.REDSHIFT]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.DATABRICKS]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.BIGQUERY]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.ATHENA]: AiAgentMarkerLevel.IDENTIFY_ONLY,
-    [WarehouseTypes.CLICKHOUSE]: AiAgentMarkerLevel.ADVISORY_SESSION,
+    [WarehouseTypes.CLICKHOUSE]: AiAgentMarkerLevel.IDENTIFY_ONLY,
     [WarehouseTypes.TRINO]: AiAgentMarkerLevel.REQUEST_BOUND,
     [WarehouseTypes.DUCKDB]: AiAgentMarkerLevel.NONE,
 };
@@ -20,17 +20,11 @@ describe('describeAgentMarker', () => {
         expect(JSON.stringify(marker)).not.toContain('Lightdash');
         expect(marker.signals.length > 0).toBe(type !== WarehouseTypes.DUCKDB);
         expect(marker.enforce !== null).toBe(
-            [
-                WarehouseTypes.SNOWFLAKE,
-                WarehouseTypes.POSTGRES,
-                WarehouseTypes.REDSHIFT,
-                WarehouseTypes.CLICKHOUSE,
-                WarehouseTypes.TRINO,
-            ].includes(type),
+            [WarehouseTypes.SNOWFLAKE, WarehouseTypes.TRINO].includes(type),
         );
     });
 
-    test('gives each Postgres marker a read location and an advisory note', () => {
+    test('gives each Postgres marker a read location and an identification-only note', () => {
         expect(describeAgentMarker(WarehouseTypes.POSTGRES)).toMatchObject({
             signals: [
                 {
@@ -46,7 +40,7 @@ describe('describeAgentMarker', () => {
                     where: 'end of the query text, "agent":"true"',
                 },
             ],
-            note: 'Session settings are advisory. Any SQL in the session can change them.',
+            note: 'The session setting and application name identify agent sessions in pg_stat_activity. They are not a control: any SQL in the session can change them. Use a separate principal for a hard boundary.',
         });
     });
 
@@ -68,13 +62,12 @@ describe('describeAgentMarker', () => {
         ).toContain('Ranger clientType');
     });
 
-    test('describes ClickHouse role enforcement as a feature not yet sent by the app', () => {
+    test('describes ClickHouse markers as identification only', () => {
         const marker = describeAgentMarker(WarehouseTypes.CLICKHOUSE);
-        expect(marker.enforce).toContain('USING NOT pii TO agent_role');
-        expect(marker.note).toContain(
-            'role=agent_role; this is not yet a feature here',
+        expect(marker.enforce).toBeNull();
+        expect(marker.note).toBe(
+            "The log comment identifies agent queries in system.query_log. A custom setting is not a control: the query's own SETTINGS clause can change it. A hard boundary needs a separate user or a role switched on per request.",
         );
-        expect(marker.note).toContain("getSetting('SQL_agent')");
     });
 
     test('uses the verified Snowflake agent session expression', () => {

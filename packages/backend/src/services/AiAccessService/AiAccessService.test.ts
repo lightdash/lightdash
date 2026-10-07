@@ -3,6 +3,7 @@ import {
     AI_DIRECT_TRANSPORT,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    AiAgentMarkerLevel,
     AiCredentialMethod,
     AiPrincipalFailureReason,
     AiPrincipalKind,
@@ -335,26 +336,53 @@ describe('AiAccessService', () => {
         ).rejects.toThrow(ForbiddenError);
         expect(runQuery).not.toHaveBeenCalled();
     });
-    test.each([
-        ['true', 'lightdash-ai', true],
-        [null, 'normal', false],
-    ] as const)(
-        'checks the session marker and application name',
-        async (agent, applicationName, ok) => {
-            const { service } = setup();
-            const runQuery = vi.fn(async () => [
-                { agent, application_name: applicationName },
-            ]);
-            expect(
-                await service.testMarker(account, 'project', null, runQuery),
-            ).toMatchObject({
-                ok,
-                observed: { agent, application_name: applicationName },
-            });
-            expect(runQuery).toHaveBeenCalledWith(
-                expect.stringContaining(
-                    "current_setting('lightdash.agent', true)",
-                ),
+    describe.each([WarehouseTypes.POSTGRES, WarehouseTypes.REDSHIFT] as const)(
+        '%s identification marker',
+        (type) => {
+            test.each([
+                ['true', 'lightdash-ai', true],
+                [null, 'lightdash-ai', false],
+                ['true', 'normal', false],
+                [null, 'normal', false],
+            ] as const)(
+                'checks marker %s and application name %s',
+                async (agent, applicationName, ok) => {
+                    const { service, projects } = setup();
+                    projects.getWarehouseCredentialsForProject.mockResolvedValue(
+                        {
+                            type,
+                            host: 'localhost',
+                            port: 5432,
+                            user: 'connection',
+                            password: 'test',
+                            dbname: 'test',
+                            schema: 'public',
+                        },
+                    );
+                    const runQuery = vi.fn(async () => [
+                        { agent, application_name: applicationName },
+                    ]);
+                    expect(
+                        await service.testMarker(
+                            account,
+                            'project',
+                            null,
+                            runQuery,
+                        ),
+                    ).toMatchObject({
+                        ok,
+                        level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                        observed: { agent, application_name: applicationName },
+                        message: ok
+                            ? 'The query succeeded with agent tags sent through the listed channels. These tags identify queries; they do not enforce access.'
+                            : 'The warehouse session did not report the expected agent marker.',
+                    });
+                    expect(runQuery).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            `current_setting('lightdash.agent', ${type === WarehouseTypes.POSTGRES})`,
+                        ),
+                    );
+                },
             );
         },
     );
