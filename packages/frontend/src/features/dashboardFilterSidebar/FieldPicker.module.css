@@ -1,0 +1,65 @@
+.kindTile {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    text-align: center;
+}
+
+.kindTile:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.kindTileSelected {
+    background-color: var(--mantine-color-default-hover);
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.exploreRow {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.exploreRow:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.chevron {
+    transition: transform 150ms ease;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.fieldRow {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.fieldRow:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.rowText {
+    flex: 1;
+    min-width: 0;
+}
+
+.chip {
+    padding: 2px 4px 2px var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+}

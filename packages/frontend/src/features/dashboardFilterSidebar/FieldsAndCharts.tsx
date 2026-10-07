@@ -245,7 +245,16 @@ export const FieldsAndCharts: FC = () => {
                 </Text>
                 <FieldPicker
                     fields={candidates}
-                    onPick={(field) =>
+                    mode="single"
+                    chosen={[]}
+                    kind={null}
+                    onKindChange={() => undefined}
+                    lockedKind={
+                        targetFieldType === null
+                            ? undefined
+                            : getFilterTypeFromItemType(targetFieldType)
+                    }
+                    onToggle={(field) =>
                         setWaitingField({
                             fieldId: getItemId(field),
                             tableName: field.table,

@@ -12,9 +12,10 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { type FieldKind } from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
 import classes from './FilterSidebar.module.css';
@@ -31,6 +32,7 @@ export const FilterSidebar: FC = () => {
         isEmpty,
         originalFilterRule,
         addFirstField,
+        listFieldId,
         removeFilter,
         getSessionSettings,
         activeSection,
@@ -40,6 +42,29 @@ export const FilterSidebar: FC = () => {
         apply,
         isDirty,
     } = useFilterSidebar();
+    const [chosen, setChosen] = useState<DashboardFilterableField[]>([]);
+    const [kind, setKind] = useState<FieldKind | null>(null);
+    const toggleChosen = useCallback((field: DashboardFilterableField) => {
+        const id = getItemId(field);
+        setChosen((current) =>
+            current.some((item) => getItemId(item) === id)
+                ? current.filter((item) => getItemId(item) !== id)
+                : [...current, field],
+        );
+    }, []);
+    // The first chosen field starts the filter; the rest are listed at 0 charts
+    const handleContinue = useCallback(() => {
+        const [first, ...rest] = chosen;
+        if (first === undefined) return;
+        addFirstField(first);
+        rest.forEach((field) => listFieldId(getItemId(field)));
+        setChosen([]);
+        setKind(null);
+    }, [chosen, addFirstField, listFieldId]);
+    const chosenStatus =
+        chosen.length === 0
+            ? 'Pick one or more fields'
+            : `${chosen.length} ${chosen.length === 1 ? 'field' : 'fields'} chosen`;
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -133,23 +158,32 @@ export const FilterSidebar: FC = () => {
                 </Group>
                 <Stack gap="md" p="md" className={classes.body}>
                     <Text fw={600} fz="sm">
-                        Pick a field
+                        Pick fields
                     </Text>
                     <FieldPicker
+                        mode="multi"
                         fields={allFilterableFields ?? []}
-                        onPick={addFirstField}
                         getChartCount={getNewFieldChartCount}
+                        chosen={chosen}
+                        onToggle={toggleChosen}
+                        kind={kind}
+                        onKindChange={setKind}
                     />
                 </Stack>
                 <Stack gap="xs" p="md" className={classes.footer}>
                     <Text fz="xs" c="dimmed">
-                        Pick a field to start
+                        {chosenStatus}
                     </Text>
                     <Group justify="flex-end" gap="xs">
                         <Button variant="default" onClick={cancel}>
                             Cancel
                         </Button>
-                        <Button disabled>Add filter</Button>
+                        <Button
+                            disabled={chosen.length === 0}
+                            onClick={handleContinue}
+                        >
+                            Continue
+                        </Button>
                     </Group>
                 </Stack>
             </Box>
@@ -177,17 +211,21 @@ export const FilterSidebar: FC = () => {
                 </Group>
                 <Stack gap="md" p="md" className={classes.body}>
                     <Text fw={600} fz="sm">
-                        Pick a field
+                        Pick fields
                     </Text>
                     <FieldPicker
+                        mode="multi"
                         fields={allFilterableFields ?? []}
-                        onPick={addFirstField}
                         getChartCount={getNewFieldChartCount}
+                        chosen={chosen}
+                        onToggle={toggleChosen}
+                        kind={kind}
+                        onKindChange={setKind}
                     />
                 </Stack>
                 <Stack gap="xs" p="md" className={classes.footer}>
                     <Text fz="xs" c="dimmed">
-                        Pick a field to finish
+                        {chosenStatus}
                     </Text>
                     <Group justify="space-between" gap="xs">
                         <Button
@@ -201,7 +239,12 @@ export const FilterSidebar: FC = () => {
                             <Button variant="default" onClick={cancel}>
                                 Cancel
                             </Button>
-                            <Button disabled>Apply</Button>
+                            <Button
+                                disabled={chosen.length === 0}
+                                onClick={handleContinue}
+                            >
+                                Continue
+                            </Button>
                         </Group>
                     </Group>
                 </Stack>

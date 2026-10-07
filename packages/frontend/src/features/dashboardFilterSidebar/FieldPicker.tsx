@@ -1,136 +1,270 @@
 import {
+    FilterType,
     getDashboardFilterableFieldKey,
     type DashboardFilterableField,
 } from '@lightdash/common';
-import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
-import { IconSearch } from '@tabler/icons-react';
+import {
+    Checkbox,
+    CloseButton,
+    Group,
+    SimpleGrid,
+    Stack,
+    Text,
+    TextInput,
+    UnstyledButton,
+} from '@mantine/core';
+import {
+    IconAbc,
+    IconCalendar,
+    IconChevronRight,
+    IconHash,
+    IconSearch,
+    IconToggleLeft,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { foldFieldGrains, matchesSearch } from './fieldGrains';
 import {
-    foldFieldGrains,
-    matchesSearch,
-    type FieldRowItem,
-} from './fieldGrains';
-import classes from './FieldsAndCharts.module.css';
+    FIELD_KINDS,
+    countFieldsByKind,
+    filterFieldsByKind,
+    groupFieldsByExplore,
+    type FieldKind,
+} from './fieldKinds';
+import classes from './FieldPicker.module.css';
 
-const MAX_SHORTLIST = 6;
 const MAX_SEARCH_RESULTS = 12;
+const MAX_EXPLORE_FIELDS = 8;
+
+const KIND_META = {
+    [FilterType.DATE]: { label: 'Date', icon: IconCalendar },
+    [FilterType.STRING]: { label: 'Text', icon: IconAbc },
+    [FilterType.NUMBER]: { label: 'Number', icon: IconHash },
+    [FilterType.BOOLEAN]: { label: 'True or false', icon: IconToggleLeft },
+};
 
 type Props = {
     fields: DashboardFilterableField[];
-    onPick: (field: DashboardFilterableField) => void;
     getChartCount: (field: DashboardFilterableField) => number;
-};
-
-type Row = {
-    key: string;
-    label: string;
-    tableLabel: string;
-    count: number;
-    field: DashboardFilterableField;
+    chosen: DashboardFilterableField[];
+    onToggle: (field: DashboardFilterableField) => void;
+    kind: FieldKind | null;
+    onKindChange: (kind: FieldKind | null) => void;
+    lockedKind?: FieldKind;
+    mode: 'multi' | 'single';
 };
 
 const pluralizeCharts = (count: number) => (count === 1 ? 'chart' : 'charts');
 
-export const FieldPicker: FC<Props> = ({ fields, onPick, getChartCount }) => {
-    const getUiString = useUiStrings();
+export const FieldPicker: FC<Props> = ({
+    fields,
+    getChartCount,
+    chosen,
+    onToggle,
+    kind,
+    onKindChange,
+    lockedKind,
+    mode,
+}) => {
     const [search, setSearch] = useState('');
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const hasTabs = (dashboardTabs?.length ?? 0) > 1;
-
-    const shortlist = useMemo<Row[]>(
+    const [openTable, setOpenTable] = useState<string | null>(null);
+    const chosenKeys = new Set(chosen.map(getDashboardFilterableFieldKey));
+    const activeKind = lockedKind ?? kind;
+    const counts = useMemo(() => countFieldsByKind(fields), [fields]);
+    const explores = useMemo(
         () =>
-            foldFieldGrains(fields)
-                .map((item: FieldRowItem) => ({
-                    key: item.key,
-                    label: item.label,
-                    tableLabel: item.tableLabel,
-                    field: item.field,
-                    count: getChartCount(item.field),
-                }))
-                .sort(
-                    (a, b) =>
-                        b.count - a.count || a.label.localeCompare(b.label),
-                )
-                .slice(0, MAX_SHORTLIST),
-        [fields, getChartCount],
+            groupFieldsByExplore(
+                filterFieldsByKind(fields, activeKind),
+                getChartCount,
+            ),
+        [fields, activeKind, getChartCount],
     );
-
-    const matches = useMemo<Row[]>(
-        () =>
-            search.trim() === ''
-                ? []
-                : fields
-                      .filter((field) => matchesSearch(field, search))
-                      .map((field) => ({
-                          key: getDashboardFilterableFieldKey(field),
-                          label: field.label,
-                          tableLabel: field.tableLabel || field.table,
-                          field,
-                          count: getChartCount(field),
-                      })),
-        [fields, search, getChartCount],
-    );
-
     const isSearching = search.trim() !== '';
-    const rows = isSearching ? matches.slice(0, MAX_SEARCH_RESULTS) : shortlist;
-    const overflow = isSearching ? matches.length - rows.length : 0;
-    const hiddenCount = Math.max(fields.length - shortlist.length, 0);
-    const duplicateLabels = new Set(
-        rows
-            .map((row) => row.label)
-            .filter((label, index, all) => all.indexOf(label) !== index),
-    );
+    const matches = isSearching
+        ? fields.filter((field) => matchesSearch(field, search))
+        : [];
+    const currentOpen = openTable ?? explores[0]?.table ?? null;
+    const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
+
+    const renderFieldRow = (
+        field: DashboardFilterableField,
+        label: string,
+        detail: string,
+    ) => {
+        const key = getDashboardFilterableFieldKey(field);
+        return (
+            <UnstyledButton
+                key={key}
+                className={classes.fieldRow}
+                onClick={() => onToggle(field)}
+            >
+                {mode === 'multi' && (
+                    <Checkbox
+                        size="xs"
+                        checked={chosenKeys.has(key)}
+                        readOnly
+                        tabIndex={-1}
+                    />
+                )}
+                <Text fz="sm" truncate className={classes.rowText}>
+                    {label}
+                </Text>
+                <Text fz="xs" c="dimmed" truncate>
+                    {detail}
+                </Text>
+            </UnstyledButton>
+        );
+    };
 
     return (
-        <Stack gap="xs">
+        <Stack gap="sm">
             <TextInput
-                placeholder={
-                    hiddenCount > 0
-                        ? `Search ${hiddenCount} more fields`
-                        : 'Search fields'
-                }
+                placeholder="Search fields"
                 aria-label="Search fields"
                 leftSection={<MantineIcon icon={IconSearch} />}
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
             />
-            {rows.length === 0 && (
-                <Text fz="xs" c="dimmed">
-                    No fields to add
-                </Text>
+            {isSearching ? (
+                <Stack gap={0}>
+                    {matches.length === 0 && (
+                        <Text fz="xs" c="dimmed" px="xs">
+                            No fields match
+                        </Text>
+                    )}
+                    {matches
+                        .slice(0, MAX_SEARCH_RESULTS)
+                        .map((field) =>
+                            renderFieldRow(
+                                field,
+                                field.label,
+                                `${field.tableLabel || field.table} · ${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
+                            ),
+                        )}
+                    {matches.length > MAX_SEARCH_RESULTS && (
+                        <Text fz="xs" c="dimmed" px="xs">
+                            {matches.length - MAX_SEARCH_RESULTS} more fields.
+                            Keep typing
+                        </Text>
+                    )}
+                </Stack>
+            ) : (
+                <>
+                    {mode === 'multi' && chosen.length > 0 && (
+                        <Group gap="xs">
+                            <Text fz="xs" c="dimmed">
+                                Chosen
+                            </Text>
+                            {chosen.map((field) => (
+                                <Group
+                                    key={getDashboardFilterableFieldKey(field)}
+                                    gap={2}
+                                    className={classes.chip}
+                                >
+                                    <Text fz="xs">{field.label}</Text>
+                                    <CloseButton
+                                        size="xs"
+                                        aria-label={`Unchoose ${field.label}`}
+                                        onClick={() => onToggle(field)}
+                                    />
+                                </Group>
+                            ))}
+                        </Group>
+                    )}
+                    <SimpleGrid cols={lockedKind ? 1 : 2} spacing="xs">
+                        {kinds.map((item) => {
+                            const meta = KIND_META[item];
+                            const selected = activeKind === item;
+                            return (
+                                <UnstyledButton
+                                    key={item}
+                                    className={`${classes.kindTile} ${selected ? classes.kindTileSelected : ''}`}
+                                    aria-pressed={selected}
+                                    disabled={lockedKind !== undefined}
+                                    onClick={() =>
+                                        onKindChange(selected ? null : item)
+                                    }
+                                >
+                                    <MantineIcon icon={meta.icon} />
+                                    <Text fz="sm">{meta.label}</Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {counts[item]}
+                                    </Text>
+                                </UnstyledButton>
+                            );
+                        })}
+                    </SimpleGrid>
+                    <Stack gap={0}>
+                        {explores.length === 0 && (
+                            <Text fz="xs" c="dimmed" px="xs">
+                                No fields to add
+                            </Text>
+                        )}
+                        {explores.map((explore) => {
+                            const isOpen = currentOpen === explore.table;
+                            const rows = foldFieldGrains(explore.fields);
+                            return (
+                                <Stack key={explore.table} gap={0}>
+                                    <UnstyledButton
+                                        className={classes.exploreRow}
+                                        aria-expanded={isOpen}
+                                        onClick={() =>
+                                            setOpenTable(
+                                                isOpen ? '' : explore.table,
+                                            )
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconChevronRight}
+                                            className={`${classes.chevron} ${isOpen ? classes.chevronOpen : ''}`}
+                                        />
+                                        <Text
+                                            fz="sm"
+                                            fw={600}
+                                            truncate
+                                            className={classes.rowText}
+                                        >
+                                            {explore.label}
+                                        </Text>
+                                        <Text fz="xs" c="dimmed">
+                                            {explore.chartCount}{' '}
+                                            {pluralizeCharts(
+                                                explore.chartCount,
+                                            )}{' '}
+                                            · {explore.fields.length} fields
+                                        </Text>
+                                    </UnstyledButton>
+                                    {isOpen && (
+                                        <Stack gap={0} pl="md">
+                                            {rows
+                                                .slice(0, MAX_EXPLORE_FIELDS)
+                                                .map((row) =>
+                                                    renderFieldRow(
+                                                        row.field,
+                                                        row.label,
+                                                        `${getChartCount(row.field)} ${pluralizeCharts(getChartCount(row.field))}`,
+                                                    ),
+                                                )}
+                                            {rows.length >
+                                                MAX_EXPLORE_FIELDS && (
+                                                <Text
+                                                    fz="xs"
+                                                    c="dimmed"
+                                                    px="xs"
+                                                >
+                                                    {rows.length -
+                                                        MAX_EXPLORE_FIELDS}{' '}
+                                                    more. Type to search
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            );
+                        })}
+                    </Stack>
+                </>
             )}
-            <Stack gap={0}>
-                {!isSearching && hasTabs && rows.length > 0 && (
-                    <Text fz="xs" fw={600} c="dimmed" px="xs">
-                        {getUiString('filters.config.fieldsInThisTab')}
-                    </Text>
-                )}
-                {rows.map((row) => (
-                    <UnstyledButton
-                        key={row.key}
-                        className={classes.option}
-                        onClick={() => onPick(row.field)}
-                    >
-                        <Text fz="sm" truncate>
-                            {row.label}
-                        </Text>
-                        <Text fz="xs" c="dimmed" truncate>
-                            {duplicateLabels.has(row.label)
-                                ? `${row.tableLabel} · `
-                                : ''}
-                            {row.count} {pluralizeCharts(row.count)}
-                        </Text>
-                    </UnstyledButton>
-                ))}
-                {overflow > 0 && (
-                    <Text fz="xs" c="dimmed" px="xs">
-                        {overflow} more fields. Keep typing
-                    </Text>
-                )}
-            </Stack>
         </Stack>
     );
 };

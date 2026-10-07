@@ -60,3 +60,6 @@ Lost on reload, marked "Not saved". What saving each would need:
 - Placement (bar or More): saved bar sections with a filter order.
 - Not implemented: a chart added later does not pick up a peer field for its
   explore.
+
+- `FieldPicker` is controlled: the caller owns `chosen` and `kind` (a `FilterType`); `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore.
+- New-filter flow: Continue calls `addFirstField(chosen[0])` then `listFieldId` for the rest; "Add a field" uses `mode="single"` with `lockedKind`.
