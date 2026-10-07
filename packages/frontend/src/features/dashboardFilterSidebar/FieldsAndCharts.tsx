@@ -7,22 +7,13 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Select,
-    Tooltip,
-    Stack,
-    Text,
-    type ComboboxItem,
-    type ComboboxItemGroup,
-} from '@mantine/core';
+import { Box, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
-import FieldIcon from '../../components/common/Filters/FieldIcon';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { foldFieldGrains, getFieldDisplayLabel } from './fieldGrains';
+import { getFieldDisplayLabel } from './fieldGrains';
+import { FieldPicker } from './FieldPicker';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndCharts.module.css';
 import {
@@ -137,41 +128,19 @@ export const FieldsAndCharts: FC = () => {
 
     const [isAdding, setIsAdding] = useState(false);
 
-    const addOptions = useMemo(() => {
-        const byTable = new Map<string, ComboboxItem[]>();
-        const chartCounts = new Map<string, number>();
-        const fieldsByKey = new Map<string, DashboardFilterableField>();
-        foldFieldGrains(candidates).forEach((item) => {
-            const value = getItemId(item.field);
-            fieldsByKey.set(value, item.field);
-            chartCounts.set(
-                value,
-                editingRule === null
-                    ? 0
-                    : getFieldCount(
-                          editingRule,
-                          value,
-                          tiles,
-                          filterableFieldsByTileUuid,
-                          sqlColumnsByTile,
-                      ).possible,
-            );
-            byTable.set(item.tableLabel, [
-                ...(byTable.get(item.tableLabel) ?? []),
-                { value, label: item.label },
-            ]);
-        });
-        const groups: ComboboxItemGroup<ComboboxItem>[] = [
-            ...byTable.entries(),
-        ].map(([group, items]) => ({ group, items }));
-        return { groups, chartCounts, fieldsByKey };
-    }, [
-        candidates,
-        editingRule,
-        tiles,
-        filterableFieldsByTileUuid,
-        sqlColumnsByTile,
-    ]);
+    const getCandidateChartCount = useCallback(
+        (field: DashboardFilterableField) =>
+            editingRule === null
+                ? 0
+                : getFieldCount(
+                      editingRule,
+                      getItemId(field),
+                      tiles,
+                      filterableFieldsByTileUuid,
+                      sqlColumnsByTile,
+                  ).possible,
+        [editingRule, tiles, filterableFieldsByTileUuid, sqlColumnsByTile],
+    );
 
     if (editingRule === null) return null;
     const getField = (fieldId: string): DashboardFilterableField | null =>
@@ -369,70 +338,26 @@ export const FieldsAndCharts: FC = () => {
                     </Button>
                 </Tooltip>
                 {isAdding && candidates.length > 0 && (
-                    <Select
-                        className={classes.addFieldSelect}
-                        size="xs"
-                        searchable
-                        clearable={false}
-                        autoFocus
-                        defaultDropdownOpened
-                        placeholder="Search fields"
-                        nothingFoundMessage="No matching fields"
-                        comboboxProps={{ withinPortal: true }}
-                        data={addOptions.groups}
-                        value={null}
-                        renderOption={({ option }) => {
-                            const optionField =
-                                addOptions.fieldsByKey.get(option.value) ??
-                                null;
-                            return (
-                                <Group
-                                    gap="xs"
-                                    justify="space-between"
-                                    wrap="nowrap"
-                                    flex={1}
-                                >
-                                    <Group gap="xs" wrap="nowrap">
-                                        {optionField !== null && (
-                                            <FieldIcon
-                                                item={optionField}
-                                                size={14}
-                                                aria-hidden
-                                            />
-                                        )}
-                                        <Text size="xs">{option.label}</Text>
-                                    </Group>
-                                    <Text size="xs" c="dimmed">
-                                        {(() => {
-                                            const count =
-                                                addOptions.chartCounts.get(
-                                                    option.value,
-                                                ) ?? 0;
-                                            return `${count} ${count === 1 ? 'chart' : 'charts'}`;
-                                        })()}
-                                    </Text>
-                                </Group>
-                            );
-                        }}
-                        onChange={(value) => {
-                            const field =
-                                value === null
-                                    ? null
-                                    : (addOptions.fieldsByKey.get(value) ??
-                                      null);
-                            if (field === null) return;
-                            // The first field turns the unplaced filter into a real one
-                            if (isUnplaced) {
-                                addFirstField(field);
-                            } else {
-                                setWaitingField({
-                                    fieldId: getItemId(field),
-                                    tableName: field.table,
-                                });
-                            }
-                            setIsAdding(false);
-                        }}
-                    />
+                    <Box className={classes.addFieldSelect}>
+                        <FieldPicker
+                            fields={candidates}
+                            getChartCount={getCandidateChartCount}
+                            parameters={[]}
+                            openOnMount
+                            onPickField={(field) => {
+                                // The first field turns the unplaced filter into a real one
+                                if (isUnplaced) {
+                                    addFirstField(field);
+                                } else {
+                                    setWaitingField({
+                                        fieldId: getItemId(field),
+                                        tableName: field.table,
+                                    });
+                                }
+                                setIsAdding(false);
+                            }}
+                        />
+                    </Box>
                 )}
             </Stack>
         </Stack>

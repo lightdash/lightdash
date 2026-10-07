@@ -2,3 +2,8 @@
     border-style: dashed;
     opacity: 0.6;
 }
+
+/* Pending, not disabled: dashed but readable */
+.unplacedPill {
+    border-style: dashed;
+}

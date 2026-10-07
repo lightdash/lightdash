@@ -46,6 +46,8 @@ type Props = {
     onPickKind?: (kind: FilterType) => void;
     /** Narrows the list to one kind, as "Add a field" needs. */
     lockedKind?: FilterType;
+    /** Opens the dropdown focused, for the Add a field flow. */
+    openOnMount?: boolean;
 };
 
 const pluralizeCharts = (count: number) => (count === 1 ? 'chart' : 'charts');
@@ -58,6 +60,7 @@ export const FieldPicker: FC<Props> = ({
     onPickParameter,
     onPickKind,
     lockedKind,
+    openOnMount = false,
 }) => {
     const activeKind = lockedKind ?? null;
     const pickableFields = useMemo(
@@ -137,6 +140,8 @@ export const FieldPicker: FC<Props> = ({
                 size="sm"
                 searchable
                 clearable={false}
+                autoFocus={openOnMount}
+                defaultDropdownOpened={openOnMount}
                 placeholder={searchLabel}
                 aria-label={searchLabel}
                 nothingFoundMessage={

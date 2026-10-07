@@ -319,7 +319,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                 classNames={{ label: pillClasses.label }}
                                 className={[
                                     pillClasses.button,
-                                    pillActionClasses.hiddenPill,
+                                    classes.unplacedPill,
                                     isSelected ? classes.selectedPill : '',
                                 ].join(' ')}
                                 rightSection={

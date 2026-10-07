@@ -87,7 +87,7 @@ describe('FilterPills', () => {
 
         const selected = screen.getByRole('button', { pressed: true });
         expect(selected).toHaveTextContent('New filter');
-        expect(selected.className).toContain('hiddenPill');
+        expect(selected.className).toContain('unplacedPill');
         expect(selected.className).toContain('selectedPill');
 
         // Lock and eye belong to the saved pill only
