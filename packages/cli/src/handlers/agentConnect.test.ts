@@ -1,4 +1,4 @@
-import { ParameterError } from '@lightdash/common';
+import { AiAccessRefusalReason, ParameterError } from '@lightdash/common';
 import * as http from 'http';
 import { getConfig } from '../config';
 import {
@@ -53,6 +53,22 @@ afterEach(() => {
 });
 
 describe('agent connect', () => {
+    it('reconnects after an expired sign-in refusal', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                message: 'Your agent connection expired. Connect again.',
+            },
+        });
+        const { completion, redirect } = await startWaitingForCallback();
+        vi.mocked(lightdashApi).mockResolvedValue(connectedAgentAccess);
+        await fetch(redirect);
+        await completion;
+        expect(openBrowser).toHaveBeenCalledOnce();
+        expect(process.exitCode ?? 0).toBe(0);
+    });
     it('returns without a server when already connected', async () => {
         vi.mocked(lightdashApi).mockResolvedValue(connectedAgentAccess);
         await agentConnectHandler({ verbose: false });

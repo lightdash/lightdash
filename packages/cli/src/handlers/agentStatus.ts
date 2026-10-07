@@ -1,17 +1,9 @@
-import { type AiAccessForUser } from '@lightdash/common';
 import GlobalState from '../globalState';
 import {
     getAgentAccess,
     resolveAgentProject,
     type AgentOptions,
 } from './agentAccess';
-
-const hasExpiry = (
-    access: AiAccessForUser,
-): access is AiAccessForUser & { expiresAt: string } =>
-    'expiresAt' in access &&
-    typeof access.expiresAt === 'string' &&
-    !Number.isNaN(Date.parse(access.expiresAt));
 
 export const agentStatusHandler = async (
     options: AgentOptions,
@@ -22,7 +14,7 @@ export const agentStatusHandler = async (
     );
     if (access.refusal === null && access.identity === 'connected_person') {
         console.error(
-            `Agent connected${hasExpiry(access) ? `, expires ${new Date(access.expiresAt).toISOString()}` : ''}`,
+            `Agent connected${access.expiresAt ? `, expires ${new Date(access.expiresAt).toISOString()}` : ''}`,
         );
         return;
     }

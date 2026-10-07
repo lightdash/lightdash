@@ -51,6 +51,7 @@ export const snowflakeAiPassportStrategy = !(
               req: Express.Request,
               accessToken: string,
               refreshToken: string,
+              params: { refresh_token_expires_in?: unknown },
               _profile: unknown,
               done: VerifyCallback,
           ) => {
@@ -94,9 +95,20 @@ export const snowflakeAiPassportStrategy = !(
                       activeRestrictedSessionScopes:
                           agentSession.activeRestrictedSessionScopes,
                   });
+                  const seconds = params.refresh_token_expires_in;
+                  const expiresAt =
+                      typeof seconds === 'number' &&
+                      Number.isFinite(seconds) &&
+                      seconds > 0
+                          ? new Date(Date.now() + seconds * 1000)
+                          : null;
                   await req.services
                       .getUserService()
-                      .upsertAiSnowflakeCredential(user, refreshToken);
+                      .upsertAiSnowflakeCredential(
+                          user,
+                          refreshToken,
+                          expiresAt,
+                      );
                   done(null, user);
               } catch (error) {
                   done(error);

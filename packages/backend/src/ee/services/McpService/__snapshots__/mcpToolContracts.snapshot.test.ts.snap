@@ -112,6 +112,16 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
               },
             ],
           },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "message": {
             "type": "string",
           },
@@ -129,6 +139,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
           "status",
           "message",
           "connectUrl",
+          "expiresAt",
         ],
         "type": "object",
       },

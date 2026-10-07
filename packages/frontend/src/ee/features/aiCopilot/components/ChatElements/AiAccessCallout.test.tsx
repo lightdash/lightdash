@@ -102,6 +102,31 @@ describe('AI access callout', () => {
         },
     );
 
+    it.each(['card', 'inline'] as const)(
+        'shows the expired refusal in the %s variant',
+        (variant) => {
+            const message = 'Your agent connection expired. Connect again.';
+            renderWithProviders(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        variant={variant}
+                        refusal={{
+                            ...refusal,
+                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                            message,
+                        }}
+                    />
+                </MemoryRouter>,
+            );
+            expect(screen.getByText(message)).toBeInTheDocument();
+            expect(screen.queryByText(/Connect once/)).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            );
+            expect(mocks.login).toHaveBeenCalled();
+        },
+    );
     it('offers agent session sign-in', () => {
         render(AiAccessRefusalAction.SIGN_IN);
         expect(

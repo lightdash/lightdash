@@ -8,6 +8,7 @@ import {
     type OrganizationAgentIdentitySettings,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
+import { setTimeout } from 'node:timers/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, SITE_URL, type Body } from '../helpers/api-client';
 import { login, loginWithPermissions } from '../helpers/auth';
@@ -25,6 +26,7 @@ describe.skipIf(!stubUrl)(
     () => {
         let admin: ApiClient;
         let person: ApiClient | undefined;
+        const people: ApiClient[] = [];
         let projectUuid: string | undefined;
         let previousSettings: OrganizationAgentIdentitySettings | undefined;
         let clearFlag = false;
@@ -113,12 +115,12 @@ describe.skipIf(!stubUrl)(
                     { role: 'admin', projectUuid },
                 ])
             ).client;
+            people.push(person);
         });
 
         afterAll(async () => {
             const cleanup: (() => Promise<void>)[] = [];
-            if (person) {
-                const client = person;
+            for (const client of people) {
                 cleanup.push(async () => {
                     const credentials = await client.get<
                         Body<UserWarehouseCredentials[]>
@@ -226,6 +228,7 @@ describe.skipIf(!stubUrl)(
                 status: 'needs_sign_in',
                 message: before.body.results.refusal!.message,
                 connectUrl,
+                expiresAt: null,
             };
             expect(connectionStatus).toMatchObject({
                 structuredContent: expectedStatus,
@@ -270,6 +273,11 @@ describe.skipIf(!stubUrl)(
 
             const after = await client.get<Body<AiAccessForUser>>(meUrl);
             expect(after.status).toBe(200);
+            const { expiresAt } = after.body.results;
+            expect(expiresAt).not.toBeNull();
+            expect(new Date(expiresAt!).getTime()).toBeGreaterThan(
+                Date.now() + 80 * 86400000,
+            );
             expect(after.body.results).toMatchObject({
                 refusal: null,
                 identity: 'connected_person',
@@ -285,6 +293,7 @@ describe.skipIf(!stubUrl)(
             expect(credentials.body.results).toHaveLength(1);
             expect(credentials.body.results[0]).toMatchObject({
                 purpose: UserWarehouseCredentialPurpose.AI,
+                expiresAt,
                 credentials: { type: WarehouseTypes.SNOWFLAKE },
             });
             const result = await callTool('run_sql', {
@@ -300,6 +309,74 @@ describe.skipIf(!stubUrl)(
                 },
             });
         });
+
+        it.each(['expiring-code', 'revoking-code'])(
+            'refuses SQL after connecting with %s',
+            async (code) => {
+                const { client } = await loginWithPermissions('member', [
+                    { role: 'admin', projectUuid: projectUuid! },
+                ]);
+                people.push(client);
+                const callback = await completeSignIn(
+                    client,
+                    '/agent-connected',
+                    code,
+                );
+                expect(callback.status).toBe(302);
+                expect(callback.headers.get('location')).toBe(
+                    new URL('/agent-connected', SITE_URL).href,
+                );
+                if (code === 'expiring-code') await setTimeout(1500);
+                const access = await client.get<Body<AiAccessForUser>>(
+                    `/api/v2/projects/${projectUuid}/ai-access/me`,
+                );
+                expect(access.status).toBe(200);
+                const connectUrl = new URL('/agent/connect', SITE_URL);
+                connectUrl.searchParams.set('project', projectUuid!);
+                connectUrl.searchParams.set('redirect', '/agent-connected');
+                const message = getAiAccessRefusalMessage(
+                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                );
+                if (code === 'expiring-code') {
+                    expect(access.body.results).toMatchObject({
+                        expiresAt: null,
+                        refusal: {
+                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                            connectUrl: connectUrl.href,
+                        },
+                    });
+                } else {
+                    expect(access.body.results).toMatchObject({
+                        identity: 'connected_person',
+                        refusal: null,
+                    });
+                    expect(
+                        new Date(access.body.results.expiresAt!).getTime(),
+                    ).toBeGreaterThan(Date.now() + 80 * 86400000);
+                }
+                const callTool = await openMcpSession(client, projectUuid!);
+                const refused = await callTool('run_sql', {
+                    projectUuid,
+                    sql,
+                    limit: 1,
+                });
+                expect(refused.isError).toBe(true);
+                expect(mcpText(refused)).toContain(message);
+                expect(mcpText(refused)).toContain(connectUrl.href);
+                if (code === 'expiring-code') {
+                    expect(
+                        await callTool('connect_agent', { projectUuid }),
+                    ).toMatchObject({
+                        structuredContent: {
+                            status: 'needs_sign_in',
+                            message,
+                            connectUrl: connectUrl.href,
+                            expiresAt: null,
+                        },
+                    });
+                }
+            },
+        );
 
         it('returns to the local client after sign-in', async () => {
             const callback = await completeSignIn(

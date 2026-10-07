@@ -1,4 +1,8 @@
-import { AiAccessRefusalAction, type AiAccessRefusal } from '@lightdash/common';
+import {
+    AiAccessRefusalAction,
+    AiAccessRefusalReason,
+    type AiAccessRefusal,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -41,7 +45,8 @@ export const AiAccessCallout = ({
                         </Title>
                     )}
                     <Text size="sm" c="dimmed">
-                        {requiresSignIn
+                        {requiresSignIn &&
+                        refusal.reason !== AiAccessRefusalReason.SIGN_IN_EXPIRED
                             ? variant === 'inline'
                                 ? 'Connect your agent to your warehouse to run this.'
                                 : 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.'

@@ -32,6 +32,7 @@ import { type OrganizationAgentIdentitySettingsModel } from '../../models/Organi
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
+import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
 import { describeAgentMarker } from './agentMarker';
@@ -60,6 +61,7 @@ type AiAccessServiceArguments = {
     queryHistoryModel: QueryHistoryModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     userModel: UserModel;
+    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     providerRegistry: AiCredentialProviderRegistry;
 };
 
@@ -78,6 +80,8 @@ export class AiAccessService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+
     private readonly providerRegistry: AiCredentialProviderRegistry;
 
     constructor({
@@ -85,6 +89,7 @@ export class AiAccessService extends BaseService {
         lightdashConfig,
         featureFlagModel,
         userModel,
+        userWarehouseCredentialsModel,
         projectModel,
         queryHistoryModel,
         warehouseConnectionModel,
@@ -96,6 +101,7 @@ export class AiAccessService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
+        this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.projectModel = projectModel;
         this.queryHistoryModel = queryHistoryModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
@@ -419,7 +425,7 @@ export class AiAccessService extends BaseService {
         error: AiAccessRefusedError,
         projectUuid: string,
     ): AiAccessRefusedError {
-        if (error.refusal.reason === AiAccessRefusalReason.NEEDS_SIGN_IN) {
+        if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
             const connectUrl = new URL(
                 '/agent/connect',
                 this.lightdashConfig.siteUrl,
@@ -624,6 +630,7 @@ export class AiAccessService extends BaseService {
             enabled,
             principalKind: enabled ? 'person' : null,
             refusal: null,
+            expiresAt: null,
         };
         if (!required) return result;
         result.identity = 'connected_person';
@@ -642,6 +649,14 @@ export class AiAccessService extends BaseService {
             });
             if (missingPrerequisite !== null)
                 throw new AiAccessRefusedError(missingPrerequisite);
+            const credential =
+                await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                    {
+                        userUuid: args.userUuid,
+                        warehouseType: args.connection.type,
+                    },
+                );
+            result.expiresAt = credential?.expiresAt ?? null;
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
             const refusalError = this.withRefusalUrls(error, args.projectUuid);

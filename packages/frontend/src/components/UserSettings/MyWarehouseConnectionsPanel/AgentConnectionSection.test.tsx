@@ -1,4 +1,5 @@
 import {
+    formatDate,
     SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
@@ -36,6 +37,7 @@ vi.mock(
 
 const credential: UserWarehouseCredentials = {
     uuid: 'ai-credential',
+    expiresAt: null,
     purpose: UserWarehouseCredentialPurpose.AI,
     userUuid: 'user',
     name: 'Agent Snowflake sign-in',
@@ -106,6 +108,30 @@ describe('AgentConnectionSection', () => {
             ).toBeInTheDocument();
         },
     );
+
+    it('shows the stored expiry with the app date format', () => {
+        const expiresAt = new Date(Date.now() + 86400000);
+        renderSection([{ ...credential, expiresAt }]);
+        expect(
+            screen.getByText(
+                `Agent connected, expires ${formatDate(expiresAt)}`,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Disconnect' }),
+        ).toBeEnabled();
+    });
+
+    it('offers reconnection after the stored expiry', () => {
+        renderSection([{ ...credential, expiresAt: new Date(Date.now() - 1) }]);
+        expect(
+            screen.getByText('Agent connection expired'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Disconnect' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
+    });
 
     it('shows the connected state without a date', () => {
         renderSection([credential]);

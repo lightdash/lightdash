@@ -965,6 +965,8 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
                         lightdashConfig: this.context.lightdashConfig,
                         userWarehouseCredentialsModel:

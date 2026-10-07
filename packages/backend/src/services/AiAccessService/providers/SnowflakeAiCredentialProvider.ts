@@ -50,7 +50,11 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                 },
             );
-        return credential ? null : AiAccessRefusalReason.NEEDS_SIGN_IN;
+        if (!credential) return AiAccessRefusalReason.NEEDS_SIGN_IN;
+        return credential.expiresAt &&
+            credential.expiresAt.getTime() <= Date.now()
+            ? AiAccessRefusalReason.SIGN_IN_EXPIRED
+            : null;
     }
 
     async mint({
@@ -68,6 +72,13 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             );
         if (!credential)
             throw new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
+        if (
+            credential.expiresAt &&
+            credential.expiresAt.getTime() <= Date.now()
+        )
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.SIGN_IN_EXPIRED,
+            );
         const merged = mergePersonalWarehouseCredentials(
             connection,
             credential,
@@ -82,9 +93,14 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             await UserService.generateSnowflakeAccessToken(
                 merged.refreshToken,
                 UserWarehouseCredentialPurpose.AI,
-            ).catch(() => {
+            ).catch((error: { data?: string; message?: string } | null) => {
+                const invalidGrant = /\binvalid_grant\b/.test(
+                    `${error?.data ?? ''} ${error?.message ?? ''}`,
+                );
                 throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    invalidGrant
+                        ? AiAccessRefusalReason.SIGN_IN_EXPIRED
+                        : AiAccessRefusalReason.NEEDS_SIGN_IN,
                 );
             });
         if (refreshToken !== merged.refreshToken)

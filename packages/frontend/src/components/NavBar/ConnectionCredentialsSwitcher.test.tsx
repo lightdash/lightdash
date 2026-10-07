@@ -46,6 +46,7 @@ const personal = (
     name,
     createdAt: new Date('2026-09-01T00:00:00Z'),
     updatedAt: new Date('2026-09-01T00:00:00Z'),
+    expiresAt: null,
     credentials: { type } as UserWarehouseCredentials['credentials'],
     project: null,
 });

@@ -62,24 +62,21 @@ describe('agent status', () => {
         );
     });
 
-    it.each([null, 123, 'invalid'])(
-        'ignores a malformed expiry: %s',
-        async (expiresAt) => {
-            vi.mocked(lightdashApi).mockResolvedValue({
-                ...connectedAgentAccess,
-                expiresAt,
-            });
-            await agentStatusHandler({ verbose: false });
-            expect(console.error).toHaveBeenCalledExactlyOnceWith(
-                'Agent connected',
-            );
-        },
-    );
-
-    it('reports sign-in and its link', async () => {
+    it.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])('reports %s and its link', async (reason) => {
+        const message =
+            reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+                ? 'Your agent connection expired. Connect again.'
+                : agentAccess.refusal!.message;
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            refusal: { ...agentAccess.refusal!, reason, message },
+        });
         await agentStatusHandler({ verbose: false });
         expect(vi.mocked(console.error).mock.calls).toEqual([
-            [`Agent not connected: ${agentAccess.refusal!.message}`],
+            [`Agent not connected: ${message}`],
             [agentConnectUrl],
         ]);
         expect(process.exitCode).toBe(1);

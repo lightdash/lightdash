@@ -2315,13 +2315,18 @@ export class McpService extends BaseService {
                 status: 'connected' as const,
                 message: 'Your agent is connected to the warehouse.',
                 connectUrl: null,
+                expiresAt: access.expiresAt?.toISOString() ?? null,
             };
         }
-        if (access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN) {
+        if (
+            access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
+            access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+        ) {
             return {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
                 connectUrl: access.refusal.connectUrl,
+                expiresAt: null,
             };
         }
         if (access.requirementSource === null) {
@@ -2329,6 +2334,7 @@ export class McpService extends BaseService {
                 status: 'not_required' as const,
                 message: 'Agent connection is not required for this project.',
                 connectUrl: null,
+                expiresAt: null,
             };
         }
         return {
@@ -2337,6 +2343,7 @@ export class McpService extends BaseService {
                 access.refusal?.message ??
                 'Agent connection is unavailable for this project.',
             connectUrl: null,
+            expiresAt: null,
         };
     }
 

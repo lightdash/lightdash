@@ -50,7 +50,11 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
         const session = {};
         const user = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };
         const upsertAiSnowflakeCredential = vi.fn<
-            (user: unknown, refreshToken: string) => Promise<void>
+            (
+                user: unknown,
+                refreshToken: string,
+                expiresAt: Date | null,
+            ) => Promise<void>
         >(async () => undefined);
         const assertFeatureEnabled = vi.fn(async () => undefined);
         const authorizeUrl = await new Promise<string>((resolve, reject) => {
@@ -92,6 +96,7 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
     };
 
     it('exchanges the auto-approved code, verifies the session, and rotates refresh tokens', async () => {
+        const before = Date.now();
         const result = await signIn();
         expect(result.error).toBeNull();
         expect(result.authenticatedUser).toEqual(result.user);
@@ -103,6 +108,12 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
         ).toHaveBeenCalledExactlyOnceWith(
             result.user,
             expect.stringMatching(/^refresh-/),
+            expect.any(Date),
+        );
+        const expiresAt = result.upsertAiSnowflakeCredential.mock.calls[0][2]!;
+        expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7776000000);
+        expect(expiresAt.getTime()).toBeLessThanOrEqual(
+            Date.now() + 7776000000,
         );
         const refreshToken =
             result.upsertAiSnowflakeCredential.mock.calls[0][1];
@@ -130,6 +141,41 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
         });
         expect(tokens.refresh_token).not.toBe(refreshToken);
     });
+
+    it.each(['expiring-code', 'revoking-code'])(
+        'stores the expiry and token returned for %s',
+        async (code) => {
+            const before = Date.now();
+            const result = await signIn(code);
+            expect(result.error).toBeNull();
+            const [, refreshToken, expiresAt] =
+                result.upsertAiSnowflakeCredential.mock.calls[0];
+            const lifetime = code === 'expiring-code' ? 1000 : 7776000000;
+            expect(expiresAt!.getTime()).toBeGreaterThanOrEqual(
+                before + lifetime,
+            );
+            expect(expiresAt!.getTime()).toBeLessThanOrEqual(
+                Date.now() + lifetime,
+            );
+            if (code === 'revoking-code') {
+                expect(refreshToken).toMatch(/^revoked/);
+                const refreshed = await fetch(
+                    `${stub.url}/oauth/token-request`,
+                    {
+                        method: 'POST',
+                        body: new URLSearchParams({
+                            grant_type: 'refresh_token',
+                            refresh_token: refreshToken,
+                        }),
+                    },
+                );
+                expect(refreshed.status).toBe(400);
+                expect(await refreshed.json()).toEqual({
+                    error: 'invalid_grant',
+                });
+            }
+        },
+    );
 
     it('refuses a non-agent OAuth session without saving credentials', async () => {
         const result = await signIn('plain-code');

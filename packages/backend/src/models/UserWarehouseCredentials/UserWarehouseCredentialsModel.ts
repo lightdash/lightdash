@@ -75,6 +75,7 @@ export class UserWarehouseCredentialsModel {
         }
         return {
             uuid: data.user_warehouse_credentials_uuid,
+            expiresAt: data.expires_at,
             credentials,
         };
     }
@@ -155,6 +156,7 @@ export class UserWarehouseCredentialsModel {
 
         return {
             uuid: data.user_warehouse_credentials_uuid,
+            expiresAt: data.expires_at,
             userUuid: data.user_uuid,
             purpose: data.purpose,
             name: data.name,
@@ -228,6 +230,7 @@ export class UserWarehouseCredentialsModel {
     async upsertAiSnowflakeCredential(
         userUuid: string,
         refreshToken: string,
+        expiresAt: Date | null,
     ): Promise<string> {
         if (!refreshToken) {
             throw new ParameterError(
@@ -251,6 +254,7 @@ export class UserWarehouseCredentialsModel {
                 encrypted_credentials: encryptedCredentials,
                 project_uuid: null,
                 purpose: UserWarehouseCredentialPurpose.AI,
+                expires_at: expiresAt,
             })
             .onConflict(
                 this.database.raw(
@@ -259,6 +263,7 @@ export class UserWarehouseCredentialsModel {
             )
             .merge({
                 user_warehouse_credentials_uuid: randomUUID(),
+                expires_at: expiresAt,
                 encrypted_credentials: encryptedCredentials,
                 updated_at: new Date(),
             })

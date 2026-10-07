@@ -8,6 +8,7 @@ export const agentProjectUuid = '00000000-0000-0000-0000-000000000001';
 export const agentConnectUrl = `https://example.com/agent/connect?project=${agentProjectUuid}&redirect=/agent-connected`;
 export const agentAccess: AiAccessForUser = {
     projectUuid: agentProjectUuid,
+    expiresAt: null,
     requirementSource: 'organization',
     identity: null,
     marker: null,

@@ -38,6 +38,7 @@ const connection: CreateSnowflakeCredentials = {
 };
 const credential: UserWarehouseCredentialsWithSecrets = {
     uuid: 'credential',
+    expiresAt: null,
     credentials: {
         type: WarehouseTypes.SNOWFLAKE,
         user: 'person-user',
@@ -188,6 +189,32 @@ describe('SnowflakeAiCredentialProvider', () => {
             expect(model.rotateRefreshToken).not.toHaveBeenCalled();
         },
     );
+    test('refuses an expired credential without refreshing it', async () => {
+        const { provider, model } = setup();
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            expiresAt: new Date(Date.now() - 1),
+        });
+        expect(await provider.missingPrerequisite(mintArgs)).toBe(
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        );
+        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+        });
+        expect(UserService.generateSnowflakeAccessToken).not.toHaveBeenCalled();
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+    });
+    test('accepts a future credential expiry', async () => {
+        const { provider, model } = setup();
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            expiresAt: new Date(Date.now() + 86400000),
+        });
+        expect(await provider.missingPrerequisite(mintArgs)).toBeNull();
+        await expect(provider.mint(mintArgs)).resolves.toMatchObject({
+            identityUuid: credential.uuid,
+        });
+    });
     test('refuses missing sign-in', async () => {
         const { provider, model } = setup();
         model.findAiCredentialWithSecrets.mockResolvedValue(undefined);
@@ -196,13 +223,28 @@ describe('SnowflakeAiCredentialProvider', () => {
         });
         expect(UserService.generateSnowflakeAccessToken).not.toHaveBeenCalled();
     });
-    test('requires sign-in again when the agent token cannot be refreshed', async () => {
+    test.each([
+        [new Error('invalid_grant'), AiAccessRefusalReason.SIGN_IN_EXPIRED],
+        [
+            {
+                data: '{"error":"invalid_grant"}',
+                message: 'Failed to obtain access token',
+            },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
+        [
+            { data: '{"error":"invalid_client"}' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [new Error('network failure'), AiAccessRefusalReason.NEEDS_SIGN_IN],
+        [null, AiAccessRefusalReason.NEEDS_SIGN_IN],
+    ])('classifies a refresh failure %s', async (error, reason) => {
         const { provider, model } = setup();
         vi.mocked(UserService.generateSnowflakeAccessToken).mockRejectedValue(
-            new Error('invalid_grant'),
+            error,
         );
         await expect(provider.mint(mintArgs)).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
+            refusal: { reason },
         });
         expect(model.rotateRefreshToken).not.toHaveBeenCalled();
         expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();

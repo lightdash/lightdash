@@ -4661,6 +4661,7 @@ describe('ProjectService', () => {
             };
             const personalCredentials = {
                 uuid: 'personal-bigquery-credentials',
+                expiresAt: null,
                 credentials: {
                     type: WarehouseTypes.BIGQUERY,
                     authenticationType: BigqueryAuthenticationType.SSO,
@@ -4901,6 +4902,7 @@ describe('ProjectService', () => {
             test('should use user credentials when available and not required', async () => {
                 const findForProjectWithSecretsMock = mockUserCredentials({
                     uuid: 'user-trino-creds-uuid',
+                    expiresAt: null,
                     credentials: {
                         type: WarehouseTypes.TRINO,
                         user: 'personal_user',
@@ -14281,6 +14283,7 @@ describe('AI principal credential routing', () => {
             )
             .mockResolvedValue({
                 uuid: 'personal',
+                expiresAt: null,
                 credentials: { ...credentials, user: 'person' },
             });
         const result = await resolveCredentials(configured);
@@ -14307,6 +14310,7 @@ describe('AI principal credential routing', () => {
             )
             .mockResolvedValue({
                 uuid: 'personal',
+                expiresAt: null,
                 credentials: { ...credentials, user: 'person' },
             });
         const result = await resolveCredentials(configured);

@@ -2211,69 +2211,102 @@ describe('agent connection over MCP', () => {
         }
     });
 
-    it('returns the same sign-in status from the tool and resource, then reports connected', async () => {
-        const { aiAccessService } = makeMcpService({
-            agentIdentityEnabled: true,
-        });
-        aiAccessService.getMyAccess.mockResolvedValue({
-            requirementSource: 'organization',
-            identity: 'connected_person',
-            refusal: refusal.refusal,
-        });
-        const expected = {
-            status: 'needs_sign_in',
-            message: refusal.message,
-            connectUrl,
-        };
-        expect(
-            await getToolCallback(McpToolName.CONNECT_AGENT)(
-                { projectUuid },
-                extra,
-            ),
-        ).toMatchObject({
-            structuredContent: expected,
-            content: [
-                {
-                    type: 'text',
-                    text: `needs_sign_in: ${refusal.message} ${connectUrl}`,
+    it.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])(
+        'returns %s from the tool and resource, then reports connected with expiry',
+        async (reason) => {
+            const signInRefusal = new AiAccessRefusedError(reason, {
+                connectUrl,
+            });
+            const { aiAccessService } = makeMcpService({
+                agentIdentityEnabled: true,
+            });
+            aiAccessService.getMyAccess.mockResolvedValue({
+                requirementSource: 'organization',
+                identity: 'connected_person',
+                refusal: signInRefusal.refusal,
+            });
+            const expected = {
+                status: 'needs_sign_in',
+                message: signInRefusal.message,
+                connectUrl,
+                expiresAt: null,
+            };
+            expect(
+                await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                ),
+            ).toMatchObject({
+                structuredContent: expected,
+                content: [
+                    {
+                        type: 'text',
+                        text: `needs_sign_in: ${signInRefusal.message} ${connectUrl}`,
+                    },
+                ],
+            });
+            const uri = new URL(
+                `lightdash://projects/${projectUuid}/agent-status`,
+            );
+            expect(
+                await mockRegisteredMcpResources.get('agent-status')!(
+                    uri,
+                    { projectUuid },
+                    extra,
+                ),
+            ).toEqual({
+                contents: [
+                    {
+                        uri: uri.href,
+                        mimeType: 'application/json',
+                        text: JSON.stringify(expected),
+                    },
+                ],
+            });
+            expect(aiAccessService.getMyAccess).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                null,
+            );
+            aiAccessService.getMyAccess.mockResolvedValue({
+                requirementSource: 'organization',
+                identity: 'connected_person',
+                refusal: null,
+                expiresAt: new Date('2030-01-01T00:00:00Z'),
+            });
+            expect(
+                await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                ),
+            ).toMatchObject({
+                structuredContent: {
+                    status: 'connected',
+                    connectUrl: null,
+                    expiresAt: '2030-01-01T00:00:00.000Z',
                 },
-            ],
-        });
-        const uri = new URL(`lightdash://projects/${projectUuid}/agent-status`);
-        expect(
-            await mockRegisteredMcpResources.get('agent-status')!(
-                uri,
-                { projectUuid },
-                extra,
-            ),
-        ).toEqual({
-            contents: [
-                {
-                    uri: uri.href,
-                    mimeType: 'application/json',
-                    text: JSON.stringify(expected),
-                },
-            ],
-        });
-        expect(aiAccessService.getMyAccess).toHaveBeenCalledWith(
-            account,
-            projectUuid,
-            null,
-        );
-        aiAccessService.getMyAccess.mockResolvedValue({
-            requirementSource: 'organization',
-            identity: 'connected_person',
-            refusal: null,
-        });
-        expect(
-            await getToolCallback(McpToolName.CONNECT_AGENT)(
-                { projectUuid },
-                extra,
-            ),
-        ).toMatchObject({
-            structuredContent: { status: 'connected', connectUrl: null },
-        });
-    });
+            });
+            const connectedResource = await mockRegisteredMcpResources.get(
+                'agent-status',
+            )!(uri, { projectUuid }, extra);
+            expect(connectedResource).toMatchObject({
+                contents: [
+                    {
+                        text: JSON.stringify({
+                            status: 'connected',
+                            message:
+                                'Your agent is connected to the warehouse.',
+                            connectUrl: null,
+                            expiresAt: '2030-01-01T00:00:00.000Z',
+                        }),
+                    },
+                ],
+            });
+        },
+    );
 
     it.each([
         {

@@ -3533,10 +3533,12 @@ export class UserService extends BaseService {
     async upsertAiSnowflakeCredential(
         user: SessionUser,
         refreshToken: string,
+        expiresAt: Date | null,
     ): Promise<void> {
         await this.userWarehouseCredentialsModel.upsertAiSnowflakeCredential(
             user.userUuid,
             refreshToken,
+            expiresAt,
         );
     }
 

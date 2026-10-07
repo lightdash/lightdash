@@ -133,7 +133,16 @@ const setup = () => {
             ) => settings,
         ),
     };
+    const credentials = {
+        findAiCredentialWithSecrets: vi.fn(async () => ({
+            uuid: 'agent-credential',
+            expiresAt: new Date('2030-01-01T00:00:00Z'),
+            credentials: { type: WarehouseTypes.SNOWFLAKE },
+        })),
+    };
     const service = new AiAccessService({
+        userWarehouseCredentialsModel:
+            credentials as unknown as UserWarehouseCredentialsModel,
         organizationAgentIdentitySettingsModel:
             organizationSettings as unknown as OrganizationAgentIdentitySettingsModel,
         lightdashConfig: {
@@ -154,6 +163,7 @@ const setup = () => {
     return {
         service,
         historyModel,
+        credentials,
         organizationSettings,
         provider,
         flags,
@@ -164,6 +174,33 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test('returns stored expiry only for connected people', async () => {
+        const { service, flags, organizationSettings, credentials } = setup();
+        expect(
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            }),
+        ).toMatchObject({
+            identity: 'connected_person',
+            refusal: null,
+            expiresAt: new Date('2030-01-01T00:00:00Z'),
+        });
+        credentials.findAiCredentialWithSecrets.mockClear();
+        organizationSettings.get.mockResolvedValue({
+            requireVerifiedAgentSessions: false,
+        });
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            identity: 'marked_person',
+            expiresAt: null,
+        });
+        flags.get.mockResolvedValue({ enabled: false });
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            identity: null,
+            expiresAt: null,
+        });
+        expect(credentials.findAiCredentialWithSecrets).not.toHaveBeenCalled();
+    });
     test.each(['me', 'capabilities', 'marker'] as const)(
         'rejects %s when agent identity is off',
         async (route) => {
@@ -680,16 +717,18 @@ describe('AiAccessService', () => {
             projects.getWarehouseCredentialsForBinding,
         ).not.toHaveBeenCalled();
     });
-    test('me returns the project connect link under the organisation rule', async () => {
+    test.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])('me returns the project connect link for %s', async (reason) => {
         const { service, provider, projects } = setup();
         projects.getWarehouseCredentialsForBinding.mockResolvedValue(snowflake);
-        provider.missingPrerequisite.mockResolvedValue(
-            AiAccessRefusalReason.NEEDS_SIGN_IN,
-        );
+        provider.missingPrerequisite.mockResolvedValue(reason);
         expect(
             await service.getMyAccess(viewer, 'project', null),
         ).toMatchObject({
             requirementSource: 'organization',
+            expiresAt: null,
             refusal: {
                 connectUrl:
                     'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
@@ -697,24 +736,30 @@ describe('AiAccessService', () => {
         });
     });
 
-    test('resolvePlan includes the project connect link in sign-in refusals', async () => {
-        const { service, provider } = setup();
-        provider.mint.mockRejectedValue(
-            new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
-        );
-        await expect(
-            service.resolvePlan({ ...args, connection: snowflake }),
-        ).rejects.toMatchObject({
-            refusal: {
-                connectUrl:
-                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
-            },
-        });
-    });
+    test.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])(
+        'resolvePlan includes the project connect link for %s',
+        async (reason) => {
+            const { service, provider } = setup();
+            provider.mint.mockRejectedValue(new AiAccessRefusedError(reason));
+            await expect(
+                service.resolvePlan({ ...args, connection: snowflake }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    connectUrl:
+                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                },
+            });
+        },
+    );
 
     test.each(
         Object.values(AiAccessRefusalReason).filter(
-            (reason) => reason !== AiAccessRefusalReason.NEEDS_SIGN_IN,
+            (reason) =>
+                reason !== AiAccessRefusalReason.NEEDS_SIGN_IN &&
+                reason !== AiAccessRefusalReason.SIGN_IN_EXPIRED,
         ),
     )('leaves the connect URL null for %s', async (reason) => {
         const { service, provider } = setup();

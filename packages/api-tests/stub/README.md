@@ -45,6 +45,11 @@ The preview runs the same stub as an internal sidecar. CI runs
 issued state to call the callback directly; it does not need network access to
 the internal authorize endpoint.
 
+Codes beginning with `expiring` issue a refresh token that expires after one
+second. Codes beginning with `revoking` issue a refresh token beginning with
+`revoked`, so sign-in succeeds but its next refresh returns `invalid_grant`.
+Other successful codes report a refresh-token lifetime of 90 days.
+
 Codes and refresh tokens beginning with `revoked` return `invalid_grant`.
 OAuth access tokens beginning with `revoked` fail SDK login. Tokens beginning
 with `plain` create a session with agent activation false; other OAuth tokens

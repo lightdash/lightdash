@@ -150,12 +150,19 @@ export const startStub = async ({ port = 0, host = '127.0.0.1' } = {}) => {
                     json(response, 400, { error: 'invalid_grant' });
                     return;
                 }
+                let refreshPrefix = 'refresh';
+                if (input.startsWith('revoking'))
+                    refreshPrefix = 'revoked-refresh';
+                else if (input.startsWith('plain'))
+                    refreshPrefix = 'plain-refresh';
                 json(response, 200, {
                     access_token: `${input.startsWith('plain') ? 'plain' : 'agent'}-${randomUUID()}`,
-                    refresh_token: `${input.startsWith('plain') ? 'plain-refresh' : 'refresh'}-${randomUUID()}`,
+                    refresh_token: `${refreshPrefix}-${randomUUID()}`,
                     token_type: 'Bearer',
                     expires_in: 600,
-                    refresh_token_expires_in: 7776000,
+                    refresh_token_expires_in: input.startsWith('expiring')
+                        ? 1
+                        : 7776000,
                     scope: form.get('scope') ?? 'refresh_token',
                     username: 'stub',
                 });
