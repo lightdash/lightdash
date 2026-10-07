@@ -84,7 +84,7 @@ describe('DataAppGeneralSettingsPage', () => {
     it('shows automatic capture on for an organization that has it on', () => {
         renderPage();
 
-        const checkbox = screen.getByRole('checkbox', { name: LABEL });
+        const checkbox = screen.getByRole('switch', { name: LABEL });
         expect(checkbox).toBeChecked();
         expect(checkbox).toBeEnabled();
         expect(
@@ -96,7 +96,7 @@ describe('DataAppGeneralSettingsPage', () => {
         const user = userEvent.setup();
         renderPage();
 
-        await user.click(screen.getByRole('checkbox', { name: LABEL }));
+        await user.click(screen.getByRole('switch', { name: LABEL }));
 
         expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
             dataAppAutomaticThumbnailsEnabled: false,
@@ -110,7 +110,7 @@ describe('DataAppGeneralSettingsPage', () => {
         };
         renderPage();
 
-        const checkbox = screen.getByRole('checkbox', { name: LABEL });
+        const checkbox = screen.getByRole('switch', { name: LABEL });
         expect(checkbox).not.toBeChecked();
         await user.click(checkbox);
 
@@ -123,14 +123,14 @@ describe('DataAppGeneralSettingsPage', () => {
         mutationState.isLoading = true;
         renderPage();
 
-        expect(screen.getByRole('checkbox', { name: LABEL })).toBeDisabled();
+        expect(screen.getByRole('switch', { name: LABEL })).toBeDisabled();
     });
 
     it('disables the checkbox and explains why when no headless browser is configured', () => {
         health.hasHeadlessBrowser = false;
         renderPage();
 
-        expect(screen.getByRole('checkbox', { name: LABEL })).toBeDisabled();
+        expect(screen.getByRole('switch', { name: LABEL })).toBeDisabled();
         expect(
             screen.getByText('No headless browser is configured'),
         ).toBeInTheDocument();

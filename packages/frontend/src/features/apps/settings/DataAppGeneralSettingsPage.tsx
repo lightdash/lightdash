@@ -1,4 +1,13 @@
-import { Button, Checkbox, Group, Loader, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Stack,
+    Switch,
+    Text,
+    Title,
+} from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import ErrorState from '../../../components/common/ErrorState';
@@ -60,21 +69,40 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         </Callout>
                     )}
                     <SettingsCard>
-                        <Checkbox
-                            label="Automatically capture thumbnails for data app versions"
-                            description="Each version gets a thumbnail when it becomes ready, rendered as the user who created it. Turning this off keeps existing thumbnails, and thumbnails can still be captured by hand."
-                            checked={
-                                settings.dataAppAutomaticThumbnailsEnabled !==
-                                false
-                            }
-                            disabled={isUpdating || !hasHeadlessBrowser}
-                            onChange={(event) =>
-                                updateSettings({
-                                    dataAppAutomaticThumbnailsEnabled:
-                                        event.currentTarget.checked,
-                                })
-                            }
-                        />
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Title order={5} mb={4}>
+                                    Automatically capture thumbnails
+                                </Title>
+                                <Text c="dimmed" fz="xs">
+                                    Each data app version gets a thumbnail when
+                                    it becomes ready, rendered as the user who
+                                    created it. Turning this off keeps existing
+                                    thumbnails, and thumbnails can still be
+                                    captured by hand.
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                aria-label="Automatically capture thumbnails for data app versions"
+                                checked={
+                                    settings.dataAppAutomaticThumbnailsEnabled !==
+                                    false
+                                }
+                                disabled={isUpdating || !hasHeadlessBrowser}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        dataAppAutomaticThumbnailsEnabled:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
                     </SettingsCard>
                 </Stack>
             )}
