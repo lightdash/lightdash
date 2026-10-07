@@ -4,7 +4,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Paper, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
@@ -47,19 +47,31 @@ export const Interactivity: FC<Props> = ({ filterRule, field, onChange }) => {
             parameterValues={parameterValues}
         >
             <Stack gap="md">
-                <FilterValueSettings
-                    filterType={
-                        field ? getFilterTypeFromItem(field) : FilterType.STRING
-                    }
-                    field={field}
-                    filterRule={filterRule}
-                    onChange={onChange}
-                />
-                <InteractivityQuestions
-                    filterRule={filterRule}
-                    field={field}
-                    onChange={onChange}
-                />
+                <Paper p="md">
+                    <Stack gap="sm">
+                        <Title order={5}>Default value</Title>
+                        <FilterValueSettings
+                            filterType={
+                                field
+                                    ? getFilterTypeFromItem(field)
+                                    : FilterType.STRING
+                            }
+                            field={field}
+                            filterRule={filterRule}
+                            onChange={onChange}
+                        />
+                    </Stack>
+                </Paper>
+                <Paper p="md">
+                    <Stack gap="sm">
+                        <Title order={5}>Viewer controls</Title>
+                        <InteractivityQuestions
+                            filterRule={filterRule}
+                            field={field}
+                            onChange={onChange}
+                        />
+                    </Stack>
+                </Paper>
             </Stack>
         </FiltersProvider>
     );

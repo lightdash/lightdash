@@ -11,7 +11,6 @@ import {
     Button,
     Checkbox,
     Group,
-    Paper,
     SegmentedControl,
     Stack,
     Text,
@@ -31,6 +30,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
+import classes from './Interactivity.module.css';
 import { NotSavedBadge } from './NotSavedBadge';
 import {
     addAlternative,
@@ -56,6 +56,7 @@ type RowKey = 'who' | 'required' | 'pick' | 'where';
 
 type RowProps = {
     label: string;
+    action: string;
     summary: string;
     isChanged: boolean;
     isOpen: boolean;
@@ -65,22 +66,17 @@ type RowProps = {
 
 const QuestionRow: FC<RowProps> = ({
     label,
+    action,
     summary,
     isChanged,
     isOpen,
     onToggle,
     children,
 }) => (
-    <Paper
-        withBorder
-        p="xs"
-        style={
-            isChanged ? { borderColor: 'var(--mantine-color-ldGray-6)' } : {}
-        }
-    >
+    <Stack gap={0} className={classes.row}>
         <Group justify="space-between" wrap="nowrap" align="flex-start">
             <Stack gap={0}>
-                <Text size="xs" fw={600}>
+                <Text size="xs" fw={isChanged ? 600 : 500}>
                     {label}
                 </Text>
                 <Text size="xs" c="dimmed">
@@ -88,7 +84,7 @@ const QuestionRow: FC<RowProps> = ({
                 </Text>
             </Stack>
             <Button size="compact-xs" variant="subtle" onClick={onToggle}>
-                {isOpen ? 'Done' : 'Change'}
+                {isOpen ? 'Done' : action}
             </Button>
         </Group>
         {isOpen && (
@@ -96,7 +92,7 @@ const QuestionRow: FC<RowProps> = ({
                 {children}
             </Stack>
         )}
-    </Paper>
+    </Stack>
 );
 
 const SessionLabel: FC<{ children: ReactNode }> = ({ children }) => (
@@ -357,9 +353,10 @@ export const InteractivityQuestions: FC<Props> = ({
           : 'Only the values you list';
 
     return (
-        <Stack gap="xs">
+        <Stack gap={0}>
             <QuestionRow
                 label="Who can see and change it"
+                action="Edit"
                 summary={whoSummary}
                 isChanged={isWhoChanged(filterRule, settings)}
                 {...rowProps('who')}
@@ -391,6 +388,7 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Required"
+                action="Set"
                 summary={requiredSummary}
                 isChanged={isRequired}
                 {...rowProps('required')}
@@ -465,6 +463,7 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="What viewers can pick"
+                action="Edit"
                 summary={pickSummary}
                 isChanged={!isPickDefault(settings) || !!filterRule.singleValue}
                 {...rowProps('pick')}
@@ -567,6 +566,7 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Where it sits"
+                action="Move"
                 summary={
                     settings.placement === 'bar' ? 'On the bar' : 'Under More'
                 }

@@ -83,10 +83,11 @@ export const FieldRow: FC<Props> = ({
                         <Button
                             size="compact-xs"
                             variant="subtle"
-                            aria-label={`Add to all ${count.possible} ${tableLabel} charts`}
+                            aria-label={`Use ${label} on all ${count.possible} ${tableLabel} charts`}
                             onClick={onAll}
                         >
-                            All {count.possible}
+                            Use on all {count.possible}{' '}
+                            {pluralizeCharts(count.possible)}
                         </Button>
                     )}
                     {showNone && (
@@ -96,12 +97,12 @@ export const FieldRow: FC<Props> = ({
                             color="gray"
                             aria-label={
                                 count.applied === 1
-                                    ? 'Remove from the 1 chart'
-                                    : `Remove from all ${count.applied} charts`
+                                    ? `Stop using ${label} on the 1 chart`
+                                    : `Stop using ${label} on all ${count.applied} charts`
                             }
                             onClick={onNone}
                         >
-                            None
+                            Use on no charts
                         </Button>
                     )}
                     {showRemove && (

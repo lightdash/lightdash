@@ -1,5 +1,4 @@
 import {
-    DashboardTileTypes,
     getItemLabelWithoutTableName,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
@@ -8,7 +7,6 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
     Button,
     Group,
@@ -16,9 +14,12 @@ import {
     Radio,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
+import { IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     doesTileOfferField,
@@ -36,17 +37,20 @@ import { usePortalTargets } from './usePortalTargets';
 
 const getTileSelector = (tileUuid: string) => `[data-tile-uuid="${tileUuid}"]`;
 
-const TEXT_TILE_TYPES: DashboardTileTypes[] = [
-    DashboardTileTypes.MARKDOWN,
-    DashboardTileTypes.HEADING,
-    DashboardTileTypes.LOOM,
-];
+const NOT_FILTERED = '__not_filtered__';
 
 type FieldsMap = Record<string, FilterableDimension>;
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string => {
     const field = fieldsMap[fieldId];
     return field ? getItemLabelWithoutTableName(field) : fieldId;
+};
+
+const getTileTitle = (tile: DashboardTile): string => {
+    if (tile.properties.title) return tile.properties.title;
+    if ('chartName' in tile.properties && tile.properties.chartName)
+        return tile.properties.chartName;
+    return 'this chart';
 };
 
 // Finds the target for a field id: a known field, else one already on the rule
@@ -98,8 +102,8 @@ const TileOverlay: FC<TileOverlayProps> = ({
             doesTileOfferField(tile, fieldId, fieldsByTile) ||
             fieldId === tileField?.fieldId,
     );
-    const canBeFiltered =
-        isTileFilterable(tile, fieldsByTile) && options.length > 0;
+    const isFilterable = isTileFilterable(tile, fieldsByTile);
+    const canBeFiltered = isFilterable && options.length > 0;
     const showOffer =
         offeredField !== null &&
         offeredField.fieldId !== tileField?.fieldId &&
@@ -108,17 +112,24 @@ const TileOverlay: FC<TileOverlayProps> = ({
         showOffer ||
         (highlightedFieldId !== null &&
             tileField?.fieldId === highlightedFieldId);
+    const isLookingForField =
+        offeredField !== null || highlightedFieldId !== null;
 
     const setField = (field: DashboardFieldTarget | null) =>
         onChange(setTileField(rule, tile, field, fieldsByTile));
 
-    const fallbackField =
-        defaultField ??
-        (options[0] ? getFieldTarget(options[0], rule, fieldsMap) : null);
+    if (!isFilterable) {
+        return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
+    }
+
+    const tileTitle = getTileTitle(tile);
+    const chipLabel = tileField
+        ? `Filtered by ${getFieldLabel(tileField.fieldId, fieldsMap)}`
+        : 'Not filtered';
 
     return (
         <div
-            className={classes.overlay}
+            className={`${classes.overlay} ${classes.filterable}`}
             data-highlighted={isHighlighted || undefined}
         >
             <Group gap="xxs" className={classes.chips} wrap="wrap">
@@ -127,29 +138,38 @@ const TileOverlay: FC<TileOverlayProps> = ({
                         opened={isMenuOpen}
                         onChange={setIsMenuOpen}
                         position="top-start"
-                        shadow="md"
                         withinPortal
                     >
                         <Popover.Target>
-                            <Button
-                                size="compact-xs"
-                                radius="xl"
-                                variant="default"
-                                className={
-                                    tileField
-                                        ? classes.chip
-                                        : classes.chipDashed
-                                }
-                                onClick={() => setIsMenuOpen((open) => !open)}
+                            <Tooltip
+                                label="Change which field this chart uses"
+                                disabled={isMenuOpen}
                             >
-                                {filterLabel}:{' '}
-                                {tileField
-                                    ? getFieldLabel(
-                                          tileField.fieldId,
-                                          fieldsMap,
-                                      )
-                                    : 'not filtered'}
-                            </Button>
+                                <Button
+                                    size="compact-xs"
+                                    variant="default"
+                                    className={
+                                        tileField
+                                            ? classes.chip
+                                            : classes.chipDashed
+                                    }
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={IconChevronDown}
+                                            size={14}
+                                            color="dimmed"
+                                        />
+                                    }
+                                    aria-haspopup="menu"
+                                    aria-expanded={isMenuOpen}
+                                    aria-label={`${filterLabel} on ${tileTitle}`}
+                                    onClick={() =>
+                                        setIsMenuOpen((open) => !open)
+                                    }
+                                >
+                                    {chipLabel}
+                                </Button>
+                            </Tooltip>
                         </Popover.Target>
                         <Popover.Dropdown>
                             <Stack gap="xs">
@@ -157,14 +177,16 @@ const TileOverlay: FC<TileOverlayProps> = ({
                                     {filterLabel} on this chart
                                 </Text>
                                 <Radio.Group
-                                    value={tileField?.fieldId ?? ''}
-                                    onChange={(fieldId) =>
+                                    value={tileField?.fieldId ?? NOT_FILTERED}
+                                    onChange={(value) =>
                                         setField(
-                                            getFieldTarget(
-                                                fieldId,
-                                                rule,
-                                                fieldsMap,
-                                            ),
+                                            value === NOT_FILTERED
+                                                ? null
+                                                : getFieldTarget(
+                                                      value,
+                                                      rule,
+                                                      fieldsMap,
+                                                  ),
                                         )
                                     }
                                 >
@@ -180,41 +202,27 @@ const TileOverlay: FC<TileOverlayProps> = ({
                                                 )}
                                             />
                                         ))}
+                                        <Radio
+                                            size="xs"
+                                            value={NOT_FILTERED}
+                                            label="Not filtered"
+                                        />
                                     </Stack>
                                 </Radio.Group>
-                                {tileField ? (
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        fz="xs"
-                                        ta="left"
-                                        onClick={() => setField(null)}
-                                    >
-                                        Do not filter this chart
-                                    </Anchor>
-                                ) : (
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        fz="xs"
-                                        ta="left"
-                                        onClick={() => setField(fallbackField)}
-                                    >
-                                        Filter this chart
-                                    </Anchor>
-                                )}
-                                {isChanged && (
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        fz="xs"
-                                        ta="left"
-                                        onClick={() => setField(defaultField)}
-                                    >
-                                        Back to the default
-                                    </Anchor>
-                                )}
-                                <Group justify="flex-end">
+                                <Group justify="space-between">
+                                    {isChanged ? (
+                                        <Button
+                                            size="compact-xs"
+                                            variant="subtle"
+                                            onClick={() =>
+                                                setField(defaultField)
+                                            }
+                                        >
+                                            Back to the default
+                                        </Button>
+                                    ) : (
+                                        <span />
+                                    )}
                                     <Button
                                         size="compact-xs"
                                         variant="default"
@@ -227,32 +235,38 @@ const TileOverlay: FC<TileOverlayProps> = ({
                         </Popover.Dropdown>
                     </Popover>
                 ) : (
-                    <Text className={classes.note} fz="xs">
-                        {TEXT_TILE_TYPES.includes(tile.type)
-                            ? 'Text tiles cannot be filtered'
-                            : 'No matching field'}
-                    </Text>
+                    isLookingForField &&
+                    !showOffer && (
+                        <Text className={classes.note} fz="xs">
+                            No matching field
+                        </Text>
+                    )
                 )}
                 {isChanged && (
-                    <Badge
-                        size="xs"
-                        variant="light"
-                        color="orange"
-                        className={classes.badge}
-                    >
+                    <Badge size="xs" className={classes.badge}>
                         Changed
                     </Badge>
                 )}
                 {showOffer && offeredField && (
-                    <Button
-                        size="compact-xs"
-                        radius="xl"
-                        variant="default"
-                        className={classes.chipDashed}
-                        onClick={() => setField(offeredField)}
+                    <Tooltip
+                        label={`Use ${getFieldLabel(
+                            offeredField.fieldId,
+                            fieldsMap,
+                        )} on this chart`}
                     >
-                        + {getFieldLabel(offeredField.fieldId, fieldsMap)}
-                    </Button>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            className={classes.chipDashed}
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size={14} />
+                            }
+                            aria-label={`${filterLabel} on ${tileTitle}`}
+                            onClick={() => setField(offeredField)}
+                        >
+                            Use {getFieldLabel(offeredField.fieldId, fieldsMap)}
+                        </Button>
+                    </Tooltip>
                 )}
             </Group>
         </div>

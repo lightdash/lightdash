@@ -58,7 +58,7 @@ export const FilterSidebar: FC = () => {
             ? null
             : findFilterRule(dashboardFilters, editingFilterId);
 
-    const getNewFieldSubLabel = useCallback(
+    const getNewFieldChartCount = useCallback(
         (candidate: DashboardFilterableField) => {
             const candidateId = getItemId(candidate);
             const chartCount = Object.values(
@@ -68,9 +68,7 @@ export const FilterSidebar: FC = () => {
                     (tileField) => getItemId(tileField) === candidateId,
                 ),
             ).length;
-            return `${candidate.tableLabel} · ${chartCount} ${
-                chartCount === 1 ? 'chart' : 'charts'
-            }`;
+            return chartCount;
         },
         [filterableFieldsByTileUuid],
     );
@@ -138,7 +136,7 @@ export const FilterSidebar: FC = () => {
                     <FieldPicker
                         fields={allFilterableFields ?? []}
                         onPick={addFirstField}
-                        getSubLabel={getNewFieldSubLabel}
+                        getChartCount={getNewFieldChartCount}
                     />
                 </Stack>
                 <Stack gap="xs" p="md" className={classes.footer}>

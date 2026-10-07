@@ -23,9 +23,6 @@ import { useFilterSidebar } from './useFilterSidebar';
 const DEFAULT_HINT =
     'Click a chart to change what it uses. Pick a row to see which charts use it.';
 
-const pluralizeCharts = (count: number): string =>
-    count === 1 ? 'chart' : 'charts';
-
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,
     fieldId: string,
@@ -252,15 +249,14 @@ export const FieldsAndCharts: FC = () => {
                             tableName: field.table,
                         })
                     }
-                    getSubLabel={(field) => {
-                        const { possible } = getFieldCount(
+                    getChartCount={(field) =>
+                        getFieldCount(
                             editingRule,
                             getItemId(field),
                             tiles,
                             filterableFieldsByTileUuid,
-                        );
-                        return `${field.tableLabel ?? field.table} · ${possible} ${pluralizeCharts(possible)}`;
-                    }}
+                        ).possible
+                    }
                 />
             </Stack>
         </Stack>

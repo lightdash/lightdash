@@ -11,8 +11,19 @@
     pointer-events: none;
 }
 
+/* The overlay ignores the pointer, so hover comes from the tile it sits in */
+:global([data-tile-uuid]:hover) > .filterable:not([data-highlighted]) {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+}
+
 .overlay[data-highlighted] {
     border-color: var(--mantine-primary-color-filled);
+}
+
+/* A veil over the tile: content reads at 0.6 of its strength */
+.unfilterable {
+    background-color: var(--mantine-color-body);
+    opacity: 0.4;
 }
 
 .chips {
@@ -23,7 +34,6 @@
 .chipDashed,
 .badge {
     pointer-events: auto;
-    box-shadow: var(--mantine-shadow-xs);
 }
 
 .chip,
