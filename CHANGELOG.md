@@ -1,3 +1,11 @@
+## [2.458.1](https://github.com/lightdash/lightdash/compare/2.458.0...2.458.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **embed:** allow CSV export from Explore opened by a dashboard embed ([#30633](https://github.com/lightdash/lightdash/issues/30633)) ([e6e2bca](https://github.com/lightdash/lightdash/commit/e6e2bcaa31a947aaa073ebea2a9cf49402e50bd5))
+* render pinned dashboard parameters once ([#30631](https://github.com/lightdash/lightdash/issues/30631)) ([3687bf7](https://github.com/lightdash/lightdash/commit/3687bf784bae5df8d4041ab4304c63d4a859832a))
+
 # [2.458.0](https://github.com/lightdash/lightdash/compare/2.457.3...2.458.0) (2026-10-07)
 
 
