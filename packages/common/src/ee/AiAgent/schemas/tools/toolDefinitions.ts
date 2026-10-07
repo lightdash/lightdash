@@ -1666,6 +1666,30 @@ export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
     mcp: { annotations: readOnlyAnnotations },
 });
 
+const connectAgentOutputSchema = z.object({
+    status: z.enum([
+        'connected',
+        'needs_sign_in',
+        'not_required',
+        'unavailable',
+    ]),
+    message: z.string(),
+    connectUrl: z.string().nullable(),
+});
+
+export const connectAgentToolDefinition = defineTool({
+    name: 'connectAgent',
+    title: 'Connect agent',
+    description:
+        "Returns whether the person's agent is connected to the warehouse for this project and, when needed, the link to connect once. Call before queries when get_context shows the organisation requires agent identity, or after a refusal.",
+    availability: ['mcp'],
+    inputSchema: emptyInputSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: connectAgentOutputSchema,
+    },
+});
+
 export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     'getContext',
     typeof emptyInputSchema,

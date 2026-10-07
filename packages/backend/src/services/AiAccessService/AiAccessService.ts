@@ -66,6 +66,8 @@ type AiAccessServiceArguments = {
 export class AiAccessService extends BaseService {
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly projectModel: ProjectModel;
@@ -80,6 +82,7 @@ export class AiAccessService extends BaseService {
 
     constructor({
         organizationAgentIdentitySettingsModel,
+        lightdashConfig,
         featureFlagModel,
         userModel,
         projectModel,
@@ -90,6 +93,7 @@ export class AiAccessService extends BaseService {
         super();
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
+        this.lightdashConfig = lightdashConfig;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
@@ -411,9 +415,22 @@ export class AiAccessService extends BaseService {
         return provider;
     }
 
-    private static withRefusalSettingsUrl(
+    private withRefusalUrls(
         error: AiAccessRefusedError,
+        projectUuid: string,
     ): AiAccessRefusedError {
+        if (error.refusal.reason === AiAccessRefusalReason.NEEDS_SIGN_IN) {
+            const connectUrl = new URL(
+                '/agent/connect',
+                this.lightdashConfig.siteUrl,
+            );
+            connectUrl.searchParams.set('project', projectUuid);
+            connectUrl.searchParams.set('redirect', '/agent-connected');
+            return new AiAccessRefusedError(error.refusal.reason, {
+                ...error.refusal,
+                connectUrl: connectUrl.href,
+            });
+        }
         if (
             error.refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
             (error.refusal.settingsUrl === null ||
@@ -500,8 +517,10 @@ export class AiAccessService extends BaseService {
             };
         } catch (error) {
             if (error instanceof AiAccessRefusedError) {
-                const refusalError =
-                    AiAccessService.withRefusalSettingsUrl(error);
+                const refusalError = this.withRefusalUrls(
+                    error,
+                    args.projectUuid,
+                );
                 this.logRefusal(args, refusalError);
                 throw refusalError;
             }
@@ -625,7 +644,7 @@ export class AiAccessService extends BaseService {
                 throw new AiAccessRefusedError(missingPrerequisite);
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = AiAccessService.withRefusalSettingsUrl(error);
+            const refusalError = this.withRefusalUrls(error, args.projectUuid);
             this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }

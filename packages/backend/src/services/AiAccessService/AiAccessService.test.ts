@@ -136,7 +136,9 @@ const setup = () => {
     const service = new AiAccessService({
         organizationAgentIdentitySettingsModel:
             organizationSettings as unknown as OrganizationAgentIdentitySettingsModel,
-        lightdashConfig: {} as LightdashConfig,
+        lightdashConfig: {
+            siteUrl: 'https://lightdash.example',
+        } as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,
         queryHistoryModel: historyModel as unknown as QueryHistoryModel,
@@ -678,6 +680,57 @@ describe('AiAccessService', () => {
             projects.getWarehouseCredentialsForBinding,
         ).not.toHaveBeenCalled();
     });
+    test('me returns the project connect link under the organisation rule', async () => {
+        const { service, provider, projects } = setup();
+        projects.getWarehouseCredentialsForBinding.mockResolvedValue(snowflake);
+        provider.missingPrerequisite.mockResolvedValue(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        expect(
+            await service.getMyAccess(viewer, 'project', null),
+        ).toMatchObject({
+            requirementSource: 'organization',
+            refusal: {
+                connectUrl:
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+            },
+        });
+    });
+
+    test('resolvePlan includes the project connect link in sign-in refusals', async () => {
+        const { service, provider } = setup();
+        provider.mint.mockRejectedValue(
+            new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+        );
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({
+            refusal: {
+                connectUrl:
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+            },
+        });
+    });
+
+    test.each(
+        Object.values(AiAccessRefusalReason).filter(
+            (reason) => reason !== AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ),
+    )('leaves the connect URL null for %s', async (reason) => {
+        const { service, provider } = setup();
+        provider.missingPrerequisite.mockResolvedValue(reason);
+        provider.mint.mockRejectedValue(new AiAccessRefusedError(reason));
+        expect(
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            }),
+        ).toMatchObject({ refusal: { reason, connectUrl: null } });
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({ refusal: { reason, connectUrl: null } });
+    });
+
     test('reports a missing agent connection without minting', async () => {
         const { service, provider } = setup();
         provider.missingPrerequisite.mockResolvedValue(
@@ -695,6 +748,8 @@ describe('AiAccessService', () => {
                 message:
                     'Connect your agent to the warehouse once so it can run as you.',
                 settingsUrl: null,
+                connectUrl:
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
             },
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
@@ -726,6 +781,7 @@ describe('AiAccessService', () => {
                 refusal: {
                     action: 'ask_admin',
                     settingsUrl: '/generalSettings/warehouseCredentials',
+                    connectUrl: null,
                 },
             });
         },
@@ -852,6 +908,7 @@ describe('AiAccessService', () => {
                 reason: 'principal_failed',
                 action: 'ask_admin',
                 settingsUrl: '/generalSettings/warehouseCredentials',
+                connectUrl: null,
             },
         });
     });

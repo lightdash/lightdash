@@ -89,6 +89,7 @@ describe('useAmbientAiEnabled', () => {
                 action: AiAccessRefusalAction.SIGN_IN,
                 message: 'Sign in to run agent queries.',
                 settingsUrl: null,
+                connectUrl: null,
             },
             isLoading: false,
             isError: false,

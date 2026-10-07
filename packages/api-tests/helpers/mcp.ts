@@ -92,7 +92,33 @@ export async function openMcpSession(client: ApiClient, projectUuid: string) {
         expect(parsed.id).toBe(requestId);
         return parsed.result;
     };
+    const readResource = async (uri: string) => {
+        requestId += 1;
+        const resourceResponse = await mcp.post<
+            | McpResponse<{
+                  contents: Array<{
+                      uri: string;
+                      mimeType: string;
+                      text: string;
+                  }>;
+              }>
+            | string
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: requestId,
+                method: 'resources/read',
+                params: { uri },
+            },
+            { headers },
+        );
+        expect(resourceResponse.status).toBe(200);
+        const parsed = parseMcpResponse(resourceResponse.body);
+        expect(parsed.id).toBe(requestId);
+        return parsed.result;
+    };
     const selected = await callTool('set_project', { projectUuid });
     if (selected.isError) throw new Error(mcpText(selected));
-    return callTool;
+    return Object.assign(callTool, { readResource });
 }

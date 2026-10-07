@@ -33,6 +33,7 @@ const refusal = {
     action: AiAccessRefusalAction.SIGN_IN,
     message: 'Sign in to run agent queries.',
     settingsUrl: null,
+    connectUrl: null,
 };
 const accessResult = (refused: boolean) =>
     ({ refusal: refused ? refusal : null }) as AiAccessForUser;

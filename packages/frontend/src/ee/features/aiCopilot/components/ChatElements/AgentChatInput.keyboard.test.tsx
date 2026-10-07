@@ -25,6 +25,7 @@ const access = vi.hoisted(() => ({
 
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
+        isAccessRequired: true,
         data: { refusal: access.refusal },
         isLoading: access.isLoading,
         isFetching: false,
@@ -135,6 +136,7 @@ describe('AgentChatInput keyboard handling', () => {
             action: AiAccessRefusalAction.SIGN_IN,
             message: 'Sign in to run agent queries.',
             settingsUrl: null,
+            connectUrl: null,
         };
         const { onSubmit, rerender } = renderInput();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -181,6 +183,7 @@ describe('AgentChatInput keyboard handling', () => {
             action: AiAccessRefusalAction.SIGN_IN,
             message: 'Sign in to run agent queries.',
             settingsUrl: null,
+            connectUrl: null,
         };
         renderInput(true);
         expect(

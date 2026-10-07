@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AiAgentWithContext,
     AiResultType,
     AiWritebackRunStatus,
@@ -15,6 +17,7 @@ import {
     clearAgentToolDefinition,
     clientSupportsMcpTasks,
     CommercialFeatureFlags,
+    connectAgentToolDefinition,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
     createContentToolDefinition,
@@ -47,6 +50,7 @@ import {
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
     hashStringToBase36,
+    isAiAccessRefusal,
     ItemsMap,
     iterateDataAppToolDefinition,
     listAgentsToolDefinition,
@@ -107,7 +111,10 @@ import {
 // eslint-disable-next-line import/extensions
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+    McpServer,
+    ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
@@ -137,6 +144,7 @@ import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -207,6 +215,7 @@ import {
 } from './mcpAppHelpers';
 
 export enum McpToolName {
+    CONNECT_AGENT = 'connect_agent',
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
     GENERATE_HASHES = 'generate_hashes',
     LIST_EXPLORES = 'list_explores',
@@ -353,6 +362,13 @@ const mcpCreateScheduledDeliveryTool = withProjectScopeInput(
     createScheduledDeliveryToolDefinition.for('mcp'),
 );
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
+const mcpConnectAgentTool = withProjectUuidInput(
+    connectAgentToolDefinition.for('mcp'),
+);
+
+const MCP_AGENT_CONNECT_GUIDANCE =
+    ' If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.';
+
 const mcpGetContextTool = getContextToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -404,6 +420,7 @@ const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
 
 type McpServiceArguments = {
+    aiAccessService: AiAccessService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
@@ -519,11 +536,14 @@ export type McpServerToolOptions = {
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
+        agentIdentityEnabled: boolean;
     };
 };
 
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
+
+    private aiAccessService: AiAccessService;
 
     private analytics: LightdashAnalytics;
 
@@ -566,6 +586,7 @@ export class McpService extends BaseService {
     private mcpServer: McpServer;
 
     constructor({
+        aiAccessService,
         lightdashConfig,
         analytics,
         asyncQueryService,
@@ -588,6 +609,7 @@ export class McpService extends BaseService {
         aiWritebackService,
     }: McpServiceArguments) {
         super();
+        this.aiAccessService = aiAccessService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.asyncQueryService = asyncQueryService;
@@ -614,6 +636,7 @@ export class McpService extends BaseService {
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
                 documentsEnabled: false,
+                agentIdentityEnabled: false,
             });
             this.setupHandlers();
         } catch (error) {
@@ -627,6 +650,7 @@ export class McpService extends BaseService {
         runMetricQueryEnabled: boolean;
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
+        agentIdentityEnabled: boolean;
     }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
@@ -657,6 +681,7 @@ export class McpService extends BaseService {
                         runMetricQueryEnabled: args.runMetricQueryEnabled,
                         filterExpressionsEnabled: args.filterExpressionsEnabled,
                         documentsEnabled: args.documentsEnabled,
+                        agentIdentityEnabled: args.agentIdentityEnabled,
                     }),
                 },
             ),
@@ -2264,6 +2289,57 @@ export class McpService extends BaseService {
         );
     }
 
+    private static formatToolError(error: unknown, prefix: string): string {
+        if (error instanceof AiAccessRefusedError && error.refusal.connectUrl) {
+            return `${error.refusal.message}\n\nConnect your agent (once per person): ${error.refusal.connectUrl}\nThen run the same call again.`;
+        }
+        return `${prefix}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+
+    private async getAgentConnectionStatus(
+        ctx: McpProtocolContext,
+        requestedProjectUuid: string,
+    ) {
+        const { account } = McpService.getAccount(ctx);
+        const projectUuid = await this.resolveToolProjectUuid(
+            ctx,
+            requestedProjectUuid,
+        );
+        const access = await this.aiAccessService.getMyAccess(
+            account,
+            projectUuid,
+            null,
+        );
+        if (access.refusal === null && access.identity === 'connected_person') {
+            return {
+                status: 'connected' as const,
+                message: 'Your agent is connected to the warehouse.',
+                connectUrl: null,
+            };
+        }
+        if (access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN) {
+            return {
+                status: 'needs_sign_in' as const,
+                message: access.refusal.message,
+                connectUrl: access.refusal.connectUrl,
+            };
+        }
+        if (access.requirementSource === null) {
+            return {
+                status: 'not_required' as const,
+                message: 'Agent connection is not required for this project.',
+                connectUrl: null,
+            };
+        }
+        return {
+            status: 'unavailable' as const,
+            message:
+                access.refusal?.message ??
+                'Agent connection is unavailable for this project.',
+            connectUrl: null,
+        };
+    }
+
     setupHandlers(
         { req, featureAvailability: options }: McpServerToolOptions = {
             req: {
@@ -2278,10 +2354,59 @@ export class McpService extends BaseService {
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
                 documentsEnabled: false,
+                agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
             },
         },
     ): void {
+        if (options.agentIdentityEnabled) {
+            this.registerTrackedTool(
+                mcpConnectAgentTool.name,
+                {
+                    title: mcpConnectAgentTool.title,
+                    description: mcpConnectAgentTool.description,
+                    inputSchema: mcpConnectAgentTool.inputSchema.shape,
+                    outputSchema: mcpConnectAgentTool.outputSchema.shape,
+                    annotations: mcpConnectAgentTool.annotations,
+                },
+                async (args, extra) => {
+                    const status = await this.getAgentConnectionStatus(
+                        getMcpContext(extra),
+                        args.projectUuid,
+                    );
+                    return mcpConnectAgentTool.result.structured(
+                        `${status.status}: ${status.message}${status.connectUrl ? ` ${status.connectUrl}` : ''}`,
+                        status,
+                    );
+                },
+            );
+            this.mcpServer.registerResource(
+                'agent-status',
+                new ResourceTemplate(
+                    'lightdash://projects/{projectUuid}/agent-status',
+                    { list: undefined },
+                ),
+                { mimeType: 'application/json' },
+                async (uri, variables, extra) => {
+                    const requestedProjectUuid = z
+                        .string()
+                        .parse(variables.projectUuid);
+                    const status = await this.getAgentConnectionStatus(
+                        getMcpContext(extra),
+                        requestedProjectUuid,
+                    );
+                    return {
+                        contents: [
+                            {
+                                uri: uri.href,
+                                mimeType: 'application/json',
+                                text: JSON.stringify(status),
+                            },
+                        ],
+                    };
+                },
+            );
+        }
         this.registerTrackedTool(
             mcpGetLightdashVersionTool.name,
             {
@@ -3315,7 +3440,13 @@ export class McpService extends BaseService {
                 runMetricQueryTool.name,
                 {
                     title: runMetricQueryTool.title,
-                    description: runMetricQueryTool.description,
+                    // The filter-expression description sits at the client text cap.
+                    description:
+                        options.agentIdentityEnabled &&
+                        !options.filterExpressionsEnabled
+                            ? runMetricQueryTool.description +
+                              MCP_AGENT_CONNECT_GUIDANCE
+                            : runMetricQueryTool.description,
                     inputSchema: runMetricQueryTool.inputSchema.shape,
                     outputSchema: runMetricQueryTool.outputSchema,
                     annotations: runMetricQueryTool.annotations,
@@ -3470,7 +3601,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running metric query: ${errorMessage}`,
+                                    text: McpService.formatToolError(
+                                        e,
+                                        'Error running metric query',
+                                    ),
                                 },
                             ],
                             isError: true,
@@ -3583,7 +3717,10 @@ export class McpService extends BaseService {
                                 content: [
                                     {
                                         type: 'text' as const,
-                                        text: `Error rendering chart: ${errorMessage}`,
+                                        text: McpService.formatToolError(
+                                            e,
+                                            'Error rendering chart',
+                                        ),
                                     },
                                 ],
                                 isError: true,
@@ -3649,6 +3786,30 @@ export class McpService extends BaseService {
                         },
                     );
 
+                    if (
+                        'structuredContent' in result &&
+                        'refusal' in result.structuredContent &&
+                        isAiAccessRefusal(result.structuredContent.refusal) &&
+                        result.structuredContent.refusal.connectUrl
+                    ) {
+                        const { refusal } = result.structuredContent;
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: McpService.formatToolError(
+                                        new AiAccessRefusedError(
+                                            refusal.reason,
+                                            refusal,
+                                        ),
+                                        'Error searching field values',
+                                    ),
+                                },
+                            ],
+                            isError: true,
+                        };
+                    }
+
                     return this.buildScopedResponse(
                         ctx,
                         await McpService.streamToolResult(result),
@@ -3676,10 +3837,14 @@ export class McpService extends BaseService {
                 mcpRunSqlTool.name,
                 {
                     title: mcpRunSqlTool.title,
-                    description: buildRunSqlDescription(
-                        500,
-                        this.lightdashConfig.mcp.runSqlMaxLimit,
-                    ),
+                    description:
+                        buildRunSqlDescription(
+                            500,
+                            this.lightdashConfig.mcp.runSqlMaxLimit,
+                        ) +
+                        (options.agentIdentityEnabled
+                            ? MCP_AGENT_CONNECT_GUIDANCE
+                            : ''),
                     inputSchema:
                         createMcpCompatibleInputShape(runSqlArgsSchema),
                     outputSchema: mcpRunSqlTool.outputSchema,
@@ -3758,7 +3923,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running SQL query: ${errorMessage}`,
+                                    text: McpService.formatToolError(
+                                        e,
+                                        'Error running SQL query',
+                                    ),
                                 },
                             ],
                             isError: true,
@@ -3938,7 +4106,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error getting query result: ${errorMessage}`,
+                                    text: McpService.formatToolError(
+                                        e,
+                                        'Error getting query result',
+                                    ),
                                 },
                             ],
                             isError: true,
@@ -4037,6 +4208,7 @@ export class McpService extends BaseService {
                     runMetricQueryEnabled: options.runMetricQueryEnabled,
                     filterExpressionsEnabled: options.filterExpressionsEnabled,
                     documentsEnabled: options.documentsEnabled,
+                    agentIdentityEnabled: options.agentIdentityEnabled,
                 });
 
                 return {
@@ -4836,6 +5008,16 @@ export class McpService extends BaseService {
             user,
             projectUuid: headerProjectUuid,
         });
+    }
+
+    public async isAgentIdentityEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        return enabled;
     }
 
     public async isFilterExpressionsEnabled(

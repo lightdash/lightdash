@@ -89,6 +89,7 @@ export type AiAccessRefusal = {
     message: string;
     action: AiAccessRefusalAction | null;
     settingsUrl: string | null;
+    connectUrl: string | null;
 };
 
 export const getAiAccessRefusalMessage = (

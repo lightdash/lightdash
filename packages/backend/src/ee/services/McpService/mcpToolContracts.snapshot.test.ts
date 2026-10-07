@@ -53,7 +53,10 @@ vi.mock('@sentry/node', () => ({
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('@modelcontextprotocol/sdk/server/mcp.js')
+    >()),
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer(
@@ -180,6 +183,7 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
 
 const defaultMcpAnalystPromptOptions = {
     documentsEnabled: false,
+    agentIdentityEnabled: false,
     runSqlEnabled: true,
     runMetricQueryEnabled: true,
     filterExpressionsEnabled: false,
@@ -234,6 +238,86 @@ describe('MCP tool contracts', () => {
 
     it('matches the shared MCP tool definition names snapshot', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
+    });
+
+    it('resolves agent identity for the request user', async () => {
+        const get = vi.fn().mockResolvedValue({ enabled: true });
+        const service = makeMcpService(true, { get });
+        expect(await service.isAgentIdentityEnabled(defaultSessionUser)).toBe(
+            true,
+        );
+        expect(get).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+    });
+
+    it.each([
+        { runSqlEnabled: false, runMetricQueryEnabled: false, rule: false },
+        { runSqlEnabled: true, runMetricQueryEnabled: false, rule: true },
+        { runSqlEnabled: true, runMetricQueryEnabled: true, rule: true },
+        { runSqlEnabled: false, runMetricQueryEnabled: true, rule: true },
+    ])(
+        'gates the connect rule in the prompt variant sql=$runSqlEnabled metric=$runMetricQueryEnabled',
+        ({ rule, ...queryOptions }) => {
+            const options = {
+                ...defaultMcpAnalystPromptOptions,
+                ...queryOptions,
+            };
+            const connectRule = 'refuses with a connect link';
+            const flagOn = getMcpAnalystPrompt({
+                ...options,
+                agentIdentityEnabled: true,
+            });
+            if (rule) expect(flagOn).toContain(connectRule);
+            else expect(flagOn).not.toContain(connectRule);
+            expect(
+                getMcpAnalystPrompt({
+                    ...options,
+                    agentIdentityEnabled: false,
+                }),
+            ).not.toContain(connectRule);
+        },
+    );
+
+    it('matches the agent-identity tools and instructions snapshot', async () => {
+        const service = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await service.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+                agentIdentityEnabled: true,
+            }),
+        );
+        const tools = mockRegisteredMcpTools
+            .filter(({ name }) =>
+                [
+                    McpToolName.CONNECT_AGENT,
+                    McpToolName.RUN_SQL,
+                    McpToolName.RUN_METRIC_QUERY,
+                ].includes(name as McpToolName),
+            )
+            .map(({ name, config }) =>
+                name === McpToolName.CONNECT_AGENT
+                    ? {
+                          name,
+                          ...config,
+                          inputSchema: schemaToJson(
+                              config.inputSchema,
+                              'input',
+                          ),
+                          outputSchema: schemaToJson(
+                              config.outputSchema,
+                              'output',
+                          ),
+                      }
+                    : { name, description: config.description },
+            );
+        expect({
+            instructions: getLatestMcpServerInstructions(),
+            tools,
+        }).toMatchSnapshot();
     });
 
     it('resolves the filter-expression feature flag for the request user', async () => {

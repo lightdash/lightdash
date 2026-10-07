@@ -80,7 +80,11 @@ export class AiAccessRefusedError extends ForbiddenError {
 
     constructor(
         reason: AiAccessRefusalReason,
-        options: { message?: string; settingsUrl?: string | null } = {},
+        options: {
+            message?: string;
+            settingsUrl?: string | null;
+            connectUrl?: string | null;
+        } = {},
     ) {
         const refusal: AiAccessRefusal = {
             code: AI_ACCESS_REFUSED_CODE,
@@ -88,6 +92,7 @@ export class AiAccessRefusedError extends ForbiddenError {
             message: options.message ?? getAiAccessRefusalMessage(reason),
             action: getAiAccessRefusalAction(reason),
             settingsUrl: options.settingsUrl ?? null,
+            connectUrl: options.connectUrl ?? null,
         };
         super(refusal.message, refusal);
         this.refusal = refusal;

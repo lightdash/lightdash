@@ -40,6 +40,7 @@ const refusal: AiAccessRefusal = {
     message: 'Sign in to run AI queries.',
     action: AiAccessRefusalAction.SIGN_IN,
     settingsUrl: null,
+    connectUrl: null,
 };
 const render = (action: AiAccessRefusal['action']) =>
     renderWithProviders(

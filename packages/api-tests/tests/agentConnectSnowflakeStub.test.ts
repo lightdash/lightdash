@@ -171,6 +171,15 @@ describe.skipIf(!stubUrl)(
             expect(before.body.results.refusal?.reason).toBe(
                 AiAccessRefusalReason.NEEDS_SIGN_IN,
             );
+            const connectUrl = before.body.results.refusal?.connectUrl;
+            expect(connectUrl).toBeTruthy();
+            const parsedConnectUrl = new URL(connectUrl!);
+            expect(parsedConnectUrl.origin).toBe(siteUrl.origin);
+            expect(parsedConnectUrl.pathname).toBe('/agent/connect');
+            expect([...parsedConnectUrl.searchParams.entries()]).toEqual([
+                ['project', projectUuid],
+                ['redirect', '/agent-connected'],
+            ]);
             const callTool = await openMcpSession(client, projectUuid!);
             const refused = await callTool('run_sql', {
                 projectUuid,
@@ -181,6 +190,30 @@ describe.skipIf(!stubUrl)(
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN),
             );
+
+            expect(mcpText(refused)).toContain(connectUrl);
+            const connectionStatus = await callTool('connect_agent', {
+                projectUuid,
+            });
+            expect(connectionStatus.isError).toBeFalsy();
+            const expectedStatus = {
+                status: 'needs_sign_in',
+                message: before.body.results.refusal!.message,
+                connectUrl,
+            };
+            expect(connectionStatus).toMatchObject({
+                structuredContent: expectedStatus,
+            });
+            const resource = await callTool.readResource(
+                `lightdash://projects/${projectUuid}/agent-status`,
+            );
+            expect(resource.contents).toEqual([
+                {
+                    uri: `lightdash://projects/${projectUuid}/agent-status`,
+                    mimeType: 'application/json',
+                    text: JSON.stringify(expectedStatus),
+                },
+            ]);
 
             const start = await client.get(
                 '/api/v1/login/snowflake-ai?redirect=/agent-connected',
@@ -214,6 +247,11 @@ describe.skipIf(!stubUrl)(
             expect(after.body.results).toMatchObject({
                 refusal: null,
                 identity: 'connected_person',
+            });
+            expect(
+                await callTool('connect_agent', { projectUuid }),
+            ).toMatchObject({
+                structuredContent: { status: 'connected', connectUrl: null },
             });
             const credentials = await client.get<
                 Body<UserWarehouseCredentials[]>

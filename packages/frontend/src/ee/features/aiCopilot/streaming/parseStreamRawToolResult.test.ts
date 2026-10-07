@@ -127,6 +127,7 @@ describe('AI access tool refusals', () => {
             message: 'Not supported',
             action: null,
             settingsUrl: null,
+            connectUrl: null,
         };
         expect(
             parseStreamRawToolResult({
