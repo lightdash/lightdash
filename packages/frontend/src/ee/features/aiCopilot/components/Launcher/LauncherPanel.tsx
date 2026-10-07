@@ -399,6 +399,7 @@ const NewThreadPanel: FC<{
                     />
                 )}
                 <AgentChatInput
+                    accessCalloutVariant="inline"
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
@@ -693,6 +694,7 @@ const ExistingThreadPanel: FC<{
                     }}
                 >
                     <AgentChatInput
+                        accessCalloutVariant="inline"
                         disabled={isInputDisabled}
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
                         loading={isBusy}

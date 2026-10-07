@@ -55,7 +55,7 @@ import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
-import { useMyAiAccess } from '../../../../../features/aiAccess/api';
+import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
 import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useUser from '../../../../../hooks/user/useUser';
@@ -107,7 +107,7 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
-import { AiAccessCallout } from './AiAccessCallout';
+import { AiAccessGate } from './AiAccessGate';
 import {
     ComposerThemeButton,
     ComposerThemeMenuEntry,
@@ -260,6 +260,7 @@ interface AgentChatInputProps {
     disabledReason?: string;
     placeholder?: string;
     messageCount?: number;
+    accessCalloutVariant?: 'card' | 'inline';
     projectUuid?: string;
     agentUuid?: string;
     threadUuid?: string;
@@ -331,6 +332,7 @@ export const AgentChatInput = ({
     disabledReason,
     placeholder = 'Ask anything',
     messageCount = 0,
+    accessCalloutVariant,
     projectUuid,
     agentUuid,
     threadUuid,
@@ -355,8 +357,8 @@ export const AgentChatInput = ({
     footerNotice,
     showFastMode = true,
 }: AgentChatInputProps) => {
-    const aiAccess = useMyAiAccess(projectUuid);
-    const accessRefused = !!aiAccess.data?.refusal;
+    const accessGate = useAiAccessGate(projectUuid);
+    const accessRefused = accessGate.disabled;
     const disabled = disabledProp || accessRefused;
     const user = useUser(true);
     const app = useApp();
@@ -1500,18 +1502,13 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {projectUuid && aiAccess.data?.refusal && (
-                    <AiAccessCallout
-                        projectUuid={projectUuid}
-                        refusal={aiAccess.data.refusal}
-                        variant={messageCount === 0 ? 'card' : 'inline'}
-                    />
-                )}
-                <Box
-                    component="fieldset"
-                    disabled={accessRefused}
-                    className={styles.composerArea}
-                    data-access-refused={accessRefused}
+                <AiAccessGate
+                    projectUuid={projectUuid}
+                    refusal={accessGate.refusal}
+                    variant={
+                        accessCalloutVariant ??
+                        (messageCount === 0 ? 'card' : 'inline')
+                    }
                 >
                     {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
@@ -1543,7 +1540,7 @@ export const AgentChatInput = ({
                             styles.chipTray,
                             shouldReserveEmptyStateSuggestions,
                         )}
-                </Box>
+                </AiAccessGate>
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
                         {disabledReason}
@@ -1565,18 +1562,13 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
-            {projectUuid && aiAccess.data?.refusal && (
-                <AiAccessCallout
-                    projectUuid={projectUuid}
-                    refusal={aiAccess.data.refusal}
-                    variant={messageCount === 0 ? 'card' : 'inline'}
-                />
-            )}
-            <Box
-                component="fieldset"
-                disabled={accessRefused}
-                className={styles.composerArea}
-                data-access-refused={accessRefused}
+            <AiAccessGate
+                projectUuid={projectUuid}
+                refusal={accessGate.refusal}
+                variant={
+                    accessCalloutVariant ??
+                    (messageCount === 0 ? 'card' : 'inline')
+                }
             >
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
@@ -1658,7 +1650,7 @@ export const AgentChatInput = ({
                         styles.chipTray,
                         shouldReserveEmptyStateSuggestions,
                     )}
-            </Box>
+            </AiAccessGate>
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
                     <Text size="xs" c="dimmed" ta="right">
