@@ -1,19 +1,19 @@
 {
   "schemaVersion": "2",
-  "version": "2.456.0",
-  "previousVersion": "2.455.4",
-  "releaseDate": "2026-10-07T12:07:05.950Z",
+  "version": "2.457.0",
+  "previousVersion": "2.456.0",
+  "releaseDate": "2026-10-07T12:20:49.685Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 1,
-    "eeCount": 0,
+    "coreCount": 0,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20261007120000_allow_recent_data_apps.ts",
-        "edition": "core",
+        "name": "20261007120000_add_provider_base_urls_to_ai_organization_settings.ts",
+        "edition": "ee",
         "tables": [
-          "user_recent_content"
+          "ai_organization_settings"
         ],
         "heaviness": {
           "locksTable": true,
@@ -33,11 +33,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/homepage/recently-viewed — added the new `data_app` enum value to the `results/items/contentType` response property for the response status `200`",
-        "GET /api/v2/content/recently-viewed — added the new `data_app` enum value to the `results/items/allOf[#/components/schemas/RecentContentItem]/contentType` response property for the response status `200`"
-      ],
-      "advisoryCount": 2
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

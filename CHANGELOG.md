@@ -1,3 +1,16 @@
+# [2.457.0](https://github.com/lightdash/lightdash/compare/2.456.0...2.457.0) (2026-10-07)
+
+
+### Bug Fixes
+
+* **data-apps:** filter project app listing per app so Developers can embed data apps ([#30619](https://github.com/lightdash/lightdash/issues/30619)) ([797a629](https://github.com/lightdash/lightdash/commit/797a629184fbfcb8489bd53a94eed52d6af7dbf0)), closes [#30560](https://github.com/lightdash/lightdash/issues/30560)
+* **data-apps:** tolerate missing object when deleting a thumbnail ([#30622](https://github.com/lightdash/lightdash/issues/30622)) ([e53c2ca](https://github.com/lightdash/lightdash/commit/e53c2caf87583c4eff28ec6edb2ced842cb4928b))
+
+
+### Features
+
+* **ai:** org-scoped gateway URL for BYO AI provider keys ([#30615](https://github.com/lightdash/lightdash/issues/30615)) ([6f54af8](https://github.com/lightdash/lightdash/commit/6f54af83898e9363338bf653abdeba78a685cffe))
+
 # [2.456.0](https://github.com/lightdash/lightdash/compare/2.455.4...2.456.0) (2026-10-07)
 
 

@@ -45605,12 +45605,37 @@
                 "required": ["allowedModels", "region"],
                 "type": "object"
             },
+            "Record_ByoAiApiKeyProvider.string-or-null_": {
+                "properties": {
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "google": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["anthropic", "google", "openai"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiProviderBaseUrls": {
+                "$ref": "#/components/schemas/Record_ByoAiApiKeyProvider.string-or-null_"
+            },
             "AiOrganizationSettings": {
                 "properties": {
                     "threadRetentionHours": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "providerBaseUrls": {
+                        "$ref": "#/components/schemas/AiProviderBaseUrls"
                     },
                     "bedrockConfig": {
                         "allOf": [
@@ -45691,6 +45716,7 @@
                     }
                 },
                 "required": [
+                    "providerBaseUrls",
                     "bedrockConfig",
                     "providerApiKeyHints",
                     "providerApiKeysSet",
@@ -45836,8 +45862,28 @@
                 "required": ["allowedModels", "region"],
                 "type": "object"
             },
+            "UpdateAiProviderBaseUrls": {
+                "properties": {
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "google": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "UpdateAiProviderApiKeys": {
                 "properties": {
+                    "providerBaseUrls": {
+                        "$ref": "#/components/schemas/UpdateAiProviderBaseUrls"
+                    },
                     "bedrock": {
                         "allOf": [
                             {
@@ -69445,7 +69491,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.456.0",
+        "version": "2.457.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
