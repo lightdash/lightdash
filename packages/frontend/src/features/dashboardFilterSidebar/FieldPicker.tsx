@@ -87,7 +87,11 @@ export const FieldPicker: FC<Props> = ({ fields, onPick, getChartCount }) => {
     return (
         <Stack gap="xs">
             <TextInput
-                placeholder={`Search ${hiddenCount} more fields`}
+                placeholder={
+                    hiddenCount > 0
+                        ? `Search ${hiddenCount} more fields`
+                        : 'Search fields'
+                }
                 aria-label="Search fields"
                 leftSection={<MantineIcon icon={IconSearch} />}
                 value={search}
