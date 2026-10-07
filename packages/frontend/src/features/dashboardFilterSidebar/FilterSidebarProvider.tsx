@@ -5,7 +5,6 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterType,
     type ParameterValue,
 } from '@lightdash/common';
 import {
@@ -20,7 +19,6 @@ import {
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getFieldKind } from './fieldKinds';
 import { getLinkKey } from './linkCandidates';
 import {
     getControlsFromSavedValues,
@@ -73,12 +71,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
     const [unplacedFilters, setUnplacedFilters] = useState<
         DashboardFilterRule[]
     >([]);
-    // Kind chosen on the first screen, so Add a field stays on it
-    const [unplacedKinds, setUnplacedKinds] = useState<
-        Record<string, FilterType>
-    >({});
     const [activeSection, setActiveSection] =
-        useState<FilterSidebarSection>('interactivity');
+        useState<FilterSidebarSection>('fields');
     const [waitingField, setWaitingField] =
         useState<DashboardFieldTarget | null>(null);
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
@@ -163,7 +157,7 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
 
     const resetSession = useCallback(() => {
         setState(null);
-        setActiveSection('interactivity');
+        setActiveSection('fields');
         setWaitingField(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
@@ -203,52 +197,41 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         ],
     );
 
+    // Add opens a filter with no field yet; the first pick places it or
+    // turns it into a parameter control
     const openNew = useCallback(() => {
+        if (state !== null) return;
         controlSnapshot.current = null;
         setEditingControlId(null);
-        setState((current) =>
-            current !== null
-                ? current
-                : {
-                      filterId: null,
-                      isNew: true,
-                      snapshot: {
-                          dashboardFilters,
-                          haveFiltersChanged,
-                          unplacedFilters,
-                      },
-                      sessionSnapshot: sessionSettings,
-                  },
-        );
+        const rule: DashboardFilterRule = {
+            id: uuidv4(),
+            target: UNPLACED_TARGET,
+            operator: FilterOperator.EQUALS,
+            values: [],
+            label: undefined,
+            tileTargets: {},
+            // No default value until the author provides one
+            disabled: true,
+        };
+        setUnplacedFilters((current) => [...current, rule]);
+        setState({
+            filterId: rule.id,
+            isNew: true,
+            snapshot: {
+                dashboardFilters,
+                haveFiltersChanged,
+                unplacedFilters,
+            },
+            sessionSnapshot: sessionSettings,
+        });
+        setActiveSection('fields');
     }, [
+        state,
         dashboardFilters,
         haveFiltersChanged,
         unplacedFilters,
         sessionSettings,
     ]);
-
-    // Kind first: a filter with no field, edited like any other
-    const openKind = useCallback(
-        (kind: FilterType) => {
-            if (state === null || !state.isNew || state.filterId !== null)
-                return;
-            const rule: DashboardFilterRule = {
-                id: uuidv4(),
-                target: UNPLACED_TARGET,
-                operator: FilterOperator.EQUALS,
-                values: [],
-                label: undefined,
-                tileTargets: {},
-                // No default value until the author provides one
-                disabled: true,
-            };
-            setUnplacedFilters((current) => [...current, rule]);
-            setUnplacedKinds((current) => ({ ...current, [rule.id]: kind }));
-            setState({ ...state, filterId: rule.id });
-            setActiveSection('interactivity');
-        },
-        [state],
-    );
 
     const addFirstField = useCallback(
         (field: DashboardFilterableField) => {
@@ -265,11 +248,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                     availableTileFilters: filterableFieldsByTileUuid ?? {},
                     isTemporary: false,
                 });
-            // The draft keeps its identity and settings; its operator and
-            // values survive only when the field is of the kind it was given
-            const keepsValue =
-                unplaced !== null &&
-                unplacedKinds[unplaced.id] === getFieldKind(field);
             const newRule: DashboardFilterRule =
                 unplaced === null
                     ? builtRule
@@ -282,12 +260,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                           requiredGroupId: unplaced.requiredGroupId,
                           singleValue: unplaced.singleValue,
                           disabled: unplaced.disabled,
-                          ...(keepsValue
-                              ? {
-                                    operator: unplaced.operator,
-                                    values: unplaced.values,
-                                }
-                              : {}),
                       };
             setUnplacedFilters((current) =>
                 current.filter((r) => r.id !== newRule.id),
@@ -306,7 +278,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         [
             state,
             unplacedFilters,
-            unplacedKinds,
             filterableFieldsByTileUuid,
             setDashboardFilters,
             setHaveFiltersChanged,
@@ -349,17 +320,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         resetSession();
     }, [state, setDashboardFilters, setHaveFiltersChanged, resetSession]);
 
-    // Drops the draft rule but keeps the new-filter picker open
-    const backToPicker = useCallback(() => {
-        if (state === null || !state.isNew || state.filterId === null) return;
-        setDashboardFilters(state.snapshot.dashboardFilters);
-        setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
-        setUnplacedFilters(state.snapshot.unplacedFilters);
-        setSessionSettings(state.sessionSnapshot);
-        setListedFieldIds([]);
-        setState({ ...state, filterId: null });
-    }, [state, setDashboardFilters, setHaveFiltersChanged]);
-
     const editingFilterId = state?.filterId ?? null;
     const editingRule = useMemo(
         () =>
@@ -371,10 +331,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         [editingFilterId, dashboardFilters, unplacedFilters],
     );
     const isUnplaced = editingRule !== null && isUnplacedRule(editingRule);
-    const unplacedKind =
-        editingFilterId === null
-            ? null
-            : (unplacedKinds[editingFilterId] ?? null);
 
     // A placeholder with no field cannot be applied
     const apply = useCallback(() => {
@@ -464,8 +420,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         if (state === null || state.isNew || state.filterId === null) return;
         const rule = findFilterRule(dashboardFilters, state.filterId);
         if (rule === null) return;
-        // Any kind is allowed again, so the picker is unlocked
-        setUnplacedKinds(({ [rule.id]: _dropped, ...rest }) => rest);
         setUnplacedFilters((current) => [
             ...current,
             { ...rule, target: UNPLACED_TARGET, tileTargets: {} },
@@ -498,7 +452,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         if (!isEditMode) {
             resetSession();
             setUnplacedFilters([]);
-            setUnplacedKinds({});
             setKnownTileUuids(null);
             setDismissedLinks([]);
         }
@@ -544,10 +497,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             editing: state === null ? null : { filterId: state.filterId },
             isNew: state?.isNew ?? false,
             isUnplaced,
-            unplacedKind,
             unplacedFilters,
             clearFields,
-            openKind,
             originalFilterRule:
                 state === null || editingFilterId === null
                     ? null
@@ -577,7 +528,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             getSessionSettings,
             updateSessionSettings,
             cancel,
-            backToPicker,
             apply,
             isDirty:
                 isUnplaced ||
@@ -592,10 +542,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         [
             state,
             isUnplaced,
-            unplacedKind,
             unplacedFilters,
             clearFields,
-            openKind,
             editingRule,
             editingFilterId,
             activeSection,
@@ -608,7 +556,6 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             getSessionSettings,
             updateSessionSettings,
             cancel,
-            backToPicker,
             apply,
             dashboardFilters,
             waitingField,

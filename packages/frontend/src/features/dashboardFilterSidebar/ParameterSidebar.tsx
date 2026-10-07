@@ -43,7 +43,7 @@ export const ParameterSidebar: FC = () => {
         setHighlightedFieldId,
         setHoveredFieldId,
     } = useFilterSidebar();
-    const [section, setSection] = useState('interactivity');
+    const [section, setSection] = useState('charts');
     const [confirmRemove, setConfirmRemove] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
@@ -121,12 +121,12 @@ export const ParameterSidebar: FC = () => {
             onMenuClose={() => setConfirmRemove(false)}
             onCancel={cancelControl}
             tabs={[
-                { value: 'interactivity', label: 'Interactivity' },
                 {
                     value: 'charts',
                     label: 'Parameters and charts',
                     count: keyCount,
                 },
+                { value: 'interactivity', label: 'Interactivity' },
             ]}
             activeTab={section}
             onTabChange={setSection}

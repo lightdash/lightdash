@@ -1,4 +1,5 @@
 import {
+    FilterType,
     getFilterTypeFromItemType,
     getItemId,
     isDimension,
@@ -10,12 +11,20 @@ import {
 import { Box, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getFieldDisplayLabel } from './fieldGrains';
+import { FIELD_KINDS, type PickableParameter } from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndCharts.module.css';
+import {
+    getFreeParameterKeys,
+    getParameterKind,
+    getParameterLabel,
+    type ParameterKind,
+} from './parameterControls';
 import {
     applyFieldToAll,
     getFieldCount,
@@ -56,7 +65,9 @@ export const FieldsAndCharts: FC = () => {
         unlistFieldId,
         clearFields,
         isUnplaced,
-        unplacedKind,
+        addControl,
+        removeFilterById,
+        parameterControls,
         addFirstField,
     } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -88,9 +99,9 @@ export const FieldsAndCharts: FC = () => {
               null);
 
     const candidates = useMemo(() => {
-        // Unplaced: locked to the kind picked first, or any kind after a clear
+        // Unplaced: any kind until the first field is picked
         const targetFilterType = isUnplaced
-            ? unplacedKind
+            ? null
             : targetFieldType === null
               ? null
               : getFilterTypeFromItemType(targetFieldType);
@@ -123,10 +134,52 @@ export const FieldsAndCharts: FC = () => {
         waitingField,
         targetFieldType,
         isUnplaced,
-        unplacedKind,
     ]);
 
     const [isAdding, setIsAdding] = useState(false);
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
+    );
+    // Parameters no control overrides yet, one row per key with its chart count
+    const pickableParameters = useMemo<PickableParameter[]>(() => {
+        const kinds = FIELD_KINDS.filter(
+            (item): item is ParameterKind => item !== FilterType.BOOLEAN,
+        );
+        return kinds.flatMap((parameterKind) =>
+            getFreeParameterKeys(
+                parameterKind,
+                parameterControls,
+                parameterDefinitions,
+                tileParameterReferences,
+            ).map((key) => ({
+                key,
+                label: getParameterLabel(key, parameterDefinitions),
+                kind: parameterKind,
+                chartCount: Object.values(tileParameterReferences).filter(
+                    (keys) => keys.includes(key),
+                ).length,
+            })),
+        );
+    }, [parameterControls, parameterDefinitions, tileParameterReferences]);
+    // A picked parameter replaces the placeholder with a parameter control
+    const handlePickParameter = useCallback(
+        (key: string) => {
+            const definition = parameterDefinitions[key];
+            if (definition === undefined || editingRule === null) return;
+            removeFilterById(editingRule.id);
+            addControl({
+                id: uuidv4(),
+                label: '',
+                kind: getParameterKind(definition),
+                parameterKeys: [key],
+                tileTargets: {},
+            });
+        },
+        [parameterDefinitions, editingRule, removeFilterById, addControl],
+    );
 
     const getCandidateChartCount = useCallback(
         (field: DashboardFilterableField) =>
@@ -193,7 +246,7 @@ export const FieldsAndCharts: FC = () => {
                     </Text>
                     <Text fz="xs" c="dimmed">
                         {isUnplaced
-                            ? 'No fields yet. Add a field, then choose its charts.'
+                            ? 'Pick a field to filter by, or a parameter to control.'
                             : waitingLabel === null
                               ? DEFAULT_HINT
                               : `Not added yet. Click the dashed "+ ${waitingLabel}" on a chart, or All, to add it to this filter.`}
@@ -322,44 +375,49 @@ export const FieldsAndCharts: FC = () => {
                     />
                 )}
             </Stack>
-            <Stack gap="xs" align="flex-start">
-                <Tooltip
-                    label="Every field of this kind is already in the filter"
-                    disabled={candidates.length > 0}
-                >
-                    <Button
-                        variant="light"
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setIsAdding((open) => !open)}
-                        data-disabled={candidates.length === 0 || undefined}
+            {isUnplaced ? (
+                <FieldPicker
+                    fields={candidates}
+                    getChartCount={getCandidateChartCount}
+                    parameters={pickableParameters}
+                    onPickParameter={handlePickParameter}
+                    onPickField={addFirstField}
+                />
+            ) : (
+                <Stack gap="xs" align="flex-start">
+                    <Tooltip
+                        label="Every field of this kind is already in the filter"
+                        disabled={candidates.length > 0}
                     >
-                        Add a field
-                    </Button>
-                </Tooltip>
-                {isAdding && candidates.length > 0 && (
-                    <Box className={classes.addFieldSelect}>
-                        <FieldPicker
-                            fields={candidates}
-                            getChartCount={getCandidateChartCount}
-                            parameters={[]}
-                            openOnMount
-                            onPickField={(field) => {
-                                // The first field turns the unplaced filter into a real one
-                                if (isUnplaced) {
-                                    addFirstField(field);
-                                } else {
+                        <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={() => setIsAdding((open) => !open)}
+                            data-disabled={candidates.length === 0 || undefined}
+                        >
+                            Add a field
+                        </Button>
+                    </Tooltip>
+                    {isAdding && candidates.length > 0 && (
+                        <Box className={classes.addFieldSelect}>
+                            <FieldPicker
+                                fields={candidates}
+                                getChartCount={getCandidateChartCount}
+                                parameters={[]}
+                                openOnMount
+                                onPickField={(field) => {
                                     setWaitingField({
                                         fieldId: getItemId(field),
                                         tableName: field.table,
                                     });
-                                }
-                                setIsAdding(false);
-                            }}
-                        />
-                    </Box>
-                )}
-            </Stack>
+                                    setIsAdding(false);
+                                }}
+                            />
+                        </Box>
+                    )}
+                </Stack>
+            )}
         </Stack>
     );
 };

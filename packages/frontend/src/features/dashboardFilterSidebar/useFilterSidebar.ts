@@ -2,7 +2,6 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterType,
     type ParameterValue,
 } from '@lightdash/common';
 import { createContext, useContext } from 'react';
@@ -16,13 +15,9 @@ export type FilterSidebarContextValue = {
     isNew: boolean;
     /** The edited filter has no field yet (kind first, or fields cleared). */
     isUnplaced: boolean;
-    /** Kind chosen on the first screen; null once fields were cleared. */
-    unplacedKind: FilterType | null;
     /** Session filters with no field yet, shown as Not saved pills. */
     unplacedFilters: DashboardFilterRule[];
     clearFields: () => void;
-    /** Starts a new filter from a kind, with no field. */
-    openKind: (kind: FilterType) => void;
     originalFilterRule: DashboardFilterRule | null;
     editingRule: DashboardFilterRule | null;
     waitingField: DashboardFieldTarget | null;
@@ -50,7 +45,6 @@ export type FilterSidebarContextValue = {
         patch: Partial<FilterSessionSettings>,
     ) => void;
     cancel: () => void;
-    backToPicker: () => void;
     apply: () => void;
     isDirty: boolean;
     /** Session controls, one per saved parameter value until authored. */

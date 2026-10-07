@@ -20,6 +20,8 @@ type EditorTab = {
     label: string;
     count?: number;
     changed?: boolean;
+    disabled?: boolean;
+    disabledReason?: string;
 };
 
 type Props = {
@@ -134,6 +136,8 @@ export const EditorShell: FC<Props> = ({
                     <Tabs.Tab
                         key={tab.value}
                         value={tab.value}
+                        disabled={tab.disabled}
+                        title={tab.disabled ? tab.disabledReason : undefined}
                         rightSection={
                             tab.count !== undefined ? (
                                 <Tooltip

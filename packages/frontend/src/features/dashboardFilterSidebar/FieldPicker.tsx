@@ -1,39 +1,19 @@
-import { FilterType, type DashboardFilterableField } from '@lightdash/common';
 import {
-    Group,
-    Select,
-    SimpleGrid,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine/core';
-import {
-    IconAbc,
-    IconCalendar,
-    IconHash,
-    IconSearch,
-    IconToggleLeft,
-    IconVariable,
-} from '@tabler/icons-react';
+    type FilterType,
+    type DashboardFilterableField,
+} from '@lightdash/common';
+import { Group, Select, Stack, Text } from '@mantine/core';
+import { IconSearch, IconVariable } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { foldFieldGrains } from './fieldGrains';
 import {
-    FIELD_KINDS,
-    countPickableByKind,
     filterFieldsByKind,
     filterParametersByKind,
     type PickableParameter,
 } from './fieldKinds';
 import classes from './FieldPicker.module.css';
-
-const KIND_META = {
-    [FilterType.DATE]: { label: 'Date', icon: IconCalendar },
-    [FilterType.STRING]: { label: 'Text', icon: IconAbc },
-    [FilterType.NUMBER]: { label: 'Number', icon: IconHash },
-    [FilterType.BOOLEAN]: { label: 'True or false', icon: IconToggleLeft },
-};
 
 type Props = {
     fields: DashboardFilterableField[];
@@ -42,8 +22,6 @@ type Props = {
     parameters: PickableParameter[];
     /** Parameters are listed only when given. */
     onPickParameter?: (key: string) => void;
-    /** Kind tiles are shown only when given. */
-    onPickKind?: (kind: FilterType) => void;
     /** Narrows the list to one kind, as "Add a field" needs. */
     lockedKind?: FilterType;
     /** Opens the dropdown focused, for the Add a field flow. */
@@ -58,7 +36,6 @@ export const FieldPicker: FC<Props> = ({
     onPickField,
     parameters,
     onPickParameter,
-    onPickKind,
     lockedKind,
     openOnMount = false,
 }) => {
@@ -99,11 +76,6 @@ export const FieldPicker: FC<Props> = ({
             ),
         [parameterRows],
     );
-    const counts = countPickableByKind(pickableFields, pickableParameters);
-    // A kind with nothing to pick has no tile
-    const kinds = (lockedKind ? [lockedKind] : FIELD_KINDS).filter(
-        (item) => counts[item] > 0,
-    );
     const listsParameters = onPickParameter !== undefined;
     const searchLabel = listsParameters
         ? 'Search fields and parameters'
@@ -111,31 +83,6 @@ export const FieldPicker: FC<Props> = ({
 
     return (
         <Stack gap="sm">
-            {onPickKind && (
-                <>
-                    <Text fz="sm" fw={600}>
-                        What do you want to control?
-                    </Text>
-                    <SimpleGrid cols={2} spacing="xs">
-                        {kinds.map((item) => {
-                            const meta = KIND_META[item];
-                            return (
-                                <UnstyledButton
-                                    key={item}
-                                    className={classes.kindTile}
-                                    onClick={() => onPickKind(item)}
-                                >
-                                    <MantineIcon icon={meta.icon} />
-                                    <Text fz="sm">{meta.label}</Text>
-                                </UnstyledButton>
-                            );
-                        })}
-                    </SimpleGrid>
-                    <Text fz="sm" c="dimmed">
-                        Alternatively, pick a field or parameter
-                    </Text>
-                </>
-            )}
             <Select
                 size="sm"
                 searchable

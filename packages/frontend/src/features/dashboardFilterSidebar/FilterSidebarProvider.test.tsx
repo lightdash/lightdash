@@ -2,7 +2,6 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
-    FilterType,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -167,9 +166,9 @@ describe('FilterSidebarProvider', () => {
             wrapper: Wrapper,
         });
         act(() => result.current.openNew());
-        expect(result.current.editing).toEqual({ filterId: null });
         expect(result.current.isNew).toBe(true);
-        expect(result.current.editingRule).toBeNull();
+        expect(result.current.isUnplaced).toBe(true);
+        expect(result.current.editingRule?.target.fieldId).toBe('');
         expect(latest.filters).toEqual(initialFilters);
 
         act(() => result.current.addFirstField(statusField));
@@ -187,26 +186,6 @@ describe('FilterSidebarProvider', () => {
         expect(latest.changed).toBe(false);
         expect(result.current.editing).toBeNull();
         expect(result.current.isNew).toBe(false);
-    });
-
-    it('backToPicker drops the draft but keeps the new filter open', () => {
-        const { result } = renderHook(() => useFilterSidebar(), {
-            wrapper: Wrapper,
-        });
-        act(() => result.current.openNew());
-        act(() => result.current.addFirstField(statusField));
-        act(() => result.current.listFieldId('orders_amount'));
-        expect(latest.filters.dimensions).toHaveLength(3);
-
-        act(() => result.current.backToPicker());
-        expect(latest.filters).toEqual(initialFilters);
-        expect(latest.changed).toBe(false);
-        expect(result.current.editing).toEqual({ filterId: null });
-        expect(result.current.isNew).toBe(true);
-        expect(result.current.listedFieldIds).toEqual([]);
-
-        act(() => result.current.addFirstField(statusField));
-        expect(latest.filters.dimensions).toHaveLength(3);
     });
 
     it('clearFields empties the filter and addFirstField keeps its identity', () => {
@@ -264,14 +243,12 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.unplacedFilters).toEqual([]);
     });
 
-    it('openKind starts an unplaced filter that addFirstField places, keeping its id', () => {
+    it('openNew starts an unplaced filter that addFirstField places, keeping its id', () => {
         const { result } = renderHook(() => useFilterSidebar(), {
             wrapper: Wrapper,
         });
         act(() => result.current.openNew());
-        act(() => result.current.openKind(FilterType.DATE));
         expect(result.current.isUnplaced).toBe(true);
-        expect(result.current.unplacedKind).toBe(FilterType.DATE);
         expect(result.current.editingRule?.operator).toBe(
             FilterOperator.EQUALS,
         );

@@ -1,39 +1,11 @@
-import {
-    FilterType,
-    getFilterTypeFromItem,
-    getItemId,
-    type DashboardFilterableField,
-} from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Menu,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-    Tooltip,
-} from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { FilterType, getFilterTypeFromItem } from '@lightdash/common';
+import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
-import { FIELD_KINDS, type PickableParameter } from './fieldKinds';
-import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
-import classes from './FilterSidebar.module.css';
 import { Interactivity } from './Interactivity';
-import {
-    getFreeParameterKeys,
-    getParameterKind,
-    getParameterLabel,
-    type ParameterKind,
-} from './parameterControls';
 import {
     getFilterFields,
     getTabCounts,
@@ -52,10 +24,7 @@ export const FilterSidebar: FC = () => {
         editing,
         isNew,
         isUnplaced,
-        unplacedKind,
         editingRule,
-        addFirstField,
-        openKind,
         listedFieldIds,
         removeFilter,
         getSessionSettings,
@@ -64,10 +33,7 @@ export const FilterSidebar: FC = () => {
         updateFilter,
         cancel,
         apply,
-        backToPicker,
         isDirty,
-        parameterControls,
-        addControl,
     } = useFilterSidebar();
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
@@ -89,48 +55,6 @@ export const FilterSidebar: FC = () => {
         </Menu.Item>
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
-    );
-    // Parameters no control overrides yet, one row per key with its chart count
-    const pickableParameters = useMemo<PickableParameter[]>(() => {
-        const kinds = FIELD_KINDS.filter(
-            (item): item is ParameterKind => item !== FilterType.BOOLEAN,
-        );
-        return kinds.flatMap((parameterKind) =>
-            getFreeParameterKeys(
-                parameterKind,
-                parameterControls,
-                parameterDefinitions,
-                tileParameterReferences,
-            ).map((key) => ({
-                key,
-                label: getParameterLabel(key, parameterDefinitions),
-                kind: parameterKind,
-                chartCount: Object.values(tileParameterReferences).filter(
-                    (keys) => keys.includes(key),
-                ).length,
-            })),
-        );
-    }, [parameterControls, parameterDefinitions, tileParameterReferences]);
-    // A picked parameter becomes one control of its kind
-    const handlePickParameter = useCallback(
-        (key: string) => {
-            const definition = parameterDefinitions[key];
-            if (definition === undefined) return;
-            addControl({
-                id: uuidv4(),
-                label: '',
-                kind: getParameterKind(definition),
-                parameterKeys: [key],
-                tileTargets: {},
-            });
-        },
-        [parameterDefinitions, addControl],
-    );
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -145,21 +69,6 @@ export const FilterSidebar: FC = () => {
 
     const filterRule = editingRule;
     const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
-
-    const getNewFieldChartCount = useCallback(
-        (candidate: DashboardFilterableField) => {
-            const candidateId = getItemId(candidate);
-            const chartCount = Object.values(
-                filterableFieldsByTileUuid ?? {},
-            ).filter((tileFields) =>
-                tileFields.some(
-                    (tileField) => getItemId(tileField) === candidateId,
-                ),
-            ).length;
-            return chartCount;
-        },
-        [filterableFieldsByTileUuid],
-    );
 
     const reach = useMemo(() => {
         if (filterRule === null) return null;
@@ -211,48 +120,6 @@ export const FilterSidebar: FC = () => {
 
     if (editing === null) return null;
 
-    if (isNew && filterRule === null) {
-        return (
-            <Box className={classes.root}>
-                <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                    <Title order={5} className={classes.title}>
-                        New control
-                    </Title>
-                    <Tooltip label="Cancel">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Cancel"
-                            onClick={cancel}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                <Stack gap="md" p="md" className={classes.body}>
-                    <FieldPicker
-                        fields={allFilterableFields ?? []}
-                        getChartCount={getNewFieldChartCount}
-                        onPickKind={openKind}
-                        onPickField={addFirstField}
-                        parameters={pickableParameters}
-                        onPickParameter={handlePickParameter}
-                    />
-                </Stack>
-                <Group
-                    justify="flex-end"
-                    gap="xs"
-                    p="md"
-                    className={classes.footer}
-                >
-                    <Button variant="default" onClick={cancel}>
-                        Cancel
-                    </Button>
-                </Group>
-            </Box>
-        );
-    }
-
     if (filterRule === null || reach === null) return null;
 
     const field = allFilterableFieldsMap[filterRule.target.fieldId] ?? null;
@@ -260,7 +127,11 @@ export const FilterSidebar: FC = () => {
         ? getFieldDisplayLabel(field, allFilterableFields ?? [])
         : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
-    const title = isNew ? 'New filter' : filterRule.label || 'Filter';
+    const title = isNew
+        ? isUnplaced
+            ? 'New control'
+            : 'New filter'
+        : filterRule.label || 'Filter';
     // A filter with no field is a placeholder: it cannot be applied
     const isDefaultIncomplete =
         !isUnplaced && isDefaultValueIncomplete(filterRule);
@@ -293,23 +164,24 @@ export const FilterSidebar: FC = () => {
         <EditorShell
             title={title}
             subtitle={landingCue}
-            onBack={isNew ? backToPicker : undefined}
             menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
             onCancel={cancel}
             tabs={[
                 {
+                    value: 'fields',
+                    label: 'Fields and charts',
+                    count: fieldCount,
+                },
+                {
                     value: 'interactivity',
                     label: 'Interactivity',
+                    disabled: isUnplaced,
+                    disabledReason: 'Pick a field first',
                     changed: isInteractivityChanged(
                         filterRule,
                         getSessionSettings(filterRule.id),
                     ),
-                },
-                {
-                    value: 'fields',
-                    label: 'Fields and charts',
-                    count: fieldCount,
                 },
             ]}
             activeTab={activeSection}
@@ -389,9 +261,7 @@ export const FilterSidebar: FC = () => {
                     filterRule={filterRule}
                     field={field}
                     kind={
-                        field
-                            ? getFilterTypeFromItem(field)
-                            : (unplacedKind ?? FilterType.STRING)
+                        field ? getFilterTypeFromItem(field) : FilterType.STRING
                     }
                     attemptedApply={attemptedApply}
                     onChange={updateFilter}

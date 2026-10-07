@@ -30,8 +30,8 @@ seam in `features/dashboardTabs/index.tsx`.
 - Edit mode renders `AddFilter` (an "Add" button calling `openNew`) and
   `FilterPills` (click opens the sidebar, hover X removes). View mode keeps the
   shipped `DashboardFilters`.
-- `openNew` opens with no field; `addFirstField` appends a draft rule (no
-  value, empty label) so it previews; `cancel` drops it with the snapshot.
+- `openNew` opens a placeholder with no field; `addFirstField` turns it into a
+  draft rule (no value, empty label) so it previews; `cancel` drops it.
 
 ## Parameters (controls)
 
@@ -78,7 +78,7 @@ Lost on reload, marked "Not saved". What saving each would need:
   An exact match on the filter's own field still links on its own. Skipped
   prompts live in a session list; Link writes `tileTargets` on the rule.
 
-- `FieldPicker` is single pick: one click on a kind tile calls `onPickKind`, on a field `onPickField`, on a parameter `onPickParameter`; search alone narrows the list. `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore. "Add a field" passes `lockedKind` and no `onPickKind`.
-- New-filter flow: a kind tile calls `openKind`, which creates an unplaced rule (empty `target`, held in `unplacedFilters`) and lands on Interactivity; a field calls `addFirstField`, which also places an unplaced rule keeping its id, label and settings; a parameter calls `addControl` with one key.
+- `FieldPicker` is one searchable dropdown of fields and parameters: a click on a field calls `onPickField`, on a parameter `onPickParameter`. `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType`. "Add a field" passes `lockedKind` and lists no parameters.
+- New-filter flow: Add calls `openNew`, which creates an unplaced rule (empty `target`, held in `unplacedFilters`) and opens the editor on Fields and charts with the picker inline; Interactivity is disabled until a field is picked. A field calls `addFirstField`, which places the rule keeping its id, label and settings; a parameter removes the placeholder and calls `addControl` with one key.
 - A field has one name everywhere: `getFieldDisplayLabel` in `fieldGrains.ts` names a time grain by its base dimension ("Created", never "Created day").
-- The sidebar lands on Interactivity after one pick; the footer's only commit verb is "Apply" and its subject is the label or "This filter".
+- Fields and charts (or Parameters and charts) is the first tab and the landing tab; the footer's only commit verb is "Apply".
