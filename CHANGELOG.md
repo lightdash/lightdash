@@ -1,3 +1,12 @@
+# [2.464.0](https://github.com/lightdash/lightdash/compare/2.463.0...2.464.0) (2026-10-07)
+
+
+### Features
+
+* **ai:** add Luna as a second fast-decision provider with a battle profile and shadow mode ([#30651](https://github.com/lightdash/lightdash/issues/30651)) ([602f109](https://github.com/lightdash/lightdash/commit/602f1095c23939cee28ce9781794867480c8a24c))
+* **ai:** calibration-independent chart-intent gates ([#30649](https://github.com/lightdash/lightdash/issues/30649)) ([b9edf3a](https://github.com/lightdash/lightdash/commit/b9edf3a3c3e7628d60ee07f40f8f581bce7ae44d))
+* **ai:** resolve agent-pinned AI provider credentials ([#30623](https://github.com/lightdash/lightdash/issues/30623)) ([551bbcc](https://github.com/lightdash/lightdash/commit/551bbcc30d02f4adfd57de76089ad05622104b39))
+
 # [2.463.0](https://github.com/lightdash/lightdash/compare/2.462.0...2.463.0) (2026-10-07)
 
 

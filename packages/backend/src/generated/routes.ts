@@ -25321,6 +25321,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['fast'] },
                 { dataType: 'enum', enums: ['baseline'] },
+                { dataType: 'enum', enums: ['luna'] },
             ],
             validators: {},
         },
