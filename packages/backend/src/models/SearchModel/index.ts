@@ -43,6 +43,7 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
+    latestSavedChartVersionColumnSql,
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
@@ -662,9 +663,7 @@ export class SearchModel {
                 { viewsCount: `${SavedChartsTableName}.views_count` },
                 {
                     exploreName: this.database.raw(
-                        `(SELECT sqv.explore_name FROM ${SavedChartVersionsTableName} sqv
-                          WHERE sqv.saved_query_id = ${SavedChartsTableName}.saved_query_id
-                          ORDER BY sqv.created_at DESC LIMIT 1)`,
+                        latestSavedChartVersionColumnSql('explore_name'),
                     ),
                 },
             )
@@ -726,9 +725,7 @@ export class SearchModel {
                 { viewsCount: `${SavedChartsTableName}.views_count` },
                 {
                     exploreName: this.database.raw(
-                        `(SELECT sqv.explore_name FROM ${SavedChartVersionsTableName} sqv
-                          WHERE sqv.saved_query_id = ${SavedChartsTableName}.saved_query_id
-                          ORDER BY sqv.created_at DESC LIMIT 1)`,
+                        latestSavedChartVersionColumnSql('explore_name'),
                     ),
                 },
             )

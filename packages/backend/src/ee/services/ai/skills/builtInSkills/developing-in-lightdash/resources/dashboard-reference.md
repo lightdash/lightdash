@@ -431,7 +431,7 @@ Rules for building `tileTargets` from `chartQuery`:
 - Pick the filter's `target` from the explore most tiles use (`target.tableName` is that explore, `target.fieldId` a dimension in it).
 - Tiles whose `chartQuery.exploreName` equals `target.tableName` need no `tileTargets` entry: the filter applies to them automatically.
 - Tiles on a different explore need a `tileTargets` entry keyed by their `tileSlug` with the equivalent field in that explore (`{ "fieldId": ..., "tableName": ... }`), or `false` when the filter must not apply to them.
-- Tiles with `chartQuery: null` (missing chart), `sql_chart`, `markdown`, `heading`, `loom` and `data_app` tiles cannot be targeted; leave them out.
+- Tiles with `chartQuery: null` (chart not found in this project), `sql_chart`, `markdown`, `heading`, `loom` and `data_app` tiles cannot be targeted; leave them out.
 - `chartQuery` is read-only and ignored on write. Never include it in patches; filter edits only touch `/filters`.
 
 #### Cross-Explore Filter Example

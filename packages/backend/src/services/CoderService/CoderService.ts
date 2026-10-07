@@ -2065,7 +2065,7 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        const tiles = CoderService.withoutReadOnlyTileFields(tilesAsCode);
+        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -2445,8 +2445,8 @@ export class CoderService extends BaseService {
         };
     }
 
-    /** Read-only tile fields are reporting-only and must never reach a write. */
-    static withoutReadOnlyTileFields(
+    /** The upload schema accepts chartQuery so AI patches round-trip, but it is derived data that must not be stored. */
+    static withoutTileChartQuery(
         tiles: DashboardTileAsCode[],
     ): DashboardTileAsCode[] {
         return tiles.map((tile) => {

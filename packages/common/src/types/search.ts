@@ -53,7 +53,6 @@ export type DashboardSearchResult = Pick<
 } & RankedItem;
 
 export type DashboardChartSummary = DashboardSearchResult['charts'][number] & {
-    /** Explore the chart queries. */
     exploreName: string;
 };
 

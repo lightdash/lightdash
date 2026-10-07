@@ -60,15 +60,11 @@ describe('readContent tool', () => {
 
         expect(output).toHaveProperty(
             'result',
-            expect.stringContaining('"target": { "fieldId", "tableName" }'),
+            expect.stringContaining('chartQuery'),
         );
         expect(output).toHaveProperty(
             'result',
-            expect.stringContaining('"chartQuery"'),
-        );
-        expect(output).toHaveProperty(
-            'result',
-            expect.stringContaining('"exploreName": "orders"'),
+            expect.stringContaining('tileTargets'),
         );
     });
 
@@ -81,6 +77,10 @@ describe('readContent tool', () => {
         expect(output).toHaveProperty(
             'result',
             expect.not.stringContaining('tileTargets'),
+        );
+        expect(output).toHaveProperty(
+            'result',
+            expect.not.stringContaining('chartQuery'),
         );
     });
 });

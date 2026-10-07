@@ -98,6 +98,7 @@ import {
     DbSavedChartVersionField,
     DbSavedChartVersionSort,
     InsertChart,
+    latestSavedChartVersionColumnSql,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
     SavedChartCustomSqlDimensionsTableName,
@@ -3013,11 +3014,9 @@ export class SavedChartModel {
             .whereIn(`${SavedChartsTableName}.slug`, slugs)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereRaw(
-                `${SavedChartVersionsTableName}.saved_queries_version_id = (
-                    SELECT MAX(latest.saved_queries_version_id)
-                    FROM ${SavedChartVersionsTableName} latest
-                    WHERE latest.saved_query_id = ${SavedChartsTableName}.saved_query_id
-                )`,
+                `${SavedChartVersionsTableName}.saved_queries_version_id = ${latestSavedChartVersionColumnSql(
+                    'saved_queries_version_id',
+                )}`,
             )
             .select<
                 { slug: string; explore_name: string; field_ids: string[] }[]

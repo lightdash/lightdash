@@ -22,8 +22,7 @@ const toolDefinition = readContentToolDefinition.for('agent');
 
 type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
 
-// Shown with every dashboard read so a first filter edit has the right shape
-// without a round trip through the skill reference.
+// Shown with every dashboard read so the first filter edit has the right shape without a skill round trip.
 const DASHBOARD_READ_HINT =
     'Filter rules under /filters/dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; never patch chartQuery. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.';
 

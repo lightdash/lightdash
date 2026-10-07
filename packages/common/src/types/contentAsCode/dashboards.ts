@@ -60,7 +60,7 @@ export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
         'title' | 'hideTitle' | 'chartName'
     > & {
         chartSlug: string | null;
-        /** Read-only, written by AI content reads only; ignored on upload. Null when the chart is missing. */
+        /** Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project. */
         chartQuery?: DashboardTileChartQuery | null;
     };
 };
