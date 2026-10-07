@@ -52,7 +52,10 @@ const buildSpec = async ({
                 type: kind === 'bar' ? ChartKind.VERTICAL_BAR : ChartKind.LINE,
             });
             await model.getPivotedChartData(query);
-            return { kind: 'echarts', option: model.getSpec(undefined, colors) };
+            return {
+                kind: 'echarts',
+                option: model.getSpec(undefined, colors),
+            };
         }
         case 'pie': {
             const model = new PieChartDataModel({

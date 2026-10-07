@@ -172,7 +172,9 @@ const PanelStory = ({
                             fieldsDisabledReason={fieldsDisabledReason}
                         >
                             {isExpired ? (
-                                <AiComposerResultsExpired headerContent={head} />
+                                <AiComposerResultsExpired
+                                    headerContent={head}
+                                />
                             ) : (
                                 <Stack gap="md" h="100%">
                                     {head}
