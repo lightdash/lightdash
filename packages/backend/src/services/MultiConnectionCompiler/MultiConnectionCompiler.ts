@@ -17,6 +17,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
@@ -187,10 +188,11 @@ export class MultiConnectionCompiler {
                         selectedModelIds,
                     };
                 } catch (error) {
-                    throw new ParameterError(
+                    throw new DbtSourceError(
                         `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
                             error,
                         )}`,
+                        error,
                     );
                 }
             }),

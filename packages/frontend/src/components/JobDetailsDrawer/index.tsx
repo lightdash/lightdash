@@ -13,6 +13,7 @@ import {
     Text,
     Title,
     Drawer,
+    Button,
     type DefaultMantineColor,
 } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
@@ -20,6 +21,7 @@ import {
     IconAlertTriangle,
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
+    IconDownload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -34,6 +36,7 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../common/Page/constants';
+import { formatFailedJobLog } from './failedJobLog';
 import ProjectCompileLog from './ProjectCompileLog';
 
 dayjs.extend(duration);
@@ -176,6 +179,33 @@ const JobDetailsDrawer: FC = () => {
             }
         >
             <Stack p="sm">
+                {activeJob.jobStatus === JobStatusType.ERROR && (
+                    <Stack gap="xs">
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconDownload} />}
+                            onClick={() => {
+                                const url = URL.createObjectURL(
+                                    new Blob([formatFailedJobLog(activeJob)], {
+                                        type: 'text/plain;charset=utf-8',
+                                    }),
+                                );
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `compilation-${activeJob.jobUuid}.txt`;
+                                link.click();
+                                setTimeout(() => URL.revokeObjectURL(url), 0);
+                            }}
+                        >
+                            Download captured logs
+                        </Button>
+                        <Text size="xs" c="dimmed">
+                            Includes saved errors and captured dbt messages.
+                            Some command output may be unavailable.
+                        </Text>
+                    </Stack>
+                )}
                 {activeJob.steps?.map((step) => (
                     <Alert
                         key={step.jobUuid}

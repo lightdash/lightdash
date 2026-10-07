@@ -22,6 +22,7 @@ import {
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { UserTableName } from '../../database/entities/users';
+import { DbtSourceError } from '../../dbt/DbtSourceError';
 
 type JobModelArguments = {
     database: Knex;
@@ -379,7 +380,9 @@ export class JobModel {
                 JobStepStatusType.ERROR,
                 jobStepType,
                 getErrorMessage(e),
-                e instanceof DbtError ? e.logs : [],
+                e instanceof DbtError || e instanceof DbtSourceError
+                    ? e.logs
+                    : [],
             );
             await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });
             throw e; // throw the error again

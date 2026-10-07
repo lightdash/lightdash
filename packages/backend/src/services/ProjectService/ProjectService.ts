@@ -340,6 +340,7 @@ import { normalizeDatabricksHostLenient } from '../../controllers/authentication
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
+import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
@@ -7389,10 +7390,11 @@ export class ProjectService extends BaseService {
                         : null,
                 );
             } catch (e) {
-                throw new ParameterError(
+                throw new DbtSourceError(
                     `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
                         e,
                     )}`,
+                    e,
                 );
             }
             // Push before fetching the manifest so the caller's cleanup
@@ -7443,10 +7445,11 @@ export class ProjectService extends BaseService {
                     selectedModelIds: sourceSelectedModelIds,
                 };
             } catch (e) {
-                throw new ParameterError(
+                throw new DbtSourceError(
                     `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
                         e,
                     )}`,
+                    e,
                 );
             }
         };
