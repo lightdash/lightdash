@@ -33495,6 +33495,16 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiUpdateComposerVizConfigRequest": {
+                "properties": {
+                    "vizConfig": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    }
+                },
+                "required": ["vizConfig"],
+                "type": "object",
+                "description": "Body of the composer artifact version viz config update; the terminal node's config."
+            },
             "Pick_AiAgentEvaluation.evalUuid_": {
                 "properties": {
                     "evalUuid": {
@@ -69491,7 +69501,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.457.3",
+        "version": "2.458.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -80575,6 +80585,78 @@
                                 },
                                 "required": ["verified"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config": {
+            "patch": {
+                "operationId": "updateArtifactVersionVizConfig",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "artifactUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateComposerVizConfigRequest"
                             }
                         }
                     }

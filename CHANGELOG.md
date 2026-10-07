@@ -1,3 +1,12 @@
+# [2.458.0](https://github.com/lightdash/lightdash/compare/2.457.3...2.458.0) (2026-10-07)
+
+
+### Features
+
+* **composer:** endpoint to update a composer artifact's viz config ([#30021](https://github.com/lightdash/lightdash/issues/30021)) ([4fac605](https://github.com/lightdash/lightdash/commit/4fac605e1eb03adb0396b2e275717f852306defa))
+* **composer:** viz config panel model in common ([#30020](https://github.com/lightdash/lightdash/issues/30020)) ([fb19e74](https://github.com/lightdash/lightdash/commit/fb19e74c34a25923b6b6fa84c9def783df337532))
+* **composer:** viz config panel on the composer artifact ([#30022](https://github.com/lightdash/lightdash/issues/30022)) ([3477f3c](https://github.com/lightdash/lightdash/commit/3477f3c692c9e05163f3150a644e19e7b6125575))
+
 ## [2.457.3](https://github.com/lightdash/lightdash/compare/2.457.2...2.457.3) (2026-10-07)
 
 
