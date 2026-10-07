@@ -31,6 +31,22 @@ const baseArgs = {
 };
 
 describe('buildDashboardConfig', () => {
+    it('preserves legacy pinned parameters through an unrelated save', () => {
+        const pinnedParameters = ['currency'];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: {
+                isDateZoomDisabled: false,
+                pinnedParameters,
+            },
+            pinnedParameters,
+            isDateZoomDisabled: true,
+        });
+
+        expect(result.pinnedParameters).toEqual(pinnedParameters);
+        expect(result.isDateZoomDisabled).toBe(true);
+    });
+
     it('carries the persisted customMetrics registry through an unrelated save', () => {
         const registry = [customMetric('total_revenue')];
         const result = buildDashboardConfig({

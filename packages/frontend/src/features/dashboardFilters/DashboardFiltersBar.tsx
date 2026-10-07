@@ -25,7 +25,6 @@ import {
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
-import PinnedParameters from '../../components/PinnedParameters';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
@@ -192,7 +191,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 : parametersSeparator
                                         }
                                     />
-                                    <PinnedParameters isEditMode={isEditMode} />
                                 </>
                             )}
                         </Group>
