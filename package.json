@@ -171,6 +171,7 @@
         "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",
         "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
         "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts",
+        "scope-tours:refresh-code-fixture": "tsx scripts/scope-tours/refresh-code-fixture.ts",
         "ldenv": "tsx scripts/ldenv/index.ts",
         "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
         "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",

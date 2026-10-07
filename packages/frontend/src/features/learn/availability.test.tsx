@@ -96,3 +96,38 @@ describe('useLearnAvailability documents gate', () => {
         expect(result.current.isGateOpen('documents')).toBe(true);
     });
 });
+
+describe('useLearnAvailability content-as-code gate', () => {
+    beforeEach(() => {
+        state.flags = [];
+    });
+
+    it('is closed without a licence, even with the sandbox on', () => {
+        state.health = {
+            learnSandbox: { enabled: true },
+            softDelete: { enabled: false },
+        };
+        const { result } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('contentAsCode')).toBe(false);
+    });
+
+    it('is closed without the sandbox, even with a licence', () => {
+        state.health = {
+            learnSandbox: { enabled: false },
+            license: { hasLicenseKey: true },
+            softDelete: { enabled: false },
+        };
+        const { result } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('contentAsCode')).toBe(false);
+    });
+
+    it('opens with a licence and the sandbox', () => {
+        state.health = {
+            learnSandbox: { enabled: true },
+            license: { hasLicenseKey: true },
+            softDelete: { enabled: false },
+        };
+        const { result } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('contentAsCode')).toBe(true);
+    });
+});

@@ -25,11 +25,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+    CONTENT_AS_CODE_LESSONS,
+    type ContentAsCodeLesson,
+} from '../../packages/frontend/src/features/learn/codeLessons';
+import {
     SANDBOX_LESSONS,
     type SandboxLesson,
 } from '../../packages/frontend/src/features/learn/sandboxLessons';
+import { buildAllTours, CODE_LESSON_SOURCE } from './lessons';
 import {
-    buildTours,
     docsDir,
     findBlockEnd,
     findMarkers,
@@ -181,9 +185,25 @@ const rawDocsHasBold = (ref: string): boolean => {
     return /\*\*[^*]+\*\*|`[^`]+`/.test(readFileSync(file, 'utf8'));
 };
 
+/**
+ * A step that waits on the page's "still working" surface (`busy`) while
+ * asking the learner to click or type. The tour only offers Try again on a
+ * look, so when the work fails (a command is refused or errors) such a step
+ * leaves the learner with nothing to press but Skip.
+ */
+export const waitsWithoutRetry = (
+    step: Pick<
+        ScopeTourDefinition['steps'][number],
+        'busy' | 'advanceOnTargetClick' | 'advanceOnTargetInput'
+    >,
+): boolean =>
+    step.busy !== undefined &&
+    (step.advanceOnTargetClick || step.advanceOnTargetInput);
+
 export const checkTours = (
     files: string[] = listTsx(frontendSrc),
     lessons: SandboxLesson[] = [],
+    codeLessons: ContentAsCodeLesson[] = [],
 ): Finding[] => {
     const findings: Finding[] = [];
     const error = (file: string, message: string, line?: number) =>
@@ -194,7 +214,7 @@ export const checkTours = (
     let tours: ScopeTourDefinition[] = [];
     let markers: Marker[] = [];
     try {
-        ({ tours, markers } = buildTours(files, lessons));
+        ({ tours, markers } = buildAllTours(files, lessons, codeLessons));
     } catch (caught) {
         const message = (caught as Error).message;
         // The builder names the file when it has one; hint and docs errors
@@ -411,7 +431,9 @@ export const checkTours = (
             first?.file ??
             (tour.scope.startsWith('docs:')
                 ? LESSON_SOURCE
-                : 'packages/frontend/src/features/scopeTours/generated.ts');
+                : tour.sources.includes(CODE_LESSON_SOURCE)
+                  ? CODE_LESSON_SOURCE
+                  : 'packages/frontend/src/features/scopeTours/generated.ts');
         const seen = new Map<string, number>();
         tour.steps.forEach((step, index) => {
             const where = `${tour.scope} step ${index + 1} ("${step.title}")`;
@@ -433,6 +455,13 @@ export const checkTours = (
                 error(
                     file,
                     `${where}: is a typed step with nothing suggested on the card`,
+                    first?.line,
+                );
+            }
+            if (waitsWithoutRetry(step)) {
+                error(
+                    file,
+                    `${where}: waits on a busy surface but is not a look; only a look offers Try again when the work fails`,
                     first?.line,
                 );
             }
@@ -530,7 +559,11 @@ export const checkTours = (
 
 const main = () => {
     const json = process.argv.includes('--json');
-    const findings = checkTours(undefined, SANDBOX_LESSONS);
+    const findings = checkTours(
+        undefined,
+        SANDBOX_LESSONS,
+        CONTENT_AS_CODE_LESSONS,
+    );
     const errors = findings.filter((f) => f.level === 'error');
     if (json) {
         console.log(JSON.stringify(findings, null, 2));

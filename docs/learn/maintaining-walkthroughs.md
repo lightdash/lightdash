@@ -79,7 +79,7 @@ To add one:
 
 1. **Add its id** to `LEARN_LESSON_IDS` in `packages/common/src/types/learnSandbox.ts`. The instance keeps progress per id and refuses names it does not know, so a lesson missing from that list would never show as started or complete; a test pins the declarations to it.
 
-2. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open, the column the snippet extends, the snippet (its first line is the key it goes under), the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is two fixed task sentences the template fills from the entry: on the editor step, which metric to add and which column's metrics it goes under (typed in, or added by Use it), and on the last step, which metric the learner is looking at. The build refuses a column the file does not declare and a snippet with no `type`. The editor step moves on from its Check button, which tests the file against these same facts, so a learner may put the entry anywhere valid and write it in their own style.
+2. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open, the column the snippet extends, the snippet (its first line is the key it goes under), the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps (thirteen with `shipDocs`, a closing step on how the change ships in a team) come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is two fixed task sentences the template fills from the entry: on the editor step, which metric to add and which column's metrics it goes under (typed in, or added by Use it), and on the last step, which metric the learner is looking at. The build refuses a column the file does not declare and a snippet with no `type`. The editor step moves on from its Check button, which tests the file against these same facts, so a learner may put the entry anywhere valid and write it in their own style.
 
 3. **Start the snippet with the key it extends.** Its first line is that key at the indent it has in the file (`columns:` under the model to declare a new column, or `metrics:` under a column's `meta` to add a metric), and the lines after it are the entry to add. Use it types those lines directly under the last line in the file that is that key, and the compile test inserts them the same way, so the card shows the learner the path the entry takes. The build refuses a lesson whose key is missing from the file or belongs to something other than the column (or, for `columns:`, the model) the lesson declares.
 
@@ -103,6 +103,30 @@ To add one:
     ```
 
 The last four steps leave the workspace (Click New and Choose Chart are still on the workspace route; the step after them is the first one in Explore), so a lesson also depends on anchors it does not own: the two navigation hops it borrows, `data-tour-nav="new"` and `data-tour-nav="new-chart"`, and four more in Explore. Both lists in Explore are virtualised, so each is reached by searching first: `data-tour-anchor="explore-search"` is typed to find the table, and `data-tour-anchor="explore-field-search"`, the explore's own field search, is typed to find the field. The two rows are then found by the label they render, carried in `data-tour-value`: `data-tour-anchor="explore-table"` (`Payments`) and `data-tour-anchor="explore-metric"` (`Average payment amount`). The two searches are not interchangeable: opening a table replaces the table list with the field tree, so the table's search is gone by the time the field is looked for. Renaming a table or a field in the playground bundle leaves every attribute in place and still breaks the lesson, because the value no longer matches what the step looks for. The checker sees a missing anchor; only the smoke sees a label that changed.
+
+## Content-as-code lessons
+
+A content-as-code lesson is the walkthrough for a `ContentAsCode` permission, run in the sandbox workspace: the learner downloads a seeded chart with the real CLI, opens the file the download wrote and, for a lesson with an edit, renames the chart in that file and uploads it. Like a developer lesson it has no markers. It is declared in `packages/frontend/src/features/learn/codeLessons.ts` and built from a fixed template (`buildContentAsCodeTours` in `scripts/scope-tours/lessons.ts`), so the click path cannot be authored: only the chart, the two commands, the new name and the docs citations are.
+
+To add or change one:
+
+1. **Declare it** under the scope it teaches. Name a chart the playground bundle seeds (`packages/backend/assets/playground/content.json`), the download command and, with an edit, the upload command. Both must name the chart with `--charts <slug>` and are checked with the Learn terminal's own parser and allowlist, so a command the terminal would refuse fails the build. A lesson that runs a download another lesson teaches names that lesson in `taughtIn` and declares after it; it then gets a card naming that lesson instead of explaining the command again.
+
+2. **An edit changes the chart's `name:` line** and nothing else. Give the line as the download writes it (`from`) and as it should read (`to`). The build checks `from` against a committed copy of the real download, and that Use it's result passes the step's Check (the name changed, the slug kept).
+
+3. **Refresh the fixture** when the seeded chart or the CLI's YAML changes, or when a lesson uses a chart with no fixture yet. It lives in `scripts/scope-tours/fixtures/code-lessons/<slug>.yml` and is captured from a training copy with the CLI built in the checkout:
+
+    ```sh
+    read -rs LIGHTDASH_API_KEY && export LIGHTDASH_API_KEY
+    LIGHTDASH_URL=http://localhost:<backend port> LIGHTDASH_PROJECT=<training copy uuid> \
+    pnpm scope-tours:refresh-code-fixture <slug>
+    ```
+
+    The script writes a file only when the download is the seeded chart, by slug and name, so pointing it at another project cannot put that project's content in the repository.
+
+4. **Regenerate, check and smoke** as for any walkthrough. The smoke needs an Enterprise licence and the sandbox on, and names the lesson by its scope (`SMOKE_SCOPES=view:ContentAsCode,create:ContentAsCode`).
+
+The lessons borrow anchors they do not own: the terminal's command box and Run button, the file row (`workspace-file`, by path), the editor, and for the closing steps `data-tour-nav="browse"`, `data-tour-nav="all-charts"` and the chart row (`chart-row`, by name) on All saved charts. A change to any of them fails the build with the anchor's name.
 
 ## When CI fails
 
@@ -136,6 +160,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 | --- | --- | --- |
 | `selector [data-tour-anchor="x"] does not resolve to a data-tour-nav or data-tour-anchor in the frontend` | A control on a walkthrough's path lost its attribute, or its value was renamed | Put the attribute back on the equivalent control, or update the path that names it |
 | `No data-tour-hint found for ...` / `... has no data-tour-hint` | An anchor kept `data-tour-anchor` but lost `data-tour-hint` in a refactor | Restore the hint; it is the step's title |
+| `waits on a busy surface but is not a look` | A step both waits for the page to finish working (`busy`) and asks for a click or typing | Give the wait its own look step before the click. Only a look offers Try again when the work fails, so a learner whose command was refused is not left with Skip |
 | `unknown scope ... in data-tour-scope` | A scope was renamed or removed from the registry | Update the marker to the new scope, or remove the walkthrough and add a disposition (above) |
 | `data-tour-step N is defined differently in A and B` | A marked element was duplicated (copied component, second render branch) with different attributes | Make the copies identical, or keep the marker on one |
 | `data-tour-route "..." is not a known project route` | A route in `Routes.tsx` or `CommercialRoutes.tsx` was renamed | Update `data-tour-route` to the new path |

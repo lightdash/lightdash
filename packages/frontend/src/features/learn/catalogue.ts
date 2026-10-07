@@ -7,6 +7,7 @@ import {
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { tourFor } from '../scopeTours/tourFor';
 import { ROLE_LABELS, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
+import { codeLessonIndex, sitsWithCodeLessons } from './codeLessons';
 import { COMING_SOON_SCOPES } from './comingSoon';
 import { SANDBOX_LESSONS } from './sandboxLessons';
 
@@ -15,7 +16,7 @@ import { SANDBOX_LESSONS } from './sandboxLessons';
  * Other groups follow the scope registry.
  */
 export const FOUNDATIONS = 'foundations' as const;
-/** Docs-page lessons practised in the workspace of a training copy. */
+/** Lessons practised in the workspace of a training copy: docs pages and content as code. */
 export const DEVELOPER = 'developer' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS | typeof DEVELOPER;
 /**
@@ -35,7 +36,8 @@ export type LearnGate =
     | 'aiAgents'
     | 'softDelete'
     | 'documents'
-    | 'sandbox';
+    | 'sandbox'
+    | 'contentAsCode';
 
 const SUBJECT_GATES: Record<string, LearnGate> = {
     DeletedContent: 'softDelete',
@@ -49,6 +51,8 @@ const SUBJECT_GATES: Record<string, LearnGate> = {
     EmbedAiAgentDebug: 'aiAgents',
     EmbedDataApps: 'dataApps',
     AiDeepResearch: 'aiAgents',
+    // Practised with the CLI in the developer sandbox, on an Enterprise scope.
+    ContentAsCode: 'contentAsCode',
 };
 
 export const gateFor = (scope: {
@@ -184,12 +188,15 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                 // module still to come keeps the registry's words, minus
                 // the "all" that reads as a threat on a card.
                 title: tour?.title ?? scope.description.replace(/\ball\b /, ''),
-                // What a viewer already holds is a Foundation; the rest
-                // sit where the registry puts them.
-                group:
-                    minRole === ProjectMemberRole.VIEWER
-                        ? FOUNDATIONS
-                        : scope.group,
+                // Content-as-code lessons run in the workspace with the
+                // docs lessons, and a module of the same subject still to
+                // come sits with them; what a viewer already holds is a
+                // Foundation; the rest sit where the registry puts them.
+                group: sitsWithCodeLessons(scope.name)
+                    ? DEVELOPER
+                    : minRole === ProjectMemberRole.VIEWER
+                      ? FOUNDATIONS
+                      : scope.group,
                 gate: gateFor(scope),
                 minRole,
                 available: tour !== undefined,
@@ -219,15 +226,21 @@ const taughtAt = (module: LearnModule): number => {
             SANDBOX_LESSONS.findIndex((lesson) => lesson.id === module.scope)
         );
     }
+    // Content-as-code lessons come after the semantic-layer ones, as in the
+    // docs sidebar, and in the order they are declared: a lesson that runs a
+    // download another lesson teaches is declared after it.
+    const codeLesson = codeLessonIndex(module.scope);
+    if (codeLesson !== -1) {
+        return CURRICULUM.length + SANDBOX_LESSONS.length + codeLesson;
+    }
     // A lesson that covers several scopes is taught where the first of
     // them comes up.
-    const at = Math.min(
+    return Math.min(
         ...module.scopes.map((scope) => {
             const index = CURRICULUM.indexOf(scope);
             return index < 0 ? CURRICULUM.length : index;
         }),
     );
-    return at;
 };
 
 /** Available first, then the modules the learner holds, then in teaching order. */

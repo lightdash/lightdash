@@ -1,6 +1,8 @@
 import {
+    checkContentAsCodeEntry,
     checkLearnLessonEntry,
     describeLearnWorkspaceYamlError,
+    isContentAsCodeExpectation,
     validateLearnWorkspaceYaml,
 } from './learnSandbox';
 
@@ -143,5 +145,95 @@ describe('checkLearnLessonEntry', () => {
                 columnLesson,
             ),
         ).toMatch(/^Fix the YAML error on line \d+, then check again$/);
+    });
+});
+
+describe('checkContentAsCodeEntry', () => {
+    const chart = [
+        'contentType: chart',
+        'name: Revenue by payment method',
+        'slug: revenue-by-payment-method',
+        'spaceSlug: training',
+        'version: 1',
+        '',
+    ].join('\n');
+    const expected = {
+        slug: 'revenue-by-payment-method',
+        name: 'Revenue by payment type',
+    };
+
+    it('passes once the name is changed and the slug kept', () => {
+        expect(
+            checkContentAsCodeEntry(
+                chart.replace(
+                    'name: Revenue by payment method',
+                    'name: Revenue by payment type',
+                ),
+                expected,
+            ),
+        ).toBeNull();
+    });
+
+    it("accepts the learner's own quoting", () => {
+        expect(
+            checkContentAsCodeEntry(
+                chart.replace(
+                    'name: Revenue by payment method',
+                    "name: 'Revenue by payment type'",
+                ),
+                expected,
+            ),
+        ).toBeNull();
+    });
+
+    it('asks for the new name while the old one is there', () => {
+        expect(checkContentAsCodeEntry(chart, expected)).toBe(
+            "Change the chart's name to Revenue by payment type",
+        );
+    });
+
+    it('refuses an edited slug, which upload would not find', () => {
+        expect(
+            checkContentAsCodeEntry(
+                chart
+                    .replace(
+                        'name: Revenue by payment method',
+                        'name: Revenue by payment type',
+                    )
+                    .replace(
+                        'slug: revenue-by-payment-method',
+                        'slug: revenue-by-payment-type',
+                    ),
+                expected,
+            ),
+        ).toBe(
+            'Keep the slug as revenue-by-payment-method: upload finds the chart by it',
+        );
+    });
+
+    it('points at broken YAML', () => {
+        expect(
+            checkContentAsCodeEntry('name: [unclosed\nslug: x\n', expected),
+        ).toMatch(/^Fix the YAML error/);
+    });
+});
+
+describe('isContentAsCodeExpectation', () => {
+    it('tells a content-as-code expectation from a dbt lesson one', () => {
+        expect(
+            isContentAsCodeExpectation({
+                kind: 'contentAsCode',
+                slug: 'a',
+                name: 'A',
+            }),
+        ).toBe(true);
+        expect(
+            isContentAsCodeExpectation({
+                model: 'payments',
+                under: 'metrics',
+                field: 'x',
+            }),
+        ).toBe(false);
+        expect(isContentAsCodeExpectation(undefined)).toBe(false);
     });
 });

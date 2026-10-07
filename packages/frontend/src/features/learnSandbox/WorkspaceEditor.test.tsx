@@ -39,7 +39,12 @@ const stubs = vi.hoisted(() => {
                 _source: string,
                 edits: {
                     text: string;
-                    range: { startLineNumber: number; startColumn: number };
+                    range: {
+                        startLineNumber: number;
+                        startColumn: number;
+                        endLineNumber?: number;
+                        endColumn?: number;
+                    };
                 }[],
             ) => {
                 const [edit] = edits;
@@ -47,14 +52,24 @@ const stubs = vi.hoisted(() => {
                     model.content = edit.text;
                     return true;
                 }
-                const at = offsetOf(
+                // Like Monaco: the text replaces the range, which is empty
+                // for an insertion.
+                const from = offsetOf(
                     edit.range.startLineNumber,
                     edit.range.startColumn,
                 );
+                const to =
+                    edit.range.endLineNumber === undefined ||
+                    edit.range.endColumn === undefined
+                        ? from
+                        : offsetOf(
+                              edit.range.endLineNumber,
+                              edit.range.endColumn,
+                          );
                 model.content =
-                    model.content.slice(0, at) +
+                    model.content.slice(0, from) +
                     edit.text +
-                    model.content.slice(at);
+                    model.content.slice(to);
                 return true;
             },
         ),
@@ -445,6 +460,128 @@ describe('WorkspaceEditor', () => {
         expect(
             tour?.check?.('    columns:\n      - name: building_id', undefined),
         ).toBeNull();
+    });
+
+    describe('a content-as-code step', () => {
+        const chart = [
+            'contentType: chart',
+            'name: Revenue by payment method',
+            'slug: revenue-by-payment-method',
+            'version: 1',
+            '',
+        ].join('\n');
+        const renamed = chart.replace(
+            'name: Revenue by payment method',
+            'name: Revenue by payment type',
+        );
+        const expectation = {
+            kind: 'contentAsCode',
+            slug: 'revenue-by-payment-method',
+            name: 'Revenue by payment type',
+        };
+        const editChart = (content = chart) => {
+            const onChange = vi.fn();
+            // The stand-in editor holds its text itself.
+            stubs.model.content = content;
+            const { container } = renderEditor({
+                path: 'lightdash/charts/revenue-by-payment-method.yml',
+                content,
+                onChange,
+            });
+            const wrapper = container.querySelector(
+                '[data-tour-anchor="workspace-editor"]',
+            ) as HTMLDivElement & {
+                tourEditor: {
+                    setValue: (
+                        value: string,
+                        expect?: Record<string, string>,
+                    ) => void;
+                    check: (
+                        suggestion: string,
+                        expect: Record<string, string> | undefined,
+                    ) => string | null;
+                    isBusy: () => boolean;
+                };
+            };
+            const inputs = vi.fn();
+            wrapper.addEventListener('input', inputs);
+            return { tour: wrapper.tourEditor, onChange, inputs };
+        };
+
+        it('replaces the chart’s name line in one edit, reports it and stays put', () => {
+            stubs.editor.executeEdits.mockClear();
+            const { tour, onChange, inputs } = editChart();
+            tour.setValue('name: Revenue by payment type', expectation);
+            expect(stubs.model.content).toBe(renamed);
+            expect(stubs.editor.executeEdits).toHaveBeenCalledExactlyOnceWith(
+                'learn-tour',
+                [
+                    {
+                        range: {
+                            startLineNumber: 2,
+                            startColumn: 1,
+                            endLineNumber: 2,
+                            endColumn:
+                                'name: Revenue by payment method'.length + 1,
+                        },
+                        text: 'name: Revenue by payment type',
+                        forceMoveMarkers: true,
+                    },
+                ],
+            );
+            expect(onChange).toHaveBeenCalledExactlyOnceWith(renamed);
+            // The step moves on from Check, never from the edit itself.
+            expect(tour.isBusy()).toBe(false);
+            expect(inputs).toHaveBeenCalledTimes(1);
+            expect(stubs.editor.setPosition).toHaveBeenLastCalledWith({
+                lineNumber: 2,
+                column: 'name: Revenue by payment type'.length + 1,
+            });
+            // Pressing Use it again changes nothing.
+            tour.setValue('name: Revenue by payment type', expectation);
+            expect(stubs.editor.executeEdits).toHaveBeenCalledTimes(1);
+            expect(stubs.model.content).toBe(renamed);
+        });
+
+        it('puts the name back when the learner has deleted the line', () => {
+            const { tour } = editChart(
+                chart.replace('name: Revenue by payment method\n', ''),
+            );
+            tour.setValue('name: Revenue by payment type', expectation);
+            expect(stubs.model.content).toContain(
+                'version: 1\nname: Revenue by payment type\n',
+            );
+            expect(tour.check('ignored', expectation)).toBeNull();
+        });
+
+        it('checks the file for the new name and the slug it was downloaded with', () => {
+            const { tour } = editChart();
+            expect(tour.check('ignored', expectation)).toBe(
+                "Change the chart's name to Revenue by payment type",
+            );
+            tour.setValue('name: Revenue by payment type', expectation);
+            expect(tour.check('ignored', expectation)).toBeNull();
+            stubs.model.content = renamed.replace(
+                'slug: revenue-by-payment-method',
+                'slug: something-else',
+            );
+            expect(tour.check('ignored', expectation)).toBe(
+                'Keep the slug as revenue-by-payment-method: upload finds the chart by it',
+            );
+        });
+
+        it('leaves a one-line suggestion without that expectation to the typed insertion', () => {
+            vi.useFakeTimers();
+            try {
+                const { tour } = editChart('version: 2\n');
+                // No content-as-code expectation: nothing is replaced.
+                tour.setValue('version: 3');
+                vi.runAllTimers();
+                expect(stubs.model.content).toBe('version: 2\nversion: 3');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
     });
 
     it('says why the file cannot be saved, in the header and for walkthroughs', () => {

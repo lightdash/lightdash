@@ -13,11 +13,12 @@ const files: LearnWorkspaceFileSummary[] = [
 const renderTree = (
     onSelect: (path: string) => void = vi.fn(),
     selectedPath: string | null = null,
+    shown: LearnWorkspaceFileSummary[] = files,
 ) =>
     render(
         <MantineProvider env="test">
             <FileTree
-                files={files}
+                files={shown}
                 selectedPath={selectedPath}
                 onSelect={onSelect}
             />
@@ -37,6 +38,26 @@ describe('FileTree', () => {
 
         expect(screen.getByText('seeds')).toBeInTheDocument();
         expect(screen.queryByText('config.yml')).not.toBeInTheDocument();
+    });
+
+    it('opens lightdash/ and its charts, where a download lands, but not its other folders', () => {
+        renderTree(vi.fn(), null, [
+            ...files,
+            {
+                path: 'lightdash/charts/revenue-by-payment-method.yml',
+                editable: true,
+            },
+            { path: 'lightdash/spaces/training.space.yml', editable: true },
+        ]);
+
+        // The file a content-as-code lesson opens next is on screen at once.
+        expect(
+            screen.getByText('revenue-by-payment-method.yml'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('spaces')).toBeInTheDocument();
+        expect(
+            screen.queryByText('training.space.yml'),
+        ).not.toBeInTheDocument();
     });
 
     it('renders a read-only root file', () => {

@@ -118,3 +118,48 @@ export const checkLearnLessonEntry = (
     }
     return `Add ${expected.field} under the ${expected.column} column's ${expected.under}`;
 };
+
+/**
+ * What a content-as-code lesson asks of a downloaded chart file: its slug
+ * left as it is, because `lightdash upload` finds the chart by it, and its
+ * name changed to `name`. The rest of the file is the learner's own.
+ */
+export type ContentAsCodeExpectation = {
+    kind: 'contentAsCode';
+    slug: string;
+    name: string;
+};
+
+export const isContentAsCodeExpectation = (
+    expect: Record<string, string> | undefined,
+): expect is ContentAsCodeExpectation & Record<string, string> =>
+    expect !== undefined &&
+    expect.kind === 'contentAsCode' &&
+    typeof expect.slug === 'string' &&
+    typeof expect.name === 'string';
+
+/**
+ * Null when the chart file holds what the lesson expects; otherwise one line
+ * for the learner saying what to put right.
+ */
+export const checkContentAsCodeEntry = (
+    content: string,
+    expected: Pick<ContentAsCodeExpectation, 'slug' | 'name'>,
+): string | null => {
+    let doc: unknown;
+    try {
+        doc = parseYaml(content);
+    } catch (e) {
+        return describeLearnWorkspaceYamlError(
+            e instanceof Error ? e.message : 'Invalid YAML',
+        ).replace(/ to continue$/, ', then check again');
+    }
+    if (!isRecord(doc)) return 'This file no longer describes a chart';
+    if (doc.slug !== expected.slug) {
+        return `Keep the slug as ${expected.slug}: upload finds the chart by it`;
+    }
+    if (doc.name !== expected.name) {
+        return `Change the chart's name to ${expected.name}`;
+    }
+    return null;
+};

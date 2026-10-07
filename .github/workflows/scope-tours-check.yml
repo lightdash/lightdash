@@ -10,6 +10,8 @@ on:
         paths:
             - 'packages/frontend/src/**'
             - 'packages/common/src/authorization/**'
+            - 'packages/common/src/utils/learnSandbox.ts'
+            - 'packages/backend/src/services/LearnSandboxService/allowlist.ts'
             - 'scripts/scope-tours/**'
             - 'scripts/playground-bundle/**'
             - 'packages/backend/assets/playground/content.json'
