@@ -14,7 +14,6 @@ type Props = {
     isWaiting: boolean;
     isHighlighted: boolean;
     isNotSaved: boolean;
-    canRemove: boolean;
     onToggleHighlight: () => void;
     onAll: () => void;
     onNone: () => void;
@@ -28,7 +27,6 @@ export const FieldRow: FC<Props> = ({
     isWaiting,
     isHighlighted,
     isNotSaved,
-    canRemove,
     onToggleHighlight,
     onAll,
     onNone,
@@ -36,7 +34,7 @@ export const FieldRow: FC<Props> = ({
 }) => {
     const showAll = count.applied < count.possible;
     const showNone = !isWaiting && count.applied > 0;
-    const showRemove = isWaiting || canRemove;
+
     const rowClassName = [
         classes.row,
         isHighlighted ? classes.rowHighlighted : '',
@@ -100,7 +98,7 @@ export const FieldRow: FC<Props> = ({
                             Use on no charts
                         </Button>
                     )}
-                    {showRemove && (
+                    {
                         <Button
                             size="compact-xs"
                             variant="subtle"
@@ -110,7 +108,7 @@ export const FieldRow: FC<Props> = ({
                         >
                             Remove
                         </Button>
-                    )}
+                    }
                 </Group>
             </Box>
         </Stack>

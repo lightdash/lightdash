@@ -164,6 +164,46 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.isNew).toBe(false);
     });
 
+    it('clearFields empties the filter and addFirstField keeps its identity', () => {
+        const original = initialFilters.dimensions[0];
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open(original.id));
+        act(() => result.current.clearFields());
+        expect(result.current.isEmpty).toBe(true);
+        expect(result.current.isDirty).toBe(true);
+        expect(result.current.editingRule).toBeNull();
+        expect(result.current.editing).toEqual({ filterId: original.id });
+        expect(
+            latest.filters.dimensions.find((r) => r.id === original.id),
+        ).toBeUndefined();
+        expect(latest.changed).toBe(true);
+
+        act(() => result.current.addFirstField(statusField));
+        expect(result.current.isEmpty).toBe(false);
+        const restored = latest.filters.dimensions.find(
+            (r) => r.id === original.id,
+        );
+        expect(restored?.target.fieldId).toBe('orders_status');
+        expect(restored?.label).toBe(original.label);
+        expect(restored?.lockedTabUuids).toEqual(original.lockedTabUuids);
+        expect(result.current.editing).toEqual({ filterId: original.id });
+    });
+
+    it('cancel after clearFields restores the original rule', () => {
+        const original = initialFilters.dimensions[0];
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open(original.id));
+        act(() => result.current.clearFields());
+        act(() => result.current.cancel());
+        expect(latest.filters).toEqual(initialFilters);
+        expect(result.current.isEmpty).toBe(false);
+        expect(result.current.editing).toBeNull();
+    });
+
     it('ignores openNew while a filter is being edited', () => {
         const { result } = renderHook(() => useFilterSidebar(), {
             wrapper: Wrapper,

@@ -47,6 +47,7 @@ export const FieldsAndCharts: FC = () => {
         listedFieldIds,
         listFieldId,
         unlistFieldId,
+        clearFields,
     } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
@@ -103,7 +104,6 @@ export const FieldsAndCharts: FC = () => {
         if (highlightedFieldId === fieldId) setHighlightedFieldId(null);
     };
 
-    const hasSavedPeer = getFilterFields(editingRule, []).length > 1;
     const waitingRow =
         waitingField !== null && !fieldIds.includes(waitingField.fieldId)
             ? waitingField
@@ -151,10 +151,6 @@ export const FieldsAndCharts: FC = () => {
                             isWaiting={false}
                             isHighlighted={highlightedFieldId === fieldId}
                             isNotSaved={!isTarget && count.applied === 0}
-                            canRemove={
-                                fieldIds.length > 1 &&
-                                (!isTarget || hasSavedPeer)
-                            }
                             onToggleHighlight={() => toggleHighlight(fieldId)}
                             onAll={() => {
                                 if (target === null) return;
@@ -181,6 +177,13 @@ export const FieldsAndCharts: FC = () => {
                             onRemove={() => {
                                 unlistFieldId(fieldId);
                                 clearHighlight(fieldId);
+                                // Last saved field: empty the filter instead
+                                if (
+                                    getFilterFields(editingRule, []).length <= 1
+                                ) {
+                                    clearFields();
+                                    return;
+                                }
                                 updateFilter(
                                     removeField(
                                         editingRule,
@@ -214,7 +217,6 @@ export const FieldsAndCharts: FC = () => {
                             highlightedFieldId === waitingRow.fieldId
                         }
                         isNotSaved={false}
-                        canRemove
                         onToggleHighlight={() =>
                             toggleHighlight(waitingRow.fieldId)
                         }

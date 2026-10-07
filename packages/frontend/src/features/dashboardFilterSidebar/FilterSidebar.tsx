@@ -28,6 +28,8 @@ export const FilterSidebar: FC = () => {
     const {
         editing,
         isNew,
+        isEmpty,
+        originalFilterRule,
         addFirstField,
         removeFilter,
         getSessionSettings,
@@ -148,6 +150,59 @@ export const FilterSidebar: FC = () => {
                             Cancel
                         </Button>
                         <Button disabled>Add filter</Button>
+                    </Group>
+                </Stack>
+            </Box>
+        );
+    }
+
+    // Every field was removed: same picker as a new filter, identity kept
+    if (isEmpty) {
+        return (
+            <Box className={classes.root}>
+                <Group justify="space-between" wrap="nowrap" px="md" pt="md">
+                    <Title order={5} className={classes.title}>
+                        {originalFilterRule?.label ?? 'Filter'}
+                    </Title>
+                    <Tooltip label="Close">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Close"
+                            onClick={cancel}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                <Stack gap="md" p="md" className={classes.body}>
+                    <Text fw={600} fz="sm">
+                        Pick a field
+                    </Text>
+                    <FieldPicker
+                        fields={allFilterableFields ?? []}
+                        onPick={addFirstField}
+                        getChartCount={getNewFieldChartCount}
+                    />
+                </Stack>
+                <Stack gap="xs" p="md" className={classes.footer}>
+                    <Text fz="xs" c="dimmed">
+                        Pick a field to finish
+                    </Text>
+                    <Group justify="space-between" gap="xs">
+                        <Button
+                            variant="subtle"
+                            color="red"
+                            onClick={removeFilter}
+                        >
+                            Remove filter
+                        </Button>
+                        <Group gap="xs">
+                            <Button variant="default" onClick={cancel}>
+                                Cancel
+                            </Button>
+                            <Button disabled>Apply</Button>
+                        </Group>
                     </Group>
                 </Stack>
             </Box>

@@ -11,6 +11,9 @@ export type FilterSidebarSection = 'fields' | 'interactivity';
 export type FilterSidebarContextValue = {
     editing: { filterId: string | null } | null;
     isNew: boolean;
+    // True after every field was removed from an existing filter
+    isEmpty: boolean;
+    clearFields: () => void;
     originalFilterRule: DashboardFilterRule | null;
     editingRule: DashboardFilterRule | null;
     waitingField: DashboardFieldTarget | null;
