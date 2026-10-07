@@ -43,6 +43,7 @@ const callVerify = async (
     enabled: boolean,
     refreshToken: string,
     agentSession: boolean | 'error' = true,
+    aiPrincipalsEnabled = false,
 ) => {
     const check = vi.spyOn(snowflakeAiSessionCheck, 'check');
     if (agentSession === 'error') {
@@ -55,10 +56,15 @@ const callVerify = async (
         });
     }
     const upsertAiSnowflakeCredential = vi.fn(async () => undefined);
-    const get = vi.fn(async () => ({
-        id: FeatureFlags.SnowflakeAiSignIn,
-        enabled,
-    }));
+    const get = vi.fn(
+        async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.AiPrincipals
+                    ? aiPrincipalsEnabled
+                    : enabled,
+        }),
+    );
     const user = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };
     const req = {
         user,
@@ -128,12 +134,33 @@ describe('Snowflake AI OAuth callback', () => {
         }
     });
 
-    it('stores the AI credential when enabled', async () => {
-        const result = await callVerify(true, 'refresh-token');
-        expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
-            result.user,
-            'refresh-token',
-        );
-        expect(result.done).toHaveBeenCalledWith(null, result.user);
-    });
+    it.each([
+        [true, false],
+        [false, true],
+        [true, true],
+    ])(
+        'stores the AI credential with sign-in=%s and principals=%s',
+        async (signIn, principals) => {
+            const result = await callVerify(
+                signIn,
+                'refresh-token',
+                true,
+                principals,
+            );
+            for (const featureFlagId of [
+                FeatureFlags.AiPrincipals,
+                FeatureFlags.SnowflakeAiSignIn,
+            ]) {
+                expect(result.get).toHaveBeenCalledWith({
+                    user: result.user,
+                    featureFlagId,
+                });
+            }
+            expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+                result.user,
+                'refresh-token',
+            );
+            expect(result.done).toHaveBeenCalledWith(null, result.user);
+        },
+    );
 });

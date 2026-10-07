@@ -14,3 +14,16 @@ describe('Documents feature flag rollout', () => {
         );
     });
 });
+
+describe('Separate AI principals rollout', () => {
+    test('registers the opt-in flag without enabling it in previews', () => {
+        expect(isKnownFeatureFlagId(FeatureFlags.AiSeparatePrincipals)).toBe(
+            true,
+        );
+        expect(
+            PREVIEW_ENABLED_FEATURE_FLAGS.has(
+                FeatureFlags.AiSeparatePrincipals,
+            ),
+        ).toBe(false);
+    });
+});

@@ -3,6 +3,7 @@ import {
     AiAgentMarkerLevel,
     AiPrincipalKind,
     AiTransportKind,
+    FeatureFlags,
     assertUnreachable,
     type AiAccessPolicy,
     type AiWarehouseCapabilities,
@@ -21,11 +22,16 @@ import {
 import { useState, type ReactNode } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { AiMarkerTest } from './AiMarkerTest';
 import { AiPolicyEditor } from './AiPolicyEditor';
 import { AiPolicySource } from './AiPolicySource';
 import { Principals, PrincipalsEmptyState } from './AiPrincipals';
 import { AiSetupScriptDrawer } from './AiSetupScriptDrawer';
+import {
+    SnowflakeIdentityCard,
+    SnowflakeMarkerTest,
+} from './AiSnowflakeIdentity';
 import { AiWarehouseSignals } from './AiWarehouseSignals';
 import { useUpsertAiAccessPolicy } from './api';
 
@@ -72,7 +78,7 @@ const isInvalid = (
 const markerStatement = (level: AiAgentMarkerLevel): string => {
     switch (level) {
         case AiAgentMarkerLevel.VERIFIED_SESSION:
-            return 'Snowflake verifies the session once the person has done the AI sign-in.';
+            return 'Snowflake verifies the session once the person has signed in for agent sessions.';
         case AiAgentMarkerLevel.REQUEST_BOUND:
             return "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it.";
         case AiAgentMarkerLevel.IDENTIFY_ONLY:
@@ -87,12 +93,21 @@ const IdentityStatement = ({
     capabilities,
     policy,
     separate,
+    separateEnabled,
 }: {
     capabilities: AiWarehouseCapabilities;
     policy: AiAccessPolicy | null;
     separate: boolean;
+    separateEnabled: boolean;
 }) => {
     const { level } = capabilities.marker;
+    if (!separateEnabled)
+        return (
+            <Stack gap="xs">
+                <Text fw={500}>Agents run as the marked person.</Text>
+                <Text size="sm">{markerStatement(level)}</Text>
+            </Stack>
+        );
     if (level === AiAgentMarkerLevel.NONE)
         return (
             <Paper variant="dotted" p="md">
@@ -175,6 +190,7 @@ const IdentityCard = ({
     capabilities,
     policy,
     separate,
+    separateEnabled,
     value,
     set,
     disabled,
@@ -186,6 +202,7 @@ const IdentityCard = ({
     capabilities: AiWarehouseCapabilities;
     policy: AiAccessPolicy | null;
     separate: boolean;
+    separateEnabled: boolean;
     value: UpsertAiAccessPolicy;
     set: (patch: Partial<UpsertAiAccessPolicy>) => void;
     disabled: boolean;
@@ -206,18 +223,21 @@ const IdentityCard = ({
                 capabilities={capabilities}
                 policy={policy}
                 separate={separate}
+                separateEnabled={separateEnabled}
             />
-            {capabilities.marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY && (
-                <PrincipalForm
-                    value={value}
-                    capabilities={capabilities}
-                    set={set}
-                    disabled={disabled}
-                    loading={loading}
-                    onSave={onSave}
-                    onSetup={onSetup}
-                />
-            )}
+            {separateEnabled &&
+                capabilities.marker.level ===
+                    AiAgentMarkerLevel.IDENTIFY_ONLY && (
+                    <PrincipalForm
+                        value={value}
+                        capabilities={capabilities}
+                        set={set}
+                        disabled={disabled}
+                        loading={loading}
+                        onSave={onSave}
+                        onSetup={onSetup}
+                    />
+                )}
         </Stack>
     </SettingsCard>
 );
@@ -235,7 +255,14 @@ export const AiIdentitySettings = ({
     capabilities: AiWarehouseCapabilities;
     connectionSelector: ReactNode;
 }) => {
+    const { data: separateFlag } = useServerFeatureFlag(
+        FeatureFlags.AiSeparatePrincipals,
+    );
+    const separateEnabled = separateFlag?.enabled === true;
+    const verified =
+        capabilities.marker.level === AiAgentMarkerLevel.VERIFIED_SESSION;
     const needsPrincipal =
+        separateEnabled &&
         capabilities.marker.level === AiAgentMarkerLevel.IDENTIFY_ONLY;
     const savedSeparate =
         policy !== null && policy.principalKind !== AiPrincipalKind.PERSON;
@@ -275,18 +302,28 @@ export const AiIdentitySettings = ({
     };
     return (
         <Stack gap="xl">
-            <IdentityCard
-                connectionSelector={connectionSelector}
-                capabilities={capabilities}
-                policy={policy}
-                separate={separate}
-                value={value}
-                set={set}
-                disabled={!dirty || isInvalid(input, capabilities)}
-                loading={save.isLoading}
-                onSave={onSave}
-                onSetup={() => setScript({ principal: null })}
-            />
+            {verified ? (
+                <SnowflakeIdentityCard
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    policy={policy}
+                    connectionSelector={connectionSelector}
+                />
+            ) : (
+                <IdentityCard
+                    connectionSelector={connectionSelector}
+                    capabilities={capabilities}
+                    policy={policy}
+                    separate={separate}
+                    separateEnabled={separateEnabled}
+                    value={value}
+                    set={set}
+                    disabled={!dirty || isInvalid(input, capabilities)}
+                    loading={save.isLoading}
+                    onSave={onSave}
+                    onSetup={() => setScript({ principal: null })}
+                />
+            )}
             <SettingsCard>
                 <Stack>
                     <Stack gap={4}>
@@ -308,7 +345,15 @@ export const AiIdentitySettings = ({
                                 Check the marker or the configured principals.
                             </Text>
                         </Stack>
-                        {separate ? (
+                        {verified ? (
+                            <SnowflakeMarkerTest
+                                projectUuid={projectUuid}
+                                connection={connection}
+                                disabled={
+                                    !capabilities.principals.person.available
+                                }
+                            />
+                        ) : separate ? (
                             <Principals
                                 projectUuid={projectUuid}
                                 connection={connection}
@@ -341,7 +386,7 @@ export const AiIdentitySettings = ({
                 confirmLoading={save.isLoading}
                 onConfirm={() => persist(input)}
             />
-            {script && (
+            {separateEnabled && script && (
                 <AiSetupScriptDrawer
                     projectUuid={projectUuid}
                     connection={connection}

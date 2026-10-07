@@ -10,6 +10,7 @@ export enum FeatureFlags {
      * can tell from the person. Off by default; organization scope; no handler.
      */
     AiPrincipals = 'ai-principals',
+    AiSeparatePrincipals = 'ai-separate-principals',
 
     /**
      * Lets a Snowflake AI access policy choose the procedure transport.

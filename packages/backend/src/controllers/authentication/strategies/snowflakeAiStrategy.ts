@@ -68,13 +68,17 @@ export const snowflakeAiPassportStrategy = !(
                           'An organization sign-in is required',
                       );
                   }
-                  const { enabled } = await req.services
-                      .getFeatureFlagService()
-                      .get({
-                          user,
-                          featureFlagId: FeatureFlags.SnowflakeAiSignIn,
-                      });
-                  if (!enabled) {
+                  const flags = await Promise.all(
+                      [
+                          FeatureFlags.AiPrincipals,
+                          FeatureFlags.SnowflakeAiSignIn,
+                      ].map((featureFlagId) =>
+                          req.services
+                              .getFeatureFlagService()
+                              .get({ user, featureFlagId }),
+                      ),
+                  );
+                  if (!flags.some(({ enabled }) => enabled)) {
                       throw new ForbiddenError(
                           'Snowflake AI sign-in is not enabled for this organization',
                       );

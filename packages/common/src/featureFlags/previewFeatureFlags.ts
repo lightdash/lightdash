@@ -7,6 +7,7 @@ import { FeatureFlags } from '../types/featureFlags';
  * redeploy. Keep the reason next to each entry.
  */
 const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
+    FeatureFlags.AiSeparatePrincipals,
     // Documents are opt-in while the foundation and authoring workflows ship.
     FeatureFlags.Documents,
     // Blocks or degrades every page.

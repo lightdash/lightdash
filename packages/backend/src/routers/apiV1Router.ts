@@ -857,11 +857,15 @@ const requireSnowflakeAiSignIn = async (
         if (!user?.organizationUuid) {
             throw new ForbiddenError('An organization sign-in is required');
         }
-        const flag = await req.services.getFeatureFlagService().get({
-            user,
-            featureFlagId: FeatureFlags.SnowflakeAiSignIn,
-        });
-        if (!flag.enabled) {
+        const flags = await Promise.all(
+            [FeatureFlags.AiPrincipals, FeatureFlags.SnowflakeAiSignIn].map(
+                (featureFlagId) =>
+                    req.services
+                        .getFeatureFlagService()
+                        .get({ user, featureFlagId }),
+            ),
+        );
+        if (!flags.some(({ enabled }) => enabled)) {
             throw new ForbiddenError(
                 'Snowflake AI sign-in is not enabled for this organization',
             );

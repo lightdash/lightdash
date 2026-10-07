@@ -190,8 +190,9 @@ standard resolver without a custom handler. Use organization overrides for Cloud
 rollouts; standard user overrides also apply. Self-hosted instances can use the
 generic ENV lists and precedence described above.
 
-The flag gates the sign-in routes, settings section, and
-selection of the AI credential for Snowflake AI and MCP queries. The deployment
+This flag enables the personal settings section and legacy AI credential
+selection for Snowflake AI and MCP queries. The sign-in routes also accept
+`ai-principals`, as described below. The deployment
 also needs an Enterprise license and a second Snowflake OAuth security integration
 with `IS_AGENTIC = TRUE`. Configure its OAuth endpoints and client credentials in
 `SNOWFLAKE_AI_OAUTH_*`. The customer manages restricted session scopes and masking
@@ -207,3 +208,25 @@ settings page to update the UI. ENV and OAuth configuration changes need a proce
 restart. Disabling the flag preserves saved credentials and restores the existing
 credential-selection path; it does not cancel queries already in progress or
 revoke Snowflake tokens. This flag does not enforce AI access restrictions.
+
+## Agent identity and separate principals
+
+`ai-principals` enables the Agent identity page and its API. It also permits
+Snowflake agent sign-in, so `snowflake-ai-sign-in` is optional for that path.
+Both OAuth routes and the callback accept either resolved flag. The Enterprise
+licence and instance OAuth configuration remain required. Turning off only one
+flag does not block sign-in while the other flag is enabled.
+
+`ai-separate-principals` shows the separate principal configuration on the Agent
+identity page. It depends on `ai-principals`. It is off by default, with no custom
+resolver. Prefer organization overrides; standard user overrides also apply.
+The preview exclusion reason is: "Opt-in hardening path; previews show the
+Snowflake golden path only."
+
+This flag controls the UI only. Turning it off hides the configuration and leaves
+saved policies and the principal API unchanged. Snowflake keeps the verified
+person path with either value. Other warehouses show the marked person statement
+when the flag is off. Generic ENV precedence and restart rules apply. Refetch the
+flag or reload the page after a Console change.
+
+See the [Snowflake agent sign-in runbook](agent-identity-snowflake.md).

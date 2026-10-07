@@ -5,6 +5,8 @@ import {
     AiSetupScriptFormat,
     AiTransportKind,
     WarehouseTypes,
+    UserWarehouseCredentialPurpose,
+    type UserWarehouseCredentials,
     type AiAccessPolicy,
     type AiWarehouseCapabilities,
 } from '@lightdash/common';
@@ -13,6 +15,49 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiIdentitySettings } from './AiIdentitySettings';
 const mutate = vi.fn();
+const login = vi.fn();
+const remove = vi.fn();
+const toast = vi.fn();
+let separateEnabled = true;
+let configured = false;
+let credentials: UserWarehouseCredentials[] = [];
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: separateEnabled } }),
+}));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({
+        user: {},
+        health: {
+            data: {
+                rudder: {},
+                siteUrl: 'https://app.example/',
+                auth: { snowflakeAi: { enabled: configured } },
+            },
+            isLoading: false,
+            isError: false,
+        },
+    }),
+}));
+vi.mock('../../hooks/useSnowflake', () => ({
+    useSnowflakeAiLoginPopup: () => ({ mutate: login, isLoading: false }),
+}));
+vi.mock(
+    '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials',
+    () => ({
+        useUserWarehouseCredentials: () => ({
+            data: credentials,
+            isLoading: false,
+            isError: false,
+        }),
+        useUserWarehouseCredentialsDeleteMutation: () => ({
+            mutate: remove,
+            isLoading: false,
+        }),
+    }),
+);
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastSuccess: toast }),
+}));
 vi.mock('./api', () => ({
     useUpsertAiAccessPolicy: () => ({ mutate, isLoading: false }),
 }));
@@ -79,7 +124,12 @@ const renderSettings = (
         />,
     );
 describe('Agent identity draft', () => {
-    beforeEach(() => mutate.mockClear());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        separateEnabled = true;
+        configured = false;
+        credentials = [];
+    });
     it.each([AiPrincipalKind.GROUP, AiPrincipalKind.TWIN])(
         'replaces an API-created %s setup with one principal after confirmation',
         (principalKind) => {
@@ -208,10 +258,7 @@ describe('Agent identity draft', () => {
             );
         },
     );
-    it.each([
-        AiAgentMarkerLevel.VERIFIED_SESSION,
-        AiAgentMarkerLevel.REQUEST_BOUND,
-    ])(
+    it.each([AiAgentMarkerLevel.REQUEST_BOUND])(
         'keeps the marked person and marker test without controls for %s',
         (level) => {
             renderSettings(null, {
@@ -223,9 +270,7 @@ describe('Agent identity draft', () => {
             ).toBeInTheDocument();
             expect(
                 screen.getByText(
-                    level === AiAgentMarkerLevel.VERIFIED_SESSION
-                        ? 'Snowflake verifies the session once the person has done the AI sign-in.'
-                        : "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it.",
+                    "The marker is fixed by the request. Enforcement needs your warehouse's access control plugin or policy to read it.",
                 ),
             ).toBeInTheDocument();
             expect(
@@ -316,4 +361,193 @@ describe('Agent identity draft', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Test')).not.toBeInTheDocument();
     });
+});
+
+const snowflakeCapabilities: AiWarehouseCapabilities = {
+    ...capabilities,
+    warehouseType: WarehouseTypes.SNOWFLAKE,
+    marker: {
+        ...capabilities.marker,
+        level: AiAgentMarkerLevel.VERIFIED_SESSION,
+    },
+};
+const snowflakeCredential: UserWarehouseCredentials = {
+    uuid: 'agent-credential',
+    userUuid: 'user',
+    name: 'Agent sessions',
+    purpose: UserWarehouseCredentialPurpose.AI,
+    createdAt: new Date('2026-10-01T12:00:00Z'),
+    updatedAt: new Date('2026-10-01T12:00:00Z'),
+    credentials: { type: WarehouseTypes.SNOWFLAKE, user: 'person' },
+    project: null,
+};
+describe('Snowflake agent sign-in', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        separateEnabled = false;
+        configured = false;
+        credentials = [];
+    });
+    it('shows setup SQL and disables enforcement before instance setup', async () => {
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            screen.getByText('Agents run as the marked person.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'The agent sign-in integration is not configured on this instance.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('switch', {
+                name: /^Require verified agent sessions/,
+            }),
+        ).toBeDisabled();
+        const sql = await screen.findByText(
+            (_, element) =>
+                element?.tagName === 'CODE' &&
+                !!element.textContent?.includes('CREATE SECURITY INTEGRATION'),
+        );
+        expect(sql).toHaveTextContent(
+            "OAUTH_REDIRECT_URI = 'https://app.example/api/v1/oauth/redirect/snowflake-ai'",
+        );
+        expect(sql).toHaveTextContent('IS_AGENTIC = TRUE');
+        expect(
+            screen.getByRole('button', { name: 'Copy integration SQL' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Your sign-in')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Save' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Sign in for agent sessions first.'),
+        ).toBeInTheDocument();
+    });
+    it('offers personal sign-in and saves the person policy immediately', () => {
+        configured = true;
+        credentials = [
+            {
+                ...snowflakeCredential,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            },
+            {
+                ...snowflakeCredential,
+                credentials: { type: WarehouseTypes.BIGQUERY },
+            },
+        ];
+        renderSettings(null, snowflakeCapabilities);
+        expect(
+            screen.getByText('Agent sign-in integration configured.'),
+        ).toBeInTheDocument();
+        const toggle = screen.getByRole('switch', {
+            name: /^Require verified agent sessions/,
+        });
+        expect(toggle).not.toBeChecked();
+        expect(toggle).toBeEnabled();
+        expect(
+            screen.getByText('You are not signed in for agent sessions.'),
+        ).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+        );
+        expect(login).toHaveBeenCalledOnce();
+        expect(
+            screen.getByText('Sign in for agent sessions first.'),
+        ).toBeInTheDocument();
+        fireEvent.click(toggle);
+        expect(mutate).toHaveBeenCalledWith(
+            {
+                enabled: true,
+                principalKind: AiPrincipalKind.PERSON,
+                transport: { kind: AiTransportKind.DIRECT },
+                sharedRef: null,
+                twinNameTemplate: null,
+                groupMappings: [],
+                policySource: null,
+            },
+            expect.any(Object),
+        );
+        mutate.mock.calls[0][1].onSuccess();
+        expect(toast).toHaveBeenCalledWith({
+            title: 'Agent session requirement saved.',
+        });
+    });
+    it('shows a saved requirement and personal sign-out, and preserves the policy source when disabled', () => {
+        configured = true;
+        credentials = [snowflakeCredential];
+        const policySource = {
+            label: 'Warehouse rules',
+            url: 'https://example.com/rules',
+        };
+        renderSettings(
+            {
+                ...policy,
+                principalKind: AiPrincipalKind.PERSON,
+                groupMappings: [],
+                policySource,
+            },
+            snowflakeCapabilities,
+        );
+        const toggle = screen.getByRole('switch', {
+            name: /^Require verified agent sessions/,
+        });
+        expect(toggle).toBeChecked();
+        expect(
+            screen.getByText(/You are signed in for agent sessions since/),
+        ).toHaveTextContent(
+            new Date(snowflakeCredential.createdAt).toLocaleDateString(),
+        );
+        expect(screen.getByText('Marker test')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+        expect(remove).toHaveBeenCalledWith(undefined, expect.any(Object));
+        fireEvent.click(toggle);
+        expect(mutate).toHaveBeenCalledWith(
+            {
+                enabled: false,
+                principalKind: AiPrincipalKind.PERSON,
+                transport: { kind: AiTransportKind.DIRECT },
+                sharedRef: null,
+                twinNameTemplate: null,
+                groupMappings: [],
+                policySource,
+            },
+            expect.any(Object),
+        );
+    });
+    it.each([
+        AiAgentMarkerLevel.REQUEST_BOUND,
+        AiAgentMarkerLevel.IDENTIFY_ONLY,
+        AiAgentMarkerLevel.NONE,
+    ])(
+        'shows only the marked-person statement for %s with separate principals off',
+        (level) => {
+            renderSettings(
+                {
+                    ...policy,
+                    principalKind: AiPrincipalKind.SHARED,
+                    sharedRef: 'ai_shared',
+                    groupMappings: [],
+                },
+                { ...capabilities, marker: { ...capabilities.marker, level } },
+            );
+            const card = within(
+                screen.getByRole('heading', { name: 'Identity' }).parentElement!
+                    .parentElement!,
+            );
+            expect(
+                card.getByText('Agents run as the marked person.'),
+            ).toBeInTheDocument();
+            expect(card.queryByRole('alert')).not.toBeInTheDocument();
+            expect(card.queryByRole('button')).not.toBeInTheDocument();
+            expect(
+                card.queryByLabelText('Principal reference'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Principal table'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Principals empty state'),
+            ).not.toBeInTheDocument();
+        },
+    );
 });

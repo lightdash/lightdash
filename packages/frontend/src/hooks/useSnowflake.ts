@@ -99,7 +99,10 @@ export function useSnowflakeAiLoginPopup() {
                 '/login/snowflake-ai',
             ),
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['user_warehouse_credentials']);
+            await Promise.all([
+                queryClient.invalidateQueries(['user_warehouse_credentials']),
+                queryClient.invalidateQueries(['ai-access']),
+            ]);
         },
         onError: (error: Error) =>
             showToastError({
