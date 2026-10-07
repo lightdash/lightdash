@@ -41,6 +41,13 @@ export class LearnWorkspaceModel {
             .orderBy('path');
     }
 
+    async listFilePaths(projectUuid: string): Promise<string[]> {
+        const rows = await this.database(LearnWorkspaceFilesTableName)
+            .select('path')
+            .where('project_uuid', projectUuid);
+        return rows.map((row) => row.path);
+    }
+
     async getFile(
         projectUuid: string,
         path: string,

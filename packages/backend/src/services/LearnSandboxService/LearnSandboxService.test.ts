@@ -764,6 +764,7 @@ describe('LearnSandboxService.sweep', () => {
 describe('LearnSandboxService.runCommand', () => {
     const files = {
         listFiles: vi.fn(),
+        listFilePaths: vi.fn(),
         getFile: vi.fn(),
         countFiles: vi.fn(),
         upsertFile: vi.fn(),
@@ -1055,6 +1056,259 @@ describe('LearnSandboxService.runCommand', () => {
             'c-v',
             expect.objectContaining({ status: 'done', exit_code: 0 }),
         );
+    });
+
+    describe('keeping what lightdash download wrote', () => {
+        const CHART = 'lightdash/charts/revenue-by-payment-method.yml';
+        const DASHBOARD = 'lightdash/dashboards/jaffle-shop-overview.yml';
+        const SPACE = 'lightdash/spaces/training.space.yml';
+        const CHART_CONTENT =
+            'name: Revenue by payment method\nslug: revenue-by-payment-method\n';
+        // A fake CLI that writes what a real download writes, plus files a
+        // download never writes, into the command's project directory.
+        const fakeDownload = (exitCode: number, extra: string[] = []) =>
+            [
+                '#!/bin/sh',
+                'mkdir -p lightdash/charts lightdash/dashboards lightdash/spaces',
+                `printf 'name: Revenue by payment method\\nslug: revenue-by-payment-method\\n' > ${CHART}`,
+                `printf 'name: Overview\\n' > ${DASHBOARD}`,
+                `printf 'name: Training\\n' > ${SPACE}`,
+                "printf '{}' > lightdash/.lightdash-metadata.json",
+                ...extra,
+                `exit ${exitCode}`,
+                '',
+            ].join('\n');
+        // Workspace files that are not downloads, to fill it towards its cap.
+        const others = (count: number) =>
+            Array.from({ length: count }, (_, i) => ({
+                path: `models/other_${i}.yml`,
+                content: 'version: 2\n',
+            }));
+        const runDownload = async (
+            script: string,
+            workspace: { path: string; content: string }[] = [],
+        ) => {
+            await writeFile(path.join(bin, 'lightdash'), script, {
+                mode: 0o755,
+            });
+            const appended: { stream: string; text: string }[] = [];
+            files.getCommand.mockResolvedValue({
+                command_uuid: 'c-download',
+                project_uuid: 'copy',
+                user_uuid: user.userUuid,
+                status: 'queued',
+                argv: [
+                    'lightdash',
+                    'download',
+                    '--charts',
+                    'revenue-by-payment-method',
+                ],
+                pat_uuid: null,
+            });
+            // The workspace as the command finds it: its files are written
+            // into the command's directory, and its paths are what the keep
+            // step reads back. The two always agree.
+            files.listFiles.mockResolvedValue(workspace);
+            files.listFilePaths.mockResolvedValue(
+                workspace.map((file) => file.path),
+            );
+            files.appendOutput.mockImplementation(async (_id, chunks) => {
+                appended.push(...chunks);
+            });
+            const { service } = buildService();
+            await service.runCommand({
+                commandUuid: 'c-download',
+                projectUuid: 'copy',
+                organizationUuid: 'org',
+                userUuid: user.userUuid,
+            });
+            return appended.map((c) => c.text).join('');
+        };
+        const keptPaths = () =>
+            files.upsertFile.mock.calls.map(([, filePath]) => filePath);
+
+        it('keeps the chart, dashboard and space files exactly as written, but not the metadata file', async () => {
+            const text = await runDownload(fakeDownload(0));
+            expect(keptPaths()).toEqual([CHART, DASHBOARD, SPACE]);
+            expect(files.upsertFile).toHaveBeenCalledWith(
+                'copy',
+                CHART,
+                CHART_CONTENT,
+            );
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace.\n',
+            );
+            expect(text).not.toContain('Skipped');
+        });
+
+        it('leaves alone a file the workspace held that the download did not write', async () => {
+            const text = await runDownload(fakeDownload(0), [
+                {
+                    path: 'lightdash/charts/earlier.yml',
+                    content: 'name: Earlier download\n',
+                },
+            ]);
+            // Not saved again (a save made meanwhile would be undone) and
+            // not counted as downloaded.
+            expect(keptPaths()).toEqual([CHART, DASHBOARD, SPACE]);
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace.\n',
+            );
+        });
+
+        it('counts a file the download wrote again unchanged, without saving it again', async () => {
+            const text = await runDownload(
+                // The rewrite lands a moment after the workspace was written.
+                fakeDownload(0).replace(
+                    'mkdir -p',
+                    '/bin/sleep 0.05\nmkdir -p',
+                ),
+                [{ path: CHART, content: CHART_CONTENT }],
+            );
+            expect(keptPaths()).toEqual([DASHBOARD, SPACE]);
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace.\n',
+            );
+        });
+
+        it('replaces a file the workspace held when the download brings other content', async () => {
+            await runDownload(fakeDownload(0), [
+                { path: CHART, content: 'name: My edit\nslug: x\n' },
+            ]);
+            expect(files.upsertFile).toHaveBeenCalledWith(
+                'copy',
+                CHART,
+                CHART_CONTENT,
+            );
+        });
+
+        it('says so when the download wrote nothing under lightdash/', async () => {
+            const text = await runDownload(
+                [
+                    '#!/bin/sh',
+                    'mkdir -p exports/charts',
+                    "printf 'name: Elsewhere\\n' > exports/charts/elsewhere.yml",
+                    'exit 0',
+                    '',
+                ].join('\n'),
+                [{ path: CHART, content: CHART_CONTENT }],
+            );
+            expect(files.upsertFile).not.toHaveBeenCalled();
+            expect(text).toContain(
+                'The download wrote no files under lightdash/, so none were kept in your workspace.\n',
+            );
+            expect(text).not.toContain('Kept');
+        });
+
+        it('skips a file over the size limit and names it, and does not follow a link to a real file', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    "head -c 70000 /dev/zero | tr '\\0' a > lightdash/charts/huge.yml",
+                    // The link's target exists and is valid YAML: following
+                    // it would keep the file.
+                    "printf 'name: Outside\\n' > outside.yml",
+                    'ln -s ../../outside.yml lightdash/charts/link.yml',
+                    'test -r lightdash/charts/link.yml || exit 9',
+                ]),
+            );
+            expect(keptPaths()).toEqual([CHART, DASHBOARD, SPACE]);
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace. Skipped 1: lightdash/charts/huge.yml (over 64 KiB).\n',
+            );
+        });
+
+        it('skips a file that is not valid YAML, as a save would', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    "printf 'name: [unclosed\\n' > lightdash/charts/broken.yml",
+                ]),
+            );
+            expect(keptPaths()).toEqual([CHART, DASHBOARD, SPACE]);
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace. Skipped 1: lightdash/charts/broken.yml (not valid YAML).\n',
+            );
+        });
+
+        it('reads nothing from a content folder that is a symlink', async () => {
+            await runDownload(
+                fakeDownload(0, [
+                    'mkdir -p elsewhere',
+                    "printf 'name: Leak\\n' > elsewhere/leak.yml",
+                    'rm -rf lightdash/dashboards',
+                    'ln -s ../elsewhere lightdash/dashboards',
+                    'test -r lightdash/dashboards/leak.yml || exit 9',
+                ]),
+            );
+            expect(keptPaths()).toEqual([CHART, SPACE]);
+        });
+
+        it('reads nothing when lightdash/ itself is a symlink', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    'mkdir -p real',
+                    'mv lightdash real/lightdash',
+                    'ln -s real/lightdash lightdash',
+                    `test -r ${CHART} || exit 9`,
+                ]),
+            );
+            expect(files.upsertFile).not.toHaveBeenCalled();
+            expect(text).toContain('The download wrote no files');
+        });
+
+        it('stops at the workspace file cap without reading what it cannot keep', async () => {
+            const text = await runDownload(fakeDownload(0), others(200));
+            expect(files.upsertFile).not.toHaveBeenCalled();
+            expect(files.listFilePaths).toHaveBeenCalledTimes(1);
+            expect(text).toContain(
+                `Kept 0 downloaded files in your workspace. Skipped 3: ${CHART} (the workspace is full), ${DASHBOARD} (the workspace is full), ${SPACE} (the workspace is full).\n`,
+            );
+        });
+
+        it('still updates a file the workspace already holds when the cap is full', async () => {
+            const text = await runDownload(fakeDownload(0), [
+                ...others(199),
+                { path: CHART, content: 'name: My edit\nslug: x\n' },
+            ]);
+            expect(keptPaths()).toEqual([CHART]);
+            expect(text).toContain(
+                'Kept 1 downloaded file in your workspace. Skipped 2: ',
+            );
+        });
+
+        it('takes only the free slots, and sums up a long list of skipped files', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    "printf 'name: Extra one\\n' > lightdash/spaces/extra-one.space.yml",
+                    "printf 'name: Extra two\\n' > lightdash/spaces/extra-two.space.yml",
+                ]),
+                others(199),
+            );
+            expect(keptPaths()).toEqual([CHART]);
+            expect(text).toContain(
+                `Kept 1 downloaded file in your workspace. Skipped 4: ${DASHBOARD} (the workspace is full), lightdash/spaces/extra-one.space.yml (the workspace is full), lightdash/spaces/extra-two.space.yml (the workspace is full), and 1 more.\n`,
+            );
+        });
+
+        it('fails the command in plain words when the files cannot be saved', async () => {
+            files.upsertFile.mockRejectedValueOnce(
+                new Error('Connection terminated unexpectedly'),
+            );
+            const text = await runDownload(fakeDownload(0));
+            expect(text).toContain(
+                'The download finished, but its files could not be saved to your workspace. Run the command again.\n',
+            );
+            expect(text).not.toContain('Connection terminated');
+            expect(text).not.toContain('Kept');
+            expect(files.updateCommand).toHaveBeenLastCalledWith(
+                'c-download',
+                expect.objectContaining({ status: 'error', exit_code: null }),
+            );
+        });
+
+        it('keeps nothing from a download that failed', async () => {
+            await runDownload(fakeDownload(1));
+            expect(files.upsertFile).not.toHaveBeenCalled();
+        });
     });
 
     it("runs start-preview as a deploy to the learner's copy, without the name, and reports the named preview", async () => {

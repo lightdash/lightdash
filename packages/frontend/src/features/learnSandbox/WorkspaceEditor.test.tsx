@@ -118,7 +118,9 @@ vi.mock('monaco-yaml', () => ({
     configureMonacoYaml: vi.fn(() => ({ update: vi.fn() })),
 }));
 
+import { configureMonacoYaml } from 'monaco-yaml';
 import WorkspaceEditor from './WorkspaceEditor';
+import { DBT_SCHEMA_FILE_MATCH } from './yamlSchemas';
 
 type Props = ComponentProps<typeof WorkspaceEditor>;
 
@@ -568,6 +570,85 @@ describe('WorkspaceEditor', () => {
         // Text from somewhere else (the file reloading) is handed over.
         rerender(props('from the server'));
         expect(stubs.lastEditorProps.value).toBe('from the server');
+    });
+
+    it('takes a file replaced from outside (a download), even when it reads like text typed earlier', () => {
+        const onChange = vi.fn();
+        const props = (content: string, revision: number) => (
+            <MantineProvider env="test">
+                <WorkspaceEditor
+                    path="lightdash/charts/revenue.yml"
+                    revision={revision}
+                    content={content}
+                    editable
+                    saving={false}
+                    dirty={false}
+                    invalid={null}
+                    onChange={onChange}
+                    onBlur={vi.fn()}
+                />
+            </MantineProvider>
+        );
+        const { rerender } = render(props('name: Revenue', 0));
+        const change = stubs.lastEditorProps.onChange as (v: string) => void;
+        // The learner types a character, deletes it, then renames the chart:
+        // the editor has reported the original text along the way.
+        change('name: Revenue!');
+        change('name: Revenue');
+        change('name: My edit');
+        rerender(props('name: My edit', 0));
+        expect(stubs.lastEditorProps.value).toBeUndefined();
+        // A download puts the original back. Without the revision the editor
+        // would take it for its own echo and keep showing the edit.
+        rerender(props('name: Revenue', 1));
+        expect(stubs.lastEditorProps.value).toBe('name: Revenue');
+    });
+
+    it('applies the dbt schema to model files at any depth, and to nothing else', () => {
+        // monaco-yaml reads these as globs anchored at the end of the file's
+        // URI: `*` stops at a folder, so nested model folders need `**`.
+        expect(DBT_SCHEMA_FILE_MATCH).toEqual([
+            '/models/**/*.yml',
+            '/models/**/*.yaml',
+        ]);
+    });
+
+    it('gives each kind of file its own schema: dbt for models, content as code for downloads', () => {
+        renderEditor();
+        const { schemas } = vi.mocked(configureMonacoYaml).mock.calls[0][1] as {
+            schemas: { uri: string; fileMatch: string[] }[];
+        };
+        expect(
+            schemas.map(({ uri, fileMatch }) => [
+                uri.split('/').pop(),
+                fileMatch,
+            ]),
+        ).toEqual([
+            ['lightdash-dbt-2.0.json', DBT_SCHEMA_FILE_MATCH],
+            ['chart-as-code.json', ['/lightdash/charts/*.yml']],
+            ['dashboard-as-code.json', ['/lightdash/dashboards/*.yml']],
+        ]);
+        // No pattern takes a space file, or a file deeper than a download
+        // writes: those keep YAML checks only.
+        expect(schemas.flatMap(({ fileMatch }) => fileMatch)).not.toContain(
+            '*.yml',
+        );
+    });
+
+    it('does not underline dbt key typos in a downloaded chart', () => {
+        stubs.monaco.editor.setModelMarkers.mockClear();
+        // `descripton` is a slip from a dbt key; a chart file is not dbt.
+        stubs.model.content = [
+            'name: Revenue',
+            'descripton: A chart',
+            'slug: revenue',
+        ].join('\n');
+        renderEditor({ path: 'lightdash/charts/revenue.yml' });
+        expect(stubs.monaco.editor.setModelMarkers).toHaveBeenLastCalledWith(
+            stubs.model,
+            'learn-key-typos',
+            [],
+        );
     });
 
     it('starts each file afresh: another file holding the same text is loaded', () => {

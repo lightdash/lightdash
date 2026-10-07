@@ -1,9 +1,15 @@
 import {
+    chartAsCodeSchema,
     checkLearnLessonEntry,
     findYamlKeyTypos,
     type LearnLessonExpectation,
     lightdashDbtYamlSchema,
 } from '@lightdash/common';
+// Imported by path, not from the package index: the index is built into the
+// file every page loads, and only this page, loaded on demand, needs the
+// dashboard schema. (The chart schema is already in that file: the document
+// helpers use it.)
+import dashboardAsCodeSchema from '@lightdash/common/src/schemas/dashboardAsCodeSchema';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
 import { useCallback, useEffect, useRef, type FC } from 'react';
@@ -22,19 +28,39 @@ import {
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
 import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
+import {
+    CHART_SCHEMA_FILE_MATCH,
+    DASHBOARD_SCHEMA_FILE_MATCH,
+    DBT_SCHEMA_FILE_MATCH,
+} from './yamlSchemas';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
  * configured instance per monaco module, so every editor must route
- * through that shared singleton rather than holding its own). */
+ * through that shared singleton rather than holding its own). Each schema
+ * is tied to the files it describes (yamlSchemas.ts): the dbt schema to
+ * model files, and the content-as-code schemas to the charts and dashboards
+ * a download writes. The dbt schema on a downloaded chart would flag every
+ * key in it. */
+
 const configureLearnYaml = (monaco: Monaco) => {
     configureLightdashYaml(monaco, {
         enableSchemaRequest: false,
         schemas: [
             {
                 uri: 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
-                fileMatch: ['*.yml', '*.yaml'],
+                fileMatch: DBT_SCHEMA_FILE_MATCH,
                 schema: lightdashDbtYamlSchema as Record<string, unknown>,
+            },
+            {
+                uri: 'https://schemas.lightdash.com/lightdash/chart-as-code.json',
+                fileMatch: CHART_SCHEMA_FILE_MATCH,
+                schema: chartAsCodeSchema as Record<string, unknown>,
+            },
+            {
+                uri: 'https://schemas.lightdash.com/lightdash/dashboard-as-code.json',
+                fileMatch: DASHBOARD_SCHEMA_FILE_MATCH,
+                schema: dashboardAsCodeSchema as Record<string, unknown>,
             },
         ],
     });
@@ -52,6 +78,12 @@ const STATE_LABELS: Record<EditorState, string> = {
 
 type WorkspaceEditorProps = {
     path: string;
+    /**
+     * Bumped when the file was replaced from outside the editor (a download
+     * rewrote it): the editor then takes `content` even if it once reported
+     * that very text itself.
+     */
+    revision?: number;
     content: string;
     editable: boolean;
     saving: boolean;
@@ -86,6 +118,7 @@ const KEY_TYPO_DELAY_MS = 400;
 
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     path,
+    revision = 0,
     content,
     editable,
     saving,
@@ -97,6 +130,10 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const keyTypoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // The dbt key-typo check suits model files only; a downloaded chart or
+    // dashboard is content as code, whose keys are not dbt's.
+    const pathRef = useRef(path);
+    pathRef.current = path;
     useEffect(
         () => () => {
             if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
@@ -118,12 +155,18 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // editor's, which drops those keystrokes and throws the cursor to the end
     // of the file. Text the editor itself reported is never new to it, so it
     // is not handed back; anything else (a file loading) is.
-    const reportedRef = useRef<{ path: string; values: Set<string> }>({
-        path,
-        values: new Set(),
-    });
-    if (reportedRef.current.path !== path) {
-        reportedRef.current = { path, values: new Set() };
+    // A file replaced from outside (a download; `revision` says so) is new to
+    // the editor even when it reads like something typed earlier.
+    const reportedRef = useRef<{
+        path: string;
+        revision: number;
+        values: Set<string>;
+    }>({ path, revision, values: new Set() });
+    if (
+        reportedRef.current.path !== path ||
+        reportedRef.current.revision !== revision
+    ) {
+        reportedRef.current = { path, revision, values: new Set() };
     }
     const report = useCallback((next: string) => {
         const { values } = reportedRef.current;
@@ -306,13 +349,16 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             const markKeyTypos = () => {
                 const model = ed.getModel();
                 if (!model) return;
+                const typos = pathRef.current.startsWith('models/')
+                    ? findYamlKeyTypos(
+                          model.getValue(),
+                          lightdashDbtYamlSchema as Record<string, unknown>,
+                      )
+                    : [];
                 monaco.editor.setModelMarkers(
                     model,
                     KEY_TYPO_MARKERS,
-                    findYamlKeyTypos(
-                        model.getValue(),
-                        lightdashDbtYamlSchema as Record<string, unknown>,
-                    ).map((typo) => ({
+                    typos.map((typo) => ({
                         severity: monaco.MarkerSeverity.Warning,
                         message: `Unknown key "${typo.key}". Did you mean "${typo.suggestion}"?`,
                         startLineNumber: typo.line,

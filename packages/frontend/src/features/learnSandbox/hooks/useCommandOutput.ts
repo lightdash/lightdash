@@ -10,6 +10,8 @@ import { sanitizeTerminalText } from '../terminalText';
 const POLL_INTERVAL_MS = 500;
 
 type CommandOutputState = {
+    /** The command as it was typed, once the first poll has answered. */
+    argv: string[] | null;
     status: LearnCommandStatus | null;
     exitCode: number | null;
     startedAt: string | null;
@@ -19,6 +21,7 @@ type CommandOutputState = {
 };
 
 const EMPTY_STATE: CommandOutputState = {
+    argv: null,
     status: null,
     exitCode: null,
     startedAt: null,
@@ -71,6 +74,7 @@ export const useCommandOutput = (
                 }));
                 setState((prev) => ({
                     ...prev,
+                    argv: out.argv,
                     status: out.status,
                     exitCode: out.exitCode,
                     startedAt: out.startedAt,

@@ -20,7 +20,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import execaDefault from 'execa';
-import { readdir, rm, stat } from 'node:fs/promises';
+import { lstat, readdir, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fromSession } from '../../auth/account/account';
@@ -49,6 +49,8 @@ import {
     type LearnSandboxRuntime,
 } from './runtime';
 import {
+    DOWNLOADED_CONTENT_FOLDERS,
+    isDownloadedContentPath,
     isEditablePath,
     loadLearnBundle,
     materialiseWorkspace,
@@ -292,6 +294,172 @@ export class LearnSandboxService extends BaseService {
         };
     }
 
+    /**
+     * What the workspace already held under `lightdash/`, as it sits in a
+     * command's project directory before the command runs. A download is
+     * credited only with what it writes after this: the files kept from
+     * earlier downloads are copied into every command's directory too.
+     */
+    private static async heldDownloadedContent(
+        projectDir: string,
+        overlay: { path: string; content: string }[],
+    ): Promise<Map<string, { content: string; mtimeMs: number }>> {
+        const held = await Promise.all(
+            overlay
+                .filter((file) => isDownloadedContentPath(file.path))
+                .map(async (file) => {
+                    const info = await lstat(
+                        path.join(projectDir, ...file.path.split('/')),
+                    );
+                    return [
+                        file.path,
+                        { content: file.content, mtimeMs: info.mtimeMs },
+                    ] as const;
+                }),
+        );
+        return new Map(held);
+    }
+
+    /**
+     * Keeps what a `lightdash download` wrote, so the learner can open,
+     * edit and upload it: the command's directory is removed when it ends.
+     * Only regular files at the CLI's own content paths are read, in real
+     * directories (a symlink on the way would point the reads elsewhere),
+     * within the same limits as a save; anything else is left to be removed.
+     * A file the workspace held that the download did not rewrite is left
+     * alone, so a save made while the download ran is not undone.
+     */
+    private async keepDownloadedFiles(
+        projectUuid: string,
+        projectDir: string,
+        held: Map<string, { content: string; mtimeMs: number }>,
+        buffer: OutputBuffer,
+    ): Promise<void> {
+        const isRealDirectory = async (dir: string) =>
+            (await lstat(dir).catch(() => undefined))?.isDirectory() === true;
+        const found = (await isRealDirectory(
+            path.join(projectDir, 'lightdash'),
+        ))
+            ? (
+                  await Promise.all(
+                      DOWNLOADED_CONTENT_FOLDERS.map(async (folder) => {
+                          const dir = path.join(
+                              projectDir,
+                              ...folder.split('/'),
+                          );
+                          if (!(await isRealDirectory(dir))) return [];
+                          const entries = await readdir(dir, {
+                              withFileTypes: true,
+                          }).catch(() => []);
+                          return entries
+                              .filter((entry) => entry.isFile())
+                              .map((entry) => `${folder}/${entry.name}`);
+                      }),
+                  )
+              )
+                  .flat()
+                  .filter(isDownloadedContentPath)
+                  .sort()
+            : [];
+        // The overlay's paths, read once: a file already there is updated in
+        // place, a new one takes a free slot, and once the slots are gone
+        // the rest is skipped without being read.
+        const saved = new Set(
+            await this.learnWorkspaceModel.listFilePaths(projectUuid),
+        );
+        let free = Math.max(0, MAX_OVERLAY_FILES - saved.size);
+        let kept = 0;
+        const skipped: string[] = [];
+        // eslint-disable-next-line no-restricted-syntax
+        for (const relative of found) {
+            const isNew = !saved.has(relative);
+            const file =
+                isNew && free === 0
+                    ? { skipped: 'the workspace is full' }
+                    : // eslint-disable-next-line no-await-in-loop
+                      await LearnSandboxService.readDownloadedFile(
+                          relative,
+                          path.join(projectDir, ...relative.split('/')),
+                          held.get(relative),
+                      );
+            if ('skipped' in file) {
+                skipped.push(`${relative} (${file.skipped})`);
+            } else if ('content' in file) {
+                if (file.content !== held.get(relative)?.content) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.learnWorkspaceModel.upsertFile(
+                        projectUuid,
+                        relative,
+                        file.content,
+                    );
+                }
+                if (isNew) {
+                    saved.add(relative);
+                    free -= 1;
+                }
+                kept += 1;
+            }
+        }
+        if (kept === 0 && skipped.length === 0) {
+            buffer.push(
+                'stderr',
+                'The download wrote no files under lightdash/, so none were kept in your workspace.\n',
+            );
+            return;
+        }
+        const SHOWN = 3;
+        buffer.push(
+            'stderr',
+            `Kept ${kept} downloaded file${kept === 1 ? '' : 's'} in your workspace.${
+                skipped.length > 0
+                    ? ` Skipped ${skipped.length}: ${skipped
+                          .slice(0, SHOWN)
+                          .join(', ')}${
+                          skipped.length > SHOWN
+                              ? `, and ${skipped.length - SHOWN} more`
+                              : ''
+                      }.`
+                    : ''
+            }\n`,
+        );
+    }
+
+    /**
+     * One file found after a download: its content when the download wrote
+     * it and it can be kept (a regular file within the save limits that
+     * parses as YAML, as a save requires), why it is skipped when it cannot,
+     * or nothing when the workspace held it and the download left it as it
+     * was.
+     */
+    private static async readDownloadedFile(
+        relative: string,
+        absolute: string,
+        held: { content: string; mtimeMs: number } | undefined,
+    ): Promise<
+        { content: string } | { skipped: string } | { untouched: true }
+    > {
+        if (relative.length > MAX_PATH_LENGTH) {
+            return { skipped: 'its path is too long' };
+        }
+        const info = await lstat(absolute).catch(() => undefined);
+        if (!info || !info.isFile()) return { skipped: 'not a regular file' };
+        if (
+            held &&
+            info.mtimeMs === held.mtimeMs &&
+            info.size === Buffer.byteLength(held.content, 'utf8')
+        ) {
+            return { untouched: true };
+        }
+        if (info.size > MAX_FILE_BYTES) {
+            return { skipped: `over ${MAX_FILE_BYTES / 1024} KiB` };
+        }
+        const content = await readFile(absolute, 'utf8').catch(() => undefined);
+        if (content === undefined) return { skipped: 'could not be read' };
+        return validateYaml(content) === null
+            ? { content }
+            : { skipped: 'not valid YAML' };
+    }
+
     async saveFile(
         user: SessionUser,
         projectUuid: string,
@@ -482,6 +650,7 @@ export class LearnSandboxService extends BaseService {
         let token = '';
         let status: LearnCommandStatus = 'error';
         let exitCode: number | null = null;
+        let keepFailed = false;
         let missingBaseline: { key: string; bundle: LearnBundle } | undefined;
         const buffer = new OutputBuffer({
             secrets: [],
@@ -523,15 +692,25 @@ export class LearnSandboxService extends BaseService {
             });
             await rm(workspaceDir, { recursive: true, force: true });
             const bundle = await loadLearnBundle();
+            const overlay = await this.learnWorkspaceModel.listFiles(
+                command.project_uuid,
+            );
             await materialiseWorkspace({
                 bundle,
-                overlay: await this.learnWorkspaceModel.listFiles(
-                    command.project_uuid,
-                ),
+                overlay,
                 workspaceDir,
                 profiles: { databasePath: runtime.databasePath },
             });
             const projectDir = path.join(workspaceDir, 'project');
+            const isDownload =
+                command.argv[0] === 'lightdash' &&
+                command.argv[1] === 'download';
+            const heldDownloads = isDownload
+                ? await LearnSandboxService.heldDownloadedContent(
+                      projectDir,
+                      overlay,
+                  )
+                : new Map<string, { content: string; mtimeMs: number }>();
             const serverUrl = runtime.apiUrl ?? this.lightdashConfig.siteUrl;
             await writeCliConfig({
                 workspaceDir,
@@ -649,6 +828,31 @@ export class LearnSandboxService extends BaseService {
                 );
             } else if (result.exitCode === 0) {
                 status = 'done';
+                if (isDownload) {
+                    try {
+                        await this.keepDownloadedFiles(
+                            command.project_uuid,
+                            projectDir,
+                            heldDownloads,
+                            buffer,
+                        );
+                    } catch (e) {
+                        // The CLI succeeded but its files did not reach the
+                        // workspace: the learner is told so in plain words
+                        // and can run it again, rather than reading a
+                        // database error or looking for files that never
+                        // appear.
+                        status = 'error';
+                        keepFailed = true;
+                        this.logger.error(
+                            `Learn sandbox: command ${payload.commandUuid} could not keep its downloaded files: ${getErrorMessage(e)}`,
+                        );
+                        buffer.push(
+                            'stderr',
+                            'The download finished, but its files could not be saved to your workspace. Run the command again.\n',
+                        );
+                    }
+                }
                 if (isPreview) {
                     buffer.push(
                         'stderr',
@@ -658,7 +862,7 @@ export class LearnSandboxService extends BaseService {
             } else {
                 status = 'error';
             }
-            exitCode = result.exitCode ?? null;
+            exitCode = keepFailed ? null : (result.exitCode ?? null);
         } catch (e) {
             status = 'error';
             exitCode = null;

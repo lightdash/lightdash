@@ -2,7 +2,6 @@ import {
     describeLearnWorkspaceYamlError,
     validateLearnWorkspaceYaml,
     type ApiError,
-    type LearnSandboxCommandRequest,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -32,8 +31,14 @@ import FileTree from './FileTree';
 import { useCommandOutput } from './hooks/useCommandOutput';
 import { useRunCommand } from './hooks/useRunCommand';
 import { useSaveWorkspaceFile } from './hooks/useSaveWorkspaceFile';
-import { useWorkspaceFile } from './hooks/useWorkspaceFile';
-import { useWorkspaceFiles } from './hooks/useWorkspaceFiles';
+import {
+    useWorkspaceFile,
+    workspaceFileQueryKeyPrefix,
+} from './hooks/useWorkspaceFile';
+import {
+    useWorkspaceFiles,
+    workspaceFilesQueryKey,
+} from './hooks/useWorkspaceFiles';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
 import { activeCommandFromError, parseCommand } from './parseCommand';
@@ -72,11 +77,9 @@ const Workspace: FC<WorkspaceProps> = ({
     const [activeCommandUuid, setActiveCommandUuid] = useState<string | null>(
         null,
     );
-    // What the attached command is, when this page is the one that started
-    // it. Null for a command it merely attached to (the 409 path), which it
-    // cannot name.
-    const [activeCommand, setActiveCommand] =
-        useState<LearnSandboxCommandRequest | null>(null);
+    // Bumped when a download has replaced files from outside the editor, so
+    // the editor takes the file it is handed even if it once held that text.
+    const [filesRevision, setFilesRevision] = useState(0);
     // A run is on its way: from the click, through the save it does first,
     // until the command is attached or the attempt has failed. A save the
     // learner never asked to run (the editor's blur autosave) is not this.
@@ -145,19 +148,37 @@ const Workspace: FC<WorkspaceProps> = ({
         isAwaitingFirstPoll ||
         isRunPending;
 
+    // The lightdash subcommand that has just finished, read from the
+    // command's own record: a command this page attached to (another tab
+    // started it) is named there too.
+    const finishedLightdashCommand =
+        output.status === 'done' && output.argv?.[0] === 'lightdash'
+            ? output.argv[1]
+            : undefined;
+
     // A deploy (or a start-preview, which updates this copy the same way)
     // rewrites the project's explores, and the learner opens the new field
     // straight afterwards: a cached explore list would not have it.
     useEffect(() => {
-        if (output.status !== 'done') return;
         if (
-            activeCommand?.tool !== 'lightdash' ||
-            (activeCommand.subcommand !== 'deploy' &&
-                activeCommand.subcommand !== 'start-preview')
+            finishedLightdashCommand !== 'deploy' &&
+            finishedLightdashCommand !== 'start-preview'
         )
             return;
         void queryClient.invalidateQueries(EXPLORE_QUERY_KEY);
-    }, [output.status, activeCommand, queryClient]);
+    }, [finishedLightdashCommand, queryClient]);
+
+    // A download keeps the files it wrote in the workspace (under
+    // lightdash/), so the tree and any open file are refetched, and the
+    // editor shows the downloaded file whatever it held before.
+    useEffect(() => {
+        if (finishedLightdashCommand !== 'download') return;
+        void queryClient.invalidateQueries(workspaceFilesQueryKey(projectUuid));
+        void queryClient.invalidateQueries(
+            workspaceFileQueryKeyPrefix(projectUuid),
+        );
+        setFilesRevision((revision) => revision + 1);
+    }, [finishedLightdashCommand, projectUuid, queryClient]);
 
     const handleChange = useCallback(
         (content: string) => {
@@ -250,11 +271,9 @@ const Workspace: FC<WorkspaceProps> = ({
             // pane empties: a rejected run must not read as a footnote under
             // the previous command's output and status.
             setActiveCommandUuid(null);
-            setActiveCommand(null);
             try {
                 const { commandUuid } = await runCommand.mutateAsync(parsed);
                 setActiveCommandUuid(commandUuid);
-                setActiveCommand(parsed);
             } catch (e) {
                 const message =
                     (e as ApiError).error?.message ??
@@ -359,6 +378,7 @@ const Workspace: FC<WorkspaceProps> = ({
                             ) : selectedPath !== null && loadedFile ? (
                                 <WorkspaceEditor
                                     path={selectedPath}
+                                    revision={filesRevision}
                                     content={draft ?? loadedFile.content}
                                     editable={loadedFile.editable}
                                     saving={saveFile.isLoading}
