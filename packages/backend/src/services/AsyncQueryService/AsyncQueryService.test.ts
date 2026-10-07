@@ -2160,7 +2160,7 @@ describe('AsyncQueryService', () => {
 
         beforeEach(() => {
             // clear in memory cache so new mock is applied
-            serviceWithCache.warehouseClients = {};
+            serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
                 isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
@@ -2811,7 +2811,7 @@ describe('AsyncQueryService', () => {
             });
 
             // Clear cache and mocks for this service
-            serviceWithoutCache.warehouseClients = {};
+            serviceWithoutCache.warehouseClientFactory.warehouseClients = {};
             serviceWithoutCache.cacheService = {
                 isResultsCacheEnabled: vi.fn(async () => false),
                 findCachedResultsFile: vi.fn(),
@@ -4170,7 +4170,7 @@ describe('AsyncQueryService', () => {
 
         beforeEach(() => {
             // clear in memory cache so new mock is applied
-            serviceWithCache.warehouseClients = {};
+            serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
                 isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
@@ -6086,7 +6086,7 @@ describe('AsyncQueryService', () => {
         };
 
         beforeEach(() => {
-            serviceWithCache.warehouseClients = {};
+            serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
                 isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
@@ -7400,7 +7400,7 @@ describe('AsyncQueryService', () => {
                     },
                 });
 
-                service.warehouseClients = {};
+                service.warehouseClientFactory.warehouseClients = {};
                 service.cacheService = {
                     isResultsCacheEnabled: vi.fn(async () => true),
                     findCachedResultsFile: vi.fn(async () => null),

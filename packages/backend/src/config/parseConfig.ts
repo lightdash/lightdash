@@ -2027,6 +2027,9 @@ export type LightdashConfig = {
         ingestLeaseMs: number;
         garbageCollectionBatchSize: number;
     };
+    warehouseClient: {
+        releaseSshTunnelOnScopeExit: boolean;
+    };
     motherduckInstanceCache: {
         enabled: boolean;
         projectUuids: string[];
@@ -4101,6 +4104,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GC_BATCH_SIZE',
                 ) ?? 100,
+        },
+        warehouseClient: {
+            releaseSshTunnelOnScopeExit:
+                process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED !== 'false',
         },
         motherduckInstanceCache,
         usageEvents: {

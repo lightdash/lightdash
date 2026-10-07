@@ -167,6 +167,7 @@ import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
@@ -4497,7 +4498,7 @@ describe('ProjectService', () => {
         });
         test('should get results with 501 rows', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
@@ -4517,7 +4518,7 @@ describe('ProjectService', () => {
 
         test('should use user warehouse credentials when available for databricks', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             // Mock project credentials to be Databricks type
             // (user credentials are only fetched for Databricks or when requireUserCredentials is true)
@@ -4583,7 +4584,7 @@ describe('ProjectService', () => {
 
     describe('user warehouse credentials override', () => {
         test("should not let user credentials clear the project's requireUserCredentials setting", async () => {
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             vi.mocked(
                 projectModel.getWarehouseCredentialsForProject,
@@ -4893,7 +4894,7 @@ describe('ProjectService', () => {
             };
 
             beforeEach(() => {
-                service.warehouseClients = {};
+                service.warehouseClientFactory.warehouseClients = {};
                 (
                     projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
                 ).mockImplementation(async () => projectTrinoCredentials);
@@ -4943,7 +4944,7 @@ describe('ProjectService', () => {
         });
 
         test('should not leak project Snowflake secrets into a user private key credential', async () => {
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const projectSnowflakeCredentials = {
                 type: WarehouseTypes.SNOWFLAKE,
@@ -5011,7 +5012,7 @@ describe('ProjectService', () => {
         });
 
         test('should not give a legacy Snowflake password credential the project SSO mode', async () => {
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const projectSnowflakeCredentials = {
                 type: WarehouseTypes.SNOWFLAKE,
@@ -5075,7 +5076,7 @@ describe('ProjectService', () => {
         });
 
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const projectRedshiftCredentials = {
                 type: WarehouseTypes.REDSHIFT,
@@ -5164,7 +5165,7 @@ describe('ProjectService', () => {
         });
 
         test('should not give a legacy Redshift password credential the project IAM mode', async () => {
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const projectRedshiftCredentials = {
                 type: WarehouseTypes.REDSHIFT,
@@ -5232,7 +5233,7 @@ describe('ProjectService', () => {
 
         test('should use user refreshToken instead of project refreshToken when requireUserCredentials is true', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
             vi.spyOn(
@@ -5311,7 +5312,7 @@ describe('ProjectService', () => {
 
         test('should throw error when user credentials have token instead of refreshToken', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
             vi.spyOn(
@@ -5382,7 +5383,7 @@ describe('ProjectService', () => {
 
         test('should use project refreshToken when requireUserCredentials is false for Snowflake', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
             vi.spyOn(
@@ -5447,7 +5448,7 @@ describe('ProjectService', () => {
 
         test('should persist rotated Snowflake refresh token to user_warehouse_credentials when Snowflake rotates it', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             vi.spyOn(
                 UserService,
@@ -5529,7 +5530,7 @@ describe('ProjectService', () => {
 
         test('should not call rotateRefreshToken when Snowflake returns the same refresh token', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             vi.spyOn(
                 UserService,
@@ -5606,7 +5607,7 @@ describe('ProjectService', () => {
 
         test('should persist rotated Databricks OAuth U2M refresh token to user_warehouse_credentials when Databricks rotates it', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const { refreshDatabricksOAuthToken } =
                 await import('@lightdash/warehouses');
@@ -5689,7 +5690,7 @@ describe('ProjectService', () => {
 
         test('should not call rotateRefreshToken when Databricks returns the same refresh token', async () => {
             // clear in memory cache so new mock is applied
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
 
             const { refreshDatabricksOAuthToken } =
                 await import('@lightdash/warehouses');
@@ -6879,7 +6880,7 @@ describe('ProjectService', () => {
                         autocompleteEnabled: true,
                     },
                 });
-                flaggedService.warehouseClients = {};
+                flaggedService.warehouseClientFactory.warehouseClients = {};
                 vi.mocked(
                     flaggedService.featureFlagModel.get,
                 ).mockResolvedValue({
@@ -6939,7 +6940,7 @@ describe('ProjectService', () => {
 
         beforeEach(() => {
             // Clear the warehouse clients cache
-            service.warehouseClients = {};
+            service.warehouseClientFactory.warehouseClients = {};
         });
 
         afterEach(() => {
@@ -7145,7 +7146,7 @@ describe('ProjectService', () => {
                     cacheStateTimeSeconds: 86400,
                 },
             });
-            serviceWithCache.warehouseClients = {};
+            serviceWithCache.warehouseClientFactory.warehouseClients = {};
 
             const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
@@ -7231,7 +7232,7 @@ describe('ProjectService', () => {
                     cacheStateTimeSeconds: 86400,
                 },
             });
-            serviceWithCache.warehouseClients = {};
+            serviceWithCache.warehouseClientFactory.warehouseClients = {};
 
             const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
@@ -14195,6 +14196,171 @@ describe('AI principal credential routing', () => {
             binding: { kind: 'original' },
         });
 
+    test.each(['connected_person', 'marked_person', null] as const)(
+        'the scoped original path matches the legacy result for %s',
+        async (identity) => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            let aiPlan: AiExecutionPlan | null = null;
+            if (identity === 'connected_person') {
+                aiPlan = plan;
+            } else if (identity === 'marked_person') {
+                aiPlan = {
+                    identity,
+                    assurances: [
+                        {
+                            kind: 'agent_marker',
+                            level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                        },
+                    ],
+                    audit: { ...plan.audit, userUuid: user.userUuid },
+                };
+            }
+            vi.spyOn(
+                configured.aiAccessService,
+                'resolvePlan',
+            ).mockResolvedValue(aiPlan);
+            vi.mocked(projectModel.getWarehouseCredentialsForProject)
+                .mockResolvedValueOnce({
+                    ...credentials,
+                    requireUserCredentials: true,
+                })
+                .mockResolvedValueOnce({
+                    ...credentials,
+                    requireUserCredentials: true,
+                });
+            vi.spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            ).mockResolvedValue({
+                uuid: 'personal-uuid',
+                credentials: { ...credentials, user: 'personal-user' },
+            });
+            const legacy = await resolveCredentials(configured);
+            const scoped =
+                await configured.warehouseClientFactory.withWarehouseClient(
+                    {
+                        kind: 'binding',
+                        projectUuid,
+                        binding: { kind: 'original' },
+                    },
+                    connectionContextFromUser(
+                        { userUuid: user.userUuid, isRegisteredUser: true },
+                        {
+                            organizationUuid: projectSummary.organizationUuid,
+                            queryContext: QueryExecutionContext.AI,
+                        },
+                    ),
+                    async ({
+                        warehouseCredentials,
+                        aiPlan: resolvedPlan,
+                        warehouseConnectionUuid,
+                        connectionRoute,
+                    }) => ({
+                        warehouseCredentials,
+                        aiPlan: resolvedPlan,
+                        warehouseConnectionUuid,
+                        connectionRoute,
+                    }),
+                );
+            expect(scoped).toStrictEqual(legacy);
+        },
+    );
+
+    test('the scoped extra path matches the legacy route and AI credentials', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            plan,
+        );
+        vi.mocked(projectModel.getWarehouseCredentialsForProject)
+            .mockResolvedValueOnce(credentials)
+            .mockResolvedValueOnce(credentials);
+        vi.spyOn(
+            configured.projectModel,
+            'resolveWarehouseCredentialReadWithRoute',
+        )
+            .mockResolvedValueOnce({
+                route: 'multi',
+                target: {
+                    kind: 'extra',
+                    warehouseConnectionUuid: 'extra-uuid',
+                },
+                originalWarehouseConnectionUuid: 'original-uuid',
+            })
+            .mockResolvedValueOnce({
+                route: 'multi',
+                target: {
+                    kind: 'extra',
+                    warehouseConnectionUuid: 'extra-uuid',
+                },
+                originalWarehouseConnectionUuid: 'original-uuid',
+            });
+        Object.assign(configured.warehouseConnectionModel, {
+            getProject: vi.fn(async () => ({
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                connectionMode: 'multi',
+                originalWarehouseType: WarehouseTypes.POSTGRES,
+            })),
+            getExtraCredentialSource: vi.fn(async () => ({
+                credentials,
+                organizationWarehouseCredentialsUuid: null,
+            })),
+        });
+        const legacy = await resolveCredentials(configured);
+        const scoped =
+            await configured.warehouseClientFactory.withWarehouseClient(
+                { kind: 'binding', projectUuid, binding: { kind: 'original' } },
+                connectionContextFromUser(
+                    { userUuid: user.userUuid, isRegisteredUser: true },
+                    {
+                        organizationUuid: projectSummary.organizationUuid,
+                        queryContext: QueryExecutionContext.AI,
+                    },
+                ),
+                async ({
+                    warehouseCredentials,
+                    aiPlan,
+                    warehouseConnectionUuid,
+                    connectionRoute,
+                }) => ({
+                    warehouseCredentials,
+                    aiPlan,
+                    warehouseConnectionUuid,
+                    connectionRoute,
+                }),
+            );
+        expect(scoped).toStrictEqual(legacy);
+    });
+
+    test('the scoped original path keeps preloaded organization configuration and avoids a new summary read for an ordinary query', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(credentials);
+        const summary = vi.spyOn(projectModel, 'getSummary');
+        const config = vi.spyOn(projectModel, 'getProjectWarehouseConfig');
+        summary.mockClear();
+        config.mockClear();
+        await configured.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'original' },
+                preloadedOrgWarehouseCredentialsUuid: null,
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                {
+                    organizationUuid: projectSummary.organizationUuid,
+                    queryContext: QueryExecutionContext.EXPLORE,
+                },
+            ),
+            async () => undefined,
+        );
+        expect(summary).not.toHaveBeenCalled();
+        expect(config).not.toHaveBeenCalled();
+    });
+
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
         vi.mocked(
@@ -14386,7 +14552,9 @@ describe('AI principal credential routing', () => {
             { aiPlan: plan },
         );
         expect(first.warehouseClient).not.toBe(second.warehouseClient);
-        expect(Object.keys(configured.warehouseClients)).toHaveLength(2);
+        expect(
+            Object.keys(configured.warehouseClientFactory.warehouseClients),
+        ).toHaveLength(2);
         expect(
             projectModel.getWarehouseClientFromCredentials,
         ).toHaveBeenCalledTimes(2);
