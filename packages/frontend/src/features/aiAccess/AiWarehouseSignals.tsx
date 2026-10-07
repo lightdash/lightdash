@@ -1,6 +1,5 @@
 import { AiAgentMarkerLevel, type AiAgentMarker } from '@lightdash/common';
 import { Badge, Paper, Stack, Table, Text } from '@mantine/core';
-import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 const markerLabels: Record<AiAgentMarkerLevel, string> = {
     [AiAgentMarkerLevel.VERIFIED_SESSION]: 'Enforced by warehouse',
     [AiAgentMarkerLevel.REQUEST_BOUND]: 'Bound to the request',
@@ -40,18 +39,6 @@ export const AiWarehouseSignals = ({ marker }: { marker: AiAgentMarker }) =>
                 <Text size="sm" c="dimmed">
                     {marker.note}
                 </Text>
-            )}
-            {marker.enforce !== null && (
-                <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Example warehouse policy
-                    </Text>
-                    <CodeBlock
-                        code={marker.enforce}
-                        language="sql"
-                        copyLabel="Copy example policy"
-                    />
-                </Stack>
             )}
         </Stack>
     );

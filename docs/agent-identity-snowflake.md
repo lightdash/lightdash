@@ -99,6 +99,19 @@ ALTER TABLE protected_records MODIFY COLUMN email
   SET MASKING POLICY agent_mask;
 ```
 
+Row access and masking policies need Enterprise Edition. On Standard Edition a view
+gives the same result for the columns it covers:
+
+```sql
+CREATE OR REPLACE VIEW customers_v AS
+SELECT customer_id, name,
+       CASE WHEN SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN
+            THEN 'REDACTED' ELSE phone END AS phone
+FROM customers;
+```
+
+Point the Lightdash project at the view, not the table.
+
 A session policy can limit the agent session's privileges:
 
 ```sql
