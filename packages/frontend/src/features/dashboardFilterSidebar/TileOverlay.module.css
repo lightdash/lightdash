@@ -11,7 +11,7 @@
     border-radius: var(--mantine-radius-md);
     background-color: color-mix(
         in srgb,
-        var(--mantine-color-body) 72%,
+        var(--mantine-color-body) 55%,
         transparent
     );
     cursor: default;
@@ -24,7 +24,7 @@
 .unfilterable {
     background-color: color-mix(
         in srgb,
-        var(--mantine-color-body) 85%,
+        var(--mantine-color-body) 70%,
         transparent
     );
 }

@@ -104,16 +104,18 @@ export const EditorShell: FC<Props> = ({
                         <Menu.Dropdown>{menu}</Menu.Dropdown>
                     </Menu>
                 )}
-                <Tooltip label="Cancel">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Cancel"
-                        onClick={onCancel}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
+                {onBack === undefined && (
+                    <Tooltip label="Cancel">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Cancel"
+                            onClick={onCancel}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
             </Group>
         </Group>
 
@@ -170,7 +172,9 @@ export const EditorShell: FC<Props> = ({
                 <Button variant="default" onClick={onCancel}>
                     Cancel
                 </Button>
-                {primaryDisabled && primaryTooltip !== undefined ? (
+                {primaryDisabled &&
+                primaryTooltip !== undefined &&
+                footerStatus === null ? (
                     <Tooltip label={primaryTooltip}>
                         <Box onClick={onPrimaryBlocked}>
                             <Button disabled>{primaryLabel}</Button>

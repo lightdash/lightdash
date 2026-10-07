@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, Paper, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconPlus } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -26,6 +26,7 @@ import {
 import classes from './TileOverlay.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
+import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const getTileSelector = (tileUuid: string) => `[data-tile-uuid="${tileUuid}"]`;
@@ -77,6 +78,7 @@ type TileOverlayProps = {
     filterFieldIds: string[];
     offeredField: DashboardFieldTarget | null;
     activeFieldId: string | null;
+    highlightedFieldId: string | null;
     onChange: (rule: DashboardFilterRule) => void;
 };
 
@@ -90,8 +92,10 @@ const TileOverlay: FC<TileOverlayProps> = ({
     filterFieldIds,
     offeredField,
     activeFieldId,
+    highlightedFieldId,
     onChange,
 }) => {
+    const overlayRef = useRef<HTMLDivElement>(null);
     const sqlColumnsByTile = { [tile.uuid]: sqlColumns };
     const tileField = getTileField(rule, tile, fieldsByTile, sqlColumnsByTile);
     const isSqlTile = sqlColumns.length > 0;
@@ -110,6 +114,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
     const isHighlighted =
         showOffer ||
         (activeFieldId !== null && tileField?.fieldId === activeFieldId);
+    useScrollToHighlightedTile(overlayRef, highlightedFieldId, isHighlighted);
 
     const setField = (field: DashboardFieldTarget | null) =>
         onChange(
@@ -148,6 +153,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
 
     return (
         <div
+            ref={overlayRef}
             className={classes.overlay}
             data-highlighted={isHighlighted || undefined}
             onMouseDown={stopPropagation}
@@ -219,6 +225,7 @@ export const TileOverlays: FC = () => {
         editingRule,
         waitingField,
         activeFieldId,
+        highlightedFieldId,
         listedFieldIds,
         updateFilter,
     } = useFilterSidebar();
@@ -275,6 +282,7 @@ export const TileOverlays: FC = () => {
                         filterFieldIds={filterFieldIds}
                         offeredField={offeredField}
                         activeFieldId={activeFieldId}
+                        highlightedFieldId={highlightedFieldId}
                         onChange={updateFilter}
                     />,
                     element,

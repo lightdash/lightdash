@@ -1,7 +1,7 @@
 import { type DashboardTile } from '@lightdash/common';
 import { Button, Paper, Select, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -22,6 +22,7 @@ import {
 import classes from './TileOverlay.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
+import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 
 const NOT_SET = 'not-set';
 
@@ -34,6 +35,7 @@ type OverlayProps = {
     referencedKeys: string[];
     sources: Record<string, TileParameterSource[]>;
     activeFieldId: string | null;
+    highlightedFieldId: string | null;
     onChange: (control: ParameterControl) => void;
 };
 
@@ -43,8 +45,10 @@ const ParameterOverlay: FC<OverlayProps> = ({
     referencedKeys,
     sources,
     activeFieldId,
+    highlightedFieldId,
     onChange,
 }) => {
+    const overlayRef = useRef<HTMLDivElement>(null);
     const getUiString = useUiStrings();
     const tileParameterReferences = useDashboardContext(
         (c) => c.tileParameterReferences,
@@ -52,17 +56,6 @@ const ParameterOverlay: FC<OverlayProps> = ({
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
-
-    if (referencedKeys.length === 0) {
-        return (
-            <div
-                className={`${classes.overlay} ${classes.unfilterable}`}
-                onMouseDown={stopPropagation}
-                onTouchStart={stopPropagation}
-                onClick={stopPropagation}
-            />
-        );
-    }
 
     const tileKey = getControlTileKey(control, tile, tileParameterReferences);
     const [firstKey] = referencedKeys;
@@ -85,6 +78,27 @@ const ParameterOverlay: FC<OverlayProps> = ({
     const isHighlighted =
         offeredKey !== null ||
         (activeFieldId !== null && tileKey === activeFieldId);
+    useScrollToHighlightedTile(overlayRef, highlightedFieldId, isHighlighted);
+
+    if (referencedKeys.length === 0) {
+        return (
+            <div
+                className={`${classes.overlay} ${classes.unfilterable}`}
+                onMouseDown={stopPropagation}
+                onTouchStart={stopPropagation}
+                onClick={stopPropagation}
+            >
+                <Paper shadow="md" p="sm" radius="md" className={classes.card}>
+                    <Text fz="xs" c="dimmed">
+                        Not set by this control
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        This chart uses none of its parameters.
+                    </Text>
+                </Paper>
+            </div>
+        );
+    }
 
     const setKey = (value: string | null) =>
         onChange(
@@ -98,6 +112,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
 
     return (
         <div
+            ref={overlayRef}
             className={classes.overlay}
             data-highlighted={isHighlighted || undefined}
             onMouseDown={stopPropagation}
@@ -151,6 +166,7 @@ export const ParameterOverlays: FC = () => {
         parameterControls,
         editingControlId,
         activeFieldId,
+        highlightedFieldId,
         updateControl,
     } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -218,6 +234,7 @@ export const ParameterOverlays: FC = () => {
                         referencedKeys={referencedKeys}
                         sources={sources}
                         activeFieldId={activeFieldId}
+                        highlightedFieldId={highlightedFieldId}
                         onChange={(next) =>
                             updateControl(control.id, {
                                 tileTargets: next.tileTargets,
