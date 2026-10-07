@@ -1,7 +1,6 @@
 import {
     FilterOperator,
     FilterType,
-    getFilterTypeFromItem,
     isFilterLockedOnTab,
     supportsSingleValue,
     type DashboardFilterableField,
@@ -121,6 +120,8 @@ export type InteractivitySubject =
     | {
           kind: 'filter';
           rule: DashboardFilterRule;
+          /** Known from the rule's kind even before it has a field. */
+          filterType: FilterType;
           onChange: (next: DashboardFilterRule) => void;
       }
     | { kind: 'control'; id: string };
@@ -333,7 +334,9 @@ export const InteractivityQuestions: FC<Props> = ({
           : 'Remove the default value to require it';
 
     // Pick
-    const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    // A control has no operators or pickers; the string rows are never shown
+    const filterType =
+        subject.kind === 'filter' ? subject.filterType : FilterType.STRING;
     const operatorOptions = useMemo(
         () =>
             getFilterOperatorOptions(

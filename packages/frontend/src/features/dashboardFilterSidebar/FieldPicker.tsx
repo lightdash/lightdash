@@ -4,7 +4,6 @@ import {
     type DashboardFilterableField,
 } from '@lightdash/common';
 import {
-    Checkbox,
     Group,
     SimpleGrid,
     Stack,
@@ -34,10 +33,8 @@ import {
     countPickableByKind,
     filterFieldsByKind,
     filterParametersByKind,
-    getFieldKind,
     groupFieldsByExplore,
     matchesParameterSearch,
-    type FieldKind,
     type PickableParameter,
 } from './fieldKinds';
 import classes from './FieldPicker.module.css';
@@ -55,15 +52,14 @@ const KIND_META = {
 type Props = {
     fields: DashboardFilterableField[];
     getChartCount: (field: DashboardFilterableField) => number;
-    chosen: DashboardFilterableField[];
-    onToggle: (field: DashboardFilterableField) => void;
+    onPickField: (field: DashboardFilterableField) => void;
     parameters: PickableParameter[];
-    chosenParameterKeys: string[];
-    onToggleParameter: (key: string) => void;
-    kind: FieldKind | null;
-    onKindChange: (kind: FieldKind | null) => void;
-    lockedKind?: FieldKind;
-    mode: 'multi' | 'single';
+    /** Parameters are listed only when given. */
+    onPickParameter?: (key: string) => void;
+    /** Kind tiles are shown only when given. */
+    onPickKind?: (kind: FilterType) => void;
+    /** Narrows the list to one kind, as "Add a field" needs. */
+    lockedKind?: FilterType;
 };
 
 const pluralizeCharts = (count: number) => (count === 1 ? 'chart' : 'charts');
@@ -71,73 +67,48 @@ const pluralizeCharts = (count: number) => (count === 1 ? 'chart' : 'charts');
 export const FieldPicker: FC<Props> = ({
     fields,
     getChartCount,
-    chosen,
-    onToggle,
+    onPickField,
     parameters,
-    chosenParameterKeys,
-    onToggleParameter,
-    kind,
-    onKindChange,
+    onPickParameter,
+    onPickKind,
     lockedKind,
-    mode,
 }) => {
     const [search, setSearch] = useState('');
     const [openTable, setOpenTable] = useState<string | null>(null);
-    const chosenKeys = new Set(chosen.map(getDashboardFilterableFieldKey));
-    // One pick is either fields or parameters, all of one kind
-    const [firstChosenField] = chosen;
-    const firstChosenParameter = parameters.find((parameter) =>
-        chosenParameterKeys.includes(parameter.key),
-    );
-    const chosenKind: FieldKind | undefined =
-        firstChosenField !== undefined
-            ? getFieldKind(firstChosenField)
-            : firstChosenParameter?.kind;
-    const effectiveLockedKind = lockedKind ?? chosenKind;
-    const activeKind = effectiveLockedKind ?? kind;
+    const activeKind = lockedKind ?? null;
     const pickableFields = useMemo(
-        () => (firstChosenParameter === undefined ? fields : []),
-        [fields, firstChosenParameter],
+        () => filterFieldsByKind(fields, activeKind),
+        [fields, activeKind],
     );
     const pickableParameters = useMemo(
-        () => (firstChosenField === undefined ? parameters : []),
-        [parameters, firstChosenField],
+        () =>
+            onPickParameter === undefined
+                ? []
+                : filterParametersByKind(parameters, activeKind),
+        [parameters, activeKind, onPickParameter],
     );
     const explores = useMemo(
-        () =>
-            groupFieldsByExplore(
-                filterFieldsByKind(pickableFields, activeKind),
-                getChartCount,
-            ),
-        [pickableFields, activeKind, getChartCount],
+        () => groupFieldsByExplore(pickableFields, getChartCount),
+        [pickableFields, getChartCount],
     );
     const isSearching = search.trim() !== '';
     const matches = useMemo(
         () =>
             isSearching
-                ? filterFieldsByKind(pickableFields, activeKind).filter(
-                      (field) => matchesSearch(field, search),
-                  )
+                ? pickableFields.filter((field) => matchesSearch(field, search))
                 : [],
-        [pickableFields, activeKind, search, isSearching],
+        [pickableFields, search, isSearching],
     );
     const parameterMatches = useMemo(
         () =>
             isSearching
-                ? filterParametersByKind(pickableParameters, activeKind).filter(
-                      (parameter) => matchesParameterSearch(parameter, search),
+                ? pickableParameters.filter((parameter) =>
+                      matchesParameterSearch(parameter, search),
                   )
                 : [],
-        [pickableParameters, activeKind, search, isSearching],
+        [pickableParameters, search, isSearching],
     );
-    const kindParameters = filterParametersByKind(
-        pickableParameters,
-        activeKind,
-    );
-    const counts = countPickableByKind(
-        isSearching ? matches : pickableFields,
-        isSearching ? parameterMatches : pickableParameters,
-    );
+    const counts = countPickableByKind(pickableFields, pickableParameters);
     const chipLabel = (field: DashboardFilterableField) =>
         getFieldDisplayLabel(field, fields);
     const searchGroups = useMemo(() => {
@@ -166,74 +137,44 @@ export const FieldPicker: FC<Props> = ({
             },
         );
     }, [matches, fields, getChartCount]);
-    const kinds = effectiveLockedKind ? [effectiveLockedKind] : FIELD_KINDS;
 
     const renderFieldRow = (
         field: DashboardFilterableField,
         label: string,
         detail: string,
-    ) => {
-        const key = getDashboardFilterableFieldKey(field);
-        return (
-            <UnstyledButton
-                key={key}
-                className={classes.fieldRow}
-                aria-label={label}
-                aria-pressed={
-                    mode === 'multi' ? chosenKeys.has(key) : undefined
-                }
-                onClick={() => onToggle(field)}
-            >
-                {mode === 'multi' && (
-                    <Checkbox
-                        size="xs"
-                        checked={chosenKeys.has(key)}
-                        readOnly
-                        tabIndex={-1}
-                        aria-hidden
-                    />
-                )}
-                <FieldIcon item={field} size={14} aria-hidden />
-                <Text fz="sm" truncate className={classes.rowText}>
-                    {label}
-                </Text>
-                <Text fz="xs" c="dimmed" truncate>
-                    {detail}
-                </Text>
-            </UnstyledButton>
-        );
-    };
+    ) => (
+        <UnstyledButton
+            key={getDashboardFilterableFieldKey(field)}
+            className={classes.fieldRow}
+            aria-label={label}
+            onClick={() => onPickField(field)}
+        >
+            <FieldIcon item={field} size={14} aria-hidden />
+            <Text fz="sm" truncate className={classes.rowText}>
+                {label}
+            </Text>
+            <Text fz="xs" c="dimmed" truncate>
+                {detail}
+            </Text>
+        </UnstyledButton>
+    );
 
-    const renderParameterRow = (parameter: PickableParameter) => {
-        const isChosen = chosenParameterKeys.includes(parameter.key);
-        return (
-            <UnstyledButton
-                key={parameter.key}
-                className={classes.fieldRow}
-                aria-label={parameter.label}
-                aria-pressed={mode === 'multi' ? isChosen : undefined}
-                onClick={() => onToggleParameter(parameter.key)}
-            >
-                {mode === 'multi' && (
-                    <Checkbox
-                        size="xs"
-                        checked={isChosen}
-                        readOnly
-                        tabIndex={-1}
-                        aria-hidden
-                    />
-                )}
-                <MantineIcon icon={IconVariable} color="dimmed" aria-hidden />
-                <Text fz="sm" truncate className={classes.rowText}>
-                    {parameter.label}
-                </Text>
-                <Text fz="xs" c="dimmed" truncate>
-                    {parameter.chartCount}{' '}
-                    {pluralizeCharts(parameter.chartCount)}
-                </Text>
-            </UnstyledButton>
-        );
-    };
+    const renderParameterRow = (parameter: PickableParameter) => (
+        <UnstyledButton
+            key={parameter.key}
+            className={classes.fieldRow}
+            aria-label={parameter.label}
+            onClick={() => onPickParameter?.(parameter.key)}
+        >
+            <MantineIcon icon={IconVariable} color="dimmed" aria-hidden />
+            <Text fz="sm" truncate className={classes.rowText}>
+                {parameter.label}
+            </Text>
+            <Text fz="xs" c="dimmed" truncate>
+                {parameter.chartCount} {pluralizeCharts(parameter.chartCount)}
+            </Text>
+        </UnstyledButton>
+    );
 
     const renderParameterGroup = (items: PickableParameter[]) =>
         items.length > 0 && (
@@ -251,10 +192,46 @@ export const FieldPicker: FC<Props> = ({
 
     return (
         <Stack gap="sm">
+            {onPickKind !== undefined && (
+                <>
+                    <Text fw={600} fz="sm">
+                        What do you want to control?
+                    </Text>
+                    <SimpleGrid cols={2} spacing="xs">
+                        {FIELD_KINDS.map((item) => {
+                            const meta = KIND_META[item];
+                            return (
+                                <UnstyledButton
+                                    key={item}
+                                    className={classes.kindTile}
+                                    onClick={() => onPickKind(item)}
+                                >
+                                    <MantineIcon icon={meta.icon} />
+                                    <Text fz="sm">{meta.label}</Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {counts[item]}
+                                    </Text>
+                                </UnstyledButton>
+                            );
+                        })}
+                    </SimpleGrid>
+                    <Text fz="sm" c="dimmed">
+                        Alternatively, pick a field or parameter
+                    </Text>
+                </>
+            )}
             <TextInput
-                placeholder="Search fields"
+                placeholder={
+                    onPickParameter === undefined
+                        ? 'Search fields'
+                        : 'Search fields and parameters'
+                }
                 autoFocus
-                aria-label="Search fields"
+                aria-label={
+                    onPickParameter === undefined
+                        ? 'Search fields'
+                        : 'Search fields and parameters'
+                }
                 leftSection={<MantineIcon icon={IconSearch} />}
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
@@ -318,33 +295,10 @@ export const FieldPicker: FC<Props> = ({
                 </Stack>
             ) : (
                 <>
-                    <SimpleGrid cols={effectiveLockedKind ? 1 : 2} spacing="xs">
-                        {kinds.map((item) => {
-                            const meta = KIND_META[item];
-                            const selected = activeKind === item;
-                            return (
-                                <UnstyledButton
-                                    key={item}
-                                    className={`${classes.kindTile} ${selected ? classes.kindTileSelected : ''}`}
-                                    aria-pressed={selected}
-                                    disabled={effectiveLockedKind !== undefined}
-                                    onClick={() =>
-                                        onKindChange(selected ? null : item)
-                                    }
-                                >
-                                    <MantineIcon icon={meta.icon} />
-                                    <Text fz="sm">{meta.label}</Text>
-                                    <Text fz="xs" c="dimmed">
-                                        {counts[item]}
-                                    </Text>
-                                </UnstyledButton>
-                            );
-                        })}
-                    </SimpleGrid>
-                    {renderParameterGroup(kindParameters)}
+                    {renderParameterGroup(pickableParameters)}
                     <Stack gap={0}>
                         {explores.length === 0 &&
-                            kindParameters.length === 0 && (
+                            pickableParameters.length === 0 && (
                                 <Text fz="xs" c="dimmed" px="xs">
                                     No fields to add
                                 </Text>
@@ -359,7 +313,7 @@ export const FieldPicker: FC<Props> = ({
                                         aria-expanded={isOpen}
                                         onClick={() =>
                                             setOpenTable(
-                                                isOpen ? '' : explore.table,
+                                                isOpen ? null : explore.table,
                                             )
                                         }
                                     >

@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    FilterType,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -42,6 +43,17 @@ const statusField: DashboardFilterableField = {
     table: 'orders',
     tableLabel: 'Orders',
     sql: '${TABLE}.status',
+    hidden: false,
+};
+
+const createdField: DashboardFilterableField = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.DATE,
+    name: 'created',
+    label: 'Created',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '${TABLE}.created',
     hidden: false,
 };
 
@@ -204,9 +216,9 @@ describe('FilterSidebarProvider', () => {
         });
         act(() => result.current.open(original.id));
         act(() => result.current.clearFields());
-        expect(result.current.isEmpty).toBe(true);
+        expect(result.current.isUnplaced).toBe(true);
         expect(result.current.isDirty).toBe(true);
-        expect(result.current.editingRule).toBeNull();
+        expect(result.current.editingRule?.target.fieldId).toBe('');
         expect(result.current.editing).toEqual({ filterId: original.id });
         expect(
             latest.filters.dimensions.find((r) => r.id === original.id),
@@ -214,7 +226,7 @@ describe('FilterSidebarProvider', () => {
         expect(latest.changed).toBe(true);
 
         act(() => result.current.addFirstField(statusField));
-        expect(result.current.isEmpty).toBe(false);
+        expect(result.current.isUnplaced).toBe(false);
         const restored = latest.filters.dimensions.find(
             (r) => r.id === original.id,
         );
@@ -233,8 +245,47 @@ describe('FilterSidebarProvider', () => {
         act(() => result.current.clearFields());
         act(() => result.current.cancel());
         expect(latest.filters).toEqual(initialFilters);
-        expect(result.current.isEmpty).toBe(false);
+        expect(result.current.isUnplaced).toBe(false);
         expect(result.current.editing).toBeNull();
+    });
+
+    it('apply is allowed on an unplaced filter after clearFields', () => {
+        const original = initialFilters.dimensions[0];
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open(original.id));
+        act(() => result.current.clearFields());
+        act(() => result.current.apply());
+        expect(result.current.editing).toBeNull();
+        expect(result.current.unplacedFilters.map((r) => r.id)).toEqual([
+            original.id,
+        ]);
+    });
+
+    it('openKind starts an unplaced filter that addFirstField places, keeping its id', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.openNew());
+        act(() => result.current.openKind(FilterType.DATE));
+        expect(result.current.isUnplaced).toBe(true);
+        expect(result.current.unplacedKind).toBe(FilterType.DATE);
+        expect(result.current.editingRule?.operator).toBe(
+            FilterOperator.EQUALS,
+        );
+        expect(result.current.editingRule?.target.fieldId).toBe('');
+        expect(latest.filters).toEqual(initialFilters);
+        const unplacedId = result.current.editingRule?.id;
+
+        act(() => result.current.addFirstField(createdField));
+        expect(result.current.isUnplaced).toBe(false);
+        expect(result.current.unplacedFilters).toEqual([]);
+        const placed = latest.filters.dimensions.find(
+            (r) => r.id === unplacedId,
+        );
+        expect(placed?.target.fieldId).toBe('orders_created');
+        expect(result.current.editing).toEqual({ filterId: unplacedId });
     });
 
     it('ignores openNew while a filter is being edited', () => {

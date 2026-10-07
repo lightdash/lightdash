@@ -1,8 +1,7 @@
 import {
-    FilterType,
-    getFilterTypeFromItem,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterType,
 } from '@lightdash/common';
 import { Paper, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
@@ -17,12 +16,15 @@ type Props = {
     attemptedApply: boolean;
     filterRule: DashboardFilterRule;
     field: DashboardFilterableField | null;
+    /** The filter's kind, known even before it has a field. */
+    kind: FilterType;
     onChange: (next: DashboardFilterRule) => void;
 };
 
 export const Interactivity: FC<Props> = ({
     filterRule,
     field,
+    kind,
     onChange,
     attemptedApply,
 }) => {
@@ -57,11 +59,7 @@ export const Interactivity: FC<Props> = ({
                     <Stack gap="sm">
                         <Title order={5}>Default value</Title>
                         <FilterValueSettings
-                            filterType={
-                                field
-                                    ? getFilterTypeFromItem(field)
-                                    : FilterType.STRING
-                            }
+                            filterType={kind}
                             field={field}
                             filterRule={filterRule}
                             attemptedApply={attemptedApply}
@@ -76,6 +74,7 @@ export const Interactivity: FC<Props> = ({
                             subject={{
                                 kind: 'filter',
                                 rule: filterRule,
+                                filterType: kind,
                                 onChange,
                             }}
                             field={field}

@@ -14,11 +14,6 @@
     background-color: var(--mantine-color-default-hover);
 }
 
-.kindTileSelected {
-    background-color: var(--mantine-color-default-hover);
-    border-color: var(--mantine-primary-color-filled);
-}
-
 .exploreRow,
 .groupHeader {
     width: 100%;
@@ -57,10 +52,4 @@
 .rowText {
     flex: 1;
     min-width: 0;
-}
-
-.chip {
-    padding: 2px 4px 2px var(--mantine-spacing-xs);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-xl);
 }

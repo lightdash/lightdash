@@ -19,8 +19,13 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const { editingRule, activeFieldId, parameterControls, editingControlId } =
-        useFilterSidebar();
+    const {
+        editingRule,
+        isUnplaced,
+        activeFieldId,
+        parameterControls,
+        editingControlId,
+    } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const fieldsByTile = useDashboardContext(
@@ -43,8 +48,10 @@ export const TabCounts: FC = () => {
         () => dashboardTabs.map((tab) => tab.uuid),
         [dashboardTabs],
     );
+    // An unplaced filter reaches no chart, so "0 of N" would only mislead
     const isEnabled =
-        (editingRule !== null || control !== null) && dashboardTabs.length > 0;
+        ((editingRule !== null && !isUnplaced) || control !== null) &&
+        dashboardTabs.length > 0;
     const targets = usePortalTargets(tabUuids, getTabSelector, isEnabled);
 
     const counts = useMemo(() => {

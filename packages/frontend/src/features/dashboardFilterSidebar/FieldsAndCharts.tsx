@@ -64,6 +64,9 @@ export const FieldsAndCharts: FC = () => {
         listFieldId,
         unlistFieldId,
         clearFields,
+        isUnplaced,
+        unplacedKind,
+        addFirstField,
     } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
@@ -94,10 +97,12 @@ export const FieldsAndCharts: FC = () => {
               null);
 
     const candidates = useMemo(() => {
-        const targetFilterType =
-            targetFieldType === null
-                ? null
-                : getFilterTypeFromItemType(targetFieldType);
+        // Unplaced: locked to the kind picked first, or any kind after a clear
+        const targetFilterType = isUnplaced
+            ? unplacedKind
+            : targetFieldType === null
+              ? null
+              : getFilterTypeFromItemType(targetFieldType);
         const fields = allFilterableFields ?? [];
         const taken = new Set([...fieldIds, waitingField?.fieldId]);
         // A time dimension is taken when any of its grains is in the filter
@@ -121,7 +126,14 @@ export const FieldsAndCharts: FC = () => {
                     getFilterTypeFromItemType(field.type) === targetFilterType)
             );
         });
-    }, [allFilterableFields, fieldIds, waitingField, targetFieldType]);
+    }, [
+        allFilterableFields,
+        fieldIds,
+        waitingField,
+        targetFieldType,
+        isUnplaced,
+        unplacedKind,
+    ]);
 
     const [isAdding, setIsAdding] = useState(false);
 
@@ -216,6 +228,11 @@ export const FieldsAndCharts: FC = () => {
                             : `Not added yet. Click the dashed "+ ${waitingLabel}" on a chart, or All, to add it to this filter.`}
                     </Text>
                 </Stack>
+                {isUnplaced && (
+                    <Text fz="xs" c="dimmed">
+                        No fields yet. Add a field, then choose its charts.
+                    </Text>
+                )}
                 {fieldIds.map((fieldId) => {
                     const field = getField(fieldId);
                     const count = getFieldCount(
@@ -404,10 +421,15 @@ export const FieldsAndCharts: FC = () => {
                                     : (addOptions.fieldsByKey.get(value) ??
                                       null);
                             if (field === null) return;
-                            setWaitingField({
-                                fieldId: getItemId(field),
-                                tableName: field.table,
-                            });
+                            // The first field turns the unplaced filter into a real one
+                            if (isUnplaced) {
+                                addFirstField(field);
+                            } else {
+                                setWaitingField({
+                                    fieldId: getItemId(field),
+                                    tableName: field.table,
+                                });
+                            }
                             setIsAdding(false);
                         }}
                     />

@@ -225,6 +225,7 @@ export const TileOverlays: FC = () => {
         highlightedFieldId,
         listedFieldIds,
         updateFilter,
+        isUnplaced,
     } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const activeTab = useDashboardContext((c) => c.activeTab);
@@ -233,6 +234,8 @@ export const TileOverlays: FC = () => {
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    // No field yet means nothing to place on a chart
+    const isActive = editingRule !== null && !isUnplaced;
 
     const tiles = useMemo(
         () =>
@@ -245,13 +248,9 @@ export const TileOverlays: FC = () => {
         [dashboardTiles, activeTab],
     );
     const tileUuids = useMemo(() => tiles.map((tile) => tile.uuid), [tiles]);
-    const targets = usePortalTargets(
-        tileUuids,
-        getTileSelector,
-        editingRule !== null,
-    );
+    const targets = usePortalTargets(tileUuids, getTileSelector, isActive);
 
-    if (editingRule === null) return null;
+    if (editingRule === null || !isActive) return null;
 
     const filterLabel =
         editingRule.label ??

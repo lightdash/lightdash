@@ -106,6 +106,24 @@ describe('peers', () => {
         ).toEqual(['orders_status', 'payments_status', 'customers_name']);
     });
 
+    it('never lists the empty id of an unplaced filter', () => {
+        const unplaced: DashboardFilterRule = {
+            ...rule(),
+            target: { fieldId: '', tableName: '' },
+            tileTargets: {},
+        };
+        expect(getFilterFields(unplaced, [])).toEqual([]);
+        expect(getFilterFields(unplaced, ['orders_status'])).toEqual([
+            'orders_status',
+        ]);
+        expect(
+            getFilterFields(
+                rule({ b: { fieldId: '', tableName: '' }, c: PAYMENTS }),
+                [],
+            ),
+        ).toEqual(['orders_status', 'payments_status']);
+    });
+
     it('counts applied and possible charts per field', () => {
         const r = rule({ c: PAYMENTS });
         expect(getFieldCount(r, 'orders_status', tiles, fieldsByTile)).toEqual({

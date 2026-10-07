@@ -1,5 +1,6 @@
 import {
     FilterType,
+    getFilterTypeFromItem,
     getItemId,
     type DashboardFilterableField,
 } from '@lightdash/common';
@@ -22,11 +23,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
-import {
-    FIELD_KINDS,
-    type FieldKind,
-    type PickableParameter,
-} from './fieldKinds';
+import { FIELD_KINDS, type PickableParameter } from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
 import classes from './FilterSidebar.module.css';
@@ -44,7 +41,7 @@ import {
     isTileFilterable,
 } from './peers';
 import { isInteractivityChanged } from './sessionSettings';
-import { findFilterRule, isDefaultValueIncomplete } from './sidebarState';
+import { isDefaultValueIncomplete } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -54,10 +51,11 @@ export const FilterSidebar: FC = () => {
     const {
         editing,
         isNew,
-        isEmpty,
-        originalFilterRule,
+        isUnplaced,
+        unplacedKind,
+        editingRule,
         addFirstField,
-        listFieldId,
+        openKind,
         listedFieldIds,
         removeFilter,
         getSessionSettings,
@@ -71,11 +69,6 @@ export const FilterSidebar: FC = () => {
         parameterControls,
         addControl,
     } = useFilterSidebar();
-    const [chosen, setChosen] = useState<DashboardFilterableField[]>([]);
-    const [chosenParameterKeys, setChosenParameterKeys] = useState<string[]>(
-        [],
-    );
-    const [kind, setKind] = useState<FieldKind | null>(null);
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
@@ -95,25 +88,6 @@ export const FilterSidebar: FC = () => {
             {removeArmed ? 'Click again to remove' : 'Remove filter'}
         </Menu.Item>
     );
-    // Fields and parameters are exclusive: ticking one kind clears the other
-    const toggleChosen = useCallback((field: DashboardFilterableField) => {
-        const id = getItemId(field);
-        setChosenParameterKeys([]);
-        setChosen((current) =>
-            current.some((item) => getItemId(item) === id)
-                ? current.filter((item) => getItemId(item) !== id)
-                : [...current, field],
-        );
-    }, []);
-    const toggleChosenParameter = useCallback((key: string) => {
-        setChosen([]);
-        setChosenParameterKeys((current) =>
-            current.includes(key)
-                ? current.filter((item) => item !== key)
-                : [...current, key],
-        );
-    }, []);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
@@ -123,7 +97,7 @@ export const FilterSidebar: FC = () => {
     );
     // Parameters no control overrides yet, one row per key with its chart count
     const pickableParameters = useMemo<PickableParameter[]>(() => {
-        const kinds = (kind === null ? FIELD_KINDS : [kind]).filter(
+        const kinds = FIELD_KINDS.filter(
             (item): item is ParameterKind => item !== FilterType.BOOLEAN,
         );
         return kinds.flatMap((parameterKind) =>
@@ -141,66 +115,22 @@ export const FilterSidebar: FC = () => {
                 ).length,
             })),
         );
-    }, [
-        kind,
-        parameterControls,
-        parameterDefinitions,
-        tileParameterReferences,
-    ]);
-    // The first chosen field starts the filter; the rest are listed at 0 charts.
-    // Chosen parameters become one control of their kind instead.
-    const handleContinue = useCallback(() => {
-        if (chosenParameterKeys.length > 0) {
-            const [firstKey] = chosenParameterKeys;
-            const definition =
-                firstKey === undefined
-                    ? undefined
-                    : parameterDefinitions[firstKey];
+    }, [parameterControls, parameterDefinitions, tileParameterReferences]);
+    // A picked parameter becomes one control of its kind
+    const handlePickParameter = useCallback(
+        (key: string) => {
+            const definition = parameterDefinitions[key];
             if (definition === undefined) return;
             addControl({
                 id: uuidv4(),
                 label: '',
                 kind: getParameterKind(definition),
-                parameterKeys: chosenParameterKeys,
+                parameterKeys: [key],
                 tileTargets: {},
             });
-            setChosenParameterKeys([]);
-            setKind(null);
-            return;
-        }
-        const [first, ...rest] = chosen;
-        if (first === undefined) return;
-        addFirstField(first);
-        rest.forEach((field) => listFieldId(getItemId(field)));
-        setKind(null);
-    }, [
-        chosen,
-        chosenParameterKeys,
-        parameterDefinitions,
-        addControl,
-        addFirstField,
-        listFieldId,
-    ]);
-    // Chosen fields survive Back to the picker; they clear on apply or cancel
-    const handleCancel = useCallback(() => {
-        setChosen([]);
-        setChosenParameterKeys([]);
-        setKind(null);
-        cancel();
-    }, [cancel]);
-    const handleApply = useCallback(() => {
-        setChosen([]);
-        setChosenParameterKeys([]);
-        setKind(null);
-        apply();
-    }, [apply]);
-    const chosenCount = chosen.length + chosenParameterKeys.length;
-    const chosenStatus =
-        chosenParameterKeys.length > 0
-            ? `${chosenParameterKeys.length} ${chosenParameterKeys.length === 1 ? 'parameter' : 'parameters'} chosen`
-            : chosen.length === 0
-              ? 'Pick one or more fields'
-              : `${chosen.length} ${chosen.length === 1 ? 'field' : 'fields'} chosen`;
+        },
+        [parameterDefinitions, addControl],
+    );
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -213,11 +143,7 @@ export const FilterSidebar: FC = () => {
         (c) => c.allFilterableFields,
     );
 
-    const editingFilterId = editing?.filterId ?? null;
-    const filterRule =
-        editingFilterId === null
-            ? null
-            : findFilterRule(dashboardFilters, editingFilterId);
+    const filterRule = editingRule;
     const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
 
     const getNewFieldChartCount = useCallback(
@@ -297,99 +223,32 @@ export const FilterSidebar: FC = () => {
                             variant="subtle"
                             color="gray"
                             aria-label="Cancel"
-                            onClick={handleCancel}
+                            onClick={cancel}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     </Tooltip>
                 </Group>
                 <Stack gap="md" p="md" className={classes.body}>
-                    <Text fw={600} fz="sm">
-                        Pick fields
-                    </Text>
                     <FieldPicker
-                        mode="multi"
                         fields={allFilterableFields ?? []}
                         getChartCount={getNewFieldChartCount}
-                        chosen={chosen}
-                        onToggle={toggleChosen}
+                        onPickKind={openKind}
+                        onPickField={addFirstField}
                         parameters={pickableParameters}
-                        chosenParameterKeys={chosenParameterKeys}
-                        onToggleParameter={toggleChosenParameter}
-                        kind={kind}
-                        onKindChange={setKind}
+                        onPickParameter={handlePickParameter}
                     />
                 </Stack>
-                <Stack gap="xs" p="md" className={classes.footer}>
-                    <Text fz="xs" c="dimmed">
-                        {chosenStatus}
-                    </Text>
-                    <Group justify="flex-end" gap="xs">
-                        <Button variant="default" onClick={handleCancel}>
-                            Cancel
-                        </Button>
-                        <Button
-                            disabled={chosenCount === 0}
-                            onClick={handleContinue}
-                        >
-                            Continue
-                        </Button>
-                    </Group>
-                </Stack>
-            </Box>
-        );
-    }
-
-    // Every field was removed: same picker as a new filter, identity kept
-    if (isEmpty) {
-        return (
-            <Box className={classes.root}>
-                <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                    <Title order={5} className={classes.title}>
-                        {originalFilterRule?.label ?? 'Filter'}
-                    </Title>
-                    <Group gap={4} wrap="nowrap">
-                        {moreActions}
-                        <Tooltip label="Cancel">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="Cancel"
-                                onClick={handleCancel}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
+                <Group
+                    justify="flex-end"
+                    gap="xs"
+                    p="md"
+                    className={classes.footer}
+                >
+                    <Button variant="default" onClick={cancel}>
+                        Cancel
+                    </Button>
                 </Group>
-                <Stack gap="md" p="md" className={classes.body}>
-                    <Text fw={600} fz="sm">
-                        Pick fields
-                    </Text>
-                    <FieldPicker
-                        mode="single"
-                        fields={allFilterableFields ?? []}
-                        getChartCount={getNewFieldChartCount}
-                        chosen={[]}
-                        onToggle={addFirstField}
-                        parameters={[]}
-                        chosenParameterKeys={[]}
-                        onToggleParameter={toggleChosenParameter}
-                        kind={kind}
-                        onKindChange={setKind}
-                    />
-                </Stack>
-                <Stack gap="xs" p="md" className={classes.footer}>
-                    <Text fz="xs" c="dimmed">
-                        Pick a field
-                    </Text>
-                    <Group justify="flex-end" gap="xs">
-                        <Button variant="default" onClick={handleCancel}>
-                            Cancel
-                        </Button>
-                        <Button disabled>Apply</Button>
-                    </Group>
-                </Stack>
             </Box>
         );
     }
@@ -410,12 +269,16 @@ export const FilterSidebar: FC = () => {
           ? 'Choose a default value or turn it off'
           : null;
     const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
-    const fieldCount = getFilterFields(filterRule, listedFieldIds).length;
+    const fieldCount = isUnplaced
+        ? 0
+        : getFilterFields(filterRule, listedFieldIds).length;
     const tabReach =
         dashboardTabs.length > 1
             ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
             : '';
-    const landingCue = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}${tabReach}`;
+    const landingCue = isUnplaced
+        ? 'No fields yet · reaches 0 charts'
+        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}${tabReach}`;
     const showLabelError = () => {
         setLabelError(true);
         labelInputRef.current?.focus();
@@ -428,7 +291,7 @@ export const FilterSidebar: FC = () => {
             onBack={isNew ? backToPicker : undefined}
             menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
-            onCancel={handleCancel}
+            onCancel={cancel}
             tabs={[
                 {
                     value: 'interactivity',
@@ -453,7 +316,7 @@ export const FilterSidebar: FC = () => {
             primaryLabel="Apply"
             primaryDisabled={!canApply}
             primaryTooltip={blocker ?? 'Apply'}
-            onPrimary={handleApply}
+            onPrimary={apply}
             onPrimaryBlocked={() => {
                 setAttemptedApply(true);
                 showLabelError();
@@ -487,7 +350,7 @@ export const FilterSidebar: FC = () => {
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
-                            if (canApply) handleApply();
+                            if (canApply) apply();
                             else showLabelError();
                         }}
                     />
@@ -520,6 +383,11 @@ export const FilterSidebar: FC = () => {
                 <Interactivity
                     filterRule={filterRule}
                     field={field}
+                    kind={
+                        field
+                            ? getFilterTypeFromItem(field)
+                            : (unplacedKind ?? FilterType.STRING)
+                    }
                     attemptedApply={attemptedApply}
                     onChange={updateFilter}
                 />

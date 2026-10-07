@@ -9,7 +9,13 @@ import isEqual from 'lodash/isEqual';
 export type FilterSidebarSnapshot = {
     dashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
+    unplacedFilters: DashboardFilterRule[];
 };
+
+// A filter with no field yet lives in the session, never in the saved shape
+export const UNPLACED_TARGET = { fieldId: '', tableName: '' };
+export const isUnplacedRule = (rule: DashboardFilterRule): boolean =>
+    rule.target.fieldId === '';
 
 export const findFilterRule = (
     filters: DashboardFilters,

@@ -41,6 +41,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         editing,
         isSidebarOpen,
         isNew,
+        unplacedFilters,
         open,
         removeFilterById,
         getSessionSettings,
@@ -300,6 +301,56 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                             </Text>
                                         </>
                                     )}
+                                </Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                );
+            })}
+            {unplacedFilters.map((rule) => {
+                const isSelected = editing?.filterId === rule.id;
+                return (
+                    <Tooltip key={rule.id} fz="xs" label="Not saved">
+                        <Box className={classes.pill}>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                aria-pressed={isSelected}
+                                classNames={{ label: pillClasses.label }}
+                                className={[
+                                    pillClasses.button,
+                                    pillActionClasses.hiddenPill,
+                                    isSelected ? classes.selectedPill : '',
+                                ].join(' ')}
+                                rightSection={
+                                    !isSidebarOpen && (
+                                        <Tooltip fz="xs" label="Remove filter">
+                                            <ActionIcon
+                                                size="xs"
+                                                radius="xl"
+                                                aria-label="Remove filter"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeFilterById(rule.id);
+                                                }}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconX}
+                                                    size="sm"
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    )
+                                }
+                                onClick={() => open(rule.id)}
+                            >
+                                <Text fz="inherit" span>
+                                    <Text fw={600} span>
+                                        {rule.label || 'New filter'}
+                                    </Text>{' '}
+                                    <Text span c="dimmed">
+                                        {'· no fields'}
+                                    </Text>
                                 </Text>
                             </Button>
                         </Box>

@@ -2,6 +2,7 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterType,
     type ParameterValue,
 } from '@lightdash/common';
 import { createContext, useContext } from 'react';
@@ -13,9 +14,15 @@ export type FilterSidebarSection = 'fields' | 'interactivity';
 export type FilterSidebarContextValue = {
     editing: { filterId: string | null } | null;
     isNew: boolean;
-    // True after every field was removed from an existing filter
-    isEmpty: boolean;
+    /** The edited filter has no field yet (kind first, or fields cleared). */
+    isUnplaced: boolean;
+    /** Kind chosen on the first screen; null once fields were cleared. */
+    unplacedKind: FilterType | null;
+    /** Session filters with no field yet, shown as Not saved pills. */
+    unplacedFilters: DashboardFilterRule[];
     clearFields: () => void;
+    /** Starts a new filter from a kind, with no field. */
+    openKind: (kind: FilterType) => void;
     originalFilterRule: DashboardFilterRule | null;
     editingRule: DashboardFilterRule | null;
     waitingField: DashboardFieldTarget | null;

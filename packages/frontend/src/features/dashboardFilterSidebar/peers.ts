@@ -98,17 +98,20 @@ export const isTileChanged = (
 const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
     Object.values(rule.tileTargets ?? {})
         .filter(isDashboardFieldTarget)
-        .filter((target) => !target.isSqlColumn);
+        .filter((target) => !target.isSqlColumn && target.fieldId !== '');
 
+// An unplaced filter has an empty target, which is never a field
 export const getFilterFields = (
     rule: DashboardFilterRule,
     listedFieldIds: string[],
 ): string[] => [
-    ...new Set([
-        rule.target.fieldId,
-        ...getPeerTargets(rule).map((target) => target.fieldId),
-        ...listedFieldIds,
-    ]),
+    ...new Set(
+        [
+            rule.target.fieldId,
+            ...getPeerTargets(rule).map((target) => target.fieldId),
+            ...listedFieldIds,
+        ].filter((fieldId) => fieldId !== ''),
+    ),
 ];
 
 export const getFieldCount = (

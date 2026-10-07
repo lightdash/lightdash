@@ -31,7 +31,7 @@ seam in `features/dashboardTabs/index.tsx`.
 
 ## Parameters (controls)
 
-- A `ParameterControl` (`parameterControls.ts`) overrides N dashboard parameters of one kind (`ParameterKind`: string, number or date; never boolean). "Add" lists free parameters next to fields in `FieldPicker`; ticking parameters and pressing Continue calls `addControl` with a fresh uuid, an empty label, the kind of the first key, the keys and empty `tileTargets`. Fields and parameters are exclusive in one pick.
+- A `ParameterControl` (`parameterControls.ts`) overrides N dashboard parameters of one kind (`ParameterKind`: string, number or date; never boolean). "Add" lists free parameters next to fields in `FieldPicker`; clicking one calls `addControl` with a fresh uuid, an empty label, the key's kind, that one key and empty `tileTargets`.
 - Saved: only the values, written through the dashboard's parameter values (`getControlValue` reads the first key). A dashboard saved today loads one control per saved value (`getControlsFromSavedValues`).
 - Session-only until a saved shape exists: the control itself (id, label, which keys it groups), its chart targeting (`tileTargets[tileUuid]` holds the key that sets the chart, or `false` to skip it; a missing entry falls back to the first key the chart references), hidden tabs (`hiddenTabUuids`) and placement (`bar` or `more`). The sidebar marks these "Not saved".
 - The control's "Parameters and charts" tab is the same card as a filter's: one `FieldRow` per key with `getKeyCount`, All / None / Remove through `applyKeyToAll`, `clearKeyFromAll` and `removeKey`; the tile overlay offers "+ Use {key}" / "Switch to {key}" through `setControlTileKey`. Counts come from `getControlCount`, `getControlTabCounts` and `getControlTabCountsForKey`.
@@ -63,13 +63,17 @@ Lost on reload, marked "Not saved". What saving each would need:
 - Operators allowed: an allowed-operators list on the rule.
 - Filter boundaries: a bounding rule (allowed values or date range) on the rule.
 - Placement (bar or More): saved bar sections with a filter order.
+- Unplaced filters (kind first, or fields cleared): a rule with an empty
+  `target` and no `tileTargets`, kept in `unplacedFilters` and shown as a
+  "Not saved" pill until `addFirstField` gives it a field; saving one would
+  need a rule that is allowed to have no target.
 - Link prompts: tiles present when editing starts are snapshotted; a tile added
   later whose explore has a peer field of a filter, or another field of the same
   kind, shows a card asking to link it (`LinkPrompts.tsx`, `getLinkCandidates` in `linkCandidates.ts`).
   An exact match on the filter's own field still links on its own. Skipped
   prompts live in a session list; Link writes `tileTargets` on the rule.
 
-- `FieldPicker` is controlled: the caller owns `chosen` and `kind` (a `FilterType`); `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore.
-- New-filter flow: Continue calls `addFirstField(chosen[0])` then `listFieldId` for the rest; "Add a field" uses `mode="single"` with `lockedKind`.
+- `FieldPicker` is single pick: one click on a kind tile calls `onPickKind`, on a field `onPickField`, on a parameter `onPickParameter`; search alone narrows the list. `fieldKinds.ts` classifies fields with `getFilterTypeFromItemType` and groups them by explore. "Add a field" passes `lockedKind` and no `onPickKind`.
+- New-filter flow: a kind tile calls `openKind`, which creates an unplaced rule (empty `target`, held in `unplacedFilters`) and lands on Interactivity; a field calls `addFirstField`, which also places an unplaced rule keeping its id, label and settings; a parameter calls `addControl` with one key.
 - A field has one name everywhere: `getFieldDisplayLabel` in `fieldGrains.ts` names a time grain by its base dimension ("Created", never "Created day").
-- The sidebar lands on Interactivity after Continue; the footer's only commit verb is "Apply" and its subject is the label or "This filter".
+- The sidebar lands on Interactivity after one pick; the footer's only commit verb is "Apply" and its subject is the label or "This filter".
