@@ -1,3 +1,10 @@
+# [2.455.0](https://github.com/lightdash/lightdash/compare/2.454.0...2.455.0) (2026-10-07)
+
+
+### Features
+
+* **embed:** let embedded dashboards add charts from source spaces ([#30573](https://github.com/lightdash/lightdash/issues/30573)) ([1622b6a](https://github.com/lightdash/lightdash/commit/1622b6a50dd71c873c1f037adabdef08c9c3e21e))
+
 # [2.454.0](https://github.com/lightdash/lightdash/compare/2.453.0...2.454.0) (2026-10-07)
 
 

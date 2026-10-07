@@ -15829,6 +15829,10 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['roles'] },
                     ],
                 },
+                sourceSpaceUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 spaceUuid: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string' },
                 serviceAccountUserUuid: { dataType: 'string' },
