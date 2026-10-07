@@ -19,13 +19,14 @@ import {
 import ViewsCountPopover from '../../../../components/common/ViewsCountPopover';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import type { HomepageFavorite } from '../hooks/useHomepageFavorites';
 import classes from './blockStyles.module.css';
 
 type Props = {
     content: SummaryContent;
     projectUuid: string;
     onRemove?: () => void;
-    star?: { isFavorite: boolean; onToggle: () => void };
+    star?: HomepageFavorite;
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
     variant?: 'row' | 'tile' | 'compact';
@@ -130,8 +131,10 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
                 size="sm"
                 isFavorite={star.isFavorite}
                 name={content.name}
+                disabled={star.isLoading}
                 onToggle={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     star.onToggle();
                 }}
             />
@@ -162,6 +165,14 @@ const MaybeLink: FC<
         <Link
             to={to}
             className={`${className} ${classes.plainLink}`}
+            onClick={(event) => {
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('button')
+                ) {
+                    event.preventDefault();
+                }
+            }}
             {...attrs}
         >
             {children}

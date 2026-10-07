@@ -6,6 +6,7 @@ import { Skeleton, Stack } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import {
     getResourceUrl,
@@ -14,6 +15,10 @@ import {
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import {
+    useHomepageFavorites,
+    type HomepageFavorite,
+} from '../hooks/useHomepageFavorites';
 import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -23,7 +28,8 @@ const RecentRow: FC<{
     content: SummaryContent;
     projectUuid: string;
     viewedAt: Date | undefined;
-}> = ({ content, projectUuid, viewedAt }) => {
+    star: HomepageFavorite | undefined;
+}> = ({ content, projectUuid, viewedAt, star }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
     return (
@@ -34,6 +40,14 @@ const RecentRow: FC<{
                 projectUrlIdentifier,
             )}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
+            onClick={(event) => {
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('button')
+                ) {
+                    event.preventDefault();
+                }
+            }}
         >
             <div className={classes.iconSquare}>
                 <ResourceIcon item={contentToResourceViewItem(content)} />
@@ -51,12 +65,26 @@ const RecentRow: FC<{
             {viewedAt ? (
                 <span className={classes.rowAside}>{timeAgo}</span>
             ) : null}
+            {star && (
+                <FavoriteActionIcon
+                    size="sm"
+                    name={content.name}
+                    isFavorite={star.isFavorite}
+                    disabled={star.isLoading}
+                    onToggle={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        star.onToggle();
+                    }}
+                />
+            )}
         </Link>
     );
 };
 
 export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { recents, contents, isLoading } = useRecentContents(projectUuid);
+    const starFor = useHomepageFavorites(projectUuid);
 
     if (isLoading) {
         return (
@@ -85,6 +113,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     content={content}
                     projectUuid={projectUuid}
                     viewedAt={viewedAtByUuid.get(content.uuid)}
+                    star={starFor(content)}
                 />
             ))}
         </div>

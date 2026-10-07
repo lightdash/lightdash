@@ -16,6 +16,7 @@ import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
+import { useHomepageFavorites } from './hooks/useHomepageFavorites';
 import { useKeySpaces } from './hooks/useKeySpaces';
 import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import { useRecentContents } from './hooks/useRecentContents';
@@ -78,6 +79,7 @@ const PinnedCollection: FC<{
 /** The project's most viewed content, resolved through the same live source
  * the Collection block offers — day-0 shows what the org actually uses. */
 const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const starFor = useHomepageFavorites(projectUuid);
     const { items } = useCollectionSourceContent(projectUuid, {
         title: 'Most popular',
         source: 'most-viewed',
@@ -96,6 +98,7 @@ const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         key={content.uuid}
                         content={content}
                         projectUuid={projectUuid}
+                        star={starFor(content)}
                     />
                 ))}
             </Stack>

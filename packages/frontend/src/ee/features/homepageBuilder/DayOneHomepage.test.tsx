@@ -18,6 +18,10 @@ vi.mock('./hooks/useKeySpaces', () => ({
     useKeySpaces: () => ({ spaces: keySpaces.current, isLoading: false }),
 }));
 
+vi.mock('./hooks/useHomepageFavorites', () => ({
+    useHomepageFavorites: () => () => undefined,
+}));
+
 vi.mock('./hooks/useRecentContents', () => ({
     useRecentContents: () => ({
         recents: [],
