@@ -7,7 +7,9 @@ import { dept, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentsTable } from './DepartmentsTable';
 
 // ECharts needs a real layout engine
-vi.mock('./ActivitySparkline', () => ({ ActivitySparkline: () => null }));
+vi.mock('../../../../components/EChartsReactWrapper', () => ({
+    default: () => null,
+}));
 
 const departments = [
     dept('Sales', null, 80),
@@ -15,7 +17,10 @@ const departments = [
     dept('Legal', null, null),
     dept('Stores', 'Ops', 50),
     dept('Small', null, 0, {
+        headcount: 300,
+        effectiveHeadcount: 300,
         metrics: metricsFixture(1, 0),
+        headcountNote: 'Full-time staff only',
     }),
 ];
 
@@ -79,8 +84,39 @@ describe('DepartmentsTable', () => {
             expect.objectContaining({ departmentUuid: 'Ops' }),
         );
     });
+    it('shows the headcount note as visible text without hovering', () => {
+        renderTable();
+        expect(screen.getByText('Full-time staff only')).toBeVisible();
+    });
+    it('announces the headcount warning and makes it focusable', async () => {
+        renderTable();
+        const warning = screen.getByRole('img', {
+            name: 'Headcount is lower than the total of its sub-departments',
+        });
+        expect(warning).toHaveAttribute('tabindex', '0');
+        await userEvent.tab();
+        warning.focus();
+        expect(warning).toHaveFocus();
+    });
+    it('labels the sparkline in words', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[dept('Sales', null, 80)]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('img', {
+                name: 'No activity in the last 12 weeks',
+            }),
+        ).toBeInTheDocument();
+    });
     it('hides edit controls from people who cannot manage', () => {
         renderTable(false);
+        expect(screen.getAllByRole('columnheader')).toHaveLength(8);
         expect(screen.queryByText('Add headcount')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Edit Ops' }),

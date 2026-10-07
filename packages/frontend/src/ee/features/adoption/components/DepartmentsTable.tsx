@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Group,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -63,8 +64,8 @@ export const DepartmentsTable: FC<Props> = ({
         });
     }, []);
 
-    const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(
-        () => [
+    const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(() => {
+        const dataColumns: ContentTableColumnDef<DepartmentRow>[] = [
             {
                 id: 'name',
                 header: 'Department',
@@ -144,32 +145,40 @@ export const DepartmentsTable: FC<Props> = ({
                         );
                     }
                     return (
-                        <Group gap="xs" wrap="nowrap">
-                            <Tooltip
-                                label={department.headcountNote}
-                                disabled={department.headcountNote === null}
-                                multiline
-                                maw={260}
-                            >
+                        <Stack gap={0}>
+                            <Group gap="xs" wrap="nowrap">
                                 <Text fz="sm">
                                     {department.effectiveHeadcount}
                                 </Text>
-                            </Tooltip>
-                            {department.headcountBelowChildren && (
-                                <Tooltip label={BELOW_CHILDREN_WARNING}>
-                                    <Box
-                                        component="span"
-                                        aria-label={BELOW_CHILDREN_WARNING}
-                                        role="img"
+                                {department.headcountBelowChildren && (
+                                    <Tooltip
+                                        label={BELOW_CHILDREN_WARNING}
+                                        events={{
+                                            hover: true,
+                                            focus: true,
+                                            touch: false,
+                                        }}
                                     >
-                                        <MantineIcon
-                                            icon={IconAlertTriangle}
-                                            color="yellow"
-                                        />
-                                    </Box>
-                                </Tooltip>
+                                        <Box
+                                            component="span"
+                                            role="img"
+                                            tabIndex={0}
+                                            aria-label={BELOW_CHILDREN_WARNING}
+                                        >
+                                            <MantineIcon
+                                                icon={IconAlertTriangle}
+                                                color="yellow"
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                )}
+                            </Group>
+                            {department.headcountNote !== null && (
+                                <Text fz="xs" c="dimmed" lineClamp={1}>
+                                    {department.headcountNote}
+                                </Text>
                             )}
-                        </Group>
+                        </Stack>
                     );
                 },
             },
@@ -239,28 +248,34 @@ export const DepartmentsTable: FC<Props> = ({
                     <Text fz="sm">{formatTarget(row.original.department)}</Text>
                 ),
             },
-            {
-                id: 'edit',
-                header: '',
-                size: 56,
-                Cell: ({ row }) => {
-                    if (!canManage) return null;
-                    const label = `Edit ${row.original.department.name}`;
-                    return (
-                        <Tooltip label={label}>
-                            <ActionIcon
-                                aria-label={label}
-                                onClick={() => onEdit(row.original.department)}
-                            >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </Tooltip>
-                    );
-                },
-            },
-        ],
-        [canManage, onEdit, toggle],
-    );
+        ];
+        // No empty column for people who cannot edit
+        return canManage
+            ? [
+                  ...dataColumns,
+                  {
+                      id: 'edit',
+                      header: '',
+                      size: 56,
+                      Cell: ({ row }) => {
+                          const label = `Edit ${row.original.department.name}`;
+                          return (
+                              <Tooltip label={label}>
+                                  <ActionIcon
+                                      aria-label={label}
+                                      onClick={() =>
+                                          onEdit(row.original.department)
+                                      }
+                                  >
+                                      <MantineIcon icon={IconPencil} />
+                                  </ActionIcon>
+                              </Tooltip>
+                          );
+                      },
+                  },
+              ]
+            : dataColumns;
+    }, [canManage, onEdit, toggle]);
 
     const table = useContentTable<DepartmentRow>({
         columns,

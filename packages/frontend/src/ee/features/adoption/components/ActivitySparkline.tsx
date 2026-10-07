@@ -3,6 +3,7 @@ import { useMemo, type FC } from 'react';
 import EChartsReact, {
     type EChartsOption,
 } from '../../../../components/EChartsReactWrapper';
+import { getSparklineLabel } from '../utils/sparklineLabel';
 import styles from './ActivitySparkline.module.css';
 
 const COLOR = 'var(--mantine-color-dimmed)';
@@ -43,11 +44,17 @@ export const ActivitySparkline: FC<{ points: WeeklyActivePoint[] }> = ({
     );
 
     return (
-        <EChartsReact
+        <div
+            role="img"
+            aria-label={getSparklineLabel(points)}
             className={styles.chart}
-            option={option}
-            notMerge
-            opts={{ renderer: 'svg' }}
-        />
+        >
+            <EChartsReact
+                className={styles.chart}
+                option={option}
+                notMerge
+                opts={{ renderer: 'svg' }}
+            />
+        </div>
     );
 };
