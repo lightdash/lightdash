@@ -114,14 +114,14 @@ export const FilterBar: FC<Props> = ({
                                 />
                             )}
 
-                            {isEditMode && <RequirementsButton />}
-
                             {hasDashboardTiles && hasParameters && (
                                 <ParameterControlPills
                                     isEditMode={isEditMode}
                                     activeTabUuid={activeTabUuid}
                                 />
                             )}
+
+                            {isEditMode && <RequirementsButton />}
                         </Group>
                     )}
                 </Group>

@@ -34,6 +34,7 @@ import {
     countPickableByKind,
     filterFieldsByKind,
     filterParametersByKind,
+    getFieldKind,
     groupFieldsByExplore,
     matchesParameterSearch,
     type FieldKind,
@@ -83,36 +84,59 @@ export const FieldPicker: FC<Props> = ({
     const [search, setSearch] = useState('');
     const [openTable, setOpenTable] = useState<string | null>(null);
     const chosenKeys = new Set(chosen.map(getDashboardFilterableFieldKey));
-    const activeKind = lockedKind ?? kind;
+    // One pick is either fields or parameters, all of one kind
+    const [firstChosenField] = chosen;
+    const firstChosenParameter = parameters.find((parameter) =>
+        chosenParameterKeys.includes(parameter.key),
+    );
+    const chosenKind: FieldKind | undefined =
+        firstChosenField !== undefined
+            ? getFieldKind(firstChosenField)
+            : firstChosenParameter?.kind;
+    const effectiveLockedKind = lockedKind ?? chosenKind;
+    const activeKind = effectiveLockedKind ?? kind;
+    const pickableFields = useMemo(
+        () => (firstChosenParameter === undefined ? fields : []),
+        [fields, firstChosenParameter],
+    );
+    const pickableParameters = useMemo(
+        () => (firstChosenField === undefined ? parameters : []),
+        [parameters, firstChosenField],
+    );
     const explores = useMemo(
         () =>
             groupFieldsByExplore(
-                filterFieldsByKind(fields, activeKind),
+                filterFieldsByKind(pickableFields, activeKind),
                 getChartCount,
             ),
-        [fields, activeKind, getChartCount],
+        [pickableFields, activeKind, getChartCount],
     );
     const isSearching = search.trim() !== '';
     const matches = useMemo(
         () =>
             isSearching
-                ? fields.filter((field) => matchesSearch(field, search))
+                ? filterFieldsByKind(pickableFields, activeKind).filter(
+                      (field) => matchesSearch(field, search),
+                  )
                 : [],
-        [fields, search, isSearching],
+        [pickableFields, activeKind, search, isSearching],
     );
     const parameterMatches = useMemo(
         () =>
             isSearching
-                ? parameters.filter((parameter) =>
-                      matchesParameterSearch(parameter, search),
+                ? filterParametersByKind(pickableParameters, activeKind).filter(
+                      (parameter) => matchesParameterSearch(parameter, search),
                   )
                 : [],
-        [parameters, search, isSearching],
+        [pickableParameters, activeKind, search, isSearching],
     );
-    const kindParameters = filterParametersByKind(parameters, activeKind);
+    const kindParameters = filterParametersByKind(
+        pickableParameters,
+        activeKind,
+    );
     const counts = countPickableByKind(
-        isSearching ? matches : fields,
-        isSearching ? parameterMatches : parameters,
+        isSearching ? matches : pickableFields,
+        isSearching ? parameterMatches : pickableParameters,
     );
     const chipLabel = (field: DashboardFilterableField) =>
         getFieldDisplayLabel(field, fields);
@@ -142,7 +166,7 @@ export const FieldPicker: FC<Props> = ({
             },
         );
     }, [matches, fields, getChartCount]);
-    const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
+    const kinds = effectiveLockedKind ? [effectiveLockedKind] : FIELD_KINDS;
 
     const renderFieldRow = (
         field: DashboardFilterableField,
@@ -294,7 +318,7 @@ export const FieldPicker: FC<Props> = ({
                 </Stack>
             ) : (
                 <>
-                    <SimpleGrid cols={lockedKind ? 1 : 2} spacing="xs">
+                    <SimpleGrid cols={effectiveLockedKind ? 1 : 2} spacing="xs">
                         {kinds.map((item) => {
                             const meta = KIND_META[item];
                             const selected = activeKind === item;
@@ -303,7 +327,7 @@ export const FieldPicker: FC<Props> = ({
                                     key={item}
                                     className={`${classes.kindTile} ${selected ? classes.kindTileSelected : ''}`}
                                     aria-pressed={selected}
-                                    disabled={lockedKind !== undefined}
+                                    disabled={effectiveLockedKind !== undefined}
                                     onClick={() =>
                                         onKindChange(selected ? null : item)
                                     }

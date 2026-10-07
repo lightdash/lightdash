@@ -1,4 +1,4 @@
-import { type ParameterValue } from '@lightdash/common';
+import { FilterType, type ParameterValue } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -9,6 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -27,12 +28,17 @@ type Props = {
     activeTabUuid: string | undefined;
 };
 
-const formatValue = (value: ParameterValue | null | undefined): string | null =>
-    value === null || value === undefined
-        ? null
-        : Array.isArray(value)
-          ? value.join(', ')
-          : String(value);
+const formatValue = (
+    value: ParameterValue | null | undefined,
+    kind: FilterType,
+): string | null => {
+    if (value === null || value === undefined) return null;
+    if (Array.isArray(value)) return value.join(', ');
+    if (kind === FilterType.DATE && dayjs(String(value)).isValid()) {
+        return dayjs(String(value)).format('MMMM D, YYYY');
+    }
+    return String(value);
+};
 
 const ControlPill: FC<{
     control: ParameterControl;
@@ -60,6 +66,7 @@ const ControlPill: FC<{
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];
     const value = formatValue(
         getControlValue(control, parameterValues) ?? definition?.default,
+        control.kind,
     );
     const isSelected = editingControlId === control.id;
 
