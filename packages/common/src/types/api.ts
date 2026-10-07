@@ -978,6 +978,7 @@ export type CreateProject = Omit<
     copyContent?: boolean;
     asyncCopyContent?: boolean;
     expiresInHours?: number;
+    setupAttemptUuid?: string;
 };
 
 export type CreateProjectOptionalCredentials = Omit<

@@ -155,6 +155,7 @@ import {
     type DbCachedExplore,
     type DbCachedExploreStaging,
 } from '../../database/entities/projects';
+import { ProjectSetupsTableName } from '../../database/entities/projectSetups';
 import { RolesTableName } from '../../database/entities/roles';
 import {
     DbSavedChart,
@@ -1646,6 +1647,9 @@ export class ProjectModel {
                 data.warehouseConnection,
                 { actorUserUuid, inheritFromProjectId: null },
             );
+            await trx(ProjectSetupsTableName)
+                .where('project_uuid', projectUuid)
+                .increment('configuration_revision', 1);
 
             if (!pushToPreview || !previousUpstreamCredentials) {
                 return { kind: 'skipped' } satisfies PreviewCredentialsPush;

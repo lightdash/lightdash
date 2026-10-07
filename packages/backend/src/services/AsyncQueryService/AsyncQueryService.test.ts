@@ -106,6 +106,7 @@ import {
     singleRouteProjectModelMethods,
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import type { ProjectSetupModel } from '../../models/ProjectSetupModel/ProjectSetupModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -424,6 +425,7 @@ const getMockedAsyncQueryService = (
         projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: {} as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
+        projectSetupModel: {} as ProjectSetupModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({

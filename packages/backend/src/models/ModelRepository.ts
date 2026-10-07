@@ -62,6 +62,7 @@ import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
+import { ProjectSetupModel } from './ProjectSetupModel/ProjectSetupModel';
 import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { RecentContentModel } from './RecentContentModel';
@@ -138,6 +139,7 @@ export type ModelManifest = {
     notificationsModel: NotificationsModel;
     oauthModel: OAuth2Model;
     onboardingModel: OnboardingModel;
+    projectSetupModel: ProjectSetupModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationDesignModel: OrganizationDesignModel;
@@ -618,6 +620,13 @@ export class ModelRepository
         return this.getModel(
             'onboardingModel',
             () => new OnboardingModel({ database: this.database }),
+        );
+    }
+
+    public getProjectSetupModel(): ProjectSetupModel {
+        return this.getModel(
+            'projectSetupModel',
+            () => new ProjectSetupModel({ database: this.database }),
         );
     }
 

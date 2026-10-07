@@ -15,6 +15,7 @@ collisions with other contexts' or repo-wide meanings.
 - [Pre-aggregates](./docs/pre-aggregates/CONTEXT.md) — user-defined, pre-computed summaries of explores that serve matching queries from materialized files instead of the warehouse
 - [AI agent](./docs/ai-agent/CONTEXT.md) — the in-app conversational agent (Ask AI), what users pin to its prompts, and where it opens from
 - [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI agent distills from a user's threads and recalls on their future threads
+- [Connect your data](./docs/connect-your-data/CONTEXT.md) — landing in an organization, connecting data sources and semantic layer connections, and managing them and their credentials. An external source is one kind of data source; ADR 0001 (`docs/warehouse-connections/adr`) owns original connection, extra connection and connection mode
 - [External sources](./docs/external-sources/CONTEXT.md) — uploaded CSVs and connected Google Sheets ingested to typed parquet and queried as explores on the DuckDB engine
 - [Merge queries](./docs/merge-queries/CONTEXT.md) — joining the results of two explore queries on a shared key, executed as a composed query with the join running in DuckDB
 - [Composer queries](./docs/composer-queries/CONTEXT.md) — agent-authored pipelines of queries across sources, joined or transformed in DuckDB, shown as a chart artifact with the pipeline beside the result

@@ -332,6 +332,12 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    ProjectSetupsTable,
+    ProjectSetupsTableName,
+    ProjectSetupStepsTable,
+    ProjectSetupStepsTableName,
+} from '../database/entities/projectSetups';
+import {
     PullRequestsTable,
     PullRequestsTableName,
 } from '../database/entities/pullRequests';
@@ -758,6 +764,8 @@ declare module 'knex/types/tables' {
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [OnboardingTableName]: OnboardingTable;
+        [ProjectSetupsTableName]: ProjectSetupsTable;
+        [ProjectSetupStepsTableName]: ProjectSetupStepsTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
         [OrganizationMembershipCustomRolesTableName]: OrganizationMembershipCustomRolesTable;

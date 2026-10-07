@@ -19,6 +19,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,
+    // Turns on new-onboarding wherever it is on, so it needs the same opt-in.
+    FeatureFlags.ConnectJourney,
     // Acts outside the environment: opens pull requests on real repos.
     FeatureFlags.AiPreviewDeploySetup,
     // Off pending a security review, or only meaningful for eval orgs.
