@@ -30,6 +30,7 @@ import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import {
     dateTruncTimezoneConversions,
+    getSqlForTruncatedDate,
     SUB_DAY_TIME_FRAMES,
     WeekDay,
 } from '../utils/timeFrames';
@@ -68,6 +69,50 @@ const getDefaultStartOfWeek = (
             return WeekDay.SUNDAY;
         default:
             return WeekDay.MONDAY;
+    }
+};
+
+/**
+ * Week start used by the "week to date" filter. Native forms are kept where the
+ * warehouse already starts the week on the configured day; otherwise the
+ * start-of-week shift from getSqlForTruncatedDate is used. Both operands of
+ * the comparison stay raw (no timezone wrap): the JS day index already
+ * accounts for the project timezone.
+ */
+const getWeekToDateWeekStartSql = (
+    adapterType: SupportedDbtAdapter,
+    sql: string,
+    startOfWeek: WeekDay,
+): string => {
+    const shifted = () =>
+        getSqlForTruncatedDate(
+            adapterType,
+            TimeFrames.WEEK,
+            sql,
+            DimensionType.DATE,
+            startOfWeek,
+        );
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return shifted();
+        case SupportedDbtAdapter.CLICKHOUSE:
+            if (startOfWeek === WeekDay.SUNDAY)
+                return `toStartOfWeek(${sql}, 0)`;
+            if (startOfWeek === WeekDay.MONDAY)
+                return `toStartOfWeek(${sql}, 1)`;
+            return shifted();
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return startOfWeek === WeekDay.MONDAY
+                ? `DATE_TRUNC('week', ${sql})`
+                : shifted();
+        case SupportedDbtAdapter.SNOWFLAKE:
+            // Snowflake honours the session WEEK_START parameter.
+            return `DATE_TRUNC('WEEK', ${sql})`;
+        default:
+            return startOfWeek === WeekDay.MONDAY
+                ? `DATE_TRUNC('WEEK', ${sql})`
+                : shifted();
     }
 };
 
@@ -839,16 +884,21 @@ const renderDateOrTimestampFilterSql = ({
                 case UnitOfTime.weeks: {
                     const weekStart = today.clone().startOf('week');
                     const dayInWeek = today.diff(weekStart, 'days');
+                    const weekStartSql = getWeekToDateWeekStartSql(
+                        adapterType,
+                        extractSql,
+                        effectiveStartOfWeek,
+                    );
                     switch (adapterType) {
                         case SupportedDbtAdapter.BIGQUERY:
-                            return `(DATE_DIFF(${extractSql}, DATE_TRUNC(${extractSql}, WEEK(${effectiveStartOfWeek === WeekDay.SUNDAY ? 'SUNDAY' : 'MONDAY'})), DAY) <= ${dayInWeek})`;
+                            return `(DATE_DIFF(${extractSql}, ${weekStartSql}, DAY) <= ${dayInWeek})`;
                         case SupportedDbtAdapter.CLICKHOUSE:
-                            return `(dateDiff('day', toStartOfWeek(${extractSql}, ${effectiveStartOfWeek === WeekDay.SUNDAY ? '0' : '1'}), ${extractSql}) <= ${dayInWeek})`;
+                            return `(dateDiff('day', ${weekStartSql}, ${extractSql}) <= ${dayInWeek})`;
                         case SupportedDbtAdapter.TRINO:
                         case SupportedDbtAdapter.ATHENA:
-                            return `(DATE_DIFF('day', DATE_TRUNC('week', ${extractSql}), ${extractSql}) <= ${dayInWeek})`;
+                            return `(DATE_DIFF('day', ${weekStartSql}, ${extractSql}) <= ${dayInWeek})`;
                         default:
-                            return `(EXTRACT(DAY FROM ${extractSql} - DATE_TRUNC('WEEK', ${extractSql})) <= ${dayInWeek})`;
+                            return `(EXTRACT(DAY FROM ${extractSql} - ${weekStartSql}) <= ${dayInWeek})`;
                     }
                 }
                 default:

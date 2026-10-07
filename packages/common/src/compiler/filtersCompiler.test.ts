@@ -1215,7 +1215,7 @@ describe('Filter SQL', () => {
                 startOfWeek: WeekDay.SUNDAY,
             }),
         ).toStrictEqual(
-            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 6)`,
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - (DATE_TRUNC('WEEK', (${DimensionSqlMock} - interval '6 days')) + interval '6 days')) <= 6)`,
         );
     });
 
@@ -1247,6 +1247,138 @@ describe('Filter SQL', () => {
         ).toStrictEqual(
             `(dateDiff('day', toStartOfWeek(${DimensionSqlMock}, 1), ${DimensionSqlMock}) <= 5)`,
         );
+    });
+
+    // A Saturday is the one day where "days since Monday" and "days since
+    // Sunday" keep the same rows, so these freeze time on a Tuesday instead.
+    describe('week to date with a non-native start of week', () => {
+        beforeAll(() => {
+            // 2026-09-22 is a Tuesday
+            vi.setSystemTime(new Date('2026-09-22T06:12:30Z').getTime());
+        });
+        afterAll(() => {
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+        });
+
+        test('postgres keeps the native week start on monday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.MONDAY,
+                }),
+            ).toStrictEqual(
+                `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 1)`,
+            );
+        });
+
+        test('postgres shifts the week start for sunday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(
+                `(EXTRACT(DAY FROM ${DimensionSqlMock} - (DATE_TRUNC('WEEK', (${DimensionSqlMock} - interval '6 days')) + interval '6 days')) <= 2)`,
+            );
+        });
+
+        test('postgres shifts the week start for saturday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SATURDAY,
+                }),
+            ).toStrictEqual(
+                `(EXTRACT(DAY FROM ${DimensionSqlMock} - (DATE_TRUNC('WEEK', (${DimensionSqlMock} - interval '5 days')) + interval '5 days')) <= 3)`,
+            );
+        });
+
+        test('bigquery uses the configured day instead of falling back to monday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.BIGQUERY,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.WEDNESDAY,
+                }),
+            ).toStrictEqual(
+                `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, WEEK(WEDNESDAY)), DAY) <= 6)`,
+            );
+        });
+
+        test('clickhouse shifts the week start for wednesday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.WEDNESDAY,
+                }),
+            ).toStrictEqual(
+                `(dateDiff('day', addDays(toStartOfWeek(addDays(${DimensionSqlMock}, -2), 1), 2), ${DimensionSqlMock}) <= 6)`,
+            );
+        });
+
+        test('trino shifts the week start for sunday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.TRINO,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(
+                `(DATE_DIFF('day', (DATE_TRUNC('WEEK', (${DimensionSqlMock} - interval '6' day)) + interval '6' day), ${DimensionSqlMock}) <= 2)`,
+            );
+        });
+
+        test('databricks shifts the week start for sunday', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.DATABRICKS,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(
+                `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATEADD(DAY, 6, DATE_TRUNC('WEEK', DATEADD(DAY, -6, ${DimensionSqlMock})))) <= 2)`,
+            );
+        });
+
+        test('snowflake leaves the week start to the session WEEK_START', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: WeekToDateFilterBase,
+                    adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(
+                `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 2)`,
+            );
+        });
     });
 
     test.each(filterInTheCurrentDayTimezoneMocks)(
