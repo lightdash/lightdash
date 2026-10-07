@@ -235,6 +235,7 @@ import {
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
 import {
+    type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
     type ApiDepartmentResponse,
     type ApiOrganizationAdoptionSummaryResponse,
@@ -1468,6 +1469,7 @@ type ApiResults =
     | ApiValidationSummaryResponse['results']
     | ApiOrganizationAdoptionSummaryResponse['results']
     | ApiDepartmentResponse['results']
+    | ApiDepartmentDetailResponse['results']
     | ApiDepartmentMembershipResponse['results']
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
