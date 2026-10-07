@@ -5,6 +5,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { aiCopilotConfigSchema } from '../../config/aiConfigSchema';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
     AiOrganizationSettingsService,
@@ -411,6 +412,9 @@ describe('upsertSettings model validation', () => {
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: async () => ({
                     defaultAiAgentModelConfig: storedDefault,
@@ -717,6 +721,9 @@ describe('converting a legacy Bedrock configuration', () => {
         );
         const updateSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: async () =>
                     legacy ? { bedrock: legacy } : null,
@@ -828,6 +835,9 @@ describe('pinning a project to a credential', () => {
     } = {}) => {
         const setProjectCredential = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {},
             aiOrganizationProviderCredentialModel: {
                 findDecrypted: async () => resolution,
@@ -918,6 +928,9 @@ describe('legacy Bedrock adoption', () => {
         );
         const updateSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: async () =>
                     legacy ? { bedrock: legacy } : null,
@@ -1068,6 +1081,9 @@ describe('legacy Bedrock adoption', () => {
 describe('isAiAgentMemoryEnabled', () => {
     const buildService = (settingEnabled: boolean | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             organizationModel: {
                 getAiAgentMemoryEnabled: vi
                     .fn()
@@ -1101,6 +1117,9 @@ describe('isAiAgentMemoryEnabled', () => {
 describe('isDeepResearchRawSqlEnabled', () => {
     const buildService = (settings: AiOrganizationSettings | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
             },
@@ -1132,6 +1151,9 @@ describe('isDeepResearchRawSqlEnabled', () => {
 describe('isExplicitSlackChannelLinkingRequired', () => {
     const buildService = (settings: AiOrganizationSettings | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
             },
@@ -1171,6 +1193,9 @@ describe('isDataAppContinueInAskAiEnabled', () => {
         stored: { dataAppContinueInAskAiEnabled?: boolean } | null,
     ) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
             },
@@ -1193,6 +1218,9 @@ describe('isDataAppAutoAnalysisEnabled', () => {
         stored: { dataAppAutoAnalysisEnabled?: boolean } | null,
     ) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
             },
@@ -1218,6 +1246,9 @@ describe('isDataAppRuntimeAiEnabled', () => {
         stored: { dataAppRuntimeAiEnabled?: boolean } | null,
     ) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
             },

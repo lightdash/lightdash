@@ -91,8 +91,11 @@ type ProviderRowProps = {
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
     // Endpoint the org's key is sent to instead of the provider's public API.
-    gatewayBaseUrl: string | null;
-    onSaveGatewayBaseUrl: (baseUrl: string | null) => void;
+    // Null hides the control (feature not enabled for this org).
+    gateway: {
+        baseUrl: string | null;
+        onSave: (baseUrl: string | null) => void;
+    } | null;
 };
 
 // Mirrors the backend rule (parseLlmGatewayBaseUrl): HTTP(S), no
@@ -179,8 +182,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
-    gatewayBaseUrl,
-    onSaveGatewayBaseUrl,
+    gateway,
 }) => {
     const {
         label,
@@ -266,13 +268,13 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 )}
             </Group>
 
-            {isSet && (
+            {isSet && gateway && (
                 <GatewayUrlInput
-                    key={gatewayBaseUrl ?? ''}
-                    baseUrl={gatewayBaseUrl}
+                    key={gateway.baseUrl ?? ''}
+                    baseUrl={gateway.baseUrl}
                     placeholder={baseUrlPlaceholder}
                     disabled={disabled}
-                    onSave={onSaveGatewayBaseUrl}
+                    onSave={gateway.onSave}
                 />
             )}
 
@@ -338,6 +340,7 @@ type AiProvidersCardProps = {
     showDataAppModels: boolean;
     bedrockModelOptions: AiModelOption[];
     providerBaseUrls: AiProviderBaseUrls;
+    showProviderBaseUrls: boolean;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
@@ -353,6 +356,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     showDataAppModels,
     bedrockModelOptions,
     providerBaseUrls,
+    showProviderBaseUrls,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
@@ -467,11 +471,18 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                     [provider]: value,
                                 })
                             }
-                            gatewayBaseUrl={providerBaseUrls[provider]}
-                            onSaveGatewayBaseUrl={(baseUrl) =>
-                                onUpdateKeys({
-                                    providerBaseUrls: { [provider]: baseUrl },
-                                })
+                            gateway={
+                                showProviderBaseUrls
+                                    ? {
+                                          baseUrl: providerBaseUrls[provider],
+                                          onSave: (baseUrl) =>
+                                              onUpdateKeys({
+                                                  providerBaseUrls: {
+                                                      [provider]: baseUrl,
+                                                  },
+                                              }),
+                                      }
+                                    : null
                             }
                         />
                     </Stack>

@@ -1,5 +1,6 @@
 import {
     BYO_AI_PROVIDERS,
+    FeatureFlags,
     MissingConfigError,
     type AiOrgModelVisibility,
     type ByoAiApiKeyProvider,
@@ -11,6 +12,7 @@ import {
     DEFAULT_BEDROCK_EMBEDDING_MODEL,
 } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import { AiOrganizationProviderCredentialModel } from '../../models/AiOrganizationProviderCredentialModel';
 import {
@@ -231,6 +233,7 @@ export type AiConfigScope = {
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     aiModelCatalog: AiModelCatalog;
@@ -238,6 +241,8 @@ type Dependencies = {
 
 export class OrgAiCopilotConfigResolver {
     private lightdashConfig: LightdashConfig;
+
+    private featureFlagModel: FeatureFlagModel;
 
     private aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
@@ -247,6 +252,7 @@ export class OrgAiCopilotConfigResolver {
 
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.aiOrganizationProviderCredentialModel =
@@ -313,11 +319,30 @@ export class OrgAiCopilotConfigResolver {
             }
             return legacyKeys;
         }
-        if (resolution.status === 'none') return legacyKeys;
-        return {
-            ...(legacyKeys ?? {}),
-            bedrock: resolution.credential.config,
-        };
+        const keys =
+            resolution.status === 'none'
+                ? legacyKeys
+                : {
+                      ...(legacyKeys ?? {}),
+                      bedrock: resolution.credential.config,
+                  };
+        return this.withBaseUrlsIfEnabled(organizationUuid, keys);
+    }
+
+    // Stored base URLs only take effect while the org flag is on, so the
+    // feature ships dark and can be enabled per organization from Console.
+    private async withBaseUrlsIfEnabled(
+        organizationUuid: string,
+        keys: AiOrgProviderApiKeys | null,
+    ): Promise<AiOrgProviderApiKeys | null> {
+        if (!keys?.providerBaseUrls) return keys;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.OrgAiProviderBaseUrls,
+        });
+        if (enabled) return keys;
+        const { providerBaseUrls: _, ...withoutBaseUrls } = keys;
+        return withoutBaseUrls;
     }
 
     async getCopilotConfig({

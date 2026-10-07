@@ -6,6 +6,7 @@ import {
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationProviderCredentialModel,
@@ -390,6 +391,7 @@ const resolutionFor = (
 
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
+        baseUrlsEnabled?: boolean;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -411,11 +413,15 @@ describe('OrgAiCopilotConfigResolver', () => {
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
+        baseUrlsEnabled = true,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
                 ai: { copilot: instanceConfig },
             } as LightdashConfig,
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: baseUrlsEnabled }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
                     .fn()
@@ -461,6 +467,32 @@ describe('OrgAiCopilotConfigResolver', () => {
             projectUuid: null,
         });
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    it('ignores a stored base URL while the org flag is off', async () => {
+        const orgKeys = {
+            openai: 'org-openai-key',
+            providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
+        };
+        const on = await makeResolver({ orgKeys }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+        });
+        expect(on.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com/v1',
+        );
+
+        const off = await makeResolver({
+            orgKeys,
+            baseUrlsEnabled: false,
+        }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+        });
+        expect(off.providers.openai?.apiKey).toBe('org-openai-key');
+        expect(off.providers.openai?.baseUrl).toBe(
+            baseConfig.providers.openai?.baseUrl,
+        );
     });
 
     describe('named provider credentials', () => {

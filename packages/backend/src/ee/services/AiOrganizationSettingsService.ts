@@ -31,6 +31,7 @@ import {
     type UpdateAiProviderCredential,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
@@ -215,6 +216,7 @@ type AiOrganizationSettingsServiceDependencies = {
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    featureFlagModel: FeatureFlagModel;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -229,6 +231,8 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
+
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -247,6 +251,7 @@ export class AiOrganizationSettingsService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -753,6 +758,18 @@ export class AiOrganizationSettingsService extends BaseService {
             if (!copilotEnabled) {
                 throw new ForbiddenError(
                     'AI copilot is not enabled for this organization',
+                );
+            }
+        }
+
+        if (aiSettingsUpdate.providerApiKeys?.providerBaseUrls !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.OrgAiProviderBaseUrls,
+            });
+            if (!enabled) {
+                throw new ForbiddenError(
+                    'Custom AI provider base URLs are not enabled for this organization',
                 );
             }
         }

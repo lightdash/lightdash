@@ -375,6 +375,12 @@ export enum FeatureFlags {
      * instances whose pods run as their own Google service account.
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
+    /**
+     * Organization-scoped: let org admins route their own AI provider keys
+     * through a custom base URL (an OpenAI/Anthropic/Gemini-compatible
+     * gateway). Off by default; stored URLs are ignored while off.
+     */
+    OrgAiProviderBaseUrls = 'org-ai-provider-base-urls',
 }
 
 export type FeatureFlag = {

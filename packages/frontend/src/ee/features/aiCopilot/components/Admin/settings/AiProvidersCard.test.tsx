@@ -20,6 +20,7 @@ const BEDROCK_MODELS = [
 const renderCard = (props?: {
     onUpdateKeys?: () => void;
     openaiKeySet?: boolean;
+    showProviderBaseUrls?: boolean;
 }) =>
     renderWithProviders(
         <AiProvidersCard
@@ -56,6 +57,7 @@ const renderCard = (props?: {
                 google: null,
                 openai: null,
             }}
+            showProviderBaseUrls={props?.showProviderBaseUrls ?? true}
             disabled={false}
             onUpdateKeys={props?.onUpdateKeys ?? vi.fn()}
             onUpdateVisibility={vi.fn()}
@@ -86,6 +88,13 @@ describe('AiProvidersCard', () => {
             'placeholder',
             'https://ai-gateway.example.com/v1',
         );
+    });
+
+    it('hides the custom base URL input when the org flag is off', () => {
+        renderCard({ openaiKeySet: true, showProviderBaseUrls: false });
+        expect(
+            screen.queryByLabelText('Custom base URL'),
+        ).not.toBeInTheDocument();
     });
 
     it('keeps Save disabled and shows an error for an invalid URL', async () => {

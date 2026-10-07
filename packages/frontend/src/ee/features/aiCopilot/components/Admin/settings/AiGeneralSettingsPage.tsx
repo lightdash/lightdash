@@ -68,6 +68,9 @@ export const AiGeneralSettingsPage = () => {
     const dataAppAnalysisFlag = useServerFeatureFlag(
         FeatureFlags.EnableDataAppAnalysis,
     );
+    const providerBaseUrlsFlag = useServerFeatureFlag(
+        FeatureFlags.OrgAiProviderBaseUrls,
+    );
     const threadRetentionFlag = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -348,6 +351,9 @@ export const AiGeneralSettingsPage = () => {
                                     settings.bedrockModelOptions ?? []
                                 }
                                 providerBaseUrls={settings.providerBaseUrls}
+                                showProviderBaseUrls={
+                                    providerBaseUrlsFlag.data?.enabled === true
+                                }
                                 disabled={isUpdatingSettings}
                                 onUpdateKeys={(providerApiKeys) =>
                                     updateSettings({ providerApiKeys })
