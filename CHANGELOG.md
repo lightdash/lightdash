@@ -1,3 +1,10 @@
+# [2.466.0](https://github.com/lightdash/lightdash/compare/2.465.0...2.466.0) (2026-10-07)
+
+
+### Features
+
+* **learn:** sandbox lessons end in a preview project, not a deploy (CS-327) ([#30453](https://github.com/lightdash/lightdash/issues/30453)) ([fe78321](https://github.com/lightdash/lightdash/commit/fe783216e40145097a6f9d95c0ea30755dbb9cdd))
+
 # [2.465.0](https://github.com/lightdash/lightdash/compare/2.464.0...2.465.0) (2026-10-07)
 
 
