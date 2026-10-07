@@ -1,30 +1,33 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { metricsFixture } from '../utils/adoptionFixtures';
 import { ActivitySparkline } from './ActivitySparkline';
 
-const echarts = vi.fn(() => <div data-testid="echarts" />);
-vi.mock('../../../../components/EChartsReactWrapper', () => ({
-    default: () => echarts(),
-}));
+const weeks = (counts: number[]) =>
+    metricsFixture(1, 0).weeklyActive.map((p, i) => ({
+        ...p,
+        activeUsers: counts[i],
+    }));
 
 describe('ActivitySparkline', () => {
-    it('draws a plain rule, not a chart, when every week is zero', () => {
-        renderWithProviders(
-            <ActivitySparkline points={metricsFixture(1, 0).weeklyActive} />,
+    it('draws a plain rule when every week is zero', () => {
+        const { container } = renderWithProviders(
+            <ActivitySparkline points={weeks(Array(12).fill(0))} />,
         );
         expect(
             screen.getByRole('img', { name: /No activity/ }),
         ).toBeInTheDocument();
-        expect(screen.queryByTestId('echarts')).not.toBeInTheDocument();
+        expect(container.querySelector('line')).not.toBeNull();
+        expect(container.querySelector('polyline')).toBeNull();
     });
-    it('uses the chart when there is activity', () => {
-        const points = metricsFixture(1, 0).weeklyActive.map((p, i) => ({
-            ...p,
-            activeUsers: i,
-        }));
-        renderWithProviders(<ActivitySparkline points={points} />);
-        expect(screen.getByTestId('echarts')).toBeInTheDocument();
+    it('draws a 12-point line inside a fixed box when there is activity', () => {
+        const { container } = renderWithProviders(
+            <ActivitySparkline points={weeks([...Array(11).fill(0), 2])} />,
+        );
+        const svg = screen.getByRole('img', { name: /2 now/ });
+        expect(svg).toHaveAttribute('viewBox', '0 0 110 30');
+        const polyline = container.querySelector('polyline');
+        expect(polyline?.getAttribute('points')?.split(' ')).toHaveLength(12);
     });
 });
