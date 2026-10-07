@@ -106,6 +106,63 @@ describe('getParameterReferences', () => {
         });
     });
 
+    describe('Conditional format references', () => {
+        it.each([
+            ['${ld.parameters.currency=="USD"?"$":"€"}0.00', 'currency'],
+            ['${lightdash.parameters.currency!="USD"?"€":"$"}0.00', 'currency'],
+            [
+                '${ld.parameters.orders.currency=="USD"?"$":"€"}0.00',
+                'orders.currency',
+            ],
+            [
+                '${lightdash.parameters.orders.currency?"$":"€"}0.00',
+                'orders.currency',
+            ],
+        ])('extracts parameters from %s', (format, parameter) => {
+            expect(getParameterReferences('SUM(amount)', format)).toEqual([
+                parameter,
+            ]);
+        });
+
+        it('deduplicates references across SQL and conditional formats', () => {
+            expect(
+                getParameterReferences(
+                    '${ld.parameters.currency}',
+                    '${ld.parameters.currency==lightdash.parameters.preferred?"$":"€"}0.00',
+                ),
+            ).toEqual(['currency', 'preferred']);
+        });
+
+        it('does not scan bare references outside a conditional placeholder', () => {
+            expect(
+                getParameterReferences(
+                    '${ld.parameters.currency=="USD"?"$":"€"} ld.parameters.fake',
+                ),
+            ).toEqual(['currency']);
+        });
+
+        it.each([
+            '${ld.parameters.currency=="USD"?"ld.parameters.caption":"lightdash.parameters.fallback"}',
+            "${ld.parameters.currency=='ld.parameters.caption'?'$':'€'}",
+            '${"lightdash.parameters.caption"==ld.parameters.currency?"$":"€"}',
+            '${ld.parameters.currency=="Why? ld.parameters.caption: \\"USD\\""?"$":"€"}',
+            '${ld.parameters.currency?ld.parameters.caption:lightdash.parameters.fallback}',
+        ])('ignores literal text and output branches in %s', (format) => {
+            expect(getParameterReferences(format)).toEqual(['currency']);
+        });
+
+        it.each([
+            '${ld.parameters.currency=="USD?: ld.parameters.caption"}',
+            '${ld.parameters.orders.currency.extra=="USD"?"$":"€"}',
+            '${ld.parameters.currency-invalid=="USD"?"$":"€"}',
+        ])(
+            'does not extract references from unsupported expressions: %s',
+            (format) => {
+                expect(getParameterReferences(format)).toEqual([]);
+            },
+        );
+    });
+
     describe('Liquid template references', () => {
         it('should extract parameters from {% if %} liquid tags', () => {
             const sql =

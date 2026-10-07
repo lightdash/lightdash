@@ -85,6 +85,86 @@ import {
 
 const compiler = new ExploreCompiler(warehouseClientMock);
 
+describe('conditional parameter formats', () => {
+    const format = '${ld.parameters.currency=="USD"?"$":"€"}0.00';
+    const explore: UncompiledExplore = {
+        ...exploreOneEmptyTable,
+        projectParameters: { currency: { label: 'Currency', default: 'USD' } },
+        tables: {
+            a: {
+                ...exploreOneEmptyTable.tables.a,
+                dimensions: {
+                    amount: {
+                        name: 'amount',
+                        label: 'Amount',
+                        table: 'a',
+                        tableLabel: 'a',
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.NUMBER,
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                        format,
+                    },
+                },
+                metrics: {
+                    total: {
+                        name: 'total',
+                        label: 'Total',
+                        table: 'a',
+                        tableLabel: 'a',
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                        format,
+                    },
+                },
+            },
+        },
+    };
+
+    it.each([
+        format,
+        '${ld.parameters.currency=="USD"?"ld.parameters.caption":"lightdash.parameters.fallback"}0.00',
+    ])(
+        'tracks only parameter reads in format %s on dimensions and metrics',
+        (fieldFormat) => {
+            const { tables } = compiler.compileExplore({
+                ...explore,
+                tables: {
+                    a: {
+                        ...explore.tables.a,
+                        dimensions: {
+                            amount: {
+                                ...explore.tables.a.dimensions.amount,
+                                format: fieldFormat,
+                            },
+                        },
+                        metrics: {
+                            total: {
+                                ...explore.tables.a.metrics.total,
+                                format: fieldFormat,
+                            },
+                        },
+                    },
+                },
+            });
+            expect(tables.a.dimensions.amount.parameterReferences).toEqual([
+                'currency',
+            ]);
+            expect(tables.a.metrics.total.parameterReferences).toEqual([
+                'currency',
+            ]);
+        },
+    );
+
+    it('validates parameters referenced only in conditional formats', () => {
+        expect(() =>
+            compiler.compileExplore({ ...explore, projectParameters: {} }),
+        ).toThrow(/currency/);
+    });
+});
+
 describe('custom model metadata', () => {
     test.each([undefined, {}])(
         'omits absent or empty custom metadata (%j)',
