@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.457.0",
-  "previousVersion": "2.456.0",
-  "releaseDate": "2026-10-07T12:20:49.685Z",
+  "version": "2.457.1",
+  "previousVersion": "2.457.0",
+  "releaseDate": "2026-10-07T13:03:43.698Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261007120000_add_provider_base_urls_to_ai_organization_settings.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_organization_settings"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

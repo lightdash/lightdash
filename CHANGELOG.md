@@ -1,3 +1,10 @@
+## [2.457.1](https://github.com/lightdash/lightdash/compare/2.457.0...2.457.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* detect analytics definition updates when syncing ([#30620](https://github.com/lightdash/lightdash/issues/30620)) ([40ee45d](https://github.com/lightdash/lightdash/commit/40ee45dba6b8b826d666cb949f8e7a72e126e283))
+
 # [2.457.0](https://github.com/lightdash/lightdash/compare/2.456.0...2.457.0) (2026-10-07)
 
 
