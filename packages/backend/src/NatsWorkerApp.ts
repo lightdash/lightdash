@@ -122,6 +122,8 @@ export default class NatsWorkerApp {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
+            // eslint-disable-next-line no-use-before-define -- The background flush runs after model initialization.
+            () => models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,

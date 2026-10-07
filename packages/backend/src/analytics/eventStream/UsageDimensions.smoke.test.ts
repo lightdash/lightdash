@@ -264,6 +264,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 });
                 const run = () =>
                     new UsageEventsCompactor({
+                        featureFlagModel: {
+                            get: async () => ({
+                                id: 'analytics-project',
+                                enabled: true,
+                            }),
+                        },
                         s3Config: storage,
                         prometheusMetrics: null,
                         usageDimensionsModel: new UsageDimensionsModel(db),
@@ -485,6 +491,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 );
                 await expect(
                     new UsageEventsCompactor({
+                        featureFlagModel: {
+                            get: async () => ({
+                                id: 'analytics-project',
+                                enabled: true,
+                            }),
+                        },
                         s3Config: storage,
                         prometheusMetrics: null,
                         usageDimensionsModel: failingModel,

@@ -2771,3 +2771,20 @@ describe('autopilot run limits', () => {
         expect(() => parseConfig()).toThrow(name);
     });
 });
+
+describe('usage capture infrastructure', () => {
+    it.each([undefined, 'false', 'true'])(
+        'does not depend on the removed ENV gate (%s)',
+        (legacy) => {
+            process.env.LIGHTDASH_LICENSE_KEY = 'test-license';
+            if (legacy === undefined) delete process.env.USAGE_EVENTS_ENABLED;
+            else process.env.USAGE_EVENTS_ENABLED = legacy;
+            expect(parseConfig().usageEvents.enabled).toBe(true);
+        },
+    );
+    it('does not create capture infrastructure without a license', () => {
+        delete process.env.LIGHTDASH_LICENSE_KEY;
+        delete process.env.LIGHTDASH_LICENSE_CERTIFICATE;
+        expect(parseConfig().usageEvents.enabled).toBe(false);
+    });
+});

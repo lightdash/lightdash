@@ -1684,6 +1684,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
+                featureFlagModel: context.models.getFeatureFlagModel(),
                 lightdashConfig: context.lightdashConfig,
                 analytics: context.analytics,
                 slackClient: context.clients.getSlackClient(),

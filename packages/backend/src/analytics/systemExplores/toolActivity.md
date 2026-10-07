@@ -25,7 +25,7 @@ error rate divides failures by calls with explicit success/error outcomes and
 returns null when there are none. Latency uses observed call durations, not
 warehouse query duration or external assistant time.
 
-MCP capture uses the existing `USAGE_EVENTS_ENABLED` writer gate, configured
+MCP capture uses the existing organization `analytics-project` flag writer gate, configured
 usage storage, nightly compactor and organization-scoped signed reader. It starts
 after deployment; historical MCP analytics are not automatically imported.
 Missing MCP files produce a typed empty table, so existing installations can

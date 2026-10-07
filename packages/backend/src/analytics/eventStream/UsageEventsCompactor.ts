@@ -1,10 +1,12 @@
-import { getErrorMessage } from '@lightdash/common';
+import { FeatureFlags, getErrorMessage } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash, randomUUID } from 'crypto';
 import { performance } from 'perf_hooks';
+import { z } from 'zod';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import type {
@@ -19,6 +21,7 @@ import {
     UsageDimensionsRefresher,
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
+import { usageProcessingStartDate } from './usageProcessingWindow';
 import {
     UsageUserActivityBuilder,
     type UserActivitySummary,
@@ -156,6 +159,7 @@ export type CompactionRunSummary = {
 export type UsageEventsCompactorArgs = {
     s3Config: Omit<S3Config, 'expirationTime'>;
     prometheusMetrics: PrometheusMetrics | null;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     usageDimensionsModel: Pick<
         UsageDimensionsModel,
         'getOrganizations' | 'getJsonLines'
@@ -180,9 +184,12 @@ export class UsageEventsCompactor extends S3BaseClient {
         'getOrganizations' | 'getJsonLines'
     >;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
         this.bucket = args.s3Config.bucket;
+        this.featureFlagModel = args.featureFlagModel;
         this.s3Config = args.s3Config;
         this.prometheusMetrics = args.prometheusMetrics;
         this.usageDimensionsModel = args.usageDimensionsModel;
@@ -200,10 +207,27 @@ export class UsageEventsCompactor extends S3BaseClient {
                 runId,
                 'pipeline',
                 async () => {
+                    const organizations: {
+                        organization_id: number;
+                        organization_uuid: string;
+                    }[] = [];
+                    for await (const organization of this.usageDimensionsModel.getOrganizations()) {
+                        const { enabled } = await this.featureFlagModel.get({
+                            featureFlagId: FeatureFlags.AnalyticsProject,
+                            user: {
+                                organizationUuid:
+                                    organization.organization_uuid,
+                            },
+                        });
+                        if (enabled) organizations.push(organization);
+                    }
+                    const orgIds = organizations.map(
+                        (organization) => organization.organization_uuid,
+                    );
                     const summary = await this.monitorStage(
                         runId,
                         'compaction',
-                        () => this.compactEvents(now),
+                        () => this.compactEvents(now, orgIds),
                         UsageEventsCompactor.compactionOutcome,
                     );
                     const dimensions = await this.monitorStage(
@@ -212,7 +236,15 @@ export class UsageEventsCompactor extends S3BaseClient {
                         () =>
                             new UsageDimensionsRefresher(
                                 this.s3Config,
-                                this.usageDimensionsModel,
+                                {
+                                    async *getOrganizations() {
+                                        yield* organizations;
+                                    },
+                                    getJsonLines:
+                                        this.usageDimensionsModel.getJsonLines.bind(
+                                            this.usageDimensionsModel,
+                                        ),
+                                },
                                 this.createDuckdbClient(),
                             ).run(),
                         (result) => ({
@@ -232,6 +264,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                         () =>
                             new UsageUserActivityBuilder(this.s3Config).runAll(
                                 now,
+                                orgIds,
                             ),
                         UsageEventsCompactor.usersOutcome,
                     );
@@ -335,11 +368,16 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
     }
 
-    private async compactEvents(now: Date): Promise<CompactionRunSummary> {
+    private async compactEvents(
+        now: Date,
+        orgIds: string[],
+    ): Promise<CompactionRunSummary> {
         const runStart = Date.now();
         const todayUtc = now.toISOString().slice(0, 10);
-        const { keys: rawKeys, bytesByKey } = await this.listRawKeys();
-        let partitions = groupRawKeysIntoPartitions(rawKeys, todayUtc);
+        const { keys: rawKeys, bytesByKey } = await this.listRawKeys(orgIds);
+        let partitions = groupRawKeysIntoPartitions(rawKeys, todayUtc).filter(
+            (partition) => partition.dt >= usageProcessingStartDate(now),
+        );
         const summary: CompactionRunSummary = {
             partitionsDiscovered: partitions.length,
             partitionsCompacted: 0,
@@ -385,21 +423,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     0,
                 );
                 try {
-                    const { sql, compactedKey } = buildCompactionSql({
-                        bucket: this.bucket,
+                    // eslint-disable-next-line no-await-in-loop
+                    const deleted = await this.compactPartition(
                         partition,
                         columns,
-                        storageScheme:
-                            this.s3Config.authMode === 'gcp_oauth'
-                                ? 'gs'
-                                : 's3',
-                    });
-                    // eslint-disable-next-line no-await-in-loop
-                    const duckdbMetrics = await duckdb.runSqlWithMetrics(sql);
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.deleteRawKeys(partition.keys);
+                        duckdb,
+                    );
                     summary.partitionsCompacted += 1;
-                    summary.rawObjectsDeleted += partition.keys.length;
+                    summary.rawObjectsDeleted += deleted;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactedPartitions();
                         this.prometheusMetrics?.observeUsageEventsCompactionPartition(
@@ -409,9 +440,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                         );
                     });
                     Logger.info(
-                        `Usage events compaction: compacted ${partition.keys.length} raw objects (${partitionRawBytes} bytes) from ${partitionLabel} into s3://${this.bucket}/${compactedKey} in ${
-                            Date.now() - partitionStart
-                        }ms (duckdb query ${Math.round(duckdbMetrics.queryMs)}ms)`,
+                        `Usage events compaction: processed ${partitionLabel}; ${deleted} raw objects deleted in ${Date.now() - partitionStart}ms`,
                     );
                 } catch (error) {
                     summary.partitionsFailed += 1;
@@ -462,6 +491,62 @@ export class UsageEventsCompactor extends S3BaseClient {
         return summary;
     }
 
+    private async compactPartition(
+        partition: RawPartition,
+        columns: CompactedStreamColumn[],
+        duckdb: DuckdbWarehouseClient,
+    ): Promise<number> {
+        const prefix = `events/raw/org_id=${partition.orgId}/stream=${partition.stream}/dt=${partition.dt}/`;
+        const checkpoint = `events/compaction/org_id=${partition.orgId}/stream=${partition.stream}/dt=${partition.dt}/pending.json`;
+        let keys: string[];
+        try {
+            const pending = await this.s3!.getObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+            });
+            keys = z
+                .array(z.string().startsWith(prefix).endsWith('.jsonl.gz'))
+                .nonempty()
+                .parse(JSON.parse(await pending.Body!.transformToString()));
+        } catch (error) {
+            if (!UsageEventsCompactor.isMissingObject(error)) throw error;
+            keys = partition.keys;
+            // Persist the exact input set before publishing; cleanup may only partly succeed.
+            await this.s3!.putObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+                Body: JSON.stringify(keys),
+                ContentType: 'application/json',
+            });
+        }
+        const { sql, compactedKey } = buildCompactionSql({
+            bucket: this.bucket,
+            partition: { ...partition, keys },
+            columns,
+            storageScheme: this.s3Config.authMode === 'gcp_oauth' ? 'gs' : 's3',
+        });
+        try {
+            await this.s3!.headObject({
+                Bucket: this.bucket,
+                Key: compactedKey,
+            });
+        } catch (error) {
+            if (!UsageEventsCompactor.isMissingObject(error)) throw error;
+            await duckdb.runSqlWithMetrics(sql);
+        }
+        await this.deleteRawKeys(keys);
+        await this.s3!.deleteObject({ Bucket: this.bucket, Key: checkpoint });
+        // Late arrivals are excluded from the recovered input set and remain for the next run.
+        const published = new Set(keys);
+        return partition.keys.filter((key) => published.has(key)).length;
+    }
+
+    private static isMissingObject(error: unknown): boolean {
+        return z
+            .object({ $metadata: z.object({ httpStatusCode: z.literal(404) }) })
+            .safeParse(error).success;
+    }
+
     private createDuckdbClient(): DuckdbWarehouseClient {
         const runtimeConfig = getDuckdbRuntimeConfig(this.s3Config);
         if (!runtimeConfig) {
@@ -489,7 +574,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         );
     }
 
-    private async listRawKeys(): Promise<{
+    private async listRawKeys(orgIds: string[]): Promise<{
         keys: string[];
         bytesByKey: Map<string, number>;
     }> {
@@ -498,33 +583,38 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
         const keys: string[] = [];
         const bytesByKey = new Map<string, number>();
-        let continuationToken: string | undefined;
-        do {
-            // eslint-disable-next-line no-await-in-loop
-            const response = await this.s3.listObjectsV2({
-                Bucket: this.bucket,
-                Prefix: RAW_KEY_PREFIX,
-                ContinuationToken: continuationToken,
-            });
-            (response.Contents ?? []).forEach((object) => {
-                if (object.Key) {
-                    keys.push(object.Key);
-                    bytesByKey.set(object.Key, object.Size ?? 0);
-                }
-            });
-            continuationToken = response.IsTruncated
-                ? response.NextContinuationToken
-                : undefined;
-        } while (continuationToken);
+        for (const orgId of orgIds) {
+            let continuationToken: string | undefined;
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await this.s3.listObjectsV2({
+                    Bucket: this.bucket,
+                    Prefix: `${RAW_KEY_PREFIX}org_id=${orgId}/`,
+                    ContinuationToken: continuationToken,
+                });
+                (response.Contents ?? []).forEach((object) => {
+                    if (object.Key) {
+                        if (
+                            !object.Key.startsWith(
+                                `${RAW_KEY_PREFIX}org_id=${orgId}/`,
+                            )
+                        )
+                            throw new Error('Unexpected raw usage scope');
+                        keys.push(object.Key);
+                        bytesByKey.set(object.Key, object.Size ?? 0);
+                    }
+                });
+                continuationToken = response.IsTruncated
+                    ? response.NextContinuationToken
+                    : undefined;
+                if (response.IsTruncated && !continuationToken)
+                    throw new Error('Incomplete raw usage listing');
+            } while (continuationToken);
+        }
         return { keys, bytesByKey };
     }
 
-    /**
-     * Deletes raw keys with retries. A raw key that survives after its
-     * parquet part was written would be compacted again into a second part on
-     * the next run (different key set, different part hash), duplicating its
-     * rows — so exhausted retries throw with an explicit cleanup warning.
-     */
+    /** The checkpoint retains the published input set if cleanup needs another run. */
     private async deleteRawKeys(keys: string[]): Promise<void> {
         let pending = keys;
         let lastError = 'unknown error';
@@ -544,7 +634,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
         throw new Error(
             `Failed to delete ${pending.length} raw objects after ${DELETE_MAX_ATTEMPTS} attempts (first: ${pending[0]}, last error: ${lastError}). ` +
-                `The parquet part was already written, so these raw objects must be deleted manually before the next run to avoid duplicated rows in the compacted zone`,
+                `The published input checkpoint is retained so the next run can retry cleanup without republishing rows`,
         );
     }
 

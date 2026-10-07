@@ -37,7 +37,7 @@ Example body for `POST /api/v2/projects/{analyticsProjectUuid}/query/metric-quer
 ## Capture and compatibility
 
 - Capture runs after successful compilation on the normal execution path, only
-  with `USAGE_EVENTS_ENABLED`. Metadata browsing and compile-only requests do
+  with organization `analytics-project` flag. Metadata browsing and compile-only requests do
   not count. Preview projects remain excluded by the existing usage sink.
 - The same server-owned metadata is persisted for background workers. Result
   cache hits and execution errors after compilation count as observed use.

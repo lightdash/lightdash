@@ -3108,9 +3108,8 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
-    const usageEventsEnabled =
-        licenseKey !== null && process.env.USAGE_EVENTS_ENABLED === 'true';
     const usageEventsS3 = parseUsageEventsS3Config();
+    const usageEventsEnabled = licenseKey !== null && usageEventsS3 !== null;
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -3158,9 +3157,6 @@ export const parseConfig = (): LightdashConfig => {
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
-    }
-    if (usageEventsEnabled && !usageEventsS3) {
-        throw new ParseError('Usage events require S3 configuration', {});
     }
     if (natsWorkerEnabled && !natsWorkerUrl) {
         throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});

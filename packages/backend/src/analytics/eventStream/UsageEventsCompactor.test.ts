@@ -31,14 +31,30 @@ vi.mock('../../clients/Aws/gcpOAuth', () => ({
 const s3Mocks = vi.hoisted(() => {
     const listObjectsV2 = vi.fn();
     const deleteObjects = vi.fn();
+    const getObject = vi.fn();
+    const putObject = vi.fn();
+    const headObject = vi.fn();
+    const deleteObject = vi.fn();
     class FakeS3 {
+        getObject = getObject;
+        putObject = putObject;
+        headObject = headObject;
+        deleteObject = deleteObject;
         listObjectsV2 = listObjectsV2;
 
         deleteObjects = deleteObjects;
 
         destroy = vi.fn();
     }
-    return { listObjectsV2, deleteObjects, FakeS3 };
+    return {
+        listObjectsV2,
+        deleteObjects,
+        getObject,
+        putObject,
+        headObject,
+        deleteObject,
+        FakeS3,
+    };
 });
 
 vi.mock('@aws-sdk/client-s3', () => ({
@@ -90,19 +106,35 @@ const createMetricsMock = () => ({
     setUsageEventsRawObjects: vi.fn(),
 });
 
+let listedOrgs = ['org-1'];
+
 type MetricsMock = ReturnType<typeof createMetricsMock>;
 
 const createCompactor = (metrics: MetricsMock) =>
     new UsageEventsCompactor({
+        featureFlagModel: {
+            get: async () => ({ id: 'analytics-project', enabled: true }),
+        },
         s3Config,
         usageDimensionsModel: {
-            async *getOrganizations() {},
+            async *getOrganizations() {
+                for (const [index, id] of listedOrgs.entries())
+                    yield { organization_id: index + 1, organization_uuid: id };
+            },
             async *getJsonLines() {},
         },
         prometheusMetrics: metrics as unknown as PrometheusMetrics,
     });
 
 const mockListedKeys = (keys: string[]) => {
+    listedOrgs = [
+        ...new Set([
+            'org-1',
+            ...keys
+                .map((key) => parseRawKey(key)?.orgId)
+                .filter((id): id is string => !!id),
+        ]),
+    ];
     s3Mocks.listObjectsV2.mockImplementation(async ({ Prefix }) => ({
         Contents: keys
             .filter((key) => key.startsWith(Prefix))
@@ -265,6 +297,29 @@ describe('UsageEventsCompactor.run', () => {
             totalMs: 2,
         });
         s3Mocks.deleteObjects.mockResolvedValue({});
+        s3Mocks.getObject.mockRejectedValue({
+            $metadata: { httpStatusCode: 404 },
+        });
+        s3Mocks.headObject.mockRejectedValue({
+            $metadata: { httpStatusCode: 404 },
+        });
+        s3Mocks.putObject.mockResolvedValue({});
+        s3Mocks.deleteObject.mockResolvedValue({});
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockResolvedValue({
+            refreshed: 0,
+            failed: 0,
+        });
+        vi.spyOn(
+            UsageUserActivityBuilder.prototype,
+            'runAll',
+        ).mockResolvedValue({
+            published: 0,
+            unchanged: 0,
+            skipped: 0,
+            failed: 0,
+            deferred: 0,
+            limitReached: false,
+        });
     });
 
     afterEach(() => {
@@ -313,6 +368,9 @@ describe('UsageEventsCompactor.run', () => {
         const key = rawKey('org-1', 'query_events', '2026-07-01');
         mockListedKeys([key]);
         const compactor = new UsageEventsCompactor({
+            featureFlagModel: {
+                get: async () => ({ id: 'analytics-project', enabled: true }),
+            },
             s3Config: {
                 endpoint: 'https://storage.googleapis.com',
                 bucket: 'events-bucket',
@@ -322,7 +380,13 @@ describe('UsageEventsCompactor.run', () => {
             },
             prometheusMetrics: null,
             usageDimensionsModel: {
-                async *getOrganizations() {},
+                async *getOrganizations() {
+                    for (const [index, id] of listedOrgs.entries())
+                        yield {
+                            organization_id: index + 1,
+                            organization_uuid: id,
+                        };
+                },
                 async *getJsonLines() {},
             },
         });
@@ -396,7 +460,7 @@ describe('UsageEventsCompactor.run', () => {
             metrics.incrementUsageEventsCompactionFailures,
         ).toHaveBeenCalledTimes(1);
         expect(Logger.error).toHaveBeenCalledWith(
-            expect.stringContaining('deleted manually'),
+            expect.stringContaining('checkpoint is retained'),
         );
     });
 
