@@ -9876,7 +9876,8 @@ export class AppGenerateService extends BaseService {
      * endpoints: GET /apps ('exclude' — data apps for the embed config
      * allowlist picker and the CLI) and GET /apps/chart-types ('only' —
      * custom chart types for the CLI). Defaults to excluding chart types:
-     * they are not data apps.
+     * they are not data apps. Filtered per app to what the user can view,
+     * like the dashboard and chart pickers.
      */
     async listAppsForProject(
         user: SessionUser,
@@ -9884,14 +9885,27 @@ export class AppGenerateService extends BaseService {
         dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
         await this.assertDataAppsEnabled(user);
-        const projectContext = await this.getDataAppProjectContext(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('DataApp', projectContext))) {
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        // Coarse gate: roles with no view:DataApp rule at all (plain viewers)
+        // get a 403. Per-app filtering below handles space/creator conditions.
+        if (this.createAuditedAbility(user).cannot('view', 'DataApp')) {
             throw new ForbiddenError('Insufficient permissions');
         }
-        const apps = await this.appModel.listAppsByProject(projectUuid, {
+        const allApps = await this.appModel.listAppsByProject(projectUuid, {
             dataAppVizsFilter,
         });
+        const apps = await this.filterAppsUserCanView(
+            user,
+            organizationUuid,
+            projectUuid,
+            allApps.map((app) => ({
+                ...app,
+                uuid: app.app_id,
+                spaceUuid: app.space_uuid,
+                createdBy: { userUuid: app.created_by_user_uuid },
+            })),
+        );
         return apps.map((app) => ({
             appUuid: app.app_id,
             name: app.name,
