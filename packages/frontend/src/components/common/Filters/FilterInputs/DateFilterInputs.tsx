@@ -400,16 +400,13 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             const currentSettings = rule.settings as
                 | DateFilterSettings
                 | undefined;
-            const isToDate = currentSettings?.toDate === true;
+            const currentUnit = currentSettings?.unitOfTime;
+            const isToDate =
+                currentUnit !== undefined &&
+                unitOfTimeSupportsToDate(currentUnit) &&
+                currentSettings?.toDate === true;
             const isExcludeToday =
                 isToDate && currentSettings?.excludeToday === true;
-            const currentUnit = currentSettings?.unitOfTime;
-            // Unit the bounds apply to; undefined hides the toggles
-            const toDateUnit =
-                currentUnit !== undefined &&
-                unitOfTimeSupportsToDate(currentUnit)
-                    ? currentUnit
-                    : undefined;
             const setCurrentSettings = (
                 unitOfTime: UnitOfTime,
                 bounds: CurrentPeriodBounds,
@@ -430,7 +427,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         w="100%"
                         disabled={disabled}
                         isTimestamp={isTimestamp}
-                        unitOfTime={currentSettings?.unitOfTime}
+                        unitOfTime={currentUnit}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval
                                 ? timeframeToUnitOfTime(field.timeInterval)
@@ -438,42 +435,23 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         }
                         showOptionsInPlural={false}
                         showCompletedOptions={false}
-                        data-autofocus={
-                            !currentSettings?.unitOfTime || undefined
-                        }
+                        showToDateOptions
+                        data-autofocus={!currentUnit || undefined}
                         completed={false}
+                        toDate={isToDate}
                         comboboxProps={{
                             withinPortal: popoverProps?.withinPortal,
                         }}
                         onDropdownOpen={popoverProps?.onOpen}
                         onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
-                            setCurrentSettings(
-                                value.unitOfTime,
-                                unitOfTimeSupportsToDate(value.unitOfTime)
-                                    ? {
-                                          toDate: isToDate,
-                                          excludeToday: isExcludeToday,
-                                      }
-                                    : { toDate: false, excludeToday: false },
-                            )
+                            setCurrentSettings(value.unitOfTime, {
+                                toDate: value.toDate,
+                                excludeToday: value.toDate && isExcludeToday,
+                            })
                         }
                     />
-                    {toDateUnit !== undefined && (
-                        <Checkbox
-                            size="xs"
-                            label={getUiString('filters.currentPeriod.toDate')}
-                            disabled={disabled}
-                            checked={isToDate}
-                            onChange={(e) =>
-                                setCurrentSettings(toDateUnit, {
-                                    toDate: e.currentTarget.checked,
-                                    excludeToday: false,
-                                })
-                            }
-                        />
-                    )}
-                    {toDateUnit !== undefined && isToDate && (
+                    {isToDate && currentUnit !== undefined && (
                         <Checkbox
                             size="xs"
                             label={getUiString(
@@ -482,7 +460,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             disabled={disabled}
                             checked={!isExcludeToday}
                             onChange={(e) =>
-                                setCurrentSettings(toDateUnit, {
+                                setCurrentSettings(currentUnit, {
                                     toDate: true,
                                     excludeToday: !e.currentTarget.checked,
                                 })

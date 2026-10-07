@@ -179,7 +179,6 @@
         "filters.periodToDateSelect.quarters": "კვარტლები დღემდე",
         "filters.periodToDateSelect.months": "თვეები დღემდე",
         "filters.periodToDateSelect.weeks": "კვირები დღემდე",
-        "filters.currentPeriod.toDate": "დღემდე",
         "filters.currentPeriod.includeToday": "დღევანდელი დღის ჩათვლით",
         "filters.currentPeriod.toDateValue": "{unit} დღემდე",
         "filters.currentPeriod.toDateExcludingTodayValue": "{unit} დღემდე, დღევანდელი დღის გარეშე",

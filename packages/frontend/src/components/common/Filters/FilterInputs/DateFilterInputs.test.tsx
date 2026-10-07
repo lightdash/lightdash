@@ -58,35 +58,51 @@ const selectUnit = async (
     await user.click(screen.getByRole('option', { name: label, hidden: true }));
 };
 
+const optionLabels = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('combobox'));
+    return screen
+        .getAllByRole('option', { hidden: true })
+        .map((option) => option.textContent);
+};
+
 describe('DateFilterInputs in the current period bounds', () => {
-    it('shows "To date" but not "Include today" when toDate is off', () => {
+    it('offers a "to date" entry for each unit coarser than a day', async () => {
+        const user = userEvent.setup();
         renderInputs(buildRule({ unitOfTime: UnitOfTime.months }));
 
-        expect(screen.getByLabelText('To date')).not.toBeChecked();
+        expect(await optionLabels(user)).toStrictEqual([
+            'year',
+            'year to date',
+            'quarter',
+            'quarter to date',
+            'month',
+            'month to date',
+            'week',
+            'week to date',
+            'day',
+        ]);
+    });
+
+    it('shows the whole-period unit and no "Include today" when toDate is off', () => {
+        renderInputs(buildRule({ unitOfTime: UnitOfTime.months }));
+
+        expect(screen.getByRole('combobox')).toHaveValue('month');
         expect(screen.queryByLabelText('Include today')).toBeNull();
     });
 
-    it('hides both toggles when no unit is selected yet', () => {
+    it('hides "Include today" when no unit is selected yet', () => {
         renderInputs(buildRule({}));
 
-        expect(screen.queryByLabelText('To date')).toBeNull();
         expect(screen.queryByLabelText('Include today')).toBeNull();
     });
 
-    it('hides both toggles for units of a day or finer', () => {
-        renderInputs(buildRule({ unitOfTime: UnitOfTime.days }));
-
-        expect(screen.queryByLabelText('To date')).toBeNull();
-        expect(screen.queryByLabelText('Include today')).toBeNull();
-    });
-
-    it('turning "To date" on sets toDate', async () => {
+    it('selecting "month to date" sets toDate', async () => {
         const user = userEvent.setup();
         const { lastSettings } = renderInputs(
             buildRule({ unitOfTime: UnitOfTime.months }),
         );
 
-        await user.click(screen.getByLabelText('To date'));
+        await selectUnit(user, 'month to date');
 
         expect(lastSettings()).toStrictEqual({
             unitOfTime: UnitOfTime.months,
@@ -101,7 +117,7 @@ describe('DateFilterInputs in the current period bounds', () => {
             buildRule({ unitOfTime: UnitOfTime.months, toDate: true }),
         );
 
-        expect(screen.getByLabelText('To date')).toBeChecked();
+        expect(screen.getByRole('combobox')).toHaveValue('month to date');
         const includeToday = screen.getByLabelText('Include today');
         expect(includeToday).toBeChecked();
 
@@ -137,7 +153,7 @@ describe('DateFilterInputs in the current period bounds', () => {
         });
     });
 
-    it('turning "To date" off clears both bounds', async () => {
+    it('selecting the whole-period unit clears both bounds', async () => {
         const user = userEvent.setup();
         const { lastSettings } = renderInputs(
             buildRule({
@@ -147,7 +163,7 @@ describe('DateFilterInputs in the current period bounds', () => {
             }),
         );
 
-        await user.click(screen.getByLabelText('To date'));
+        await selectUnit(user, 'month');
 
         expect(lastSettings()).toStrictEqual({
             unitOfTime: UnitOfTime.months,
@@ -155,7 +171,7 @@ describe('DateFilterInputs in the current period bounds', () => {
         });
     });
 
-    it('keeps the bounds when switching to another unit that supports them', async () => {
+    it('keeps excludeToday when switching to another "to date" unit', async () => {
         const user = userEvent.setup();
         const { lastSettings } = renderInputs(
             buildRule({
@@ -165,7 +181,7 @@ describe('DateFilterInputs in the current period bounds', () => {
             }),
         );
 
-        await selectUnit(user, 'year');
+        await selectUnit(user, 'year to date');
 
         expect(lastSettings()).toStrictEqual({
             unitOfTime: UnitOfTime.years,
@@ -175,7 +191,7 @@ describe('DateFilterInputs in the current period bounds', () => {
         });
     });
 
-    it('clears the bounds when switching to a unit of a day or finer', async () => {
+    it('selecting a day clears the bounds', async () => {
         const user = userEvent.setup();
         const { lastSettings } = renderInputs(
             buildRule({
