@@ -97,6 +97,7 @@ const schedulerWorkerFactory = (context: {
 }) =>
     new SchedulerWorker({
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
+        featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
         // SlackClient should initialize before UnfurlService and AiAgentService
@@ -181,6 +182,7 @@ export default class SchedulerApp {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
+            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,

@@ -11,6 +11,7 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
@@ -160,12 +161,13 @@ export class UsageUserActivityBuilder extends S3BaseClient {
     }
 
     /** Discover stored partitions directly; empty organizations require no requests. */
-    async runAll(now = new Date()): Promise<UserActivitySummary> {
+    async runAll(now: Date, orgIds: string[]): Promise<UserActivitySummary> {
         const summary = emptySummary();
         try {
             // eslint-disable-next-line no-restricted-syntax
             for await (const { orgId, stream, date } of this.closedPartitions(
                 now,
+                orgIds,
             )) {
                 if (
                     summary.published + summary.failed >=
@@ -196,48 +198,57 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         }
     }
 
-    private async *closedPartitions(now: Date) {
-        const prefix = 'events/compacted/';
+    private async *closedPartitions(now: Date, orgIds: string[]) {
         const today = now.toISOString().slice(0, 10);
-        let token: string | undefined;
-        let pages = 0;
-        let previousPartition: string | undefined;
-        // General-purpose S3/GCS listings are ordered by key. Keep only the last
-        // partition across pages; never materialize the bucket inventory in JS.
-        do {
-            // eslint-disable-next-line no-await-in-loop
-            const page = await this.s3!.listObjectsV2({
-                Bucket: this.storage.bucket,
-                Prefix: prefix,
-                MaxKeys: 1000,
-                ContinuationToken: token,
-            });
-            for (const { Key: key } of page.Contents ?? []) {
-                if (!key?.startsWith(prefix))
-                    throw new Error('Unexpected user activity source scope');
-                const match =
-                    /^org_id=([^/]+)\/stream=([^/]+)\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
-                        key.slice(prefix.length),
-                    );
-                if (
-                    match &&
-                    match[3] < today &&
-                    analyticsStreams.some((stream) => stream === match[2])
-                ) {
-                    const [, orgId, stream, date] = match;
-                    const partition = `${orgId}/${stream}/${date}`;
-                    if (partition !== previousPartition) {
-                        validateUserActivityRange(orgId, date, date, now);
-                        previousPartition = partition;
-                        yield { orgId, stream: stream as StreamName, date };
+        const start = usageProcessingStartDate(now);
+        for (const orgId of orgIds) {
+            validateUserActivityRange(orgId, start, start, now);
+            for (const stream of analyticsStreams) {
+                const prefix = `events/compacted/org_id=${orgId}/stream=${stream}/`;
+                let token: string | undefined;
+                let pages = 0;
+                let previousDate: string | undefined;
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    const page = await this.s3!.listObjectsV2({
+                        Bucket: this.storage.bucket,
+                        Prefix: prefix,
+                        StartAfter: `${prefix}dt=${start}/`,
+                        MaxKeys: 1000,
+                        ContinuationToken: token,
+                    });
+                    for (const { Key: key } of page.Contents ?? []) {
+                        if (!key?.startsWith(prefix))
+                            throw new Error(
+                                'Unexpected user activity source scope',
+                            );
+                        const match =
+                            /^dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
+                                key.slice(prefix.length),
+                            );
+                        if (
+                            match &&
+                            match[1] >= start &&
+                            match[1] < today &&
+                            match[1] !== previousDate
+                        ) {
+                            const date = match[1];
+                            validateUserActivityRange(orgId, date, date, now);
+                            previousDate = date;
+                            yield { orgId, stream, date };
+                        }
                     }
-                }
+                    pages += 1;
+                    token = page.IsTruncated
+                        ? page.NextContinuationToken
+                        : undefined;
+                    if (page.IsTruncated && (!token || pages >= 10_000))
+                        throw new Error(
+                            'Incomplete user activity partition listing',
+                        );
+                } while (token);
             }
-            pages += 1;
-            token = page.IsTruncated ? page.NextContinuationToken : undefined;
-            if (page.IsTruncated && (!token || pages >= 10_000))
-                throw new Error('Incomplete user activity partition listing');
-        } while (token);
+        }
     }
 
     private async refresh(

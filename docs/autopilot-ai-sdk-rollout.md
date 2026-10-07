@@ -62,7 +62,7 @@ export PGCONNECTIONURI="postgresql://$USER@127.0.0.1:5432/$PGDATABASE"
 export DBT_DEMO_DIR="$PWD/packages/backend/src/ee/services/ManagedAgentService/content-eval"
 export DBT_PROJECT_DIR="$DBT_DEMO_DIR/dbt" DBT_PROFILES_DIR="$DBT_DEMO_DIR/profiles"
 export DBT_PROFILE=autopilot_eval DBT_TARGET=dev
-export NATS_ENABLED=false SCHEDULER_ENABLED=false USAGE_EVENTS_ENABLED=false RUDDERSTACK_ANALYTICS_DISABLED=true
+export NATS_ENABLED=false SCHEDULER_ENABLED=false LIGHTDASH_DISABLE_FEATURE_FLAGS=analytics-project RUDDERSTACK_ANALYTICS_DISABLED=true
 export LIGHTDASH_ENABLE_FEATURE_FLAGS=ai-autopilot
 createdb && pnpm -F backend migrate
 dbt run --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" --profile autopilot_eval

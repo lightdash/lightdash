@@ -68,25 +68,53 @@ describe('user activity safeguards', () => {
         ).toEqual(['2025-12-31', '2026-01-01', '2026-01-02']);
     });
 
-    it('reports unvisited partitions when the work limit is reached', async () => {
+    it('keeps the 500 changed-partition cap across eligible organizations', async () => {
+        const orgIds = Array.from(
+            { length: 80 },
+            (_, index) =>
+                `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`,
+        );
         vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
             async (input) => {
-                if (input.Prefix === 'events/compacted/')
+                if (input.Prefix?.endsWith('/stream=query_events/'))
                     return {
-                        Contents: Array.from({ length: 501 }, (_, index) => ({
-                            Key: `events/compacted/org_id=${org}/stream=query_events/dt=${new Date(Date.UTC(2023, 0, index + 1)).toISOString().slice(0, 10)}/part.parquet`,
+                        Contents: Array.from({ length: 7 }, (_, index) => ({
+                            Key: `${input.Prefix}dt=2026-01-${25 + index}/part.parquet`,
                         })),
-                    };
-                throw new Error('storage unavailable');
+                    } as never;
+                if (input.Prefix?.includes('/dt='))
+                    throw new Error('synthetic partition failure');
+                return { Contents: [] } as never;
             },
         );
         const summary = await new UsageUserActivityBuilder(storage, {
             runSqlWithMetrics: vi.fn(),
-        }).runAll(now);
+        }).runAll(now, orgIds);
         expect(summary).toMatchObject({ failed: 500, limitReached: true });
     });
 
-    it('uses one inventory request for an empty deployment, without per-organization probes', async () => {
+    it('ignores history older than seven closed UTC days', async () => {
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
+            async (input) =>
+                ({
+                    Contents: input.Prefix?.endsWith('stream=query_events/')
+                        ? [
+                              {
+                                  Key: `events/compacted/org_id=${org}/stream=query_events/dt=2026-01-24/part.parquet`,
+                              },
+                          ]
+                        : [],
+                }) as never,
+        );
+        const runSqlWithMetrics = vi.fn();
+        const summary = await new UsageUserActivityBuilder(storage, {
+            runSqlWithMetrics,
+        }).runAll(now, [org]);
+        expect(summary).toMatchObject({ published: 0, failed: 0 });
+        expect(runSqlWithMetrics).not.toHaveBeenCalled();
+    });
+
+    it('does not list storage when no organizations are eligible', async () => {
         const list = vi
             .spyOn(S3.prototype, 'listObjectsV2')
             .mockResolvedValue({ Contents: [] } as never);
@@ -94,20 +122,15 @@ describe('user activity safeguards', () => {
         expect(
             await new UsageUserActivityBuilder(storage, {
                 runSqlWithMetrics,
-            }).runAll(now),
+            }).runAll(now, []),
         ).toMatchObject({ published: 0, failed: 0 });
-        expect(list).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({
-                Prefix: 'events/compacted/',
-                MaxKeys: 1000,
-            }),
-        );
+        expect(list).not.toHaveBeenCalled();
         expect(runSqlWithMetrics).not.toHaveBeenCalled();
     });
 
     it('streams inventory pages and processes each closed event partition once across page boundaries', async () => {
         const prefix = `events/compacted/org_id=${org}/`;
-        const partition = `${prefix}stream=query_events/dt=2026-01-01/`;
+        const partition = `${prefix}stream=query_events/dt=2026-01-25/`;
         const list = vi
             .spyOn(S3.prototype, 'listObjectsV2')
             .mockImplementation(
@@ -115,17 +138,11 @@ describe('user activity safeguards', () => {
                     Prefix?: string;
                     ContinuationToken?: string;
                 }) => {
-                    if (input.Prefix !== 'events/compacted/')
+                    if (input.Prefix !== `${prefix}stream=query_events/`)
                         return { Contents: [] } as never;
                     if (!input.ContinuationToken)
                         return {
-                            Contents: [
-                                { Key: `${prefix}dim=users/users.parquet` },
-                                {
-                                    Key: `${prefix}model=user_activity/stream=query_events/dt=2026-01-01/activity.parquet`,
-                                },
-                                { Key: `${partition}a.parquet` },
-                            ],
+                            Contents: [{ Key: `${partition}a.parquet` }],
                             IsTruncated: true,
                             NextContinuationToken: 'page2',
                         } as never;
@@ -133,13 +150,10 @@ describe('user activity safeguards', () => {
                         Contents: [
                             { Key: `${partition}b.parquet` },
                             {
-                                Key: `${prefix}stream=query_events/dt=2026-01-02/a.parquet`,
+                                Key: `${prefix}stream=query_events/dt=2026-01-26/a.parquet`,
                             },
                             {
                                 Key: `${prefix}stream=query_events/dt=2026-02-01/a.parquet`,
-                            },
-                            {
-                                Key: `${prefix}stream=unknown/dt=2026-01-01/a.parquet`,
                             },
                         ],
                     } as never;
@@ -147,10 +161,10 @@ describe('user activity safeguards', () => {
             );
         const summary = await new UsageUserActivityBuilder(storage, {
             runSqlWithMetrics: vi.fn(),
-        }).runAll(now);
+        }).runAll(now, [org]);
         expect(summary).toMatchObject({ skipped: 2, failed: 0 });
         // Two inventory pages plus raw/source checks for only two eligible partitions.
-        expect(list).toHaveBeenCalledTimes(6);
+        expect(list).toHaveBeenCalledTimes(12);
     });
 
     it.each([
@@ -163,7 +177,7 @@ describe('user activity safeguards', () => {
         await expect(
             new UsageUserActivityBuilder(storage, {
                 runSqlWithMetrics: vi.fn(),
-            }).runAll(now),
+            }).runAll(now, [org]),
         ).rejects.toThrow();
         expect(upload).not.toHaveBeenCalled();
     });

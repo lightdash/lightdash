@@ -18,7 +18,7 @@ needed. Existing authorization, legacy view counters and RudderStack payloads
 remain unchanged. Names, creation dates, project and space metadata come from the
 existing content queries; there is no extra database round trip. The added optional
 response metadata fields are backward-compatible. Capture still requires
-`USAGE_EVENTS_ENABLED` and configured usage storage. Projection/writer failures
+organization `analytics-project` flag and configured usage storage. Projection/writer failures
 are best-effort and do not prevent the content response.
 
 Each captured backend event has a generated UUID; redelivery of that event can be
