@@ -31,6 +31,11 @@ export const filterDeprecatedModelsForPicker = (
         (model) => !model.deprecated || getModelKey(model) === selectedModelKey,
     );
 
+export type ModelReplacement = {
+    model: AiModelOption;
+    modelConfig: AiAgentModelConfig;
+};
+
 export const getSupersedingModel = (
     models: AiModelOption[],
     model: AiModelOption,

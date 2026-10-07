@@ -2,7 +2,7 @@ import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../../components/common/Callout';
-import type { ModelReplacement } from '../hooks/useAiAgentModelSelection';
+import type { ModelReplacement } from '../../../../components/common/ModelSelector/utils';
 
 type Props = {
     model: AiModelOption;
@@ -36,8 +36,8 @@ export const DeprecatedModelNotice: FC<Props> = ({
             </Stack>
         ) : (
             <Text fz="xs">
-                No replacement is available on this instance, so new chats still
-                run on it. Pick another model to move off it.
+                No replacement is offered to your organization, so new chats
+                still run on it. Pick another model to move off it.
             </Text>
         )}
     </Callout>

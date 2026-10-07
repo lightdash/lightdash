@@ -7,6 +7,7 @@ import {
     getSupersedingModel,
     matchesModelConfig,
     resolveModelForNewChat,
+    type ModelReplacement,
 } from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useModelOptions } from './useModelOptions';
@@ -71,22 +72,20 @@ const getDefaultModelSelection = (
     };
 };
 
+const toAiAgentModelConfig = (
+    model: AiModelOption,
+    extendedThinking: boolean,
+): AiAgentModelConfig => ({
+    modelName: model.name,
+    modelProvider: model.provider,
+    reasoning: model.supportsReasoning ? extendedThinking : undefined,
+});
+
 export const getAiAgentModelConfig = (
     model: AiModelOption | undefined,
     extendedThinking: boolean,
 ): AiAgentModelConfig | undefined =>
-    model
-        ? {
-              modelName: model.name,
-              modelProvider: model.provider,
-              reasoning: model.supportsReasoning ? extendedThinking : undefined,
-          }
-        : undefined;
-
-export type ModelReplacement = {
-    model: AiModelOption;
-    modelConfig: AiAgentModelConfig;
-};
+    model ? toAiAgentModelConfig(model, extendedThinking) : undefined;
 
 type UseDefaultAiAgentModelProps = {
     modelOptions: AiModelOption[] | undefined;
@@ -118,13 +117,14 @@ export const useDefaultAiAgentModel = ({
         const model = selectedModel
             ? getSupersedingModel(modelOptions ?? [], selectedModel)
             : null;
-        if (!model) return null;
-        const replacementConfig = getAiAgentModelConfig(
-            model,
-            modelConfig?.reasoning ?? false,
-        );
-        return replacementConfig
-            ? { model, modelConfig: replacementConfig }
+        return model
+            ? {
+                  model,
+                  modelConfig: toAiAgentModelConfig(
+                      model,
+                      modelConfig?.reasoning ?? false,
+                  ),
+              }
             : null;
     }, [modelConfig?.reasoning, modelOptions, selectedModel]);
     const fallbackModel = useMemo(
