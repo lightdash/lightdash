@@ -1,3 +1,10 @@
+## [2.460.1](https://github.com/lightdash/lightdash/compare/2.460.0...2.460.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* preserve and download captured compilation logs ([#30645](https://github.com/lightdash/lightdash/issues/30645)) ([120e99f](https://github.com/lightdash/lightdash/commit/120e99f1dac36658716b7faf7e130cc2eae1e243))
+
 # [2.460.0](https://github.com/lightdash/lightdash/compare/2.459.0...2.460.0) (2026-10-07)
 
 
