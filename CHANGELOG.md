@@ -1,3 +1,10 @@
+## [2.455.3](https://github.com/lightdash/lightdash/compare/2.455.2...2.455.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* keep custom metrics linked to source dimensions ([#30606](https://github.com/lightdash/lightdash/issues/30606)) ([c324383](https://github.com/lightdash/lightdash/commit/c32438328abbdbd0ae2b8baa6fc04baa796e6222))
+
 ## [2.455.2](https://github.com/lightdash/lightdash/compare/2.455.1...2.455.2) (2026-10-07)
 
 
