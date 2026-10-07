@@ -7,6 +7,8 @@ import {
     formatLastActive,
     formatMemberSource,
     formatTargetProgress,
+    getActiveCaption,
+    getCoverageCaption,
     getWeeklyChartLabel,
     sortMembers,
 } from './departmentDetail';
@@ -16,13 +18,14 @@ const NOW = new Date('2026-10-07T12:00:00Z');
 const members = [
     memberFixture('never', null),
     memberFixture('stale', '2026-08-01T00:00:00Z'),
-    memberFixture('edge', '2026-09-07T12:00:00Z'), // exactly 30 days ago
+    memberFixture('edge', '2026-09-07T23:00:00Z'), // 30 UTC days ago
+    memberFixture('over', '2026-09-06T23:59:00Z'), // 31 UTC days ago
     memberFixture('recent', '2026-10-06T00:00:00Z'),
 ];
 
 describe('filterMembers', () => {
     it('returns everyone for all', () => {
-        expect(filterMembers(members, 'all', NOW)).toHaveLength(4);
+        expect(filterMembers(members, 'all', NOW)).toHaveLength(5);
     });
     it('never active means no recorded activity at all', () => {
         expect(
@@ -32,29 +35,36 @@ describe('filterMembers', () => {
     it('inactive 30d means active once but not in the last 30 days', () => {
         expect(
             filterMembers(members, 'inactive30d', NOW).map((m) => m.userUuid),
-        ).toEqual(['stale']);
+        ).toEqual(['stale', 'over']);
     });
     it('counts each filter', () => {
         expect(countMembersByFilter(members, NOW)).toEqual({
-            all: 4,
+            all: 5,
             neverActive: 1,
-            inactive30d: 1,
+            inactive30d: 2,
         });
     });
 });
 
 describe('sortMembers', () => {
     it('puts never active first, then the least recently active', () => {
-        const shuffled = [members[3], members[1], members[0], members[2]];
+        const shuffled = [
+            members[4],
+            members[1],
+            members[0],
+            members[3],
+            members[2],
+        ];
         expect(sortMembers(shuffled).map((m) => m.userUuid)).toEqual([
             'never',
             'stale',
+            'over',
             'edge',
             'recent',
         ]);
     });
     it('does not change the input', () => {
-        const input = [members[3], members[0]];
+        const input = [members[4], members[0]];
         sortMembers(input);
         expect(input[0].userUuid).toBe('recent');
     });
@@ -63,12 +73,21 @@ describe('sortMembers', () => {
 describe('formatLastActive', () => {
     it.each([
         [null, 'Never'],
+        ['2026-10-07T00:00:00Z', 'Today'],
         ['2026-10-07T08:00:00Z', 'Today'],
-        ['2026-10-06T08:00:00Z', 'Yesterday'],
+        ['2026-10-06T23:59:00Z', 'Yesterday'],
         ['2026-10-02T08:00:00Z', '5 days ago'],
+        ['2026-09-07T23:00:00Z', '30 days ago'],
+        ['2026-09-06T23:59:00Z', '6 Sep 2026'],
         ['2026-08-01T00:00:00Z', '1 Aug 2026'],
     ])('formats %s as %s', (value, expected) => {
         expect(formatLastActive(value, NOW)).toBe(expected);
+    });
+    it('counts days by UTC calendar day, not elapsed hours', () => {
+        const justAfterMidnight = new Date('2026-10-07T00:01:00Z');
+        expect(
+            formatLastActive('2026-10-06T23:59:00Z', justAfterMidnight),
+        ).toBe('Yesterday');
     });
 });
 
@@ -175,5 +194,48 @@ describe('countWithoutAccount', () => {
         expect(countWithoutAccount(10, 4)).toBe(6);
         expect(countWithoutAccount(3, 5)).toBe(0);
         expect(countWithoutAccount(null, 5)).toBe(0);
+    });
+});
+
+describe('getCoverageCaption', () => {
+    it('counts against the headcount, the same base as the percentage', () => {
+        expect(getCoverageCaption(40, 3)).toBe(
+            '3 of 40 people have an account',
+        );
+        expect(getCoverageCaption(40, 0)).toBe(
+            '0 of 40 people have an account',
+        );
+    });
+    it('prompts without a headcount', () => {
+        expect(getCoverageCaption(null, 3)).toBe(
+            'Add a headcount to see a percentage',
+        );
+    });
+    it('says so when accounts outnumber the headcount', () => {
+        expect(getCoverageCaption(3, 5)).toBe(
+            '5 accounts, more than the headcount of 3',
+        );
+    });
+});
+
+describe('getActiveCaption', () => {
+    it('leads with the headcount base and adds the account base separately', () => {
+        expect(getActiveCaption(40, 2, 3)).toBe(
+            '2 of 40 people were active · 2 of the 3 with an account',
+        );
+    });
+    it('uses the account base only without a headcount', () => {
+        expect(getActiveCaption(null, 2, 3)).toBe(
+            '2 of the 3 with an account were active',
+        );
+    });
+    it('handles zero members', () => {
+        expect(getActiveCaption(40, 0, 0)).toBe('0 of 40 people were active');
+        expect(getActiveCaption(null, 0, 0)).toBe('No one has an account yet');
+    });
+    it('handles more accounts or activity than headcount', () => {
+        expect(getActiveCaption(3, 5, 5)).toBe(
+            '5 people active, more than the headcount of 3 · 5 of the 5 with an account',
+        );
     });
 });

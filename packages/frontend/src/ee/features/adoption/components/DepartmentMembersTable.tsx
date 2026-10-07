@@ -78,6 +78,15 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
+                    {visible.length === 0 && (
+                        <Table.Tr>
+                            <Table.Td colSpan={6}>
+                                <Text fz="sm" c="dimmed" ta="center">
+                                    Nobody matches this filter
+                                </Text>
+                            </Table.Td>
+                        </Table.Tr>
+                    )}
                     {visible.map((member) => (
                         <Table.Tr key={member.userUuid}>
                             <Table.Td>
