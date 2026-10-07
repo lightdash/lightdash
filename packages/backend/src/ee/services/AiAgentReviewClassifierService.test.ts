@@ -338,7 +338,7 @@ describe('AiAgentReviewClassifierService', () => {
                 bedrock: null,
             },
             bedrockConfig: null,
-            openaiBaseUrl: null,
+            providerBaseUrls: { anthropic: null, google: null, openai: null },
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -541,7 +541,11 @@ describe('AiAgentReviewClassifierService', () => {
                     bedrock: null,
                 },
                 bedrockConfig: null,
-                openaiBaseUrl: null,
+                providerBaseUrls: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
             },
         );
 

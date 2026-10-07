@@ -47,7 +47,11 @@ const renderCard = (props?: { onUpdateKeys?: () => void }) =>
             dataAppModelVisibility={null}
             showDataAppModels={false}
             bedrockModelOptions={BEDROCK_MODELS}
-            openaiBaseUrl={null}
+            providerBaseUrls={{
+                anthropic: null,
+                google: null,
+                openai: null,
+            }}
             disabled={false}
             onUpdateKeys={props?.onUpdateKeys ?? vi.fn()}
             onUpdateVisibility={vi.fn()}

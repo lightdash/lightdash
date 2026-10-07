@@ -40,7 +40,7 @@ const settingsWithKeys: AiOrganizationSettings = {
         bedrock: null,
     },
     bedrockConfig: null,
-    openaiBaseUrl: null,
+    providerBaseUrls: { anthropic: null, google: null, openai: null },
 };
 
 describe('validateDeepResearchLimits', () => {

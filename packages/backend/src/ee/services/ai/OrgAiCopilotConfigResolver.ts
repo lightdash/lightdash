@@ -2,6 +2,7 @@ import {
     BYO_AI_PROVIDERS,
     MissingConfigError,
     type AiOrgModelVisibility,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
     type DataAppModelVisibility,
 } from '@lightdash/common';
@@ -45,15 +46,36 @@ export type ReviewJudgeAvailability = {
     byoJudgeProvider: 'anthropic' | 'bedrock' | null;
 };
 
+// An org key must not be sent to the INSTANCE gateway, whose credential may
+// authenticate an arbitrary endpoint. An org-chosen gateway replaces it, so
+// there is no conflict once the org supplies its own base URL.
 const hasAnthropicByoGatewayConflict = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
-): boolean => Boolean(orgKeys.anthropic && config.providers.anthropic?.baseUrl);
+): boolean =>
+    Boolean(
+        orgKeys.anthropic &&
+        config.providers.anthropic?.baseUrl &&
+        !orgKeys.providerBaseUrls?.anthropic,
+    );
 
 const hasGoogleByoGatewayConflict = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
-): boolean => Boolean(orgKeys.google && config.providers.google?.baseUrl);
+): boolean =>
+    Boolean(
+        orgKeys.google &&
+        config.providers.google?.baseUrl &&
+        !orgKeys.providerBaseUrls?.google,
+    );
+
+const orgBaseUrlOverride = (
+    orgKeys: AiOrgProviderApiKeys,
+    provider: ByoAiApiKeyProvider,
+): { baseUrl: string } | Record<string, never> => {
+    const baseUrl = orgKeys.providerBaseUrls?.[provider];
+    return baseUrl ? { baseUrl } : {};
+};
 
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
@@ -137,6 +159,7 @@ export const overlayOrgProviderApiKeys = (
         providers.anthropic = {
             ...providers.anthropic,
             apiKey: orgKeys.anthropic,
+            ...orgBaseUrlOverride(orgKeys, 'anthropic'),
         };
     }
 
@@ -149,6 +172,7 @@ export const overlayOrgProviderApiKeys = (
         providers.google = {
             ...providers.google,
             apiKey: orgKeys.google,
+            ...orgBaseUrlOverride(orgKeys, 'google'),
         };
     }
 
@@ -156,9 +180,7 @@ export const overlayOrgProviderApiKeys = (
         providers.openai = {
             ...providers.openai,
             apiKey: orgKeys.openai,
-            ...(orgKeys.openaiBaseUrl
-                ? { baseUrl: orgKeys.openaiBaseUrl }
-                : {}),
+            ...orgBaseUrlOverride(orgKeys, 'openai'),
         };
     }
 
@@ -422,6 +444,7 @@ export class OrgAiCopilotConfigResolver {
                       : await this.aiModelCatalog.getAccessibleModelIds(
                             'anthropic',
                             orgKeys.anthropic,
+                            orgBaseUrlOverride(orgKeys, 'anthropic'),
                         ),
               }
             : null;
@@ -603,6 +626,7 @@ export class OrgAiCopilotConfigResolver {
         const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
             'anthropic',
             orgKeys.anthropic,
+            orgBaseUrlOverride(orgKeys, 'anthropic'),
         );
         const canJudgeOnByoKey = modelIds
             ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)

@@ -181,10 +181,10 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
-    it('routes the org OpenAI key through the org gateway URL', () => {
+    it('routes the org key through the org gateway URL', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             openai: 'org-openai-key',
-            openaiBaseUrl: 'https://litellm.example.com',
+            providerBaseUrls: { openai: 'https://litellm.example.com' },
         });
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
         expect(result.providers.openai?.baseUrl).toBe(
@@ -209,6 +209,17 @@ describe('overlayOrgProviderApiKeys', () => {
                 anthropic: 'org-anthropic-key',
             }),
         ).toThrow('Organization Anthropic API keys cannot be used');
+    });
+
+    it('replaces the instance Anthropic gateway with an org gateway instead of rejecting the key', () => {
+        const result = overlayOrgProviderApiKeys(anthropicGatewayConfig, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.apiKey).toBe('org-anthropic-key');
+        expect(result.providers.anthropic?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
     });
 
     it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {

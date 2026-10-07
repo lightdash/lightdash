@@ -521,11 +521,19 @@ export type UpdateAiProviderApiKeys = {
     anthropic?: string | null;
     google?: string | null;
     openai?: string | null;
-    // OpenAI-compatible gateway (e.g. LiteLLM) the org's OpenAI key is sent to.
-    // Requires a stored OpenAI key; null clears it.
-    openaiBaseUrl?: string | null;
     bedrock?: UpdateOrgBedrockConfig | null;
+    providerBaseUrls?: UpdateAiProviderBaseUrls;
 };
+
+// Gateway (e.g. LiteLLM) a provider's org key is sent to instead of the
+// provider's public API. Each requires a stored key; null clears it.
+export type UpdateAiProviderBaseUrls = {
+    anthropic?: string | null;
+    google?: string | null;
+    openai?: string | null;
+};
+
+export type AiProviderBaseUrls = Record<ByoAiApiKeyProvider, string | null>;
 
 export type AiOrgProviderModelVisibility = {
     enabled: boolean;
@@ -566,7 +574,7 @@ export type AiOrganizationSettings = {
     providerApiKeyHints: AiProviderApiKeyHints;
     // Region and allowed models for a stored Bedrock config; never the API key.
     bedrockConfig: OrgBedrockConfig | null;
-    openaiBaseUrl: string | null;
+    providerBaseUrls: AiProviderBaseUrls;
     threadRetentionHours?: number | null;
 };
 
@@ -576,7 +584,7 @@ export type CreateAiOrganizationSettings = Omit<
     | 'providerApiKeyHints'
     | 'aiAgentMemoryEnabled'
     | 'bedrockConfig'
-    | 'openaiBaseUrl'
+    | 'providerBaseUrls'
 > & {
     providerApiKeys?: UpdateAiProviderApiKeys;
 };

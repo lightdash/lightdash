@@ -3,6 +3,7 @@ import type {
     AiOrgModelVisibility,
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
+    AiProviderBaseUrls,
     ByoAiApiKeyProvider,
     ByoAiProvider,
     DataAppModelVisibility,
@@ -79,11 +80,9 @@ type ProviderRowProps = {
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
-    // OpenAI-compatible gateway (e.g. LiteLLM) the org's key is sent to.
-    gateway: {
-        baseUrl: string | null;
-        onSave: (baseUrl: string | null) => void;
-    } | null;
+    // Gateway (e.g. LiteLLM) the org's key is sent to instead of the public API.
+    gatewayBaseUrl: string | null;
+    onSaveGatewayBaseUrl: (baseUrl: string | null) => void;
 };
 
 const GatewayUrlInput: FC<{
@@ -98,7 +97,7 @@ const GatewayUrlInput: FC<{
                 flex={1}
                 size="xs"
                 label="Gateway base URL"
-                description="Optional. An OpenAI-compatible endpoint such as LiteLLM. Model names are sent as-is, so alias them in the gateway."
+                description="Optional. A gateway such as LiteLLM that speaks this provider's API. Model names are sent as-is, so alias them in the gateway."
                 placeholder="https://litellm.example.com"
                 value={value}
                 disabled={disabled}
@@ -148,7 +147,8 @@ const ProviderRow: FC<ProviderRowProps> = ({
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
-    gateway,
+    gatewayBaseUrl,
+    onSaveGatewayBaseUrl,
 }) => {
     const { label, icon: Icon, placeholder } = PROVIDER_META[provider];
     const [value, setValue] = useState('');
@@ -229,11 +229,12 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 )}
             </Group>
 
-            {isSet && gateway && (
+            {isSet && (
                 <GatewayUrlInput
-                    baseUrl={gateway.baseUrl}
+                    key={gatewayBaseUrl ?? ''}
+                    baseUrl={gatewayBaseUrl}
                     disabled={disabled}
-                    onSave={gateway.onSave}
+                    onSave={onSaveGatewayBaseUrl}
                 />
             )}
 
@@ -298,7 +299,7 @@ type AiProvidersCardProps = {
     dataAppModelVisibility: DataAppModelVisibility | null;
     showDataAppModels: boolean;
     bedrockModelOptions: AiModelOption[];
-    openaiBaseUrl: string | null;
+    providerBaseUrls: AiProviderBaseUrls;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
@@ -313,7 +314,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     dataAppModelVisibility,
     showDataAppModels,
     bedrockModelOptions,
-    openaiBaseUrl,
+    providerBaseUrls,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
@@ -428,16 +429,11 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                     [provider]: value,
                                 })
                             }
-                            gateway={
-                                provider === 'openai'
-                                    ? {
-                                          baseUrl: openaiBaseUrl,
-                                          onSave: (baseUrl) =>
-                                              onUpdateKeys({
-                                                  openaiBaseUrl: baseUrl,
-                                              }),
-                                      }
-                                    : null
+                            gatewayBaseUrl={providerBaseUrls[provider]}
+                            onSaveGatewayBaseUrl={(baseUrl) =>
+                                onUpdateKeys({
+                                    providerBaseUrls: { [provider]: baseUrl },
+                                })
                             }
                         />
                     </Stack>

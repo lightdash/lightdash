@@ -3,6 +3,7 @@ import {
     AiOrganizationSettings,
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
+    AiProviderBaseUrls,
     BYO_AI_API_KEY_PROVIDERS,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
@@ -11,6 +12,7 @@ import {
     ParameterError,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -38,8 +40,6 @@ const storedAiOrgProviderApiKeyFields = {
     anthropic: z.string().optional(),
     google: z.string().optional(),
     openai: z.string().optional(),
-    // OpenAI-compatible gateway the org's OpenAI key is sent to; key required.
-    openaiBaseUrl: z.string().optional(),
     // Bedrock needs a region alongside the key to address an inference profile.
     bedrock: z
         .object({
@@ -48,13 +48,21 @@ const storedAiOrgProviderApiKeyFields = {
             allowedModels: z.array(z.string()).min(1),
         })
         .optional(),
-} satisfies Record<ByoAiProvider | 'openaiBaseUrl', z.ZodTypeAny>;
+} satisfies Record<ByoAiProvider, z.ZodTypeAny>;
 
 // Keep known provider keys strongly typed and exhaustive, but strip unknown
 // future-provider keys so mixed-version deploys do not invalidate the whole blob.
-const storedAiOrgProviderApiKeysSchema = z.object(
-    storedAiOrgProviderApiKeyFields,
-);
+const storedAiOrgProviderApiKeysSchema = z.object({
+    ...storedAiOrgProviderApiKeyFields,
+    // Gateway each org key is sent to; only meaningful alongside that key.
+    providerBaseUrls: z
+        .object({
+            anthropic: z.string().optional(),
+            google: z.string().optional(),
+            openai: z.string().optional(),
+        } satisfies Record<ByoAiApiKeyProvider, z.ZodTypeAny>)
+        .optional(),
+});
 
 export type AiOrgProviderApiKeys = z.infer<
     typeof storedAiOrgProviderApiKeysSchema
@@ -101,26 +109,27 @@ export const applyProviderApiKeyUpdates = (
         }
         next[provider] = trimmed;
     });
-    if (!next.openai) delete next.openaiBaseUrl;
 
-    const { openaiBaseUrl } = updates;
-    if (openaiBaseUrl !== undefined) {
-        if (openaiBaseUrl === null) {
-            delete next.openaiBaseUrl;
-        } else {
-            if (!next.openai) {
-                throw new ParameterError(
-                    'Set an OpenAI API key before an OpenAI gateway URL',
-                );
-            }
-            const normalized = parseLlmGatewayBaseUrl(openaiBaseUrl);
-            if (normalized === null) {
-                throw new ParameterError(
-                    'OpenAI gateway URL must be an HTTP(S) base URL without credentials, query parameters, or a fragment',
-                );
-            }
-            next.openaiBaseUrl = normalized;
+    const baseUrls = { ...(next.providerBaseUrls ?? {}) };
+    BYO_AI_API_KEY_PROVIDERS.forEach((provider) => {
+        const update = updates.providerBaseUrls?.[provider];
+        if (update === null || !next[provider]) {
+            delete baseUrls[provider];
+            return;
         }
+        if (update === undefined) return;
+        const normalized = parseLlmGatewayBaseUrl(update);
+        if (normalized === null) {
+            throw new ParameterError(
+                `Gateway URL for ${provider} must be an HTTP(S) base URL without credentials, query parameters, or a fragment`,
+            );
+        }
+        baseUrls[provider] = normalized;
+    });
+    if (Object.keys(baseUrls).length > 0) {
+        next.providerBaseUrls = baseUrls;
+    } else {
+        delete next.providerBaseUrls;
     }
 
     const { bedrock } = updates;
@@ -181,6 +190,14 @@ export const normalizeProviderApiKeyHints = (
     });
     return normalized;
 };
+
+export const buildProviderBaseUrls = (
+    keys: AiOrgProviderApiKeys,
+): AiProviderBaseUrls => ({
+    anthropic: keys.providerBaseUrls?.anthropic ?? null,
+    google: keys.providerBaseUrls?.google ?? null,
+    openai: keys.providerBaseUrls?.openai ?? null,
+});
 
 export const buildProviderApiKeysSet = (
     keys: AiOrgProviderApiKeys,
@@ -260,7 +277,7 @@ export class AiOrganizationSettingsModel {
                       allowedModels: keys.bedrock.allowedModels,
                   }
                 : null,
-            openaiBaseUrl: keys.openaiBaseUrl ?? null,
+            providerBaseUrls: buildProviderBaseUrls(keys),
             threadRetentionHours: db.thread_retention_hours,
         };
     }
