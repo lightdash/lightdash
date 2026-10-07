@@ -376,9 +376,6 @@ export const InteractivityQuestions: FC<Props> = ({
                     : whoLine('Every tab', everyTabKeys)}
                 {hasTabs && !showPerTab && (
                     <Group gap="xs">
-                        <Text size="xs" c="dimmed">
-                            Needs to differ between tabs?
-                        </Text>
                         <Button
                             size="compact-xs"
                             variant="subtle"

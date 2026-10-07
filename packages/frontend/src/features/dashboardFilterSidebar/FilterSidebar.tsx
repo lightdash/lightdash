@@ -29,7 +29,7 @@ import {
     isTileFilterable,
 } from './peers';
 import { isInteractivityChanged } from './sessionSettings';
-import { findFilterRule } from './sidebarState';
+import { findFilterRule, isDefaultValueIncomplete } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
 
 const LABEL_ERROR = 'Add a label so viewers know what this filters';
@@ -58,6 +58,7 @@ export const FilterSidebar: FC = () => {
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
+    const [attemptedApply, setAttemptedApply] = useState(false);
     const labelInputRef = useRef<HTMLInputElement>(null);
     const labelErrorId = useId();
     const handleRemoveClick = useCallback(() => {
@@ -203,11 +204,11 @@ export const FilterSidebar: FC = () => {
                     <Title order={5} className={classes.title}>
                         New filter
                     </Title>
-                    <Tooltip label="Close">
+                    <Tooltip label="Cancel">
                         <ActionIcon
                             variant="subtle"
                             color="gray"
-                            aria-label="Close"
+                            aria-label="Cancel"
                             onClick={handleCancel}
                         >
                             <MantineIcon icon={IconX} />
@@ -258,11 +259,11 @@ export const FilterSidebar: FC = () => {
                     </Title>
                     <Group gap={4} wrap="nowrap">
                         {moreActions}
-                        <Tooltip label="Close">
+                        <Tooltip label="Cancel">
                             <ActionIcon
                                 variant="subtle"
                                 color="gray"
-                                aria-label="Close"
+                                aria-label="Cancel"
                                 onClick={handleCancel}
                             >
                                 <MantineIcon icon={IconX} />
@@ -307,12 +308,14 @@ export const FilterSidebar: FC = () => {
         : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
     const title = isNew ? 'New filter' : filterRule.label || 'Filter';
-    const canApply = !isNew || hasLabel;
-    const footerStatus = !hasLabel
+    const isDefaultIncomplete = isDefaultValueIncomplete(filterRule);
+    const canApply = (!isNew || hasLabel) && !isDefaultIncomplete;
+    const blocker = !hasLabel
         ? 'Add a label to apply'
-        : isDirty
-          ? 'Not applied yet'
+        : isDefaultIncomplete
+          ? 'Choose a default value or turn it off'
           : null;
+    const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
     const fieldCount = getFilterFields(filterRule, listedFieldIds).length;
     const tabReach =
         dashboardTabs.length > 1
@@ -347,11 +350,11 @@ export const FilterSidebar: FC = () => {
                 </Stack>
                 <Group gap={4} wrap="nowrap">
                     {!isNew && moreActions}
-                    <Tooltip label="Close">
+                    <Tooltip label="Cancel">
                         <ActionIcon
                             variant="subtle"
                             color="gray"
-                            aria-label="Close"
+                            aria-label="Cancel"
                             onClick={handleCancel}
                         >
                             <MantineIcon icon={IconX} />
@@ -441,9 +444,13 @@ export const FilterSidebar: FC = () => {
                         <Tabs.Tab
                             value="fields"
                             rightSection={
-                                <Text fz="xs" c="dimmed" span>
-                                    ({fieldCount})
-                                </Text>
+                                <Tooltip
+                                    label={`${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'}`}
+                                >
+                                    <Text fz="xs" c="dimmed" span>
+                                        ({fieldCount})
+                                    </Text>
+                                </Tooltip>
                             }
                         >
                             Fields and charts
@@ -456,6 +463,7 @@ export const FilterSidebar: FC = () => {
                         <Interactivity
                             filterRule={filterRule}
                             field={field}
+                            attemptedApply={attemptedApply}
                             onChange={updateFilter}
                         />
                     </Tabs.Panel>
@@ -473,8 +481,13 @@ export const FilterSidebar: FC = () => {
                         Cancel
                     </Button>
                     {!canApply ? (
-                        <Tooltip label="Add a label to apply">
-                            <Box onClick={showLabelError}>
+                        <Tooltip label={blocker ?? 'Apply'}>
+                            <Box
+                                onClick={() => {
+                                    setAttemptedApply(true);
+                                    showLabelError();
+                                }}
+                            >
                                 <Button disabled>Apply</Button>
                             </Box>
                         </Tooltip>

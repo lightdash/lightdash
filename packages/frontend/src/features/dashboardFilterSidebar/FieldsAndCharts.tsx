@@ -32,7 +32,8 @@ import {
 } from './peers';
 import { useFilterSidebar } from './useFilterSidebar';
 
-const DEFAULT_HINT = 'Choose which field each chart is filtered by.';
+const DEFAULT_HINT =
+    'Choose which field each chart is filtered by. Hover a field to see its charts.';
 
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,

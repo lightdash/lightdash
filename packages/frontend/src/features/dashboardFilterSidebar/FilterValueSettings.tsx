@@ -14,12 +14,14 @@ import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../components/common/Filters/FilterInputs/utils';
 import FilterOperatorOption from '../../components/common/Filters/FilterOperatorOption';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
     filterType: FilterType;
     field: DashboardFilterableField | null;
     filterRule: DashboardFilterRule;
     onChange: (next: DashboardFilterRule) => void;
+    attemptedApply: boolean;
 };
 
 // Operator and default value, as in the shipped FilterSettings minus the label
@@ -28,6 +30,7 @@ export const FilterValueSettings: FC<Props> = ({
     field,
     filterRule,
     onChange,
+    attemptedApply,
 }) => {
     const getUiString = useUiStrings();
     const item = field ?? undefined;
@@ -38,10 +41,7 @@ export const FilterValueSettings: FC<Props> = ({
     const isDisabled = !!filterRule.disabled;
     const hasRequirement =
         !!filterRule.required || !!filterRule.requiredGroupId;
-    const isMissingValue =
-        !isDisabled &&
-        isWithValueFilter(filterRule.operator) &&
-        (filterRule.values ?? []).length === 0;
+    const isMissingValue = isDefaultValueIncomplete(filterRule);
 
     const handleOperator = (operator: FilterRule['operator']) => {
         // Absolute dates are already normalized; defaults could shift timezones
@@ -120,10 +120,15 @@ export const FilterValueSettings: FC<Props> = ({
                             }
                         />
                     )}
-                    {isMissingValue && (
+                    {isMissingValue && attemptedApply && (
                         <Input.Error>
-                            Choose a value or turn this off
+                            Choose a default value or turn it off
                         </Input.Error>
+                    )}
+                    {isMissingValue && !attemptedApply && (
+                        <Input.Description>
+                            Choose a default value or turn it off
+                        </Input.Description>
                     )}
                     {hasRequirement && (filterRule.values ?? []).length > 0 && (
                         <Text size="xs" c="ldGray.7">

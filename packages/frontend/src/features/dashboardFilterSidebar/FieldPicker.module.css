@@ -19,7 +19,8 @@
     border-color: var(--mantine-primary-color-filled);
 }
 
-.exploreRow {
+.exploreRow,
+.groupHeader {
     width: 100%;
     display: flex;
     align-items: center;

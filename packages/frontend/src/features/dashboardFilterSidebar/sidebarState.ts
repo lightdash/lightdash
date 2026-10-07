@@ -1,5 +1,6 @@
 import {
     isFilterLockedOnTab,
+    isWithValueFilter,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -59,3 +60,9 @@ export const isFilterRuleDirty = (
         findFilterRule(snapshot, filterId),
         findFilterRule(current, filterId),
     );
+
+/** An enabled rule whose operator needs a value but has none. */
+export const isDefaultValueIncomplete = (rule: DashboardFilterRule) =>
+    !rule.disabled &&
+    isWithValueFilter(rule.operator) &&
+    (rule.values ?? []).length === 0;

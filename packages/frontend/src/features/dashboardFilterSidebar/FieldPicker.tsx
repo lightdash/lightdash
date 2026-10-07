@@ -83,12 +83,42 @@ export const FieldPicker: FC<Props> = ({
         [fields, activeKind, getChartCount],
     );
     const isSearching = search.trim() !== '';
-    const matches = isSearching
-        ? fields.filter((field) => matchesSearch(field, search))
-        : [];
+    const matches = useMemo(
+        () =>
+            isSearching
+                ? fields.filter((field) => matchesSearch(field, search))
+                : [],
+        [fields, search, isSearching],
+    );
     const counts = countFieldsByKind(isSearching ? matches : fields);
     const chipLabel = (field: DashboardFilterableField) =>
         getFieldDisplayLabel(field, fields);
+    const searchGroups = useMemo(() => {
+        let remaining = MAX_SEARCH_RESULTS;
+        return groupFieldsByExplore(matches, getChartCount).flatMap(
+            (explore) => {
+                if (remaining <= 0) return [];
+                const shown = explore.fields.slice(0, remaining);
+                remaining -= shown.length;
+                const seen = new Set<string>();
+                const duplicateLabels = new Set<string>();
+                explore.fields.forEach((field) => {
+                    const label = getFieldDisplayLabel(field, fields);
+                    if (seen.has(label)) duplicateLabels.add(label);
+                    seen.add(label);
+                });
+                return [
+                    {
+                        table: explore.table,
+                        label: explore.label,
+                        matchCount: explore.fields.length,
+                        fields: shown,
+                        duplicateLabels,
+                    },
+                ];
+            },
+        );
+    }, [matches, fields, getChartCount]);
     const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
 
     const renderFieldRow = (
@@ -143,15 +173,39 @@ export const FieldPicker: FC<Props> = ({
                             No fields match
                         </Text>
                     )}
-                    {matches
-                        .slice(0, MAX_SEARCH_RESULTS)
-                        .map((field) =>
-                            renderFieldRow(
-                                field,
-                                chipLabel(field),
-                                `${field.tableLabel || field.table} · ${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
-                            ),
-                        )}
+                    {searchGroups.map((group) => (
+                        <Stack key={group.table} gap={0}>
+                            <Group
+                                gap="xs"
+                                className={classes.groupHeader}
+                                wrap="nowrap"
+                            >
+                                <Text
+                                    fz="sm"
+                                    fw={600}
+                                    truncate
+                                    className={classes.rowText}
+                                >
+                                    {group.label}
+                                </Text>
+                                <Text fz="xs" c="dimmed">
+                                    {group.matchCount}{' '}
+                                    {group.matchCount === 1
+                                        ? 'match'
+                                        : 'matches'}
+                                </Text>
+                            </Group>
+                            <Stack gap={0} pl="md">
+                                {group.fields.map((field) =>
+                                    renderFieldRow(
+                                        field,
+                                        chipLabel(field),
+                                        `${group.duplicateLabels.has(chipLabel(field)) ? `${field.label} · ` : ''}${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
+                                    ),
+                                )}
+                            </Stack>
+                        </Stack>
+                    ))}
                     {matches.length > MAX_SEARCH_RESULTS && (
                         <Text fz="xs" c="dimmed" px="xs">
                             {matches.length - MAX_SEARCH_RESULTS} more fields.

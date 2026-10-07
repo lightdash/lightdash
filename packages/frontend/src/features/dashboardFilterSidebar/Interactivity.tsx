@@ -14,12 +14,18 @@ import { FilterValueSettings } from './FilterValueSettings';
 import { InteractivityQuestions } from './InteractivityQuestions';
 
 type Props = {
+    attemptedApply: boolean;
     filterRule: DashboardFilterRule;
     field: DashboardFilterableField | null;
     onChange: (next: DashboardFilterRule) => void;
 };
 
-export const Interactivity: FC<Props> = ({ filterRule, field, onChange }) => {
+export const Interactivity: FC<Props> = ({
+    filterRule,
+    field,
+    onChange,
+    attemptedApply,
+}) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
@@ -58,6 +64,7 @@ export const Interactivity: FC<Props> = ({ filterRule, field, onChange }) => {
                             }
                             field={field}
                             filterRule={filterRule}
+                            attemptedApply={attemptedApply}
                             onChange={onChange}
                         />
                     </Stack>
