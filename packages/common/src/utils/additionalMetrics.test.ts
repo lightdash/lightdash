@@ -1,11 +1,19 @@
 import { type CompiledTable, type Explore } from '../types/explore';
-import { CustomFormatType, DimensionType, MetricType } from '../types/field';
+import {
+    BinType,
+    CustomDimensionType,
+    CustomFormatType,
+    DimensionType,
+    MetricType,
+    type CustomSqlDimension,
+} from '../types/field';
 import { type AdditionalMetric } from '../types/metricQuery';
 import { buildPopAdditionalMetric } from '../types/periodOverPeriodComparison';
 import { TimeFrames } from '../types/timeFrames';
 import {
     convertAdditionalMetric,
     getCompatibleDashboardMetrics,
+    getMissingAdditionalMetricReferences,
     mergeDashboardCustomMetrics,
 } from './additionalMetrics';
 
@@ -283,6 +291,54 @@ describe('getCompatibleDashboardMetrics', () => {
     it('returns nothing without an explore', () => {
         expect(getCompatibleDashboardMetrics([metric()], undefined)).toEqual(
             [],
+        );
+    });
+
+    it('only shares a custom-dimension metric when its SQL dependencies are available', () => {
+        const dimension: CustomSqlDimension = {
+            id: 'adjusted',
+            name: 'Adjusted',
+            table: 'orders',
+            type: CustomDimensionType.SQL,
+            dimensionType: DimensionType.NUMBER,
+            sql: '${orders.amount} * 2',
+        };
+        const dependent = metric({
+            sql: '${orders.adjusted} + ${orders.amount}',
+        });
+        expect(getCompatibleDashboardMetrics([dependent], explore)).toEqual([]);
+        expect(
+            getCompatibleDashboardMetrics([dependent], explore, [dimension]),
+        ).toEqual([dependent]);
+        expect(
+            getMissingAdditionalMetricReferences(dependent, explore),
+        ).toEqual(['orders.adjusted']);
+        expect(
+            getMissingAdditionalMetricReferences(dependent, explore, [
+                {
+                    id: 'adjusted',
+                    name: 'Amount bins',
+                    table: 'orders',
+                    type: CustomDimensionType.BIN,
+                    dimensionId: 'orders_amount',
+                    binType: BinType.FIXED_NUMBER,
+                    binNumber: 5,
+                },
+            ]),
+        ).toEqual(['orders.adjusted']);
+    });
+
+    it('keeps model dimension and metric references compatible', () => {
+        const metrics = [
+            metric({ sql: '${orders.amount}' }),
+            metric({
+                name: 'copy',
+                sql: '${orders.total_amount}',
+                baseMetricName: 'total_amount',
+            }),
+        ];
+        expect(getCompatibleDashboardMetrics(metrics, explore)).toEqual(
+            metrics,
         );
     });
 

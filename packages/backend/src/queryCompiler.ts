@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     assertUnreachable,
+    CompiledDimension,
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
@@ -11,9 +12,11 @@ import {
     detectCircularDependencies,
     Explore,
     ExploreCompiler,
+    FieldType,
     getItemId,
     getReservedParameterNames,
     isCustomBinDimension,
+    isCustomSqlDimension,
     isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
@@ -503,18 +506,6 @@ export const compileMetricQuery = ({
         ...popMetricIds,
     ];
 
-    const compiledAdditionalMetrics = resolveAdditionalMetricsSql(
-        metricQuery.additionalMetrics || [],
-        explore.tables,
-    ).map((additionalMetric) =>
-        compileAdditionalMetric({
-            additionalMetric,
-            explore,
-            warehouseSqlBuilder,
-            availableParameters: availableParametersWithReserved,
-        }),
-    );
-
     const compiler = new ExploreCompiler(warehouseSqlBuilder);
     const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
         (customDimension) =>
@@ -524,6 +515,42 @@ export const compileMetricQuery = ({
                 availableParametersWithReserved,
             ),
     );
+    const metricTables = { ...explore.tables };
+    compiledCustomDimensions.forEach((dimension) => {
+        if (!isCustomSqlDimension(dimension)) return;
+        const table = metricTables[dimension.table];
+        // Model fields retain precedence, including in existing copied SQL.
+        if (!table || table.dimensions[dimension.id]) return;
+        const metricDimension: CompiledDimension = {
+            ...dimension,
+            name: dimension.id,
+            label: dimension.name,
+            type: dimension.dimensionType,
+            fieldType: FieldType.DIMENSION,
+            tableLabel: table.label,
+            hidden: false,
+        };
+        metricTables[dimension.table] = {
+            ...table,
+            dimensions: {
+                ...table.dimensions,
+                [dimension.id]: metricDimension,
+            },
+        };
+    });
+
+    const compiledAdditionalMetrics = resolveAdditionalMetricsSql(
+        metricQuery.additionalMetrics || [],
+        explore.tables,
+    ).map((additionalMetric) =>
+        compileAdditionalMetric({
+            additionalMetric,
+            explore: { ...explore, tables: metricTables },
+            warehouseSqlBuilder,
+            availableParameters: availableParametersWithReserved,
+        }),
+    );
+
     const customBinDimensionIds = new Set(
         (metricQuery.customDimensions || [])
             .filter(isCustomBinDimension)

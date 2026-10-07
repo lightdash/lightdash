@@ -475,7 +475,7 @@ export const CustomMetricModal = memo(() => {
                 selectedBaseDimension
                     ? {
                           ...item,
-                          sql: selectedBaseDimension.sql,
+                          sql: `\${${selectedBaseDimension.table}.${selectedBaseDimension.name}}`,
                           table: selectedBaseDimension.table,
                       }
                     : item;

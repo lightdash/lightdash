@@ -7790,6 +7790,12 @@ export class ProjectService extends BaseService {
         const fieldSqlKeys = new Set<string>();
         for (const table of Object.values(explore.tables)) {
             for (const dimension of Object.values(table.dimensions)) {
+                fieldSqlKeys.add(
+                    getCustomSqlFieldKey({
+                        table: table.name,
+                        sql: `\${${table.name}.${dimension.name}}`,
+                    }),
+                );
                 if (dimension.sql) {
                     fieldSqlKeys.add(
                         getCustomSqlFieldKey({

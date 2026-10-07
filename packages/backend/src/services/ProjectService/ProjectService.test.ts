@@ -11517,6 +11517,34 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
     });
 
+    it('allows a model dimension reference without custom SQL scope or provenance', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric('${a.dim1}'),
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it.each(['${a.missing}', '${a.dim1} + 1', '${a.dim1}; SELECT 1'])(
+        'does not grant custom SQL access for %s',
+        async (sql) => {
+            spyExplore();
+            await expect(
+                assertCustomSql(service, {
+                    ...baseArgs,
+                    account: noScopeAccount,
+                    metricQuery: { additionalMetrics: additionalMetric(sql) },
+                }),
+            ).rejects.toThrow(CustomSqlQueryForbiddenError);
+        },
+    );
+
     it('rejects a SQL-less custom metric that references an unknown dimension', async () => {
         spyExplore();
         await expect(

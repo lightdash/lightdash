@@ -36,12 +36,14 @@ import {
     explorerActions,
     selectCustomDimensions,
     selectTableCalculations,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import { useExplore } from '../../../hooks/useExplore';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -85,6 +87,8 @@ export const CustomSqlDimensionModal: FC<{
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
+    const { data: explore } = useExplore(tableName);
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -117,6 +121,13 @@ export const CustomSqlDimensionModal: FC<{
 
                 if (isEditing && item && customDimensionId === item.id) {
                     return null;
+                }
+
+                if (
+                    !isEditing &&
+                    explore?.tables[table]?.dimensions[customDimensionId]
+                ) {
+                    return 'A model dimension with this ID already exists';
                 }
 
                 const isInvalid = [
