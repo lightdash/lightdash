@@ -2,6 +2,7 @@ import {
     DashboardConfig,
     DashboardFilters,
     DashboardTileTypes,
+    type DashboardParameterControl,
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -53,6 +54,7 @@ type DbDashboardView = {
     name: string;
     filters: DashboardFilters;
     parameters: DashboardParameters | null;
+    parameter_controls: DashboardParameterControl[] | null;
 };
 
 type DbCreateDashboardTile = {
@@ -115,7 +117,10 @@ export type DashboardViewTable = Knex.CompositeTableType<
     Pick<
         DbDashboardView,
         'dashboard_version_id' | 'name' | 'filters' | 'parameters'
-    >
+    > & {
+        // Serialised by the model: pg would send a JS array as a Postgres array
+        parameter_controls: string | null;
+    }
 >;
 
 export type DashboardTileTable = Knex.CompositeTableType<

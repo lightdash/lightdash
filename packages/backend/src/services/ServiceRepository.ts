@@ -515,6 +515,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

@@ -4,7 +4,10 @@ import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type AdditionalMetric } from './metricQuery';
-import { type DashboardParameters } from './parameters';
+import {
+    type DashboardParameterControl,
+    type DashboardParameters,
+} from './parameters';
 import { type ProjectType } from './projects';
 import {
     type ChartKind,
@@ -155,6 +158,7 @@ export type CreateDashboard = {
     >;
     filters?: DashboardFilters;
     parameters?: DashboardParameters;
+    parameterControls?: DashboardParameterControl[];
     pinnedParameters?: string[];
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
@@ -296,6 +300,7 @@ export type Dashboard = {
     tiles: Array<DashboardTile>;
     filters: DashboardFilters;
     parameters?: DashboardParameters;
+    parameterControls?: DashboardParameterControl[];
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
     spaceName: string;
@@ -353,7 +358,13 @@ export type DashboardUnversionedFields = Pick<
 
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
-    'tiles' | 'filters' | 'parameters' | 'updatedByUser' | 'tabs' | 'config'
+    | 'tiles'
+    | 'filters'
+    | 'parameters'
+    | 'parameterControls'
+    | 'updatedByUser'
+    | 'tabs'
+    | 'config'
 >;
 
 export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;

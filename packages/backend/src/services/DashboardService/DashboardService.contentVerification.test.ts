@@ -121,6 +121,9 @@ describe('DashboardService - Content Verification', () => {
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        featureFlagModel: {
+            get: vi.fn(async () => ({ enabled: false })),
+        } as never,
     });
 
     afterEach(() => {

@@ -1,6 +1,7 @@
 import {
     AnyType,
     CreateDashboardMarkdownTile,
+    DashboardParameterControl,
     DashboardTileTypes,
     deepEqual,
     NotFoundError,
@@ -69,8 +70,21 @@ describe('DashboardModel', () => {
     const validDashboardUuid = '11111111-1111-4111-8111-111111111111';
 
     let tracker: Tracker;
+    // What the previous version's view holds; a new version without controls
+    // carries these forward
+    let previousView:
+        | { parameter_controls: DashboardParameterControl[] | null }
+        | undefined;
     beforeAll(() => {
         tracker = getTracker();
+    });
+    beforeEach(() => {
+        previousView = undefined;
+        tracker.on
+            .select(({ sql }: RawQuery) =>
+                sql.includes('"dashboard_views"."parameter_controls"'),
+            )
+            .response(() => previousView);
     });
     afterEach(() => {
         tracker.reset();
@@ -1006,7 +1020,7 @@ describe('DashboardModel', () => {
             projectUuid,
         );
 
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
         expect(tracker.history.insert).toHaveLength(6);
         expect(tracker.history.insert[0]).toMatchObject({
             sql: expect.stringContaining(DashboardVersionsTableName),
@@ -1114,7 +1128,7 @@ describe('DashboardModel', () => {
             projectUuid,
         );
 
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
         expect(tracker.history.insert).toHaveLength(4);
         expect(tracker.history.insert[0]).toMatchObject({
             sql: expect.stringContaining(DashboardVersionsTableName),
@@ -1159,6 +1173,205 @@ describe('DashboardModel', () => {
         });
     });
 
+    describe('parameter controls', () => {
+        const tileUuid = addDashboardVersionWithTileIds.tiles[0].uuid!;
+        const control = {
+            id: 'control-1',
+            label: 'Region',
+            parameterKeys: ['region', 'country'],
+        };
+        const parameterControls: DashboardParameterControl[] = [
+            {
+                ...control,
+                tileTargets: { [tileUuid]: 'region', 'removed-tile': false },
+            },
+        ];
+        const prunedControls = JSON.stringify([
+            { ...control, tileTargets: { [tileUuid]: 'region' } },
+        ]);
+
+        const getViewInsertBindings = () =>
+            tracker.history.insert.find(({ sql }) =>
+                sql.includes(DashboardViewsTableName),
+            )?.bindings;
+
+        test('writes the controls on a new version, pruned to its tiles', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            tracker.on
+                .insert(DashboardVersionsTableName)
+                .responseOnce([dashboardVersionEntry]);
+            tracker.on
+                .insert(DashboardViewsTableName)
+                .responseOnce([dashboardViewEntry]);
+            tracker.on
+                .insert(DashboardTilesTableName)
+                .responseOnce([dashboardTileEntry]);
+            tracker.on
+                .select(SavedChartsTableName)
+                .responseOnce([savedChartEntry]);
+            tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+            tracker.on.update(DashboardViewsTableName).responseOnce([]);
+            vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+                Promise.resolve(expectedDashboard),
+            );
+
+            await model.addVersion(
+                expectedDashboard.uuid,
+                { ...addDashboardVersionWithTileIds, parameterControls },
+                user,
+                projectUuid,
+            );
+
+            expect(getViewInsertBindings()).toContain(prunedControls);
+        });
+
+        test('writes null on a new version without controls', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            tracker.on
+                .insert(DashboardVersionsTableName)
+                .responseOnce([dashboardVersionEntry]);
+            tracker.on
+                .insert(DashboardViewsTableName)
+                .responseOnce([dashboardViewEntry]);
+            tracker.on
+                .insert(DashboardTilesTableName)
+                .responseOnce([dashboardTileEntry]);
+            tracker.on
+                .select(SavedChartsTableName)
+                .responseOnce([savedChartEntry]);
+            tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+            tracker.on.update(DashboardViewsTableName).responseOnce([]);
+            vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+                Promise.resolve(expectedDashboard),
+            );
+
+            await model.addVersion(
+                expectedDashboard.uuid,
+                addDashboardVersionWithTileIds,
+                user,
+                projectUuid,
+            );
+
+            const bindings = getViewInsertBindings();
+            expect(bindings).toContain(null);
+            expect(bindings).not.toContain(prunedControls);
+        });
+
+        test('keeps the previous controls when a new version does not pass any', async () => {
+            previousView = { parameter_controls: parameterControls };
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            tracker.on
+                .insert(DashboardVersionsTableName)
+                .responseOnce([dashboardVersionEntry]);
+            tracker.on
+                .insert(DashboardViewsTableName)
+                .responseOnce([dashboardViewEntry]);
+            tracker.on
+                .insert(DashboardTilesTableName)
+                .responseOnce([dashboardTileEntry]);
+            tracker.on
+                .select(SavedChartsTableName)
+                .responseOnce([savedChartEntry]);
+            tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+            tracker.on.update(DashboardViewsTableName).responseOnce([]);
+            vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+                Promise.resolve(expectedDashboard),
+            );
+
+            await model.addVersion(
+                expectedDashboard.uuid,
+                addDashboardVersionWithTileIds,
+                user,
+                projectUuid,
+            );
+
+            expect(getViewInsertBindings()).toContain(prunedControls);
+        });
+
+        test('clears the controls when a new version passes an empty list', async () => {
+            previousView = { parameter_controls: parameterControls };
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            tracker.on
+                .insert(DashboardVersionsTableName)
+                .responseOnce([dashboardVersionEntry]);
+            tracker.on
+                .insert(DashboardViewsTableName)
+                .responseOnce([dashboardViewEntry]);
+            tracker.on
+                .insert(DashboardTilesTableName)
+                .responseOnce([dashboardTileEntry]);
+            tracker.on
+                .select(SavedChartsTableName)
+                .responseOnce([savedChartEntry]);
+            tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+            tracker.on.update(DashboardViewsTableName).responseOnce([]);
+            vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+                Promise.resolve(expectedDashboard),
+            );
+
+            await model.addVersion(
+                expectedDashboard.uuid,
+                { ...addDashboardVersionWithTileIds, parameterControls: [] },
+                user,
+                projectUuid,
+            );
+
+            const bindings = getViewInsertBindings();
+            expect(bindings).toContain(null);
+            expect(bindings).not.toContain(prunedControls);
+        });
+
+        test('writes the controls when creating a dashboard', async () => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+            tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
+            tracker.on
+                .insert(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            tracker.on
+                .insert(DashboardVersionsTableName)
+                .responseOnce([dashboardVersionEntry]);
+            tracker.on
+                .insert(DashboardViewsTableName)
+                .responseOnce([dashboardViewEntry]);
+            tracker.on
+                .insert(DashboardTilesTableName)
+                .responseOnce([dashboardTileEntry]);
+            tracker.on
+                .select(SavedChartsTableName)
+                .responseOnce([savedChartEntry]);
+            tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+            tracker.on.update(DashboardViewsTableName).responseOnce([]);
+            tracker.on.select(DashboardsTableName).responseOnce('slug');
+            vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+                Promise.resolve(expectedDashboard),
+            );
+            vi.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
+                createDashboard.slug,
+            );
+
+            await model.create(
+                'spaceUuid',
+                {
+                    ...createDashboard,
+                    tiles: addDashboardVersionWithTileIds.tiles,
+                    parameterControls,
+                },
+                user,
+                projectUuid,
+            );
+
+            expect(getViewInsertBindings()).toContain(prunedControls);
+        });
+    });
+
     test('should create dashboard version without a chart', async () => {
         tracker.on.select(DashboardsTableName).responseOnce([dashboardEntry]);
         tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
@@ -1191,7 +1404,7 @@ describe('DashboardModel', () => {
             projectUuid,
         );
 
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
         expect(tracker.history.insert).toHaveLength(4);
         expect(tracker.history.insert[0]).toMatchObject({
             sql: expect.stringContaining(DashboardVersionsTableName),
@@ -1365,6 +1578,35 @@ describe('DashboardModel', () => {
                 )
                 .response([]);
         };
+
+        test('returns the saved parameter controls', async () => {
+            const parameterControls: DashboardParameterControl[] = [
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region'],
+                    tileTargets: { 'tile-uuid': false },
+                },
+            ];
+            setupDashboardQueries([
+                {
+                    ...dashboardViewEntry,
+                    parameter_controls: parameterControls,
+                },
+            ]);
+
+            const dashboard = await model.getByIdOrSlug(validDashboardUuid);
+
+            expect(dashboard.parameterControls).toEqual(parameterControls);
+        });
+
+        test('returns no parameter controls when the column is null', async () => {
+            setupDashboardQueries([dashboardViewEntry]);
+
+            const dashboard = await model.getByIdOrSlug(validDashboardUuid);
+
+            expect(dashboard.parameterControls).toBeUndefined();
+        });
 
         test('returns default filters when the version has no dashboard_views row', async () => {
             setupDashboardQueries([]); // regression: this used to throw an NPE

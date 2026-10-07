@@ -39,6 +39,7 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardConfig,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DashboardVersionSummary,
 } from '@lightdash/common';
@@ -198,6 +199,26 @@ export class DashboardModel {
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
+    // The controls on a dashboard's latest version
+    private static async getSavedParameterControls(
+        trx: Transaction,
+        dashboardId: number,
+    ): Promise<DashboardParameterControl[]> {
+        const view = await trx(DashboardViewsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardViewsTableName}.dashboard_version_id`,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+            )
+            .where(`${DashboardVersionsTableName}.dashboard_id`, dashboardId)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .first<
+                | { parameter_controls: DashboardParameterControl[] | null }
+                | undefined
+            >(`${DashboardViewsTableName}.parameter_controls`);
+        return view?.parameter_controls ?? [];
+    }
+
     private static async createVersion(
         trx: Transaction,
         dashboardId: number,
@@ -228,6 +249,17 @@ export class DashboardModel {
               }
             : version.config;
 
+        const parameterControls = (version.parameterControls ?? []).map(
+            (control) => ({
+                ...control,
+                tileTargets: Object.fromEntries(
+                    Object.entries(control.tileTargets).filter(([tileUuid]) =>
+                        savedTileUuids.has(tileUuid),
+                    ),
+                ),
+            }),
+        );
+
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
                 dashboard_id: dashboardId,
@@ -247,6 +279,11 @@ export class DashboardModel {
                 tableCalculations: [],
             },
             parameters: version.parameters || null,
+            // pg would send a JS array as a Postgres array, not JSONB
+            parameter_controls:
+                parameterControls.length > 0
+                    ? JSON.stringify(parameterControls)
+                    : null,
         });
 
         if (version.tabs.length > 0) {
@@ -1593,6 +1630,7 @@ export class DashboardModel {
                 tableCalculations: [],
             },
             parameters: view?.parameters || undefined,
+            parameterControls: view?.parameter_controls ?? undefined,
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.space_name,
             views: dashboard.views_count,
@@ -2164,6 +2202,14 @@ export class DashboardModel {
                 ...version,
                 tabs: version.tabs || [],
                 updatedByUser: user,
+                // Absent means unchanged: a save path that does not know
+                // about parameter controls keeps the saved ones
+                parameterControls:
+                    version.parameterControls ??
+                    (await DashboardModel.getSavedParameterControls(
+                        trx,
+                        dashboard.dashboard_id,
+                    )),
             });
         };
 
@@ -3057,6 +3103,7 @@ export class DashboardModel {
                 tableCalculations: [],
             },
             parameters: view?.parameters || undefined,
+            parameterControls: view?.parameter_controls ?? undefined,
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.space_name,
             views: dashboard.views_count,

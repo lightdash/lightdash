@@ -153,6 +153,9 @@ const buildService = (overrides: Overrides = {}) => {
         contentVerificationModel: {
             getByContent: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        } as AnyType,
     });
     return {
         service,

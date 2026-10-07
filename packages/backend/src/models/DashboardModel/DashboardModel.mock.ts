@@ -204,6 +204,7 @@ export const dashboardViewEntry: DashboardViewTable['base'] = {
         tableCalculations: [],
     },
     parameters: {},
+    parameter_controls: null,
 };
 
 export const dashboardWithVersionEntry: GetDashboardQuery = {

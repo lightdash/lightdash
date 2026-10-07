@@ -3,6 +3,7 @@ import {
     ContentType,
     DashboardTileTypes,
     defineUserAbility,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
@@ -20,6 +21,7 @@ import {
     type Dashboard,
     type DashboardChartTile,
     type DashboardFilterRule,
+    type DashboardParameterControl,
     type Explore,
     type UpdateDashboard,
 } from '@lightdash/common';
@@ -31,6 +33,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -235,6 +238,22 @@ const catalogModel = {
     updateFieldsChartUsage: vi.fn(async () => undefined),
 };
 
+const featureFlagModel = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled: false,
+    })),
+};
+
+const parameterControls: DashboardParameterControl[] = [
+    {
+        id: 'control-1',
+        label: 'Region',
+        parameterKeys: ['region'],
+        tileTargets: {},
+    },
+];
+
 vi.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
@@ -278,6 +297,7 @@ describe('DashboardService', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -1172,6 +1192,97 @@ describe('DashboardService', () => {
                 event: 'dashboard_version.created',
             }),
         );
+    });
+    describe('parameter controls', () => {
+        const savedControls: DashboardParameterControl[] = [
+            { ...parameterControls[0], id: 'saved-control' },
+        ];
+        const enableDashboardControls = () =>
+            featureFlagModel.get.mockResolvedValueOnce({
+                id: FeatureFlags.DashboardControls,
+                enabled: true,
+            });
+
+        test('resolves the dashboard controls flag for the saving user', async () => {
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                parameterControls,
+            });
+
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                user,
+                featureFlagId: FeatureFlags.DashboardControls,
+            });
+        });
+
+        test('ignores incoming controls when the flag is off, so the model keeps the saved ones', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                parameterControls: savedControls,
+            });
+
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                parameterControls,
+            });
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ parameterControls: undefined }),
+                user,
+                projectUuid,
+            );
+        });
+
+        test('writes the incoming controls when the flag is on', async () => {
+            enableDashboardControls();
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                parameterControls: savedControls,
+            });
+
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                parameterControls,
+            });
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ parameterControls }),
+                user,
+                projectUuid,
+            );
+        });
+
+        test('drops incoming controls on create when the flag is off', async () => {
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                parameterControls,
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ parameterControls: undefined }),
+                user,
+                projectUuid,
+            );
+        });
+
+        test('saves incoming controls on create when the flag is on', async () => {
+            enableDashboardControls();
+
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                parameterControls,
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ parameterControls }),
+                user,
+                projectUuid,
+            );
+        });
     });
     test('should update dashboard version with tile ids', async () => {
         const result = await service.update(

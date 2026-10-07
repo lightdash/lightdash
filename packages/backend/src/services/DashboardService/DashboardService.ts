@@ -20,6 +20,7 @@ import {
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
+    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
@@ -62,6 +63,7 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
+    type DashboardParameterControl,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
@@ -103,6 +105,7 @@ import {
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -155,6 +158,7 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -255,6 +259,21 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    featureFlagModel: FeatureFlagModel;
+
+    // Flag off: incoming parameter controls are ignored. Undefined tells the
+    // model to keep the saved ones.
+    private async getParameterControlsToSave(
+        user: SessionUser,
+        incoming: DashboardParameterControl[] | undefined,
+    ): Promise<DashboardParameterControl[] | undefined> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        return enabled ? incoming : undefined;
+    }
 
     async scheduleExportContent(
         account: Account,
@@ -382,6 +401,7 @@ export class DashboardService
         organizationMemberProfileModel,
         spacePermissionService,
         contentVerificationModel,
+        featureFlagModel,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -408,6 +428,7 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     async verifyDashboard(
@@ -1447,6 +1468,10 @@ export class DashboardService
 
         const createDashboard = {
             ...dashboard,
+            parameterControls: await this.getParameterControlsToSave(
+                user,
+                dashboard.parameterControls,
+            ),
             slug: generateSlug(dashboard.name),
         };
         const newDashboard = await this.dashboardModel.create(
@@ -1696,6 +1721,8 @@ export class DashboardService
             name: data.dashboardName,
             slug: dashboard.slug,
             tabs: newTabs,
+            // Tile targets are not remapped to the copied tiles yet
+            parameterControls: undefined,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -2391,6 +2418,10 @@ export class DashboardService
                     tiles: tilesToSave,
                     filters: dashboardFields.filters,
                     parameters: dashboardFields.parameters,
+                    parameterControls: await this.getParameterControlsToSave(
+                        user,
+                        dashboardFields.parameterControls,
+                    ),
                     tabs: dashboardFields.tabs || [],
                     config: dashboardFields.config,
                 },
@@ -3635,6 +3666,7 @@ export class DashboardService
             tiles: dashboard.tiles,
             filters: dashboard.filters,
             parameters: dashboard.parameters,
+            parameterControls: dashboard.parameterControls,
             tabs: dashboard.tabs,
             config: dashboard.config,
             updatedAt: dashboard.updatedAt,
@@ -3782,6 +3814,8 @@ export class DashboardService
                     tiles: targetVersion.tiles,
                     filters: targetVersion.filters,
                     parameters: targetVersion.parameters,
+                    // Restores the version exactly, including having none
+                    parameterControls: targetVersion.parameterControls ?? [],
                     tabs: targetVersion.tabs,
                     config: targetVersion.config,
                 },

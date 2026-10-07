@@ -86,3 +86,20 @@ export type DashboardParameterValue = {
 };
 
 export type DashboardParameters = Record<string, DashboardParameterValue>;
+
+// Index-signature literal on purpose: TSOA caches an empty model for
+// Record<string, X> inside mapped types (see DashboardTileTargets in filter.ts)
+export type DashboardParameterControlTileTargets = {
+    [tileUuid: string]: string | false;
+};
+
+// One control on the dashboard bar that sets one or more parameters.
+// The value lives in the dashboard's `parameters`, one entry per key.
+export type DashboardParameterControl = {
+    id: string;
+    label: string;
+    parameterKeys: string[];
+    // No entry: the control sets every one of its parameters the tile uses.
+    // A key: it sets only that one. false: it does not set the tile.
+    tileTargets: DashboardParameterControlTileTargets;
+};
