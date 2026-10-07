@@ -1,3 +1,10 @@
+## [2.458.3](https://github.com/lightdash/lightdash/compare/2.458.2...2.458.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* preserve joined-table filters in custom metric write-back ([#30630](https://github.com/lightdash/lightdash/issues/30630)) ([9b15256](https://github.com/lightdash/lightdash/commit/9b15256d93d113fc4eb92219a2ef18a3e854dba6))
+
 ## [2.458.2](https://github.com/lightdash/lightdash/compare/2.458.1...2.458.2) (2026-10-07)
 
 
