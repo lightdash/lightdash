@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as https from 'https';
 import knex from 'knex';
+import * as os from 'os';
 import * as path from 'path';
 import { transform } from 'sucrase';
 import knexConfig from './knexfile';
@@ -30,7 +31,7 @@ const GITHUB_MIGRATION_BASE_PATHS = [
 ];
 
 // Temporary directory for resolved files
-const MIGRATIONS_TEMP_DIR = path.join(__dirname, '..', '..', 'temp_migrations');
+const MIGRATIONS_TEMP_DIR = path.join(os.tmpdir(), 'lightdash_temp_migrations');
 
 /**
  * Utility function to make HTTPS requests

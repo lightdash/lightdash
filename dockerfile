@@ -19,7 +19,7 @@ COPY --from=node-runtime /usr/local /usr/local
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
-COPY --from=pnpm-cli /pnpm /pnpm
+COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libatomic1 libstdc++6 \
     && groupadd --gid 1000 node \
@@ -422,6 +422,9 @@ RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout
         exit 1; \
     fi
 
+# Release build contexts can carry world-writable modes into the image.
+RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} +
+
 # -----------------------------
 # Stage 5: runtime base
 # -----------------------------
@@ -482,6 +485,12 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
 RUN printf '#!/bin/sh\nexec node /usr/app/packages/cli/dist/index.js "$@"\n' > /usr/local/bin/lightdash \
     && chmod 755 /usr/local/bin/lightdash
 
+# Runs as the `node` user (uid 1000) created in pnpm-base; the app tree stays root-owned.
+# Writable dirs for LIGHTDASH_LOG_OUTPUTS=file (default path and docs/audit-logging.md).
+RUN mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
+    && chown 1000:1000 /usr/app/packages/backend/logs /var/log/lightdash
+ENV HOME=/home/node
+
 # The runtime working directory is set here, not after the application layers.
 # WORKDIR compiles to a mkdir even when the path already exists, and any
 # filesystem mutation after a COPY --link forces BuildKit to materialise the
@@ -503,11 +512,13 @@ FROM runtime-base AS prod
 # COPY --link also does not follow symlinks in its destination path, so every
 # destination here must stay a real directory.
 COPY --link --from=build-final /usr/app /usr/app
-COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+COPY --link --chmod=755 ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 # Preserve the Yarn installation referenced by the Node image's binary links.
 COPY --link --from=node-runtime /opt /opt
 
 EXPOSE 8080
+
+USER 1000:1000
 
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
