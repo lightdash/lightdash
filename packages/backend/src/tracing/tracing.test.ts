@@ -5,7 +5,14 @@ import {
     SpanKind,
     trace,
 } from '@opentelemetry/api';
-import { SamplingDecision, type Sampler } from '@opentelemetry/sdk-trace-base';
+import type { Tracer } from '@opentelemetry/api';
+import {
+    BasicTracerProvider,
+    InMemorySpanExporter,
+    SamplingDecision,
+    SimpleSpanProcessor,
+    type Sampler,
+} from '@opentelemetry/sdk-trace-base';
 import * as Sentry from '@sentry/node';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Logger from '../logging/logger';
@@ -84,6 +91,39 @@ describe('otelDatabaseTracingEnabled', () => {
             requireParentSpan: true,
             maxQueryLength: 2048,
         });
+    });
+
+    it('names Knex spans the instrumentation would leave unnamed', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', 'true');
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+
+        const knexInstrumentation = createOtelInstrumentations().find(
+            ({ instrumentationName }) =>
+                instrumentationName === '@opentelemetry/instrumentation-knex',
+        );
+        const exporter = new InMemorySpanExporter();
+        knexInstrumentation?.setTracerProvider(
+            new BasicTracerProvider({
+                spanProcessors: [new SimpleSpanProcessor(exporter)],
+            }),
+        );
+
+        // instrumentation-knex names a schema-builder query (no `method`)
+        // after the configured database alone, which is undefined when knex
+        // is configured from PG* env vars instead of PGCONNECTIONURI. The
+        // OTLP protobuf serializer throws on an undefined name and drops the
+        // whole batch.
+        const { tracer } = knexInstrumentation as unknown as {
+            tracer: Tracer;
+        };
+        tracer.startSpan(undefined as unknown as string).end();
+        tracer.startSpan('select lightdash.users').end();
+
+        expect(exporter.getFinishedSpans().map(({ name }) => name)).toEqual([
+            'knex',
+            'select lightdash.users',
+        ]);
     });
 
     it.each([
