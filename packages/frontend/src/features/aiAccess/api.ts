@@ -8,6 +8,7 @@ import {
     type ApiError,
     type ApiResponse,
     type UpsertAiAccessPolicy,
+    type OrganizationAgentIdentitySettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
@@ -135,10 +136,6 @@ const useAccessQuery = <T>(
             }),
     });
 };
-export const useAiAccessPolicy = (project: string, connection: string | null) =>
-    useAccessQuery(project, connection, 'policy', () =>
-        aiAccessApi.policy(project, connection),
-    );
 export const useMyAiAccess = (
     project: string | undefined,
     connection: string | null = null,
@@ -160,26 +157,41 @@ export const useMyAiAccess = (
             (isFlagLoading || (flag?.enabled === true && query.isLoading)),
     };
 };
-const useAccessMutation = <T, V>(
-    project: string,
-    mutationFn: (value: V) => Promise<T>,
-) => {
+export const useOrganizationAgentIdentitySettings = () => {
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
+    return useQuery<OrganizationAgentIdentitySettings, ApiError>({
+        queryKey: ['ai-access', 'org', 'agent-identity'],
+        queryFn: () =>
+            lightdashApi<OrganizationAgentIdentitySettings>({
+                version: 'v2',
+                url: '/org/agent-identity',
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: flag?.enabled === true,
+    });
+};
+
+export const useUpdateOrganizationAgentIdentitySettings = () => {
     const client = useQueryClient();
     const { showToastApiError } = useToaster();
-    return useMutation<T, ApiError, V>({
-        mutationFn,
-        onSuccess: () => client.invalidateQueries(['ai-access', project]),
+    return useMutation<
+        OrganizationAgentIdentitySettings,
+        ApiError,
+        OrganizationAgentIdentitySettings
+    >({
+        mutationFn: (settings) =>
+            lightdashApi<OrganizationAgentIdentitySettings>({
+                version: 'v2',
+                url: '/org/agent-identity',
+                method: 'PUT',
+                body: JSON.stringify(settings),
+            }),
+        onSuccess: () => client.invalidateQueries(['ai-access']),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not update AI access',
+                title: 'Could not update agent identity settings.',
                 apiError: error,
             }),
     });
 };
-export const useUpsertAiAccessPolicy = (
-    project: string,
-    connection: string | null,
-) =>
-    useAccessMutation(project, (policy: UpsertAiAccessPolicy) =>
-        aiAccessApi.upsertPolicy(project, connection, policy),
-    );

@@ -4,8 +4,9 @@ This runbook is for instance operators and project admins.
 Agents use the person's Snowflake identity through a separate OAuth integration.
 Snowflake verifies that the session is an agent session.
 The normal warehouse sign-in stays separate.
-A saved, enabled person policy requires the agent credential for agent queries.
-Without a saved policy, agents use the marked person path.
+The organisation rule requires the agent credential for agent queries on every Snowflake connection.
+An existing enabled connection person policy also requires it.
+When neither rule applies, agents use the marked person path.
 
 ## Configure the instance
 
@@ -42,21 +43,27 @@ Use the same Snowflake account for the integration and the project connection.
 
 Enable `ai-principals`. The `snowflake-ai-sign-in` flag is optional for this path.
 Either flag permits agent sign-in. The licence check still applies.
-The Require agent identity switch is available to project admins in the Snowflake section of the project's Connection settings.
+The Require agent identity switch is available to organisation admins on the Warehouse credentials page.
 Use Console organization overrides or the generic feature flag environment lists.
 See [feature flag precedence and refresh](feature-flags.md).
 
-## Set the project rule
+## Set the organisation rule
 
-1. Open the project's Connection settings at `/generalSettings/projectManagement/{projectUuid}/settings`.
-2. Find the Snowflake section.
-3. Turn on Require agent identity.
-4. Check the success notification. The switch saves the rule immediately.
+1. Open Warehouse credentials at `/generalSettings/warehouseCredentials`.
+2. Turn on Require agent identity.
+3. Check the success notification. The switch saves the rule immediately.
 
+One organisation setting applies to every Snowflake connection in the organisation.
+Snowflake project Connection settings show a read-only indicator of the rule.
 The rule uses the person principal and direct transport.
 Queries without an agent credential are refused while the rule is enabled.
 The switch does not create Snowflake access policies.
-Turning it off saves a disabled person policy. It does not revoke issued Snowflake tokens.
+Turning it off does not revoke issued Snowflake tokens.
+Existing enabled project person policies still apply when the organisation switch is off.
+Connection policy routes remain available for separate-principal API paths.
+
+The instance has one agent OAuth integration for one Snowflake account.
+A project on a second Snowflake account cannot complete the agent connection with that integration.
 
 ## Connect your agent
 

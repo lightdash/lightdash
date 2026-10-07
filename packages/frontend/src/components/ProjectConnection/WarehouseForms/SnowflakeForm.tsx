@@ -48,7 +48,7 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
-import SnowflakeAgentIdentitySection from './SnowflakeAgentIdentitySection';
+import SnowflakeAgentIdentityIndicator from './SnowflakeAgentIdentityIndicator';
 import {
     useSetSnowflakeCliSsoMode,
     useSnowflakeCliSsoMode,
@@ -284,12 +284,11 @@ const SnowflakeForm: FC<{
                     (!isProjectExtraConnection ||
                         warehouseConnectionUuid !== undefined) &&
                     (projectUuid ?? savedProject?.projectUuid) && (
-                        <SnowflakeAgentIdentitySection
+                        <SnowflakeAgentIdentityIndicator
                             projectUuid={
                                 (projectUuid ?? savedProject?.projectUuid)!
                             }
                             connection={warehouseConnectionUuid ?? null}
-                            disabled={disabled}
                         />
                     )}
                 {snowflakeOrgCredentials?.length > 0 && (

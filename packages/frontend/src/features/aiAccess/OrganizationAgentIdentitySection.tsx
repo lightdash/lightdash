@@ -1,45 +1,41 @@
-import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import {
-    AI_DIRECT_TRANSPORT,
-    AiPrincipalKind,
-    FeatureFlags,
-} from '@lightdash/common';
-import { Accordion, Loader, Stack, Switch, Text } from '@mantine/core';
+    Accordion,
+    Anchor,
+    Loader,
+    Stack,
+    Switch,
+    Text,
+    Title,
+} from '@mantine/core';
+import { Link } from 'react-router';
+import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../components/common/InlineErrorState';
+import { SettingsCard } from '../../components/common/Settings/SettingsCard';
+import useToaster from '../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import {
-    useAiAccessPolicy,
-    useUpsertAiAccessPolicy,
-} from '../../../features/aiAccess/api';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../../providers/App/useApp';
-import CodeBlock from '../../common/CodeBlock/CodeBlock';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
-import InlineErrorState from '../../common/InlineErrorState';
+    useOrganizationAgentIdentitySettings,
+    useUpdateOrganizationAgentIdentitySettings,
+} from './api';
 
-const AgentIdentityPolicy = ({
-    projectUuid,
-    connection,
-    disabled,
-}: {
-    projectUuid: string;
-    connection: string | null;
-    disabled: boolean;
-}) => {
+const AgentIdentitySettings = () => {
     const { health } = useApp();
-    const policy = useAiAccessPolicy(projectUuid, connection);
-    const save = useUpsertAiAccessPolicy(projectUuid, connection);
+    const settings = useOrganizationAgentIdentitySettings();
+    const save = useUpdateOrganizationAgentIdentitySettings();
     const { showToastSuccess } = useToaster();
     const configured = health.data?.auth.snowflakeAi.enabled === true;
     const siteUrl = health.data?.siteUrl ?? '';
 
-    if (policy.isLoading || health.isLoading) return <EmptyStateLoader />;
-    if (policy.isError || health.isError)
+    if (settings.isLoading || health.isLoading) return <EmptyStateLoader />;
+    if (settings.isError || health.isError)
         return (
             <InlineErrorState
                 message="Could not load agent identity settings."
                 onRetry={() => {
-                    void policy.refetch();
+                    void settings.refetch();
                     void health.refetch();
                 }}
             />
@@ -49,24 +45,16 @@ const AgentIdentityPolicy = ({
         <Stack gap="xs">
             <Switch
                 label="Require agent identity"
-                description="AI agents and MCP must connect through the Snowflake agent integration. Queries without a connected agent are refused."
-                checked={
-                    policy.data?.enabled === true &&
-                    policy.data.principalKind === AiPrincipalKind.PERSON
-                }
-                disabled={disabled || !configured || save.isLoading}
+                description="AI agents and MCP must connect through the Snowflake agent integration before they query any Snowflake connection in this organisation. Queries without a connected agent are refused."
+                checked={settings.data?.requireVerifiedAgentSessions === true}
+                disabled={!configured || save.isLoading}
                 thumbIcon={save.isLoading ? <Loader size="xs" /> : undefined}
                 aria-busy={save.isLoading}
                 onChange={(event) =>
                     save.mutate(
                         {
-                            enabled: event.currentTarget.checked,
-                            principalKind: AiPrincipalKind.PERSON,
-                            transport: AI_DIRECT_TRANSPORT,
-                            sharedRef: null,
-                            twinNameTemplate: null,
-                            groupMappings: [],
-                            policySource: null,
+                            requireVerifiedAgentSessions:
+                                event.currentTarget.checked,
                         },
                         {
                             onSuccess: () =>
@@ -77,6 +65,17 @@ const AgentIdentityPolicy = ({
                     )
                 }
             />
+            <Text size="xs" c="dimmed">
+                People connect their agent from the chat or from{' '}
+                <Anchor
+                    component={Link}
+                    to="/generalSettings/myWarehouseConnections"
+                    size="xs"
+                >
+                    My warehouse connections
+                </Anchor>
+                .
+            </Text>
             {!configured && (
                 <Accordion variant="default">
                     <Accordion.Item value="setup">
@@ -116,21 +115,24 @@ SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`}
     );
 };
 
-const SnowflakeAgentIdentitySection = (props: {
-    projectUuid: string;
-    connection: string | null;
-    disabled: boolean;
-}) => {
+const OrganizationAgentIdentitySection = () => {
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
-    const { data: project } = useProject(props.projectUuid);
-    if (
-        !flag?.enabled ||
-        !project ||
-        !user.data?.ability.can('manage', subject('Project', project))
-    )
+    if (!flag?.enabled || !user.data?.ability.can('manage', 'Organization'))
         return null;
-    return <AgentIdentityPolicy {...props} />;
+    return (
+        <SettingsCard>
+            <Stack gap="md">
+                <Stack gap="xs">
+                    <Title order={5}>Agent identity</Title>
+                    <Text size="sm" c="dimmed">
+                        Snowflake connections in this organisation.
+                    </Text>
+                </Stack>
+                <AgentIdentitySettings />
+            </Stack>
+        </SettingsCard>
+    );
 };
 
-export default SnowflakeAgentIdentitySection;
+export default OrganizationAgentIdentitySection;

@@ -2,6 +2,7 @@ import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import { Box, Button, LoadingOverlay } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import OrganizationAgentIdentitySection from '../../../features/aiAccess/OrganizationAgentIdentitySection';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
@@ -57,6 +58,8 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                     description="Add shared credentials for projects across your organization."
                 />
             )}
+
+            <OrganizationAgentIdentitySection />
 
             {!!warehouseCredentialsToBeEdited && (
                 <EditCredentialsModal

@@ -4,7 +4,8 @@ import {
     WarehouseTypes,
     type Project,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { unusedDbtFormValues } from '../connectionFormDefaults';
@@ -16,13 +17,8 @@ const mocks = vi.hoisted(() => ({
     canManage: true,
     enabled: true,
     configured: true,
-    saving: false,
-    loading: false,
-    policyEnabled: false,
-    readPolicy: vi.fn(),
-    savePolicy: vi.fn(),
-    mutate: vi.fn(),
-    toast: vi.fn(),
+    requirementSource: 'organization' as 'organization' | 'connection' | null,
+    readAccess: vi.fn(),
 }));
 vi.mock('../../../providers/App/useApp', () => ({
     default: () => ({
@@ -49,21 +45,10 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 vi.mock('../../../features/aiAccess/api', () => ({
-    useAiAccessPolicy: (...args: unknown[]) => {
-        mocks.readPolicy(...args);
-        return {
-            data: { enabled: mocks.policyEnabled, principalKind: 'person' },
-            isLoading: mocks.loading,
-            isError: false,
-        };
+    useMyAiAccess: (...args: unknown[]) => {
+        mocks.readAccess(...args);
+        return { data: { requirementSource: mocks.requirementSource } };
     },
-    useUpsertAiAccessPolicy: (...args: unknown[]) => {
-        mocks.savePolicy(...args);
-        return { mutate: mocks.mutate, isLoading: mocks.saving };
-    },
-}));
-vi.mock('../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastSuccess: mocks.toast }),
 }));
 vi.mock(
     '../../../hooks/organization/useOrganizationWarehouseCredentials',
@@ -105,24 +90,26 @@ const TestForm = ({
         initialValues: { name: 'Project', ...unusedDbtFormValues, warehouse },
     });
     return (
-        <FormProvider form={form}>
-            <ProjectFormProvider
-                savedProject={
-                    edit
-                        ? ({
-                              projectUuid: extra ? undefined : 'project',
-                              warehouseConnection: warehouse,
-                          } as unknown as Project)
-                        : undefined
-                }
-                projectUuid={extra ? 'project' : undefined}
-                isProjectExtraConnection={extra}
-                isDbtSource={dbtSource}
-                warehouseConnectionUuid={connection}
-            >
-                <SnowflakeForm disabled={false} />
-            </ProjectFormProvider>
-        </FormProvider>
+        <MemoryRouter>
+            <FormProvider form={form}>
+                <ProjectFormProvider
+                    savedProject={
+                        edit
+                            ? ({
+                                  projectUuid: extra ? undefined : 'project',
+                                  warehouseConnection: warehouse,
+                              } as unknown as Project)
+                            : undefined
+                    }
+                    projectUuid={extra ? 'project' : undefined}
+                    isProjectExtraConnection={extra}
+                    isDbtSource={dbtSource}
+                    warehouseConnectionUuid={connection}
+                >
+                    <SnowflakeForm disabled={false} />
+                </ProjectFormProvider>
+            </FormProvider>
+        </MemoryRouter>
     );
 };
 
@@ -132,12 +119,10 @@ describe('SnowflakeForm agent identity requirement', () => {
         mocks.canManage = true;
         mocks.enabled = true;
         mocks.configured = true;
-        mocks.saving = false;
-        mocks.loading = false;
-        mocks.policyEnabled = false;
+        mocks.requirementSource = 'organization';
     });
     it.each([null, 'extra-connection'])(
-        'saves immediately for connection %s',
+        'shows the organisation requirement for connection %s',
         (connection) => {
             renderWithProviders(
                 <TestForm
@@ -145,99 +130,52 @@ describe('SnowflakeForm agent identity requirement', () => {
                     extra={connection !== null}
                 />,
             );
-            const toggle = screen.getByRole('switch', {
-                name: /^Require agent identity/,
-            });
-            expect(toggle).not.toBeChecked();
-            expect(mocks.readPolicy).toHaveBeenCalledWith(
+            expect(
+                screen.getByText(
+                    /Agent identity required by your organisation/,
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'Organisation settings' }),
+            ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+            expect(mocks.readAccess).toHaveBeenCalledWith(
                 'project',
                 connection,
             );
-            expect(mocks.savePolicy).toHaveBeenCalledWith(
-                'project',
-                connection,
-            );
-            fireEvent.click(toggle);
-            expect(mocks.mutate).toHaveBeenCalledWith(
-                {
-                    enabled: true,
-                    principalKind: 'person',
-                    transport: { kind: 'direct' },
-                    sharedRef: null,
-                    twinNameTemplate: null,
-                    groupMappings: [],
-                    policySource: null,
-                },
-                expect.objectContaining({ onSuccess: expect.any(Function) }),
-            );
-            const options = mocks.mutate.mock.calls[0][1] as {
-                onSuccess: () => void;
-            };
-            options.onSuccess();
-            expect(mocks.toast).toHaveBeenCalledWith({
-                title: 'Agent identity requirement saved.',
-            });
+            expect(
+                screen.queryByRole('switch', {
+                    name: /^Require agent identity/,
+                }),
+            ).not.toBeInTheDocument();
         },
     );
-    it('shows the saved requirement and can turn it off', () => {
-        mocks.policyEnabled = true;
-        renderWithProviders(<TestForm />);
-        const toggle = screen.getByRole('switch', {
-            name: /^Require agent identity/,
-        });
-        expect(toggle).toBeChecked();
-        fireEvent.click(toggle);
-        expect(mocks.mutate).toHaveBeenCalledWith(
-            expect.objectContaining({ enabled: false }),
-            expect.any(Object),
-        );
-    });
-    it('disables the requirement and offers instance setup when unconfigured', () => {
-        mocks.configured = false;
+    it('shows a legacy connection requirement without an organisation link', () => {
+        mocks.requirementSource = 'connection';
         renderWithProviders(<TestForm />);
         expect(
-            screen.getByRole('switch', { name: /^Require agent identity/ }),
-        ).toBeDisabled();
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Set up the Snowflake agent integration',
-            }),
-        );
-        expect(
-            screen.getByText(/CREATE SECURITY INTEGRATION/),
-        ).toHaveTextContent(
-            "OAUTH_REDIRECT_URI = 'https://instance.example/api/v1/oauth/redirect/snowflake-ai'",
-        );
-        expect(
-            screen.getByText(/Set SNOWFLAKE_AI_OAUTH_CLIENT_ID/),
+            screen.getByText(/Agent identity required on this connection/),
         ).toBeInTheDocument();
-    });
-    it('disables the switch while saving', () => {
-        mocks.saving = true;
-        renderWithProviders(<TestForm />);
         expect(
-            screen.getByRole('switch', { name: /^Require agent identity/ }),
-        ).toBeDisabled();
-        expect(
-            screen.getByRole('switch', { name: /^Require agent identity/ }),
-        ).toHaveAttribute('aria-busy', 'true');
-    });
-    it('waits for the saved policy before showing the switch', () => {
-        mocks.loading = true;
-        renderWithProviders(<TestForm />);
-        expect(
-            screen.queryByRole('switch', { name: /^Require agent identity/ }),
+            screen.queryByRole('link', { name: 'Organisation settings' }),
         ).not.toBeInTheDocument();
+    });
+    it('shows the read-only requirement to non-managers', () => {
+        mocks.canManage = false;
+        renderWithProviders(<TestForm />);
+        expect(
+            screen.getByText(/Agent identity required by your organisation/),
+        ).toBeInTheDocument();
     });
     it.each([
         'create',
         'flag-off',
-        'non-manager',
+        'no-requirement',
         'dbt-source',
         'unsaved-extra',
-    ])('hides the policy for %s', (mode) => {
+    ])('hides the indicator for %s', (mode) => {
         mocks.enabled = mode !== 'flag-off';
-        mocks.canManage = mode !== 'non-manager';
+        mocks.requirementSource =
+            mode === 'no-requirement' ? null : 'organization';
         renderWithProviders(
             <TestForm
                 edit={mode !== 'create'}
@@ -246,8 +184,7 @@ describe('SnowflakeForm agent identity requirement', () => {
             />,
         );
         expect(
-            screen.queryByRole('switch', { name: /^Require agent identity/ }),
+            screen.queryByText(/Agent identity required/),
         ).not.toBeInTheDocument();
-        expect(mocks.readPolicy).not.toHaveBeenCalled();
     });
 });

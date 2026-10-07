@@ -326,7 +326,17 @@ export const isAiAccessRefusal = (value: unknown): value is AiAccessRefusal =>
     (value as { code?: AnyType }).code === AI_ACCESS_REFUSED_CODE &&
     typeof (value as { message?: AnyType }).message === 'string';
 
+export type OrganizationAgentIdentitySettings = {
+    requireVerifiedAgentSessions: boolean;
+};
+
+export type ApiOrganizationAgentIdentitySettingsResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentitySettings;
+};
+
 export type AiAccessForUser = {
+    requirementSource: 'organization' | 'connection' | null;
     identity: 'marked_person' | 'principal' | null;
     marker: AiAgentMarker | null;
     projectUuid: string;

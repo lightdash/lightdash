@@ -47,6 +47,7 @@ import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
@@ -179,6 +180,7 @@ export type ModelManifest = {
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
     aiPrincipalModel: AiPrincipalModel;
+    organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
@@ -987,6 +989,16 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.getUserModel(),
+                }),
+        );
+    }
+
+    public getOrganizationAgentIdentitySettingsModel(): OrganizationAgentIdentitySettingsModel {
+        return this.getModel(
+            'organizationAgentIdentitySettingsModel',
+            () =>
+                new OrganizationAgentIdentitySettingsModel({
+                    database: this.database,
                 }),
         );
     }

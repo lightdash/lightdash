@@ -135,6 +135,7 @@ import type {
     ApiAiPrincipalsResponse,
     ApiAiSetupScriptResponse,
     ApiAiWarehouseCapabilitiesResponse,
+    OrganizationAgentIdentitySettings,
 } from './aiPrincipal';
 import {
     type ApiUserActivityDownloadCsv,
@@ -1357,6 +1358,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
     | ApiDbtSourceBindingsResponse['results']

@@ -972,6 +972,8 @@ export class ServiceRepository
                     }),
                     lightdashConfig: this.context.lightdashConfig,
                     aiPrincipalModel: this.models.getAiPrincipalModel(),
+                    organizationAgentIdentitySettingsModel:
+                        this.models.getOrganizationAgentIdentitySettingsModel(),
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
