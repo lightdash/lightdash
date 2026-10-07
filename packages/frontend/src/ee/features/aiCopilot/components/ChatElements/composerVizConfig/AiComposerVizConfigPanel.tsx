@@ -138,7 +138,11 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
             <Box className={styles.result}>{children}</Box>
             {bar}
             {mode === 'expandable' && (
-                <Collapse expanded={isOpen} className={styles.body}>
+                <Collapse
+                    expanded={isOpen}
+                    transitionDuration={0}
+                    className={styles.body}
+                >
                     <ScrollArea.Autosize mah="45cqh" type="auto">
                         <Stack gap="md" p="md">
                             <AiComposerVizKindSwitcher
