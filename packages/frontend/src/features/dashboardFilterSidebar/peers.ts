@@ -94,8 +94,11 @@ export const isTileChanged = (
     return (current?.fieldId ?? null) !== (fallback?.fieldId ?? null);
 };
 
+// SQL column mappings are per tile and never fields of the filter
 const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
-    Object.values(rule.tileTargets ?? {}).filter(isDashboardFieldTarget);
+    Object.values(rule.tileTargets ?? {})
+        .filter(isDashboardFieldTarget)
+        .filter((target) => !target.isSqlColumn);
 
 export const getFilterFields = (
     rule: DashboardFilterRule,
