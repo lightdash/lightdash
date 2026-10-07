@@ -162,7 +162,7 @@ describe('Vertex model routing', () => {
         const models = getAvailableModels(mixed);
         const options = models.map((preset) =>
             presetToModelOption(preset, defaultModel, {
-                availablePresets: models,
+                instancePresets: models,
                 offeredPresets: models,
             }),
         );

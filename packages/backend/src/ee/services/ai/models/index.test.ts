@@ -19,11 +19,10 @@ import {
     getFastModelForAccessibleKey,
     getModel,
     getOrgModelCatalogue,
+    getOrgModelOptions,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
-    presetToModelOption,
     resolveModelConfigForPrompt,
-    resolveSupersedingPreset,
     type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
@@ -43,18 +42,19 @@ const noOrgOverrides: OrgModelOverrides = {
     keyAccessibleModelIds: null,
 };
 
+const orgCatalogue = (
+    config: LightdashConfig['ai']['copilot'],
+    overrides: OrgModelOverrides,
+) => getOrgModelCatalogue(getAvailableModels(config), overrides);
+
 const orgOptions = (
     config: LightdashConfig['ai']['copilot'],
     overrides: OrgModelOverrides,
-) => {
-    const catalogue = getOrgModelCatalogue(
-        getAvailableModels(config),
-        overrides,
+) =>
+    getOrgModelOptions(
+        orgCatalogue(config, overrides),
+        getDefaultModel(config),
     );
-    return catalogue.offeredPresets.map((preset) =>
-        presetToModelOption(preset, getDefaultModel(config), catalogue),
-    );
-};
 
 const instanceOptions = (config: LightdashConfig['ai']['copilot']) =>
     orgOptions(config, noOrgOverrides);
@@ -1393,10 +1393,13 @@ describe('deprecated model superseding', () => {
 
     it('runs a prompt pinned to a deprecated model on its replacement, keeping the reasoning choice', () => {
         expect(
-            resolveModelConfigForPrompt(anthropicConfig, noOrgOverrides, {
-                ...pinnedSonnet5,
-                reasoning: true,
-            }),
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                {
+                    ...pinnedSonnet5,
+                    reasoning: true,
+                },
+            ),
         ).toEqual({
             modelName: 'claude-sonnet-5-5',
             modelProvider: 'anthropic',
@@ -1412,8 +1415,7 @@ describe('deprecated model superseding', () => {
         };
         expect(
             resolveModelConfigForPrompt(
-                anthropicConfig,
-                noOrgOverrides,
+                orgCatalogue(anthropicConfig, noOrgOverrides),
                 current,
             ),
         ).toBe(current);
@@ -1423,8 +1425,7 @@ describe('deprecated model superseding', () => {
         };
         expect(
             resolveModelConfigForPrompt(
-                anthropicConfig,
-                noOrgOverrides,
+                orgCatalogue(anthropicConfig, noOrgOverrides),
                 unknown,
             ),
         ).toBe(unknown);
@@ -1442,8 +1443,7 @@ describe('deprecated model superseding', () => {
         };
         expect(
             resolveModelConfigForPrompt(
-                restricted,
-                noOrgOverrides,
+                orgCatalogue(restricted, noOrgOverrides),
                 pinnedSonnet5,
             ),
         ).toBe(pinnedSonnet5);
@@ -1452,8 +1452,7 @@ describe('deprecated model superseding', () => {
     it('keeps a prompt on the pinned model when the org has not allowed the replacement', () => {
         expect(
             resolveModelConfigForPrompt(
-                anthropicConfig,
-                restrictedToSonnet5,
+                orgCatalogue(anthropicConfig, restrictedToSonnet5),
                 pinnedSonnet5,
             ),
         ).toBe(pinnedSonnet5);
@@ -1473,58 +1472,64 @@ describe('deprecated model superseding', () => {
         );
     });
 
+    it('neither swaps nor offers a replacement when the org disabled the provider', () => {
+        const anthropicDisabled: OrgModelOverrides = {
+            modelVisibility: { anthropic: { enabled: false } },
+            keyAccessibleModelIds: null,
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, anthropicDisabled),
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+        expect(orgOptions(anthropicConfig, anthropicDisabled)).toEqual([]);
+    });
+
     it('still reaches the replacement when only an intermediate is hidden from the org', () => {
         expect(
-            resolveModelConfigForPrompt(anthropicConfig, noOrgOverrides, {
-                modelName: 'claude-opus-4-7',
-                modelProvider: 'anthropic',
-            }),
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                {
+                    modelName: 'claude-opus-4-7',
+                    modelProvider: 'anthropic',
+                },
+            ),
         ).toEqual({
             modelName: 'claude-opus-5-5',
             modelProvider: 'anthropic',
         });
     });
 
-    it('offers a replacement hidden behind key access only when the org key can serve it', () => {
-        const preset = (
-            overrides: Pick<
-                ModelPreset<'anthropic'>,
-                'name' | 'deprecated' | 'supersededBy' | 'hiddenUnlessKeyAccess'
-            >,
-        ): ModelPreset<'anthropic'> => ({
-            provider: 'anthropic',
-            modelId: overrides.name,
-            displayName: overrides.name,
-            description: 'test preset',
-            contextWindowTokens: 200000,
-            supportsReasoning: true,
-            callOptions: {},
-            providerOptions: undefined,
-            ...overrides,
-        });
-        const retired = preset({
-            name: 'retired',
-            deprecated: true,
-            supersededBy: 'gated',
-        });
-        const gated = preset({ name: 'gated', hiddenUnlessKeyAccess: true });
-        const presets = [retired, gated];
-
+    it('still reaches the replacement when the instance ships only the two ends of the chain', () => {
+        const endsOnly = {
+            ...anthropicConfig,
+            providers: {
+                anthropic: {
+                    ...anthropicConfig.providers.anthropic,
+                    availableModels: ['claude-opus-4-7', 'claude-opus-5-5'],
+                },
+            },
+        };
+        expect(instanceOptions(endsOnly)).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-opus-4-7',
+                deprecated: true,
+                supersededBy: 'claude-opus-5-5',
+            }),
+        );
         expect(
-            resolveSupersedingPreset(
-                retired,
-                getOrgModelCatalogue(presets, noOrgOverrides),
+            resolveModelConfigForPrompt(
+                orgCatalogue(endsOnly, noOrgOverrides),
+                {
+                    modelName: 'claude-opus-4-7',
+                    modelProvider: 'anthropic',
+                },
             ),
-        ).toBeNull();
-        expect(
-            resolveSupersedingPreset(
-                retired,
-                getOrgModelCatalogue(presets, {
-                    modelVisibility: null,
-                    keyAccessibleModelIds: { anthropic: ['gated'] },
-                }),
-            ),
-        ).toBe(gated);
+        ).toEqual({
+            modelName: 'claude-opus-5-5',
+            modelProvider: 'anthropic',
+        });
     });
 
     it('resolves a Bedrock pin by preset name to the Bedrock replacement', () => {
@@ -1542,10 +1547,13 @@ describe('deprecated model superseding', () => {
             },
         };
         expect(
-            resolveModelConfigForPrompt(bedrockConfig, noOrgOverrides, {
-                modelName: 'claude-sonnet-4-5',
-                modelProvider: 'bedrock',
-            }),
+            resolveModelConfigForPrompt(
+                orgCatalogue(bedrockConfig, noOrgOverrides),
+                {
+                    modelName: 'claude-sonnet-4-5',
+                    modelProvider: 'bedrock',
+                },
+            ),
         ).toEqual({
             modelName: 'claude-sonnet-5-5',
             modelProvider: 'bedrock',

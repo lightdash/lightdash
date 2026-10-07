@@ -43,8 +43,7 @@ import {
     getAvailableModels,
     getDefaultModel,
     getOrgModelCatalogue,
-    presetToModelOption,
-    type ModelCatalogue,
+    getOrgModelOptions,
 } from './ai/models';
 import {
     matchesPreset,
@@ -323,38 +322,31 @@ export class AiOrganizationSettingsService extends BaseService {
     }> {
         // Display-only: this read path must survive an unreadable credential,
         // because the screen it renders is where that credential is replaced.
-        const [copilotConfig, overrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfigForDisplay(
+        const { copilotConfig, overrides, catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogueForDisplay(
                 organizationUuid,
-            ),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
-        const defaultModel = getDefaultModel(copilotConfig);
-        const allPresets = getAvailableModels(copilotConfig);
-        const toOptions = (catalogue: ModelCatalogue): AiModelOption[] =>
-            catalogue.offeredPresets.map((preset) =>
-                presetToModelOption(preset, defaultModel, catalogue),
             );
+        const defaultModel = getDefaultModel(copilotConfig);
         return {
-            effectiveOptions: toOptions(
-                getOrgModelCatalogue(allPresets, overrides),
-            ),
+            effectiveOptions: getOrgModelOptions(catalogue, defaultModel),
             // Admin picker ignores visibility so restricted models stay selectable
-            configurableOptions: toOptions(
-                getOrgModelCatalogue(allPresets, {
+            configurableOptions: getOrgModelOptions(
+                getOrgModelCatalogue(catalogue.instancePresets, {
                     modelVisibility: null,
                     keyAccessibleModelIds: overrides.keyAccessibleModelIds,
                 }),
+                defaultModel,
             ),
             effectiveModelVisibility: overrides.modelVisibility,
             // The org brings its own Bedrock key, so every Bedrock preset is
             // selectable regardless of what this instance configures.
-            bedrockModelOptions: toOptions({
-                availablePresets: MODEL_PRESETS.bedrock,
-                offeredPresets: MODEL_PRESETS.bedrock,
-            }),
+            bedrockModelOptions: getOrgModelOptions(
+                {
+                    instancePresets: MODEL_PRESETS.bedrock,
+                    offeredPresets: MODEL_PRESETS.bedrock,
+                },
+                defaultModel,
+            ),
         };
     }
 

@@ -424,13 +424,11 @@ import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
-    getOrgModelCatalogue,
+    getOrgModelOptions,
     MODEL_PRESETS,
-    presetToModelOption,
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
@@ -1316,20 +1314,13 @@ export class AiAgentService extends BaseService {
         modelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
         if (!modelConfig) return null;
-        const [copilotConfig, orgModelOverrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfig({
+        const { catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid,
-            }),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
-        return resolveModelConfigForPrompt(
-            copilotConfig,
-            orgModelOverrides,
-            modelConfig,
-        );
+                credentialUuid: null,
+            });
+        return resolveModelConfigForPrompt(catalogue, modelConfig);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -3822,25 +3813,13 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const [copilotConfig, orgModelOverrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfig({
+        const { copilotConfig, catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 credentialUuid: agent.providerCredentialUuid,
-            }),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
-        const defaultModel = getDefaultModel(copilotConfig);
-
-        const catalogue = getOrgModelCatalogue(
-            getAvailableModels(copilotConfig),
-            orgModelOverrides,
-        );
-        return catalogue.offeredPresets.map((preset) =>
-            presetToModelOption(preset, defaultModel, catalogue),
-        );
+            });
+        return getOrgModelOptions(catalogue, getDefaultModel(copilotConfig));
     }
 
     async listAgentThreads(
@@ -5009,6 +4988,7 @@ export class AiAgentService extends BaseService {
                 app.name,
                 body.appUuid,
             )}`,
+            modelConfig: null,
             context: [
                 {
                     type: 'data_app_restore',
