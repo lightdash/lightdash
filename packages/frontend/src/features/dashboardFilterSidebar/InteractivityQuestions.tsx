@@ -362,9 +362,9 @@ export const InteractivityQuestions: FC<Props> = ({
     };
     const pickerNotes: Record<SessionPicker, string | null> = {
         standard: null,
-        list: 'A ticked list with search, Select all and Unselect all. No operator.',
-        calendar: 'A calendar with the presets you choose.',
-        dataDates: 'A list of the dates that exist in the data, newest first.',
+        list: 'Checklist with search and Select all.',
+        calendar: 'Calendar with your presets.',
+        dataDates: 'Dates present in the data, newest first.',
     };
     const onlyOperatorLabel =
         operatorOptions.find(
@@ -420,8 +420,8 @@ export const InteractivityQuestions: FC<Props> = ({
                     )}
                     {isWhoChanged(filterRule, settings) && (
                         <Text size="xs" c="dimmed">
-                            A locked or hidden filter still applies to the
-                            charts, and ignores values from the URL or an embed.
+                            Still filters the charts. URL and embed values are
+                            ignored.
                         </Text>
                     )}
                 </QuestionRow>
@@ -516,8 +516,7 @@ export const InteractivityQuestions: FC<Props> = ({
                 >
                     {!canViewersChangeSomewhere && (
                         <Text size="xs" c="dimmed">
-                            Viewers cannot change this filter on any tab, so
-                            these do not apply yet.
+                            Not shown while viewers cannot change the filter.
                         </Text>
                     )}
                     <SessionLabel>Picker</SessionLabel>

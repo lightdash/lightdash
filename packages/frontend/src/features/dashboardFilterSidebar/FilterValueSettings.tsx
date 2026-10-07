@@ -126,9 +126,8 @@ export const FilterValueSettings: FC<Props> = ({
                         </Input.Error>
                     )}
                     {hasRequirement && (filterRule.values ?? []).length > 0 && (
-                        <Text size="xs" c="ldGray.7">
-                            Temporary filter values for required filters will be
-                            removed on dashboard save
+                        <Text size="xs" c="dimmed">
+                            This value is dropped when the dashboard is saved.
                         </Text>
                     )}
                 </>

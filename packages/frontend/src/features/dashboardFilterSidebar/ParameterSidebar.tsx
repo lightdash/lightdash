@@ -1,26 +1,22 @@
 import {
-    ActionIcon,
-    Box,
     Button,
-    Group,
     Menu,
     Paper,
     Select,
     Stack,
-    Tabs,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconX } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { ParameterInput } from '../parameters/components/ParameterInput';
 import { ControlInteractivity } from './ControlInteractivity';
+import { EditorShell } from './EditorShell';
 import { FieldRow } from './FieldRow';
-import classes from './FilterSidebar.module.css';
+import classes from './FieldsAndCharts.module.css';
 import {
     applyKeyToAll,
     clearKeyFromAll,
@@ -47,8 +43,10 @@ export const ParameterSidebar: FC = () => {
         setHighlightedFieldId,
         setHoveredFieldId,
     } = useFilterSidebar();
-    const [section, setSection] = useState<string | null>('interactivity');
+    const [section, setSection] = useState('interactivity');
     const [confirmRemove, setConfirmRemove] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    const [labelTouched, setLabelTouched] = useState(false);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const tileParameterReferences = useDashboardContext(
         (c) => c.tileParameterReferences,
@@ -63,15 +61,12 @@ export const ParameterSidebar: FC = () => {
     const control = parameterControls.find((c) => c.id === editingControlId);
     if (!control) return null;
 
-    const count = getControlCount(
-        control,
-        dashboardTiles ?? [],
-        tileParameterReferences,
-    );
+    const tiles = dashboardTiles ?? [];
+    const count = getControlCount(control, tiles, tileParameterReferences);
     const appliedTabCount = Object.values(
         getControlTabCounts(
             control,
-            dashboardTiles ?? [],
+            tiles,
             dashboardTabs,
             tileParameterReferences,
         ),
@@ -91,7 +86,8 @@ export const ParameterSidebar: FC = () => {
         parameterDefinitions,
         tileParameterReferences,
     );
-    const tiles = dashboardTiles ?? [];
+    const isNew = !labelTouched && control.label === '';
+    const hasLabel = control.label.trim() !== '';
     const setControlTargets = (
         next: Pick<typeof control, 'tileTargets' | 'parameterKeys'>,
     ) =>
@@ -101,179 +97,163 @@ export const ParameterSidebar: FC = () => {
         });
 
     return (
-        <Box className={classes.root}>
-            <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                <Stack gap={2} align="flex-start">
-                    <Title order={5} className={classes.title}>
-                        {control.label || 'New control'}
-                    </Title>
-                    <Text fz="xs" c="dimmed">
-                        {`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} charts${tabReach}`}
-                    </Text>
-                </Stack>
-                <Group gap="xxs" wrap="nowrap">
-                    <Menu onClose={() => setConfirmRemove(false)}>
-                        <Menu.Target>
-                            <Tooltip label="More actions">
-                                <ActionIcon aria-label="More actions">
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                color="red"
-                                closeMenuOnClick={confirmRemove}
-                                onClick={() =>
-                                    confirmRemove
-                                        ? removeControl(control.id)
-                                        : setConfirmRemove(true)
-                                }
-                            >
-                                {confirmRemove
-                                    ? 'Click again to remove'
-                                    : 'Remove control'}
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                    <Tooltip label="Close">
-                        <ActionIcon aria-label="Close" onClick={cancelControl}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            </Group>
-            <Stack gap="md" p="md" className={classes.body}>
+        <EditorShell
+            title={control.label || 'New control'}
+            subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} charts${tabReach}`}
+            onBack={isNew ? cancelControl : undefined}
+            menu={
+                isNew ? null : (
+                    <Menu.Item
+                        color="red"
+                        closeMenuOnClick={confirmRemove}
+                        onClick={() =>
+                            confirmRemove
+                                ? removeControl(control.id)
+                                : setConfirmRemove(true)
+                        }
+                    >
+                        {confirmRemove
+                            ? 'Click again to remove'
+                            : 'Remove control'}
+                    </Menu.Item>
+                )
+            }
+            onMenuClose={() => setConfirmRemove(false)}
+            onCancel={cancelControl}
+            tabs={[
+                { value: 'interactivity', label: 'Interactivity' },
+                {
+                    value: 'charts',
+                    label: 'Parameters and charts',
+                    count: keyCount,
+                },
+            ]}
+            activeTab={section}
+            onTabChange={setSection}
+            footerStatus={hasLabel ? null : 'Add a label to apply'}
+            primaryLabel="Apply"
+            primaryDisabled={!hasLabel}
+            primaryTooltip="Add a label to apply"
+            onPrimary={closeControl}
+            aboveTabs={
                 <TextInput
-                    label="Label"
+                    label="Control label"
+                    withAsterisk
                     required
                     placeholder="What viewers will see"
                     value={control.label}
-                    onChange={(e) =>
-                        updateControl(control.id, { label: e.target.value })
-                    }
+                    onChange={(e) => {
+                        setLabelTouched(true);
+                        updateControl(control.id, { label: e.target.value });
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        if (hasLabel) closeControl();
+                    }}
                 />
-                <Tabs value={section} onChange={setSection}>
-                    <Tabs.List mb="md">
-                        <Tabs.Tab value="interactivity">Interactivity</Tabs.Tab>
-                        <Tabs.Tab value="charts">Charts</Tabs.Tab>
-                    </Tabs.List>
-                    <Tabs.Panel value="interactivity">
-                        <Stack gap="md">
-                            <Paper p="md">
-                                <Stack gap="xs">
-                                    <Text fz="sm" fw={600}>
-                                        Default value
-                                    </Text>
-                                    {firstKey !== undefined &&
-                                        firstDefinition && (
-                                            <ParameterInput
-                                                paramKey={firstKey}
-                                                parameter={firstDefinition}
-                                                value={value ?? null}
-                                                onParameterChange={(_, next) =>
-                                                    setControlValue(
-                                                        control.id,
-                                                        next,
-                                                    )
-                                                }
-                                                projectUuid={projectUuid}
-                                            />
-                                        )}
-                                    <Button
-                                        variant="subtle"
-                                        size="xs"
-                                        onClick={() =>
-                                            setControlValue(control.id, null)
-                                        }
-                                    >
-                                        Clear
-                                    </Button>
-                                </Stack>
-                            </Paper>
-                            <ControlInteractivity controlId={control.id} />
-                        </Stack>
-                    </Tabs.Panel>
-                    <Tabs.Panel value="charts">
-                        <Stack gap="md">
-                            <Text fz="sm" fw={600}>
-                                Parameters in this control
-                            </Text>
-                            {control.parameterKeys.map((key) => {
-                                const keyCountFor = getKeyCount(
-                                    control,
-                                    key,
-                                    tiles,
-                                    tileParameterReferences,
-                                );
-                                const isLastKey =
-                                    control.parameterKeys.length === 1;
-                                return (
-                                    <FieldRow
-                                        key={key}
-                                        field={null}
-                                        label={getParameterLabel(
-                                            key,
-                                            parameterDefinitions,
-                                        )}
-                                        tableLabel="Parameter"
-                                        count={keyCountFor}
-                                        isWaiting={false}
-                                        isHighlighted={
+            }
+        >
+            {section === 'charts' ? (
+                <Stack gap="md">
+                    <Stack gap="xs">
+                        {control.parameterKeys.map((key) => {
+                            const keyCountFor = getKeyCount(
+                                control,
+                                key,
+                                tiles,
+                                tileParameterReferences,
+                            );
+                            return (
+                                <FieldRow
+                                    key={key}
+                                    field={null}
+                                    label={getParameterLabel(
+                                        key,
+                                        parameterDefinitions,
+                                    )}
+                                    tableLabel="Parameter"
+                                    count={keyCountFor}
+                                    isWaiting={false}
+                                    isHighlighted={highlightedFieldId === key}
+                                    isNotSaved={keyCountFor.applied === 0}
+                                    onToggleHighlight={() =>
+                                        setHighlightedFieldId(
                                             highlightedFieldId === key
-                                        }
-                                        isNotSaved={keyCountFor.applied === 0}
-                                        onToggleHighlight={() =>
-                                            setHighlightedFieldId(
-                                                highlightedFieldId === key
-                                                    ? null
-                                                    : key,
-                                            )
-                                        }
-                                        onHoverChange={(isHovered) =>
-                                            setHoveredFieldId(
-                                                isHovered ? key : null,
-                                            )
-                                        }
-                                        onAll={() =>
-                                            setControlTargets(
-                                                applyKeyToAll(
-                                                    control,
-                                                    key,
-                                                    tiles,
-                                                    tileParameterReferences,
-                                                ),
-                                            )
-                                        }
-                                        onNone={() =>
-                                            setControlTargets(
-                                                clearKeyFromAll(
-                                                    control,
-                                                    key,
-                                                    tiles,
-                                                    tileParameterReferences,
-                                                ),
-                                            )
-                                        }
-                                        onRemove={() => {
-                                            if (isLastKey) return;
-                                            setControlTargets(
-                                                removeKey(
-                                                    control,
-                                                    key,
-                                                    tiles,
-                                                    tileParameterReferences,
-                                                ),
-                                            );
-                                        }}
-                                    />
-                                );
-                            })}
+                                                ? null
+                                                : key,
+                                        )
+                                    }
+                                    onHoverChange={(isHovered) =>
+                                        setHoveredFieldId(
+                                            isHovered ? key : null,
+                                        )
+                                    }
+                                    onAll={() =>
+                                        setControlTargets(
+                                            applyKeyToAll(
+                                                control,
+                                                key,
+                                                tiles,
+                                                tileParameterReferences,
+                                            ),
+                                        )
+                                    }
+                                    onNone={() =>
+                                        setControlTargets(
+                                            clearKeyFromAll(
+                                                control,
+                                                key,
+                                                tiles,
+                                                tileParameterReferences,
+                                            ),
+                                        )
+                                    }
+                                    onRemove={
+                                        keyCount === 1
+                                            ? null
+                                            : () =>
+                                                  setControlTargets(
+                                                      removeKey(
+                                                          control,
+                                                          key,
+                                                          tiles,
+                                                          tileParameterReferences,
+                                                      ),
+                                                  )
+                                    }
+                                />
+                            );
+                        })}
+                    </Stack>
+                    <Stack gap="xs" align="flex-start">
+                        <Tooltip
+                            label="Every parameter of this kind is already in the control"
+                            disabled={freeKeys.length > 0}
+                        >
+                            <Button
+                                variant="light"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={() => setIsAdding((open) => !open)}
+                                data-disabled={
+                                    freeKeys.length === 0 || undefined
+                                }
+                            >
+                                Add a parameter
+                            </Button>
+                        </Tooltip>
+                        {isAdding && freeKeys.length > 0 && (
                             <Select
+                                className={classes.addFieldSelect}
                                 size="xs"
                                 searchable
-                                placeholder="+ Add a parameter"
-                                value={null}
+                                clearable={false}
+                                autoFocus
+                                defaultDropdownOpened
+                                placeholder="Search parameters"
+                                nothingFoundMessage="No matching parameters"
+                                comboboxProps={{ withinPortal: true }}
                                 data={freeKeys.map((key) => ({
                                     value: key,
                                     label: getParameterLabel(
@@ -281,34 +261,56 @@ export const ParameterSidebar: FC = () => {
                                         parameterDefinitions,
                                     ),
                                 }))}
-                                onChange={(key) =>
-                                    key !== null &&
+                                value={null}
+                                onChange={(key) => {
+                                    if (key === null) return;
                                     updateControl(control.id, {
                                         parameterKeys: [
                                             ...control.parameterKeys,
                                             key,
                                         ],
-                                    })
-                                }
+                                    });
+                                    setIsAdding(false);
+                                }}
                             />
-                            <Text fz="xs" c="dimmed">
-                                Choose which parameter each chart is set by.
+                        )}
+                    </Stack>
+                    <Text fz="xs" c="dimmed">
+                        Choose which parameter each chart is set by.
+                    </Text>
+                </Stack>
+            ) : (
+                <Stack gap="md">
+                    <Paper p="md">
+                        <Stack gap="xs">
+                            <Text fz="sm" fw={600}>
+                                Default value
                             </Text>
+                            {firstKey !== undefined && firstDefinition && (
+                                <ParameterInput
+                                    paramKey={firstKey}
+                                    parameter={firstDefinition}
+                                    value={value ?? null}
+                                    onParameterChange={(_, next) =>
+                                        setControlValue(control.id, next)
+                                    }
+                                    projectUuid={projectUuid}
+                                />
+                            )}
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                onClick={() =>
+                                    setControlValue(control.id, null)
+                                }
+                            >
+                                Clear
+                            </Button>
                         </Stack>
-                    </Tabs.Panel>
-                </Tabs>
-            </Stack>
-            <Group gap="xs" p="md" className={classes.footer} grow>
-                <Button variant="default" onClick={cancelControl}>
-                    Cancel
-                </Button>
-                <Button
-                    onClick={closeControl}
-                    disabled={control.label.trim() === ''}
-                >
-                    Apply
-                </Button>
-            </Group>
-        </Box>
+                    </Paper>
+                    <ControlInteractivity controlId={control.id} />
+                </Stack>
+            )}
+        </EditorShell>
     );
 };

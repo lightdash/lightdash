@@ -10,17 +10,17 @@ import {
     Group,
     Menu,
     Stack,
-    Tabs,
     Text,
     TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronLeft, IconDots, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
 import {
     FIELD_KINDS,
@@ -91,28 +91,9 @@ export const FilterSidebar: FC = () => {
         setRemoveArmed(true);
     }, [removeArmed, removeFilter]);
     const moreActions = (
-        <Menu
-            position="bottom-end"
-            closeOnItemClick={false}
-            onClose={() => setRemoveArmed(false)}
-        >
-            <Menu.Target>
-                <Tooltip label="More actions">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="More actions"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Tooltip>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Item color="red" onClick={handleRemoveClick}>
-                    {removeArmed ? 'Click again to remove' : 'Remove filter'}
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+        <Menu.Item color="red" onClick={handleRemoveClick}>
+            {removeArmed ? 'Click again to remove' : 'Remove filter'}
+        </Menu.Item>
     );
     // Fields and parameters are exclusive: ticking one kind clears the other
     const toggleChosen = useCallback((field: DashboardFilterableField) => {
@@ -441,174 +422,108 @@ export const FilterSidebar: FC = () => {
     };
 
     return (
-        <Box className={classes.root}>
-            <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                <Stack gap={2} align="flex-start">
-                    {isNew && (
-                        <Button
-                            variant="subtle"
-                            size="compact-xs"
-                            leftSection={<MantineIcon icon={IconChevronLeft} />}
-                            onClick={backToPicker}
-                        >
-                            Back
-                        </Button>
-                    )}
-                    <Title order={5} className={classes.title}>
-                        {title}
-                    </Title>
-                    <Text fz="xs" c="dimmed">
-                        {landingCue}
-                    </Text>
-                </Stack>
-                <Group gap={4} wrap="nowrap">
-                    {!isNew && moreActions}
-                    <Tooltip label="Cancel">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Cancel"
-                            onClick={handleCancel}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            </Group>
-
-            <Stack gap="md" p="md" className={classes.body}>
-                <TextInput
-                    ref={labelInputRef}
-                    label="Filter label"
-                    withAsterisk
-                    required
-                    aria-required
-                    aria-describedby={labelError ? labelErrorId : undefined}
-                    error={labelError ? LABEL_ERROR : undefined}
-                    errorProps={{ id: labelErrorId }}
-                    placeholder="What viewers will see"
-                    value={filterRule.label ?? ''}
-                    onChange={(event) => {
-                        if (event.currentTarget.value.trim() !== '') {
-                            setLabelError(false);
-                        }
-                        setLabelTouched(true);
-                        updateFilter({
-                            ...filterRule,
-                            label: event.currentTarget.value || undefined,
-                        });
-                    }}
-                    onBlur={() => {
-                        if (labelTouched && !hasLabel) setLabelError(true);
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.key !== 'Enter') return;
-                        event.preventDefault();
-                        if (canApply) handleApply();
-                        else showLabelError();
-                    }}
-                />
-                {isNew && fieldLabel !== null && (
-                    <Group gap="xs">
-                        <Text fz="xs" c="dimmed">
-                            Suggestions
-                        </Text>
-                        <Button
-                            size="compact-xs"
-                            variant="default"
-                            radius="xl"
-                            onClick={() =>
-                                updateFilter({
-                                    ...filterRule,
-                                    label: fieldLabel,
-                                })
+        <EditorShell
+            title={title}
+            subtitle={landingCue}
+            onBack={isNew ? backToPicker : undefined}
+            menu={isNew ? null : moreActions}
+            onMenuClose={() => setRemoveArmed(false)}
+            onCancel={handleCancel}
+            tabs={[
+                {
+                    value: 'interactivity',
+                    label: 'Interactivity',
+                    changed: isInteractivityChanged(
+                        filterRule,
+                        getSessionSettings(filterRule.id),
+                    ),
+                },
+                {
+                    value: 'fields',
+                    label: 'Fields and charts',
+                    count: fieldCount,
+                },
+            ]}
+            activeTab={activeSection}
+            onTabChange={(value) => {
+                if (value === 'fields' || value === 'interactivity')
+                    setActiveSection(value);
+            }}
+            footerStatus={footerStatus}
+            primaryLabel="Apply"
+            primaryDisabled={!canApply}
+            primaryTooltip={blocker ?? 'Apply'}
+            onPrimary={handleApply}
+            onPrimaryBlocked={() => {
+                setAttemptedApply(true);
+                showLabelError();
+            }}
+            aboveTabs={
+                <>
+                    <TextInput
+                        ref={labelInputRef}
+                        label="Filter label"
+                        withAsterisk
+                        required
+                        aria-required
+                        aria-describedby={labelError ? labelErrorId : undefined}
+                        error={labelError ? LABEL_ERROR : undefined}
+                        errorProps={{ id: labelErrorId }}
+                        placeholder="What viewers will see"
+                        value={filterRule.label ?? ''}
+                        onChange={(event) => {
+                            if (event.currentTarget.value.trim() !== '') {
+                                setLabelError(false);
                             }
-                        >
-                            {fieldLabel}
-                        </Button>
-                    </Group>
-                )}
-                <Tabs
-                    value={activeSection}
-                    onChange={(value) => {
-                        if (value === 'fields' || value === 'interactivity')
-                            setActiveSection(value);
-                    }}
-                >
-                    <Tabs.List mb="md">
-                        <Tabs.Tab
-                            value="interactivity"
-                            rightSection={
-                                filterRule &&
-                                isInteractivityChanged(
-                                    filterRule,
-                                    getSessionSettings(filterRule.id),
-                                ) ? (
-                                    <Box
-                                        role="img"
-                                        aria-label="Changed from the default"
-                                        className={classes.changedDot}
-                                    />
-                                ) : null
-                            }
-                        >
-                            Interactivity
-                        </Tabs.Tab>
-                        <Tabs.Tab
-                            value="fields"
-                            rightSection={
-                                <Tooltip
-                                    label={`${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'}`}
-                                >
-                                    <Text fz="xs" c="dimmed" span>
-                                        ({fieldCount})
-                                    </Text>
-                                </Tooltip>
-                            }
-                        >
-                            Fields and charts
-                        </Tabs.Tab>
-                    </Tabs.List>
-                    <Tabs.Panel value="fields">
-                        <FieldsAndCharts />
-                    </Tabs.Panel>
-                    <Tabs.Panel value="interactivity">
-                        <Interactivity
-                            filterRule={filterRule}
-                            field={field}
-                            attemptedApply={attemptedApply}
-                            onChange={updateFilter}
-                        />
-                    </Tabs.Panel>
-                </Tabs>
-            </Stack>
-
-            <Stack gap="xs" p="md" className={classes.footer}>
-                {footerStatus !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {footerStatus}
-                    </Text>
-                )}
-                <Group justify="flex-end" gap="xs">
-                    <Button variant="default" onClick={handleCancel}>
-                        Cancel
-                    </Button>
-                    {!canApply ? (
-                        <Tooltip label={blocker ?? 'Apply'}>
-                            <Box
-                                onClick={() => {
-                                    setAttemptedApply(true);
-                                    showLabelError();
-                                }}
+                            setLabelTouched(true);
+                            updateFilter({
+                                ...filterRule,
+                                label: event.currentTarget.value || undefined,
+                            });
+                        }}
+                        onBlur={() => {
+                            if (labelTouched && !hasLabel) setLabelError(true);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key !== 'Enter') return;
+                            event.preventDefault();
+                            if (canApply) handleApply();
+                            else showLabelError();
+                        }}
+                    />
+                    {isNew && fieldLabel !== null && (
+                        <Group gap="xs">
+                            <Text fz="xs" c="dimmed">
+                                Suggestions
+                            </Text>
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                radius="xl"
+                                onClick={() =>
+                                    updateFilter({
+                                        ...filterRule,
+                                        label: fieldLabel,
+                                    })
+                                }
                             >
-                                <Button disabled>Apply</Button>
-                            </Box>
-                        </Tooltip>
-                    ) : (
-                        <Button onClick={handleApply}>Apply</Button>
+                                {fieldLabel}
+                            </Button>
+                        </Group>
                     )}
-                </Group>
-            </Stack>
-        </Box>
+                </>
+            }
+        >
+            {activeSection === 'fields' ? (
+                <FieldsAndCharts />
+            ) : (
+                <Interactivity
+                    filterRule={filterRule}
+                    field={field}
+                    attemptedApply={attemptedApply}
+                    onChange={updateFilter}
+                />
+            )}
+        </EditorShell>
     );
 };

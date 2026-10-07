@@ -38,8 +38,13 @@ const ControlPill: FC<{
     control: ParameterControl;
     isEditMode: boolean;
 }> = ({ control, isEditMode }) => {
-    const { editingControlId, openControl, removeControl, setControlValue } =
-        useFilterSidebar();
+    const {
+        editingControlId,
+        openControl,
+        removeControl,
+        cancelControl,
+        setControlValue,
+    } = useFilterSidebar();
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
@@ -48,7 +53,8 @@ const ControlPill: FC<{
     const [opened, setOpened] = useState(false);
 
     const value = formatValue(getControlValue(control, parameterValues));
-    const label = control.label || control.parameterKeys.join(', ');
+    const isDraft = control.label === '';
+    const label = isDraft ? 'New control' : control.label;
     const [firstKey] = control.parameterKeys;
     const definition =
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];
@@ -67,14 +73,24 @@ const ControlPill: FC<{
             rightSection={
                 isEditMode && (
                     <Group gap={2} wrap="nowrap">
-                        <Tooltip fz="xs" label="Remove control">
+                        <Tooltip
+                            fz="xs"
+                            label={
+                                isDraft ? 'Discard control' : 'Remove control'
+                            }
+                        >
                             <ActionIcon
                                 size="xs"
                                 radius="xl"
-                                aria-label="Remove control"
+                                aria-label={
+                                    isDraft
+                                        ? 'Discard control'
+                                        : 'Remove control'
+                                }
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    removeControl(control.id);
+                                    if (isDraft) cancelControl();
+                                    else removeControl(control.id);
                                 }}
                             >
                                 <MantineIcon icon={IconX} size="sm" />

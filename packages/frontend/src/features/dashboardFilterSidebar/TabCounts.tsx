@@ -115,7 +115,7 @@ export const TabCounts: FC = () => {
             {dashboardTabs.map((tab) => {
                 const element = targets[tab.uuid];
                 const count = counts[tab.uuid];
-                if (!element || !count) return null;
+                if (!element || !count || count.total === 0) return null;
                 return createPortal(
                     <Tooltip
                         fz="xs"

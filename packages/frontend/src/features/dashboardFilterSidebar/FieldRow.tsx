@@ -31,7 +31,8 @@ type Props = {
     onHoverChange: (isHovered: boolean) => void;
     onAll: () => void;
     onNone: () => void;
-    onRemove: () => void;
+    // null when the row is the last one and cannot be removed
+    onRemove: (() => void) | null;
 };
 
 export const FieldRow: FC<Props> = ({
@@ -102,40 +103,47 @@ export const FieldRow: FC<Props> = ({
                             Apply to all {count.possible}
                         </Button>
                     )}
-                    <Menu position="bottom-end">
-                        <Menu.Target>
-                            <Tooltip label="More">
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label={`More actions for ${label}`}
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            {showNone && (
-                                <Menu.Item
-                                    aria-label={
-                                        count.applied === 1
-                                            ? `Clear ${label} from the 1 chart`
-                                            : `Clear ${label} from all ${count.applied} charts`
-                                    }
-                                    onClick={onNone}
-                                >
-                                    Clear from charts
-                                </Menu.Item>
-                            )}
-                            <Menu.Item
-                                aria-label={`Remove ${label} from this filter`}
-                                onClick={onRemove}
-                            >
-                                Remove field
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
+                    {(showNone || onRemove !== null) && (
+                        <Menu position="bottom-end">
+                            <Menu.Target>
+                                <Tooltip label="More">
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={`More actions for ${label}`}
+                                    >
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {showNone && (
+                                    <Menu.Item
+                                        aria-label={
+                                            count.applied === 1
+                                                ? `Clear ${label} from the 1 chart`
+                                                : `Clear ${label} from all ${count.applied} charts`
+                                        }
+                                        onClick={onNone}
+                                    >
+                                        Clear from charts
+                                    </Menu.Item>
+                                )}
+                                {onRemove !== null && (
+                                    <Menu.Item
+                                        aria-label={`Remove ${label}`}
+                                        onClick={onRemove}
+                                    >
+                                        Remove{' '}
+                                        {tableLabel === 'Parameter'
+                                            ? 'parameter'
+                                            : 'field'}
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
                 </Group>
             </Stack>
         </Stack>
