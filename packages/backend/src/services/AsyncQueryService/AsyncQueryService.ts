@@ -49,6 +49,7 @@ import {
     getAccountUserTimezone,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDashboardValuesForTile,
     getDateZoomFromRequestParameters,
     getDimensionMapFromTables,
     getDimensions,
@@ -137,6 +138,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DashboardParameterControl,
     type DocumentQueryReference,
     type DuckdbSourceQuery,
     type ExecuteAsyncComposeMergeQueryRequestParams,
@@ -7449,6 +7451,57 @@ export class AsyncQueryService extends ProjectService {
         return AsyncQueryService.assertSavedMergeStarted(outcome);
     }
 
+    // Drops the dashboard values a tile's parameter controls do not set on it
+    private async narrowDashboardValuesForTile<
+        TValues extends ParametersValuesMap | undefined,
+    >({
+        account,
+        organizationUuid,
+        projectUuid,
+        dashboardUuid,
+        tileUuid,
+        requestParameterControls,
+        dashboardValues,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        projectUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        requestParameterControls: DashboardParameterControl[] | undefined;
+        dashboardValues: TValues[];
+    }): Promise<(TValues | ParametersValuesMap)[]> {
+        const hasValues = dashboardValues.some(
+            (values) => values !== undefined && Object.keys(values).length > 0,
+        );
+        if (!hasValues) return dashboardValues;
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid,
+                ...(account.isRegisteredUser()
+                    ? { userUuid: account.user.id }
+                    : {}),
+            },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        if (!enabled) return dashboardValues;
+        const parameterControls =
+            requestParameterControls ??
+            (await this.dashboardModel.getDashboardParameterControlsByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            ));
+        return dashboardValues.map((values) =>
+            values === undefined
+                ? values
+                : getDashboardValuesForTile({
+                      dashboardValues: values,
+                      parameterControls,
+                      tileUuid,
+                  }),
+        );
+    }
+
     /**
      * A merged chart on a dashboard tile: the tile's dashboard filters are
      * pushed into each source before the join and the chart's own sort rides
@@ -7469,6 +7522,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        parameterControls,
         pivotResults,
         userAttributeOverrides,
     }: Pick<
@@ -7482,6 +7536,7 @@ export class AsyncQueryService extends ProjectService {
         | 'invalidateCache'
         | 'limit'
         | 'parameters'
+        | 'parameterControls'
         | 'pivotResults'
         | 'userAttributeOverrides'
     > & {
@@ -7521,15 +7576,26 @@ export class AsyncQueryService extends ProjectService {
                 dashboardUuid,
                 projectUuid,
             );
+        const [dashboardValues] = await this.narrowDashboardValuesForTile({
+            account,
+            organizationUuid: savedChart.organizationUuid,
+            projectUuid,
+            dashboardUuid,
+            tileUuid,
+            requestParameterControls: parameterControls,
+            dashboardValues: [
+                {
+                    ...convertDashboardParametersToValuesMap(
+                        rawDashboardParameters,
+                    ),
+                    ...parameters,
+                },
+            ],
+        });
         const tileParameters = await this.getDashboardTileParameterOverrides({
             projectUuid,
             explores: Object.values(exploreBySourceId),
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
-                ),
-                ...parameters,
-            },
+            dashboardValues,
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
         });
@@ -7583,6 +7649,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        parameterControls,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -7686,6 +7753,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 limit,
                 parameters,
+                parameterControls,
                 pivotResults,
                 userAttributeOverrides,
             });
@@ -7805,15 +7873,27 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
         );
 
+        const [dashboardValues] = await this.narrowDashboardValuesForTile({
+            account,
+            organizationUuid,
+            projectUuid,
+            dashboardUuid: resolvedDashboardUuid,
+            tileUuid,
+            requestParameterControls: parameterControls,
+            dashboardValues: [
+                {
+                    ...convertDashboardParametersToValuesMap(
+                        rawDashboardParameters,
+                    ),
+                    ...parameters,
+                },
+            ],
+        });
+
         const combinedParameters = await this.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
-                ),
-                ...parameters,
-            },
+            dashboardValues,
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
             preloadedProjectParameters: projectParameters,
@@ -11171,15 +11251,27 @@ export class AsyncQueryService extends ProjectService {
             this.projectParametersModel.find(projectUuid),
         ]);
 
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
-        );
+        const [requestParameters, dashboardParameters] =
+            await this.narrowDashboardValuesForTile({
+                account,
+                organizationUuid: savedChart.organization.organizationUuid,
+                projectUuid,
+                dashboardUuid: resolvedDashboardUuid,
+                tileUuid,
+                requestParameterControls: args.parameterControls,
+                dashboardValues: [
+                    args.parameters,
+                    convertDashboardParametersToValuesMap(
+                        rawDashboardParameters,
+                    ),
+                ],
+            });
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            args.parameters,
+            requestParameters,
             dashboardParameters,
             projectParameters,
         );

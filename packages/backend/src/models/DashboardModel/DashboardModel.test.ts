@@ -518,6 +518,62 @@ describe('DashboardModel', () => {
         );
     });
 
+    describe('getDashboardParameterControlsByIdOrSlug', () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Region',
+                parameterKeys: ['region'],
+                tileTargets: { 'tile-1': false as const },
+            },
+        ];
+
+        test('should return the saved parameter controls', async () => {
+            previousView = { parameter_controls: parameterControls };
+
+            const result = await model.getDashboardParameterControlsByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            );
+
+            expect(result).toEqual(parameterControls);
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].sql).toContain(
+                '"dashboard_views"."parameter_controls"',
+            );
+            expect(tracker.history.select[0].bindings).toEqual(
+                expect.arrayContaining([projectUuid, dashboardUuid]),
+            );
+        });
+
+        test('should return no controls when the column is null', async () => {
+            previousView = { parameter_controls: null };
+
+            expect(
+                await model.getDashboardParameterControlsByIdOrSlug(
+                    dashboardUuid,
+                    projectUuid,
+                ),
+            ).toEqual([]);
+        });
+
+        test('should return no controls for an unknown dashboard', async () => {
+            tracker.on
+                .select(({ sql }: RawQuery) =>
+                    sql.startsWith('select "dashboard_uuid"'),
+                )
+                .response([]);
+
+            expect(
+                await model.getDashboardParameterControlsByIdOrSlug(
+                    dashboardUuid,
+                    projectUuid,
+                ),
+            ).toEqual([]);
+        });
+    });
+
     test('should check if saved chart exists in dashboard', async () => {
         const testProjectUuid = 'test-project-uuid';
         const testDashboardUuid = 'test-dashboard-uuid';

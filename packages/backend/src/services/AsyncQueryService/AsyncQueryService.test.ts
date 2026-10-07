@@ -51,6 +51,7 @@ import {
     WarehouseTypes,
     type CaslSubjectNames,
     type CreateBigqueryCredentials,
+    type DashboardParameterControl,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -61,6 +62,7 @@ import {
     type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
@@ -8728,6 +8730,216 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        describe('dashboard parameter controls', () => {
+            const tileUuid = 'tile-1';
+            const statusOffControl = {
+                id: 'status-control',
+                label: 'Status',
+                parameterKeys: ['status'],
+                tileTargets: { [tileUuid]: false as const },
+            };
+            const regionOffControl = {
+                id: 'region-control',
+                label: 'Region',
+                parameterKeys: ['region'],
+                tileTargets: { [tileUuid]: false as const },
+            };
+            const emptyFilters = {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+            const setup = ({
+                isFlagEnabled,
+                savedControls,
+                hasDashboardValues = true,
+            }: {
+                isFlagEnabled: boolean;
+                savedControls: DashboardParameterControl[];
+                hasDashboardValues?: boolean;
+            }) => {
+                const { service } = buildService();
+                const internals = service as AnyType;
+                const getSavedControls = vi.fn(async () => savedControls);
+                const getFlag = vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.DashboardControls &&
+                            isFlagEnabled,
+                    }),
+                );
+                internals.featureFlagModel = { get: getFlag };
+                internals.dashboardModel = {
+                    getDashboardParametersByIdOrSlug: vi.fn(async () =>
+                        hasDashboardValues
+                            ? {
+                                  status: {
+                                      parameterName: 'status',
+                                      value: 'Shipped',
+                                  },
+                                  region: {
+                                      parameterName: 'region',
+                                      value: 'EU',
+                                  },
+                              }
+                            : undefined,
+                    ),
+                    getDashboardParameterControlsByIdOrSlug: getSavedControls,
+                };
+                const isControlsFlagRead = () =>
+                    getFlag.mock.calls.some(
+                        ([{ featureFlagId }]) =>
+                            featureFlagId === FeatureFlags.DashboardControls,
+                    );
+                return { service, getSavedControls, isControlsFlagRead };
+            };
+
+            describe.each([
+                {
+                    path: 'chart',
+                    // The chart path merges the request values over the saved ones
+                    run: async (
+                        service: AsyncQueryService,
+                        parameters: ParametersValuesMap | undefined,
+                        parameterControls:
+                            | DashboardParameterControl[]
+                            | undefined,
+                    ) => {
+                        await service.executeAsyncDashboardChartQuery({
+                            account: viewer,
+                            projectUuid,
+                            tileUuid,
+                            chartUuid: savedChart.uuid,
+                            dashboardUuid: 'dashboard-uuid',
+                            dashboardFilters: emptyFilters,
+                            dashboardSorts: [],
+                            context: QueryExecutionContext.DASHBOARD,
+                            invalidateCache: false,
+                            limit: undefined,
+                            parameters,
+                            parameterControls,
+                            pivotResults: false,
+                        });
+                        return vi.mocked(service.resolveDashboardTileParameters)
+                            .mock.calls[0][0].dashboardValues;
+                    },
+                },
+                {
+                    path: 'SQL chart',
+                    run: async (
+                        service: AsyncQueryService,
+                        parameters: ParametersValuesMap | undefined,
+                        parameterControls:
+                            | DashboardParameterControl[]
+                            | undefined,
+                    ) => {
+                        await service.executeAsyncDashboardSqlChartQuery({
+                            account: viewer,
+                            projectUuid,
+                            savedSqlUuid: sqlChart.savedSqlUuid,
+                            dashboardUuid: 'dashboard-uuid',
+                            tileUuid,
+                            dashboardFilters: emptyFilters,
+                            dashboardSorts: [],
+                            context: QueryExecutionContext.DASHBOARD,
+                            invalidateCache: false,
+                            parameters,
+                            parameterControls,
+                        });
+                        const [, , requestValues, dashboardValues] = vi.mocked(
+                            service.combineParameters,
+                        ).mock.calls[0];
+                        return { ...dashboardValues, ...requestValues };
+                    },
+                },
+            ])('on the dashboard $path path', ({ run }) => {
+                test('keeps every value while the flag is off', async () => {
+                    const { service, getSavedControls } = setup({
+                        isFlagEnabled: false,
+                        savedControls: [statusOffControl],
+                    });
+
+                    await expect(
+                        run(service, { tier: 'gold' }, undefined),
+                    ).resolves.toEqual({
+                        status: 'Shipped',
+                        region: 'EU',
+                        tier: 'gold',
+                    });
+                    expect(getSavedControls).not.toHaveBeenCalled();
+                });
+
+                test('drops the values of a control switched off for the tile', async () => {
+                    const { service, getSavedControls } = setup({
+                        isFlagEnabled: true,
+                        savedControls: [statusOffControl],
+                    });
+
+                    await expect(
+                        run(service, { tier: 'gold' }, undefined),
+                    ).resolves.toEqual({ region: 'EU', tier: 'gold' });
+                    expect(getSavedControls).toHaveBeenCalledWith(
+                        'dashboard-uuid',
+                        projectUuid,
+                    );
+                });
+
+                test('drops a request value of a control switched off for the tile', async () => {
+                    const { service } = setup({
+                        isFlagEnabled: true,
+                        savedControls: [statusOffControl],
+                    });
+
+                    await expect(
+                        run(service, { status: 'Returned' }, undefined),
+                    ).resolves.toEqual({ region: 'EU' });
+                });
+
+                test('uses the request controls instead of the saved ones', async () => {
+                    const { service, getSavedControls } = setup({
+                        isFlagEnabled: true,
+                        savedControls: [statusOffControl],
+                    });
+
+                    await expect(
+                        run(service, { tier: 'gold' }, [regionOffControl]),
+                    ).resolves.toEqual({ status: 'Shipped', tier: 'gold' });
+                    expect(getSavedControls).not.toHaveBeenCalled();
+                });
+
+                test('keeps every value when the dashboard has no controls', async () => {
+                    const { service } = setup({
+                        isFlagEnabled: true,
+                        savedControls: [],
+                    });
+
+                    await expect(
+                        run(service, { tier: 'gold' }, undefined),
+                    ).resolves.toEqual({
+                        status: 'Shipped',
+                        region: 'EU',
+                        tier: 'gold',
+                    });
+                });
+
+                test('looks nothing up when there are no values to narrow', async () => {
+                    const { service, getSavedControls, isControlsFlagRead } =
+                        setup({
+                            isFlagEnabled: true,
+                            savedControls: [statusOffControl],
+                            hasDashboardValues: false,
+                        });
+
+                    await expect(
+                        run(service, undefined, undefined),
+                    ).resolves.toEqual({});
+                    expect(isControlsFlagRead()).toBe(false);
+                    expect(getSavedControls).not.toHaveBeenCalled();
+                });
+            });
+        });
+
         test('the field value search query records the resolved connection', async () => {
             const { service, execute } = buildService();
             (service.projectModel as AnyType).findExploreByTableName = vi.fn(
@@ -9706,6 +9918,62 @@ describe('AsyncQueryService', () => {
                 region: 'US',
                 tier: 'gold',
             });
+        });
+
+        test('narrows the dashboard values for the tile before the merge resolves them', async () => {
+            const { service } = buildService();
+            const internals = service as AnyType;
+            internals.featureFlagModel = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.DashboardControls,
+                    }),
+                ),
+            };
+            internals.dashboardModel = {
+                getDashboardParametersByIdOrSlug: vi.fn(async () => ({
+                    tier: { parameterName: 'tier', value: 'gold' },
+                    region: { parameterName: 'region', value: 'EU' },
+                })),
+                getDashboardParameterControlsByIdOrSlug: vi.fn(async () => [
+                    {
+                        id: 'tier-control',
+                        label: 'Tier',
+                        parameterKeys: ['tier'],
+                        tileTargets: { 'tile-1': false },
+                    },
+                ]),
+            };
+            const overridesSpy = vi
+                .spyOn(internals, 'getDashboardTileParameterOverrides')
+                .mockResolvedValue({});
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: { status: 'Returned' },
+                pivotResults: false,
+            });
+
+            expect(overridesSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { region: 'EU', status: 'Returned' },
+                }),
+            );
         });
 
         test('forwards a saved-chart pivot override to merged chart execution', async () => {

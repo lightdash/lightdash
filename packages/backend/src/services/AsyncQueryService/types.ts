@@ -13,6 +13,7 @@ import {
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
     type DuckdbExecutionSpec,
@@ -146,6 +147,8 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     includeUnpublishedDraft?: boolean;
+    // Unsaved controls from the request, used instead of the saved ones
+    parameterControls?: DashboardParameterControl[];
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -228,6 +231,8 @@ export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    // Unsaved controls from the request, used instead of the saved ones
+    parameterControls?: DashboardParameterControl[];
 };
 
 export type ExecuteAsyncDashboardSqlChartByUuidArgs =

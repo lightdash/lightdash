@@ -31,6 +31,7 @@ import {
     Explore,
     ExploreError,
     ExportContentPayload,
+    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -38,6 +39,7 @@ import {
     formatRows,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
+    getDashboardValuesForTile,
     getDimensionMapFromTables,
     getDimensions,
     getExecutableFilterFieldIds,
@@ -1254,6 +1256,7 @@ export class EmbedService extends BaseService {
         return this.projectService.resolveDashboardTileParameters({
             projectUuid,
             explore,
+            // No tile here: totals do not narrow dashboard values per tile
             dashboardValues: {
                 ...getDashboardParametersValuesMap(dashboard),
                 ...acceptedUserParameters,
@@ -1750,14 +1753,29 @@ export class EmbedService extends BaseService {
             userParameters
                 ? userParameters
                 : {};
+        const { enabled: isDashboardControlsEnabled } =
+            await this.featureFlagModel.get({
+                user: {
+                    userUuid: user?.userUuid ?? account.user.id,
+                    organizationUuid,
+                },
+                featureFlagId: FeatureFlags.DashboardControls,
+            });
+        const dashboardValues = {
+            ...getDashboardParametersValuesMap(dashboard),
+            ...acceptedUserParameters,
+        };
         const combinedParameters =
             await this.projectService.resolveDashboardTileParameters({
                 projectUuid,
                 explore,
-                dashboardValues: {
-                    ...getDashboardParametersValuesMap(dashboard),
-                    ...acceptedUserParameters,
-                },
+                dashboardValues: isDashboardControlsEnabled
+                    ? getDashboardValuesForTile({
+                          dashboardValues,
+                          parameterControls: dashboard.parameterControls ?? [],
+                          tileUuid,
+                      })
+                    : dashboardValues,
                 chartSavedValues: chart.parameters ?? {},
                 isTargeted: true,
                 preloadedProjectParameters: null,

@@ -2,6 +2,8 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
+    DashboardTileTypes,
+    FeatureFlags,
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
@@ -233,6 +235,148 @@ describe('EmbedService', () => {
                 {},
             );
             expect(resolveDashboardTileParameters).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getChartAndResults parameter controls', () => {
+        const tileUuid = 'tile-uuid';
+        const buildService = (isDashboardControlsEnabled: boolean) => {
+            const resolveDashboardTileParameters = vi
+                .fn()
+                .mockResolvedValue({});
+            const embedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId !==
+                                    FeatureFlags.DashboardControls ||
+                                isDashboardControlsEnabled,
+                        }),
+                    ),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        tiles: [
+                            {
+                                uuid: tileUuid,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: { savedChartUuid: 'chart-uuid' },
+                            },
+                        ],
+                        parameters: {
+                            status: {
+                                parameterName: 'status',
+                                value: 'Shipped',
+                            },
+                            region: { parameterName: 'region', value: 'EU' },
+                        },
+                        parameterControls: [
+                            {
+                                id: 'control-1',
+                                label: 'Status',
+                                parameterKeys: ['status'],
+                                tileTargets: { [tileUuid]: false },
+                            },
+                        ],
+                    }),
+                },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-uuid',
+                        organizationUuid: mockOrganizationUuid,
+                        tableName: validExplore.name,
+                        metricQuery: {},
+                        parameters: {},
+                    }),
+                },
+                projectModel: {
+                    getExploreFromCache: vi
+                        .fn()
+                        .mockResolvedValue(validExplore),
+                },
+                analytics: { trackAccount: vi.fn() },
+                projectService: {
+                    resolveDashboardTileParameters,
+                    getQueryTimezoneForProject: vi
+                        .fn()
+                        .mockResolvedValue('UTC'),
+                    isTimezoneSupportEnabled: vi.fn().mockResolvedValue(false),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const privateMethods = embedService as unknown as {
+                _getAppliedDashboardFilters(): Promise<DashboardFilters>;
+                _runEmbedQuery(): Promise<unknown>;
+                cannotViewEmbedCompiledSql(): boolean;
+            };
+            vi.spyOn(
+                privateMethods,
+                '_getAppliedDashboardFilters',
+            ).mockResolvedValue({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
+            vi.spyOn(privateMethods, '_runEmbedQuery').mockResolvedValue({
+                rows: [],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+            });
+            vi.spyOn(
+                privateMethods,
+                'cannotViewEmbedCompiledSql',
+            ).mockReturnValue(false);
+            const account = {
+                ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
+                access: { content: { dashboardUuid: 'dashboard-uuid' } },
+            } as unknown as AnonymousAccount;
+            const run = () =>
+                embedService.getChartAndResults(
+                    mockProjectUuid,
+                    account,
+                    tileUuid,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    false,
+                );
+            return { run, resolveDashboardTileParameters };
+        };
+
+        test('drops the values of a control switched off for the tile', async () => {
+            const { run, resolveDashboardTileParameters } = buildService(true);
+
+            await run();
+
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { region: 'EU' },
+                }),
+            );
+        });
+
+        test('keeps every dashboard value while the flag is off', async () => {
+            const { run, resolveDashboardTileParameters } = buildService(false);
+
+            await run();
+
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { status: 'Shipped', region: 'EU' },
+                }),
+            );
         });
     });
 

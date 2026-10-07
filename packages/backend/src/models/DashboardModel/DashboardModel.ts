@@ -189,6 +189,11 @@ const getDashboardSlugOwner = async (
         .first();
 };
 
+type LatestDashboardViewColumns = {
+    parameters: DashboardParameters | null;
+    parameter_controls: DashboardParameterControl[] | null;
+};
+
 export class DashboardModel {
     private readonly database: Knex;
 
@@ -1668,15 +1673,14 @@ export class DashboardModel {
         };
     }
 
-    /**
-     * Lightweight query to fetch only dashboard parameters without loading
-     * tiles, tabs, verification, or other dashboard metadata.
-     * Used by dashboard chart query execution where only parameters are needed.
-     */
-    async getDashboardParametersByIdOrSlug(
+    // The latest saved view of a dashboard, selecting only the given column
+    private async findLatestDashboardViewColumn<
+        TColumn extends keyof LatestDashboardViewColumns,
+    >(
         dashboardUuidOrSlug: string,
         projectUuid: string,
-    ): Promise<DashboardParameters | undefined> {
+        column: TColumn,
+    ): Promise<Pick<LatestDashboardViewColumns, TColumn> | undefined> {
         const query = this.database(DashboardsTableName)
             .innerJoin(
                 DashboardVersionsTableName,
@@ -1688,8 +1692,8 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .select<{ parameters: DashboardParameters | null } | undefined>(
-                `${DashboardViewsTableName}.parameters`,
+            .select<Pick<LatestDashboardViewColumns, TColumn> | undefined>(
+                `${DashboardViewsTableName}.${column}`,
             )
             .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -1702,25 +1706,53 @@ export class DashboardModel {
                 .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
                 .first();
 
-        let row = isValidUuid(dashboardUuidOrSlug)
+        const row = isValidUuid(dashboardUuidOrSlug)
             ? await fetchByUuid(dashboardUuidOrSlug)
             : undefined;
+        if (row) return row;
 
-        if (!row) {
-            const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
-                dashboardUuidOrSlug,
-                projectUuid,
-            );
-            row = resolvedDashboardUuid
-                ? await fetchByUuid(resolvedDashboardUuid)
-                : undefined;
-        }
+        const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
+            dashboardUuidOrSlug,
+            projectUuid,
+        );
+        return resolvedDashboardUuid
+            ? fetchByUuid(resolvedDashboardUuid)
+            : undefined;
+    }
+
+    /**
+     * Lightweight query to fetch only dashboard parameters without loading
+     * tiles, tabs, verification, or other dashboard metadata.
+     * Used by dashboard chart query execution where only parameters are needed.
+     */
+    async getDashboardParametersByIdOrSlug(
+        dashboardUuidOrSlug: string,
+        projectUuid: string,
+    ): Promise<DashboardParameters | undefined> {
+        const row = await this.findLatestDashboardViewColumn(
+            dashboardUuidOrSlug,
+            projectUuid,
+            'parameters',
+        );
 
         if (!row) {
             throw new NotFoundError('Dashboard not found');
         }
 
         return row.parameters ?? undefined;
+    }
+
+    // The saved parameter controls of a dashboard, empty when it has none
+    async getDashboardParameterControlsByIdOrSlug(
+        dashboardUuidOrSlug: string,
+        projectUuid: string,
+    ): Promise<DashboardParameterControl[]> {
+        const row = await this.findLatestDashboardViewColumn(
+            dashboardUuidOrSlug,
+            projectUuid,
+            'parameter_controls',
+        );
+        return row?.parameter_controls ?? [];
     }
 
     /*

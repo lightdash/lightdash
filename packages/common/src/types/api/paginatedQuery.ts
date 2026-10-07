@@ -6,6 +6,7 @@ import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
+import type { DashboardParameterControl } from '../parameters';
 import type { PivotConfig } from '../pivot';
 import type {
     ExternalSourceTableReference,
@@ -66,6 +67,9 @@ export type ExecuteAsyncDashboardChartRequestParams =
         // Run the caller's own unpublished chart draft instead of the
         // published chart, so a tile matches what the author sees
         includeUnpublishedDraft?: boolean;
+        // The dashboard's current, possibly unsaved, parameter controls;
+        // when present they are used instead of the saved ones
+        parameterControls?: DashboardParameterControl[];
     };
 
 /** A merge run: the spec that produced it, recorded verbatim. */
@@ -161,6 +165,9 @@ type ExecuteAsyncDashboardSqlChartCommonParams =
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         limit?: number;
+        // The dashboard's current, possibly unsaved, parameter controls;
+        // when present they are used instead of the saved ones
+        parameterControls?: DashboardParameterControl[];
     };
 
 export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =
