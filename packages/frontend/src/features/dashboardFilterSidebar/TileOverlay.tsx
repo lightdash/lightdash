@@ -6,15 +6,7 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import {
-    Badge,
-    Button,
-    Group,
-    Paper,
-    Select,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Button, Paper, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -23,10 +15,8 @@ import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     doesTileOfferField,
-    getDefaultTileField,
     getFilterFields,
     getTileField,
-    isTileChanged,
     isTileFilterable,
     setTileField,
     type FieldsByTile,
@@ -96,8 +86,6 @@ const TileOverlay: FC<TileOverlayProps> = ({
     onChange,
 }) => {
     const tileField = getTileField(rule, tile, fieldsByTile);
-    const defaultField = getDefaultTileField(rule, tile, fieldsByTile);
-    const isChanged = isTileChanged(rule, tile, fieldsByTile);
     const options = filterFieldIds.filter(
         (fieldId) =>
             doesTileOfferField(tile, fieldId, fieldsByTile) ||
@@ -190,26 +178,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
                         >
                             Use {getFieldLabel(offeredField.fieldId, fieldsMap)}
                         </Button>
-                    ) : (
-                        <Group justify="space-between">
-                            {isChanged ? (
-                                <Badge size="xs">Changed</Badge>
-                            ) : (
-                                <Text fz="xs" c="dimmed">
-                                    Default
-                                </Text>
-                            )}
-                            {isChanged && (
-                                <Button
-                                    variant="subtle"
-                                    size="compact-xs"
-                                    onClick={() => setField(defaultField)}
-                                >
-                                    Back to the default
-                                </Button>
-                            )}
-                        </Group>
-                    )}
+                    ) : null}
                 </Stack>
             </Paper>
         </div>
