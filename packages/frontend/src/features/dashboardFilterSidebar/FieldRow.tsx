@@ -1,3 +1,4 @@
+import { type DashboardFilterableField } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -10,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './FieldsAndCharts.module.css';
 import { type FieldCount } from './peers';
@@ -18,6 +20,7 @@ const pluralizeCharts = (count: number): string =>
     count === 1 ? 'chart' : 'charts';
 
 type Props = {
+    field: DashboardFilterableField | null;
     label: string;
     tableLabel: string;
     count: FieldCount;
@@ -32,6 +35,7 @@ type Props = {
 };
 
 export const FieldRow: FC<Props> = ({
+    field,
     label,
     tableLabel,
     count,
@@ -66,9 +70,14 @@ export const FieldRow: FC<Props> = ({
                 onFocus={() => onHoverChange(true)}
                 onBlur={() => onHoverChange(false)}
             >
-                <Text fz="sm" fw={600} truncate>
-                    {label}
-                </Text>
+                <Group gap="xs" wrap="nowrap">
+                    {field !== null && (
+                        <FieldIcon item={field} size={14} aria-hidden />
+                    )}
+                    <Text fz="sm" fw={600} truncate>
+                        {label}
+                    </Text>
+                </Group>
             </UnstyledButton>
             <Stack className={classes.rowActions} gap={2}>
                 <Text fz="xs" c="dimmed" truncate>

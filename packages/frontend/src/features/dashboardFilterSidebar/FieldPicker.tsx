@@ -22,6 +22,7 @@ import {
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
     foldFieldGrains,
@@ -146,6 +147,7 @@ export const FieldPicker: FC<Props> = ({
                         aria-hidden
                     />
                 )}
+                <FieldIcon item={field} size={14} aria-hidden />
                 <Text fz="sm" truncate className={classes.rowText}>
                     {label}
                 </Text>

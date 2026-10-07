@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { foldFieldGrains, getFieldDisplayLabel } from './fieldGrains';
@@ -224,6 +225,7 @@ export const FieldsAndCharts: FC = () => {
                     return (
                         <FieldRow
                             key={fieldId}
+                            field={field ?? null}
                             label={getRowLabel(fieldId)}
                             tableLabel={
                                 field?.tableLabel ?? target?.tableName ?? ''
@@ -282,6 +284,7 @@ export const FieldsAndCharts: FC = () => {
                 })}
                 {waitingRow !== null && waitingLabel !== null && (
                     <FieldRow
+                        field={getField(waitingRow.fieldId) ?? null}
                         label={waitingLabel}
                         tableLabel={
                             getField(waitingRow.fieldId)?.tableLabel ??
@@ -354,16 +357,36 @@ export const FieldsAndCharts: FC = () => {
                         comboboxProps={{ withinPortal: true }}
                         data={addOptions.groups}
                         value={null}
-                        renderOption={({ option }) => (
-                            <Group gap="xs" justify="space-between" flex={1}>
-                                <Text size="xs">{option.label}</Text>
-                                <Text size="xs" c="dimmed">
-                                    {addOptions.chartCounts.get(option.value) ??
-                                        0}{' '}
-                                    charts
-                                </Text>
-                            </Group>
-                        )}
+                        renderOption={({ option }) => {
+                            const optionField =
+                                addOptions.fieldsByKey.get(option.value) ??
+                                null;
+                            return (
+                                <Group
+                                    gap="xs"
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    flex={1}
+                                >
+                                    <Group gap="xs" wrap="nowrap">
+                                        {optionField !== null && (
+                                            <FieldIcon
+                                                item={optionField}
+                                                size={14}
+                                                aria-hidden
+                                            />
+                                        )}
+                                        <Text size="xs">{option.label}</Text>
+                                    </Group>
+                                    <Text size="xs" c="dimmed">
+                                        {addOptions.chartCounts.get(
+                                            option.value,
+                                        ) ?? 0}{' '}
+                                        charts
+                                    </Text>
+                                </Group>
+                            );
+                        }}
                         onChange={(value) => {
                             const field =
                                 value === null
