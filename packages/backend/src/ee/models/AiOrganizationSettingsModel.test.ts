@@ -71,13 +71,28 @@ describe('applyProviderApiKeyUpdates: provider gateways', () => {
         });
     });
 
-    it('ignores a gateway URL for a provider without a stored key', () => {
-        expect(
+    it('rejects a gateway URL for a provider without a stored key', () => {
+        expect(() =>
             applyProviderApiKeyUpdates(
                 { anthropic: 'sk-ant' },
                 { providerBaseUrls: { openai: 'https://litellm.example.com' } },
             ),
-        ).toEqual({ anthropic: 'sk-ant' });
+        ).toThrow(ParameterError);
+    });
+
+    it('accepts a key and its gateway URL in the same request', () => {
+        expect(
+            applyProviderApiKeyUpdates(
+                {},
+                {
+                    openai: 'sk-new',
+                    providerBaseUrls: { openai: 'https://litellm.example.com' },
+                },
+            ),
+        ).toEqual({
+            openai: 'sk-new',
+            providerBaseUrls: { openai: 'https://litellm.example.com' },
+        });
     });
 
     it('rejects a gateway URL with credentials or a query string', () => {

@@ -22,6 +22,7 @@ import {
     type AiModelOption,
     type AiOrgModelVisibility,
     type AiProviderCredentialsList,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
@@ -102,6 +103,20 @@ export const pickReplacementDefaultModelConfig = (
         reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
     };
 };
+
+/**
+ * Clearing an org base URL while the instance runs its own gateway would make
+ * every turn fail the gateway-conflict check, so reject it at write time.
+ */
+export const findBaseUrlRemovalsBlockedByInstanceGateway = (
+    providerApiKeys: UpdateAiProviderApiKeys,
+    configuredProviders: LightdashConfig['ai']['copilot']['providers'],
+): ByoAiApiKeyProvider[] =>
+    (['anthropic', 'google'] as const).filter(
+        (provider) =>
+            providerApiKeys.providerBaseUrls?.[provider] === null &&
+            Boolean(configuredProviders[provider]?.baseUrl),
+    );
 
 /**
  * Providers being SET to a key that this instance does not configure. BYO can
@@ -743,6 +758,17 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         if (aiSettingsUpdate.providerApiKeys !== undefined) {
+            const blockedRemovals = findBaseUrlRemovalsBlockedByInstanceGateway(
+                aiSettingsUpdate.providerApiKeys,
+                this.lightdashConfig.ai.copilot.providers,
+            );
+            if (blockedRemovals.length > 0) {
+                throw new ParameterError(
+                    `This instance routes ${blockedRemovals.join(
+                        ', ',
+                    )} through its own gateway, so an organization key needs a custom base URL. Remove the key instead.`,
+                );
+            }
             const unconfigured = findUnconfiguredProviderKeyWrites(
                 aiSettingsUpdate.providerApiKeys,
                 this.lightdashConfig.ai.copilot.providers,

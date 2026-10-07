@@ -222,6 +222,30 @@ describe('overlayOrgProviderApiKeys', () => {
         );
     });
 
+    it('does not send the instance gateway headers to the org gateway', () => {
+        const withHeaders: CopilotConfig = aiCopilotConfigSchema.parse({
+            ...anthropicGatewayConfig,
+            providers: {
+                ...anthropicGatewayConfig.providers,
+                anthropic: {
+                    ...anthropicGatewayConfig.providers.anthropic,
+                    customHeaders: { 'x-gateway-token': 'instance-secret' },
+                },
+            },
+        });
+        const result = overlayOrgProviderApiKeys(withHeaders, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.customHeaders).toEqual({});
+        // Without an org URL the instance headers still apply to the org key.
+        expect(
+            overlayOrgProviderApiKeys(baseConfig, {
+                openai: 'org-openai-key',
+            }).providers.openai?.customHeaders,
+        ).toEqual(baseConfig.providers.openai?.customHeaders);
+    });
+
     it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {
         const orgKey = 'full-fake-org-google-secret';
 

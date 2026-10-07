@@ -46,19 +46,29 @@ const PROVIDER_META: Record<
         label: string;
         icon: ComponentType<SVGProps<SVGSVGElement>>;
         placeholder: string;
+        // Mirrors the matching *_BASE_URL env var: Anthropic takes the host,
+        // OpenAI and Gemini need their API version in the path.
+        baseUrlPlaceholder: string;
     }
 > = {
     anthropic: {
         label: 'Anthropic',
         icon: AnthropicIcon,
         placeholder: 'sk-ant-...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com',
     },
     google: {
         label: 'Google Gemini',
         icon: GeminiIcon,
         placeholder: 'AIza...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com/v1beta',
     },
-    openai: { label: 'OpenAI', icon: OpenAiIcon, placeholder: 'sk-...' },
+    openai: {
+        label: 'OpenAI',
+        icon: OpenAiIcon,
+        placeholder: 'sk-...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com/v1',
+    },
 };
 
 type ProviderVisibility = { enabled: boolean; allowedModels?: string[] };
@@ -87,9 +97,10 @@ type ProviderRowProps = {
 
 const GatewayUrlInput: FC<{
     baseUrl: string | null;
+    placeholder: string;
     disabled: boolean;
     onSave: (baseUrl: string | null) => void;
-}> = ({ baseUrl, disabled, onSave }) => {
+}> = ({ baseUrl, placeholder, disabled, onSave }) => {
     const [value, setValue] = useState(baseUrl ?? '');
     const canSave =
         !disabled && value.trim().length > 0 && value.trim() !== baseUrl;
@@ -100,7 +111,7 @@ const GatewayUrlInput: FC<{
                 size="xs"
                 label="Custom base URL"
                 description="Optional. Send requests for this key to a proxy or gateway that speaks this provider's API. Model names are passed through unchanged."
-                placeholder="https://ai-gateway.example.com"
+                placeholder={placeholder}
                 value={value}
                 disabled={disabled}
                 onChange={(event) => setValue(event.currentTarget.value)}
@@ -122,10 +133,7 @@ const GatewayUrlInput: FC<{
                     variant="subtle"
                     color="red"
                     disabled={disabled}
-                    onClick={() => {
-                        setValue('');
-                        onSave(null);
-                    }}
+                    onClick={() => onSave(null)}
                 >
                     Remove
                 </Button>
@@ -151,7 +159,12 @@ const ProviderRow: FC<ProviderRowProps> = ({
     gatewayBaseUrl,
     onSaveGatewayBaseUrl,
 }) => {
-    const { label, icon: Icon, placeholder } = PROVIDER_META[provider];
+    const {
+        label,
+        icon: Icon,
+        placeholder,
+        baseUrlPlaceholder,
+    } = PROVIDER_META[provider];
     const [value, setValue] = useState('');
 
     // Availability controls only make sense once the org brings its own key —
@@ -234,6 +247,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 <GatewayUrlInput
                     key={gatewayBaseUrl ?? ''}
                     baseUrl={gatewayBaseUrl}
+                    placeholder={baseUrlPlaceholder}
                     disabled={disabled}
                     onSave={onSaveGatewayBaseUrl}
                 />

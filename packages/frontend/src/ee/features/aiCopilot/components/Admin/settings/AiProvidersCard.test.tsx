@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { AiProvidersCard } from './AiProvidersCard';
@@ -16,13 +17,16 @@ const BEDROCK_MODELS = [
     },
 ];
 
-const renderCard = (props?: { onUpdateKeys?: () => void }) =>
+const renderCard = (props?: {
+    onUpdateKeys?: () => void;
+    openaiKeySet?: boolean;
+}) =>
     renderWithProviders(
         <AiProvidersCard
             providerApiKeysSet={{
                 anthropic: false,
                 google: false,
-                openai: false,
+                openai: props?.openaiKeySet ?? false,
                 bedrock: false,
             }}
             providerApiKeyHints={{
@@ -69,5 +73,31 @@ describe('AiProvidersCard', () => {
             'AIza...',
         );
         expect(screen.queryByText('fake-gemini-key')).not.toBeInTheDocument();
+    });
+
+    it('shows the custom base URL input only once a key is set', () => {
+        renderCard();
+        expect(
+            screen.queryByLabelText('Custom base URL'),
+        ).not.toBeInTheDocument();
+
+        renderCard({ openaiKeySet: true });
+        expect(screen.getByLabelText('Custom base URL')).toHaveAttribute(
+            'placeholder',
+            'https://ai-gateway.example.com/v1',
+        );
+    });
+
+    it('saves a custom base URL for the provider on Enter', async () => {
+        const user = userEvent.setup();
+        const onUpdateKeys = vi.fn();
+        renderCard({ onUpdateKeys, openaiKeySet: true });
+
+        const input = screen.getByLabelText('Custom base URL');
+        await user.type(input, 'https://litellm.example.com/v1{Enter}');
+
+        expect(onUpdateKeys).toHaveBeenCalledWith({
+            providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
+        });
     });
 });

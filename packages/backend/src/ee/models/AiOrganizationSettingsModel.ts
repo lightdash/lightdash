@@ -113,11 +113,16 @@ export const applyProviderApiKeyUpdates = (
     const baseUrls = { ...(next.providerBaseUrls ?? {}) };
     BYO_AI_API_KEY_PROVIDERS.forEach((provider) => {
         const update = updates.providerBaseUrls?.[provider];
-        if (update === null || !next[provider]) {
+        if (update === null || (update === undefined && !next[provider])) {
             delete baseUrls[provider];
             return;
         }
         if (update === undefined) return;
+        if (!next[provider]) {
+            throw new ParameterError(
+                `Set an API key for ${provider} before a custom base URL`,
+            );
+        }
         const normalized = parseLlmGatewayBaseUrl(update);
         if (normalized === null) {
             throw new ParameterError(

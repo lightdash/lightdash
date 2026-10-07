@@ -46,9 +46,7 @@ export type ReviewJudgeAvailability = {
     byoJudgeProvider: 'anthropic' | 'bedrock' | null;
 };
 
-// An org key must not be sent to the INSTANCE gateway, whose credential may
-// authenticate an arbitrary endpoint. An org-chosen gateway replaces it, so
-// there is no conflict once the org supplies its own base URL.
+// No conflict once the org supplies its own base URL: it replaces the instance gateway.
 const hasAnthropicByoGatewayConflict = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
@@ -69,13 +67,22 @@ const hasGoogleByoGatewayConflict = (
         !orgKeys.providerBaseUrls?.google,
     );
 
+// An org base URL replaces the instance endpoint AND its custom headers:
+// those headers are the instance gateway's credential and must not leak.
 const orgBaseUrlOverride = (
     orgKeys: AiOrgProviderApiKeys,
     provider: ByoAiApiKeyProvider,
-): { baseUrl: string } | Record<string, never> => {
+): { baseUrl: string; customHeaders: Record<string, string> } | undefined => {
     const baseUrl = orgKeys.providerBaseUrls?.[provider];
-    return baseUrl ? { baseUrl } : {};
+    return baseUrl ? { baseUrl, customHeaders: {} } : undefined;
 };
+
+const orgCatalogOptions = (
+    orgKeys: AiOrgProviderApiKeys,
+    provider: ByoAiApiKeyProvider,
+): { baseUrl?: string } => ({
+    baseUrl: orgKeys.providerBaseUrls?.[provider],
+});
 
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
@@ -84,9 +91,10 @@ const orgBaseUrlOverride = (
  * (the write path rejects them), so BYO can only swap the key of a provider
  * this instance already runs. Two exceptions: custom provider endpoints, whose
  * instance credential may authenticate an arbitrary gateway, so an org key is
- * rejected rather than sent to that endpoint; and Bedrock, which carries its
- * own region, so it is constructed rather than overlaid and replaces the
- * provider set outright.
+ * rejected rather than sent to that endpoint unless the org brings its own
+ * base URL, which replaces the endpoint and its headers; and Bedrock, which
+ * carries its own region, so it is constructed rather than overlaid and
+ * replaces the provider set outright.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
@@ -172,7 +180,8 @@ export const overlayOrgProviderApiKeys = (
         providers.google = {
             ...providers.google,
             apiKey: orgKeys.google,
-            ...orgBaseUrlOverride(orgKeys, 'google'),
+            baseUrl:
+                orgKeys.providerBaseUrls?.google ?? providers.google.baseUrl,
         };
     }
 
@@ -444,7 +453,7 @@ export class OrgAiCopilotConfigResolver {
                       : await this.aiModelCatalog.getAccessibleModelIds(
                             'anthropic',
                             orgKeys.anthropic,
-                            orgBaseUrlOverride(orgKeys, 'anthropic'),
+                            orgCatalogOptions(orgKeys, 'anthropic'),
                         ),
               }
             : null;
@@ -626,7 +635,7 @@ export class OrgAiCopilotConfigResolver {
         const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
             'anthropic',
             orgKeys.anthropic,
-            orgBaseUrlOverride(orgKeys, 'anthropic'),
+            orgCatalogOptions(orgKeys, 'anthropic'),
         );
         const canJudgeOnByoKey = modelIds
             ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)

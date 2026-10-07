@@ -4,10 +4,12 @@ import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     ParameterError,
 } from '@lightdash/common';
+import { aiCopilotConfigSchema } from '../../config/aiConfigSchema';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
     AiOrganizationSettingsService,
     areReviewsEnabledForSettings,
+    findBaseUrlRemovalsBlockedByInstanceGateway,
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
     pickReplacementDefaultModelConfig,
@@ -120,6 +122,57 @@ describe('validateDataAppAnalysisLimits', () => {
                 extra: 1,
             } as never),
         ).toThrow('Unknown limit extra');
+    });
+});
+
+describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
+    const { providers } = aiCopilotConfigSchema.parse({
+        enabled: true,
+        requiresFeatureFlag: false,
+        telemetryEnabled: false,
+        threadDumpEnabled: false,
+        debugLoggingEnabled: false,
+        askAiButtonEnabled: false,
+        embeddingEnabled: false,
+        maxQueryLimit: 100,
+        runSqlMaxLimit: 100,
+        defaultProvider: 'openai',
+        defaultEmbeddingModelProvider: 'openai',
+        providers: {
+            anthropic: {
+                apiKey: 'instance-anthropic-key',
+                baseUrl: 'https://llm-gateway.example',
+            },
+            google: { apiKey: 'instance-google-key' },
+            openai: {
+                apiKey: 'instance-openai-key',
+                baseUrl: 'https://openai-gateway.example',
+            },
+        },
+    });
+
+    it('blocks clearing an Anthropic or Google URL when the instance has a gateway', () => {
+        expect(
+            findBaseUrlRemovalsBlockedByInstanceGateway(
+                { providerBaseUrls: { anthropic: null, google: null } },
+                providers,
+            ),
+        ).toEqual(['anthropic']);
+    });
+
+    it('never blocks OpenAI, setting a URL, or removing the key itself', () => {
+        expect(
+            findBaseUrlRemovalsBlockedByInstanceGateway(
+                {
+                    anthropic: null,
+                    providerBaseUrls: {
+                        openai: null,
+                        anthropic: 'https://litellm.example.com',
+                    },
+                },
+                providers,
+            ),
+        ).toEqual([]);
     });
 });
 
