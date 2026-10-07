@@ -489,6 +489,12 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Roadmap', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'OrganizationAdoption', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'OrganizationAdoption', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'DataApp', {
             organizationUuid: member.organizationUuid,

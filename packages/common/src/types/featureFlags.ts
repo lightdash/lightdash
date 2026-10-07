@@ -189,6 +189,11 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
+     * Show the adoption-by-department page and its API.
+     */
+    OrganizationAdoption = 'organization-adoption',
+
+    /**
      * Enable the admin API endpoint that captures AI review judge replay
      * inputs (candidate + evidence packet) for the offline eval scoreboard.
      * Off by default — intended only for orgs running classifier evals.

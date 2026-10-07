@@ -261,6 +261,12 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'Roadmap', {
             organizationUuid,
         });
+        can('view', 'OrganizationAdoption', {
+            organizationUuid,
+        });
+        can('manage', 'OrganizationAdoption', {
+            organizationUuid,
+        });
         can('manage', 'PreAggregation', {
             organizationUuid,
         });
