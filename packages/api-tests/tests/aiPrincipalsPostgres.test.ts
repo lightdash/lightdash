@@ -299,6 +299,7 @@ describe.sequential('Postgres AI principals', () => {
         expect(response.body.results.refusal).toMatchObject({
             reason: 'no_group_mapping',
             action: 'ask_admin',
+            settingsUrl: `/generalSettings/projectManagement/${projectUuid}/settings`,
         });
         const callEditorTool = await openMcpSession(editor, projectUuid);
         const result = await callEditorTool(

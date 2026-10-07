@@ -279,7 +279,7 @@ export const getAiAccessRefusalMessage = (
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
             return 'The last check of your AI principal failed. Ask an admin to review it.';
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
-            return 'Sign in to the warehouse for AI once so AI can run as you.';
+            return 'Connect your agent to the warehouse once so it can run as you.';
         case AiAccessRefusalReason.NO_GROUP_MAPPING:
             return 'None of your groups has an AI principal. Ask an admin to map your group.';
         case AiAccessRefusalReason.TRANSPORT_UNAVAILABLE:

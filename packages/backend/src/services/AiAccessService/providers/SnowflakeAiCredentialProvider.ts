@@ -56,7 +56,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                           }
                         : {
                               available: false,
-                              reason: 'The Snowflake sign-in for AI is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.',
+                              reason: 'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.',
                           },
                 twin: unavailable,
                 group: unavailable,

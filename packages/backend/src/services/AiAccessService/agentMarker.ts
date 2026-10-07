@@ -20,7 +20,7 @@ export const describeAgentMarker = (type: WarehouseTypes): AiAgentMarker => {
                         where: "SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')",
                     },
                 ],
-                note: 'The warehouse verifies the session only when the person has done the AI sign-in. Other agent queries carry the query tag.',
+                note: 'The warehouse verifies the session only when the person has connected their agent. Other agent queries carry the query tag.',
                 enforce: `CREATE ROW ACCESS POLICY agent_access AS (ai_allowed BOOLEAN)
 RETURNS BOOLEAN ->
     NOT COALESCE(SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN, FALSE)
@@ -76,7 +76,7 @@ ALTER TABLE protected_data ADD ROW ACCESS POLICY agent_access ON (ai_allowed);`,
                         where: 'query history, "agent":"true"',
                     },
                 ],
-                note: 'Unity Catalog attribute-based policies (Beta) can branch on `request.client_id`, which is fixed by how the token was issued. To enforce on agents, register a separate OAuth app for agent sign-in and match its client id. Personal access tokens bypass it.',
+                note: 'Unity Catalog attribute-based policies (Beta) can branch on `request.client_id`, which is fixed by how the token was issued. To enforce on agents, register a separate OAuth app for agent connections and match its client id. Personal access tokens bypass it.',
                 enforce: null,
             };
         case WarehouseTypes.BIGQUERY:

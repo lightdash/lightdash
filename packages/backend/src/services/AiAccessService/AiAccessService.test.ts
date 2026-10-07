@@ -815,7 +815,7 @@ describe('AiAccessService', () => {
         const { service, model, provider } = setup();
         provider.mint.mockRejectedValue(
             new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN, {
-                message: 'Sign in again',
+                message: 'Connect your agent again',
             }),
         );
         expect(await service.testPrincipal(account, 'principal')).toMatchObject(
@@ -827,7 +827,7 @@ describe('AiAccessService', () => {
             checkedAt: expect.any(Date),
             observed: {},
             reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
-            message: 'Sign in again',
+            message: 'Connect your agent again',
         });
         expect(provider.probe).not.toHaveBeenCalled();
     });
@@ -905,7 +905,7 @@ describe('AiAccessService', () => {
             service.assertPrincipalProject(account, 'project', 'principal'),
         ).rejects.toThrow(NotFoundError);
     });
-    test('reports a missing sign-in without minting', async () => {
+    test('reports a missing agent connection without minting', async () => {
         const { service, provider } = setup();
         provider.missingPrerequisite.mockResolvedValue(
             AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -914,6 +914,9 @@ describe('AiAccessService', () => {
             refusal: {
                 reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
                 action: 'sign_in',
+                message:
+                    'Connect your agent to the warehouse once so it can run as you.',
+                settingsUrl: null,
             },
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
@@ -927,6 +930,24 @@ describe('AiAccessService', () => {
         expect(provider.mint).not.toHaveBeenCalled();
         expect(provider.probe).not.toHaveBeenCalled();
     });
+    test.each([null, '/generalSettings/projectManagement/project/aiAccess'])(
+        'links an admin refusal to connection settings from %s',
+        async (settingsUrl) => {
+            const { service, provider } = setup();
+            provider.missingPrerequisite.mockRejectedValue(
+                new AiAccessRefusedError(AiAccessRefusalReason.NO_POLICY, {
+                    settingsUrl,
+                }),
+            );
+            expect(await service.getAiAccessForUser(args)).toMatchObject({
+                refusal: {
+                    action: 'ask_admin',
+                    settingsUrl:
+                        '/generalSettings/projectManagement/project/settings',
+                },
+            });
+        },
+    );
     test('does not check prerequisites separately when resolving a plan', async () => {
         const { service, provider } = setup();
         await service.resolvePlan(args);
@@ -1139,7 +1160,12 @@ describe('AiAccessService', () => {
             principalKind: AiPrincipalKind.GROUP,
         });
         await expect(service.resolvePlan(args)).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.NO_GROUP_MAPPING },
+            refusal: {
+                reason: AiAccessRefusalReason.NO_GROUP_MAPPING,
+                action: 'ask_admin',
+                settingsUrl:
+                    '/generalSettings/projectManagement/project/settings',
+            },
         });
     });
     test('fills and sanitizes the twin name template', async () => {

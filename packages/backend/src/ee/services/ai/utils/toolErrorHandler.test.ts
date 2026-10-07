@@ -109,10 +109,12 @@ describe('toolErrorHandler', () => {
 describe('toolErrorOutput', () => {
     it('returns only the refusal message and its structured refusal', () => {
         const error = new AiAccessRefusedError(
-            AiAccessRefusalReason.PRINCIPAL_PENDING,
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
         );
         const output = toolErrorOutput(error, 'Error running query.');
-        expect(output.result).toBe(error.message);
+        expect(output.result).toBe(
+            'Connect your agent to the warehouse once so it can run as you.',
+        );
         expect(output.structuredContent).toEqual({
             error: error.message,
             refusal: error.refusal,

@@ -2129,9 +2129,7 @@ describe('MCP async query polling', () => {
 
 it('returns an AI access refusal as an MCP tool error', async () => {
     const { asyncQueryService } = makeMcpService();
-    const error = new AiAccessRefusedError(
-        AiAccessRefusalReason.PRINCIPAL_PENDING,
-    );
+    const error = new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
     vi.mocked(asyncQueryService.executeAsyncMetricQuery).mockRejectedValue(
         error,
     );
@@ -2158,7 +2156,7 @@ it('returns an AI access refusal as an MCP tool error', async () => {
         content: [
             {
                 type: 'text',
-                text: `Error running metric query: ${error.message}`,
+                text: 'Error running metric query: Connect your agent to the warehouse once so it can run as you.',
             },
         ],
     });

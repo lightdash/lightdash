@@ -42,32 +42,30 @@ Use the same Snowflake account for the integration and the project connection.
 
 Enable `ai-principals`. The `snowflake-ai-sign-in` flag is optional for this path.
 Either flag permits agent sign-in. The licence check still applies.
-The Agent identity page is available to project admins on Snowflake projects only.
+The Require agent identity switch is available to project admins in the Snowflake section of the project's Connection settings.
 Use Console organization overrides or the generic feature flag environment lists.
 See [feature flag precedence and refresh](feature-flags.md).
 
 ## Set the project rule
 
-1. Open the project's Agent identity page.
-2. Select the Snowflake connection.
-3. Check that Instance setup shows the configured badge.
-4. Turn on Require verified agent sessions.
-5. Check the success notification. The switch saves the rule immediately.
+1. Open the project's Connection settings at `/generalSettings/projectManagement/{projectUuid}/settings`.
+2. Find the Snowflake section.
+3. Turn on Require agent identity.
+4. Check the success notification. The switch saves the rule immediately.
 
 The rule uses the person principal and direct transport.
 Queries without an agent credential are refused while the rule is enabled.
 The switch does not create Snowflake access policies.
 Turning it off saves a disabled person policy. It does not revoke issued Snowflake tokens.
 
-## Sign in as a person
+## Connect your agent
 
-Under Your sign-in, select Sign in for agent sessions.
-Complete the Snowflake OAuth sign-in in the popup.
+Open My warehouse connections and find the Agent connection section for Snowflake.
+Select Connect agent and complete the Snowflake OAuth flow in the popup.
+You can also connect your agent from the chat card when a query needs your agent connection.
 The callback checks agent activation before it stores the refresh token.
-Check the sign-in date on the page. Run the marker test in the Test card.
-Each person who uses agents completes this sign-in.
-Select Sign out to remove the stored agent credential.
-People who are not project admins sign in from the chat prompt or from My warehouse connections.
+Each person who uses agents connects their own agent.
+Select Disconnect to remove the stored agent credential.
 
 ## Set warehouse rules
 

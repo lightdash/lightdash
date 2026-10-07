@@ -41,12 +41,12 @@ export const createAiCredentialProviderRegistry =
             case WarehouseTypes.CLICKHOUSE:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for ClickHouse are coming soon. They need a user per principal with certificate or SSH key sign-in and the query cache pinned off.',
+                    'AI principals for ClickHouse are coming soon. They need a user per principal with certificate or SSH key authentication and the query cache pinned off.',
                 );
             case WarehouseTypes.TRINO:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for Trino are coming soon. They need a JWT or certificate sign-in for this instance and user impersonation.',
+                    'AI principals for Trino are coming soon. They need JWT or certificate authentication for this instance and user impersonation.',
                 );
             case WarehouseTypes.ATHENA:
                 return new UnavailableAiCredentialProvider(

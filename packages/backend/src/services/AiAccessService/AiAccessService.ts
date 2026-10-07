@@ -3,6 +3,7 @@ import {
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_TAG,
     AI_PRINCIPAL_QUERY_TAG,
+    AiAccessRefusalAction,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
@@ -830,6 +831,23 @@ export class AiAccessService extends BaseService {
         }
     }
 
+    private static withRefusalSettingsUrl(
+        error: AiAccessRefusedError,
+        projectUuid: string,
+    ): AiAccessRefusedError {
+        if (
+            error.refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
+            (error.refusal.settingsUrl === null ||
+                error.refusal.settingsUrl.endsWith('/aiAccess'))
+        ) {
+            return new AiAccessRefusedError(error.refusal.reason, {
+                message: error.refusal.message,
+                settingsUrl: `/generalSettings/projectManagement/${projectUuid}/settings`,
+            });
+        }
+        return error;
+    }
+
     private logRefusal(
         args: AccessArgs,
         policy: AiAccessPolicy,
@@ -980,8 +998,14 @@ export class AiAccessService extends BaseService {
                 },
             };
         } catch (error) {
-            if (error instanceof AiAccessRefusedError)
-                this.logRefusal(args, policy, error);
+            if (error instanceof AiAccessRefusedError) {
+                const refusalError = AiAccessService.withRefusalSettingsUrl(
+                    error,
+                    args.projectUuid,
+                );
+                this.logRefusal(args, policy, refusalError);
+                throw refusalError;
+            }
             throw error;
         }
     }
@@ -1035,8 +1059,12 @@ export class AiAccessService extends BaseService {
             };
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            this.logRefusal(args, policy, error);
-            result.refusal = error.refusal;
+            const refusalError = AiAccessService.withRefusalSettingsUrl(
+                error,
+                args.projectUuid,
+            );
+            this.logRefusal(args, policy, refusalError);
+            result.refusal = refusalError.refusal;
         }
         return result;
     }
