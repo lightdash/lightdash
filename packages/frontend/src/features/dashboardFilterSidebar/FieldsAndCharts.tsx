@@ -35,8 +35,7 @@ import {
 import { useFilterSidebar } from './useFilterSidebar';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-const DEFAULT_HINT =
-    'Choose which field each chart is filtered by. Hover a field to see its charts.';
+const DEFAULT_HINT = 'Choose which field each chart is filtered by.';
 
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,

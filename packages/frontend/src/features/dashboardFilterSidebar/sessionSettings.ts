@@ -4,6 +4,8 @@ export type SessionPlacement = 'bar' | 'more';
 
 export type FilterSessionSettings = {
     hiddenTabUuids: string[];
+    // Used by parameter controls, which have no saved rule to lock
+    lockedTabUuids: string[];
     picker: SessionPicker;
     operators: SessionOperatorsMode;
     allowedOperators: string[];
@@ -15,6 +17,7 @@ export type SessionSettingsByFilterId = Record<string, FilterSessionSettings>;
 
 export const DEFAULT_SESSION_SETTINGS: FilterSessionSettings = {
     hiddenTabUuids: [],
+    lockedTabUuids: [],
     picker: 'standard',
     operators: 'all',
     allowedOperators: [],
@@ -49,6 +52,15 @@ export const toggleHiddenOnTab = (
         ? settings.hiddenTabUuids.filter((uuid) => uuid !== tabKey)
         : [...settings.hiddenTabUuids, tabKey],
 });
+
+export const setTabUuids = (
+    current: string[],
+    tabKeys: string[],
+    isOn: boolean,
+): string[] => {
+    const rest = current.filter((uuid) => !tabKeys.includes(uuid));
+    return isOn ? [...rest, ...tabKeys] : rest;
+};
 
 export const toggleAllowedOperator = (
     settings: FilterSessionSettings,

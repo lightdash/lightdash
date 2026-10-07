@@ -5,6 +5,7 @@ import {
     isHiddenOnTab,
     isPickDefault,
     patchFilterSessionSettings,
+    setTabUuids,
     toggleAllowedOperator,
     toggleHiddenOnTab,
 } from './sessionSettings';
@@ -62,5 +63,25 @@ describe('sessionSettings', () => {
         expect(
             isPickDefault({ ...DEFAULT_SESSION_SETTINGS, picker: 'list' }),
         ).toBe(false);
+    });
+});
+
+describe('setTabUuids', () => {
+    it('adds tab keys without duplicating them', () => {
+        expect(setTabUuids(['a'], ['a', 'b'], true)).toEqual(['a', 'b']);
+    });
+
+    it('removes only the given tab keys', () => {
+        expect(setTabUuids(['a', 'b', 'c'], ['b'], false)).toEqual(['a', 'c']);
+    });
+
+    it('locks a control on a tab through session settings', () => {
+        const all = patchFilterSessionSettings({}, 'control-1', {
+            lockedTabUuids: setTabUuids([], ['tab-1'], true),
+        });
+        expect(
+            getFilterSessionSettings(all, 'control-1').lockedTabUuids,
+        ).toEqual(['tab-1']);
+        expect(DEFAULT_SESSION_SETTINGS.lockedTabUuids).toEqual([]);
     });
 });

@@ -13,22 +13,26 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconVariable, IconX } from '@tabler/icons-react';
+import { IconDots, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { ParameterInput } from '../parameters/components/ParameterInput';
+import { ControlInteractivity } from './ControlInteractivity';
+import { FieldRow } from './FieldRow';
 import classes from './FilterSidebar.module.css';
-import { NotSavedBadge } from './NotSavedBadge';
 import {
-    getControlTiles,
+    applyKeyToAll,
+    clearKeyFromAll,
+    getControlCount,
+    getControlTabCounts,
     getFreeParameterKeys,
+    getKeyCount,
     getParameterLabel,
+    removeKey,
     type ParameterKind,
 } from './parameterControls';
 import { useFilterSidebar } from './useFilterSidebar';
-
-const NO_TAB = 'no-tab';
 
 export const ParameterSidebar: FC = () => {
     const {
@@ -39,6 +43,9 @@ export const ParameterSidebar: FC = () => {
         setControlValue,
         closeControl,
         cancelControl,
+        highlightedFieldId,
+        setHighlightedFieldId,
+        setHoveredFieldId,
     } = useFilterSidebar();
     const [section, setSection] = useState<string | null>('interactivity');
     const [confirmRemove, setConfirmRemove] = useState(false);
@@ -56,17 +63,24 @@ export const ParameterSidebar: FC = () => {
     const control = parameterControls.find((c) => c.id === editingControlId);
     if (!control) return null;
 
-    const tiles = getControlTiles(
+    const count = getControlCount(
         control,
         dashboardTiles ?? [],
         tileParameterReferences,
     );
-    const usedTabCount = new Set(tiles.map((tile) => tile.tabUuid ?? NO_TAB))
-        .size;
+    const appliedTabCount = Object.values(
+        getControlTabCounts(
+            control,
+            dashboardTiles ?? [],
+            dashboardTabs,
+            tileParameterReferences,
+        ),
+    ).filter((tab) => tab.applied > 0).length;
     const tabReach =
         dashboardTabs.length > 1
-            ? ` on ${usedTabCount} of ${dashboardTabs.length} tabs`
+            ? ` on ${appliedTabCount} of ${dashboardTabs.length} tabs`
             : '';
+    const keyCount = control.parameterKeys.length;
     const [firstKey] = control.parameterKeys;
     const firstDefinition =
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];
@@ -77,11 +91,14 @@ export const ParameterSidebar: FC = () => {
         parameterDefinitions,
         tileParameterReferences,
     );
-    const chartCountFor = (key: string) =>
-        Object.values(tileParameterReferences).filter((keys) =>
-            keys.includes(key),
-        ).length;
-    const hiddenTabUuids = control.hiddenTabUuids ?? [];
+    const tiles = dashboardTiles ?? [];
+    const setControlTargets = (
+        next: Pick<typeof control, 'tileTargets' | 'parameterKeys'>,
+    ) =>
+        updateControl(control.id, {
+            tileTargets: next.tileTargets,
+            parameterKeys: next.parameterKeys,
+        });
 
     return (
         <Box className={classes.root}>
@@ -91,7 +108,7 @@ export const ParameterSidebar: FC = () => {
                         {control.label || 'New control'}
                     </Title>
                     <Text fz="xs" c="dimmed">
-                        {`Parameter control · overrides ${tiles.length} ${tiles.length === 1 ? 'chart' : 'charts'}${tabReach}`}
+                        {`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} charts${tabReach}`}
                     </Text>
                 </Stack>
                 <Group gap="xxs" wrap="nowrap">
@@ -146,7 +163,7 @@ export const ParameterSidebar: FC = () => {
                             <Paper p="md">
                                 <Stack gap="xs">
                                     <Text fz="sm" fw={600}>
-                                        Value on this dashboard
+                                        Default value
                                     </Text>
                                     {firstKey !== undefined &&
                                         firstDefinition && (
@@ -172,93 +189,9 @@ export const ParameterSidebar: FC = () => {
                                     >
                                         Clear
                                     </Button>
-                                    <Text fz="xs" c="dimmed">
-                                        Clearing the value does not change which
-                                        charts follow this control.
-                                    </Text>
                                 </Stack>
                             </Paper>
-                            <Paper p="md">
-                                <Stack gap="sm">
-                                    <Text fz="sm" fw={600}>
-                                        Viewer controls
-                                    </Text>
-                                    <Group
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                    >
-                                        <Text size="xs" fw={500}>
-                                            Visibility
-                                        </Text>
-                                        <NotSavedBadge tooltip="Hiding per tab is not saved yet" />
-                                    </Group>
-                                    {dashboardTabs.map((tab) => (
-                                        <Select
-                                            key={tab.uuid}
-                                            size="xs"
-                                            label={tab.name}
-                                            data={['Shown', 'Hidden']}
-                                            value={
-                                                hiddenTabUuids.includes(
-                                                    tab.uuid,
-                                                )
-                                                    ? 'Hidden'
-                                                    : 'Shown'
-                                            }
-                                            onChange={(next) =>
-                                                updateControl(control.id, {
-                                                    hiddenTabUuids:
-                                                        next === 'Hidden'
-                                                            ? [
-                                                                  ...hiddenTabUuids,
-                                                                  tab.uuid,
-                                                              ]
-                                                            : hiddenTabUuids.filter(
-                                                                  (uuid) =>
-                                                                      uuid !==
-                                                                      tab.uuid,
-                                                              ),
-                                                })
-                                            }
-                                        />
-                                    ))}
-                                    <Group
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                    >
-                                        <Text size="xs" fw={500}>
-                                            Placement
-                                        </Text>
-                                        <NotSavedBadge tooltip="Placement is not saved yet" />
-                                    </Group>
-                                    <Select
-                                        size="xs"
-                                        data={[
-                                            {
-                                                value: 'bar',
-                                                label: 'On the bar',
-                                            },
-                                            {
-                                                value: 'more',
-                                                label: 'Under More',
-                                            },
-                                        ]}
-                                        value={control.placement ?? 'bar'}
-                                        onChange={(next) =>
-                                            updateControl(control.id, {
-                                                placement:
-                                                    next === 'more'
-                                                        ? 'more'
-                                                        : 'bar',
-                                            })
-                                        }
-                                    />
-                                    <Text fz="xs" c="dimmed">
-                                        A parameter shows needs a value when a
-                                        chart has nothing to run with.
-                                    </Text>
-                                </Stack>
-                            </Paper>
+                            <ControlInteractivity controlId={control.id} />
                         </Stack>
                     </Tabs.Panel>
                     <Tabs.Panel value="charts">
@@ -267,43 +200,73 @@ export const ParameterSidebar: FC = () => {
                                 Parameters in this control
                             </Text>
                             {control.parameterKeys.map((key) => {
-                                const n = chartCountFor(key);
+                                const keyCountFor = getKeyCount(
+                                    control,
+                                    key,
+                                    tiles,
+                                    tileParameterReferences,
+                                );
+                                const isLastKey =
+                                    control.parameterKeys.length === 1;
                                 return (
-                                    <Group
+                                    <FieldRow
                                         key={key}
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                    >
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon icon={IconVariable} />
-                                            <Text fz="sm" truncate>
-                                                {getParameterLabel(
-                                                    key,
-                                                    parameterDefinitions,
-                                                )}
-                                            </Text>
-                                            <Text fz="xs" c="dimmed">
-                                                {`${n} ${n === 1 ? 'chart' : 'charts'}`}
-                                            </Text>
-                                        </Group>
-                                        {control.parameterKeys.length > 1 && (
-                                            <Button
-                                                variant="subtle"
-                                                size="compact-xs"
-                                                onClick={() =>
-                                                    updateControl(control.id, {
-                                                        parameterKeys:
-                                                            control.parameterKeys.filter(
-                                                                (k) =>
-                                                                    k !== key,
-                                                            ),
-                                                    })
-                                                }
-                                            >
-                                                Remove
-                                            </Button>
+                                        field={null}
+                                        label={getParameterLabel(
+                                            key,
+                                            parameterDefinitions,
                                         )}
-                                    </Group>
+                                        tableLabel="Parameter"
+                                        count={keyCountFor}
+                                        isWaiting={false}
+                                        isHighlighted={
+                                            highlightedFieldId === key
+                                        }
+                                        isNotSaved={keyCountFor.applied === 0}
+                                        onToggleHighlight={() =>
+                                            setHighlightedFieldId(
+                                                highlightedFieldId === key
+                                                    ? null
+                                                    : key,
+                                            )
+                                        }
+                                        onHoverChange={(isHovered) =>
+                                            setHoveredFieldId(
+                                                isHovered ? key : null,
+                                            )
+                                        }
+                                        onAll={() =>
+                                            setControlTargets(
+                                                applyKeyToAll(
+                                                    control,
+                                                    key,
+                                                    tiles,
+                                                    tileParameterReferences,
+                                                ),
+                                            )
+                                        }
+                                        onNone={() =>
+                                            setControlTargets(
+                                                clearKeyFromAll(
+                                                    control,
+                                                    key,
+                                                    tiles,
+                                                    tileParameterReferences,
+                                                ),
+                                            )
+                                        }
+                                        onRemove={() => {
+                                            if (isLastKey) return;
+                                            setControlTargets(
+                                                removeKey(
+                                                    control,
+                                                    key,
+                                                    tiles,
+                                                    tileParameterReferences,
+                                                ),
+                                            );
+                                        }}
+                                    />
                                 );
                             })}
                             <Select
@@ -329,7 +292,7 @@ export const ParameterSidebar: FC = () => {
                                 }
                             />
                             <Text fz="xs" c="dimmed">
-                                Choose which charts follow this control.
+                                Choose which parameter each chart is set by.
                             </Text>
                         </Stack>
                     </Tabs.Panel>

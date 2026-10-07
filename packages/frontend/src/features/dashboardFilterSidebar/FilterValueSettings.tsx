@@ -125,11 +125,6 @@ export const FilterValueSettings: FC<Props> = ({
                             Choose a default value or turn it off
                         </Input.Error>
                     )}
-                    {isMissingValue && !attemptedApply && (
-                        <Input.Description>
-                            Choose a default value or turn it off
-                        </Input.Description>
-                    )}
                     {hasRequirement && (filterRule.values ?? []).length > 0 && (
                         <Text size="xs" c="ldGray.7">
                             Temporary filter values for required filters will be

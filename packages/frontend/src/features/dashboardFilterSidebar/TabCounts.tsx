@@ -3,7 +3,11 @@ import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getFieldDisplayLabel } from './fieldGrains';
-import { doesControlApplyToTile } from './parameterControls';
+import {
+    getControlTabCounts,
+    getControlTabCountsForKey,
+    getParameterLabel,
+} from './parameterControls';
 import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
@@ -26,6 +30,9 @@ export const TabCounts: FC = () => {
     const tileParameterReferences = useDashboardContext(
         (c) => c.tileParameterReferences,
     );
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const control =
         editingRule === null
@@ -43,26 +50,21 @@ export const TabCounts: FC = () => {
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
         if (control !== null) {
-            return dashboardTabs.reduce<
-                Record<string, { applied: number; total: number }>
-            >((acc, tab) => {
-                const onTab = tiles.filter(
-                    (tile) =>
-                        tile.tabUuid === tab.uuid &&
-                        (tileParameterReferences[tile.uuid] ?? []).some((key) =>
-                            control.parameterKeys.includes(key),
-                        ),
-                );
-                if (onTab.length === 0) return acc;
-                const applied = onTab.filter((tile) =>
-                    doesControlApplyToTile(
-                        control,
-                        tile,
-                        tileParameterReferences,
-                    ),
-                ).length;
-                return { ...acc, [tab.uuid]: { applied, total: onTab.length } };
-            }, {});
+            return activeFieldId !== null &&
+                control.parameterKeys.includes(activeFieldId)
+                ? getControlTabCountsForKey(
+                      control,
+                      activeFieldId,
+                      tiles,
+                      dashboardTabs,
+                      tileParameterReferences,
+                  )
+                : getControlTabCounts(
+                      control,
+                      tiles,
+                      dashboardTabs,
+                      tileParameterReferences,
+                  );
         }
         if (editingRule === null) return {};
         return activeFieldId === null
@@ -95,12 +97,16 @@ export const TabCounts: FC = () => {
     const activeField =
         activeFieldId === null ? null : (fieldsMap[activeFieldId] ?? null);
     const subject = control
-        ? 'this control'
+        ? activeFieldId !== null &&
+          control.parameterKeys.includes(activeFieldId)
+            ? getParameterLabel(activeFieldId, parameterDefinitions)
+            : 'this control'
         : activeFieldId === null
           ? 'this filter'
           : activeField
             ? getFieldDisplayLabel(activeField, Object.values(fieldsMap))
             : activeFieldId;
+    const verb = control ? 'are set by' : 'use';
 
     if (!isEnabled) return null;
 
@@ -113,7 +119,7 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} charts on this tab ${control ? 'follow' : 'use'} ${subject}`}
+                        label={`${count.applied} of ${count.total} charts on this tab ${verb} ${subject}`}
                     >
                         <Badge
                             size="xs"

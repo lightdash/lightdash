@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Checkbox,
-    CloseButton,
     Group,
     SimpleGrid,
     Stack,
@@ -111,9 +110,6 @@ export const FieldPicker: FC<Props> = ({
         [parameters, search, isSearching],
     );
     const kindParameters = filterParametersByKind(parameters, activeKind);
-    const chosenParameters = parameters.filter((parameter) =>
-        chosenParameterKeys.includes(parameter.key),
-    );
     const counts = countPickableByKind(
         isSearching ? matches : fields,
         isSearching ? parameterMatches : parameters,
@@ -273,8 +269,17 @@ export const FieldPicker: FC<Props> = ({
                                 {group.fields.map((field) =>
                                     renderFieldRow(
                                         field,
-                                        chipLabel(field),
-                                        `${group.duplicateLabels.has(chipLabel(field)) ? `${field.label} · ` : ''}${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
+                                        group.duplicateLabels.has(
+                                            chipLabel(field),
+                                        ) && field.label !== chipLabel(field)
+                                            ? `${chipLabel(field)} · ${field.label
+                                                  .slice(
+                                                      chipLabel(field).length,
+                                                  )
+                                                  .trim()
+                                                  .toLowerCase()}`
+                                            : chipLabel(field),
+                                        `${getChartCount(field)} ${pluralizeCharts(getChartCount(field))}`,
                                     ),
                                 )}
                             </Stack>
@@ -289,46 +294,6 @@ export const FieldPicker: FC<Props> = ({
                 </Stack>
             ) : (
                 <>
-                    {mode === 'multi' &&
-                        (chosen.length > 0 || chosenParameters.length > 0) && (
-                            <Group gap="xs">
-                                <Text fz="xs" c="dimmed">
-                                    Chosen
-                                </Text>
-                                {chosenParameters.map((parameter) => (
-                                    <Group
-                                        key={parameter.key}
-                                        gap={2}
-                                        className={classes.chip}
-                                    >
-                                        <Text fz="xs">{parameter.label}</Text>
-                                        <CloseButton
-                                            size="xs"
-                                            aria-label={`Remove ${parameter.label}`}
-                                            onClick={() =>
-                                                onToggleParameter(parameter.key)
-                                            }
-                                        />
-                                    </Group>
-                                ))}
-                                {chosen.map((field) => (
-                                    <Group
-                                        key={getDashboardFilterableFieldKey(
-                                            field,
-                                        )}
-                                        gap={2}
-                                        className={classes.chip}
-                                    >
-                                        <Text fz="xs">{chipLabel(field)}</Text>
-                                        <CloseButton
-                                            size="xs"
-                                            aria-label={`Remove ${chipLabel(field)}`}
-                                            onClick={() => onToggle(field)}
-                                        />
-                                    </Group>
-                                ))}
-                            </Group>
-                        )}
                     <SimpleGrid cols={lockedKind ? 1 : 2} spacing="xs">
                         {kinds.map((item) => {
                             const meta = KIND_META[item];

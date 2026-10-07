@@ -4,7 +4,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Paper, Stack, Text, Title } from '@mantine/core';
+import { Paper, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
@@ -72,14 +72,13 @@ export const Interactivity: FC<Props> = ({
                 <Paper p="md">
                     <Stack gap="sm">
                         <Title order={5}>Viewer controls</Title>
-                        <Text fz="xs" c="dimmed">
-                            Settings marked Not saved last until you reload the
-                            page.
-                        </Text>
                         <InteractivityQuestions
-                            filterRule={filterRule}
+                            subject={{
+                                kind: 'filter',
+                                rule: filterRule,
+                                onChange,
+                            }}
                             field={field}
-                            onChange={onChange}
                         />
                     </Stack>
                 </Paper>

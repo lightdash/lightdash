@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     FilterType,
     getFilterTypeFromItem,
     isFilterLockedOnTab,
@@ -47,6 +48,7 @@ import {
     isHiddenOnTab,
     isPickDefault,
     isWhoChanged,
+    setTabUuids,
     toggleAllowedOperator,
     type SessionOperatorsMode,
     type SessionPicker,
@@ -115,21 +117,47 @@ const SessionLabel: FC<{ children: ReactNode }> = ({ children }) => (
     </Group>
 );
 
+export type InteractivitySubject =
+    | {
+          kind: 'filter';
+          rule: DashboardFilterRule;
+          onChange: (next: DashboardFilterRule) => void;
+      }
+    | { kind: 'control'; id: string };
+
+const ALL_ROWS: RowKey[] = ['who', 'required', 'pick', 'where'];
+
 type Props = {
-    filterRule: DashboardFilterRule;
+    subject: InteractivitySubject;
     field: DashboardFilterableField | null;
-    onChange: (next: DashboardFilterRule) => void;
+    rows?: RowKey[];
 };
 
 export const InteractivityQuestions: FC<Props> = ({
-    filterRule,
+    subject,
     field,
-    onChange,
+    rows = ALL_ROWS,
 }) => {
     const { getSessionSettings, updateSessionSettings } = useFilterSidebar();
-    const settings = getSessionSettings(filterRule.id);
+    const subjectId = subject.kind === 'filter' ? subject.rule.id : subject.id;
+    const settings = getSessionSettings(subjectId);
     const patch = (next: Parameters<typeof updateSessionSettings>[1]) =>
-        updateSessionSettings(filterRule.id, next);
+        updateSessionSettings(subjectId, next);
+    // A control has no saved rule; a placeholder keeps the filter-only rows typed
+    const filterRule: DashboardFilterRule =
+        subject.kind === 'filter'
+            ? subject.rule
+            : {
+                  id: subject.id,
+                  target: { fieldId: '', tableName: '' },
+                  operator: FilterOperator.EQUALS,
+                  label: undefined,
+                  lockedTabUuids: settings.lockedTabUuids,
+              };
+    const onChange = (next: DashboardFilterRule) => {
+        if (subject.kind === 'filter') subject.onChange(next);
+    };
+    const showRow = (key: RowKey) => rows.includes(key);
 
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -171,21 +199,20 @@ export const InteractivityQuestions: FC<Props> = ({
     const showPerTab = hasTabs && (isPerTab || !tabsAgree);
 
     const setLocked = (keys: string[], locked: boolean) => {
-        const rest = (filterRule.lockedTabUuids ?? []).filter(
-            (uuid) => !keys.includes(uuid),
-        );
-        const next = locked ? [...rest, ...keys] : rest;
+        const next = setTabUuids(filterRule.lockedTabUuids ?? [], keys, locked);
+        if (subject.kind === 'control') {
+            patch({ lockedTabUuids: next });
+            return;
+        }
         onChange({
             ...filterRule,
             lockedTabUuids: next.length > 0 ? next : undefined,
         });
     };
-    const setHidden = (keys: string[], hidden: boolean) => {
-        const rest = settings.hiddenTabUuids.filter(
-            (uuid) => !keys.includes(uuid),
-        );
-        patch({ hiddenTabUuids: hidden ? [...rest, ...keys] : rest });
-    };
+    const setHidden = (keys: string[], hidden: boolean) =>
+        patch({
+            hiddenTabUuids: setTabUuids(settings.hiddenTabUuids, keys, hidden),
+        });
 
     const accessWord = (keys: string[]) =>
         keys.length > 0 && keys.every(isHidden)
@@ -228,20 +255,23 @@ export const InteractivityQuestions: FC<Props> = ({
                     </Text>
                 </Stack>
                 <Group gap="sm" wrap="nowrap">
-                    <Tooltip label={lockLabel}>
-                        <ActionIcon
-                            size="sm"
-                            variant={locked ? 'light' : 'subtle'}
-                            color="gray"
-                            disabled={hidden}
-                            aria-label={lockLabel}
-                            onClick={() => setLocked(keys, !locked)}
-                        >
-                            <MantineIcon
-                                icon={locked ? IconLock : IconLockOpen}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
+                    <Group gap={4} wrap="nowrap">
+                        <Tooltip label={lockLabel}>
+                            <ActionIcon
+                                size="sm"
+                                variant={locked ? 'light' : 'subtle'}
+                                color="gray"
+                                disabled={hidden}
+                                aria-label={lockLabel}
+                                onClick={() => setLocked(keys, !locked)}
+                            >
+                                <MantineIcon
+                                    icon={locked ? IconLock : IconLockOpen}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                        {subject.kind === 'control' && <NotSavedBadge />}
+                    </Group>
                     <Group gap={4} wrap="nowrap">
                         <Tooltip label={eyeLabel}>
                             <ActionIcon
@@ -365,231 +395,250 @@ export const InteractivityQuestions: FC<Props> = ({
 
     return (
         <Stack gap={0}>
-            <QuestionRow
-                label="Visibility"
-                summary={whoSummary}
-                isChanged={isWhoChanged(filterRule, settings)}
-                {...rowProps('who')}
-            >
-                {showPerTab
-                    ? dashboardTabs.map((tab) => whoLine(tab.name, [tab.uuid]))
-                    : whoLine('Every tab', everyTabKeys)}
-                {hasTabs && !showPerTab && (
-                    <Group gap="xs">
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            onClick={() => setIsPerTab(true)}
-                        >
-                            Set per tab
-                        </Button>
-                    </Group>
-                )}
-                {isWhoChanged(filterRule, settings) && (
-                    <Text size="xs" c="dimmed">
-                        A locked or hidden filter still applies to the charts,
-                        and ignores values from the URL or an embed.
-                    </Text>
-                )}
-            </QuestionRow>
+            {showRow('who') && (
+                <QuestionRow
+                    label="Visibility"
+                    summary={whoSummary}
+                    isChanged={isWhoChanged(filterRule, settings)}
+                    {...rowProps('who')}
+                >
+                    {showPerTab
+                        ? dashboardTabs.map((tab) =>
+                              whoLine(tab.name, [tab.uuid]),
+                          )
+                        : whoLine('Every tab', everyTabKeys)}
+                    {hasTabs && !showPerTab && (
+                        <Group gap="xs">
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                onClick={() => setIsPerTab(true)}
+                            >
+                                Set per tab
+                            </Button>
+                        </Group>
+                    )}
+                    {isWhoChanged(filterRule, settings) && (
+                        <Text size="xs" c="dimmed">
+                            A locked or hidden filter still applies to the
+                            charts, and ignores values from the URL or an embed.
+                        </Text>
+                    )}
+                </QuestionRow>
+            )}
 
-            <QuestionRow
-                label="Required"
-                summary={requiredSummary}
-                isChanged={isRequired}
-                {...rowProps('required')}
-            >
-                <Tooltip label={requiredReason} disabled={!requiredReason}>
-                    <Checkbox
+            {showRow('required') && (
+                <QuestionRow
+                    label="Required"
+                    summary={requiredSummary}
+                    isChanged={isRequired}
+                    {...rowProps('required')}
+                >
+                    <Tooltip label={requiredReason} disabled={!requiredReason}>
+                        <Checkbox
+                            size="xs"
+                            label="Required"
+                            description={requiredSub}
+                            checked={isRequired}
+                            disabled={!isRequired && requiredReason !== null}
+                            onChange={(e) =>
+                                writeRules(
+                                    e.currentTarget.checked
+                                        ? [setRuleRequired(filterRule)]
+                                        : clearRequired(
+                                              allRules,
+                                              filterRule.id,
+                                          ),
+                                )
+                            }
+                        />
+                    </Tooltip>
+                    {isRequired && allRules.length > 1 && (
+                        <Stack gap="xs">
+                            <Text size="xs" fw={500}>
+                                Or one of these instead
+                            </Text>
+                            {allRules
+                                .filter((rule) => rule.id !== filterRule.id)
+                                .map((rule) => {
+                                    const isAlternative =
+                                        alternativeIds.includes(rule.id);
+                                    const reason = isAlternative
+                                        ? null
+                                        : isRuleRequired(rule)
+                                          ? 'Already required'
+                                          : getRequiredIneligibilityReason(
+                                                rule,
+                                                tabUuids,
+                                            );
+                                    return (
+                                        <Checkbox
+                                            key={rule.id}
+                                            size="xs"
+                                            label={getDashboardFilterRuleLabel(
+                                                rule,
+                                                getField,
+                                            )}
+                                            description={reason}
+                                            disabled={reason !== null}
+                                            checked={isAlternative}
+                                            onChange={(e) =>
+                                                writeRules(
+                                                    e.currentTarget.checked
+                                                        ? addAlternative(
+                                                              allRules,
+                                                              filterRule.id,
+                                                              rule.id,
+                                                              uuidv4(),
+                                                          )
+                                                        : removeAlternative(
+                                                              allRules,
+                                                              rule.id,
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    );
+                                })}
+                        </Stack>
+                    )}
+                </QuestionRow>
+            )}
+
+            {showRow('pick') && (
+                <QuestionRow
+                    label="Allowed values"
+                    summary={pickSummary}
+                    isChanged={
+                        !isPickDefault(settings) || !!filterRule.singleValue
+                    }
+                    {...rowProps('pick')}
+                >
+                    {!canViewersChangeSomewhere && (
+                        <Text size="xs" c="dimmed">
+                            Viewers cannot change this filter on any tab, so
+                            these do not apply yet.
+                        </Text>
+                    )}
+                    <SessionLabel>Picker</SessionLabel>
+                    <SegmentedControl
                         size="xs"
-                        label="Required"
-                        description={requiredSub}
-                        checked={isRequired}
-                        disabled={!isRequired && requiredReason !== null}
-                        onChange={(e) =>
-                            writeRules(
-                                e.currentTarget.checked
-                                    ? [setRuleRequired(filterRule)]
-                                    : clearRequired(allRules, filterRule.id),
-                            )
+                        data={pickerOptions}
+                        value={settings.picker}
+                        onChange={(value) =>
+                            patch({ picker: value as SessionPicker })
                         }
                     />
-                </Tooltip>
-                {isRequired && allRules.length > 1 && (
-                    <Stack gap="xs">
-                        <Text size="xs" fw={500}>
-                            Or one of these instead
+                    {pickerNotes[settings.picker] !== null && (
+                        <Text size="xs" c="dimmed">
+                            {pickerNotes[settings.picker]}
                         </Text>
-                        {allRules
-                            .filter((rule) => rule.id !== filterRule.id)
-                            .map((rule) => {
-                                const isAlternative = alternativeIds.includes(
-                                    rule.id,
-                                );
-                                const reason = isAlternative
-                                    ? null
-                                    : isRuleRequired(rule)
-                                      ? 'Already required'
-                                      : getRequiredIneligibilityReason(
-                                            rule,
-                                            tabUuids,
-                                        );
-                                return (
+                    )}
+                    {settings.picker === 'standard' && (
+                        <>
+                            <SessionLabel>Operators</SessionLabel>
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    { value: 'all', label: 'All' },
+                                    { value: 'some', label: 'Some' },
+                                    { value: 'one', label: 'One' },
+                                ]}
+                                value={settings.operators}
+                                onChange={(value) =>
+                                    patch({
+                                        operators:
+                                            value as SessionOperatorsMode,
+                                        allowedOperators: [filterRule.operator],
+                                    })
+                                }
+                            />
+                            {settings.operators !== 'all' &&
+                                operatorOptions.map((option) => (
                                     <Checkbox
-                                        key={rule.id}
+                                        key={option.value}
                                         size="xs"
-                                        label={getDashboardFilterRuleLabel(
-                                            rule,
-                                            getField,
+                                        label={option.label}
+                                        checked={settings.allowedOperators.includes(
+                                            option.value,
                                         )}
-                                        description={reason}
-                                        disabled={reason !== null}
-                                        checked={isAlternative}
-                                        onChange={(e) =>
-                                            writeRules(
-                                                e.currentTarget.checked
-                                                    ? addAlternative(
-                                                          allRules,
-                                                          filterRule.id,
-                                                          rule.id,
-                                                          uuidv4(),
-                                                      )
-                                                    : removeAlternative(
-                                                          allRules,
-                                                          rule.id,
-                                                      ),
+                                        onChange={() =>
+                                            patch(
+                                                toggleAllowedOperator(
+                                                    settings,
+                                                    option.value,
+                                                ),
                                             )
                                         }
                                     />
-                                );
-                            })}
-                    </Stack>
-                )}
-            </QuestionRow>
-
-            <QuestionRow
-                label="Allowed values"
-                summary={pickSummary}
-                isChanged={!isPickDefault(settings) || !!filterRule.singleValue}
-                {...rowProps('pick')}
-            >
-                {!canViewersChangeSomewhere && (
-                    <Text size="xs" c="dimmed">
-                        Viewers cannot change this filter on any tab, so these
-                        do not apply yet.
+                                ))}
+                        </>
+                    )}
+                    <Text size="xs" fw={500}>
+                        Values
                     </Text>
-                )}
-                <SessionLabel>Picker</SessionLabel>
-                <SegmentedControl
-                    size="xs"
-                    data={pickerOptions}
-                    value={settings.picker}
-                    onChange={(value) =>
-                        patch({ picker: value as SessionPicker })
-                    }
-                />
-                {pickerNotes[settings.picker] !== null && (
-                    <Text size="xs" c="dimmed">
-                        {pickerNotes[settings.picker]}
-                    </Text>
-                )}
-                {settings.picker === 'standard' && (
-                    <>
-                        <SessionLabel>Operators</SessionLabel>
-                        <SegmentedControl
-                            size="xs"
-                            data={[
-                                { value: 'all', label: 'All' },
-                                { value: 'some', label: 'Some' },
-                                { value: 'one', label: 'One' },
-                            ]}
-                            value={settings.operators}
-                            onChange={(value) =>
+                    <SegmentedControl
+                        size="xs"
+                        disabled={!canBeSingle}
+                        data={[
+                            { value: 'multiple', label: 'Multiple' },
+                            { value: 'single', label: 'Single' },
+                        ]}
+                        value={filterRule.singleValue ? 'single' : 'multiple'}
+                        onChange={(value) =>
+                            onChange({
+                                ...filterRule,
+                                singleValue: value === 'single',
+                            })
+                        }
+                    />
+                    <Group justify="space-between" wrap="nowrap">
+                        <Stack gap={0}>
+                            <SessionLabel>Filter boundaries</SessionLabel>
+                            <Text size="xs" c="dimmed">
+                                {boundariesSub}
+                            </Text>
+                        </Stack>
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            onClick={() =>
                                 patch({
-                                    operators: value as SessionOperatorsMode,
-                                    allowedOperators: [filterRule.operator],
+                                    hasBoundaries: !settings.hasBoundaries,
                                 })
                             }
-                        />
-                        {settings.operators !== 'all' &&
-                            operatorOptions.map((option) => (
-                                <Checkbox
-                                    key={option.value}
-                                    size="xs"
-                                    label={option.label}
-                                    checked={settings.allowedOperators.includes(
-                                        option.value,
-                                    )}
-                                    onChange={() =>
-                                        patch(
-                                            toggleAllowedOperator(
-                                                settings,
-                                                option.value,
-                                            ),
-                                        )
-                                    }
-                                />
-                            ))}
-                    </>
-                )}
-                <Text size="xs" fw={500}>
-                    Values
-                </Text>
-                <SegmentedControl
-                    size="xs"
-                    disabled={!canBeSingle}
-                    data={[
-                        { value: 'multiple', label: 'Multiple' },
-                        { value: 'single', label: 'Single' },
-                    ]}
-                    value={filterRule.singleValue ? 'single' : 'multiple'}
-                    onChange={(value) =>
-                        onChange({
-                            ...filterRule,
-                            singleValue: value === 'single',
-                        })
-                    }
-                />
-                <Group justify="space-between" wrap="nowrap">
-                    <Stack gap={0}>
-                        <SessionLabel>Filter boundaries</SessionLabel>
-                        <Text size="xs" c="dimmed">
-                            {boundariesSub}
-                        </Text>
-                    </Stack>
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        onClick={() =>
-                            patch({ hasBoundaries: !settings.hasBoundaries })
-                        }
-                    >
-                        {settings.hasBoundaries ? 'Remove' : 'Set up'}
-                    </Button>
-                </Group>
-            </QuestionRow>
+                        >
+                            {settings.hasBoundaries ? 'Remove' : 'Set up'}
+                        </Button>
+                    </Group>
+                </QuestionRow>
+            )}
 
-            <QuestionRow
-                label="Placement"
-                summary={
-                    settings.placement === 'bar' ? 'On the bar' : 'Under More'
-                }
-                isChanged={settings.placement !== 'bar'}
-                {...rowProps('where')}
-            >
-                <SessionLabel>Placement</SessionLabel>
-                <SegmentedControl
-                    size="xs"
-                    data={[
-                        { value: 'bar', label: 'On the bar' },
-                        { value: 'more', label: 'Under More' },
-                    ]}
-                    value={settings.placement}
-                    onChange={(value) =>
-                        patch({ placement: value as SessionPlacement })
+            {showRow('where') && (
+                <QuestionRow
+                    label="Placement"
+                    summary={
+                        settings.placement === 'bar'
+                            ? 'On the bar'
+                            : 'Under More'
                     }
-                />
-            </QuestionRow>
+                    isChanged={settings.placement !== 'bar'}
+                    {...rowProps('where')}
+                >
+                    <SessionLabel>Placement</SessionLabel>
+                    <SegmentedControl
+                        size="xs"
+                        data={[
+                            { value: 'bar', label: 'On the bar' },
+                            { value: 'more', label: 'Under More' },
+                        ]}
+                        value={settings.placement}
+                        onChange={(value) =>
+                            patch({ placement: value as SessionPlacement })
+                        }
+                    />
+                </QuestionRow>
+            )}
         </Stack>
     );
 };

@@ -1,5 +1,6 @@
 import {
     FilterType,
+    type DashboardTab,
     type DashboardTile,
     type LightdashProjectParameter,
     type ParameterDefinitions,
@@ -15,8 +16,9 @@ export type ParameterControl = {
     label: string;
     kind: FilterType;
     parameterKeys: string[];
-    // tileUuid -> false means the control does not apply to that chart
-    tileTargets: Record<string, false>;
+    // tileUuid -> parameter key the chart is set by, false means the control
+    // does not set that chart, no entry means auto (first referenced key)
+    tileTargets: Record<string, string | false>;
     // Session-only viewer controls, marked "Not saved" in the sidebar
     hiddenTabUuids?: string[];
     placement?: 'bar' | 'more';
@@ -48,26 +50,221 @@ export const getParameterLabel = (
     definitions: ParameterDefinitions,
 ): string => definitions[key]?.label ?? key;
 
-// Tiles that reference any parameter of the control
-export const getControlTiles = (
+type TileReferences = Record<string, string[]>;
+
+export type KeyCount = { applied: number; possible: number };
+export type ControlTabCount = { applied: number; total: number };
+
+export const doesTileReferenceKey = (
+    tile: DashboardTile,
+    key: string,
+    tileParameterReferences: TileReferences,
+): boolean => (tileParameterReferences[tile.uuid] ?? []).includes(key);
+
+// Keys of the control that the chart references, in control order
+const getControlTileKeys = (
     control: Pick<ParameterControl, 'parameterKeys'>,
-    tiles: DashboardTile[],
-    tileParameterReferences: Record<string, string[]>,
-): DashboardTile[] =>
-    tiles.filter((tile) =>
-        (tileParameterReferences[tile.uuid] ?? []).some((key) =>
-            control.parameterKeys.includes(key),
-        ),
+    tile: DashboardTile,
+    tileParameterReferences: TileReferences,
+): string[] =>
+    control.parameterKeys.filter((key) =>
+        doesTileReferenceKey(tile, key, tileParameterReferences),
     );
+
+const getControlDefaultTileKey = (
+    control: Pick<ParameterControl, 'parameterKeys'>,
+    tile: DashboardTile,
+    tileParameterReferences: TileReferences,
+): string | null =>
+    getControlTileKeys(control, tile, tileParameterReferences)[0] ?? null;
+
+export const getControlTileKey = (
+    control: ParameterControl,
+    tile: DashboardTile,
+    tileParameterReferences: TileReferences,
+): string | null => {
+    const target = control.tileTargets[tile.uuid];
+    if (target === false) return null;
+    if (
+        target !== undefined &&
+        control.parameterKeys.includes(target) &&
+        doesTileReferenceKey(tile, target, tileParameterReferences)
+    ) {
+        return target;
+    }
+    return getControlDefaultTileKey(control, tile, tileParameterReferences);
+};
+
+export const isControlTileChanged = (
+    control: ParameterControl,
+    tile: DashboardTile,
+    tileParameterReferences: TileReferences,
+): boolean =>
+    getControlTileKey(control, tile, tileParameterReferences) !==
+    getControlDefaultTileKey(control, tile, tileParameterReferences);
 
 export const doesControlApplyToTile = (
     control: ParameterControl,
     tile: DashboardTile,
-    tileParameterReferences: Record<string, string[]>,
+    tileParameterReferences: TileReferences,
 ): boolean =>
-    control.tileTargets[tile.uuid] !== false &&
-    (tileParameterReferences[tile.uuid] ?? []).some((key) =>
-        control.parameterKeys.includes(key),
+    getControlTileKey(control, tile, tileParameterReferences) !== null;
+
+// Writes the chart's key, dropping the entry when it equals the auto choice
+export const setControlTileKey = (
+    control: ParameterControl,
+    tile: DashboardTile,
+    key: string | null,
+    tileParameterReferences: TileReferences,
+): ParameterControl => {
+    const { [tile.uuid]: _current, ...rest } = control.tileTargets;
+    const auto = getControlDefaultTileKey(
+        control,
+        tile,
+        tileParameterReferences,
+    );
+    if (key === auto) return { ...control, tileTargets: rest };
+    return {
+        ...control,
+        tileTargets: { ...rest, [tile.uuid]: key === null ? false : key },
+    };
+};
+
+export const applyKeyToAll = (
+    control: ParameterControl,
+    key: string,
+    tiles: DashboardTile[],
+    tileParameterReferences: TileReferences,
+): ParameterControl =>
+    tiles
+        .filter((tile) =>
+            doesTileReferenceKey(tile, key, tileParameterReferences),
+        )
+        .reduce(
+            (acc, tile) =>
+                setControlTileKey(acc, tile, key, tileParameterReferences),
+            control,
+        );
+
+// Charts set by the key stop being set by this control
+export const clearKeyFromAll = (
+    control: ParameterControl,
+    key: string,
+    tiles: DashboardTile[],
+    tileParameterReferences: TileReferences,
+): ParameterControl =>
+    tiles
+        .filter(
+            (tile) =>
+                getControlTileKey(control, tile, tileParameterReferences) ===
+                key,
+        )
+        .reduce(
+            (acc, tile) =>
+                setControlTileKey(acc, tile, null, tileParameterReferences),
+            control,
+        );
+
+// Drops the key from the control; charts it set fall back to auto
+export const removeKey = (
+    control: ParameterControl,
+    key: string,
+    tiles: DashboardTile[],
+    tileParameterReferences: TileReferences,
+): ParameterControl => {
+    const next: ParameterControl = {
+        ...control,
+        parameterKeys: control.parameterKeys.filter((k) => k !== key),
+        tileTargets: Object.fromEntries(
+            Object.entries(control.tileTargets).filter(
+                ([, target]) => target !== key,
+            ),
+        ),
+    };
+    return tiles.reduce((acc, tile) => {
+        const target = acc.tileTargets[tile.uuid];
+        if (target === undefined || target === false) return acc;
+        // Re-derive so a pinned key that now equals auto drops its entry
+        return setControlTileKey(acc, tile, target, tileParameterReferences);
+    }, next);
+};
+
+export const getKeyCount = (
+    control: ParameterControl,
+    key: string,
+    tiles: DashboardTile[],
+    tileParameterReferences: TileReferences,
+): KeyCount => ({
+    possible: tiles.filter((tile) =>
+        doesTileReferenceKey(tile, key, tileParameterReferences),
+    ).length,
+    applied: tiles.filter(
+        (tile) =>
+            getControlTileKey(control, tile, tileParameterReferences) === key,
+    ).length,
+});
+
+export const getControlCount = (
+    control: ParameterControl,
+    tiles: DashboardTile[],
+    tileParameterReferences: TileReferences,
+): KeyCount => ({
+    possible: getControlTiles(control, tiles, tileParameterReferences).length,
+    applied: tiles.filter((tile) =>
+        doesControlApplyToTile(control, tile, tileParameterReferences),
+    ).length,
+});
+
+const countTabs = (
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    isPossible: (tile: DashboardTile) => boolean,
+    isApplied: (tile: DashboardTile) => boolean,
+): Record<string, ControlTabCount> =>
+    Object.fromEntries(
+        tabs.map((tab) => {
+            const tabTiles = tiles.filter(
+                (tile) => tile.tabUuid === tab.uuid && isPossible(tile),
+            );
+            return [
+                tab.uuid,
+                {
+                    total: tabTiles.length,
+                    applied: tabTiles.filter(isApplied).length,
+                },
+            ];
+        }),
+    );
+
+export const getControlTabCounts = (
+    control: ParameterControl,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    tileParameterReferences: TileReferences,
+): Record<string, ControlTabCount> =>
+    countTabs(
+        tiles,
+        tabs,
+        (tile) =>
+            getControlTileKeys(control, tile, tileParameterReferences).length >
+            0,
+        (tile) =>
+            doesControlApplyToTile(control, tile, tileParameterReferences),
+    );
+
+export const getControlTabCountsForKey = (
+    control: ParameterControl,
+    key: string,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    tileParameterReferences: TileReferences,
+): Record<string, ControlTabCount> =>
+    countTabs(
+        tiles,
+        tabs,
+        (tile) => doesTileReferenceKey(tile, key, tileParameterReferences),
+        (tile) =>
+            getControlTileKey(control, tile, tileParameterReferences) === key,
     );
 
 const getParameterKeysUsedOnDashboard = (

@@ -1,11 +1,16 @@
 import { type DashboardTile } from '@lightdash/common';
-import { Paper, Select, Stack, Text } from '@mantine/core';
+import { Button, Paper, Select, Stack, Text } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    doesControlApplyToTile,
+    doesTileReferenceKey,
+    getControlTileKey,
+    getParameterLabel,
+    setControlTileKey,
     type ParameterControl,
 } from './parameterControls';
 import {
@@ -18,8 +23,7 @@ import classes from './TileOverlay.module.css';
 import { useFilterSidebar } from './useFilterSidebar';
 import { usePortalTargets } from './usePortalTargets';
 
-const FOLLOWS = 'follows';
-const SKIPS = 'skips';
+const NOT_SET = 'not-set';
 
 const stopPropagation = (event: { stopPropagation: () => void }) =>
     event.stopPropagation();
@@ -29,7 +33,8 @@ type OverlayProps = {
     control: ParameterControl;
     referencedKeys: string[];
     sources: Record<string, TileParameterSource[]>;
-    onChange: (tileTargets: ParameterControl['tileTargets']) => void;
+    activeFieldId: string | null;
+    onChange: (control: ParameterControl) => void;
 };
 
 const ParameterOverlay: FC<OverlayProps> = ({
@@ -37,6 +42,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
     control,
     referencedKeys,
     sources,
+    activeFieldId,
     onChange,
 }) => {
     const getUiString = useUiStrings();
@@ -51,32 +57,43 @@ const ParameterOverlay: FC<OverlayProps> = ({
         return <div className={`${classes.overlay} ${classes.unfilterable}`} />;
     }
 
-    const applies = doesControlApplyToTile(
-        control,
-        tile,
-        tileParameterReferences,
-    );
+    const tileKey = getControlTileKey(control, tile, tileParameterReferences);
     const [firstKey] = referencedKeys;
-    const entry = sources[firstKey]?.find(
+    const entry = sources[tileKey ?? firstKey]?.find(
         (source) => source.tileUuid === tile.uuid,
     );
-    const keyLabel = parameterDefinitions[firstKey]?.label ?? firstKey;
+    const getLabel = (key: string) =>
+        getParameterLabel(key, parameterDefinitions);
+    const keyLabel = getLabel(tileKey ?? firstKey);
     const resolved =
         !entry || entry.source === 'none'
             ? `${keyLabel}: needs a value`
             : `${formatParameterValue(entry.value)} · ${getUiString(`parameters.source.${entry.source}`)}`;
+    const offeredKey =
+        activeFieldId !== null &&
+        activeFieldId !== tileKey &&
+        doesTileReferenceKey(tile, activeFieldId, tileParameterReferences)
+            ? activeFieldId
+            : null;
+    const isHighlighted =
+        offeredKey !== null ||
+        (activeFieldId !== null && tileKey === activeFieldId);
 
-    const setApplies = (value: string | null) => {
-        const rest = Object.fromEntries(
-            Object.entries(control.tileTargets).filter(
-                ([tileUuid]) => tileUuid !== tile.uuid,
+    const setKey = (value: string | null) =>
+        onChange(
+            setControlTileKey(
+                control,
+                tile,
+                value === NOT_SET ? null : value,
+                tileParameterReferences,
             ),
         );
-        onChange(value === SKIPS ? { ...rest, [tile.uuid]: false } : rest);
-    };
 
     return (
-        <div className={classes.overlay}>
+        <div
+            className={classes.overlay}
+            data-highlighted={isHighlighted || undefined}
+        >
             <Paper
                 shadow="md"
                 p="sm"
@@ -87,23 +104,39 @@ const ParameterOverlay: FC<OverlayProps> = ({
             >
                 <Stack gap="xs">
                     <Text fz="xs" c="dimmed">
-                        {applies ? 'Follows this control' : 'Does not apply'}
+                        {tileKey ? 'Set by' : 'Not set'}
                     </Text>
                     <Select
                         size="xs"
                         aria-label={`${control.label} on this chart`}
                         allowDeselect={false}
                         comboboxProps={{ withinPortal: true }}
-                        value={applies ? FOLLOWS : SKIPS}
-                        onChange={setApplies}
+                        value={tileKey ?? NOT_SET}
+                        onChange={setKey}
                         data={[
-                            { value: FOLLOWS, label: 'Follows this control' },
-                            { value: SKIPS, label: 'Does not apply' },
+                            ...referencedKeys.map((key) => ({
+                                value: key,
+                                label: getLabel(key),
+                            })),
+                            { value: NOT_SET, label: 'Not set' },
                         ]}
                     />
                     <Text fz="xs" c="dimmed">
                         {resolved}
                     </Text>
+                    {offeredKey !== null ? (
+                        <Button
+                            variant="light"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size={14} />
+                            }
+                            onClick={() => setKey(offeredKey)}
+                        >
+                            {tileKey ? 'Switch to' : 'Use'}{' '}
+                            {getLabel(offeredKey)}
+                        </Button>
+                    ) : null}
                 </Stack>
             </Paper>
         </div>
@@ -111,8 +144,12 @@ const ParameterOverlay: FC<OverlayProps> = ({
 };
 
 export const ParameterOverlays: FC = () => {
-    const { parameterControls, editingControlId, updateControl } =
-        useFilterSidebar();
+    const {
+        parameterControls,
+        editingControlId,
+        activeFieldId,
+        updateControl,
+    } = useFilterSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -177,8 +214,11 @@ export const ParameterOverlays: FC = () => {
                         control={control}
                         referencedKeys={referencedKeys}
                         sources={sources}
-                        onChange={(tileTargets) =>
-                            updateControl(control.id, { tileTargets })
+                        activeFieldId={activeFieldId}
+                        onChange={(next) =>
+                            updateControl(control.id, {
+                                tileTargets: next.tileTargets,
+                            })
                         }
                     />,
                     element,
