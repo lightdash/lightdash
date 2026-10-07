@@ -7,7 +7,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     buildComposerChartSpec,
-    buildComposerSeriesSplitSpec,
+    buildComposerPivotSpec,
 } from './composerChartSpec';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
@@ -28,7 +28,8 @@ const build = (kind: Parameters<typeof buildComposerChartSpec>[0]['kind']) =>
         kind,
         columns,
         rows,
-        axes: kind === 'big_number' ? { x: null, y: n } : { x: status, y: n },
+        x: kind === 'big_number' ? null : status,
+        y: [n],
         colors,
     });
 
@@ -72,7 +73,8 @@ describe('buildComposerChartSpec', () => {
             kind: 'big_number',
             columns,
             rows: [rows[0]],
-            axes: { x: null, y: n },
+            x: null,
+            y: [n],
             colors,
         });
         expect(spec).toEqual({
@@ -82,7 +84,61 @@ describe('buildComposerChartSpec', () => {
     });
 });
 
-describe('buildComposerSeriesSplitSpec', () => {
+describe('buildComposerChartSpec with two values', () => {
+    it('draws one bar series per y column', async () => {
+        const m = column('m', DimensionType.NUMBER);
+        const spec = await buildComposerChartSpec({
+            kind: 'bar',
+            columns: [status, n, m],
+            rows: [
+                { status: 'a', n: 3, m: 5 },
+                { status: 'b', n: 1, m: 2 },
+            ],
+            x: status,
+            y: [n, m],
+            colors,
+        });
+        if (spec.kind !== 'echarts') throw new Error('expected ECharts');
+        expect(spec.option.series).toHaveLength(2);
+    });
+});
+
+describe('buildComposerPivotSpec', () => {
+    it('builds a big number from an aggregated pivot without an index', async () => {
+        const spec = await buildComposerPivotSpec({
+            kind: 'big_number',
+            result: {
+                pivotChartData: {
+                    queryUuid: 'q',
+                    fileUrl: undefined,
+                    results: [{ n_sum: 4 }],
+                    indexColumn: undefined,
+                    valuesColumns: [
+                        {
+                            referenceField: 'n',
+                            pivotColumnName: 'n_sum',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [],
+                        },
+                    ],
+                    columns: [{ reference: 'n_sum' }],
+                    columnCount: 1,
+                },
+                originalColumns: { n },
+            },
+            layout: {
+                x: undefined,
+                y: [{ reference: 'n', aggregation: VizAggregationOptions.SUM }],
+                groupBy: [],
+            },
+            colors,
+        });
+        expect(spec).toEqual({
+            kind: 'big_number',
+            spec: expect.objectContaining({ value: 4 }),
+        });
+    });
+
     it('draws one line per groupBy value from the pivoted result', async () => {
         const valuesColumn = (region: string) => ({
             referenceField: 'revenue',
@@ -90,7 +146,7 @@ describe('buildComposerSeriesSplitSpec', () => {
             aggregation: VizAggregationOptions.SUM,
             pivotValues: [{ referenceField: 'region', value: region }],
         });
-        const option = await buildComposerSeriesSplitSpec({
+        const spec = await buildComposerPivotSpec({
             kind: 'line',
             result: {
                 pivotChartData: {
@@ -138,6 +194,8 @@ describe('buildComposerSeriesSplitSpec', () => {
             },
             colors,
         });
+        if (spec.kind !== 'echarts') throw new Error('expected ECharts');
+        const { option } = spec;
         expect(option.series.map((s: { type: string }) => s.type)).toEqual([
             'line',
             'line',

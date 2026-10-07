@@ -116,7 +116,7 @@ const ComposerArtifact = ({
             <Box
                 className={clsx(
                     panelStyles.floatingContent,
-                    panelStyles.composerContent,
+                    panelStyles.flushContent,
                 )}
             >
                 <AiComposerPipelinePanel
@@ -133,7 +133,7 @@ const ComposerArtifact = ({
                         <Box
                             className={clsx(
                                 panelStyles.head,
-                                panelStyles.composerHead,
+                                panelStyles.flushHead,
                             )}
                         >
                             <Stack gap={0} flex={1} miw={0}>

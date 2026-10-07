@@ -1,4 +1,10 @@
-import type { AiArtifact, ApiError, ApiSuccessEmpty } from '@lightdash/common';
+import type {
+    AiArtifact,
+    AllVizChartConfig,
+    ApiError,
+    ApiSuccessEmpty,
+    ApiUpdateComposerVizConfigRequest,
+} from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
@@ -236,6 +242,57 @@ export const useSetArtifactVersionVerified = (
                     apiError: error,
                 });
             }
+        },
+    });
+};
+
+type ArtifactVersionRef = {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+};
+
+/** Writes the terminal node's viz config onto a composer artifact version. */
+export const useUpdateComposerVizConfig = ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+}: ArtifactVersionRef) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<ApiSuccessEmpty, ApiError, AllVizChartConfig>({
+        mutationKey: [
+            AI_AGENT_ARTIFACT_KEY,
+            'vizConfig',
+            artifactUuid,
+            versionUuid,
+        ],
+        mutationFn: (vizConfig) =>
+            lightdashApi<ApiSuccessEmpty>({
+                url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/viz-config`,
+                method: 'PATCH',
+                body: JSON.stringify({
+                    vizConfig,
+                } satisfies ApiUpdateComposerVizConfigRequest),
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Chart change not saved',
+                apiError: error,
+            });
         },
     });
 };

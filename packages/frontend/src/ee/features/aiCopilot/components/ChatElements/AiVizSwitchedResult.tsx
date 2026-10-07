@@ -1,7 +1,13 @@
-import { type ComposerVizKind, type ComposerVizPlan } from '@lightdash/common';
+import {
+    buildComposerVizConfig,
+    ChartKind,
+    getComposerFieldConfig,
+    type ComposerVizKind,
+    type ComposerVizPlan,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
-import { type FC, type ReactNode } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import styles from './AiArtifactPanel.module.css';
@@ -11,8 +17,8 @@ import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 type Props = {
     projectUuid: string;
     results: InfiniteQueryResults;
-    /** Stored result a series split re-reads; null when there is none. */
-    seriesSplitQueryUuid: string | null;
+    /** Stored result a pivot re-reads; null when there is none. */
+    pivotQueryUuid: string | null;
     plan: ComposerVizPlan;
     kind: ComposerVizKind;
     onKindChange: (kind: ComposerVizKind) => void;
@@ -26,7 +32,7 @@ type Props = {
 export const AiVizSwitchedResult: FC<Props> = ({
     projectUuid,
     results,
-    seriesSplitQueryUuid,
+    pivotQueryUuid,
     plan,
     kind,
     onKindChange,
@@ -34,7 +40,16 @@ export const AiVizSwitchedResult: FC<Props> = ({
     loadingMessage,
     flush = false,
 }) => {
-    const axes = kind === 'table' ? undefined : plan.axes[kind];
+    const vizConfig = useMemo(() => {
+        if (kind === 'table') return null;
+        const axes = plan.axes[kind];
+        return axes
+            ? buildComposerVizConfig({
+                  kind,
+                  fieldConfig: getComposerFieldConfig(axes),
+              })
+            : null;
+    }, [kind, plan]);
     const showPill = !results.error && plan.availableKinds.length > 1;
 
     return (
@@ -45,13 +60,12 @@ export const AiVizSwitchedResult: FC<Props> = ({
                     showPill && styles.withPillClearance,
                 )}
             >
-                {kind !== 'table' && axes ? (
+                {vizConfig && vizConfig.type !== ChartKind.TABLE ? (
                     <AiComposerChartVisualization
                         projectUuid={projectUuid}
                         results={results}
-                        seriesSplitQueryUuid={seriesSplitQueryUuid}
-                        kind={kind}
-                        axes={axes}
+                        pivotQueryUuid={pivotQueryUuid}
+                        vizConfig={vizConfig}
                         headerContent={headerContent}
                         loadingMessage={loadingMessage}
                     />
