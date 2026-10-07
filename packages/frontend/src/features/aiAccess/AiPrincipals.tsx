@@ -36,8 +36,8 @@ const principalLabels: Record<AiPrincipalKind, string> = {
 };
 const PrincipalEmptyMessage = () => (
     <Text size="sm" c="dimmed">
-        Saving a group or shared policy creates the principal rows. Per-person
-        rows appear when each person first uses an agent.
+        Save a principal and its row appears here. Press Test to check it signs
+        in.
     </Text>
 );
 export const PrincipalsEmptyState = () => (
