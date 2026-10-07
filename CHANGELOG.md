@@ -1,3 +1,10 @@
+# [2.462.0](https://github.com/lightdash/lightdash/compare/2.461.0...2.462.0) (2026-10-07)
+
+
+### Features
+
+* **ai-agent:** offer and surface Documents in agent and MCP ([#30618](https://github.com/lightdash/lightdash/issues/30618)) ([712a178](https://github.com/lightdash/lightdash/commit/712a17893a108b1adf7ea1b751c77db1a04b827a)), closes [#30648](https://github.com/lightdash/lightdash/issues/30648)
+
 # [2.461.0](https://github.com/lightdash/lightdash/compare/2.460.1...2.461.0) (2026-10-07)
 
 
