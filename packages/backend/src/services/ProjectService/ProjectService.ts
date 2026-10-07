@@ -6,7 +6,6 @@ import {
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
-    AnonymousAccount,
     AnyType,
     ApiChartAndResults,
     ApiCompiledMergeQueryResults,
@@ -279,7 +278,6 @@ import {
     WarehouseTypes,
     withAgentMarkerTag,
     type AgentSqlScope,
-    type AiExecutionPlan,
     type ApiCreateProjectResults,
     type ChartUsageIn,
     type DashboardTileParameterInputs,
@@ -309,7 +307,6 @@ import {
     getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
-    SshTunnel,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -3417,49 +3414,6 @@ export class ProjectService
             ...credentials,
             userWarehouseCredentialsUuid,
         };
-    }
-
-    /**
-     * Resolves warehouse credentials for an embed (anonymous JWT) request.
-     * Same shape as `getWarehouseCredentials` but tailored for embed callers
-     * and exposed as a public method so EmbedService can reuse the refresh path.
-     */
-    async getWarehouseCredentialsForEmbed({
-        projectUuid,
-        account,
-        binding,
-    }: {
-        projectUuid: string;
-        account: AnonymousAccount;
-        binding: ConnectionBinding;
-    }) {
-        return this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: false,
-            binding,
-        });
-    }
-
-    async _getWarehouseClient(
-        projectUuid: string,
-        credentials: CreateWarehouseCredentials,
-        overrides?: {
-            aiPlan?: AiExecutionPlan | null;
-            agentSession?: boolean;
-            snowflakeVirtualWarehouse?: string;
-            databricksCompute?: string;
-        },
-    ): Promise<{
-        warehouseClient: WarehouseClient;
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
-        tunnelConnectMs: number | null;
-    }> {
-        return this.warehouseClientFactory.acquireUnscoped(
-            projectUuid,
-            credentials,
-            overrides,
-        );
     }
 
     async getSharedSignInStatus(

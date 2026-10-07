@@ -6708,7 +6708,6 @@ describe('AsyncQueryService', () => {
                 );
                 expect(resolveCredentialRead).toHaveBeenCalledTimes(1);
 
-                // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
                     originalCredentials,
@@ -7841,7 +7840,6 @@ describe('AsyncQueryService', () => {
                     }),
                 };
 
-                // Override the _getWarehouseClient method to return our mock
                 service.warehouseClientFactory.acquireUnscoped = vi.fn(
                     async () => ({
                         warehouseClient: mockWarehouseClient,

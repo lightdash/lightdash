@@ -1436,7 +1436,7 @@ describe('ProjectService', () => {
                     projectModel.getWarehouseClientFromCredentials,
                 ).mockClear();
 
-                await configuredService._getWarehouseClient(
+                await configuredService.warehouseClientFactory.acquireUnscoped(
                     targetProjectUuid,
                     warehouseClientMock.credentials,
                 );
@@ -1465,7 +1465,7 @@ describe('ProjectService', () => {
                 projectModel.getWarehouseClientFromCredentials,
             ).mockClear();
 
-            await configuredService._getWarehouseClient(
+            await configuredService.warehouseClientFactory.acquireUnscoped(
                 projectUuid,
                 warehouseClientMock.credentials,
             );
@@ -6869,7 +6869,7 @@ describe('ProjectService', () => {
         });
     });
 
-    describe('getWarehouseCredentialsForEmbed', () => {
+    describe('getWarehouseCredentialsWithConnection for embedded users', () => {
         test('refuses a project that routes multi before loading credentials', async () => {
             const binding = {
                 kind: 'explore' as const,
@@ -6889,12 +6889,13 @@ describe('ProjectService', () => {
             loadCredentials.mockClear();
 
             await expect(
-                service.getWarehouseCredentialsForEmbed({
+                service['getWarehouseCredentialsWithConnection']({
                     projectUuid,
-                    account: buildAccount({
+                    userId: buildAccount({
                         accountType: 'jwt',
                         userType: 'anonymous',
-                    }) as never,
+                    }).user.id,
+                    isRegisteredUser: false,
                     binding,
                 }),
             ).rejects.toThrow('Multiple connections are not available');
@@ -6936,10 +6937,12 @@ describe('ProjectService', () => {
                 userType: 'anonymous',
             });
 
-            const credentials = await service.getWarehouseCredentialsForEmbed({
+            const { warehouseCredentials: credentials } = await service[
+                'getWarehouseCredentialsWithConnection'
+            ]({
                 projectUuid,
-                // The mock buildAccount returns Account; AnonymousAccount is structurally compatible.
-                account: embedAccount as never,
+                userId: embedAccount.user.id,
+                isRegisteredUser: false,
                 binding: { kind: 'explore', exploreName: 'orders' },
             });
 
@@ -6974,9 +6977,10 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.getWarehouseCredentialsForEmbed({
+                service['getWarehouseCredentialsWithConnection']({
                     projectUuid,
-                    account: embedAccount as never,
+                    userId: embedAccount.user.id,
+                    isRegisteredUser: false,
                     binding: { kind: 'explore', exploreName: 'orders' },
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
@@ -14848,10 +14852,11 @@ describe('ProjectService expired shared sign-in', () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: flagged(enabled),
         });
-        const { warehouseClient } = await service._getWarehouseClient(
-            `${projectUuid}-${Math.random()}`,
-            credentials,
-        );
+        const { warehouseClient } =
+            await service.warehouseClientFactory.acquireUnscoped(
+                `${projectUuid}-${Math.random()}`,
+                credentials,
+            );
         return (warehouseClient.runQuery as (sql: string) => Promise<unknown>)(
             'select 1',
         );
@@ -16038,9 +16043,13 @@ describe('AI principal credential routing', () => {
         ).mockImplementation(() => ({ ...warehouseClientMock }));
         vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
         const getClient = (context: QueryExecutionContext) =>
-            configured._getWarehouseClient(projectUuid, credentials, {
-                agentSession: isAiAccessQueryContext(context),
-            });
+            configured.warehouseClientFactory.acquireUnscoped(
+                projectUuid,
+                credentials,
+                {
+                    agentSession: isAiAccessQueryContext(context),
+                },
+            );
         const first = await getClient(QueryExecutionContext.AI);
         const second = await getClient(QueryExecutionContext.EXPLORE);
         const again = await getClient(QueryExecutionContext.AI);
@@ -16075,12 +16084,12 @@ describe('AI principal credential routing', () => {
             projectModel.getWarehouseClientFromCredentials,
         ).mockImplementation(() => ({ ...warehouseClientMock }));
         vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
-        const first = await configured._getWarehouseClient(
+        const first = await configured.warehouseClientFactory.acquireUnscoped(
             projectUuid,
             credentials,
             { aiPlan: plan },
         );
-        const second = await configured._getWarehouseClient(
+        const second = await configured.warehouseClientFactory.acquireUnscoped(
             projectUuid,
             credentials,
             {
@@ -16090,7 +16099,7 @@ describe('AI principal credential routing', () => {
                 },
             },
         );
-        const again = await configured._getWarehouseClient(
+        const again = await configured.warehouseClientFactory.acquireUnscoped(
             projectUuid,
             credentials,
             { aiPlan: plan },

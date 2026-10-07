@@ -381,7 +381,7 @@
     "overrides": [
         {
             "files": ["src/**/*.ts"],
-            "rules": { "lightdash/no-direct-warehouse-client": "warn" }
+            "rules": { "lightdash/no-direct-warehouse-client": "error" }
         },
         {
             "files": [

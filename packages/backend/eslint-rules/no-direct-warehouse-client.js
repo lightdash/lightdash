@@ -1,7 +1,4 @@
-const factoryFunctions = new Set([
-    'warehouseClientFromCredentials',
-    'createAnalyticsClient',
-]);
+const factoryFunctions = new Set(['warehouseClientFromCredentials']);
 
 const warehouseConstructors = new Set([
     'SshTunnel',
