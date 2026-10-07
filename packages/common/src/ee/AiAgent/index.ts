@@ -1430,6 +1430,8 @@ export type AiModelOption = {
     default: boolean;
     supportsReasoning: boolean;
     deprecated: boolean;
+    /** Name of the current same-provider model that replaces a deprecated one */
+    supersededBy: string | null;
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;

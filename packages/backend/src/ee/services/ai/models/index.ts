@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     isByoAiProvider,
     ParameterError,
+    type AiAgentModelConfig,
     type AiModelOption,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -237,9 +238,37 @@ export const getAvailableModels = (
     );
 };
 
+/**
+ * Walks the `supersededBy` chain of a deprecated preset to the newest
+ * replacement that is shipped in this configuration. Returns null for a
+ * current preset, or when every replacement is missing or itself retired,
+ * so a caller never swaps one deprecated model for another.
+ */
+export const resolveSupersedingPreset = (
+    preset: ModelPreset<SelectableModelProvider>,
+    availablePresets: ModelPreset<SelectableModelProvider>[],
+): ModelPreset<SelectableModelProvider> | null => {
+    if (!preset.deprecated) return null;
+    const visited = new Set<string>([preset.name]);
+    let current = preset;
+    while (current.deprecated && current.supersededBy) {
+        const { provider, supersededBy } = current;
+        const next = availablePresets.find(
+            (candidate) =>
+                candidate.provider === provider &&
+                matchesPreset(candidate, supersededBy),
+        );
+        if (!next || visited.has(next.name)) break;
+        visited.add(next.name);
+        current = next;
+    }
+    return current.deprecated ? null : current;
+};
+
 export const presetToModelOption = (
     preset: ModelPreset<SelectableModelProvider>,
     defaultModel: { name: string; provider: string } | null,
+    availablePresets: ModelPreset<SelectableModelProvider>[],
 ): AiModelOption => ({
     name: preset.name,
     modelId: preset.modelId,
@@ -253,7 +282,35 @@ export const presetToModelOption = (
         matchesPreset(preset, defaultModel.name),
     supportsReasoning: preset.supportsReasoning,
     deprecated: preset.deprecated ?? false,
+    supersededBy:
+        resolveSupersedingPreset(preset, availablePresets)?.name ?? null,
 });
+
+/**
+ * The model a new prompt runs on. A pinned deprecated preset is swapped for
+ * its shipped replacement so an agent configured before a newer model
+ * existed does not keep running on the old one; the returned config is what
+ * gets recorded on the prompt.
+ */
+export const resolveModelConfigForPrompt = (
+    config: LightdashConfig['ai']['copilot'],
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    const availablePresets = getAvailableModels(config);
+    const pinned = availablePresets.find(
+        (preset) =>
+            preset.provider === modelConfig.modelProvider &&
+            matchesPreset(preset, modelConfig.modelName),
+    );
+    const replacement = pinned
+        ? resolveSupersedingPreset(pinned, availablePresets)
+        : null;
+    if (!pinned || !replacement) return modelConfig;
+    Logger.info(
+        `Model preset "${pinned.name}" is deprecated, running the prompt on "${replacement.name}"`,
+    );
+    return { ...modelConfig, modelName: replacement.name };
+};
 
 export type OrgModelOverrides = {
     modelVisibility: AiOrgModelVisibility | null;

@@ -432,6 +432,7 @@ import {
     MODEL_PRESETS,
     presetToModelOption,
     resolveKeyManagement,
+    resolveModelConfigForPrompt,
 } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
@@ -1301,6 +1302,26 @@ export class AiAgentService extends BaseService {
             modelName: modelConfig?.modelName ?? null,
             reasoningEnabled: modelConfig?.reasoning ?? null,
         };
+    }
+
+    // Runs once per prompt so the recorded model is the one that actually
+    // serves it; a pinned deprecated preset is swapped for its replacement.
+    private async resolvePromptModelConfig({
+        organizationUuid,
+        projectUuid,
+        modelConfig,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        modelConfig: AiAgentModelConfig | null;
+    }): Promise<AiAgentModelConfig | undefined> {
+        if (!modelConfig) return undefined;
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid,
+                projectUuid,
+            });
+        return resolveModelConfigForPrompt(copilotConfig, modelConfig);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -3805,10 +3826,11 @@ export class AiAgentService extends BaseService {
         ]);
         const defaultModel = getDefaultModel(copilotConfig);
 
-        return filterModelsForOrg(
-            getAvailableModels(copilotConfig),
-            orgModelOverrides,
-        ).map((preset) => presetToModelOption(preset, defaultModel));
+        const availablePresets = getAvailableModels(copilotConfig);
+        return filterModelsForOrg(availablePresets, orgModelOverrides).map(
+            (preset) =>
+                presetToModelOption(preset, defaultModel, availablePresets),
+        );
     }
 
     async listAgentThreads(
@@ -4652,11 +4674,15 @@ export class AiAgentService extends BaseService {
                 : await this.aiOrganizationSettingsService.getDefaultModelConfig(
                       organizationUuid,
                   );
-        const modelConfig =
-            body.modelConfig ??
-            agent.modelConfig ??
-            organizationDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            modelConfig:
+                body.modelConfig ??
+                agent.modelConfig ??
+                organizationDefaultModelConfig ??
+                null,
+        });
 
         if (body.prompt) {
             const promptUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -4868,7 +4894,11 @@ export class AiAgentService extends BaseService {
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
             context,
-            modelConfig: body.modelConfig,
+            modelConfig: await this.resolvePromptModelConfig({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                modelConfig: body.modelConfig ?? null,
+            }),
             hidden: body.hidden,
             externalUserId: runtimeOptions?.externalUserId ?? null,
         });
@@ -16191,11 +16221,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 : await this.aiOrganizationSettingsService.getDefaultModelConfig(
                       user.organizationUuid,
                   );
-        const modelConfig =
-            data.modelConfig ??
-            agent?.modelConfig ??
-            orgDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid: user.organizationUuid,
+            projectUuid: data.projectUuid,
+            modelConfig:
+                data.modelConfig ?? agent?.modelConfig ?? orgDefaultModelConfig,
+        });
 
         if (!threadUuid) {
             createdThread = true;

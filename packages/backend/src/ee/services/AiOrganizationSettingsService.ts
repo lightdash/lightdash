@@ -332,7 +332,7 @@ export class AiOrganizationSettingsService extends BaseService {
         const defaultModel = getDefaultModel(copilotConfig);
         const allPresets = getAvailableModels(copilotConfig);
         const toOption = (preset: (typeof allPresets)[number]): AiModelOption =>
-            presetToModelOption(preset, defaultModel);
+            presetToModelOption(preset, defaultModel, allPresets);
         return {
             effectiveOptions: filterModelsForOrg(allPresets, overrides).map(
                 toOption,
@@ -346,7 +346,11 @@ export class AiOrganizationSettingsService extends BaseService {
             // The org brings its own Bedrock key, so every Bedrock preset is
             // selectable regardless of what this instance configures.
             bedrockModelOptions: MODEL_PRESETS.bedrock.map((preset) =>
-                presetToModelOption(preset, defaultModel),
+                presetToModelOption(
+                    preset,
+                    defaultModel,
+                    MODEL_PRESETS.bedrock,
+                ),
             ),
         };
     }
