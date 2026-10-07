@@ -359,8 +359,10 @@ export const FilterSidebar: FC = () => {
             <Stack gap="xs" p="md" className={classes.footer}>
                 <Text fz="xs" c="dimmed">
                     {reachSubject} reaches {reach.applied} of {reach.total}{' '}
-                    {reach.total === 1 ? 'chart' : 'charts'} on {reach.tabCount}{' '}
-                    {reach.tabCount === 1 ? 'tab' : 'tabs'}
+                    {reach.total === 1 ? 'chart' : 'charts'}
+                    {dashboardTabs.length > 1
+                        ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
+                        : ''}
                     {statusSuffix}
                 </Text>
                 <Group justify="space-between" gap="xs">

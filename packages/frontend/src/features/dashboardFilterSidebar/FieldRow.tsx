@@ -53,12 +53,7 @@ export const FieldRow: FC<Props> = ({
                     {label}
                 </Text>
             </UnstyledButton>
-            <Group
-                className={classes.rowActions}
-                justify="space-between"
-                gap="xs"
-                wrap="nowrap"
-            >
+            <Stack className={classes.rowActions} gap={2}>
                 <Text fz="xs" c="dimmed" truncate>
                     {isNotSaved
                         ? `${tableLabel} · Not on any chart yet`
@@ -68,7 +63,7 @@ export const FieldRow: FC<Props> = ({
                                 count.possible
                             } ${pluralizeCharts(count.possible)}`}
                 </Text>
-                <Group gap={4} wrap="nowrap" flex="0 0 auto">
+                <Group gap={4} wrap="wrap">
                     {showAll && (
                         <Button
                             size="compact-xs"
@@ -106,7 +101,7 @@ export const FieldRow: FC<Props> = ({
                         </Button>
                     }
                 </Group>
-            </Group>
+            </Stack>
         </Stack>
     );
 };
