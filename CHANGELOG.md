@@ -1,3 +1,10 @@
+# [2.460.0](https://github.com/lightdash/lightdash/compare/2.459.0...2.460.0) (2026-10-07)
+
+
+### Features
+
+* **data-apps:** obscure automatic thumbnails and gate capture behind a flag ([#30643](https://github.com/lightdash/lightdash/issues/30643)) ([eecd61d](https://github.com/lightdash/lightdash/commit/eecd61d7033cead51329d129569cfd6845e7eb09))
+
 # [2.459.0](https://github.com/lightdash/lightdash/compare/2.458.3...2.459.0) (2026-10-07)
 
 
