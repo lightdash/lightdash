@@ -347,6 +347,7 @@ export const AiGeneralSettingsPage = () => {
                                 bedrockModelOptions={
                                     settings.bedrockModelOptions ?? []
                                 }
+                                openaiBaseUrl={settings.openaiBaseUrl}
                                 disabled={isUpdatingSettings}
                                 onUpdateKeys={(providerApiKeys) =>
                                     updateSettings({ providerApiKeys })

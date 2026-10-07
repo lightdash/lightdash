@@ -54,6 +54,57 @@ describe('applyProviderApiKeyUpdates', () => {
     });
 });
 
+describe('applyProviderApiKeyUpdates: openai gateway', () => {
+    it('normalizes the gateway URL alongside a stored OpenAI key', () => {
+        expect(
+            applyProviderApiKeyUpdates(
+                { openai: 'sk-old' },
+                { openaiBaseUrl: ' https://litellm.example.com/v1/ ' },
+            ),
+        ).toEqual({
+            openai: 'sk-old',
+            openaiBaseUrl: 'https://litellm.example.com/v1',
+        });
+    });
+
+    it('rejects a gateway URL without an OpenAI key', () => {
+        expect(() =>
+            applyProviderApiKeyUpdates(
+                { anthropic: 'sk-ant' },
+                { openaiBaseUrl: 'https://litellm.example.com' },
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('rejects a gateway URL with credentials or a query string', () => {
+        expect(() =>
+            applyProviderApiKeyUpdates(
+                { openai: 'sk-old' },
+                { openaiBaseUrl: 'https://user:pw@litellm.example.com' },
+            ),
+        ).toThrow(ParameterError);
+        expect(() =>
+            applyProviderApiKeyUpdates(
+                { openai: 'sk-old' },
+                { openaiBaseUrl: 'https://litellm.example.com?x=1' },
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('clears the gateway URL on null and when the OpenAI key is removed', () => {
+        const stored = {
+            openai: 'sk-old',
+            openaiBaseUrl: 'https://litellm.example.com',
+        };
+        expect(
+            applyProviderApiKeyUpdates(stored, { openaiBaseUrl: null }),
+        ).toEqual({ openai: 'sk-old' });
+        expect(applyProviderApiKeyUpdates(stored, { openai: null })).toEqual(
+            {},
+        );
+    });
+});
+
 describe('applyProviderApiKeyUpdates: bedrock', () => {
     const config = {
         apiKey: 'ABSKbedrock',

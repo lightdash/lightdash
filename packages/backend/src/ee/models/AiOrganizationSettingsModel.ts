@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { z } from 'zod';
+import { parseLlmGatewayBaseUrl } from '../../config/aiGatewayConfig';
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -37,6 +38,8 @@ const storedAiOrgProviderApiKeyFields = {
     anthropic: z.string().optional(),
     google: z.string().optional(),
     openai: z.string().optional(),
+    // OpenAI-compatible gateway the org's OpenAI key is sent to; key required.
+    openaiBaseUrl: z.string().optional(),
     // Bedrock needs a region alongside the key to address an inference profile.
     bedrock: z
         .object({
@@ -45,7 +48,7 @@ const storedAiOrgProviderApiKeyFields = {
             allowedModels: z.array(z.string()).min(1),
         })
         .optional(),
-} satisfies Record<ByoAiProvider, z.ZodTypeAny>;
+} satisfies Record<ByoAiProvider | 'openaiBaseUrl', z.ZodTypeAny>;
 
 // Keep known provider keys strongly typed and exhaustive, but strip unknown
 // future-provider keys so mixed-version deploys do not invalidate the whole blob.
@@ -98,6 +101,27 @@ export const applyProviderApiKeyUpdates = (
         }
         next[provider] = trimmed;
     });
+    if (!next.openai) delete next.openaiBaseUrl;
+
+    const { openaiBaseUrl } = updates;
+    if (openaiBaseUrl !== undefined) {
+        if (openaiBaseUrl === null) {
+            delete next.openaiBaseUrl;
+        } else {
+            if (!next.openai) {
+                throw new ParameterError(
+                    'Set an OpenAI API key before an OpenAI gateway URL',
+                );
+            }
+            const normalized = parseLlmGatewayBaseUrl(openaiBaseUrl);
+            if (normalized === null) {
+                throw new ParameterError(
+                    'OpenAI gateway URL must be an HTTP(S) base URL without credentials, query parameters, or a fragment',
+                );
+            }
+            next.openaiBaseUrl = normalized;
+        }
+    }
 
     const { bedrock } = updates;
     if (bedrock !== undefined) {
@@ -236,6 +260,7 @@ export class AiOrganizationSettingsModel {
                       allowedModels: keys.bedrock.allowedModels,
                   }
                 : null,
+            openaiBaseUrl: keys.openaiBaseUrl ?? null,
             threadRetentionHours: db.thread_retention_hours,
         };
     }

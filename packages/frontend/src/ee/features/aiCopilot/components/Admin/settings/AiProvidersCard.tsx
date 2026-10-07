@@ -24,6 +24,7 @@ import {
     Stack,
     Switch,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
@@ -78,6 +79,59 @@ type ProviderRowProps = {
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
+    // OpenAI-compatible gateway (e.g. LiteLLM) the org's key is sent to.
+    gateway: {
+        baseUrl: string | null;
+        onSave: (baseUrl: string | null) => void;
+    } | null;
+};
+
+const GatewayUrlInput: FC<{
+    baseUrl: string | null;
+    disabled: boolean;
+    onSave: (baseUrl: string | null) => void;
+}> = ({ baseUrl, disabled, onSave }) => {
+    const [value, setValue] = useState(baseUrl ?? '');
+    return (
+        <Group gap="xs" wrap="nowrap" align="flex-end">
+            <TextInput
+                flex={1}
+                size="xs"
+                label="Gateway base URL"
+                description="Optional. An OpenAI-compatible endpoint such as LiteLLM. Model names are sent as-is, so alias them in the gateway."
+                placeholder="https://litellm.example.com"
+                value={value}
+                disabled={disabled}
+                onChange={(event) => setValue(event.currentTarget.value)}
+            />
+            <Button
+                size="xs"
+                variant="default"
+                disabled={
+                    disabled ||
+                    value.trim().length === 0 ||
+                    value.trim() === baseUrl
+                }
+                onClick={() => onSave(value.trim())}
+            >
+                Save
+            </Button>
+            {baseUrl && (
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    disabled={disabled}
+                    onClick={() => {
+                        setValue('');
+                        onSave(null);
+                    }}
+                >
+                    Remove
+                </Button>
+            )}
+        </Group>
+    );
 };
 
 const ProviderRow: FC<ProviderRowProps> = ({
@@ -94,6 +148,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
+    gateway,
 }) => {
     const { label, icon: Icon, placeholder } = PROVIDER_META[provider];
     const [value, setValue] = useState('');
@@ -174,6 +229,14 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 )}
             </Group>
 
+            {isSet && gateway && (
+                <GatewayUrlInput
+                    baseUrl={gateway.baseUrl}
+                    disabled={disabled}
+                    onSave={gateway.onSave}
+                />
+            )}
+
             {showAvailability && isEnabled && (
                 <MultiSelect
                     size="xs"
@@ -235,6 +298,7 @@ type AiProvidersCardProps = {
     dataAppModelVisibility: DataAppModelVisibility | null;
     showDataAppModels: boolean;
     bedrockModelOptions: AiModelOption[];
+    openaiBaseUrl: string | null;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
@@ -249,6 +313,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     dataAppModelVisibility,
     showDataAppModels,
     bedrockModelOptions,
+    openaiBaseUrl,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
@@ -362,6 +427,17 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                     ...(modelVisibility ?? {}),
                                     [provider]: value,
                                 })
+                            }
+                            gateway={
+                                provider === 'openai'
+                                    ? {
+                                          baseUrl: openaiBaseUrl,
+                                          onSave: (baseUrl) =>
+                                              onUpdateKeys({
+                                                  openaiBaseUrl: baseUrl,
+                                              }),
+                                      }
+                                    : null
                             }
                         />
                     </Stack>

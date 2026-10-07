@@ -156,6 +156,9 @@ export const overlayOrgProviderApiKeys = (
         providers.openai = {
             ...providers.openai,
             apiKey: orgKeys.openai,
+            ...(orgKeys.openaiBaseUrl
+                ? { baseUrl: orgKeys.openaiBaseUrl }
+                : {}),
         };
     }
 

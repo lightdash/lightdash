@@ -470,6 +470,7 @@ export class AiOrganizationSettingsService extends BaseService {
                     bedrock: null,
                 },
                 bedrockConfig: null,
+                openaiBaseUrl: null,
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,

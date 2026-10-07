@@ -181,6 +181,17 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('routes the org OpenAI key through the org gateway URL', () => {
+        const result = overlayOrgProviderApiKeys(baseConfig, {
+            openai: 'org-openai-key',
+            openaiBaseUrl: 'https://litellm.example.com',
+        });
+        expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        expect(result.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
+    });
+
     it('overlays a Google key without changing the configured Gemini model', () => {
         const result = overlayOrgProviderApiKeys(allByoProvidersConfig, {
             google: 'org-google-key',
