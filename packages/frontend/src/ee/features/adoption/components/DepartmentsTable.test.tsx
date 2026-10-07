@@ -94,7 +94,9 @@ describe('DepartmentsTable', () => {
     });
     it('prompts for a missing headcount and warns when a headcount is below its sub-departments', () => {
         renderTable();
-        expect(screen.getByText('Add headcount')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Add headcount for Legal' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByLabelText(
                 'Headcount is lower than the total of its sub-departments',
@@ -104,7 +106,9 @@ describe('DepartmentsTable', () => {
     it('opens the editor from the prompt and the edit button', async () => {
         const onEdit = vi.fn();
         renderTable(true, onEdit);
-        await userEvent.click(screen.getByText('Add headcount'));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add headcount for Legal' }),
+        );
         expect(onEdit).toHaveBeenLastCalledWith(
             expect.objectContaining({ departmentUuid: 'Legal' }),
         );
@@ -146,7 +150,9 @@ describe('DepartmentsTable', () => {
     it('hides edit controls from people who cannot manage', () => {
         renderTable(false);
         expect(screen.getAllByRole('columnheader')).toHaveLength(8);
-        expect(screen.queryByText('Add headcount')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Add headcount/ }),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Edit Ops' }),
         ).not.toBeInTheDocument();

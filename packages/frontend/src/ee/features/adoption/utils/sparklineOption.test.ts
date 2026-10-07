@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSparklineOption } from './sparklineOption';
+import { getSparklineOption, hasActivity } from './sparklineOption';
 
 const points = (counts: number[]) =>
     counts.map((activeUsers, i) => ({
@@ -7,14 +7,19 @@ const points = (counts: number[]) =>
         activeUsers,
     }));
 
-const yAxis = (counts: number[]) =>
-    getSparklineOption(points(counts)).yAxis as { min: number; max?: number };
+describe('hasActivity', () => {
+    it('is false for no points and for all zeros', () => {
+        expect(hasActivity([])).toBe(false);
+        expect(hasActivity(points([0, 0, 0]))).toBe(false);
+    });
+    it('is true when any week has activity', () => {
+        expect(hasActivity(points([0, 3, 0]))).toBe(true);
+    });
+});
 
 describe('getSparklineOption', () => {
-    it('gives an all-zero series a range so the flat baseline draws', () => {
-        expect(yAxis([0, 0, 0])).toMatchObject({ min: 0, max: 1 });
-    });
-    it('leaves the range to the chart when there is activity', () => {
-        expect(yAxis([0, 3, 1]).max).toBeUndefined();
+    it('plots one value per week', () => {
+        const option = getSparklineOption(points([1, 2, 3]));
+        expect(option.series).toMatchObject([{ data: [1, 2, 3] }]);
     });
 });

@@ -1,7 +1,11 @@
 import { type WeeklyActivePoint } from '@lightdash/common';
 import { type EChartsOption } from '../../../../components/EChartsReactWrapper';
 
-const COLOR = 'var(--mantine-color-dimmed)';
+// Same token the homepage sparkline passes to ECharts
+const COLOR = 'var(--mantine-color-ldGray-6)';
+
+export const hasActivity = (points: WeeklyActivePoint[]): boolean =>
+    points.some((point) => point.activeUsers > 0);
 
 export const getSparklineOption = (
     points: WeeklyActivePoint[],
@@ -18,8 +22,6 @@ export const getSparklineOption = (
         type: 'value',
         show: false,
         min: 0,
-        // An all-zero series has no range, so give it one to draw a flat baseline
-        ...(points.every((point) => point.activeUsers === 0) ? { max: 1 } : {}),
         splitLine: { show: false },
     },
     series: [

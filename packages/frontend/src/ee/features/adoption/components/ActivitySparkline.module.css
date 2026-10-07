@@ -2,3 +2,10 @@
     width: 110px;
     height: 30px;
 }
+
+.rule {
+    width: 100%;
+    height: 1px;
+    margin-top: 15px;
+    background-color: var(--mantine-color-dimmed);
+}
