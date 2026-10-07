@@ -13,8 +13,8 @@ import { AiModeCards } from './AiModeCards';
 const capabilities: AiWarehouseCapabilities = {
     marker: {
         level: AiAgentMarkerLevel.VERIFIED_SESSION,
-        channels: ['Query tag'],
-        identify: 'Agent query tag',
+        signals: [{ name: 'Query tag', where: 'Agent query tag' }],
+        note: null,
         enforce: null,
     },
     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -36,16 +36,16 @@ describe('AI mode cards', () => {
         renderWithProviders(
             <AiModeCards
                 capabilities={capabilities}
-                value={AiPrincipalKind.GROUP}
+                value={AiPrincipalKind.TWIN}
                 onChange={onChange}
             />,
         );
-        const radio = screen.getByRole('radio', { name: 'Twin' });
+        const radio = screen.getByRole('radio', { name: 'Per person' });
         expect(radio).toBeDisabled();
         expect(screen.getByText('Twins are coming soon')).toBeInTheDocument();
         fireEvent.click(radio);
         expect(onChange).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole('radio', { name: 'Shared' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'One shared' }));
         expect(onChange).toHaveBeenCalledWith(AiPrincipalKind.SHARED);
     });
 });

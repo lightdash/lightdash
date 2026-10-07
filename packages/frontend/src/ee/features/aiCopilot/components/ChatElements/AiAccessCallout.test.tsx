@@ -55,7 +55,7 @@ describe('AI access callout', () => {
         mocks.can.mockReturnValue(true);
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
-            screen.getByRole('link', { name: 'Review AI access' }),
+            screen.getByRole('link', { name: 'Review agent identity' }),
         ).toHaveAttribute(
             'href',
             '/generalSettings/projectManagement/project/aiAccess',

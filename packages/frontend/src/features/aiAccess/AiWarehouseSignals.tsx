@@ -1,38 +1,57 @@
-import { type AiAgentMarker } from '@lightdash/common';
-import { Code, Group, Paper, Stack, Text, Title } from '@mantine/core';
-import { CopyActionIcon } from '../../components/common/CopyActionIcon';
-
-export const AiWarehouseSignals = ({
-    marker,
-    separate,
-}: {
-    marker: AiAgentMarker;
-    separate: boolean;
-}) => (
-    <Paper withBorder p="md">
+import { AiAgentMarkerLevel, type AiAgentMarker } from '@lightdash/common';
+import { Badge, Paper, Stack, Table, Text } from '@mantine/core';
+import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+const markerLabels: Record<AiAgentMarkerLevel, string> = {
+    [AiAgentMarkerLevel.VERIFIED_SESSION]: 'Enforced by warehouse',
+    [AiAgentMarkerLevel.ADVISORY_SESSION]: 'Session can change it',
+    [AiAgentMarkerLevel.IDENTIFY_ONLY]: 'Visible in query history',
+    [AiAgentMarkerLevel.NONE]: 'No marker',
+};
+export const AiWarehouseSignals = ({ marker }: { marker: AiAgentMarker }) =>
+    marker.level === AiAgentMarkerLevel.NONE ? (
+        <Paper variant="dotted" p="md">
+            <Text size="sm" c="dimmed">
+                This warehouse cannot mark agent queries. Use a separate
+                principal to keep agent access apart.
+            </Text>
+        </Paper>
+    ) : (
         <Stack gap="sm">
-            <Title order={4}>In the warehouse</Title>
-            {separate && (
-                <Text size="sm">
-                    Use the separate principal's grants to control access. Its
-                    queries also carry the agent marker.
+            <Badge w="fit-content" color="gray">
+                {markerLabels[marker.level]}
+            </Badge>
+            <Table>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Signal</Table.Th>
+                        <Table.Th>Where to read it</Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {marker.signals.map((signal) => (
+                        <Table.Tr key={signal.name}>
+                            <Table.Td>{signal.name}</Table.Td>
+                            <Table.Td>{signal.where}</Table.Td>
+                        </Table.Tr>
+                    ))}
+                </Table.Tbody>
+            </Table>
+            {marker.note && (
+                <Text size="sm" c="dimmed">
+                    {marker.note}
                 </Text>
             )}
-            <Text size="sm">{marker.identify}</Text>
-            <Text size="sm">
-                Enforcement happens in the warehouse using these signals.
-            </Text>
             {marker.enforce !== null && (
                 <Stack gap="xs">
-                    <Group justify="space-between">
-                        <Text size="sm" fw={500}>
-                            Example warehouse policy
-                        </Text>
-                        <CopyActionIcon value={marker.enforce} />
-                    </Group>
-                    <Code block>{marker.enforce}</Code>
+                    <Text size="sm" fw={500}>
+                        Example warehouse policy
+                    </Text>
+                    <CodeBlock
+                        code={marker.enforce}
+                        language="sql"
+                        copyLabel="Copy example policy"
+                    />
                 </Stack>
             )}
         </Stack>
-    </Paper>
-);
+    );

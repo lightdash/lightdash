@@ -14,8 +14,8 @@ const capabilities: AiWarehouseCapabilities = {
     warehouseType: WarehouseTypes.POSTGRES,
     marker: {
         level: AiAgentMarkerLevel.ADVISORY_SESSION,
-        channels: ['application_name'],
-        identify: 'Session marker',
+        signals: [{ name: 'application_name', where: 'Session marker' }],
+        note: null,
         enforce: null,
     },
     setupFormat: AiSetupScriptFormat.SQL,
@@ -44,8 +44,14 @@ describe('Agent identity choices', () => {
         expect(
             screen.getByRole('radio', { name: 'Marked person' }),
         ).toBeChecked();
-        expect(screen.getByText('Advisory session')).toBeInTheDocument();
-        expect(screen.getByText('Person: nothing to do.')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Session can change it'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                "Agents use each person's own warehouse access. Every query is marked.",
+            ),
+        ).toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('radio', { name: 'Separate principal' }),
         );
@@ -56,6 +62,7 @@ describe('Agent identity choices', () => {
             <AiIdentityModeCards
                 capabilities={{
                     ...capabilities,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
                     principals: {
                         ...capabilities.principals,
                         person: {
@@ -71,7 +78,7 @@ describe('Agent identity choices', () => {
         );
         expect(
             screen.getByText(
-                'Person: complete the AI sign-in to use a verified agentic session.',
+                'Each person signs in once to start verified agent sessions.',
             ),
         ).toBeInTheDocument();
     });

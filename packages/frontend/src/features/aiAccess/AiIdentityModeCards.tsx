@@ -1,28 +1,8 @@
 import {
-    AiAgentMarkerLevel,
-    AiCredentialMethod,
+    WarehouseTypes,
     type AiWarehouseCapabilities,
 } from '@lightdash/common';
-import { Badge, List, Radio, SimpleGrid, Stack, Text } from '@mantine/core';
-import classes from './AiAccessPage.module.css';
-
-const markerLabels: Record<AiAgentMarkerLevel, string> = {
-    [AiAgentMarkerLevel.VERIFIED_SESSION]: 'Verified session',
-    [AiAgentMarkerLevel.ADVISORY_SESSION]: 'Advisory session',
-    [AiAgentMarkerLevel.IDENTIFY_ONLY]: 'Identify only',
-    [AiAgentMarkerLevel.NONE]: 'Not available',
-};
-
-const whenNeeded: Record<AiAgentMarkerLevel, string> = {
-    [AiAgentMarkerLevel.VERIFIED_SESSION]:
-        'Not needed here: the warehouse verifies the agent session itself.',
-    [AiAgentMarkerLevel.ADVISORY_SESSION]:
-        'Needed for a hard boundary: the marker here is advisory, so the session can change it.',
-    [AiAgentMarkerLevel.IDENTIFY_ONLY]:
-        'Needed for a hard boundary: the marker here identifies queries but cannot restrict them.',
-    [AiAgentMarkerLevel.NONE]:
-        'Needed for any separation: this warehouse has no agent marker.',
-};
+import { Group, Radio, SimpleGrid, Stack, Text } from '@mantine/core';
 
 export const AiIdentityModeCards = ({
     capabilities,
@@ -36,8 +16,6 @@ export const AiIdentityModeCards = ({
     disabled: boolean;
 }) => {
     const person = capabilities.principals.person;
-    const needsSignIn =
-        person.available && person.method === AiCredentialMethod.SIGN_IN;
     const separateKinds = [
         capabilities.principals.twin,
         capabilities.principals.group,
@@ -49,74 +27,68 @@ export const AiIdentityModeCards = ({
     )?.reason;
     return (
         <Radio.Group
-            label="Identity mode"
+            aria-label="Identity"
             value={separate ? 'principal' : 'marked_person'}
             onChange={(value) => onChange(value === 'principal')}
         >
-            <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
-                <Stack
-                    className={classes.mode}
-                    data-unavailable={!person.available}
-                    gap="xs"
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <Radio.Card
+                    value="marked_person"
+                    aria-label="Marked person"
+                    disabled={disabled || !person.available}
+                    p="md"
+                    radius="md"
                 >
-                    <Radio
-                        value="marked_person"
-                        label="Marked person"
-                        disabled={disabled || !person.available}
-                    />
-                    <Text size="sm">
-                        The person's own credentials, marked as an agent.
-                    </Text>
-                    <Badge>{markerLabels[capabilities.marker.level]}</Badge>
-                    <List size="sm">
-                        {capabilities.marker.channels.map((channel) => (
-                            <List.Item key={channel}>{channel}</List.Item>
-                        ))}
-                    </List>
-                    <Text size="sm">
-                        Admin: use the marker signals in warehouse policies.
-                    </Text>
-                    <Text size="sm">
-                        {needsSignIn
-                            ? 'Person: complete the AI sign-in to use a verified agentic session.'
-                            : 'Person: nothing to do.'}
-                    </Text>
-                    {!person.available && (
+                    <Stack gap="xs">
+                        <Group>
+                            <Radio.Indicator
+                                disabled={disabled || !person.available}
+                            />
+                            <Text fw={500}>Marked person</Text>
+                        </Group>
                         <Text size="sm" c="dimmed">
-                            {person.reason}
+                            Agents use each person's own warehouse access. Every
+                            query is marked.
                         </Text>
-                    )}
-                </Stack>
-                <Stack
-                    className={classes.mode}
-                    data-unavailable={!separateAvailable}
-                    gap="xs"
+                        {capabilities.warehouseType ===
+                            WarehouseTypes.SNOWFLAKE && (
+                            <Text size="sm" c="dimmed">
+                                Each person signs in once to start verified
+                                agent sessions.
+                            </Text>
+                        )}
+                        {!person.available && (
+                            <Text size="sm" c="dimmed">
+                                {person.reason}
+                            </Text>
+                        )}
+                    </Stack>
+                </Radio.Card>
+                <Radio.Card
+                    value="principal"
+                    aria-label="Separate principal"
+                    disabled={disabled || !separateAvailable}
+                    p="md"
+                    radius="md"
                 >
-                    <Radio
-                        value="principal"
-                        label="Separate principal"
-                        disabled={disabled || !separateAvailable}
-                    />
-                    <Text size="sm">
-                        A separate warehouse principal for a person, group or
-                        everyone.
-                    </Text>
-                    <Text size="sm">
-                        {whenNeeded[capabilities.marker.level]}
-                    </Text>
-                    <Text size="sm">
-                        Admin: create the principal and grant its access in the
-                        warehouse.
-                    </Text>
-                    <Text size="sm">
-                        Person: use the principal assigned to them.
-                    </Text>
-                    {!separateAvailable && separateReason && (
+                    <Stack gap="xs">
+                        <Group>
+                            <Radio.Indicator
+                                disabled={disabled || !separateAvailable}
+                            />
+                            <Text fw={500}>Separate principal</Text>
+                        </Group>
                         <Text size="sm" c="dimmed">
-                            {separateReason}
+                            Agents use a different warehouse principal. Use this
+                            when the marker cannot enforce your rules.
                         </Text>
-                    )}
-                </Stack>
+                        {!separateAvailable && (
+                            <Text size="sm" c="dimmed">
+                                {separateReason}
+                            </Text>
+                        )}
+                    </Stack>
+                </Radio.Card>
             </SimpleGrid>
         </Radio.Group>
     );

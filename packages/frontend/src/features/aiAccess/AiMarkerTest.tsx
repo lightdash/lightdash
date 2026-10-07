@@ -1,8 +1,6 @@
-import { AiPrincipalStatus } from '@lightdash/common';
-import { Alert, Button, Code, Stack, Text, Title } from '@mantine/core';
-import { AiPrincipalStatusBadge } from './AiPrincipalStatusBadge';
+import { Badge, Button, Stack, Table, Text } from '@mantine/core';
+import InlineErrorState from '../../components/common/InlineErrorState';
 import { useTestAiMarker } from './api';
-
 export const AiMarkerTest = ({
     projectUuid,
     connection,
@@ -15,7 +13,6 @@ export const AiMarkerTest = ({
     const test = useTestAiMarker(projectUuid, connection);
     return (
         <Stack gap="sm">
-            <Title order={4}>Test</Title>
             <Button
                 w="fit-content"
                 disabled={disabled}
@@ -25,23 +22,34 @@ export const AiMarkerTest = ({
                 Test agent marker
             </Button>
             {test.isError && (
-                <Alert color="red">Could not test the agent marker.</Alert>
+                <InlineErrorState
+                    message="Could not test the agent marker."
+                    onRetry={() => test.mutate(undefined)}
+                />
             )}
             {test.data && (
                 <Stack gap="xs">
-                    <AiPrincipalStatusBadge
-                        principal={{
-                            status: test.data.ok
-                                ? AiPrincipalStatus.READY
-                                : AiPrincipalStatus.FAILED,
-                            failureReason: null,
-                            statusMessage: test.data.message,
-                        }}
-                    />
+                    <Badge
+                        w="fit-content"
+                        color={test.data.ok ? 'green' : 'red'}
+                    >
+                        {test.data.ok ? 'Passed' : 'Failed'}
+                    </Badge>
                     <Text size="sm">{test.data.message}</Text>
-                    <Code block>
-                        {JSON.stringify(test.data.observed, null, 2)}
-                    </Code>
+                    <Table>
+                        <Table.Tbody>
+                            {Object.entries(test.data.observed).map(
+                                ([key, value]) => (
+                                    <Table.Tr key={key}>
+                                        <Table.Th>{key}</Table.Th>
+                                        <Table.Td>
+                                            {value ?? 'Not set'}
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ),
+                            )}
+                        </Table.Tbody>
+                    </Table>
                 </Stack>
             )}
         </Stack>

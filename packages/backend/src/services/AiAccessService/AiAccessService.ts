@@ -440,7 +440,10 @@ export class AiAccessService extends BaseService {
             checkedAt: new Date(),
         };
         if (marker.level === AiAgentMarkerLevel.NONE) {
-            return { ...result, message: marker.identify };
+            return {
+                ...result,
+                message: 'This warehouse cannot mark agent queries.',
+            };
         }
         try {
             const probe = agentMarkerProbe(connection.type);
@@ -483,7 +486,9 @@ export class AiAccessService extends BaseService {
                     result.ok = true;
                     result.observed = {
                         agent: 'true',
-                        channels: marker.channels.join(', '),
+                        channels: marker.signals
+                            .map((signal) => signal.name)
+                            .join(', '),
                     };
                     break;
                 case WarehouseTypes.DUCKDB:

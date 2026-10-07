@@ -2,13 +2,17 @@ import { type UpsertAiAccessPolicy } from '@lightdash/common';
 import {
     Button,
     Group,
-    NumberInput,
+    ActionIcon,
+    Tooltip,
     Select,
     Stack,
     TextInput,
 } from '@mantine/core';
 import { randomId } from '@mantine/hooks';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
+import { NumberInput } from '../../components/common/NumberInput';
 type Mappings = UpsertAiAccessPolicy['groupMappings'];
 export const AiGroupMappingsEditor = ({
     value,
@@ -70,26 +74,32 @@ export const AiGroupMappingsEditor = ({
                     />
                     <NumberInput
                         label="Priority"
+                        description="Higher wins when a person is in several groups"
                         value={row.priority}
                         allowDecimal={false}
-                        onChange={(priority) =>
-                            update(index, { priority: Number(priority) })
+                        onNumberChange={(priority) =>
+                            update(index, { priority: priority ?? 0 })
                         }
                     />
-                    <Button
-                        variant="subtle"
-                        mt="lg"
-                        onClick={() => {
-                            setRowIds(ids.filter((_, i) => i !== index));
-                            onChange(value.filter((_, i) => i !== index));
-                        }}
-                    >
-                        Remove
-                    </Button>
+                    <Tooltip label="Remove mapping">
+                        <ActionIcon
+                            aria-label="Remove mapping"
+                            variant="subtle"
+                            mt="lg"
+                            onClick={() => {
+                                setRowIds(ids.filter((_, i) => i !== index));
+                                onChange(value.filter((_, i) => i !== index));
+                            }}
+                        >
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
             ))}
             <Button
-                variant="default"
+                variant="light"
+                w="fit-content"
+                leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={() => {
                     setRowIds([...ids, randomId()]);
                     onChange([

@@ -1,13 +1,7 @@
-import {
-    Alert,
-    Button,
-    Code,
-    CopyButton,
-    Drawer,
-    Loader,
-    Stack,
-    Title,
-} from '@mantine/core';
+import { Alert, Drawer, Stack, Title } from '@mantine/core';
+import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../components/common/InlineErrorState';
 import { useAiSetupScript } from './api';
 export const AiSetupScriptDrawer = ({
     projectUuid,
@@ -22,27 +16,27 @@ export const AiSetupScriptDrawer = ({
 }) => {
     const query = useAiSetupScript(projectUuid, connection, principal, true);
     return (
-        <Drawer opened onClose={onClose} title="AI setup script" size="xl">
+        <Drawer opened onClose={onClose} title="Setup script" size="xl">
             <Stack>
                 <Alert color="yellow">
                     This script may contain a secret. It is shown to admins
                     only.
                 </Alert>
-                {query.isLoading && <Loader />}
+                {query.isLoading && <EmptyStateLoader />}
                 {query.isError && (
-                    <Alert color="red">Could not load the setup script.</Alert>
+                    <InlineErrorState
+                        message="Could not load the setup script."
+                        onRetry={() => void query.refetch()}
+                    />
                 )}
                 {query.data?.parts.map((part) => (
                     <Stack key={part.title} gap="xs">
                         <Title order={5}>{part.title}</Title>
-                        <Code block>{part.body}</Code>
-                        <CopyButton value={part.body}>
-                            {({ copied, copy }) => (
-                                <Button variant="default" onClick={copy}>
-                                    {copied ? 'Copied' : 'Copy'}
-                                </Button>
-                            )}
-                        </CopyButton>
+                        <CodeBlock
+                            code={part.body}
+                            language="sql"
+                            copyLabel="Copy setup script"
+                        />
                     </Stack>
                 ))}
             </Stack>

@@ -17,8 +17,8 @@ export enum AiAgentMarkerLevel {
 
 export type AiAgentMarker = {
     level: AiAgentMarkerLevel;
-    channels: string[];
-    identify: string;
+    signals: { name: string; where: string }[];
+    note: string | null;
     enforce: string | null;
 };
 
