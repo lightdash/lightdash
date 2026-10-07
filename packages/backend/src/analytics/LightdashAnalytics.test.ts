@@ -1,5 +1,8 @@
+import { RequestMethod } from '@lightdash/common';
 import Analytics from '@rudderstack/rudder-sdk-node';
 import { EventEmitter } from 'events';
+import ExecutionContext from 'node-execution-context';
+import type { MockInstance } from 'vitest';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
@@ -282,7 +285,7 @@ describe('LightdashAnalytics', () => {
             options: { enable: false },
         });
 
-        let superTrackSpy: ReturnType<typeof vi.spyOn>;
+        let superTrackSpy: MockInstance<Analytics['track']>;
 
         beforeEach(() => {
             superTrackSpy = vi
@@ -316,6 +319,29 @@ describe('LightdashAnalytics', () => {
             );
             expect(warn).toHaveBeenCalledTimes(1);
             warn.mockRestore();
+        });
+
+        it('says which client made the request, and nothing outside one', () => {
+            const event = {
+                event: 'content_as_code.pulled_from_git' as const,
+                userId: 'user-uuid',
+                properties: {
+                    projectId: 'project-uuid',
+                    chartsCount: 1,
+                    dashboardsCount: 0,
+                    failureCount: 0,
+                },
+            };
+
+            ExecutionContext.run(() => analytics.track(event), {
+                request_method: RequestMethod.DESKTOP,
+            });
+            analytics.track(event);
+
+            const contexts = superTrackSpy.mock.calls.map(
+                ([message]) => message.context?.requestMethod,
+            );
+            expect(contexts).toEqual([RequestMethod.DESKTOP, undefined]);
         });
 
         it('leaves an event with a userId untouched', () => {
@@ -362,7 +388,7 @@ describe('LightdashAnalytics', () => {
             deletedUserId: 'deleted-user-uuid',
         };
 
-        let superTrackSpy: ReturnType<typeof vi.spyOn>;
+        let superTrackSpy: MockInstance<Analytics['track']>;
 
         beforeEach(() => {
             superTrackSpy = vi

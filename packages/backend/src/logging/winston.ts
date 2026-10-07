@@ -1,4 +1,5 @@
 import {
+    getRequestMethod,
     LightdashAppUuidHeader,
     LightdashBuildHashHeader,
     LightdashCliVersionHeader,
@@ -7,6 +8,7 @@ import {
     LightdashSdkVersionHeader,
     LightdashSignedDownloadHeader,
     LightdashVersionHeader,
+    RequestMethod,
     SessionUser,
 } from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
@@ -71,6 +73,9 @@ export type ExecutionContextInfo = {
     organization_name?: string;
     app_uuid?: string;
     app_version?: number;
+    // The client that made the request (Lightdash-Request-Method header).
+    // Analytics stamps it on every event tracked while handling the request.
+    request_method?: RequestMethod;
     query_request?: {
         startedAtMs: number;
         requestId: string;
@@ -411,6 +416,8 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
     const appUuidHeader = req.headers[LightdashAppUuidHeader.toLowerCase()];
     const appUuid =
         typeof appUuidHeader === 'string' ? appUuidHeader : undefined;
+    const requestMethodHeader =
+        req.headers[LightdashRequestMethodHeader.toLowerCase()];
     if (!organizationUuid && !organizationName && !appUuid) {
         next();
         return;
@@ -424,6 +431,11 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
         organization_uuid: organizationUuid,
         organization_name: organizationName,
         ...(appUuid ? { app_uuid: appUuid } : {}),
+        request_method: getRequestMethod(
+            typeof requestMethodHeader === 'string'
+                ? requestMethodHeader
+                : undefined,
+        ),
     };
     if (ExecutionContext.exists()) {
         ExecutionContext.update(context as unknown as Record<string, unknown>);
