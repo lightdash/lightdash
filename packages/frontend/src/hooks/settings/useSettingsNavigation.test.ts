@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { filterSettingsNavigation } from './filterSettingsNavigation';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
 
@@ -198,18 +199,31 @@ describe('AI credits settings navigation', () => {
     });
 });
 
-describe('Agent identity navigation', () => {
+describe('Agent settings navigation', () => {
     it.each([
-        [WarehouseTypes.SNOWFLAKE, true, true],
-        [WarehouseTypes.POSTGRES, true, false],
-        [WarehouseTypes.SNOWFLAKE, false, false],
+        [WarehouseTypes.SNOWFLAKE, true, true, true, true],
+        [WarehouseTypes.SNOWFLAKE, true, true, false, true],
+        [WarehouseTypes.SNOWFLAKE, true, true, true, false],
+        [WarehouseTypes.SNOWFLAKE, true, false, false, false],
+        [WarehouseTypes.POSTGRES, true, true, true, true],
+        [WarehouseTypes.POSTGRES, true, false, false, false],
+        [WarehouseTypes.SNOWFLAKE, false, true, true, true],
+        [WarehouseTypes.SNOWFLAKE, false, false, false, false],
     ])(
         'gates %s with flag %s',
-        (projectWarehouseType, aiPrincipalsEnabled, visible) => {
+        (
+            projectWarehouseType,
+            aiPrincipalsEnabled,
+            canManageProject,
+            isAiCopilotEnabledOrTrial,
+            canManageOrgAiAgent,
+        ) => {
             const { result } = renderHook(() =>
                 useSettingsNavigation(
                     settingsContext({
                         aiPrincipalsEnabled,
+                        isAiCopilotEnabledOrTrial,
+                        canManageOrgAiAgent,
                         organization: {
                             organizationUuid: 'org',
                             name: 'Organization',
@@ -217,7 +231,12 @@ describe('Agent identity navigation', () => {
                         user: {
                             ...mockUserResponse(),
                             ability: new Ability([
-                                { action: 'manage', subject: 'all' },
+                                {
+                                    action: canManageProject
+                                        ? 'manage'
+                                        : 'update',
+                                    subject: 'Project',
+                                },
                             ]),
                             impersonation: null,
                         },
@@ -261,11 +280,54 @@ describe('Agent identity navigation', () => {
                     }),
                 ),
             );
+            const items = result.current.find(
+                (section) => section.id === 'current-project',
+            )?.items;
+            const group = items?.find(
+                (item) => item.label === 'Agent settings',
+            );
+            const expectedLabels = [
+                ...(isAiCopilotEnabledOrTrial ? ['Agent data scope'] : []),
+                ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+                    ? ['AI region']
+                    : []),
+                ...(aiPrincipalsEnabled &&
+                canManageProject &&
+                projectWarehouseType === WarehouseTypes.SNOWFLAKE
+                    ? ['Agent identity']
+                    : []),
+            ];
+            if (expectedLabels.length === 0) {
+                expect(group).toBeUndefined();
+                return;
+            }
+            expect(group?.to).toBe(
+                '/generalSettings/projectManagement/project/agentSettings',
+            );
+            expect(group?.keywords).toEqual(['ai', 'agent']);
+            expect(items?.[2]).toBe(group);
+            expect(group?.children.map((item) => item.label)).toEqual(
+                expectedLabels,
+            );
             expect(
-                result.current
-                    .flatMap((section) => section.items)
-                    .some((item) => item.label === 'Agent identity'),
-            ).toBe(visible);
+                items?.some((item) => expectedLabels.includes(item.label)),
+            ).toBe(false);
+            for (const child of group?.children ?? []) {
+                for (const query of [child.label, ...child.keywords]) {
+                    const filtered = filterSettingsNavigation(
+                        result.current,
+                        query,
+                    );
+                    expect(
+                        filtered
+                            .find((section) => section.id === 'current-project')
+                            ?.items.find(
+                                (item) => item.label === 'Agent settings',
+                            )
+                            ?.children.some((item) => item.to === child.to),
+                    ).toBe(true);
+                }
+            }
         },
     );
 });

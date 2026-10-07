@@ -53,21 +53,25 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
             );
         }
 
+        const hasActivePage = [item, ...item.children].some((page) =>
+            matchPath(
+                {
+                    path: page.to,
+                    end: page === item ? false : (page.exact ?? false),
+                },
+                location.pathname,
+            ),
+        );
+
         return (
             <RouterNavLink
-                key={item.to}
+                key={`${item.to}:${hasActivePage}`}
                 label={label}
                 to={item.to}
                 exact={item.exact}
                 onClick={item.onClick}
                 leftSection={leftSection}
-                defaultOpened={
-                    isFiltering ||
-                    !!matchPath(
-                        { path: item.to, end: false },
-                        location.pathname,
-                    )
-                }
+                defaultOpened={isFiltering || hasActivePage}
             >
                 {item.children.map(renderItem)}
             </RouterNavLink>
