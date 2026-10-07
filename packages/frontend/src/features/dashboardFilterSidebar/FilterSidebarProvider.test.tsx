@@ -249,7 +249,7 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
-    it('apply is allowed on an unplaced filter after clearFields', () => {
+    it('apply is a no-op on a placeholder, cancel restores the filter', () => {
         const original = initialFilters.dimensions[0];
         const { result } = renderHook(() => useFilterSidebar(), {
             wrapper: Wrapper,
@@ -257,10 +257,11 @@ describe('FilterSidebarProvider', () => {
         act(() => result.current.open(original.id));
         act(() => result.current.clearFields());
         act(() => result.current.apply());
+        expect(result.current.isUnplaced).toBe(true);
+        expect(result.current.editing).not.toBeNull();
+        act(() => result.current.cancel());
         expect(result.current.editing).toBeNull();
-        expect(result.current.unplacedFilters.map((r) => r.id)).toEqual([
-            original.id,
-        ]);
+        expect(result.current.unplacedFilters).toEqual([]);
     });
 
     it('openKind starts an unplaced filter that addFirstField places, keeping its id', () => {

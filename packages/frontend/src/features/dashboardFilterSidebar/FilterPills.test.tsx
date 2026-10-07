@@ -1,6 +1,5 @@
 import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { FilterPills } from './FilterPills';
@@ -74,39 +73,6 @@ describe('FilterPills', () => {
             getSessionSettings: () => ({ hiddenTabUuids: [] }),
             updateSessionSettings: vi.fn(),
         };
-    });
-
-    it('renders unplaced filters as dashed pills after the saved ones', async () => {
-        renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-
-        const pills = screen.getAllByRole('button', { pressed: false });
-        expect(pills[0]).toHaveTextContent('Status');
-        expect(screen.getByText('Region')).toBeInTheDocument();
-        expect(screen.getByText('New filter')).toBeInTheDocument();
-        expect(screen.getAllByText('· no fields, not saved')).toHaveLength(2);
-
-        const selected = screen.getByRole('button', { pressed: true });
-        expect(selected).toHaveTextContent('New filter');
-        expect(selected.className).toContain('unplacedPill');
-        expect(selected.className).toContain('selectedPill');
-
-        // Lock and eye belong to the saved pill only
-        expect(
-            screen.getAllByRole('button', { name: /lock filter/i }),
-        ).toHaveLength(1);
-        expect(
-            screen.getAllByRole('button', { name: /visible to viewers/i }),
-        ).toHaveLength(1);
-
-        await userEvent.click(screen.getByText('Region'));
-        expect(open).toHaveBeenCalledWith('one');
-
-        const removeButtons = screen.getAllByRole('button', {
-            name: 'Remove filter',
-        });
-        await userEvent.click(removeButtons[1]);
-        expect(removeFilterById).toHaveBeenCalledWith('one');
-        expect(open).toHaveBeenCalledTimes(1);
     });
 
     it('hides the remove action while the sidebar is open', () => {

@@ -60,7 +60,7 @@ const ControlPill: FC<{
     const [opened, setOpened] = useState(false);
 
     const isDraft = control.label === '';
-    const label = isDraft ? 'New control' : control.label;
+    const label = isDraft ? 'New parameter control' : control.label;
     const [firstKey] = control.parameterKeys;
     const definition =
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];

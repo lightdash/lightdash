@@ -216,7 +216,7 @@ export const FilterSidebar: FC = () => {
             <Box className={classes.root}>
                 <Group justify="space-between" wrap="nowrap" px="md" pt="md">
                     <Title order={5} className={classes.title}>
-                        New filter or control
+                        New control
                     </Title>
                     <Tooltip label="Cancel">
                         <ActionIcon
@@ -261,22 +261,19 @@ export const FilterSidebar: FC = () => {
         : null;
     const hasLabel = (filterRule.label ?? '').trim() !== '';
     const title = isNew ? 'New filter' : filterRule.label || 'Filter';
-    // A filter with no field has nothing to default; it applies with a label
+    // A filter with no field is a placeholder: it cannot be applied
     const isDefaultIncomplete =
         !isUnplaced && isDefaultValueIncomplete(filterRule);
-    const canApply = (!isNew || hasLabel) && !isDefaultIncomplete;
-    const blocker = !hasLabel
-        ? 'Add a label to apply'
-        : isDefaultIncomplete
-          ? 'Choose a default value or turn it off'
-          : null;
-    const footerStatus =
-        blocker ??
-        (isUnplaced
-            ? 'Not saved until a field is added'
-            : isDirty
-              ? 'Not applied yet'
-              : null);
+    const canApply =
+        (!isNew || hasLabel) && !isUnplaced && !isDefaultIncomplete;
+    const blocker = isUnplaced
+        ? 'Add a field to apply'
+        : !hasLabel
+          ? 'Add a label to apply'
+          : isDefaultIncomplete
+            ? 'Choose a default value or turn it off'
+            : null;
+    const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
     const fieldCount = isUnplaced
         ? 0
         : getFilterFields(filterRule, listedFieldIds).length;

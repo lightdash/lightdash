@@ -98,7 +98,7 @@ export const ParameterSidebar: FC = () => {
 
     return (
         <EditorShell
-            title={control.label || 'New control'}
+            title={control.label || 'New parameter control'}
             subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${count.applied} of ${count.possible} ${count.possible === 1 ? 'chart' : 'charts'}${tabReach}`}
             onBack={isNew ? cancelControl : undefined}
             menu={

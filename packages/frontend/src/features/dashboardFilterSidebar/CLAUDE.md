@@ -1,5 +1,9 @@
 # Dashboard filter sidebar
 
+Wording: a *control* is anything on the bar that controls the dashboard. A
+*filter control* narrows data through fields; a *parameter control* sets the
+value of one or more parameters. A parameter is never called a filter.
+
 A new dashboard filter bar and sidebar, built next to the shipped one in
 `features/dashboardFilters`. `FilterBar` replaces `DashboardFiltersBar` at one
 seam in `features/dashboardTabs/index.tsx`.
@@ -64,9 +68,10 @@ Lost on reload, marked "Not saved". What saving each would need:
 - Filter boundaries: a bounding rule (allowed values or date range) on the rule.
 - Placement (bar or More): saved bar sections with a filter order.
 - Unplaced filters (kind first, or fields cleared): a rule with an empty
-  `target` and no `tileTargets`, kept in `unplacedFilters` and shown as a
-  "Not saved" pill until `addFirstField` gives it a field; saving one would
-  need a rule that is allowed to have no target.
+  `target` and no `tileTargets`, kept in `unplacedFilters` only while it is
+  being edited. It is a placeholder: Apply stays disabled until
+  `addFirstField` gives it a field, and Back or Cancel discards it. It never
+  reaches the bar.
 - Link prompts: tiles present when editing starts are snapshotted; a tile added
   later whose explore has a peer field of a filter, or another field of the same
   kind, shows a card asking to link it (`LinkPrompts.tsx`, `getLinkCandidates` in `linkCandidates.ts`).

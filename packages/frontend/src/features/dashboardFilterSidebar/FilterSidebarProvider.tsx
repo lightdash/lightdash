@@ -376,7 +376,11 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
             ? null
             : (unplacedKinds[editingFilterId] ?? null);
 
-    const apply = useCallback(() => resetSession(), [resetSession]);
+    // A placeholder with no field cannot be applied
+    const apply = useCallback(() => {
+        if (isUnplaced) return;
+        resetSession();
+    }, [isUnplaced, resetSession]);
 
     const openControl = useCallback(
         (id: string) => {
