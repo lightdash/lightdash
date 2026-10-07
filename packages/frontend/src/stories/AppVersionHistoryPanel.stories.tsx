@@ -1,9 +1,69 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, type FC, type PropsWithChildren } from 'react';
 import { fn } from 'storybook/test';
 import AppVersionHistoryPanel from '../features/apps/components/AppVersionHistoryPanel';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
+import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
+
+const storyQueryClient = createQueryClient();
+const thumbnailSource = {
+    projectUuid: 'project-uuid',
+    appUuid: 'app-uuid',
+};
+
+/** A stand-in for a captured app: a header, two tiles and a chart. */
+const thumbnailImage = (accent: string) =>
+    `data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">
+            <rect width="320" height="200" fill="#f8f9fa"/>
+            <rect x="16" y="14" width="120" height="12" rx="3" fill="#ced4da"/>
+            <rect x="16" y="40" width="136" height="44" rx="6" fill="#fff" stroke="#dee2e6"/>
+            <rect x="168" y="40" width="136" height="44" rx="6" fill="#fff" stroke="#dee2e6"/>
+            <rect x="16" y="98" width="288" height="88" rx="6" fill="#fff" stroke="#dee2e6"/>
+            <path d="M32 168 L92 138 L152 150 L212 118 L288 128" fill="none" stroke="${accent}" stroke-width="4"/>
+        </svg>`,
+    )}`;
+
+const THUMBNAIL_ACCENTS = ['#7262ff', '#12b886', '#fd7e14', '#228be6'];
+
+/** Answers the version thumbnail read, which the story has no server for. */
+const MockThumbnailRequests: FC<PropsWithChildren> = ({ children }) => {
+    useEffect(() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (input, init) => {
+            const requestUrl =
+                input instanceof Request ? input.url : input.toString();
+            const match = requestUrl.match(
+                /\/apps\/app-uuid\/versions\/(\d+)\/thumbnail/,
+            );
+            if (!match) return originalFetch(input, init);
+
+            const version = Number(match[1]);
+            return new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    results: {
+                        thumbnailUrl: thumbnailImage(
+                            THUMBNAIL_ACCENTS[
+                                version % THUMBNAIL_ACCENTS.length
+                            ],
+                        ),
+                    },
+                }),
+                { headers: { 'Content-Type': 'application/json' } },
+            );
+        };
+
+        return () => {
+            window.fetch = originalFetch;
+        };
+    }, []);
+
+    return <>{children}</>;
+};
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 
@@ -62,13 +122,18 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         olderVersionTime: 'relative',
         showTimeline: true,
         currentThreadNumber: null,
+        thumbnailSource: null,
     },
     parameters: { layout: 'fullscreen' },
     decorators: [
         (renderStory) => (
-            <Box w={480} h="100vh">
-                {renderStory()}
-            </Box>
+            <MockThumbnailRequests>
+                <QueryClientProvider client={storyQueryClient}>
+                    <Box w={480} h="100vh">
+                        {renderStory()}
+                    </Box>
+                </QueryClientProvider>
+            </MockThumbnailRequests>
         ),
     ],
 };
@@ -101,6 +166,59 @@ export const Empty: Story = {
 
 /** Previewing an older version: its Previewing button stays visible. */
 export const ViewingOlderVersion: Story = { args: { viewedVersion: 4 } };
+
+const withThumbnails = (
+    versions: ApiAppVersionSummary[],
+    versionsWithThumbnail: number[],
+) =>
+    versions.map((version) => ({
+        ...version,
+        hasThumbnail: versionsWithThumbnail.includes(version.version),
+    }));
+
+/** Every ready version has a thumbnail; the failed build has none. */
+export const WithThumbnails: Story = {
+    args: {
+        versions: withThumbnails(
+            [...thread1, ...thread2, ...thread3],
+            [1, 2, 4, 5, 6, 7],
+        ),
+        thumbnailSource,
+    },
+};
+
+/** Only some versions have one: the other rows and the failed build stay as they were. */
+export const SomeWithThumbnails: Story = {
+    args: {
+        versions: withThumbnails(
+            [...thread1, ...thread2, ...thread3],
+            [4, 6, 7],
+        ),
+        thumbnailSource,
+    },
+};
+
+/** Previewing an older version that has a thumbnail. */
+export const ViewingOlderVersionWithThumbnails: Story = {
+    args: {
+        versions: withThumbnails(
+            [...thread1, ...thread2, ...thread3],
+            [2, 4, 6, 7],
+        ),
+        viewedVersion: 4,
+        thumbnailSource,
+    },
+};
+
+/** The rows stacked without the rail keep their thumbnails. */
+export const WithThumbnailsWithoutTimeline: Story = {
+    args: {
+        versions: withThumbnails(thread1, [1, 2, 4]),
+        latestReadyVersion: 4,
+        showTimeline: false,
+        thumbnailSource,
+    },
+};
 
 export const BuildInProgress: Story = {
     args: {

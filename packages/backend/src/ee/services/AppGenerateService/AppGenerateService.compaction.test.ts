@@ -1,4 +1,5 @@
 import { type AppGeneratePipelineJobPayload } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 import { CODING_AGENT_COMPACTION_NARRATION } from './codingAgentSession';
 
@@ -137,6 +138,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });

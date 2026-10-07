@@ -1,6 +1,7 @@
 // Version metadata stored outside S3 must move with source snapshots so copied
 // versions preserve viz contracts and extracted data references.
 import { type AppVersionDependencies } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -189,6 +190,7 @@ function buildService() {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

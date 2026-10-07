@@ -92,6 +92,7 @@ const version = (
     statusUpdatedAt: null,
     createdByUser: null,
     resources: null,
+    hasThumbnail: false,
     ...overrides,
 });
 

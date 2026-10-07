@@ -9,6 +9,7 @@ import {
     WarehouseTypes,
     type Explore,
     type Metric,
+    type UncompiledExplore,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
@@ -42,6 +43,10 @@ import {
     dataAppReachMetrics,
     dataAppReachSql,
 } from '../../../analytics/systemExplores/dataAppReach';
+import {
+    analyticsTableDescriptions,
+    describeAnalyticsDimensions,
+} from '../../../analytics/systemExplores/descriptions';
 import {
     semanticUsageColumns,
     semanticUsageMetrics,
@@ -406,7 +411,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
         appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
-        return compiler.compileExplore({
+        const explore: UncompiledExplore = {
             name,
             label,
             tags: [],
@@ -478,6 +483,50 @@ export const createAnalyticsExplores = (): Explore[] => {
                     ? { query_events: buildTable('query_events') }
                     : {}),
             },
-        });
+        };
+
+        for (const table of Object.values(explore.tables)) {
+            table.description = analyticsTableDescriptions[table.name];
+            describeAnalyticsDimensions(table.name, table.dimensions);
+        }
+
+        // Keep the joins lazy, but present their fields alongside the activity.
+        const metadataPrefixes: Record<string, string> = {
+            lightdash_charts: 'chart',
+            lightdash_dashboards: 'dashboard',
+            lightdash_users: 'user',
+            lightdash_agents: 'agent',
+            lightdash_apps: 'app',
+        };
+        const baseTable = explore.tables[name];
+        for (const join of explore.joinedTables) {
+            const prefix = metadataPrefixes[join.table];
+            for (const dimension of Object.values(
+                explore.tables[join.table].dimensions,
+            ).filter(
+                (field) =>
+                    !field.hidden &&
+                    (!join.fields || join.fields.includes(field.name)),
+            )) {
+                const fieldName =
+                    !prefix ||
+                    dimension.name.startsWith(`${prefix}_`) ||
+                    dimension.name.startsWith('project_')
+                        ? dimension.name
+                        : `${prefix}_${dimension.name}`;
+                if (!baseTable.dimensions[fieldName]) {
+                    baseTable.dimensions[fieldName] = {
+                        ...dimension,
+                        table: name,
+                        tableLabel: label,
+                        name: fieldName,
+                        label: friendlyName(fieldName),
+                        sql: `\${${join.table}.${dimension.name}}`,
+                    };
+                }
+            }
+            join.hidden = true;
+        }
+        return compiler.compileExplore(explore);
     });
 };

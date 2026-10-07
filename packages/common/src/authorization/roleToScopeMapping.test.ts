@@ -61,18 +61,29 @@ describe('roleToScopeMapping', () => {
             );
         });
 
-        it("never grants other people's threads, documents, skills or analytics", () => {
+        it("never grants other people's threads, skills or analytics", () => {
             [
                 'view:AiAgentThread',
                 'manage:AiAgentThread',
-                'view:AiAgentDocument',
-                'manage:AiAgentDocument',
                 'view:AiAgentSkill',
                 'manage:AiAgentSkill',
                 'view:Analytics',
             ].forEach((scope) => expect(trainee).not.toContain(scope));
             expect(trainee).toContain('view:AiAgentThread@self');
             expect(trainee).toContain('manage:AiAgentThread@self');
+        });
+
+        it("grants knowledge documents in the learner's copy but not on the shared project", () => {
+            // A training project's agents only reach that project's own
+            // documents (AiAgentDocumentModel), never the organization's
+            ['view:AiAgentDocument', 'manage:AiAgentDocument'].forEach(
+                (scope) => {
+                    expect(trainee).toContain(scope);
+                    expect(getTrainingProjectViewerScopes()).not.toContain(
+                        scope,
+                    );
+                },
+            );
         });
 
         it("the shared training project gets a viewer's project scopes only", () => {

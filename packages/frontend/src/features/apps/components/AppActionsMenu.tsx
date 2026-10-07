@@ -59,8 +59,10 @@ import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
 import { useDataAppAnalysisAvailability } from '../analysis/useDataAppAnalysisAvailability';
 import {
+    refreshAppThumbnailQueries,
     useAppThumbnailDelete,
     useAppThumbnailUrl,
+    useAppVersionThumbnailUrl,
 } from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
@@ -116,6 +118,9 @@ export type AppActionsMenuProps = {
      *  looking at. Null when the iframe hasn't announced screenshot
      *  capability — the modal then falls back to a default-state render. */
     capturePreviewScreenshot: (() => Promise<File>) | null;
+    /** The version this surface's live preview shows — the one thumbnail
+     *  actions apply to. Null targets the latest ready version. */
+    previewVersion: number | null;
     /** Upgrade offer derived from the live preview's SDK manifest (see
      *  `useSdkUpgradeStatus`). Null on surfaces without an upgrade flow (the
      *  viewer). `disabled` while a build is already in flight. */
@@ -185,6 +190,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     askAiItem,
     captureThumbnail,
     capturePreviewScreenshot,
+    previewVersion,
     upgrade,
     capturedQueryCount,
     target,
@@ -244,21 +250,40 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
-    const thumbnailQuery = useAppThumbnailUrl(
+    const checksThumbnail =
+        menuOpened && canEditVerified && captureThumbnail !== null;
+    // The app's thumbnail is its latest ready version's, so any other version
+    // on screen is asked about directly.
+    const isViewingAnotherVersion =
+        previewVersion !== null && previewVersion !== latestVersionNumber;
+    const appThumbnailQuery = useAppThumbnailUrl(
         projectUuid,
         appUuid,
-        menuOpened && canEditVerified && captureThumbnail !== null,
+        checksThumbnail && !isViewingAnotherVersion,
     );
+    const versionThumbnailQuery = useAppVersionThumbnailUrl(
+        projectUuid,
+        appUuid,
+        previewVersion,
+        checksThumbnail && isViewingAnotherVersion,
+    );
+    const thumbnailQuery = isViewingAnotherVersion
+        ? versionThumbnailQuery
+        : appThumbnailQuery;
     const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
     const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
         useAppThumbnailDelete();
     const handleRemoveThumbnail = useCallback(async () => {
         try {
-            await deleteThumbnail({ projectUuid, appUuid });
-            // Reset (not invalidate): the refetch 404s and react-query would
-            // keep the stale signed URL as data.
-            void queryClient.resetQueries({
-                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            await deleteThumbnail({
+                projectUuid,
+                appUuid,
+                version: previewVersion,
+            });
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid,
+                change: 'removed',
             });
             showToastSuccess({ title: 'Thumbnail removed' });
         } catch (err) {
@@ -271,6 +296,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         deleteThumbnail,
         projectUuid,
         appUuid,
+        previewVersion,
         queryClient,
         showToastSuccess,
         showToastError,
@@ -670,6 +696,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     opened
                     onClose={() => setIsMoveToSpaceOpen(false)}
                     capturePreviewScreenshot={capturePreviewScreenshot}
+                    previewVersion={previewVersion}
                     app={{
                         uuid: appUuid,
                         name: appName,

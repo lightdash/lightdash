@@ -92,6 +92,8 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
+import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
@@ -540,18 +542,24 @@ const Settings: FC = () => {
         if (dataAppsFlag?.enabled) {
             const canManageThemes =
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
-            const canViewActivity =
+            const canManageOrganization =
                 user?.ability.can('manage', 'Organization') ?? false;
             const canManageAiAnalysis =
-                canViewActivity && dataAppAnalysisFlag?.enabled === true;
+                canManageOrganization && dataAppAnalysisFlag?.enabled === true;
 
+            if (canManageOrganization) {
+                allowedRoutes.push({
+                    path: '/dataApps/general',
+                    element: <DataAppGeneralSettingsPage />,
+                });
+            }
             if (canManageThemes) {
                 allowedRoutes.push({
                     path: '/dataApps/themes',
                     element: <DesignListPage />,
                 });
             }
-            if (canViewActivity) {
+            if (canManageOrganization) {
                 allowedRoutes.push({
                     path: '/dataApps/activity',
                     element: <DataAppActivitySettingsPage />,
@@ -564,19 +572,14 @@ const Settings: FC = () => {
                 });
             }
             // Land on whichever sub-page the user can actually reach.
-            if (canManageThemes || canViewActivity) {
+            const dataAppsLanding = getDataAppsSettingsLanding({
+                canManageOrganization,
+                canManageThemes,
+            });
+            if (dataAppsLanding) {
                 allowedRoutes.push({
                     path: '/dataApps',
-                    element: (
-                        <Navigate
-                            to={
-                                canManageThemes
-                                    ? '/generalSettings/dataApps/themes'
-                                    : '/generalSettings/dataApps/activity'
-                            }
-                            replace
-                        />
-                    ),
+                    element: <Navigate to={dataAppsLanding} replace />,
                 });
             }
         }

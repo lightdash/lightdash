@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    useAppThumbnailDelete,
+    useAppThumbnailUrl,
+    useAppVersionThumbnailUrl,
+} from '../hooks/useAppThumbnail';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import AppHeaderActions from './AppHeaderActions';
 
@@ -19,6 +24,11 @@ vi.mock('../hooks/useCanCreateDataApp', () => ({
 }));
 vi.mock('../hooks/useAppThumbnail', () => ({
     useAppThumbnailUrl: vi.fn(() => ({ data: undefined, isError: false })),
+    useAppVersionThumbnailUrl: vi.fn(() => ({
+        data: undefined,
+        isError: false,
+    })),
+    refreshAppThumbnailQueries: vi.fn(),
     useAppThumbnailDelete: vi.fn(() => ({
         mutateAsync: vi.fn(),
         isLoading: false,
@@ -117,6 +127,7 @@ const baseProps = {
     fullscreenToggle: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,
+    previewVersion: null,
     upgrade: null,
 };
 
@@ -200,5 +211,83 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         expect(
             screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('AppHeaderActions — Remove thumbnail', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedCanEdit.mockReturnValue(true);
+        vi.mocked(useAppThumbnailUrl).mockReturnValue({
+            data: { thumbnailUrl: 'https://example.com/thumbnail.png' },
+            isError: false,
+        } as ReturnType<typeof useAppThumbnailUrl>);
+        vi.mocked(useAppVersionThumbnailUrl).mockReturnValue({
+            data: { thumbnailUrl: 'https://example.com/version.png' },
+            isError: false,
+        } as ReturnType<typeof useAppVersionThumbnailUrl>);
+    });
+
+    const removeThumbnailWhileViewing = async (
+        previewVersion: number | null,
+    ) => {
+        const deleteThumbnail = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(useAppThumbnailDelete).mockReturnValue({
+            mutateAsync: deleteThumbnail,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useAppThumbnailDelete>);
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                captureThumbnail={{ onCapture: vi.fn(), disabled: false }}
+                previewVersion={previewVersion}
+            />,
+        );
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'App actions' }));
+        await user.click(await screen.findByText('Remove thumbnail'));
+        return deleteThumbnail;
+    };
+
+    it('removes the thumbnail of the version on screen', async () => {
+        const deleteThumbnail = await removeThumbnailWhileViewing(2);
+
+        expect(deleteThumbnail).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            appUuid: 'app-1',
+            version: 2,
+        });
+    });
+
+    it('offers no removal for an older version on screen that has no thumbnail', async () => {
+        vi.mocked(useAppVersionThumbnailUrl).mockReturnValue({
+            data: undefined,
+            isError: true,
+        } as ReturnType<typeof useAppVersionThumbnailUrl>);
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                latestVersionNumber={3}
+                captureThumbnail={{ onCapture: vi.fn(), disabled: false }}
+                previewVersion={2}
+            />,
+        );
+
+        await openMenu();
+
+        expect(
+            (await screen.findByText('Remove thumbnail')).closest('button'),
+        ).toBeDisabled();
+    });
+
+    it("removes the latest ready version's thumbnail when no version is on screen", async () => {
+        const deleteThumbnail = await removeThumbnailWhileViewing(null);
+
+        expect(deleteThumbnail).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            appUuid: 'app-1',
+            version: null,
+        });
     });
 });

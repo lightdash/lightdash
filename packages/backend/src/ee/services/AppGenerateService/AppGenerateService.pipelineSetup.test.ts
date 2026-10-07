@@ -3,6 +3,7 @@ import {
     type AppGeneratePipelineJobPayload,
     type AppVersionStatus,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { SandboxCommandError } from '../SandboxRuntime';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -85,6 +86,7 @@ function buildService() {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         appRuntimeS3: { client: {}, bucket: 'apps' },
+        appThumbnailClient: buildAppThumbnailClientMock(),
     } as never);
     const suspendSandbox = vi.fn().mockResolvedValue(undefined);
     const logger = {

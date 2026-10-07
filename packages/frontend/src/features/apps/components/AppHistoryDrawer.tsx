@@ -17,6 +17,7 @@ type Props = Pick<
     | 'isFetchingEarlier'
     | 'fetchEarlier'
     | 'currentThreadNumber'
+    | 'thumbnailSource'
 > & {
     opened: boolean;
     onClose: () => void;

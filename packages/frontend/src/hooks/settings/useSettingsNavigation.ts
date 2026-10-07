@@ -304,6 +304,22 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
+            if (ability?.can('manage', 'Organization')) {
+                dataAppChildren.push({
+                    label: 'General',
+                    to: '/generalSettings/dataApps/general',
+                    icon: IconSettings,
+                    keywords: [
+                        'thumbnail',
+                        'thumbnails',
+                        'automatic capture',
+                        'card image',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (ability?.can('manage', 'OrganizationDesign')) {
                 dataAppChildren.push({
                     label: 'Themes',

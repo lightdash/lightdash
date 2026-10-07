@@ -30,6 +30,10 @@ import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
+import {
+    AppRuntimeThumbnailStorage,
+    AppThumbnailClient,
+} from './clients/AppThumbnailClient';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
@@ -130,6 +134,7 @@ import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
+import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -598,6 +603,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     sandboxManager: null,
                     appRuntimeS3: null,
+                    appThumbnailClient: new AppThumbnailClient({
+                        lightdashConfig: context.lightdashConfig,
+                        appModel: models.getAppModel(),
+                        unfurlService: repository.getUnfurlService(),
+                        storage: new AppRuntimeThumbnailStorage({
+                            lightdashConfig: context.lightdashConfig,
+                        }),
+                        organizationSettingsModel:
+                            models.getOrganizationSettingsModel(),
+                    }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,
                     }),
@@ -1272,6 +1287,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     // belong to the training project.
                                 }),
                             analytics: context.lightdashAnalytics,
+                        }),
+                    seedTrainingCopyEnterpriseContent: (args) =>
+                        seedTrainingCopyAgentDocuments({
+                            ...args,
+                            aiAgentModel: models.getAiAgentModel(),
+                            aiAgentDocumentModel:
+                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                         }),
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({

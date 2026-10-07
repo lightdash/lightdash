@@ -304,7 +304,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     }, []);
     const { captureThumbnail, isCapturing: isCapturingThumbnail } =
         useCaptureThumbnail({
-            app: { projectUuid, appUuid },
+            app: { projectUuid, appUuid, version: effectiveVersion },
             capture: capturePreviewScreenshot,
         });
 
@@ -580,6 +580,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                     ? capturePreviewScreenshot
                                     : null
                             }
+                            previewVersion={effectiveVersion}
                             upgrade={{
                                 ...sdkUpgradeOffer,
                                 disabled:

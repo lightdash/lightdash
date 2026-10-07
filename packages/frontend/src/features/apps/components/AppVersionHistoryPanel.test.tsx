@@ -1,9 +1,14 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
-import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { appVersion } from '../testing/appVersionHistory';
 import AppVersionHistoryPanel from './AppVersionHistoryPanel';
+
+const lightdashApi = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../api', () => ({ lightdashApi }));
 
 const entry = (
     version: number,
@@ -29,6 +34,7 @@ const defaultProps = {
     emptyPromptLabel: null,
     olderVersionTime: 'relative' as const,
     currentThreadNumber: null as number | null,
+    thumbnailSource: null,
 };
 
 describe('AppVersionHistoryPanel', () => {
@@ -144,5 +150,185 @@ describe('AppVersionHistoryPanel', () => {
         );
 
         expect(screen.getByText('No versions yet')).toBeInTheDocument();
+    });
+});
+
+describe('AppVersionHistoryPanel thumbnails', () => {
+    const observed = new Map<Element, IntersectionObserverCallback>();
+    const thumbnailSource = { projectUuid: 'project-1', appUuid: 'app-1' };
+
+    beforeEach(() => {
+        observed.clear();
+        vi.stubGlobal(
+            'IntersectionObserver',
+            vi.fn(function (callback: IntersectionObserverCallback) {
+                const targets: Element[] = [];
+                return {
+                    observe: (element: Element) => {
+                        targets.push(element);
+                        observed.set(element, callback);
+                    },
+                    disconnect: () =>
+                        targets.forEach((element) => observed.delete(element)),
+                };
+            }),
+        );
+        lightdashApi.mockReset();
+        lightdashApi.mockImplementation(async ({ url }: { url: string }) => ({
+            thumbnailUrl: `https://storage.test${url}.png`,
+        }));
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    const setVersionVisibility = (version: number, isIntersecting: boolean) => {
+        const row = screen.getByText(`v${version}`).closest('li');
+        expect(row).not.toBeNull();
+        act(() => {
+            [...observed].forEach(([target, callback]) => {
+                if (!row!.contains(target)) return;
+                callback(
+                    [{ target, isIntersecting }] as never,
+                    {} as IntersectionObserver,
+                );
+            });
+        });
+    };
+
+    /** Brings the row of one version on screen. */
+    const scrollToVersion = (version: number) =>
+        setVersionVisibility(version, true);
+
+    /** Takes the row of one version off screen again. */
+    const scrollAwayFromVersion = (version: number) =>
+        setVersionVisibility(version, false);
+
+    const withThumbnail = (version: number): ApiAppVersionSummary => ({
+        ...entry(version, 1),
+        hasThumbnail: true,
+    });
+
+    const thumbnails = () =>
+        screen.queryAllByRole('img', { name: /^Thumbnail of v\d+$/ });
+
+    it('shows the thumbnail of a ready version once its row is on screen', async () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                thumbnailSource={thumbnailSource}
+                versions={[withThumbnail(3), withThumbnail(2), entry(1, 1)]}
+            />,
+        );
+
+        expect(thumbnails()).toHaveLength(0);
+        expect(lightdashApi).not.toHaveBeenCalled();
+
+        scrollToVersion(3);
+
+        const image = await screen.findByRole('img', {
+            name: 'Thumbnail of v3',
+        });
+        expect(image).toHaveAttribute(
+            'src',
+            'https://storage.test/ee/projects/project-1/apps/app-1/versions/3/thumbnail.png',
+        );
+        // v2 has a thumbnail too, but its row is still off screen.
+        expect(thumbnails()).toHaveLength(1);
+        expect(lightdashApi).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a loaded thumbnail when its row scrolls off screen again', async () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                thumbnailSource={thumbnailSource}
+                versions={[withThumbnail(3), entry(2, 1)]}
+            />,
+        );
+
+        scrollToVersion(3);
+        await screen.findByRole('img', { name: 'Thumbnail of v3' });
+
+        scrollAwayFromVersion(3);
+
+        expect(
+            screen.getByRole('img', { name: 'Thumbnail of v3' }),
+        ).toBeInTheDocument();
+        expect(lightdashApi).toHaveBeenCalledOnce();
+    });
+
+    it('shows nothing on versions without a thumbnail, wherever they are', async () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                latestReadyVersion={4}
+                thumbnailSource={thumbnailSource}
+                versions={[
+                    { ...entry(5, 1), status: 'building' },
+                    withThumbnail(4),
+                    { ...entry(3, 1), status: 'error' },
+                    entry(2, 1),
+                ]}
+            />,
+        );
+
+        [5, 4, 3, 2].forEach(scrollToVersion);
+
+        await screen.findByRole('img', { name: 'Thumbnail of v4' });
+        expect(thumbnails()).toHaveLength(1);
+        expect(lightdashApi).toHaveBeenCalledOnce();
+        expect(
+            screen.getAllByRole('button', { name: /^View v\d+$/ }),
+        ).toHaveLength(1);
+    });
+
+    it('views the version when its thumbnail is clicked, like Preview', async () => {
+        const onView = vi.fn();
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                onView={onView}
+                thumbnailSource={thumbnailSource}
+                versions={[entry(3, 1), withThumbnail(2)]}
+            />,
+        );
+        scrollToVersion(2);
+
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'View v2' }),
+        );
+
+        expect(onView).toHaveBeenCalledExactlyOnceWith(2);
+    });
+
+    it('shows no image when the thumbnail cannot be read', async () => {
+        lightdashApi.mockRejectedValue(new Error('Forbidden'));
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                thumbnailSource={thumbnailSource}
+                versions={[withThumbnail(3)]}
+            />,
+        );
+
+        scrollToVersion(3);
+
+        await vi.waitFor(() => expect(lightdashApi).toHaveBeenCalledOnce());
+        expect(thumbnails()).toHaveLength(0);
+    });
+
+    it('shows no thumbnails in a host that has none', () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                thumbnailSource={null}
+                versions={[withThumbnail(3)]}
+            />,
+        );
+
+        scrollToVersion(3);
+
+        expect(thumbnails()).toHaveLength(0);
+        expect(lightdashApi).not.toHaveBeenCalled();
     });
 });

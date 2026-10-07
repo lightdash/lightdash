@@ -62,6 +62,10 @@ Data apps render inside a sandboxed cross-origin iframe with no `allow-same-orig
 3. The backend (`UnfurlService`) waits for the indicator (60s timeout), then sleeps an additional `APP_ANIMATION_BUFFER_MS` (5s) to let CSS / chart entrance animations finish before screenshotting.
 4. If the indicator never appears (older app bundle, broken render), we still take the screenshot after the animation buffer — preserves forward progress at the cost of capturing a half-loaded UI.
 
+`MinimalApp` renders the latest ready version. `?version=N` (set by `exportDataApp({ version })`) renders that version instead; if it doesn't exist or isn't ready the page shows its "No ready version" empty state and never falls back to another version.
+
+`captureDataAppVersion` is the strict variant behind automatic data app thumbnails: it returns the PNG buffer without hosting it, makes a single attempt, and throws when the ready indicator never appears (step 4 does not apply), so an empty state or a half-loaded app is never stored as a thumbnail.
+
 ### Error Handling
 
 Deleted charts are handled as errors:

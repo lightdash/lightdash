@@ -37,6 +37,7 @@ const readyVersion = (v: number): ApiAppVersionSummary => ({
     statusUpdatedAt: new Date('2026-08-28T10:00:30.000Z'),
     createdByUser: null,
     resources: null,
+    hasThumbnail: false,
 });
 
 const app: ApiGetAppResponse['results'] = {

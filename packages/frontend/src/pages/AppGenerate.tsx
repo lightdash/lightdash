@@ -116,7 +116,10 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppSubmitState } from '../features/apps/hooks/useAppSubmitState';
-import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
+import {
+    refreshAppThumbnailQueries,
+    useAppThumbnailUpload,
+} from '../features/apps/hooks/useAppThumbnail';
 import {
     getBuildOutcome,
     useBuildNotification,
@@ -666,7 +669,10 @@ const AppGenerate: FC = () => {
     // Project history drawer over the chat; `openHistory` is also the target
     // of the thread divider's CTA in the chat.
     const [isHistoryOpen, { open: openHistory, close: closeHistory }] =
-        useDisclosure(false);
+        useDisclosure(false, {
+            // A thumbnail captured after the build finished shows up on open.
+            onOpen: () => invalidateAppData(activeAppUuid),
+        });
     const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
@@ -682,16 +688,6 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
-    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
-    // without attaching a screenshot to the next prompt.
-    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
-        useCaptureThumbnail({
-            app:
-                projectUuid && activeAppUuid
-                    ? { projectUuid, appUuid: activeAppUuid }
-                    : null,
-            capture: capturePreviewScreenshot,
-        });
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
@@ -1155,6 +1151,21 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
+    // Header-menu "Capture thumbnail": saves the preview as the thumbnail of
+    // the version on screen, without attaching a screenshot to the next prompt.
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app:
+                projectUuid && activeAppUuid
+                    ? {
+                          projectUuid,
+                          appUuid: activeAppUuid,
+                          version: previewApp?.version ?? null,
+                      }
+                    : null,
+            capture: capturePreviewScreenshot,
+        });
+
     // The preview refresh handler is declared further down; reach it lazily.
     const refreshPreviewRef = useRef<() => void>(() => {});
     const reloadPreviewForExpiredSources = useCallback(
@@ -1596,10 +1607,13 @@ const AppGenerate: FC = () => {
                     await uploadThumbnail({
                         projectUuid,
                         appUuid: activeAppUuid,
+                        version: previewApp?.version ?? null,
                         file,
                     });
-                    void queryClient.invalidateQueries({
-                        queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
+                    void refreshAppThumbnailQueries(queryClient, {
+                        projectUuid,
+                        appUuid: activeAppUuid,
+                        change: 'captured',
                     });
                 } catch (err) {
                     showToastWarning({
@@ -3239,6 +3253,9 @@ const AppGenerate: FC = () => {
                                                     ? capturePreviewScreenshot
                                                     : null
                                             }
+                                            previewVersion={
+                                                previewApp?.version ?? null
+                                            }
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }
@@ -3295,6 +3312,14 @@ const AppGenerate: FC = () => {
                                     isFetchingEarlier={isFetchingNextPage}
                                     fetchEarlier={loadEarlierMessages}
                                     currentThreadNumber={currentThreadNumber}
+                                    thumbnailSource={
+                                        projectUuid && activeAppUuid
+                                            ? {
+                                                  projectUuid,
+                                                  appUuid: activeAppUuid,
+                                              }
+                                            : null
+                                    }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (

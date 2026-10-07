@@ -22255,6 +22255,9 @@
                         "required": ["custom"],
                         "type": "object"
                     },
+                    "hasThumbnail": {
+                        "type": "boolean"
+                    },
                     "resources": {
                         "allOf": [
                             {
@@ -22321,6 +22324,7 @@
                     }
                 },
                 "required": [
+                    "hasThumbnail",
                     "resources",
                     "createdByUser",
                     "statusUpdatedAt",
@@ -51541,6 +51545,7 @@
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "appBuildFromSource",
+                    "appCaptureThumbnail",
                     "aiWritebackPipeline",
                     "aiDeepResearch",
                     "dataAppInvestigate",
@@ -57095,6 +57100,11 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "dataAppAutomaticThumbnailsEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                    },
                     "corsAllowedDomains": {
                         "items": {
                             "type": "string"
@@ -57173,6 +57183,7 @@
                     }
                 },
                 "required": [
+                    "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
                     "csvCellsLimit",
                     "queryLimit",
@@ -57281,6 +57292,11 @@
                         "type": "array",
                         "nullable": true,
                         "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
+                    },
+                    "dataAppAutomaticThumbnailsEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
                     }
                 },
                 "type": "object",
@@ -65306,7 +65322,8 @@
                     "preAggregateMaterialization",
                     "composeSqlRunner",
                     "multiSourceQuery",
-                    "dataAppSample"
+                    "dataAppSample",
+                    "desktop"
                 ],
                 "type": "string"
             },
@@ -69432,7 +69449,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.449.0",
+        "version": "2.453.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

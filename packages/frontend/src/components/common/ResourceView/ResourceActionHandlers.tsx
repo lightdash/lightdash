@@ -414,6 +414,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         opened
                         onClose={handleReset}
                         app={action.item.data}
+                        previewVersion={null}
                     />
                 );
             }

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { pack } from 'tar-stream';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import {
     MockSandbox,
     MockSandboxManager,
@@ -394,6 +395,7 @@ async function buildScenario() {
         } as never,
         sandboxManager,
         appRuntimeS3: { client: s3Client as never, bucket: 'test-bucket' },
+        appThumbnailClient: buildAppThumbnailClientMock(),
     });
 
     return {

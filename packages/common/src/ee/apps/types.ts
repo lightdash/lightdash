@@ -560,6 +560,8 @@ export type ApiAppVersionSummary = {
         lastName: string;
     } | null;
     resources: AppVersionResources | null;
+    // Whether the version has a thumbnail to read.
+    hasThumbnail: boolean;
     // Declared-dependency summary when the version was uploaded with a custom
     // dependency set; absent for template-dependency versions.
     dependencies?: { custom: AppVersionDependencyEntry[] };

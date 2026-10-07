@@ -257,6 +257,7 @@ export enum ScreenshotContext {
     EXPORT_CHART = 'export_chart',
     EXPORT_AI_ARTIFACT = 'export_ai_artifact',
     EXPORT_DOCUMENT = 'export_document',
+    DATA_APP_THUMBNAIL = 'data_app_thumbnail',
 }
 
 // Default values
@@ -1274,7 +1275,8 @@ export class UnfurlService extends BaseService {
      * user's identity (one-time login grant). The caller is responsible for
      * verifying the user may see the app. Returns the buffer beside the
      * hosted URL so callers with their own delivery path (e.g. Slack file
-     * upload) don't need to fetch the image back.
+     * upload) don't need to fetch the image back. A `version` that is missing
+     * or not ready renders the page's empty state, never another version.
      */
     async exportDataApp({
         projectUuid,
@@ -1284,6 +1286,7 @@ export class UnfurlService extends BaseService {
         organizationUuid,
         context,
         contextId,
+        version,
     }: {
         projectUuid: UUID;
         appUuid: UUID;
@@ -1292,23 +1295,121 @@ export class UnfurlService extends BaseService {
         organizationUuid: UUID;
         context: ScreenshotContext;
         contextId?: unknown;
+        // Omit to render the latest ready version.
+        version?: number;
     }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
-        const minimalUrl = new URL(
+        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
+        const imageBuffer = await this.renderDataApp({
+            projectUuid,
+            appUuid,
+            appName,
+            authUserUuid,
+            organizationUuid,
+            context,
+            contextId,
+            version: version ?? null,
+            imageId,
+            singleAttempt: false,
+            requireReadyIndicator: false,
+            failureMessage: 'Unable to export data app image',
+        });
+
+        const imageUrl = await this.hostImage(
+            imageBuffer,
+            imageId,
+            organizationUuid,
+        );
+        this.logger.info(`Data app exported successfully`, {
+            userUuid: authUserUuid,
+            appUuid,
+        });
+        return { imageBuffer, imageUrl };
+    }
+
+    // Unhosted single-attempt render of one version; fails when the version never
+    // signals it rendered. The caller must check the version is ready.
+    async captureDataAppVersion({
+        projectUuid,
+        appUuid,
+        appName,
+        version,
+        authUserUuid,
+        organizationUuid,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        version: number;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+    }): Promise<Buffer> {
+        return this.renderDataApp({
+            projectUuid,
+            appUuid,
+            appName,
+            authUserUuid,
+            organizationUuid,
+            context: ScreenshotContext.DATA_APP_THUMBNAIL,
+            contextId: `${appUuid}:${version}`,
+            version,
+            imageId: `app-thumbnail_${snakeCaseName(appName)}_${useNanoid()}`,
+            singleAttempt: true,
+            requireReadyIndicator: true,
+            failureMessage: 'Unable to capture data app version',
+        });
+    }
+
+    // The one data app render: the minimal page as the acting user, to a PNG buffer.
+    private async renderDataApp({
+        projectUuid,
+        appUuid,
+        appName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+        version,
+        imageId,
+        singleAttempt,
+        requireReadyIndicator,
+        failureMessage,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+        context: ScreenshotContext;
+        contextId: unknown;
+        // Null renders the latest ready version.
+        version: number | null;
+        imageId: string;
+        // False retries up to the configured screenshot retry limit.
+        singleAttempt: boolean;
+        // True fails when the ready indicator never appears.
+        requireReadyIndicator: boolean;
+        failureMessage: string;
+    }): Promise<Buffer> {
+        const minimalAppUrl = new URL(
             `/minimal/projects/${projectUuid}/apps/${appUuid}`,
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
-        ).href;
+        );
+        if (version !== null) {
+            minimalAppUrl.searchParams.set('version', String(version));
+        }
+        const minimalUrl = minimalAppUrl.href;
 
-        this.logger.info(`Exporting data app to hosted image`, {
+        this.logger.info(`Rendering data app to image`, {
             userUuid: authUserUuid,
             organizationUuid,
             projectUuid,
             appUuid,
+            version,
+            context,
             minimalUrl,
         });
 
         const cookie = await this.getUserCookie(authUserUuid);
-        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
-
         const result = await this.saveScreenshot({
             authUserUuid,
             imageId,
@@ -1321,21 +1422,13 @@ export class UnfurlService extends BaseService {
             context,
             contextId,
             selectedTabs: null,
+            ...(singleAttempt ? { retries: 1 } : {}),
+            requireSuccessfulRender: requireReadyIndicator,
         });
         if (!result?.imageBuffer) {
-            throw new UnexpectedServerError('Unable to export data app image');
+            throw new UnexpectedServerError(failureMessage);
         }
-
-        const imageUrl = await this.hostImage(
-            result.imageBuffer,
-            imageId,
-            organizationUuid,
-        );
-        this.logger.info(`Data app exported successfully`, {
-            userUuid: authUserUuid,
-            appUuid,
-        });
-        return { imageBuffer: result.imageBuffer, imageUrl };
+        return result.imageBuffer;
     }
 
     /**
@@ -2254,6 +2347,7 @@ export class UnfurlService extends BaseService {
                                 },
                             });
                         } catch (waitError) {
+                            if (requireSuccessfulRender) throw waitError;
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
                             // signal (older bundles, or pathological cases).
