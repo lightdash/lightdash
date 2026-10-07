@@ -1,6 +1,7 @@
 import {
     getFilterTypeFromItemType,
     getItemId,
+    isDimension,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
@@ -93,11 +94,25 @@ export const FieldsAndCharts: FC = () => {
             targetFieldType === null
                 ? null
                 : getFilterTypeFromItemType(targetFieldType);
-        return (allFilterableFields ?? []).filter((field) => {
+        const fields = allFilterableFields ?? [];
+        const taken = new Set([...fieldIds, waitingField?.fieldId]);
+        // A time dimension is taken when any of its grains is in the filter
+        const grainKey = (field: DashboardFilterableField) =>
+            isDimension(field)
+                ? `${field.table}.${field.timeIntervalBaseDimensionName ?? field.name}`
+                : null;
+        const takenGrainKeys = new Set(
+            fields
+                .filter((field) => taken.has(getItemId(field)))
+                .map(grainKey)
+                .filter((key): key is string => key !== null),
+        );
+        return fields.filter((field) => {
             const fieldId = getItemId(field);
+            const key = grainKey(field);
             return (
-                !fieldIds.includes(fieldId) &&
-                waitingField?.fieldId !== fieldId &&
+                !taken.has(fieldId) &&
+                (key === null || !takenGrainKeys.has(key)) &&
                 (targetFilterType === null ||
                     getFilterTypeFromItemType(field.type) === targetFilterType)
             );
