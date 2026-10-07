@@ -8,7 +8,7 @@ export type DbDepartment = {
     headcount: number | null;
     headcount_note: string | null;
     target_active_users: number | null;
-    // The model selects this column as text
+    // Raw driver type for a date column; the model reads it as text via to_char
     target_date: Date | null;
     created_at: Date;
     updated_at: Date;
