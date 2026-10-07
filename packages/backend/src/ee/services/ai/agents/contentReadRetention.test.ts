@@ -1,16 +1,14 @@
+import type { mcpReadContentArgsSchema } from '@lightdash/common';
 import type { ModelMessage, ToolResultPart } from 'ai';
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 import {
     pruneSupersededContentReads,
     RETAINED_CONTENT_READ_CHARS,
     RETAINED_CONTENT_READS_PER_TYPE,
 } from './contentReadRetention';
 
-type ReadArgs = {
-    type: 'dashboard' | 'chart' | 'document';
-    slug?: string;
-    documentUuid?: string;
-};
+type ReadArgs = z.input<typeof mcpReadContentArgsSchema>;
 
 const toolCall = (
     toolCallId: string,
@@ -39,14 +37,20 @@ const read = (
     toolResult(toolCallId, 'readContent', { type: 'text', value: body }),
 ];
 
-// Shape of a read rebuilt from the database for an earlier prompt in the thread.
+const readEnvelope = (type: ReadArgs['type'], body: string) =>
+    `<${type} href="https://example.com/${type}" />\n---\n${body}`;
+
+// Shape of a successful read rebuilt from the database for an earlier prompt in the thread.
 const replayedRead = (
     toolCallId: string,
     args: ReadArgs,
     body = `json of ${toolCallId}`,
 ) => [
     toolCall(toolCallId, 'readContent', args),
-    toolResult(toolCallId, 'readContent', { type: 'json', value: body }),
+    toolResult(toolCallId, 'readContent', {
+        type: 'json',
+        value: readEnvelope(args.type, body),
+    }),
 ];
 
 const resultOutput = (
@@ -82,7 +86,7 @@ describe('pruneSupersededContentReads', () => {
             toolCall('q1', 'runQuery', { explore: 'orders' }),
             toolResult('q1', 'runQuery', { type: 'text', value: 'rows...' }),
         ];
-        expect(pruneSupersededContentReads(messages)).toBe(messages);
+        expect(pruneSupersededContentReads(messages).messages).toBe(messages);
     });
 
     it('replaces an earlier read of the same item and keeps the newest', () => {
@@ -103,7 +107,7 @@ describe('pruneSupersededContentReads', () => {
                 'second version',
             ),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'r1')).toContain('read again later');
         expect(resultValue(pruned, 'r2')).toBe('second version');
     });
@@ -113,7 +117,7 @@ describe('pruneSupersededContentReads', () => {
             ...read('r1', { type: 'dashboard', slug: 'sales' }),
             ...read('r2', { type: 'chart', slug: 'sales' }),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'r1')).toBe('json of r1');
         expect(resultValue(pruned, 'r2')).toBe('json of r2');
     });
@@ -123,7 +127,7 @@ describe('pruneSupersededContentReads', () => {
         const messages = Array.from({ length: count }, (_, i) =>
             read(`c${i}`, { type: 'chart', slug: `chart-${i}` }),
         ).flat();
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'c0')).toContain('took its place');
         expect(resultValue(pruned, 'c1')).toContain('took its place');
         expect(resultValue(pruned, 'c2')).toBe('json of c2');
@@ -142,7 +146,7 @@ describe('pruneSupersededContentReads', () => {
             ...read('again0', { type: 'chart', slug: 'chart-0' }, 'chart-0 v2'),
             ...read('new', { type: 'chart', slug: 'chart-new' }),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'c0')).toContain('read again later');
         expect(resultValue(pruned, 'again0')).toBe('chart-0 v2');
         expect(resultValue(pruned, 'c1')).toContain('took its place');
@@ -157,7 +161,10 @@ describe('pruneSupersededContentReads', () => {
         const charts = Array.from({ length: 40 }, (_, i) =>
             read(`c${i}`, { type: 'chart', slug: `chart-${i}` }),
         ).flat();
-        const pruned = pruneSupersededContentReads([...dashboards, ...charts]);
+        const { messages: pruned } = pruneSupersededContentReads([
+            ...dashboards,
+            ...charts,
+        ]);
         Array.from({ length: 10 }, (_, i) => i).forEach((i) => {
             expect(resultValue(pruned, `d${i}`)).toBe(`json of d${i}`);
         });
@@ -172,7 +179,7 @@ describe('pruneSupersededContentReads', () => {
             ...read('c1', { type: 'chart', slug: 'chart-1' }, half),
             ...read('d2', { type: 'dashboard', slug: 'dash-2' }, half),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'd1')).toContain('took its place');
         expect(resultValue(pruned, 'c1')).toBe(half);
         expect(resultValue(pruned, 'd2')).toBe(half);
@@ -184,7 +191,7 @@ describe('pruneSupersededContentReads', () => {
             ...read('d1', { type: 'dashboard', slug: 'dash-1' }, 'small'),
             ...read('d2', { type: 'dashboard', slug: 'dash-2' }, huge),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'd1')).toContain('took its place');
         expect(resultValue(pruned, 'd2')).toBe(huge);
     });
@@ -195,7 +202,7 @@ describe('pruneSupersededContentReads', () => {
             ...read('r1', { type: 'document', documentUuid: uuid }, 'v1'),
             ...read('r2', { type: 'document', documentUuid: uuid }, 'v2'),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'r1')).toContain('read again later');
         expect(resultValue(pruned, 'r2')).toBe('v2');
     });
@@ -212,7 +219,7 @@ describe('pruneSupersededContentReads', () => {
             }),
             ...read('r3', { type: 'dashboard', slug: 'sales' }, 'v3'),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultValue(pruned, 'q1')).toBe('rows...');
         expect(resultOutput(pruned, 'r2')).toEqual({
             type: 'error-text',
@@ -237,13 +244,15 @@ describe('pruneSupersededContentReads', () => {
             { role: 'user' as const, content: 'now edit sales' },
             ...read('r1', { type: 'dashboard', slug: 'sales' }, 'v2'),
         ];
-        const pruned = pruneSupersededContentReads([
+        const { messages: pruned } = pruneSupersededContentReads([
             ...previousTurn,
             ...currentTurn,
         ]);
         expect(resultValue(pruned, 'p1')).toContain('read again later');
         expect(resultValue(pruned, 'p2')).toContain('took its place');
-        expect(resultValue(pruned, 'p3')).toBe('json of p3');
+        expect(resultValue(pruned, 'p3')).toBe(
+            readEnvelope('dashboard', 'json of p3'),
+        );
         expect(resultValue(pruned, 'r1')).toBe('v2');
     });
 
@@ -252,13 +261,15 @@ describe('pruneSupersededContentReads', () => {
         const previousTurn = Array.from({ length: count }, (_, i) =>
             replayedRead(`p${i}`, { type: 'chart', slug: `chart-${i}` }),
         ).flat();
-        const pruned = pruneSupersededContentReads([
+        const { messages: pruned } = pruneSupersededContentReads([
             ...previousTurn,
             { role: 'assistant', content: 'Done.' },
             { role: 'user', content: 'next' },
         ]);
         expect(resultValue(pruned, 'p0')).toContain('took its place');
-        expect(resultValue(pruned, 'p1')).toBe('json of p1');
+        expect(resultValue(pruned, 'p1')).toBe(
+            readEnvelope('chart', 'json of p1'),
+        );
     });
 
     it('skips replayed reads whose stored status is an error', () => {
@@ -275,7 +286,7 @@ describe('pruneSupersededContentReads', () => {
             }),
             ...read('r1', { type: 'dashboard', slug: 'sales' }, 'v2'),
         ];
-        const pruned = pruneSupersededContentReads(messages);
+        const { messages: pruned } = pruneSupersededContentReads(messages);
         expect(resultOutput(pruned, 'p1')).toEqual({
             type: 'json',
             value: { result: 'not found', status: 'error' },
@@ -284,12 +295,54 @@ describe('pruneSupersededContentReads', () => {
         expect(resultValue(pruned, 'r1')).toBe('v2');
     });
 
+    it('does not let a replayed failed read without a status supersede the earlier good read', () => {
+        const messages = [
+            ...replayedRead('p1', { type: 'dashboard', slug: 'sales' }, 'v1'),
+            toolCall('p2', 'readContent', { type: 'dashboard', slug: 'sales' }),
+            toolResult('p2', 'readContent', {
+                type: 'json',
+                value: 'Error reading dashboard "sales": not found',
+            }),
+        ];
+        const pruned = pruneSupersededContentReads(messages);
+        expect(pruned.replacedReads).toBe(0);
+        expect(resultValue(pruned.messages, 'p1')).toBe(
+            readEnvelope('dashboard', 'v1'),
+        );
+    });
+
+    it('does not let a backfilled unavailable result supersede the earlier good read', () => {
+        const messages = [
+            ...replayedRead('p1', { type: 'chart', slug: 'revenue' }, 'v1'),
+            toolCall('p2', 'readContent', { type: 'chart', slug: 'revenue' }),
+            toolResult('p2', 'readContent', {
+                type: 'json',
+                value: 'Tool result unavailable.',
+            }),
+            { role: 'user' as const, content: 'now edit revenue' },
+        ];
+        const pruned = pruneSupersededContentReads(messages);
+        expect(pruned.replacedReads).toBe(0);
+        expect(resultValue(pruned.messages, 'p1')).toBe(
+            readEnvelope('chart', 'v1'),
+        );
+    });
+
+    it('reports how many reads were replaced with stubs', () => {
+        const messages = [
+            ...read('r1', { type: 'dashboard', slug: 'sales' }, 'v1'),
+            ...read('r2', { type: 'dashboard', slug: 'sales' }, 'v2'),
+            ...read('r3', { type: 'dashboard', slug: 'sales' }, 'v3'),
+        ];
+        expect(pruneSupersededContentReads(messages).replacedReads).toBe(2);
+    });
+
     it('is stable when applied again to its own output', () => {
         const messages = [
             ...read('r1', { type: 'dashboard', slug: 'sales' }, 'v1'),
             ...read('r2', { type: 'dashboard', slug: 'sales' }, 'v2'),
         ];
-        const once = pruneSupersededContentReads(messages);
-        expect(pruneSupersededContentReads(once)).toBe(once);
+        const { messages: once } = pruneSupersededContentReads(messages);
+        expect(pruneSupersededContentReads(once).messages).toBe(once);
     });
 });

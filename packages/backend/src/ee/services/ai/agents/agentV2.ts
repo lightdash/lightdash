@@ -1590,27 +1590,9 @@ export const buildPrepareStep = ({
             steers.length === 0
                 ? compactChartDiscovery(messages)
                 : messages;
-        const stepMessages = pruneSupersededContentReads(compactedMessages);
-        if (stepMessages !== compactedMessages) {
-            const replacedReads = stepMessages.reduce(
-                (count, message, index) => {
-                    const before = compactedMessages[index];
-                    if (
-                        message === before ||
-                        message.role !== 'tool' ||
-                        before.role !== 'tool'
-                    )
-                        return count;
-                    return (
-                        count +
-                        message.content.filter(
-                            (part, partIndex) =>
-                                part !== before.content[partIndex],
-                        ).length
-                    );
-                },
-                0,
-            );
+        const { messages: stepMessages, replacedReads } =
+            pruneSupersededContentReads(compactedMessages);
+        if (replacedReads > 0) {
             logger(
                 'Content Reads',
                 `Step ${stepNumber} for prompt UUID ${args.promptUuid}: replaced ${replacedReads} earlier content read(s) with stubs`,
