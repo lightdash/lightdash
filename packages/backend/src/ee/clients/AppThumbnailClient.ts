@@ -96,6 +96,10 @@ const versionThumbnailKey = (
 
 const SIGNED_URL_TTL_SECONDS = 900;
 
+const isObjectNotFound = (error: unknown): boolean =>
+    error instanceof S3ServiceException &&
+    error.$metadata.httpStatusCode === 404;
+
 /** Thumbnail images in the data app runtime bucket. */
 export class AppRuntimeThumbnailStorage implements AppThumbnailStorage {
     private readonly lightdashConfig: LightdashConfig;
@@ -133,12 +137,7 @@ export class AppRuntimeThumbnailStorage implements AppThumbnailStorage {
             );
             return true;
         } catch (error) {
-            if (
-                error instanceof S3ServiceException &&
-                error.$metadata.httpStatusCode === 404
-            ) {
-                return false;
-            }
+            if (isObjectNotFound(error)) return false;
             throw error;
         }
     }
@@ -154,11 +153,17 @@ export class AppRuntimeThumbnailStorage implements AppThumbnailStorage {
         );
     }
 
+    // GCS answers a delete of a missing object with 404, unlike S3.
     async delete(key: string): Promise<void> {
         const { client, bucket } = this.getS3();
-        await client.send(
-            new DeleteObjectCommand({ Bucket: bucket, Key: key }),
-        );
+        try {
+            await client.send(
+                new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+            );
+        } catch (error) {
+            if (isObjectNotFound(error)) return;
+            throw error;
+        }
     }
 
     async getSignedUrl(key: string): Promise<string> {
