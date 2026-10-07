@@ -135,6 +135,7 @@ const ContentTitle: FC<Pick<Props, 'content' | 'star'>> = ({
                 isFavorite={star.isFavorite}
                 name={content.name}
                 disabled={star.isLoading}
+                className={classes.favoriteAction}
                 onToggle={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

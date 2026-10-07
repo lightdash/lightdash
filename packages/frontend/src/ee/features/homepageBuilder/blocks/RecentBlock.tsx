@@ -65,6 +65,7 @@ const RecentRow: FC<{
                             name={content.name}
                             isFavorite={star.isFavorite}
                             disabled={star.isLoading}
+                            className={classes.favoriteAction}
                             onToggle={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();

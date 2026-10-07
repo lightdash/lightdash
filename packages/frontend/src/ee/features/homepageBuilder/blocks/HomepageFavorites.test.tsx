@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     errorToast: vi.fn(),
     content: null as SummaryContent | null,
+    otherContent: null as SummaryContent | null,
 }));
 vi.mock('../../../../api', () => ({ lightdashApi: mocks.api }));
 vi.mock('../../../../hooks/useProjectRoute', () => ({
@@ -88,6 +89,13 @@ const HomepageLists = () => {
                 projectUuid="project"
                 star={starFor(mocks.content!)}
             />
+            {mocks.otherContent && (
+                <ContentCard
+                    content={mocks.otherContent}
+                    projectUuid="project"
+                    star={starFor(mocks.otherContent)}
+                />
+            )}
             <output data-testid="location">{location.pathname}</output>
         </>
     );
@@ -103,6 +111,7 @@ describe('homepage list favorites', () => {
             defaultOptions: { queries: { retry: false } },
         });
         favorite = false;
+        mocks.otherContent = null;
         mocks.content = contentFor(ContentType.DATA_APP);
         mocks.errorToast.mockClear();
         mocks.api
@@ -222,23 +231,24 @@ describe('homepage list favorites', () => {
     );
 
     it('keeps the current favorite state after failure and re-enables the controls', async () => {
+        favorite = true;
         renderLists();
         await waitFor(() =>
             expect(
                 screen.getAllByRole('button', {
-                    name: 'Add Sales to favorites',
+                    name: 'Remove Sales from favorites',
                 })[0],
             ).toBeEnabled(),
         );
         fireEvent.click(
             screen.getAllByRole('button', {
-                name: 'Add Sales to favorites',
+                name: 'Remove Sales from favorites',
             })[0],
         );
         await waitFor(() =>
             expect(
                 screen.getAllByRole('button', {
-                    name: 'Add Sales to favorites',
+                    name: 'Remove Sales from favorites',
                 })[1],
             ).toBeDisabled(),
         );
@@ -246,12 +256,88 @@ describe('homepage list favorites', () => {
         await waitFor(() =>
             expect(
                 screen.getAllByRole('button', {
-                    name: 'Add Sales to favorites',
+                    name: 'Remove Sales from favorites',
                 })[0],
             ).toBeEnabled(),
         );
         expect(mocks.errorToast).toHaveBeenCalled();
-        expect(client.getQueryData(['favorites', 'project'])).toEqual([]);
+        expect(client.getQueryData(['favorites', 'project'])).toHaveLength(1);
+        expect(screen.getByTestId('location')).toHaveTextContent('/home');
+    });
+
+    it('keeps unrelated favorites usable while one item waits for its refresh', async () => {
+        mocks.otherContent = {
+            ...contentFor(ContentType.CHART),
+            uuid: 'other',
+            name: 'Other',
+        };
+        const favorites = [
+            contentToResourceViewItem(mocks.content!),
+            contentToResourceViewItem(mocks.otherContent),
+        ];
+        let finishRefresh: () => void = () => {};
+        let finishOther: () => void = () => {};
+        mocks.api.mockImplementation(({ method, body }) => {
+            if (method === 'GET') return Promise.resolve(favorites);
+            return new Promise((resolve) => {
+                const finish = () => resolve({ isFavorite: false });
+                if (JSON.parse(body).contentUuid === 'other')
+                    finishOther = finish;
+                else finishToggle = finish;
+            });
+        });
+        renderLists();
+        const sales = await screen.findAllByRole('button', {
+            name: 'Remove Sales from favorites',
+        });
+        const other = screen.getByRole('button', {
+            name: 'Remove Other from favorites',
+        });
+        fireEvent.click(sales[0]);
+        // A second occurrence is blocked even before React paints disabled state.
+        fireEvent.click(sales[1]);
+        await waitFor(() => expect(sales[1]).toBeDisabled());
+        expect(other).toBeEnabled();
+        expect(sales[0]).toHaveAccessibleName('Remove Sales from favorites');
+        expect(
+            sales[0].querySelector('.tabler-icon-star-filled'),
+        ).not.toBeNull();
+        expect(other.querySelector('.tabler-icon-star-filled')).not.toBeNull();
+        expect(
+            mocks.api.mock.calls.filter(([r]) => r.method === 'PATCH'),
+        ).toHaveLength(1);
+
+        // A slow background GET must keep the item pending and old stars visible.
+        mocks.api.mockImplementation(({ method }) => {
+            if (method === 'GET')
+                return new Promise((resolve) => {
+                    finishRefresh = () =>
+                        resolve([
+                            contentToResourceViewItem(mocks.otherContent!),
+                        ]);
+                });
+            return new Promise((resolve) => {
+                finishOther = () => resolve({ isFavorite: false });
+            });
+        });
+        await act(async () => finishToggle());
+        expect(sales[0]).toBeDisabled();
+        expect(other).toBeEnabled();
+        expect(sales[0]).toHaveAccessibleName('Remove Sales from favorites');
+        fireEvent.click(other);
+        await waitFor(() => expect(other).toBeDisabled());
+        expect(
+            mocks.api.mock.calls.filter(([r]) => r.method === 'PATCH'),
+        ).toHaveLength(2);
+        await act(async () => finishRefresh());
+        await waitFor(() => expect(sales[0]).toBeEnabled());
+        expect(sales[0]).toHaveAccessibleName('Add Sales to favorites');
+        expect(other).toBeDisabled();
+        expect(other).toHaveAccessibleName('Remove Other from favorites');
+        mocks.api.mockImplementation(() => Promise.resolve([]));
+        await act(async () => finishOther());
+        await waitFor(() => expect(other).toBeEnabled());
+        expect(other).toHaveAccessibleName('Add Other to favorites');
         expect(screen.getByTestId('location')).toHaveTextContent('/home');
     });
 
