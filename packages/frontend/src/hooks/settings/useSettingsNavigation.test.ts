@@ -1,8 +1,19 @@
 import { Ability } from '@casl/ability';
+import {
+    type LightdashUserWithAbilityRules,
+    DbtProjectType,
+    DbtVersionOptionLatest,
+    ProjectType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
+
+const { mockUserResponse } = await vi.importActual<{
+    mockUserResponse: () => LightdashUserWithAbilityRules;
+}>('../../testing/__mocks__/api/userResponse.mock');
 
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
@@ -11,6 +22,7 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
 ): SettingsContext => ({
+    aiPrincipalsEnabled: false,
     user: undefined,
     health: undefined,
     organization: undefined,
@@ -184,4 +196,76 @@ describe('AI credits settings navigation', () => {
         expect(aiCredits(true)?.label).toBe('AI credits');
         expect(aiCredits(false)).toBeUndefined();
     });
+});
+
+describe('Agent identity navigation', () => {
+    it.each([
+        [WarehouseTypes.SNOWFLAKE, true, true],
+        [WarehouseTypes.POSTGRES, true, false],
+        [WarehouseTypes.SNOWFLAKE, false, false],
+    ])(
+        'gates %s with flag %s',
+        (projectWarehouseType, aiPrincipalsEnabled, visible) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        aiPrincipalsEnabled,
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Organization',
+                        },
+                        user: {
+                            ...mockUserResponse(),
+                            ability: new Ability([
+                                { action: 'manage', subject: 'all' },
+                            ]),
+                            impersonation: null,
+                        },
+                        projectSettingsAccess: 'full',
+                        project: {
+                            warehouseConnection:
+                                projectWarehouseType ===
+                                WarehouseTypes.SNOWFLAKE
+                                    ? {
+                                          type: WarehouseTypes.SNOWFLAKE,
+                                          account: 'account',
+                                          database: 'db',
+                                          warehouse: 'warehouse',
+                                          schema: 'public',
+                                      }
+                                    : {
+                                          type: WarehouseTypes.POSTGRES,
+                                          host: 'localhost',
+                                          port: 5432,
+                                          dbname: 'db',
+                                          schema: 'public',
+                                      },
+                            projectUuid: 'project',
+                            organizationUuid: 'org',
+                            name: 'Project',
+                            type: ProjectType.DEFAULT,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                            dbtVersion: DbtVersionOptionLatest.LATEST,
+                            schedulerTimezone: 'UTC',
+                            queryTimezone: null,
+                            useProjectTimezoneInFilters: false,
+                            schedulerFailureNotifyRecipients: false,
+                            schedulerFailureIncludeContact: false,
+                            schedulerFailureContactOverride: null,
+                            createdByUserUuid: null,
+                            hasDefaultUserSpaces: false,
+                            colorPaletteUuid: null,
+                            expiresAt: null,
+                            agentSqlScope: null,
+                        },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .flatMap((section) => section.items)
+                    .some((item) => item.label === 'Agent identity'),
+            ).toBe(visible);
+        },
+    );
 });

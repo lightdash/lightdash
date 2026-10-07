@@ -38,7 +38,7 @@ Use the same Snowflake account for the integration and the project connection.
 
 Enable `ai-principals`. The `snowflake-ai-sign-in` flag is optional for this path.
 Either flag permits agent sign-in. The licence check still applies.
-Keep `ai-separate-principals` off for this path.
+The Agent identity page is available on Snowflake projects only.
 Use Console organization overrides or the generic feature flag environment lists.
 See [feature flag precedence and refresh](feature-flags.md).
 

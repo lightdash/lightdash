@@ -158,25 +158,6 @@ export const useAiAccessPolicy = (project: string, connection: string | null) =>
     useAccessQuery(project, connection, 'policy', () =>
         aiAccessApi.policy(project, connection),
     );
-export const useAiPrincipals = (project: string, connection: string | null) =>
-    useAccessQuery(project, connection, 'principals', () =>
-        aiAccessApi.principals(project, connection),
-    );
-export const useAiSetupScript = (
-    project: string,
-    connection: string | null,
-    principal: string | null,
-    enabled: boolean,
-) =>
-    useAccessQuery(
-        project,
-        connection,
-        'setup-script',
-        () => aiAccessApi.setupScript(project, connection, principal),
-        enabled,
-        [principal],
-        true,
-    );
 export const useAiAccessAudit = (
     project: string,
     connection: string | null,
@@ -227,28 +208,6 @@ export const useUpsertAiAccessPolicy = (
     useAccessMutation(project, (policy: UpsertAiAccessPolicy) =>
         aiAccessApi.upsertPolicy(project, connection, policy),
     );
-export const useTestAiPrincipal = (
-    project: string,
-    connection: string | null,
-) =>
-    useAccessMutation(project, (uuid: string) =>
-        aiAccessApi.test(project, connection, uuid),
-    );
-export const useRegenerateAiSecret = (
-    project: string,
-    connection: string | null,
-) =>
-    useAccessMutation(project, (uuid: string) =>
-        aiAccessApi.regenerateSecret(project, connection, uuid),
-    );
-export const useDeleteAiPrincipal = (
-    project: string,
-    connection: string | null,
-) =>
-    useAccessMutation(project, (uuid: string) =>
-        aiAccessApi.deletePrincipal(project, connection, uuid),
-    );
-
 export const useTestAiMarker = (project: string, connection: string | null) =>
     useAccessMutation(project, () =>
         lightdashApi<AiMarkerTestResult>({

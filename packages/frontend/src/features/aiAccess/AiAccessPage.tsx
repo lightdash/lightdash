@@ -3,6 +3,7 @@ import {
     AiTransportKind,
     AiPrincipalKind,
     FeatureFlags,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     Paper,
@@ -155,27 +156,34 @@ const ConnectionAccess = ({
 const ProjectAccess = ({ projectUuid }: { projectUuid: string }) => {
     const connections = useWarehouseConnections(projectUuid);
     const [connection, setConnection] = useState<string | null>(null);
+    const snowflakeConnections =
+        connections.data?.connections.filter(
+            (item) => item.warehouseType === WarehouseTypes.SNOWFLAKE,
+        ) ?? [];
+    const selectedConnection = snowflakeConnections.some(
+        (item) => item.warehouseConnectionUuid === connection,
+    )
+        ? connection
+        : null;
     return (
         <SettingsPage
             title="Agent identity"
-            description="Every query an agent runs is marked, so your warehouse can treat it differently. Use a separate principal only where the marker cannot enforce your rules."
+            description="Every query an agent runs is marked, so your warehouse can treat it differently."
         >
             <SettingsPageContainer>
                 <Stack gap="xl">
                     <ConnectionAccess
                         connectionSelector={
-                            (connections.data?.connections.length ?? 0) > 1 && (
+                            snowflakeConnections.length > 1 && (
                                 <Select
                                     label="Warehouse connection"
-                                    value={connection ?? 'original'}
-                                    data={connections.data!.connections.map(
-                                        (item) => ({
-                                            value: item.isOriginal
-                                                ? 'original'
-                                                : item.warehouseConnectionUuid,
-                                            label: item.name,
-                                        }),
-                                    )}
+                                    value={selectedConnection ?? 'original'}
+                                    data={snowflakeConnections.map((item) => ({
+                                        value: item.isOriginal
+                                            ? 'original'
+                                            : item.warehouseConnectionUuid,
+                                        label: item.name,
+                                    }))}
                                     onChange={(value) =>
                                         setConnection(
                                             value === 'original' ? null : value,
@@ -184,9 +192,9 @@ const ProjectAccess = ({ projectUuid }: { projectUuid: string }) => {
                                 />
                             )
                         }
-                        key={connection ?? 'original'}
+                        key={selectedConnection ?? 'original'}
                         projectUuid={projectUuid}
-                        connection={connection}
+                        connection={selectedConnection}
                     />
                     <SettingsCard>
                         <Audit projectUuid={projectUuid} />
@@ -211,6 +219,10 @@ export const AiAccessPage = () => {
     )
         return (
             <SuboptimalState title="Agent identity settings are not available." />
+        );
+    if (project.data.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE)
+        return (
+            <SuboptimalState title="Agent identity is available for Snowflake projects." />
         );
     return (
         <ProjectAccess

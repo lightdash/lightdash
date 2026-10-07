@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { WarehouseTypes } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -964,6 +965,8 @@ export const useSettingsNavigation = (
 
             if (
                 aiPrincipalsEnabled &&
+                project.warehouseConnection?.type ===
+                    WarehouseTypes.SNOWFLAKE &&
                 ability?.can('manage', subject('Project', project))
             ) {
                 projectItems.push({
