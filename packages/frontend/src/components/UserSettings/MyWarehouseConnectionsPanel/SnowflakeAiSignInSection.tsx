@@ -3,8 +3,10 @@ import {
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { IconCheck } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useSnowflakeAiLoginPopup } from '../../../hooks/useSnowflake';
+import MantineIcon from '../../common/MantineIcon';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 
 export const SnowflakeAiSignInSection = ({
@@ -22,21 +24,27 @@ export const SnowflakeAiSignInSection = ({
             <Stack gap="sm">
                 <Title order={5}>Snowflake agent sign-in</Title>
                 <Text c="dimmed" fz="sm">
-                    Sign in for agent sessions. AI agents and MCP use this
-                    separate Snowflake sign-in.
+                    AI agents and MCP use this separate Snowflake sign-in.
                 </Text>
                 <Group gap="sm">
-                    <Text fz="sm">
-                        {credential ? 'Signed in' : 'Not signed in'}
-                    </Text>
-                    <Button
-                        size="xs"
-                        onClick={() => login.mutate()}
-                        loading={login.isLoading}
-                    >
-                        Sign in for agent sessions
-                    </Button>
-                    {credential && (
+                    {credential ? (
+                        <Group gap="xs">
+                            <MantineIcon
+                                icon={IconCheck}
+                                color="green"
+                                size={16}
+                            />
+                            <Text fz="sm">
+                                Signed in for agent sessions since{' '}
+                                {new Date(
+                                    credential.createdAt,
+                                ).toLocaleDateString()}
+                            </Text>
+                        </Group>
+                    ) : (
+                        <Text fz="sm">Not signed in</Text>
+                    )}
+                    {credential ? (
                         <Button
                             size="xs"
                             variant="default"
@@ -44,8 +52,21 @@ export const SnowflakeAiSignInSection = ({
                         >
                             Sign out
                         </Button>
+                    ) : (
+                        <Button
+                            size="xs"
+                            onClick={() => login.mutate()}
+                            loading={login.isLoading}
+                        >
+                            Sign in for agent sessions
+                        </Button>
                     )}
                 </Group>
+                {!credential && login.error && (
+                    <Text c="red" fz="sm" role="alert">
+                        {login.error.message}
+                    </Text>
+                )}
             </Stack>
             {credential && (
                 <DeleteCredentialsModal
