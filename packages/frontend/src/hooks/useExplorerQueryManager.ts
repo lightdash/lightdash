@@ -102,10 +102,14 @@ export const useExplorerQueryManager = ({
     );
 
     // Get explore data and pivot configuration
-    const { data: explore } = useExploreByProjectUuid(tableName, projectUuid, {
-        refetchOnMount: false,
-        refetchOnWindowFocus: false,
-    });
+    const { data: explore, error: exploreError } = useExploreByProjectUuid(
+        tableName,
+        projectUuid,
+        {
+            refetchOnMount: false,
+            refetchOnWindowFocus: false,
+        },
+    );
 
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
@@ -244,6 +248,7 @@ export const useExplorerQueryManager = ({
         tableName,
         projectUuid,
         explore,
+        exploreError,
         computedMetricQuery: metricQuery,
         parameters,
 
