@@ -1,4 +1,4 @@
-export const shouldShowSnowflakeAiSignIn = (
+export const shouldShowAgentConnection = (
     flagEnabled: boolean,
     clientConfigured: boolean,
 ): boolean => flagEnabled && clientConfigured;

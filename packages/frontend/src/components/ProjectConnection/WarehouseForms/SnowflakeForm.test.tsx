@@ -41,7 +41,7 @@ vi.mock('../../../hooks/useProject', () => ({
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (flag: FeatureFlags) => ({
-        data: { enabled: flag === FeatureFlags.AiPrincipals && mocks.enabled },
+        data: { enabled: flag === FeatureFlags.AgentIdentity && mocks.enabled },
     }),
 }));
 vi.mock('../../../features/aiAccess/api', () => ({

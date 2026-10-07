@@ -157,7 +157,7 @@ const buildFakeWriteDatabase = ({
 describe('FeatureFlagModel', () => {
     describe.each([
         FeatureFlags.AiAgentFastDecisions,
-        FeatureFlags.SnowflakeAiSignIn,
+        FeatureFlags.AgentIdentity,
     ])('%s production rollout', (featureFlagId) => {
         const config = {
             previewFeatureFlags: { enabled: false },

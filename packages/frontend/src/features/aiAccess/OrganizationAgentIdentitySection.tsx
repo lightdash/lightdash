@@ -117,7 +117,7 @@ SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`}
 
 const OrganizationAgentIdentitySection = () => {
     const { user } = useApp();
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     if (!flag?.enabled || !user.data?.ability.can('manage', 'Organization'))
         return null;
     return (

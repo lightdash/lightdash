@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentToolCall,
@@ -44,6 +45,7 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import {
@@ -571,6 +573,9 @@ const AssistantBubbleContent: FC<{
             : null;
     })();
 
+    const { data: agentIdentityFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentity,
+    );
     const aiAccessRefusal = [
         ...(streamingState?.parts ?? []).flatMap((part) =>
             part.type === 'toolCall'
@@ -582,7 +587,7 @@ const AssistantBubbleContent: FC<{
 
     return (
         <>
-            {aiAccessRefusal && (
+            {agentIdentityFlag?.enabled === true && aiAccessRefusal && (
                 <AiAccessCallout
                     projectUuid={projectUuid}
                     refusal={aiAccessRefusal}

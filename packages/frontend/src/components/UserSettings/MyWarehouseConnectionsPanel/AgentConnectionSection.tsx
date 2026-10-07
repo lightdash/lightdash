@@ -9,7 +9,7 @@ import { useSnowflakeAiLoginPopup } from '../../../hooks/useSnowflake';
 import MantineIcon from '../../common/MantineIcon';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 
-export const SnowflakeAiSignInSection = ({
+export const AgentConnectionSection = ({
     credentials,
 }: {
     credentials: UserWarehouseCredentials[];
@@ -35,12 +35,7 @@ export const SnowflakeAiSignInSection = ({
                                 color="green"
                                 size={16}
                             />
-                            <Text fz="sm">
-                                Agent connected since{' '}
-                                {new Date(
-                                    credential.createdAt,
-                                ).toLocaleDateString()}
-                            </Text>
+                            <Text fz="sm">Agent connected</Text>
                         </Group>
                     ) : null}
                     {credential ? (

@@ -9,18 +9,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { MyWarehouseConnectionsPanel } from './index';
 
-let aiPrincipals = false;
-let snowflakeAiSignIn = false;
+let agentIdentity = false;
 let configured = true;
 let credentials: UserWarehouseCredentials[] = [];
 const login = vi.fn();
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (flag: FeatureFlags) => ({
         data: {
-            enabled:
-                flag === FeatureFlags.AiPrincipals
-                    ? aiPrincipals
-                    : snowflakeAiSignIn,
+            enabled: flag === FeatureFlags.AgentIdentity && agentIdentity,
         },
     }),
 }));
@@ -46,22 +42,19 @@ vi.mock('./DeleteCredentialsModal', () => ({
 describe('My warehouse connections agent sign-in', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        aiPrincipals = false;
-        snowflakeAiSignIn = false;
+        agentIdentity = false;
         configured = true;
         credentials = [];
     });
     it.each([
-        [false, false, true, false],
-        [true, false, true, true],
-        [false, true, true, true],
-        [true, true, true, true],
-        [true, false, false, false],
+        [false, true, false],
+        [true, true, true],
+        [true, false, false],
+        [false, false, false],
     ])(
-        'checks flags %s/%s and configuration %s for visibility %s',
-        (principalsFlag, signInFlag, clientConfigured, visible) => {
-            aiPrincipals = principalsFlag;
-            snowflakeAiSignIn = signInFlag;
+        'checks flag %s and configuration %s for visibility %s',
+        (identityFlag, clientConfigured, visible) => {
+            agentIdentity = identityFlag;
             configured = clientConfigured;
             renderWithProviders(<MyWarehouseConnectionsPanel />);
             const button = screen.queryByRole('button', {
@@ -77,7 +70,7 @@ describe('My warehouse connections agent sign-in', () => {
         },
     );
     it('offers sign out for an existing agent credential', () => {
-        aiPrincipals = true;
+        agentIdentity = true;
         credentials = [
             {
                 uuid: 'credential',

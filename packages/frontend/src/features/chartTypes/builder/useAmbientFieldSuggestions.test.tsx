@@ -16,6 +16,11 @@ import { type LoadedExplore } from './useExplorePreviewData';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
 
+const accessState = vi.hoisted(() => ({ disabled: false }));
+vi.mock('../../aiAccess/useAiAccessGate', () => ({
+    useAiAccessGate: () => accessState,
+}));
+
 const field = (name: string, fieldType: FieldType) => ({
     fieldType,
     type: fieldType === FieldType.METRIC ? MetricType.SUM : DimensionType.DATE,
@@ -77,6 +82,7 @@ type Props = Parameters<typeof useAmbientFieldSuggestions>[0];
 
 describe('useAmbientFieldSuggestions', () => {
     beforeEach(() => {
+        accessState.disabled = false;
         vi.mocked(lightdashApi).mockReset();
         vi.mocked(lightdashApi).mockResolvedValue(answer);
     });
@@ -104,6 +110,7 @@ describe('useAmbientFieldSuggestions', () => {
             expect(Object.keys(result.current.picks)).not.toHaveLength(0),
         );
         const calls = vi.mocked(lightdashApi).mock.calls.length;
+        accessState.disabled = true;
         rerender({ ...initial, suggestedExploreName: 'another-table' });
         expect(result.current.picks).toEqual({});
         expect(result.current.seed).toEqual({});

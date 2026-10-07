@@ -59,7 +59,7 @@ describe('useAiAccessGate', () => {
         flag.isLoading = false;
     });
 
-    it('waits for the flag and then the access query without enabling the composer', async () => {
+    it('renders while the flag loads and gates only when it becomes enabled', async () => {
         flag.isLoading = true;
         let resolveAccess!: (value: AiAccessForUser) => void;
         const me = vi.spyOn(aiAccessApi, 'me').mockReturnValue(
@@ -70,10 +70,10 @@ describe('useAiAccessGate', () => {
         const { result, rerender } = setup('project-1');
         expect(result.current).toEqual({
             refusal: undefined,
-            isLoading: true,
+            isLoading: false,
             isError: false,
             refetch: expect.any(Function),
-            disabled: true,
+            disabled: false,
         });
         expect(me).not.toHaveBeenCalled();
         flag.isLoading = false;
@@ -127,6 +127,26 @@ describe('useAiAccessGate', () => {
         expect(result.current.isError).toBe(false);
         expect(result.current.disabled).toBe(false);
     });
+
+    it.each(['off', 'unknown'])(
+        'ignores a cached refusal when the flag is %s',
+        async (state) => {
+            vi.spyOn(aiAccessApi, 'me').mockResolvedValue(accessResult(true));
+            const { result, rerender } = setup('project-1');
+            await waitFor(() =>
+                expect(result.current.refusal).toEqual(refusal),
+            );
+            flag.enabled = false;
+            flag.isLoading = state === 'unknown';
+            rerender({ project: 'project-1' });
+            expect(result.current).toMatchObject({
+                disabled: false,
+                isLoading: false,
+                isError: false,
+                refusal: undefined,
+            });
+        },
+    );
 
     it('recovers after the login popup invalidates ai-access', async () => {
         const me = vi

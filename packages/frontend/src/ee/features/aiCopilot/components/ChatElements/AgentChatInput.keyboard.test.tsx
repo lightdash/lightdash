@@ -7,7 +7,7 @@ import {
 import { fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { openPanel, resetActivePanel } from '../../store/aiAgentLauncherSlice';
@@ -100,6 +100,11 @@ const renderInput = (withModels = false) => {
         },
     };
 };
+
+beforeAll(() => {
+    Range.prototype.getClientRects = () => document.body.getClientRects();
+    Range.prototype.getBoundingClientRect = () => new DOMRect();
+});
 
 describe('AgentChatInput keyboard handling', () => {
     beforeEach(() => {

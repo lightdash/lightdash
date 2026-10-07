@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { type PossibleAbilities } from '@lightdash/common';
+import { FeatureFlags, type PossibleAbilities } from '@lightdash/common';
 import { type Request } from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
@@ -17,16 +17,18 @@ const setup = () => {
             ) => settings,
         ),
     };
+    const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        featureFlagModel: flags,
         organizationAgentIdentitySettingsModel:
             model as unknown as OrganizationAgentIdentitySettingsModel,
-    } as ConstructorParameters<typeof AiAccessService>[0]);
+    } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const controller = new OrganizationAgentIdentityController({
         getAiAccessService: () => service,
     } as ServiceRepository);
     const account = buildAccount();
     const req = { account } as Request;
-    return { controller, model, account, req };
+    return { controller, model, account, req, flags };
 };
 
 test('allows an authenticated member to read their organization settings', async () => {
@@ -87,3 +89,34 @@ test('rejects manage permission scoped to a different organization', async () =>
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(model.upsert).not.toHaveBeenCalled();
 });
+
+test.each(['get', 'put'])(
+    'rejects %s settings when agent identity is off',
+    async (method) => {
+        const { controller, model, req, flags, account } = setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        const result =
+            method === 'get'
+                ? controller.getSettings(req)
+                : controller.updateSettings(req, {
+                      requireVerifiedAgentSessions: true,
+                  });
+        await expect(result).rejects.toMatchObject({
+            name: 'FeatureNotEnabledError',
+            statusCode: 403,
+            data: {
+                code: 'feature_not_enabled',
+                featureFlagId: FeatureFlags.AgentIdentity,
+            },
+        });
+        expect(flags.get).toHaveBeenCalledWith({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(model.get).not.toHaveBeenCalled();
+        expect(model.upsert).not.toHaveBeenCalled();
+    },
+);

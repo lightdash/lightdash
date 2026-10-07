@@ -54,7 +54,7 @@ const renderInput = ({
     };
     if (enableCsvAttachment) {
         useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
-            data: { enabled: flag !== FeatureFlags.AiPrincipals },
+            data: { enabled: flag !== FeatureFlags.AgentIdentity },
         }));
     }
 

@@ -1,31 +1,34 @@
 import { FeatureFlags } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
     snowflakeAiPassportStrategy,
     snowflakeAiSessionCheck,
 } from './snowflakeAiStrategy';
 
-vi.mock('../../../config/lightdashConfig', () => ({
-    lightdashConfig: {
-        siteUrl: 'https://lightdash.example',
-        license: { licenseKey: 'test-license' },
-        auth: {
-            snowflakeAi: {
-                account: 'test-account',
-                clientId: 'ai-client',
-                clientSecret: 'ai-secret',
-                authorizationEndpoint: 'https://snowflake.example/authorize',
-                tokenEndpoint: 'https://snowflake.example/token',
-                callbackPath: '/oauth/redirect/snowflake-ai',
+vi.mock('../../../config/lightdashConfig', async () => {
+    const { lightdashConfigMock } =
+        await import('../../../config/lightdashConfig.mock');
+    return {
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            siteUrl: 'https://lightdash.example',
+            license: { licenseKey: 'test-license' },
+            auth: {
+                snowflakeAi: {
+                    account: 'test-account',
+                    clientId: 'ai-client',
+                    clientSecret: 'ai-secret',
+                    authorizationEndpoint:
+                        'https://snowflake.example/authorize',
+                    tokenEndpoint: 'https://snowflake.example/token',
+                    callbackPath: '/oauth/redirect/snowflake-ai',
+                },
             },
         },
-    },
-}));
-
-vi.mock('../../../logging/logger', () => ({
-    default: { info: vi.fn() },
-}));
+    };
+});
 
 const verify = (
     snowflakeAiPassportStrategy as unknown as {
@@ -43,7 +46,6 @@ const callVerify = async (
     enabled: boolean,
     refreshToken: string,
     agentSession: boolean | 'error' = true,
-    aiPrincipalsEnabled = false,
 ) => {
     const check = vi.spyOn(snowflakeAiSessionCheck, 'check');
     if (agentSession === 'error') {
@@ -59,17 +61,17 @@ const callVerify = async (
     const get = vi.fn(
         async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
             id: featureFlagId,
-            enabled:
-                featureFlagId === FeatureFlags.AiPrincipals
-                    ? aiPrincipalsEnabled
-                    : enabled,
+            enabled,
         }),
     );
+    const service = new AiAccessService({
+        featureFlagModel: { get },
+    } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const user = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };
     const req = {
         user,
         services: {
-            getFeatureFlagService: () => ({ get }),
+            getAiAccessService: () => service,
             getUserService: () => ({ upsertAiSnowflakeCredential }),
         },
     } as unknown as Express.Request;
@@ -132,8 +134,14 @@ describe('Snowflake AI OAuth callback', () => {
     it('refuses while the organization flag is off', async () => {
         const result = await callVerify(false, 'refresh-token');
         expect(result.done.mock.calls[0]?.[0]).toMatchObject({
-            name: 'ForbiddenError',
+            name: 'FeatureNotEnabledError',
+            statusCode: 403,
+            data: {
+                code: 'feature_not_enabled',
+                featureFlagId: FeatureFlags.AgentIdentity,
+            },
         });
+        expect(result.checkCalls).toEqual([]);
         expect(result.upsertAiSnowflakeCredential).not.toHaveBeenCalled();
     });
 
@@ -182,33 +190,16 @@ describe('Snowflake AI OAuth callback', () => {
         }
     });
 
-    it.each([
-        [true, false],
-        [false, true],
-        [true, true],
-    ])(
-        'stores the AI credential with sign-in=%s and principals=%s',
-        async (signIn, principals) => {
-            const result = await callVerify(
-                signIn,
-                'refresh-token',
-                true,
-                principals,
-            );
-            for (const featureFlagId of [
-                FeatureFlags.AiPrincipals,
-                FeatureFlags.SnowflakeAiSignIn,
-            ]) {
-                expect(result.get).toHaveBeenCalledWith({
-                    user: result.user,
-                    featureFlagId,
-                });
-            }
-            expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
-                result.user,
-                'refresh-token',
-            );
-            expect(result.done).toHaveBeenCalledWith(null, result.user);
-        },
-    );
+    it('stores the AI credential when agent identity is enabled', async () => {
+        const result = await callVerify(true, 'refresh-token');
+        expect(result.get).toHaveBeenCalledExactlyOnceWith({
+            user: result.user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+            result.user,
+            'refresh-token',
+        );
+        expect(result.done).toHaveBeenCalledWith(null, result.user);
+    });
 });

@@ -24,7 +24,7 @@ export const AiAccessGate = ({
 }) => {
     const [isRetrying, setIsRetrying] = useState(false);
 
-    if (isError || isRetrying) {
+    if (isError || (isRetrying && (isLoading || refusal !== undefined))) {
         return (
             <Paper p="md" mb="md">
                 <Group gap="sm" align="flex-start" wrap="nowrap">

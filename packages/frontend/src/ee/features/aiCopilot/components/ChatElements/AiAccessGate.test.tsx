@@ -13,10 +13,12 @@ import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGat
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiAccessGate } from './AiAccessGate';
 
+const flag = vi.hoisted(() => ({ enabled: true, isLoading: false }));
+
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: true },
-        isLoading: false,
+        data: flag.isLoading ? undefined : { enabled: flag.enabled },
+        isLoading: flag.isLoading,
     }),
 }));
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -57,16 +59,72 @@ const renderGate = () => {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false, cacheTime: 0 } },
     });
-    return renderWithProviders(
+    const content = () => (
         <QueryClientProvider client={client}>
             <Gate />
-        </QueryClientProvider>,
+        </QueryClientProvider>
     );
+    const view = renderWithProviders(content());
+    return { ...view, rerenderGate: () => view.rerender(content()) };
 };
 
 describe('AiAccessGate', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        flag.enabled = true;
+        flag.isLoading = false;
+    });
+
+    it.each(['off', 'loading'])(
+        'renders children immediately when the flag is %s',
+        (state) => {
+            flag.enabled = false;
+            flag.isLoading = state === 'loading';
+            const me = vi.spyOn(aiAccessApi, 'me');
+            renderGate();
+            expect(screen.getByText('Composer')).toBeVisible();
+            expect(
+                screen.queryByTestId('ai-access-placeholder'),
+            ).not.toBeInTheDocument();
+            expect(me).not.toHaveBeenCalled();
+        },
+    );
+
+    it('shows the placeholder while enabled access loads, then the refusal', async () => {
+        let resolveAccess!: (value: AiAccessForUser) => void;
+        vi.spyOn(aiAccessApi, 'me').mockReturnValue(
+            new Promise((resolve) => {
+                resolveAccess = resolve;
+            }),
+        );
+        renderGate();
+        expect(screen.getByTestId('ai-access-placeholder')).toBeInTheDocument();
+        expect(screen.queryByText('Composer')).not.toBeInTheDocument();
+        await act(async () => resolveAccess(accessResult(true)));
+        expect(
+            await screen.findByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(
+            screen.queryByTestId('ai-access-placeholder'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders children when the flag turns off during a retry', async () => {
+        const me = vi.spyOn(aiAccessApi, 'me').mockRejectedValue(accessError);
+        const { rerenderGate } = renderGate();
+        const retry = await screen.findByRole('button', { name: 'Try again' });
+        let resolveRetry!: (value: AiAccessForUser) => void;
+        me.mockReturnValue(
+            new Promise((resolve) => {
+                resolveRetry = resolve;
+            }),
+        );
+        await userEvent.click(retry);
+        flag.enabled = false;
+        rerenderGate();
+        expect(screen.getByText('Composer')).toBeVisible();
+        await act(async () => resolveRetry(accessResult(true)));
+        expect(screen.getByText('Composer')).toBeVisible();
     });
 
     it('shows an error with a retry instead of its children', async () => {

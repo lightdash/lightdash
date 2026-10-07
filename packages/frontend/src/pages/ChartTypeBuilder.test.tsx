@@ -60,6 +60,10 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
 
+vi.mock('../features/aiAccess/useAiAccessGate', () => ({
+    useAiAccessGate: () => ({ disabled: false }),
+}));
+
 vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
     useAmbientAiEnabled: vi.fn(),
 }));

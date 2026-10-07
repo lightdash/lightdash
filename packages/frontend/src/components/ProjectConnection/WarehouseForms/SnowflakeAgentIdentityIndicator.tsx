@@ -13,7 +13,7 @@ const SnowflakeAgentIdentityIndicator = ({
     projectUuid: string;
     connection: string | null;
 }) => {
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const { data: access } = useMyAiAccess(projectUuid, connection);
     if (!flag?.enabled || !access?.requirementSource) return null;
     return (

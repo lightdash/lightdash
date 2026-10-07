@@ -1092,7 +1092,7 @@ export const AgentChatInput = ({
         return (
             <AgentSuggestionChips
                 chips={chips}
-                disabled={disabled}
+                disabled={accessRefused}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
                 align={isThreadInput ? 'left' : 'center'}
@@ -1101,7 +1101,7 @@ export const AgentChatInput = ({
             />
         );
     }, [
-        disabled,
+        accessRefused,
         emptyStateMode,
         postResponseMode,
         suggestionsQuery.isError,
@@ -1624,7 +1624,7 @@ export const AgentChatInput = ({
                                         onModelChange && (
                                             <Box className={styles.modelGroup}>
                                                 <ModelSelector
-                                                    disabled={disabled}
+                                                    disabled={accessRefused}
                                                     models={models}
                                                     value={
                                                         selectedModelId ?? null

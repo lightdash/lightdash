@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    ForbiddenError,
-    ParameterError,
-} from '@lightdash/common';
+import { ForbiddenError, ParameterError } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
@@ -70,21 +66,10 @@ export const snowflakeAiPassportStrategy = !(
                           'An organization sign-in is required',
                       );
                   }
-                  const flags = await Promise.all(
-                      [
-                          FeatureFlags.AiPrincipals,
-                          FeatureFlags.SnowflakeAiSignIn,
-                      ].map((featureFlagId) =>
-                          req.services
-                              .getFeatureFlagService()
-                              .get({ user, featureFlagId }),
-                      ),
-                  );
-                  if (!flags.some(({ enabled }) => enabled)) {
-                      throw new ForbiddenError(
-                          'Snowflake AI sign-in is not enabled for this organization',
-                      );
-                  }
+                  await req.services.getAiAccessService().assertFeatureEnabled({
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  });
                   if (!refreshToken) {
                       throw new ParameterError(
                           'Snowflake did not return a refresh token. Please try signing in again.',

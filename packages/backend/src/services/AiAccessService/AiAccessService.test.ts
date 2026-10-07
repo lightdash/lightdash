@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
+    FeatureFlags,
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -161,6 +162,36 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test.each(['me', 'capabilities', 'marker'] as const)(
+        'rejects %s when agent identity is off',
+        async (route) => {
+            const { service, flags } = setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            const runQuery = vi.fn();
+            const requests = {
+                me: () => service.getMyAccess(account, 'project', null),
+                capabilities: () =>
+                    service.getCapabilities(account, 'project', null),
+                marker: () =>
+                    service.testMarker(account, 'project', null, runQuery),
+            };
+            const result = requests[route]();
+            await expect(result).rejects.toMatchObject({
+                name: 'FeatureNotEnabledError',
+                statusCode: 403,
+                data: {
+                    code: 'feature_not_enabled',
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                },
+            });
+            expect(flags.get).toHaveBeenCalledWith({
+                user: { userUuid: account.user.id, organizationUuid: 'org' },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+            expect(runQuery).not.toHaveBeenCalled();
+        },
+    );
+
     describe('stored result provenance', () => {
         const history = (
             credential?: string,

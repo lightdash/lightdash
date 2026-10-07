@@ -63,9 +63,7 @@ export const useMyAiAccess = (
     project: string | undefined,
     connection: string | null = null,
 ) => {
-    const { data: flag, isLoading: isFlagLoading } = useServerFeatureFlag(
-        FeatureFlags.AiPrincipals,
-    );
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const query = useAccessQuery(
         project ?? '',
         connection,
@@ -75,14 +73,13 @@ export const useMyAiAccess = (
     );
     return {
         ...query,
+        data: flag?.enabled === true ? query.data : undefined,
         isError: !!project && flag?.enabled === true && query.isError,
-        isLoading:
-            !!project &&
-            (isFlagLoading || (flag?.enabled === true && query.isLoading)),
+        isLoading: !!project && flag?.enabled === true && query.isLoading,
     };
 };
 export const useOrganizationAgentIdentitySettings = () => {
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AiPrincipals);
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     return useQuery<OrganizationAgentIdentitySettings, ApiError>({
         queryKey: ['ai-access', 'org', 'agent-identity'],
         queryFn: () =>

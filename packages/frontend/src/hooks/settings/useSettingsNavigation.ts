@@ -780,44 +780,6 @@ export const useSettingsNavigation = (
 
         if (canUpdateCurrentProject && project && organization) {
             const base = `/generalSettings/projectManagement/${project.projectUuid}`;
-            const agentSettingsChildren: SettingsNavigationItem[] = [];
-
-            if (isAiCopilotEnabledOrTrial) {
-                agentSettingsChildren.push({
-                    label: 'Agent data scope',
-                    to: `${base}/agentDataScope`,
-                    icon: IconDatabaseCog,
-                    keywords: [
-                        'ai',
-                        'agent',
-                        'sql',
-                        'schema',
-                        'catalog',
-                        'scope',
-                    ],
-                    children: [],
-                    exact: true,
-                });
-            }
-
-            if (isAiCopilotEnabledOrTrial && canManageOrgAiAgent) {
-                agentSettingsChildren.push({
-                    label: 'AI region',
-                    to: `${base}/aiRegion`,
-                    icon: IconWorldCog,
-                    keywords: [
-                        'ai',
-                        'bedrock',
-                        'region',
-                        'residency',
-                        'locality',
-                        'credential',
-                    ],
-                    children: [],
-                    exact: true,
-                });
-            }
-
             const projectItems: SettingsNavigationItem[] = [
                 {
                     label: 'Connection settings',
@@ -835,14 +797,48 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
-                ...(agentSettingsChildren.length > 0
+                // Only meaningful when the instance has AI agents at all —
+                // same gate as the org-level AI agents section.
+                ...(isAiCopilotEnabledOrTrial
                     ? [
                           {
-                              label: 'Agent settings',
-                              to: `${base}/agentSettings`,
-                              icon: IconSparkles,
-                              keywords: ['ai', 'agent'],
-                              children: agentSettingsChildren,
+                              label: 'Agent data scope',
+                              to: `${base}/agentDataScope`,
+                              icon: IconDatabaseCog,
+                              keywords: [
+                                  'ai',
+                                  'agent',
+                                  'sql',
+                                  'schema',
+                                  'catalog',
+                                  'scope',
+                              ],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
+                // Selecting a region is gated on organization-level AI
+                // administration to match the backend: both the credential
+                // list and the project selection require
+                // manage:OrganizationAiAgent, so a project admin without it
+                // would land on a page whose queries 403.
+                ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+                    ? [
+                          {
+                              label: 'AI region',
+                              to: `${base}/aiRegion`,
+                              icon: IconWorldCog,
+                              keywords: [
+                                  'ai',
+                                  'bedrock',
+                                  'region',
+                                  'residency',
+                                  'locality',
+                                  'credential',
+                              ],
+                              children: [],
+                              exact: true,
                           },
                       ]
                     : []),

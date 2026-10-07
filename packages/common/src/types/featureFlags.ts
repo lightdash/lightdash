@@ -6,13 +6,11 @@
  */
 export enum FeatureFlags {
     /**
-     * Every AI-originated query runs as an AI principal that the warehouse
-     * can tell from the person. Off by default; organization scope; no handler.
+     * Agent identity gates agent query identity, organisation settings and
+     * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
-    AiPrincipals = 'ai-principals',
+    AgentIdentity = 'agent-identity',
 
-    /** Off by default; organization scope; no handler. Enables Snowflake AI sign-in. */
-    SnowflakeAiSignIn = 'snowflake-ai-sign-in',
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',

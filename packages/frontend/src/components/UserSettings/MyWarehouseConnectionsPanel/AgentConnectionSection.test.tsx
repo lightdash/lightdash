@@ -12,7 +12,7 @@ import {
 } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SnowflakeAiSignInSection } from './SnowflakeAiSignInSection';
+import { AgentConnectionSection } from './AgentConnectionSection';
 
 const { login, deleteCredentials } = vi.hoisted(() => ({
     login: vi.fn<() => Promise<void>>(),
@@ -59,12 +59,12 @@ const renderSection = (credentials: UserWarehouseCredentials[] = []) =>
             }
         >
             <MantineProvider>
-                <SnowflakeAiSignInSection credentials={credentials} />
+                <AgentConnectionSection credentials={credentials} />
             </MantineProvider>
         </QueryClientProvider>,
     );
 
-describe('SnowflakeAiSignInSection', () => {
+describe('AgentConnectionSection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         login.mockResolvedValue();
@@ -107,13 +107,13 @@ describe('SnowflakeAiSignInSection', () => {
         },
     );
 
-    it('shows the localised creation date and only sign-out when signed in', () => {
+    it('shows the connected state without a date', () => {
         renderSection([credential]);
+        expect(screen.getByText('Agent connected')).toBeInTheDocument();
+        expect(screen.queryByText(/connected since/)).not.toBeInTheDocument();
         expect(
-            screen.getByText(
-                `Agent connected since ${credential.createdAt.toLocaleDateString()}`,
-            ),
-        ).toBeInTheDocument();
+            screen.queryByText(credential.createdAt.toLocaleDateString()),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', {
                 name: 'Connect agent',

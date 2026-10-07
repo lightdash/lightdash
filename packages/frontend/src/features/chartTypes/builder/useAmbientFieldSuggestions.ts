@@ -9,6 +9,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import { suggestChartTypeFields } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
+import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { type LoadedExplore } from './useExplorePreviewData';
@@ -238,7 +239,10 @@ export const useAmbientFieldSuggestions = ({
         staleTime: Infinity,
         cacheTime: 0,
     });
-    const current = !enabled
+    const { disabled: accessDisabled } = useAiAccessGate(
+        projectUuid ?? undefined,
+    );
+    const current = accessDisabled
         ? null
         : data?.sourceKey === sourceKey
           ? data

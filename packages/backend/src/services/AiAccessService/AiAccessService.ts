@@ -10,6 +10,7 @@ import {
     assertIsAccountWithOrg,
     assertUnreachable,
     FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     isAiAccessQueryContext,
     QueryExecutionContext,
@@ -97,10 +98,22 @@ export class AiAccessService extends BaseService {
         this.providerRegistry = providerRegistry;
     }
 
+    async assertFeatureEnabled(
+        user: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
+    ): Promise<void> {
+        if (!(await this.isEnabled(user))) {
+            throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
+        }
+    }
+
     async getOrganizationSettings(
         account: Account,
     ): Promise<OrganizationAgentIdentitySettings> {
         assertIsAccountWithOrg(account);
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         return this.organizationAgentIdentitySettingsModel.get(
             account.organization.organizationUuid,
         );
@@ -112,6 +125,10 @@ export class AiAccessService extends BaseService {
     ): Promise<OrganizationAgentIdentitySettings> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
         if (
             this.createAuditedAbility(account).cannot(
                 'manage',
@@ -150,6 +167,7 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string | null,
         action: 'view' | 'manage' = 'manage',
+        requireFeatureEnabled = false,
     ): Promise<{
         connection: CreateWarehouseCredentials;
         organizationUuid: string;
@@ -159,6 +177,12 @@ export class AiAccessService extends BaseService {
             projectUuid,
             action,
         );
+        if (requireFeatureEnabled) {
+            await this.assertFeatureEnabled({
+                userUuid: account.user.id,
+                organizationUuid,
+            });
+        }
         const connection =
             warehouseConnectionUuid === null
                 ? await this.projectModel.getWarehouseCredentialsForBinding(
@@ -183,6 +207,8 @@ export class AiAccessService extends BaseService {
             account,
             projectUuid,
             warehouseConnectionUuid,
+            'manage',
+            true,
         );
         return {
             warehouseType: connection.type,
@@ -200,6 +226,8 @@ export class AiAccessService extends BaseService {
             account,
             projectUuid,
             warehouseConnectionUuid,
+            'manage',
+            true,
         );
         const marker = describeAgentMarker(connection.type);
         const result: AiMarkerTestResult = {
@@ -296,6 +324,7 @@ export class AiAccessService extends BaseService {
             projectUuid,
             warehouseConnectionUuid,
             'view',
+            true,
         );
         return this.getAiAccessForUser({
             projectUuid,
@@ -344,7 +373,7 @@ export class AiAccessService extends BaseService {
                 userUuid: args.userUuid,
                 organizationUuid: args.organizationUuid,
             },
-            featureFlagId: FeatureFlags.AiPrincipals,
+            featureFlagId: FeatureFlags.AgentIdentity,
         });
         return enabled;
     }

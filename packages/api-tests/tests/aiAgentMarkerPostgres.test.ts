@@ -18,7 +18,7 @@ describe('Postgres marked person agent identity', () => {
     let admin: ApiClient;
     let clearFlag = false;
     const baseUrl = `/api/v2/projects/${projectUuid}/ai-access`;
-    const flagUrl = `/api/v2/feature-flag/${FeatureFlags.AiPrincipals}`;
+    const flagUrl = `/api/v2/feature-flag/${FeatureFlags.AgentIdentity}`;
 
     beforeAll(async () => {
         admin = await login();

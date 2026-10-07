@@ -22,10 +22,8 @@ vi.mock('../../../../providers/App/useApp', () => ({
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: state.copilot } }),
 }));
-vi.mock('../../../../hooks/useActiveProject', () => ({
-    useActiveProjectUuid: () => ({
-        activeProjectUuid: state.activeProjectUuid,
-    }),
+vi.mock('../../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => state.activeProjectUuid,
 }));
 vi.mock('../../../../features/aiAccess/useAiAccessGate', () => ({
     useAiAccessGate: vi.fn(),
@@ -54,7 +52,7 @@ describe('useAmbientAiEnabled', () => {
         expect(useAiAccessGate).toHaveBeenCalledWith('chart-project');
     });
 
-    it('falls back to the active project', () => {
+    it('falls back to the route project', () => {
         renderHook(() => useAmbientAiEnabled());
         expect(useAiAccessGate).toHaveBeenCalledWith('active-project');
     });
