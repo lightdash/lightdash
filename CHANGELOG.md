@@ -1,3 +1,10 @@
+# [2.459.0](https://github.com/lightdash/lightdash/compare/2.458.3...2.459.0) (2026-10-07)
+
+
+### Features
+
+* **documents:** verify Documents like charts, dashboards and data apps ([#30617](https://github.com/lightdash/lightdash/issues/30617)) ([3fa3d3e](https://github.com/lightdash/lightdash/commit/3fa3d3e506831efc25fa1b719a07fca3992dd8bb))
+
 ## [2.458.3](https://github.com/lightdash/lightdash/compare/2.458.2...2.458.3) (2026-10-07)
 
 

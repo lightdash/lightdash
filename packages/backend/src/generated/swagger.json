@@ -56084,6 +56084,29 @@
                     }
                 ]
             },
+            "ContentType.DOCUMENT": {
+                "enum": ["document"],
+                "type": "string"
+            },
+            "VerifiedDocumentListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VerifiedContentListItemBase"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                            }
+                        },
+                        "required": ["slug", "contentType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "VerifiedContentListItem": {
                 "anyOf": [
                     {
@@ -56094,6 +56117,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/VerifiedDataAppListItem"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VerifiedDocumentListItem"
                     }
                 ]
             },
@@ -63993,6 +64019,14 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "pinnedListUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -64018,6 +64052,7 @@
                             }
                         },
                         "required": [
+                            "verification",
                             "pinnedListUuid",
                             "version",
                             "owner",
@@ -68240,10 +68275,6 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "ContentType.DOCUMENT": {
-                "enum": ["document"],
-                "type": "string"
-            },
             "Pick_Content.Exclude_keyofContent.space__": {
                 "properties": {
                     "contentType": {
@@ -69501,7 +69532,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.458.3",
+        "version": "2.459.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -107548,6 +107579,102 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/verification": {
+            "post": {
+                "operationId": "VerifyDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentVerificationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Verify a Document",
+                "summary": "Verify Document",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "UnverifyDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentVerificationDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove verification from a Document",
+                "summary": "Unverify Document",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
