@@ -2,9 +2,12 @@ import { useEffect, type RefObject } from 'react';
 
 const HIGHLIGHTED_OVERLAY = '[data-tile-uuid] [data-highlighted]';
 
+// At least half of the chart is on screen
 const isInViewport = (element: Element): boolean => {
     const rect = element.getBoundingClientRect();
-    return rect.bottom > 0 && rect.top < window.innerHeight;
+    const visible =
+        Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+    return rect.height > 0 && visible / rect.height >= 0.5;
 };
 
 // When a row is clicked, the first highlighted chart scrolls into view if
