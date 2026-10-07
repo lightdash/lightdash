@@ -5,6 +5,7 @@ import type {
     AiAgentImplicitSignalSource,
     AiAgentInteractionSource,
     AiAgentJudgeProjectContextEntry,
+    AiAgentJudgeSkillProposal,
     AiAgentModelMetadata,
     AiAgentRecommendation,
     AiAgentReviewClassifierConfidence,
@@ -131,6 +132,7 @@ export type DbAiAgentTurnSignal = {
     evidence_excerpts: AiAgentEvidenceExcerpt[] | null;
     recommendation: AiAgentRecommendation | null;
     project_context_entry: AiAgentJudgeProjectContextEntry | null;
+    skill_proposal: AiAgentJudgeSkillProposal | null;
     owner_type: AiAgentReviewItemOwnerType | null;
     review_item_title: string | null;
     review_item_description: string | null;
@@ -157,6 +159,7 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
             | 'evidence_excerpts'
             | 'recommendation'
             | 'project_context_entry'
+            | 'skill_proposal'
             | 'owner_type'
             | 'review_item_title'
             | 'review_item_description'
@@ -175,6 +178,7 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
                     | 'evidence_excerpts'
                     | 'recommendation'
                     | 'project_context_entry'
+                    | 'skill_proposal'
                     | 'owner_type'
                     | 'review_item_title'
                     | 'review_item_description'
@@ -190,6 +194,7 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
         | 'evidence_excerpts'
         | 'recommendation'
         | 'project_context_entry'
+        | 'skill_proposal'
         | 'runtime_context_snapshot'
         | 'model_metadata'
     >,

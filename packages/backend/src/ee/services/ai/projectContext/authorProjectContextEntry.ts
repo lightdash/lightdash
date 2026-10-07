@@ -1,69 +1,27 @@
 import {
     aiAgentReviewClassifierJudgeProjectContextCallSchema,
     type AiAgentJudgeProjectContextEntry,
-    type AiAgentReviewClassifierJudgeOutput,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
-import {
-    emitAiUsage,
-    languageModelUsageToTokens,
-} from '../../../../analytics/aiUsage';
 import type { AiAgentReviewJudgeEvidencePacket } from '../../AiAgentReviewClassifierService';
-import { defaultAgentOptions } from '../agents/agentV2';
 import type { getModel } from '../models';
 import type { getAiCallTelemetry } from '../utils/aiCallTelemetry';
-
-type TurnFinding = Pick<
-    Omit<AiAgentReviewClassifierJudgeOutput, 'projectContextEntry'>,
-    | 'reviewItem'
-    | 'promotionReason'
-    | 'targetRefs'
-    | 'subcategories'
-    | 'recommendation'
->;
+import {
+    createAuthoringLlmCall,
+    type AuthoringLlmCall,
+    type AuthoringMessage,
+    type ReviewTurnFinding,
+} from '../utils/reviewAuthoring';
 
 export type ProjectContextEntryAuthoringEvidence = {
     type: 'turn';
     evidencePacket: AiAgentReviewJudgeEvidencePacket;
-    finding: TurnFinding;
+    finding: ReviewTurnFinding;
 };
 
-type AuthoringMessage = {
-    role: 'system' | 'user';
-    content: string;
-};
-
-type AuthoringLlmCallArgs = {
-    model: ReturnType<typeof getModel>;
-    telemetry: ReturnType<typeof getAiCallTelemetry>;
-    messages: AuthoringMessage[];
-};
-
-export type ProjectContextEntryAuthoringLlmCall = (
-    args: AuthoringLlmCallArgs,
-) => Promise<unknown>;
-
-const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
-    model,
-    telemetry,
-    messages,
-}) => {
-    const result = await generateText({
-        model: model.model,
-        ...defaultAgentOptions,
-        ...model.callOptions,
-        providerOptions: model.providerOptions,
-        ...telemetry,
-        output: Output.object({
-            schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
-        }),
-        allowSystemInMessages: true,
-        messages,
-    });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.output;
-};
+const callAuthoringLlm = createAuthoringLlmCall(
+    aiAgentReviewClassifierJudgeProjectContextCallSchema,
+);
 
 const turnSystemPrompt = `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.
 
@@ -110,7 +68,7 @@ export const authorProjectContextEntry = async ({
     currentEntries: ProjectContextEntry[];
     model: ReturnType<typeof getModel>;
     telemetry: ReturnType<typeof getAiCallTelemetry>;
-    authoringLlmCall?: ProjectContextEntryAuthoringLlmCall;
+    authoringLlmCall?: AuthoringLlmCall;
 }): Promise<AiAgentJudgeProjectContextEntry | null> => {
     const output = await authoringLlmCall({
         model,

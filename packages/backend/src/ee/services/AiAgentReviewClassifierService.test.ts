@@ -133,6 +133,7 @@ const makeJudgeOutput = (
     ],
     recommendation: null,
     projectContextEntry: null,
+    skillProposal: null,
     matchedExistingItemKey: null,
     reviewItem: {
         title: 'No review needed',
@@ -252,9 +253,13 @@ describe('AiAgentReviewClassifierService', () => {
         getThreadWritebackPullRequests: vi.fn().mockResolvedValue(new Map()),
         getAgentMcpCapabilities: vi.fn().mockResolvedValue([]),
         findReviewItemDedupCandidates: vi.fn().mockResolvedValue([]),
+        findRecentUserPrompts: vi.fn().mockResolvedValue([]),
     } as unknown as import('vitest').Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: vi.fn(),
+    };
+    const aiAgentSkillModel = {
+        findBoundToAgent: vi.fn().mockResolvedValue([]),
     };
     const aiAgentDocumentModel = {
         findAllForAgent: vi.fn().mockResolvedValue([]),
@@ -297,6 +302,7 @@ describe('AiAgentReviewClassifierService', () => {
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
         projectContextModel,
+        aiAgentSkillModel,
         lightdashConfig: { ai: { decisions: decisionConfig } } as never,
         judgeTurn,
         aiAgentReviewNotificationService:
@@ -348,10 +354,12 @@ describe('AiAgentReviewClassifierService', () => {
         });
         model.findReviewItemDedupCandidates.mockResolvedValue([]);
         model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
+        model.findRecentUserPrompts.mockResolvedValue([]);
         aiAgentReviewNotificationService.notifyNeedsReview.mockResolvedValue(
             undefined,
         );
         aiAgentDocumentModel.findAllForAgent.mockResolvedValue([]);
+        aiAgentSkillModel.findBoundToAgent.mockResolvedValue([]);
         model.getAgentMcpCapabilities.mockResolvedValue([]);
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,

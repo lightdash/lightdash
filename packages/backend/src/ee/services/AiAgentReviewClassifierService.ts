@@ -15,7 +15,6 @@ import {
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
-    type AiAgentJudgeProjectContextEntry,
     type AiAgentKnowledgeDocumentSnapshot,
     type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
@@ -27,6 +26,7 @@ import {
     type AiAgentReviewClassifierTurnSignal,
     type AiAgentReviewItemDedupCandidate,
     type AiAgentRootCause,
+    type AiAgentSkillSnapshot,
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
     type CatalogItemSummary,
@@ -49,6 +49,7 @@ import { BaseService } from '../../services/BaseService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiAgentSkillModel } from '../models/AiAgentSkillModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
@@ -58,15 +59,24 @@ import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
 import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
+import { authorSkillProposal } from './ai/skills/authorSkillProposal';
+import {
+    emptyRecentSimilarPrompts,
+    rankRecentSimilarPrompts,
+    RECENT_SIMILAR_PROMPTS_MAX_CANDIDATES,
+    RECENT_SIMILAR_PROMPTS_WINDOW_DAYS,
+    type AiAgentReviewRecentSimilarPrompts,
+} from './ai/skills/recentSimilarPrompts';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
+import { toReviewTurnFinding } from './ai/utils/reviewAuthoring';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v17';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -98,6 +108,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
+    aiAgentSkillModel: Pick<AiAgentSkillModel, 'findBoundToAgent'>;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
 
@@ -129,6 +140,7 @@ export type AiAgentReviewJudgeEvidencePacket = {
         knowledgeDocumentCount: number;
         knowledgeDocuments: AiAgentKnowledgeDocumentSnapshot[];
         mcpServers: AiAgentMcpServerSnapshot[];
+        skills: AiAgentSkillSnapshot[];
     };
     semanticContext: {
         queriedExploreNames: string[];
@@ -163,6 +175,9 @@ export type AiAgentReviewJudgeEvidencePacket = {
     // Existing review items in this project the judge can dedup against. Each
     // key ("item_1") maps server-side to a fingerprint never shown to the LLM.
     existingReviewItems: AiAgentReviewItemDedupCandidate[];
+    // Other threads on this agent that recently asked for much the same thing,
+    // so repetition across threads is visible without standing phrasing.
+    recentSimilarPrompts: AiAgentReviewRecentSimilarPrompts;
 };
 
 // What a tag-restricted agent can see, mirroring filterExploreByTags.
@@ -299,6 +314,11 @@ export class AiAgentReviewClassifierService extends BaseService {
         'getDocument'
     >;
 
+    private readonly aiAgentSkillModel: Pick<
+        AiAgentSkillModel,
+        'findBoundToAgent'
+    >;
+
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
 
     constructor(dependencies: AiAgentReviewClassifierServiceDependencies) {
@@ -318,6 +338,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.projectContextModel = dependencies.projectContextModel;
+        this.aiAgentSkillModel = dependencies.aiAgentSkillModel;
         this.judgeTurn =
             dependencies.judgeTurn ??
             ((candidate, evidencePacket) =>
@@ -1077,6 +1098,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             judgeOutput.primaryRootCause === 'project_context'
                 ? judgeOutput.projectContextEntry
                 : null;
+        const skillProposal =
+            judgeOutput.recommendation?.actionType === 'create_skill'
+                ? judgeOutput.skillProposal
+                : null;
 
         return {
             signal,
@@ -1089,6 +1114,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 evidenceExcerpts: judgeOutput.evidenceExcerpts,
                 recommendation,
                 projectContextEntry,
+                skillProposal,
                 reviewItem: {
                     fingerprint,
                     title: judgeOutput.reviewItem.title,
@@ -1189,8 +1215,13 @@ export class AiAgentReviewClassifierService extends BaseService {
                 )
             ).get(candidate.subject.threadUuid) ?? [];
 
-        const { existingReviewItems, dedupKeyToFingerprint } =
-            await this.loadDedupCandidates(candidate);
+        const [
+            { existingReviewItems, dedupKeyToFingerprint },
+            recentSimilarPrompts,
+        ] = await Promise.all([
+            this.loadDedupCandidates(candidate),
+            this.loadRecentSimilarPrompts(candidate),
+        ]);
 
         return {
             agentConfig,
@@ -1202,8 +1233,39 @@ export class AiAgentReviewClassifierService extends BaseService {
                     semanticContext,
                     threadWritebackPullRequests,
                     existingReviewItems,
+                    recentSimilarPrompts,
                 }),
         };
+    }
+
+    // A failed load degrades to no matches; it must never fail the review.
+    private async loadRecentSimilarPrompts(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+    ): Promise<AiAgentReviewRecentSimilarPrompts> {
+        try {
+            const since = new Date();
+            since.setDate(since.getDate() - RECENT_SIMILAR_PROMPTS_WINDOW_DAYS);
+            const recentPrompts =
+                await this.aiAgentReviewClassifierModel.findRecentUserPrompts({
+                    organizationUuid: candidate.subject.organizationUuid,
+                    projectUuid: candidate.subject.projectUuid,
+                    agentUuid: candidate.subject.agentUuid,
+                    excludeThreadUuid: candidate.subject.threadUuid,
+                    since,
+                    limit: RECENT_SIMILAR_PROMPTS_MAX_CANDIDATES,
+                });
+            return rankRecentSimilarPrompts(
+                candidate.userPrompt,
+                recentPrompts,
+            );
+        } catch (error) {
+            this.debugLog('RecentSimilarPromptsFailed', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+            });
+            return emptyRecentSimilarPrompts();
+        }
     }
 
     /**
@@ -1325,16 +1387,24 @@ export class AiAgentReviewClassifierService extends BaseService {
                 projectUuid: candidate.subject.projectUuid,
                 agentUuid: candidate.subject.agentUuid,
             });
-            const [knowledgeDocuments, mcpServers] = await Promise.all([
-                this.aiAgentDocumentModel.findAllForAgent({
-                    organizationUuid: candidate.subject.organizationUuid,
-                    agentUuid: candidate.subject.agentUuid,
-                    projectUuid: candidate.subject.projectUuid,
-                }),
-                this.aiAgentReviewClassifierModel.getAgentMcpCapabilities(
-                    candidate.subject.agentUuid,
-                ),
-            ]);
+            const [knowledgeDocuments, mcpServers, boundSkills] =
+                await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: candidate.subject.organizationUuid,
+                        agentUuid: candidate.subject.agentUuid,
+                        projectUuid: candidate.subject.projectUuid,
+                    }),
+                    this.aiAgentReviewClassifierModel.getAgentMcpCapabilities(
+                        candidate.subject.agentUuid,
+                    ),
+                    this.aiAgentSkillModel.findBoundToAgent(
+                        candidate.subject.agentUuid,
+                    ),
+                ]);
+            const skills: AiAgentSkillSnapshot[] = boundSkills.map((skill) => ({
+                name: skill.name,
+                description: skill.description,
+            }));
 
             const instruction = agent.instruction ?? null;
             const settings = [
@@ -1343,6 +1413,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 agent.enableDataAccess ? 'data_access' : null,
                 agent.enableSelfImprovement ? 'self_improvement' : null,
                 mcpServers.length > 0 ? 'mcp_servers' : null,
+                skills.length > 0 ? 'skills' : null,
                 agent.tags && agent.tags.length > 0 ? 'explore_tags' : null,
                 agent.spaceAccess.length > 0 ? 'space_access' : null,
                 agent.groupAccess.length > 0 || agent.userAccess.length > 0
@@ -1386,6 +1457,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     summary: document.summary,
                 })),
                 mcpServers,
+                skills,
             };
             const snapshotHash = getAiAgentConfigSnapshotHash(snapshot);
 
@@ -1404,6 +1476,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 knowledgeDocumentCount: snapshot.knowledgeDocuments.length,
                 knowledgeDocuments: snapshot.knowledgeDocuments,
                 mcpServers: snapshot.mcpServers,
+                skills: snapshot.skills,
                 catalogVisibility: await this.computeCatalogVisibility(
                     candidate.subject.projectUuid,
                     agent.tags,
@@ -1435,6 +1508,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             knowledgeDocumentCount: 0,
             knowledgeDocuments: [],
             mcpServers: [],
+            skills: [],
             catalogVisibility: null,
         };
     }
@@ -1668,6 +1742,7 @@ Implicit signal definitions — set these whenever the evidence supports them:
 - tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from. A human SQL-approval gate expiring (evidence packet pendingApprovalTimeout=true, or a result saying the SQL approval timed out / the user may have stepped away) is NOT a tool_error — it is expected behavior when the user steps away, not a runtime or warehouse defect. Do not promote it as runtime_reliability; when it is the only issue in the turn use promotedToFinding=false (or feedback_quality at most), especially when humanFeedback.score is not negative.
 - product_capability_request: the user asked for something Lightdash cannot currently express.
 - human_intervention: an admin or engineer had to step in.
+- standing_instruction: the user asks for a PROCEDURE the agent should be able to run on request — several steps, a defined output shape, a set of conventions (which measures, how to split, how to sort, what to flag) — and the evidence shows it is recurring: standing phrasing ("always", "from now on", "every time", "as usual", "like last time"), the same steer repeated in previousTurns or existingReviewItems, or recentSimilarPrompts showing other threads on this agent asking for the same procedure (treat threadCount >= 2 as recurring; userCount > 1 is the strongest signal). A request stated once, in passing, with no match anywhere, is not a standing instruction. A repeated PLAIN QUESTION ("what was revenue last month?", "how many orders yesterday?") is not a standing instruction either, however often it recurs — that is a case for verified content, not a skill.
 
 Grounding rules for next_user_* signals — these override everything below:
 - The evidence packet's nextUserPrompt field is the ONLY evidence for next_user_correction, next_user_dispute, and next_user_retry. When nextUserPrompt is null there is no next user turn: never emit these signals, and never imagine or predict what the user would say next.
@@ -1684,7 +1759,8 @@ Decision rules — apply in order:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
    - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
    - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
-   - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question.
+   - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question — unless standing_instruction also applies.
+   - Promote standing_instruction only when the recurring request is a multi-step procedure or a presentation convention (never a plain question, even a popular one — leave those with promotedToFinding=false and promotionReason=repeated_question_not_a_procedure): signal=standing_instruction, primaryRootCause=agent_configuration, agentConfigurationSettings=["skills"], fixTargets=["agent_configuration_change"], recommendation.actionType=create_skill, and one targetRef of type agent_config with setting "skills". Set subcategories to exactly one stable kebab-case key naming the procedure (for example "weekly-revenue-table") so repeats collapse onto one item. Do not promote when agentConfig.skills already covers the procedure (promotedToFinding=false, primaryRootCause=not_a_failure), and route a business definition or a which-explore rule to project_context instead of a skill.
 
 When promoting, pick primaryRootCause by mapping the dominant signal:
    - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field, OR where the warehouse/dbt data the user asked for is not currently exposed (a model/join/field would need to be added) → semantic_layer.
@@ -1698,6 +1774,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - Query-construction failures are NOT missing data: when queryHistory shows a filter-validation error, or degenerate filters that guarantee empty or partial results (an isNull filter on the requested date dimension, equality on a single date, stacked over-restrictive filters), attribute the empty/sparse result to the agent's own query construction → runtime_reliability (or agent_configuration when instructions caused it), NOT semantic_layer. Do not emit semantic_yaml_patch or dbt_modeling_ticket fixTargets for it. Do not accept the assistant's own "we don't have this data" prose as ground truth when its queries were malformed — inspect metricQuery.filters yourself.
    - product_capability_request → product_capability.
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
+   - standing_instruction → agent_configuration with the skills setting, as described above.
    - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
 
 4. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
@@ -1715,6 +1792,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - mcp_tools: external MCP servers listed in agentConfig.mcpServers together with their enabled tools (for example Linear or GitHub). Successful mcp_* calls in toolOutcomes are real integrations, not hallucinations.
    Capability routing: when the assistant claims something is "not supported" but availableCapabilities/mcpServers show the capability DOES exist for this agent → agent_configuration (stale agent knowledge or missing instructions), not product_capability. Use product_capability only when the capability genuinely does not exist for this agent. The semanticContext catalog is already scoped to what this agent can access — a field absent there may still exist in the project but be outside the agent's explore tags; prefer agent_configuration (access/tags) over semantic_layer when the user names data the agent cannot see.
    agentConfig.knowledgeDocuments lists the agent's actual knowledge documents (with summaries) — never recommend adding a knowledge document that already exists; recommend updating the existing one instead.
+   agentConfig.skills lists the skills already bound to this agent (name, description) — never recommend create_skill for a procedure one of them already covers.
 
 7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
@@ -1746,49 +1824,77 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
+        const finding = toReviewTurnFinding(result.output);
         const projectContextEntry =
             result.output.promotedToFinding &&
             result.output.primaryRootCause === 'project_context'
-                ? await this.emitProjectContextEntry({
+                ? await this.authorFindingDraft({
                       candidate,
-                      evidencePacket,
                       model,
-                      judgeOutput: result.output,
+                      draft: 'ProjectContextEntry',
+                      author: async (draftTelemetry) =>
+                          authorProjectContextEntry({
+                              evidence: {
+                                  type: 'turn',
+                                  evidencePacket,
+                                  finding,
+                              },
+                              currentEntries:
+                                  await this.projectContextModel.getDocument(
+                                      candidate.subject.projectUuid,
+                                  ),
+                              model,
+                              telemetry: draftTelemetry,
+                          }),
+                  })
+                : null;
+
+        const skillProposal =
+            result.output.promotedToFinding &&
+            result.output.recommendation?.actionType === 'create_skill'
+                ? await this.authorFindingDraft({
+                      candidate,
+                      model,
+                      draft: 'SkillProposal',
+                      author: (draftTelemetry) =>
+                          authorSkillProposal({
+                              evidence: {
+                                  evidencePacket,
+                                  finding,
+                                  existingSkills:
+                                      evidencePacket.agentConfig.skills,
+                              },
+                              model,
+                              telemetry: draftTelemetry,
+                          }),
                   })
                 : null;
 
         return {
             ...result.output,
             projectContextEntry,
+            skillProposal,
         } as AiAgentReviewClassifierJudgeOutput;
     }
 
-    /**
-     * Second, smaller LLM call that emits the structured project_context entry
-     * for a promoted project_context finding. Split from the main judge call
-     * because the combined schema exceeds the provider's strict-structured-
-     * output grammar size limit ("the compiled grammar is too large") and every
-     * judge call then fails. Failure here degrades to a finding without an
-     * entry (writeback preview reports unavailable) instead of losing the
-     * whole judgment.
-     */
-    private async emitProjectContextEntry(input: {
+    // Second, smaller LLM call behind a promoted finding. Failure keeps the
+    // finding and drops only the draft, never the whole judgment.
+    private async authorFindingDraft<T>(input: {
         candidate: AiAgentReviewClassifierTurnCandidate;
-        evidencePacket: AiAgentReviewJudgeEvidencePacket;
         model: ReturnType<typeof getModel>;
-        judgeOutput: Omit<
-            AiAgentReviewClassifierJudgeOutput,
-            'projectContextEntry'
-        >;
-    }): Promise<AiAgentJudgeProjectContextEntry | null> {
-        const { candidate, evidencePacket, model, judgeOutput } = input;
-        this.debugLog('ProjectContextEntryRequest', {
+        draft: 'ProjectContextEntry' | 'SkillProposal';
+        author: (
+            telemetry: ReturnType<typeof getAiCallTelemetry>,
+        ) => Promise<T | null>;
+    }): Promise<T | null> {
+        const { candidate, model, draft } = input;
+        this.debugLog(`${draft}Request`, {
             promptUuid: candidate.subject.assistantPromptUuid,
             threadUuid: candidate.subject.threadUuid,
             judgeModelId: model.model.modelId,
         });
         const telemetry = getAiCallTelemetry({
-            functionId: 'aiAgentReviewClassifierJudgeProjectContextEntry',
+            functionId: `aiAgentReviewClassifierJudge${draft}`,
             feature: 'review-classifier',
             organizationUuid: candidate.subject.organizationUuid,
             projectUuid: candidate.subject.projectUuid,
@@ -1799,28 +1905,10 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             ...getLanguageModelAttribution(model.model),
         });
         try {
-            const currentEntries = await this.projectContextModel.getDocument(
-                candidate.subject.projectUuid,
-            );
-            return await authorProjectContextEntry({
-                evidence: {
-                    type: 'turn',
-                    evidencePacket,
-                    finding: {
-                        reviewItem: judgeOutput.reviewItem,
-                        promotionReason: judgeOutput.promotionReason,
-                        targetRefs: judgeOutput.targetRefs,
-                        subcategories: judgeOutput.subcategories,
-                        recommendation: judgeOutput.recommendation,
-                    },
-                },
-                currentEntries,
-                model,
-                telemetry,
-            });
+            return await input.author(telemetry);
         } catch (error) {
             Logger.error(
-                'AI review project context entry emission failed; keeping finding without an entry',
+                `AI review ${draft} emission failed; keeping finding without it`,
                 {
                     promptUuid: candidate.subject.assistantPromptUuid,
                     threadUuid: candidate.subject.threadUuid,
@@ -1962,12 +2050,14 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         semanticContext,
         threadWritebackPullRequests,
         existingReviewItems,
+        recentSimilarPrompts,
     }: {
         candidate: AiAgentReviewClassifierTurnCandidate;
         agentConfig: AiAgentReviewJudgeEvidencePacket['agentConfig'];
         semanticContext: AiAgentReviewJudgeEvidencePacket['semanticContext'];
         threadWritebackPullRequests: AiAgentReviewJudgeEvidencePacket['threadWritebackPullRequests'];
         existingReviewItems: AiAgentReviewItemDedupCandidate[];
+        recentSimilarPrompts: AiAgentReviewRecentSimilarPrompts;
     }): AiAgentReviewJudgeEvidencePacket {
         return {
             subject: candidate.subject,
@@ -2009,6 +2099,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             toolOutcomes: candidate.toolOutcomes,
             pendingApprovalTimeout: candidate.pendingApprovalTimeout,
             existingReviewItems,
+            recentSimilarPrompts,
         };
     }
 

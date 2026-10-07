@@ -1,4 +1,9 @@
-import { type AiAgentReviewItemSummary } from '@lightdash/common';
+import {
+    AI_AGENT_SKILL_FILE_NAME,
+    buildAiAgentSkillMarkdown,
+    getReviewItemSkillProposal,
+    type AiAgentReviewItemSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -12,6 +17,7 @@ import {
     IconAlertCircle,
     IconInfoCircle,
     IconLayoutColumns,
+    IconLicense,
 } from '@tabler/icons-react';
 import { type FC, type SyntheticEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -21,8 +27,10 @@ import {
     useCreateAiAgentReviewItemWriteback,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
+import { AiAgentSkillModal } from '../AiAgentSkillModal';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import {
+    getReviewItemAgentUuid,
     shouldShowWritebackBlockedReason,
     writebackBlockedReasonDescriptions,
     writebackBlockedReasonLabels,
@@ -52,6 +60,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const navigate = useNavigate();
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [skillModalOpen, setSkillModalOpen] = useState(false);
 
     const workspaceUrl = `/generalSettings/ai/issues/${encodeURIComponent(
         reviewItem.fingerprint,
@@ -91,6 +100,24 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
         ? (writebackBlockedReasonDescriptions[blockedReason] ?? null)
         : null;
     const previewsDiff = current.primaryRootCause === 'project_context';
+    const skillProposal = getReviewItemSkillProposal(current);
+    const skillDraftFiles = skillProposal
+        ? {
+              [AI_AGENT_SKILL_FILE_NAME]: buildAiAgentSkillMarkdown(
+                  {
+                      name: skillProposal.name,
+                      description: skillProposal.description,
+                      ...(skillProposal.arguments.length > 0
+                          ? { arguments: skillProposal.arguments }
+                          : {}),
+                      ...(skillProposal.argumentHint
+                          ? { 'argument-hint': skillProposal.argumentHint }
+                          : {}),
+                  },
+                  skillProposal.instructions,
+              ),
+          }
+        : null;
 
     const phase = current.prWritebackMessage ?? 'Opening pull request…';
     const remediationError =
@@ -104,6 +131,28 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     // In the header the stage's primary action reads as the app's primary
     // (filled dark) and Dismiss demotes to a quiet secondary beside it.
     const isHeader = mode === 'header';
+    // Saving the drafted skill is the card's remediation, so it is the primary
+    // action wherever the card is, triage included.
+    const createSkillButton =
+        skillDraftFiles && !isTerminal ? (
+            <Tooltip
+                label="Review the drafted skill and save it to this agent"
+                maw={260}
+            >
+                <Button
+                    size={buttonSize}
+                    radius={isHeader ? 'md' : undefined}
+                    color={isHeader ? 'dark' : 'indigo'}
+                    leftSection={<MantineIcon size="sm" icon={IconLicense} />}
+                    onClick={(event) => {
+                        stopPropagation(event);
+                        setSkillModalOpen(true);
+                    }}
+                >
+                    Create skill
+                </Button>
+            </Tooltip>
+        ) : null;
 
     return (
         <>
@@ -122,20 +171,25 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                 )
             ) : current.status === 'triage' ? (
                 <Group gap={4} wrap="nowrap">
-                    <Button
-                        size={buttonSize}
-                        color={isHeader ? 'dark' : 'indigo'}
-                        loading={updateStatus.isLoading}
-                        onClick={(event) => {
-                            stopPropagation(event);
-                            updateStatus.mutate({
-                                fingerprint: current.fingerprint,
-                                body: { status: 'open', dismissedReason: null },
-                            });
-                        }}
-                    >
-                        Accept
-                    </Button>
+                    {createSkillButton ?? (
+                        <Button
+                            size={buttonSize}
+                            color={isHeader ? 'dark' : 'indigo'}
+                            loading={updateStatus.isLoading}
+                            onClick={(event) => {
+                                stopPropagation(event);
+                                updateStatus.mutate({
+                                    fingerprint: current.fingerprint,
+                                    body: {
+                                        status: 'open',
+                                        dismissedReason: null,
+                                    },
+                                });
+                            }}
+                        >
+                            Accept
+                        </Button>
+                    )}
                     <Button
                         size={buttonSize}
                         variant="default"
@@ -197,6 +251,8 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                       View PR
                                   </Button>
                               )}
+
+                        {createSkillButton}
 
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip
@@ -330,6 +386,22 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                     fingerprint={current.fingerprint}
                     opened={previewOpen}
                     onClose={() => setPreviewOpen(false)}
+                />
+            )}
+
+            {skillModalOpen && skillDraftFiles && (
+                <AiAgentSkillModal
+                    skill={null}
+                    draftFiles={skillDraftFiles}
+                    bindToAgentUuid={getReviewItemAgentUuid(current)}
+                    onCreated={() => {
+                        // Saving the skill is the remediation for this card.
+                        updateStatus.mutate({
+                            fingerprint: current.fingerprint,
+                            body: { status: 'resolved', dismissedReason: null },
+                        });
+                    }}
+                    onClose={() => setSkillModalOpen(false)}
                 />
             )}
         </>

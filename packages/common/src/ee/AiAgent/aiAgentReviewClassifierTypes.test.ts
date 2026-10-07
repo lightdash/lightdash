@@ -32,6 +32,7 @@ const baseJudgeOutput = {
     recommendation: null,
     reviewItem: { title: 'Fix metric', description: 'why' },
     projectContextEntry: null,
+    skillProposal: null,
 };
 
 const baseInput: AiAgentReviewItemFingerprintInput = {
@@ -447,6 +448,7 @@ describe('aiAgentReviewClassifierJudgeProjectContextCallSchema', () => {
         expect(
             aiAgentReviewClassifierJudgeProjectContextCallSchema.safeParse({
                 projectContextEntry: null,
+                skillProposal: null,
             }).success,
         ).toBe(true);
     });
@@ -567,6 +569,41 @@ describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
         ).toBe(true);
     });
 
+    it('accepts a promoted standing instruction that proposes a skill', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                signal: 'standing_instruction',
+                implicitSignalSources: ['standing_instruction'],
+                primaryRootCause: 'agent_configuration',
+                agentConfigurationSettings: ['skills'],
+                fixTargets: ['agent_configuration_change'],
+                recommendation: {
+                    actionType: 'create_skill',
+                    title: 'Create a weekly revenue skill',
+                    rationale: 'The same steer recurs across threads.',
+                    targetRefs: [],
+                },
+                skillProposal: {
+                    name: 'weekly-revenue-table',
+                    description: 'Use when the user asks for weekly revenue.',
+                    instructions: '## Steps\n1. Query weekly revenue.',
+                    arguments: [],
+                    argumentHint: null,
+                },
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a skill proposal with empty fields', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                skillProposal: { name: '', description: '', instructions: '' },
+            }).success,
+        ).toBe(false);
+    });
+
     it('rejects a promoted finding whose recommendation is no_action', () => {
         expect(
             aiAgentReviewClassifierJudgeOutputSchema.safeParse({
@@ -653,6 +690,12 @@ describe('getAiAgentConfigSnapshotHash', () => {
             {
                 name: 'Linear',
                 enabledToolNames: ['list_issues', 'create_issue'],
+            },
+        ],
+        skills: [
+            {
+                name: 'weekly-revenue-table',
+                description: 'Use when the user asks for weekly revenue.',
             },
         ],
     };

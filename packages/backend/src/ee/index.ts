@@ -955,6 +955,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
+                    aiAgentSkillModel:
+                        models.getAiAgentSkillModel<AiAgentSkillModel>(),
                     lightdashConfig: context.lightdashConfig,
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),

@@ -48,6 +48,7 @@ const evidencePacket: AiAgentReviewJudgeEvidencePacket = {
         knowledgeDocumentCount: 0,
         knowledgeDocuments: [],
         mcpServers: [],
+        skills: [],
     },
     semanticContext: {
         queriedExploreNames: [],
@@ -63,6 +64,12 @@ const evidencePacket: AiAgentReviewJudgeEvidencePacket = {
     toolOutcomes: [],
     pendingApprovalTimeout: false,
     existingReviewItems: [],
+    recentSimilarPrompts: {
+        windowDays: 30,
+        threadCount: 0,
+        userCount: 0,
+        prompts: [],
+    },
 };
 
 const evidence = {
@@ -74,6 +81,7 @@ const evidence = {
         targetRefs: [],
         subcategories: [],
         recommendation: null,
+        evidenceExcerpts: [],
     },
 } satisfies ProjectContextEntryAuthoringEvidence;
 

@@ -47,6 +47,7 @@ export type AiAgentTurnSignal =
     | 'acceptance_or_continuation'
     | 'product_capability_request'
     | 'human_intervention'
+    | 'standing_instruction'
     | 'ambiguous';
 
 export type AiAgentImplicitSignalSource =
@@ -57,7 +58,8 @@ export type AiAgentImplicitSignalSource =
     | 'tool_error'
     | 'assistant_no_answer'
     | 'product_capability_request'
-    | 'human_intervention';
+    | 'human_intervention'
+    | 'standing_instruction';
 
 export type AiAgentReviewClassifierConfidence = 'low' | 'medium' | 'high';
 
@@ -112,6 +114,7 @@ export type AiAgentConfigurationSetting =
     | 'explore_tags'
     | 'space_access'
     | 'user_or_group_access'
+    | 'skills'
     | 'unknown';
 
 export type AiAgentAvailableCapability =
@@ -147,6 +150,13 @@ export type AiAgentConfigSnapshot = {
     instructionSummary: string | null;
     knowledgeDocuments: AiAgentKnowledgeDocumentSnapshot[];
     mcpServers: AiAgentMcpServerSnapshot[];
+    skills: AiAgentSkillSnapshot[];
+};
+
+// Skills already bound to the agent, so the judge never proposes a duplicate.
+export type AiAgentSkillSnapshot = {
+    name: string;
+    description: string;
 };
 
 const normalizeForHash = (value: unknown): unknown => {
@@ -301,6 +311,7 @@ export type AiAgentRecommendationAction =
     | 'update_access'
     | 'route_to_product_work'
     | 'request_more_evidence'
+    | 'create_skill'
     | 'no_action';
 
 export type AiAgentRecommendation = {
@@ -466,6 +477,7 @@ const aiAgentConfigurationSettingSchema = z.enum([
     'explore_tags',
     'space_access',
     'user_or_group_access',
+    'skills',
     'unknown',
 ]);
 
@@ -565,6 +577,7 @@ const aiAgentReviewClassifierJudgeOutputBaseSchema = z.object({
         'acceptance_or_continuation',
         'product_capability_request',
         'human_intervention',
+        'standing_instruction',
         'ambiguous',
     ]),
     implicitSignalSources: z.array(
@@ -577,6 +590,7 @@ const aiAgentReviewClassifierJudgeOutputBaseSchema = z.object({
             'assistant_no_answer',
             'product_capability_request',
             'human_intervention',
+            'standing_instruction',
         ]),
     ),
     confidence: z.enum(['low', 'medium', 'high']),
@@ -657,6 +671,7 @@ const aiAgentReviewClassifierJudgeOutputBaseSchema = z.object({
                 'update_access',
                 'route_to_product_work',
                 'request_more_evidence',
+                'create_skill',
                 'no_action',
             ]),
             title: z.string(),
@@ -724,13 +739,39 @@ export const aiAgentReviewClassifierJudgeProjectContextCallSchema = z.object({
     projectContextEntry: aiAgentJudgeProjectContextEntrySchema.nullable(),
 });
 
-// Full judge output as persisted/replayed — the merge of both calls. Never
+// Draft skill the judge emits for a create_skill recommendation; prefills the
+// skill editor so the admin only has to review and save.
+export const aiAgentJudgeSkillProposalSchema = z.object({
+    name: z.string().min(1),
+    description: z.string().min(1),
+    instructions: z.string().min(1),
+    // Named inputs the procedure varies on, referenced as $name in the body.
+    arguments: z.array(z.string()),
+    argumentHint: z.string().nullable(),
+});
+
+// Concrete type (not z.infer) so tsoa can resolve it in API responses.
+export type AiAgentJudgeSkillProposal = {
+    name: string;
+    description: string;
+    instructions: string;
+    arguments: string[];
+    argumentHint: string | null;
+};
+
+// Second-call schema for the create_skill path: just the proposal.
+export const aiAgentReviewClassifierJudgeSkillProposalCallSchema = z.object({
+    skillProposal: aiAgentJudgeSkillProposalSchema.nullable(),
+});
+
+// Full judge output as persisted/replayed — the merge of every call. Never
 // pass this to a strict-structured-output LLM call (see grammar note above).
 export const aiAgentReviewClassifierJudgeOutputSchema =
     aiAgentReviewClassifierJudgeOutputBaseSchema
         .extend({
             projectContextEntry:
                 aiAgentJudgeProjectContextEntrySchema.nullable(),
+            skillProposal: aiAgentJudgeSkillProposalSchema.nullable(),
         })
         .superRefine(judgeOutputRefinement);
 
@@ -807,6 +848,7 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
         evidenceExcerpts: AiAgentEvidenceExcerpt[];
         recommendation: AiAgentRecommendation | null;
         projectContextEntry: AiAgentJudgeProjectContextEntry | null;
+        skillProposal: AiAgentJudgeSkillProposal | null;
         createdAt: Date;
     } | null;
 };
@@ -817,6 +859,13 @@ export const getReviewItemProjectContextEntry = (
     item.source === 'memory'
         ? item.projectContextEntry
         : (item.latestFinding?.projectContextEntry ?? null);
+
+export const getReviewItemSkillProposal = (
+    item: AiAgentReviewItemSummary,
+): AiAgentJudgeSkillProposal | null =>
+    item.latestFinding?.recommendation?.actionType === 'create_skill'
+        ? (item.latestFinding.skillProposal ?? null)
+        : null;
 
 export type ApiAiAgentReviewItemsResponse = ApiSuccess<
     AiAgentReviewItemSummary[]
@@ -1206,6 +1255,7 @@ export type AiAgentReviewClassifierSignalFinding = {
     evidenceExcerpts: AiAgentEvidenceExcerpt[];
     recommendation: AiAgentRecommendation | null;
     projectContextEntry: AiAgentJudgeProjectContextEntry | null;
+    skillProposal: AiAgentJudgeSkillProposal | null;
     reviewItem: {
         fingerprint: string;
         title: string;
