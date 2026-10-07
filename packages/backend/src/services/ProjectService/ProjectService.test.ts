@@ -181,6 +181,7 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { type ScopedWarehouseConnection } from '../WarehouseClientFactory/WarehouseClientFactory';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
@@ -3820,8 +3821,8 @@ describe('ProjectService', () => {
 
         test('reuses the upstream explores and config instead of compiling from dbt', async () => {
             const buildAdapterSpy = vi.spyOn(
-                service as unknown as { buildAdapter: () => unknown },
-                'buildAdapter',
+                service as unknown as { prepareCompileAdapter: () => unknown },
+                'prepareCompileAdapter',
             );
 
             (projectModel.get as import('vitest').Mock)
@@ -7907,8 +7908,8 @@ describe('ProjectService', () => {
                 })),
                 destroy: vi.fn(async () => undefined),
             } as unknown as ProjectAdapter;
-            const sshTunnel = {
-                disconnect: vi.fn(async () => undefined),
+            const lease = {
+                release: vi.fn(async () => undefined),
             };
 
             projectModel.getWithSensitiveFields.mockResolvedValueOnce({
@@ -7923,7 +7924,7 @@ describe('ProjectService', () => {
                 'testProjectAdapter',
             ).mockResolvedValueOnce({
                 adapter,
-                sshTunnel,
+                lease,
                 warehouseCredentials: warehouseClientMock.credentials,
                 cachedWarehouse: {
                     warehouseCatalog: undefined,
@@ -10838,6 +10839,7 @@ type ResolveCompileAdapterArgs = {
     userUuid: string;
     primary: {
         adapter: ProjectAdapter;
+        connection: ScopedWarehouseConnection;
         warehouseCredentials: CreateWarehouseCredentials;
         cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
         dbtVersionOption: DbtVersionOptionLatest;
@@ -10907,6 +10909,17 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     } as unknown as ProjectAdapter;
     const primary = {
         adapter: primaryAdapter,
+        connection: {
+            warehouseClient: warehouseClientMock,
+            warehouseCredentials: warehouseClientMock.credentials,
+            aiPlan: null,
+            warehouseConnectionUuid: null,
+            connectionRoute: null,
+            credentialKind: WarehouseCredentialKind.COMPILE,
+            tunnelConnectMs: null,
+            deriveClient: (credentials: CreateWarehouseCredentials) =>
+                warehouseClientFromCredentials(credentials, undefined),
+        } satisfies ScopedWarehouseConnection,
         warehouseCredentials: warehouseClientMock.credentials,
         cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
@@ -12094,6 +12107,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         compileAllExplores: ProjectAdapter['compileAllExplores'] = vi.fn(
             async () => [validExplore],
         ),
+        primaryDestroy: ProjectAdapter['destroy'] = vi.fn(
+            async () => undefined,
+        ),
     ) => {
         const primaryManifest = buildManifest([
             {
@@ -12115,7 +12131,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 manifest: primaryManifest,
                 timings: NO_FETCH_TIMINGS,
             })),
-            destroy: vi.fn(async () => undefined),
+            destroy: primaryDestroy,
             dbtProjectDir: '/tmp/primary-dbt-project',
         } as unknown as ProjectAdapter;
         const sourceAdapter = {
@@ -12187,6 +12203,174 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectDbtSourcesModel,
         });
     };
+
+    it.each([false, true])(
+        'the compile job releases its tunnel after adapter cleanup when compile fails %s',
+        async (fails) => {
+            const compileExplores = vi.fn<ProjectAdapter['compileAllExplores']>(
+                async () => {
+                    if (fails) throw new Error('compile failed');
+                    return [validExplore];
+                },
+            );
+            const projectService =
+                buildCompilationBoundaryService(compileExplores);
+            const adapterBuilder = vi.mocked(
+                projectAdapterModule.projectAdapterFromConfig,
+            );
+            const firstResult = adapterBuilder.mock.results.length;
+            projectModel.saveExploreStreamToCache
+                .mockReset()
+                .mockImplementationOnce(async (_uuid, explores) => {
+                    for await (const explore of explores)
+                        expect(explore.name).toBeDefined();
+                    return { cachedExploreUuids: [] };
+                });
+            await projectService.compileProject(
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            );
+            const primaryCompileAdapter =
+                await adapterBuilder.mock.results[firstResult].value;
+            const source =
+                await adapterBuilder.mock.results[firstResult + 1].value;
+            const merged =
+                await adapterBuilder.mock.results[firstResult + 2].value;
+            const tunnel = vi.mocked(SshTunnel).mock.results.at(-1)?.value;
+            expect(tunnel.disconnect).toHaveBeenCalledOnce();
+            expect(primaryCompileAdapter.destroy).toHaveBeenCalledOnce();
+            expect(merged.destroy).toHaveBeenCalledOnce();
+            expect(
+                vi.mocked(primaryCompileAdapter.destroy).mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
+            expect(
+                vi.mocked(merged.destroy).mock.invocationCallOrder[0],
+            ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
+            expect(
+                vi.mocked(source.destroy).mock.invocationCallOrder[0],
+            ).toBeGreaterThan(tunnel.disconnect.mock.invocationCallOrder[0]);
+            expect(jobModel.update).toHaveBeenCalledWith(
+                'compile-job-uuid',
+                expect.objectContaining({
+                    jobStatus: fails ? JobStatusType.ERROR : JobStatusType.DONE,
+                }),
+            );
+        },
+    );
+
+    it('a manifest-only primary cleanup failure remains a warning and releases the tunnel', async () => {
+        const cleanupError = new Error('clone cleanup failed');
+        const primaryDestroy = vi.fn(async () => {
+            throw cleanupError;
+        });
+        const projectService = buildCompilationBoundaryService(
+            undefined,
+            primaryDestroy,
+        );
+        const logger = vi.spyOn(
+            (projectService as unknown as ProjectServiceInternals).logger,
+            'warn',
+        );
+        projectModel.saveExploreStreamToCache
+            .mockReset()
+            .mockImplementationOnce(async (_uuid, explores) => {
+                for await (const explore of explores)
+                    expect(explore.name).toBeDefined();
+                return { cachedExploreUuids: [] };
+            });
+        await projectService.compileProject(
+            compileUser,
+            'projectUuid',
+            RequestMethod.WEB_APP,
+            'cleanup-job-uuid',
+        );
+        expect(primaryDestroy).toHaveBeenCalledOnce();
+        expect(
+            vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+        ).toHaveBeenCalledOnce();
+        expect(logger).toHaveBeenCalledWith(
+            'Failed to destroy a dbt source adapter after manifest merge',
+            { error: cleanupError },
+        );
+        expect(jobModel.update).toHaveBeenCalledWith(
+            'cleanup-job-uuid',
+            expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+        );
+    });
+
+    it('a failed adapter test destroys the adapter and releases the lease', async () => {
+        const adapter = {
+            test: vi.fn(async () => {
+                throw new Error('adapter test failed');
+            }),
+            destroy: vi.fn(async () => undefined),
+        } as unknown as ProjectAdapter;
+        vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        ).mockResolvedValueOnce(adapter);
+        const projectService = getMockedProjectService(lightdashConfigMock);
+        const internals = projectService as unknown as {
+            testProjectAdapter: (
+                data: UpdateProject,
+                caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                context: 'project_create' | 'project_update',
+                method: RequestMethod,
+                projectUuid: string | null,
+            ) => Promise<unknown>;
+        };
+        await expect(
+            internals.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: warehouseClientMock.credentials,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                },
+                compileUser,
+                'project_create',
+                RequestMethod.WEB_APP,
+                null,
+            ),
+        ).rejects.toThrow('adapter test failed');
+        const tunnel = vi.mocked(SshTunnel).mock.results.at(-1)?.value;
+        expect(tunnel.disconnect).toHaveBeenCalledOnce();
+        expect(adapter.destroy).toHaveBeenCalledOnce();
+        expect(
+            vi.mocked(adapter.destroy).mock.invocationCallOrder[0],
+        ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
+    });
+
+    it('test and deploy with no dbt connection releases its tested adapter and tunnel', async () => {
+        const projectService = getMockedProjectService(lightdashConfigMock);
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: warehouseClientMock.credentials,
+            dbtConnection: { type: DbtProjectType.NONE },
+        });
+        const adapter = {
+            test: vi.fn(async () => undefined),
+            destroy: vi.fn(async () => undefined),
+        } as unknown as ProjectAdapter;
+        vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        ).mockResolvedValueOnce(adapter);
+        await projectService.testAndCompileProject(
+            compileUser,
+            'projectUuid',
+            RequestMethod.WEB_APP,
+            'none-job-uuid',
+        );
+        const tunnel = vi.mocked(SshTunnel).mock.results.at(-1)?.value;
+        expect(adapter.destroy).toHaveBeenCalledOnce();
+        expect(tunnel.disconnect).toHaveBeenCalledOnce();
+        expect(
+            vi.mocked(adapter.destroy).mock.invocationCallOrder[0],
+        ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
+    });
 
     it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
         const projectService = buildCompilationBoundaryService();
@@ -13515,8 +13699,8 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         });
     });
 
-    describe("buildAdapter's inline Snowflake SSO refresh", () => {
-        test('exchanges the refresh token and persists rotation before the sshTunnel step', async () => {
+    describe("prepareCompileAdapter's inline Snowflake SSO refresh", () => {
+        test('persists token rotation before returning compile credentials', async () => {
             const projectSnowflakeCredentials: CreateSnowflakeCredentials = {
                 ...baseSnowflakeCredentials,
                 authenticationType: SnowflakeAuthenticationType.SSO,
@@ -13547,31 +13731,16 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                     rotateRefreshToken: import('vitest').Mock;
                 }
             ).rotateRefreshToken = rotateRefreshTokenMock;
-            (
-                SshTunnel as unknown as import('vitest').Mock
-            ).mockImplementationOnce(
-                // eslint-disable-next-line prefer-arrow-callback
-                function MockSshTunnelWithCredentials(
-                    credentials: CreateWarehouseCredentials,
-                ) {
-                    return {
-                        connect: vi.fn(async () => credentials),
-                        disconnect: vi.fn(),
-                        overrideCredentials: credentials,
-                    };
-                },
-            );
-
             const result = await (
                 pinsService as unknown as {
-                    buildAdapter: (
+                    prepareCompileAdapter: (
                         uuid: string,
                         u: { userUuid: string; organizationUuid: string },
                     ) => Promise<{
                         warehouseCredentials: CreateWarehouseCredentials;
                     }>;
                 }
-            ).buildAdapter(pinsProjectUuid, {
+            ).prepareCompileAdapter(pinsProjectUuid, {
                 userUuid: 'pin-user-uuid',
                 organizationUuid: 'pin-org-uuid',
             });

@@ -1567,6 +1567,7 @@ describe('EmbedService', () => {
                             aiPlan: null,
                             credentialKind: WarehouseCredentialKind.SHARED,
                             tunnelConnectMs: null,
+                            deriveClient: vi.fn(() => warehouseClientMock),
                         });
                     } finally {
                         await disconnect();

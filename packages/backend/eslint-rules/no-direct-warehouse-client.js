@@ -1,7 +1,5 @@
 const factoryFunctions = new Set([
     'warehouseClientFromCredentials',
-    'projectAdapterFromConfig',
-    'warehouseClientForCompileGroup',
     'createAnalyticsClient',
 ]);
 

@@ -311,7 +311,6 @@ import {
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     SshTunnel,
     warehouseSqlBuilderFromType,
-    type WarehouseClientOptions,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -475,7 +474,9 @@ import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
     type ResolvedWarehouseConnection,
+    type ScopedWarehouseConnection,
     type WarehouseClientRef,
+    type WarehouseConnectionLease,
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import type {
     ResolvedWarehouseCredentials,
@@ -951,6 +952,7 @@ export class ProjectService
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
+            warehouseClientFactory: this.warehouseClientFactory,
         });
         this.warehouseConnectionTablesModel = warehouseConnectionTablesModel;
         this.emailModel = emailModel;
@@ -5088,7 +5090,7 @@ export class ProjectService
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
-            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
+            const { adapter, lease } = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
@@ -5114,8 +5116,11 @@ export class ProjectService
                                   projectContext: [],
                               };
                           } finally {
-                              await adapter.destroy();
-                              await sshTunnel.disconnect();
+                              try {
+                                  await adapter.destroy();
+                              } finally {
+                                  await lease.release();
+                              }
                           }
                       })()
                     : await this.jobModel.tryJobStep(
@@ -5151,8 +5156,11 @@ export class ProjectService
                                       projectContext: compiledProjectContext,
                                   };
                               } finally {
-                                  await adapter.destroy();
-                                  await sshTunnel.disconnect();
+                                  try {
+                                      await adapter.destroy();
+                                  } finally {
+                                      await lease.release();
+                                  }
                               }
                           },
                       );
@@ -6069,7 +6077,7 @@ export class ProjectService
             timings.testAdapter.start = performance.now();
             const {
                 adapter: primaryAdapter,
-                sshTunnel,
+                lease,
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
@@ -6110,6 +6118,7 @@ export class ProjectService
                             };
                             const primary = {
                                 adapter: primaryAdapter,
+                                connection: lease,
                                 warehouseCredentials,
                                 cachedWarehouse,
                                 dbtVersionOption,
@@ -6229,8 +6238,11 @@ export class ProjectService
 
                             return result;
                         } finally {
-                            await compileAdapter.destroy();
-                            await sshTunnel.disconnect();
+                            try {
+                                await compileAdapter.destroy();
+                            } finally {
+                                await lease.release();
+                            }
                             // Clean up the per-source git clones used only to
                             // read manifests for the merge.
                             await Promise.all(
@@ -6253,12 +6265,18 @@ export class ProjectService
                     jobResults: compileResult,
                 });
             } else {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        projectUuid,
-                    },
-                });
+                try {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.DONE,
+                        jobResults: { projectUuid },
+                    });
+                } finally {
+                    try {
+                        await primaryAdapter.destroy();
+                    } finally {
+                        await lease.release();
+                    }
+                }
             }
             const projectWithWarehouse = {
                 ...updatedProject,
@@ -6373,25 +6391,48 @@ export class ProjectService
         projectUuid: string | null,
     ): Promise<{
         adapter: ProjectAdapter;
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        lease: WarehouseConnectionLease;
         warehouseCredentials: CreateWarehouseCredentials;
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
-        const sshTunnel = new SshTunnel(
-            data.warehouseConnection,
-            this.connectionTestTunnelOptions(),
-        );
+        let lease: WarehouseConnectionLease | null = null;
         let adapter: ProjectAdapter | undefined;
         try {
-            await sshTunnel.connect();
+            const organizationUuid =
+                user.organizationUuid ??
+                (projectUuid === null
+                    ? undefined
+                    : (await this.projectModel.getSummary(projectUuid))
+                          .organizationUuid);
+            if (organizationUuid === undefined) {
+                throw new ForbiddenError('User is not part of an organization');
+            }
+            lease =
+                await this.warehouseClientFactory.acquireWarehouseConnection(
+                    {
+                        kind: 'bypass',
+                        mode: 'test_and_compile',
+                        projectUuid,
+                        credentials: data.warehouseConnection,
+                        tunnelOptions: this.connectionTestTunnelOptions(),
+                    },
+                    connectionContextFromUser(
+                        { userUuid: user.userUuid },
+                        {
+                            organizationUuid,
+                            queryContext: null,
+                            purpose: 'compile',
+                        },
+                    ),
+                );
             const dbtConnection = await this.resolveDbtConnectionInstallationId(
                 data.dbtConnection,
                 user.organizationUuid,
             );
-            const warehouseCredentials = sshTunnel.overrideCredentials;
+            const warehouseCredentials = lease.warehouseClient.credentials;
             const cachedWarehouse: CachedWarehouse = {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
@@ -6403,6 +6444,7 @@ export class ProjectService
                 (await this.isDbtPartialParseEnabled(user));
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
+                lease.warehouseClient,
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
@@ -6414,19 +6456,6 @@ export class ProjectService
                       })
                     : null,
                 this.analytics,
-                undefined,
-                usesAwsWebIdentity(warehouseCredentials)
-                    ? await this.projectModel.getWarehouseClientIdentityOptions(
-                          warehouseCredentials,
-                          projectUuid === null
-                              ? user.organizationUuid
-                              : (
-                                    await this.projectModel.getSummary(
-                                        projectUuid,
-                                    )
-                                ).organizationUuid,
-                      )
-                    : undefined,
             );
             await adapter.test();
             if (usesAwsWebIdentity(warehouseCredentials)) {
@@ -6459,7 +6488,7 @@ export class ProjectService
             }
             return {
                 adapter,
-                sshTunnel,
+                lease,
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
@@ -6483,8 +6512,11 @@ export class ProjectService
                 },
             });
             Logger.error(`Error testing project adapter: ${error}`);
-            await adapter?.destroy();
-            await sshTunnel.disconnect();
+            try {
+                await adapter?.destroy();
+            } finally {
+                await lease?.release();
+            }
             throw error;
         }
     }
@@ -6888,20 +6920,10 @@ export class ProjectService
         return results.filter((r) => r.status === 'fulfilled').length;
     }
 
-    private async buildAdapter(
+    private async prepareCompileAdapter(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<{
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
-        adapter: ProjectAdapter;
-        // Shared warehouse setup so additional dbt sources can be compiled against
-        // the same warehouse without re-resolving (and re-rotating) credentials.
-        warehouseCredentials: CreateWarehouseCredentials;
-        cachedWarehouse: CachedWarehouse;
-        dbtVersionOption: DbtVersionOption;
-        dbtPartialParse: boolean;
-        warehouseClientOptions: WarehouseClientOptions | undefined;
-    }> {
+    ) {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (!project.warehouseConnection) {
@@ -7062,9 +7084,6 @@ export class ProjectService
             }
         }
 
-        const sshTunnel = new SshTunnel(project.warehouseConnection);
-        await sshTunnel.connect();
-
         const dbtConnection = await this.resolveDbtConnectionInstallationId(
             project.dbtConnection,
             user.organizationUuid,
@@ -7082,39 +7101,96 @@ export class ProjectService
         const dbtVersionOption =
             project.dbtVersion || DefaultSupportedDbtVersion;
         const dbtPartialParse = await this.isDbtPartialParseEnabled(user);
-        const warehouseClientOptions = usesAwsWebIdentity(
-            project.warehouseConnection,
-        )
-            ? await this.projectModel.getWarehouseClientIdentityOptions(
-                  project.warehouseConnection,
-                  project.organizationUuid,
-              )
-            : undefined;
-        const adapter = await projectAdapterFromConfig(
-            dbtConnection,
-            sshTunnel.overrideCredentials,
-            cachedWarehouse,
-            dbtVersionOption,
-            this.lightdashConfig.dbt.environmentVariableAllowlist,
-            dbtPartialParse
-                ? getDbtPartialParseBaselinePath({
-                      projectUuid,
-                      dbtSourceUuid: null,
-                  })
-                : null,
-            this.analytics,
-            undefined,
-            warehouseClientOptions,
-        );
         return {
-            adapter,
-            sshTunnel,
-            warehouseCredentials: sshTunnel.overrideCredentials,
+            project,
+            dbtConnection,
+            warehouseCredentials: project.warehouseConnection,
             cachedWarehouse,
             dbtVersionOption,
             dbtPartialParse,
-            warehouseClientOptions,
         };
+    }
+
+    private async withCompileAdapter<T>(
+        projectUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        fn: (primary: {
+            adapter: ProjectAdapter;
+            connection: ScopedWarehouseConnection;
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+            dbtPartialParse: boolean;
+        }) => Promise<T>,
+        manifestFetchAdapters: ProjectAdapter[],
+    ): Promise<T> {
+        const {
+            project,
+            dbtConnection,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+            dbtPartialParse,
+        } = await this.prepareCompileAdapter(projectUuid, user);
+        return this.warehouseClientFactory.withWarehouseClient(
+            { kind: 'compile', projectUuid, credentials: warehouseCredentials },
+            connectionContextFromUser(
+                { userUuid: user.userUuid },
+                {
+                    organizationUuid: project.organizationUuid,
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            async (connection) => {
+                const adapter = await projectAdapterFromConfig(
+                    dbtConnection,
+                    connection.warehouseClient,
+                    connection.warehouseClient.credentials,
+                    cachedWarehouse,
+                    dbtVersionOption,
+                    this.lightdashConfig.dbt.environmentVariableAllowlist,
+                    dbtPartialParse
+                        ? getDbtPartialParseBaselinePath({
+                              projectUuid,
+                              dbtSourceUuid: null,
+                          })
+                        : null,
+                    this.analytics,
+                );
+                try {
+                    return await fn({
+                        adapter,
+                        connection,
+                        warehouseCredentials:
+                            connection.warehouseClient.credentials,
+                        cachedWarehouse,
+                        dbtVersionOption,
+                        dbtPartialParse,
+                    });
+                } finally {
+                    await this.destroyPrimaryCompileAdapter(
+                        adapter,
+                        manifestFetchAdapters,
+                    );
+                }
+            },
+        );
+    }
+
+    private async destroyPrimaryCompileAdapter(
+        adapter: ProjectAdapter,
+        manifestFetchAdapters: ProjectAdapter[],
+    ): Promise<void> {
+        try {
+            await adapter.destroy();
+        } catch (error) {
+            if (!manifestFetchAdapters.includes(adapter)) throw error;
+            this.logger.warn(
+                'Failed to destroy a dbt source adapter after manifest merge',
+                { error },
+            );
+        }
     }
 
     /**
@@ -7133,7 +7209,7 @@ export class ProjectService
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
-            warehouseClientOptions?: WarehouseClientOptions;
+            connection: ScopedWarehouseConnection;
         },
         partialParseBaselinePath: string | null,
     ): Promise<ProjectAdapter> {
@@ -7142,19 +7218,19 @@ export class ProjectService
                 dbtConnection,
                 organizationUuid,
             );
+        const warehouseCredentials = applyWarehouseLocation(
+            shared.connection.warehouseClient.credentials,
+            warehouseLocation,
+        );
         return projectAdapterFromConfig(
             resolvedConnection,
-            applyWarehouseLocation(
-                shared.warehouseCredentials,
-                warehouseLocation,
-            ),
+            shared.connection.deriveClient(warehouseCredentials),
+            warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             partialParseBaselinePath,
             this.analytics,
-            undefined,
-            shared.warehouseClientOptions,
         );
     }
 
@@ -7357,11 +7433,11 @@ export class ProjectService
         jobUuid?: string;
         primary: {
             adapter: ProjectAdapter;
+            connection: ScopedWarehouseConnection;
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
-            warehouseClientOptions?: WarehouseClientOptions;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -7370,7 +7446,7 @@ export class ProjectService
             warehouseCredentials: primary.warehouseCredentials,
             cachedWarehouse: primary.cachedWarehouse,
             dbtVersionOption: primary.dbtVersionOption,
-            warehouseClientOptions: primary.warehouseClientOptions,
+            connection: primary.connection,
         };
 
         // The primary git adapter is only read for its manifest here; the merged
@@ -7721,6 +7797,9 @@ export class ProjectService
                     parsedManifest: mergedManifest,
                     hideRefreshButton: true,
                 },
+                shared.connection.deriveClient(
+                    shared.connection.warehouseClient.credentials,
+                ),
                 shared.warehouseCredentials,
                 shared.cachedWarehouse,
                 shared.dbtVersionOption,
@@ -7735,7 +7814,6 @@ export class ProjectService
                     projectDir: primary.adapter.dbtProjectDir,
                     selectedModelIds,
                 },
-                shared.warehouseClientOptions,
             ),
             stagedMergedManifest,
         };
@@ -7754,6 +7832,7 @@ export class ProjectService
         userUuid: string;
         primary: {
             adapter: ProjectAdapter;
+            connection: ScopedWarehouseConnection;
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
@@ -7773,20 +7852,37 @@ export class ProjectService
             projectUuid,
             primary: {
                 manifest,
+                connection: primary.connection,
                 selectedModelIds,
                 dbtProjectDir: primary.adapter.dbtProjectDir,
                 warehouseCredentials: primary.warehouseCredentials,
                 cachedWarehouse: primary.cachedWarehouse,
             },
+            context: connectionContextFromUser(
+                { userUuid },
+                {
+                    organizationUuid:
+                        organizationUuid ??
+                        (await this.projectModel.getSummary(projectUuid))
+                            .organizationUuid,
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
             includeUnboundSources,
-            fetchSourceManifest: async (source, warehouseCredentials) => {
+            fetchSourceManifest: async (
+                source,
+                warehouseCredentials,
+                connection,
+            ) => {
                 const sourceAdapter = await this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
                     organizationUuid,
                     {
                         warehouseCredentials,
+                        connection,
                         cachedWarehouse: primary.cachedWarehouse,
                         dbtVersionOption: primary.dbtVersionOption,
                     },
@@ -7840,6 +7936,7 @@ export class ProjectService
         jobUuid?: string;
         primary: {
             adapter: ProjectAdapter;
+            connection: ScopedWarehouseConnection;
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
@@ -11442,138 +11539,168 @@ export class ProjectService
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const buildResult = await this.buildAdapter(projectUuid, user);
-        const { sshTunnel } = buildResult;
-        let { adapter } = buildResult;
         // Adapters built only to read a source's manifest (git clones); destroyed in finally.
         const manifestFetchAdapters: ProjectAdapter[] = [];
+        let primaryAdapter: ProjectAdapter | null = null;
         try {
-            // Multiple dbt sources: merge every source's manifest into one before
-            // compiling, so cross-source ref()/joins resolve and the explore set is
-            // the union of all sources. A project with zero registered sources runs
-            // the unchanged single-source path (N=0 short-circuit / regression firewall).
-            let dbtSourceCount = 1;
-            let stagedMergedManifest: Buffer | undefined;
-            const trackingParams = {
+            return await this.withCompileAdapter(
                 projectUuid,
-                organizationUuid: project.organizationUuid,
-                userUuid: user.userUuid,
-                jobUuid,
-            };
-            let multiConnection: MultiConnectionCompilation | null = null;
-            if (
-                (await this.projectModel.getConnectionRoute(projectUuid, {
-                    kind: 'original',
-                })) === 'multi'
-            ) {
-                multiConnection = await this.compileMultiConnectionProject({
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    userUuid: user.userUuid,
-                    primary: buildResult,
-                    manifestFetchAdapters,
-                    trackingParams,
-                });
-                manifestFetchAdapters.push(adapter);
-                adapter = multiConnection.originalAdapter;
-                dbtSourceCount =
-                    (await this.projectDbtSourcesModel.getSources(projectUuid))
-                        .length + 1;
-            } else {
-                ({ adapter, stagedMergedManifest } =
-                    await this.resolveCompileAdapter({
-                        projectUuid,
-                        organizationUuid: project.organizationUuid,
-                        userUuid: user.userUuid,
-                        primary: buildResult,
-                        manifestFetchAdapters,
-                        onDbtSourceCount: (count) => {
-                            dbtSourceCount = count;
-                        },
-                    }));
-            }
-            const packages = await adapter.getDbtPackages();
-            const exploreStream =
-                multiConnection?.exploreStream ??
-                (await adapter.prepareExploreStream(
-                    trackingParams,
-                    false, // loadSources
-                    true, // allowPartialCompilation
-                ));
-            const lightdashProjectConfig =
-                await adapter.getLightdashProjectConfig(trackingParams);
-            const projectContext = await this.getProjectContextFromAdapter({
-                adapter,
                 user,
-                organizationUuid: project.organizationUuid,
-            });
-            const onCompiled = (summary: ExploreCompilationSummary) => {
-                this.analytics.track({
-                    event: 'project.compiled',
-                    userId: user.userUuid,
-                    properties: {
-                        requestMethod,
-                        projectId: projectUuid,
-                        projectName: project.name,
-                        projectType: project.dbtConnection.type,
-                        warehouseType: project.warehouseConnection?.type,
-                        ...summary.analytics,
-                        hasProjectContext: (projectContext?.length ?? 0) > 0,
-                        packagesCount: packages
-                            ? Object.keys(packages).length
-                            : undefined,
-                        dbtSourceCount,
-                    },
-                });
-            };
+                async (buildResult) => {
+                    primaryAdapter = buildResult.adapter;
+                    let { adapter } = buildResult;
+                    try {
+                        // Multiple dbt sources: merge every source's manifest into one before
+                        // compiling, so cross-source ref()/joins resolve and the explore set is
+                        // the union of all sources. A project with zero registered sources runs
+                        // the unchanged single-source path (N=0 short-circuit / regression firewall).
+                        let dbtSourceCount = 1;
+                        let stagedMergedManifest: Buffer | undefined;
+                        const trackingParams = {
+                            projectUuid,
+                            organizationUuid: project.organizationUuid,
+                            userUuid: user.userUuid,
+                            jobUuid,
+                        };
+                        let multiConnection: MultiConnectionCompilation | null =
+                            null;
+                        if (
+                            (await this.projectModel.getConnectionRoute(
+                                projectUuid,
+                                {
+                                    kind: 'original',
+                                },
+                            )) === 'multi'
+                        ) {
+                            multiConnection =
+                                await this.compileMultiConnectionProject({
+                                    projectUuid,
+                                    organizationUuid: project.organizationUuid,
+                                    userUuid: user.userUuid,
+                                    primary: buildResult,
+                                    manifestFetchAdapters,
+                                    trackingParams,
+                                });
+                            manifestFetchAdapters.push(adapter);
+                            adapter = multiConnection.originalAdapter;
+                            dbtSourceCount =
+                                (
+                                    await this.projectDbtSourcesModel.getSources(
+                                        projectUuid,
+                                    )
+                                ).length + 1;
+                        } else {
+                            ({ adapter, stagedMergedManifest } =
+                                await this.resolveCompileAdapter({
+                                    projectUuid,
+                                    organizationUuid: project.organizationUuid,
+                                    userUuid: user.userUuid,
+                                    primary: buildResult,
+                                    manifestFetchAdapters,
+                                    onDbtSourceCount: (count) => {
+                                        dbtSourceCount = count;
+                                    },
+                                }));
+                        }
+                        const packages = await adapter.getDbtPackages();
+                        const exploreStream =
+                            multiConnection?.exploreStream ??
+                            (await adapter.prepareExploreStream(
+                                trackingParams,
+                                false, // loadSources
+                                true, // allowPartialCompilation
+                            ));
+                        const lightdashProjectConfig =
+                            await adapter.getLightdashProjectConfig(
+                                trackingParams,
+                            );
+                        const projectContext =
+                            await this.getProjectContextFromAdapter({
+                                adapter,
+                                user,
+                                organizationUuid: project.organizationUuid,
+                            });
+                        const onCompiled = (
+                            summary: ExploreCompilationSummary,
+                        ) => {
+                            this.analytics.track({
+                                event: 'project.compiled',
+                                userId: user.userUuid,
+                                properties: {
+                                    requestMethod,
+                                    projectId: projectUuid,
+                                    projectName: project.name,
+                                    projectType: project.dbtConnection.type,
+                                    warehouseType:
+                                        project.warehouseConnection?.type,
+                                    ...summary.analytics,
+                                    hasProjectContext:
+                                        (projectContext?.length ?? 0) > 0,
+                                    packagesCount: packages
+                                        ? Object.keys(packages).length
+                                        : undefined,
+                                    dbtSourceCount,
+                                },
+                            });
+                        };
 
-            return await consume({
-                exploreStream,
-                lightdashProjectConfig,
-                projectContext,
-                stagedMergedManifest,
-                onCompiled,
-                multiConnection,
-            });
-        } catch (e) {
-            if (!(e instanceof LightdashError)) {
-                Sentry.captureException(e);
-            }
-            this.logger.error(
-                `Failed to compile all explores:${e instanceof Error ? e.stack : e}`,
-            );
-            const errorResponse =
-                e instanceof Error
-                    ? errorHandler(e)
-                    : new UnexpectedServerError(
-                          `Unknown error during refreshAllTables: ${typeof e}`,
-                      );
-            this.analytics.track({
-                event: 'project.error',
-                userId: user.userUuid,
-                properties: {
-                    requestMethod,
-                    projectId: projectUuid,
-                    name: errorResponse.name,
-                    statusCode: errorResponse.statusCode,
-                    projectType: project.dbtConnection.type,
-                    warehouseType: project.warehouseConnection?.type,
+                        return await consume({
+                            exploreStream,
+                            lightdashProjectConfig,
+                            projectContext,
+                            stagedMergedManifest,
+                            onCompiled,
+                            multiConnection,
+                        });
+                    } catch (e) {
+                        if (!(e instanceof LightdashError)) {
+                            Sentry.captureException(e);
+                        }
+                        this.logger.error(
+                            `Failed to compile all explores:${e instanceof Error ? e.stack : e}`,
+                        );
+                        const errorResponse =
+                            e instanceof Error
+                                ? errorHandler(e)
+                                : new UnexpectedServerError(
+                                      `Unknown error during refreshAllTables: ${typeof e}`,
+                                  );
+                        this.analytics.track({
+                            event: 'project.error',
+                            userId: user.userUuid,
+                            properties: {
+                                requestMethod,
+                                projectId: projectUuid,
+                                name: errorResponse.name,
+                                statusCode: errorResponse.statusCode,
+                                projectType: project.dbtConnection.type,
+                                warehouseType:
+                                    project.warehouseConnection?.type,
+                            },
+                        });
+                        throw errorResponse;
+                    } finally {
+                        if (adapter !== buildResult.adapter)
+                            await adapter.destroy();
+                    }
                 },
-            });
-            throw errorResponse;
+                manifestFetchAdapters,
+            );
         } finally {
-            await adapter.destroy();
-            await sshTunnel.disconnect();
             // Clean up the per-source git clones used only to read manifests.
             await Promise.all(
-                manifestFetchAdapters.map((manifestAdapter) =>
-                    manifestAdapter.destroy().catch((destroyError) => {
-                        this.logger.warn(
-                            'Failed to destroy a dbt source adapter after manifest merge',
-                            { error: destroyError },
-                        );
-                    }),
-                ),
+                manifestFetchAdapters
+                    .filter(
+                        (manifestAdapter) => manifestAdapter !== primaryAdapter,
+                    )
+                    .map((manifestAdapter) =>
+                        manifestAdapter.destroy().catch((destroyError) => {
+                            this.logger.warn(
+                                'Failed to destroy a dbt source adapter after manifest merge',
+                                { error: destroyError },
+                            );
+                        }),
+                    ),
             );
         }
     }

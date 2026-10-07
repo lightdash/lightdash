@@ -28,6 +28,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import path from 'path';
@@ -268,6 +269,7 @@ export async function seed(knex: Knex): Promise<void> {
     try {
         const adapter = await projectAdapterFromConfig(
             projectSettings,
+            warehouseClientFromCredentials(warehouseCredentials),
             warehouseCredentials,
             {
                 warehouseCatalog: undefined,

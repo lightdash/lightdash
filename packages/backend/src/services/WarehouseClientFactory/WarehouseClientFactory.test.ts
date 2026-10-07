@@ -5,12 +5,17 @@ import {
     DuckdbConnectionType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
+    UnexpectedServerError,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreatePostgresCredentials,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { SshTunnel } from '@lightdash/warehouses';
+import {
+    ListedDatabasesPostgresWarehouseClient,
+    SshTunnel,
+} from '@lightdash/warehouses';
+import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -25,6 +30,7 @@ import {
 import {
     WarehouseClientFactory,
     type WarehouseClientRef,
+    type WarehouseConnectionLeaseRef,
 } from './WarehouseClientFactory';
 import type {
     WarehouseCredentialBase,
@@ -41,7 +47,8 @@ const { connect, disconnect } = vi.hoisted(() => ({
     disconnect: vi.fn<() => Promise<void>>(),
 }));
 
-vi.mock('@lightdash/warehouses', () => ({
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
     SshTunnel: vi.fn().mockImplementation(function MockSshTunnel(
         this: {
             connect: () => Promise<CreateWarehouseCredentials>;
@@ -274,6 +281,7 @@ describe('WarehouseClientFactory', () => {
                 async ({
                     warehouseClient: _client,
                     tunnelConnectMs: _time,
+                    deriveClient: _deriveClient,
                     ...resolved
                 }) => resolved,
             );
@@ -550,17 +558,38 @@ describe('WarehouseClientFactory', () => {
     test('reuses identical non-tunneled credentials and replaces changed credentials', async () => {
         const { factory, projectModel } = buildFixture();
         const first = await factory.withWarehouseClient(
-            compileRef(),
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+            },
             contextFor(),
             async (connection) => connection.warehouseClient,
         );
         const second = await factory.withWarehouseClient(
-            compileRef({ ...credentials }),
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: { ...credentials },
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+            },
             contextFor(),
             async (connection) => connection.warehouseClient,
         );
         const third = await factory.withWarehouseClient(
-            compileRef({ ...credentials, password: 'rotated-password' }),
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: { ...credentials, password: 'rotated-password' },
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+            },
             contextFor(),
             async (connection) => connection.warehouseClient,
         );
@@ -1129,5 +1158,372 @@ describe('WarehouseClientFactory', () => {
             userWarehouseCredentialsUuid: undefined,
         });
         expect(credentialSource.finish).toHaveBeenCalledOnce();
+    });
+    const compileGroup = {
+        listedDatabases: {
+            listAllDatabases: false,
+            additionalDatabases: ['extra'],
+        },
+        onSkippedDatabase: vi.fn(),
+    };
+
+    test('compile groups construct the Postgres wrapper with the tunneled credentials', async () => {
+        const { factory, projectModel } = buildFixture();
+        const tunneled = {
+            ...credentials,
+            host: '127.0.0.1',
+            port: 43210,
+            useSshTunnel: true,
+        };
+        connect.mockResolvedValueOnce(tunneled);
+        await factory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: { ...credentials, useSshTunnel: true },
+                compileGroup,
+            },
+            contextFor(null, 'compile'),
+            async ({ warehouseClient }) => {
+                expect(warehouseClient).toBeInstanceOf(
+                    ListedDatabasesPostgresWarehouseClient,
+                );
+                expect(warehouseClient.credentials).toEqual(tunneled);
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).not.toHaveBeenCalled();
+        expect(factory.warehouseClients).toEqual({});
+        expect(disconnect).toHaveBeenCalledOnce();
+    });
+
+    test('other compile groups use the normal client with the prior connection limit', async () => {
+        const { factory, projectModel } = buildFixture();
+        const redshift = {
+            ...credentials,
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: RedshiftAuthenticationType.PASSWORD,
+        } as const;
+        await factory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: redshift,
+                compileGroup,
+            },
+            contextFor(null, 'compile'),
+            async ({ warehouseClient }) => {
+                expect(warehouseClient).not.toBeInstanceOf(
+                    ListedDatabasesPostgresWarehouseClient,
+                );
+                expect(warehouseClient.credentials).toEqual(redshift);
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            redshift,
+            expect.objectContaining({
+                maxOpenConnections: undefined,
+                agentSession: false,
+            }),
+        );
+    });
+
+    test('derived clients share the tunnel and never enter the cache', async () => {
+        const { factory, projectModel } = buildFixture();
+        const tunneled = {
+            ...credentials,
+            host: '127.0.0.1',
+            port: 43210,
+            useSshTunnel: true,
+        };
+        connect.mockResolvedValueOnce(tunneled);
+        await factory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: { ...credentials, useSshTunnel: true },
+            },
+            contextFor(null, 'compile'),
+            async (connection) => {
+                const derivedCredentials = {
+                    ...tunneled,
+                    schema: 'source_schema',
+                };
+                const first = connection.deriveClient(derivedCredentials);
+                const second = connection.deriveClient(derivedCredentials);
+                expect(first).not.toBe(second);
+                expect(first.credentials).toEqual({
+                    ...tunneled,
+                    schema: 'source_schema',
+                });
+                expect(first.credentials).not.toBe(derivedCredentials);
+                expect(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[1][1],
+                ).toEqual(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[0][1],
+                );
+                expect(SshTunnel).toHaveBeenCalledOnce();
+                expect(connect).toHaveBeenCalledOnce();
+                expect(disconnect).not.toHaveBeenCalled();
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(3);
+        expect(factory.warehouseClients).toEqual({});
+        expect(disconnect).toHaveBeenCalledOnce();
+    });
+
+    test.each([{ host: 'other-host' }, { port: 5433 }])(
+        'derived clients reject a changed tunnel address %j',
+        async (changed) => {
+            const { factory, projectModel } = buildFixture();
+            await factory.withWarehouseClient(
+                {
+                    kind: 'compile',
+                    projectUuid: 'project-uuid',
+                    credentials: { ...credentials, useSshTunnel: true },
+                },
+                contextFor(null, 'compile'),
+                async (connection) => {
+                    expect(() =>
+                        connection.deriveClient({ ...credentials, ...changed }),
+                    ).toThrow(UnexpectedServerError);
+                    expect(
+                        projectModel.getWarehouseClientFromCredentials,
+                    ).toHaveBeenCalledOnce();
+                },
+            );
+        },
+    );
+
+    test('derived clients reject another warehouse type and can wrap a compile group', async () => {
+        const { factory } = buildFixture();
+        await factory.withWarehouseClient(
+            { kind: 'compile', projectUuid: 'project-uuid', credentials },
+            contextFor(null, 'compile'),
+            async (connection) => {
+                expect(() =>
+                    connection.deriveClient({
+                        ...credentials,
+                        type: WarehouseTypes.REDSHIFT,
+                        authenticationType: RedshiftAuthenticationType.PASSWORD,
+                    }),
+                ).toThrow(UnexpectedServerError);
+                expect(
+                    connection.deriveClient(credentials, { compileGroup }),
+                ).toBeInstanceOf(ListedDatabasesPostgresWarehouseClient);
+            },
+        );
+    });
+
+    test('derived clients retain AWS identity options without resolving again', async () => {
+        const { factory, projectModel } = buildFixture();
+        const awsCredentials = async () => ({
+            accessKeyId: 'access-key',
+            secretAccessKey: 'secret-key',
+        });
+        projectModel.getWarehouseClientIdentityOptions.mockResolvedValue({
+            awsCredentials,
+        });
+        const athena: CreateWarehouseCredentials = {
+            type: WarehouseTypes.ATHENA,
+            authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+            region: 'us-east-1',
+            database: 'analytics',
+            schema: 'public',
+            s3StagingDir: 's3://staging/',
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/warehouse',
+            webIdentityAudience: 'audience',
+        };
+        await factory.withWarehouseClient(
+            {
+                kind: 'bypass',
+                mode: 'test_and_compile',
+                projectUuid: null,
+                credentials: athena,
+            },
+            contextFor(null, 'compile'),
+            async (connection) => {
+                connection.deriveClient({ ...athena, schema: 'source_schema' });
+                expect(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[1][1],
+                ).toEqual(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[0][1],
+                );
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientIdentityOptions,
+        ).toHaveBeenCalledExactlyOnceWith(athena, 'org-uuid');
+    });
+
+    test('derived clients retain the agent session from a cached scope', async () => {
+        const { factory, projectModel } = buildFixture();
+        const ref = {
+            kind: 'resolved',
+            projectUuid: 'project-uuid',
+            credentials,
+            aiPlan: null,
+            warehouseConnectionUuid: null,
+            connectionRoute: null,
+        } as const;
+        await factory.withWarehouseClient(
+            ref,
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        const acquire = vi.spyOn(factory, 'acquireUnscoped');
+        await factory.withWarehouseClient(
+            ref,
+            contextFor(QueryExecutionContext.AI),
+            async (connection) => {
+                const derived = connection.deriveClient(credentials);
+                expect(derived).not.toBe(connection.warehouseClient);
+            },
+        );
+        expect(acquire).toHaveBeenCalledOnce();
+        expect(factory.warehouseClients['agent:project-uuid']).toBeDefined();
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[1][1],
+        ).toEqual(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[1][1]
+                ?.agentSession,
+        ).toBe(true);
+    });
+
+    test.each([true, false])(
+        'lease release is idempotent with scoped release %s',
+        async (enabled) => {
+            const { factory } = buildFixture(enabled);
+            const lease = await factory.acquireWarehouseConnection(
+                {
+                    kind: 'bypass',
+                    mode: 'test_and_compile',
+                    projectUuid: null,
+                    credentials,
+                },
+                contextFor(null, 'compile'),
+            );
+            expect(disconnect).not.toHaveBeenCalled();
+            await Promise.all([lease.release(), lease.release()]);
+            await lease.release();
+            expect(disconnect).toHaveBeenCalledTimes(enabled ? 1 : 0);
+        },
+    );
+
+    test.each([true, false])(
+        'failed lease acquisition releases with scoped release %s',
+        async (enabled) => {
+            const { factory, projectModel } = buildFixture(enabled);
+            projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                () => {
+                    throw new Error('construction failed');
+                },
+            );
+            await expect(
+                factory.acquireWarehouseConnection(
+                    {
+                        kind: 'compile',
+                        projectUuid: 'project-uuid',
+                        credentials,
+                    },
+                    contextFor(null, 'compile'),
+                ),
+            ).rejects.toThrow('construction failed');
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    test('lease acquisition accepts only compile and test-and-compile refs', () => {
+        type LeaseRef = Parameters<
+            WarehouseClientFactory['acquireWarehouseConnection']
+        >[0];
+        expectTypeOf<LeaseRef>().toEqualTypeOf<WarehouseConnectionLeaseRef>();
+        expectTypeOf<
+            Extract<WarehouseClientRef, { kind: 'binding' }>
+        >().not.toExtend<LeaseRef>();
+        expectTypeOf<
+            Extract<WarehouseClientRef, { kind: 'resolved' }>
+        >().not.toExtend<LeaseRef>();
+        expectTypeOf<
+            Extract<WarehouseClientRef, { kind: 'bypass' }> & {
+                mode: 'connection_test';
+            }
+        >().not.toExtend<LeaseRef>();
+        expectTypeOf<
+            Extract<WarehouseClientRef, { kind: 'compile' }>
+        >().toExtend<LeaseRef>();
+    });
+
+    test('compile clients keep their default connection limit and skip the cache', async () => {
+        const { factory, projectModel } = buildFixture();
+        const query = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        const compiled = await factory.withWarehouseClient(
+            compileRef(),
+            contextFor(null, 'compile'),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        const compiledAgain = await factory.withWarehouseClient(
+            compileRef(),
+            contextFor(null, 'compile'),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        expect(compiled).not.toBe(query);
+        expect(compiledAgain).not.toBe(compiled);
+        expect(factory.warehouseClients).toEqual({ 'project-uuid': query });
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
+        ).not.toHaveProperty('maxOpenConnections');
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[1][1],
+        ).toHaveProperty('maxOpenConnections', undefined);
+    });
+    test.each([true, false])(
+        'a failed lease tunnel connection releases with scoped release %s',
+        async (enabled) => {
+            const { factory } = buildFixture(enabled);
+            connect.mockRejectedValueOnce(
+                new Error('tunnel connection failed'),
+            );
+            await expect(
+                factory.acquireWarehouseConnection(
+                    {
+                        kind: 'bypass',
+                        mode: 'test_and_compile',
+                        projectUuid: null,
+                        credentials: { ...credentials, useSshTunnel: true },
+                    },
+                    contextFor(null, 'compile'),
+                ),
+            ).rejects.toThrow('tunnel connection failed');
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    test('a failed lease release is not retried by another release call', async () => {
+        const { factory } = buildFixture();
+        const lease = await factory.acquireWarehouseConnection(
+            { kind: 'compile', projectUuid: 'project-uuid', credentials },
+            contextFor(null, 'compile'),
+        );
+        disconnect.mockRejectedValueOnce(new Error('release failed'));
+        await expect(lease.release()).rejects.toThrow('release failed');
+        await expect(lease.release()).rejects.toThrow('release failed');
+        expect(disconnect).toHaveBeenCalledOnce();
     });
 });

@@ -54,6 +54,8 @@ import {
 } from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
 import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
+import { type WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { getAdminDatabase } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -96,6 +98,7 @@ type Fixture = {
 };
 
 type CompileCredentials = {
+    warehouseClientFactory: WarehouseClientFactory;
     getExtraConnectionWarehouseCredentials: (args: {
         projectUuid: string;
         warehouseConnectionUuid: string;
@@ -280,31 +283,53 @@ describe('Multi-connection compile on the real schema', () => {
         ),
         includeUnboundSources = true,
     ) => {
-        const compilation = await compiler.compile({
-            projectUuid: fixture.projectUuid,
-            primary: {
-                manifest: dbtManifest('primary', primary),
-                dbtProjectDir: undefined,
-                warehouseCredentials: originalCredentials,
-                cachedWarehouse: {
-                    warehouseCatalog: await projectModel.getWarehouseFromCache(
+        const { organizationUuid } = await projectModel.getSummary(
+            fixture.projectUuid,
+        );
+        const context = connectionContextFromUser(
+            { userUuid: 'compile-user' },
+            { organizationUuid, queryContext: null, purpose: 'compile' },
+        );
+        return compileCredentials.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: fixture.projectUuid,
+                credentials: originalCredentials,
+            },
+            context,
+            async (connection) => {
+                const compilation = await compiler.compile({
+                    context,
+                    projectUuid: fixture.projectUuid,
+                    primary: {
+                        connection,
+                        manifest: dbtManifest('primary', primary),
+                        dbtProjectDir: undefined,
+                        warehouseCredentials: originalCredentials,
+                        cachedWarehouse: {
+                            warehouseCatalog:
+                                await projectModel.getWarehouseFromCache(
+                                    fixture.projectUuid,
+                                ),
+                            onWarehouseCatalogChange: async (catalog) => {
+                                await projectModel.saveWarehouseToCache(
+                                    fixture.projectUuid,
+                                    catalog,
+                                );
+                            },
+                        },
+                    },
+                    dbtVersion: SupportedDbtVersions.V1_8,
+                    includeUnboundSources,
+                    fetchSourceManifest,
+                    loadExtraCredentials: loadExtraCredentials(
                         fixture.projectUuid,
                     ),
-                    onWarehouseCatalogChange: async (catalog) => {
-                        await projectModel.saveWarehouseToCache(
-                            fixture.projectUuid,
-                            catalog,
-                        );
-                    },
-                },
+                });
+                await compiler.save(fixture.projectUuid, compilation);
+                return compilation;
             },
-            dbtVersion: SupportedDbtVersions.V1_8,
-            includeUnboundSources,
-            fetchSourceManifest,
-            loadExtraCredentials: loadExtraCredentials(fixture.projectUuid),
-        });
-        await compiler.save(fixture.projectUuid, compilation);
-        return compilation;
+        );
     };
 
     const cachedExplores = async (
@@ -436,6 +461,7 @@ describe('Multi-connection compile on the real schema', () => {
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
+            warehouseClientFactory: compileCredentials.warehouseClientFactory,
         });
     }, 600000);
 

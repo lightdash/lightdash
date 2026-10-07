@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     getPersonSignIn,
     isAiAccessQueryContext,
+    UnexpectedServerError,
     usesAwsWebIdentity,
     WarehouseTypes,
     type AiExecutionPlan,
@@ -14,7 +15,13 @@ import {
     type CreateWarehouseCredentials,
     type WarehouseClient,
 } from '@lightdash/common';
-import { SshTunnel, type SshTunnelOptions } from '@lightdash/warehouses';
+import {
+    ListedDatabasesPostgresWarehouseClient,
+    SshTunnel,
+    type SshTunnelOptions,
+    type WarehouseClientOptions,
+    type WarehouseListedDatabases,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type Logger from '../../logging/logger';
@@ -53,6 +60,21 @@ export type WarehouseClientBypassMode =
     | 'connection_test'
     | 'test_and_compile';
 
+export type WarehouseCompileGroup = {
+    listedDatabases: WarehouseListedDatabases;
+    onSkippedDatabase: (database: string) => void;
+};
+
+type WarehouseClientBypassRef = {
+    [Mode in WarehouseClientBypassMode]: {
+        kind: 'bypass';
+        mode: Mode;
+        projectUuid: string | null;
+        credentials: CreateWarehouseCredentials;
+        tunnelOptions?: SshTunnelOptions;
+    };
+}[WarehouseClientBypassMode];
+
 export type WarehouseClientRef =
     | {
           kind: 'binding';
@@ -76,14 +98,9 @@ export type WarehouseClientRef =
           kind: 'compile';
           projectUuid: string;
           credentials: CreateWarehouseCredentials;
+          compileGroup?: WarehouseCompileGroup;
       }
-    | {
-          kind: 'bypass';
-          mode: WarehouseClientBypassMode;
-          projectUuid: string | null;
-          credentials: CreateWarehouseCredentials;
-          tunnelOptions?: SshTunnelOptions;
-      };
+    | WarehouseClientBypassRef;
 
 export type ResolvedWarehouseConnection = {
     warehouseCredentials: CreateWarehouseCredentials & {
@@ -105,7 +122,19 @@ export type ScopedWarehouseConnection = {
     connectionRoute: ConnectionRouteWithOriginal | null;
     credentialKind: WarehouseCredentialKind;
     tunnelConnectMs: number | null;
+    deriveClient: (
+        credentials: CreateWarehouseCredentials,
+        options?: { compileGroup?: WarehouseCompileGroup },
+    ) => WarehouseClient;
 };
+
+export type WarehouseConnectionLease = ScopedWarehouseConnection & {
+    release: () => Promise<void>;
+};
+
+export type WarehouseConnectionLeaseRef =
+    | Extract<WarehouseClientRef, { kind: 'compile' }>
+    | Extract<WarehouseClientRef, { kind: 'bypass'; mode: 'test_and_compile' }>;
 
 type WarehouseClientFactoryDependencies = {
     lightdashConfig: LightdashConfig;
@@ -127,6 +156,11 @@ export class WarehouseClientConstructionError extends Error {
 
 export class WarehouseClientFactory {
     warehouseClients: Record<string, WarehouseClient> = {};
+
+    private readonly clientOptions = new WeakMap<
+        object,
+        WarehouseClientOptions
+    >();
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -238,6 +272,28 @@ export class WarehouseClientFactory {
         context: ConnectionContext,
         fn: (connection: ScopedWarehouseConnection) => Promise<T>,
     ): Promise<T> {
+        const { release, ...connection } = await this.acquireConnection(
+            ref,
+            context,
+        );
+        try {
+            return await fn(connection);
+        } finally {
+            await release();
+        }
+    }
+
+    async acquireWarehouseConnection(
+        ref: WarehouseConnectionLeaseRef,
+        context: ConnectionContext,
+    ): Promise<WarehouseConnectionLease> {
+        return this.acquireConnection(ref, context);
+    }
+
+    private async acquireConnection(
+        ref: WarehouseClientRef,
+        context: ConnectionContext,
+    ): Promise<WarehouseConnectionLease> {
         let warehouseCredentials: ScopedWarehouseConnection['warehouseCredentials'];
         let aiPlan: AiExecutionPlan | null = null;
         let warehouseConnectionUuid: string | null = null;
@@ -306,28 +362,87 @@ export class WarehouseClientFactory {
                 tunnelOptions,
                 context.organizationUuid,
                 {
-                    cacheEnabled: ref.kind !== 'bypass',
+                    cacheEnabled:
+                        ref.kind !== 'bypass' && ref.kind !== 'compile',
+                    compileGroup:
+                        ref.kind === 'compile' ? ref.compileGroup : undefined,
+                    clientOptions:
+                        ref.kind === 'compile' ||
+                        (ref.kind === 'bypass' &&
+                            ref.mode === 'test_and_compile')
+                            ? { maxOpenConnections: undefined }
+                            : undefined,
                     wrapConstructionErrors:
                         ref.kind === 'bypass' && ref.mode === 'connection_test',
                 },
             );
-        try {
-            return await fn({
-                warehouseClient,
-                warehouseCredentials,
-                aiPlan,
-                warehouseConnectionUuid,
-                connectionRoute,
-                credentialKind,
-                tunnelConnectMs,
-            });
-        } finally {
-            if (
-                this.lightdashConfig.warehouseClient.releaseSshTunnelOnScopeExit
-            ) {
-                await sshTunnel.disconnect();
-            }
-        }
+        const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
+        let releasePromise: Promise<void> | null = null;
+        return {
+            warehouseClient,
+            warehouseCredentials,
+            aiPlan,
+            warehouseConnectionUuid,
+            connectionRoute,
+            credentialKind,
+            tunnelConnectMs,
+            deriveClient: (credentials, options) => {
+                const scopedCredentials = warehouseClient.credentials;
+                if (credentials.type !== scopedCredentials.type) {
+                    throw new UnexpectedServerError(
+                        'Derived warehouse client must use the scope warehouse type',
+                    );
+                }
+                if (
+                    'useSshTunnel' in warehouseCredentials &&
+                    warehouseCredentials.useSshTunnel &&
+                    'host' in scopedCredentials &&
+                    'port' in scopedCredentials &&
+                    (!('host' in credentials) ||
+                        !('port' in credentials) ||
+                        credentials.host !== scopedCredentials.host ||
+                        credentials.port !== scopedCredentials.port)
+                ) {
+                    throw new UnexpectedServerError(
+                        'Derived warehouse client must use the scope tunnel host and port',
+                    );
+                }
+                return this.withSharedSignInAttribution(
+                    ref.projectUuid,
+                    credentials,
+                    this.buildClient(
+                        { ...credentials },
+                        clientOptions,
+                        options?.compileGroup,
+                    ),
+                    aiPlan,
+                );
+            },
+            release: () => {
+                releasePromise ??= this.lightdashConfig.warehouseClient
+                    .releaseSshTunnelOnScopeExit
+                    ? sshTunnel.disconnect()
+                    : Promise.resolve();
+                return releasePromise;
+            },
+        };
+    }
+
+    private buildClient(
+        credentials: CreateWarehouseCredentials,
+        options: WarehouseClientOptions,
+        compileGroup?: WarehouseCompileGroup,
+    ): WarehouseClient {
+        return compileGroup && credentials.type === WarehouseTypes.POSTGRES
+            ? new ListedDatabasesPostgresWarehouseClient(
+                  credentials,
+                  compileGroup.listedDatabases,
+                  compileGroup.onSkippedDatabase,
+              )
+            : this.projectModel.getWarehouseClientFromCredentials(
+                  credentials,
+                  options,
+              );
     }
 
     async acquireUnscoped(
@@ -344,9 +459,13 @@ export class WarehouseClientFactory {
         {
             cacheEnabled,
             wrapConstructionErrors,
+            compileGroup,
+            clientOptions: requestedClientOptions,
         }: {
             cacheEnabled: boolean;
             wrapConstructionErrors: boolean;
+            compileGroup?: WarehouseCompileGroup;
+            clientOptions?: Pick<WarehouseClientOptions, 'maxOpenConnections'>;
         } = { cacheEnabled: true, wrapConstructionErrors: false },
     ): Promise<{
         warehouseClient: WarehouseClient;
@@ -503,16 +622,20 @@ export class WarehouseClientFactory {
                                 .organizationUuid,
                   )
                 : {};
-            const client = this.projectModel.getWarehouseClientFromCredentials(
+            const clientOptions: WarehouseClientOptions = {
+                agentSession,
+                enableInstanceCache,
+                projectUuid: projectUuid ?? undefined,
+                logger: this.logger,
+                ...identityOptions,
+                ...requestedClientOptions,
+            };
+            const client = this.buildClient(
                 credentialsWithOverrides,
-                {
-                    agentSession,
-                    enableInstanceCache,
-                    projectUuid: projectUuid ?? undefined,
-                    logger: this.logger,
-                    ...identityOptions,
-                },
+                clientOptions,
+                compileGroup,
             );
+            this.clientOptions.set(client, clientOptions);
             if (cacheEnabled && !usedSshTunnel)
                 this.warehouseClients[cacheKey] = client;
             return {
@@ -543,9 +666,14 @@ export class WarehouseClientFactory {
         if (aiPlan?.identity === 'connected_person') return client;
         if (projectUuid === null || !getPersonSignIn(credentials))
             return client;
-        return attributeClientErrors(client, (error) =>
+        const attributed = attributeClientErrors(client, (error) =>
             this.attributeSharedSignInExpiry(projectUuid, credentials, error),
         );
+        this.clientOptions.set(
+            attributed,
+            this.clientOptions.get(client) ?? {},
+        );
+        return attributed;
     }
 
     async attributeSharedSignInExpiry(

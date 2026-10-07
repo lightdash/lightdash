@@ -386,8 +386,6 @@
         {
             "files": [
                 "src/services/WarehouseClientFactory/**",
-                "src/projectAdapters/projectAdapter.ts",
-                "src/projectAdapters/CompileGroup.ts",
                 "src/models/ProjectModel/ProjectModel.ts",
                 "src/database/seeds/**",
                 "**/*.test.ts",

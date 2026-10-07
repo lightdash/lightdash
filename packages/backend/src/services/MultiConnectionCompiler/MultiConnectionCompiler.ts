@@ -4,7 +4,6 @@ import {
     isExploreError,
     NotFoundError,
     ParameterError,
-    usesAwsWebIdentity,
     type CompilationHistoryReport,
     type CreateWarehouseCredentials,
     type DbtManifest,
@@ -13,7 +12,6 @@ import {
     type SupportedDbtVersions,
     type WarehouseCatalog,
 } from '@lightdash/common';
-import { SshTunnel } from '@lightdash/warehouses';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -30,7 +28,6 @@ import {
     ManifestCollisionError,
     mergeCompileGroupManifests,
     planCompileGroups,
-    warehouseClientForCompileGroup,
     type CompilableDbtSource,
     type CompileGroupPlan,
     type SourceManifest,
@@ -38,6 +35,11 @@ import {
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { type CachedWarehouse, type TrackingParams } from '../../types';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
+import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
+import {
+    type ScopedWarehouseConnection,
+    type WarehouseClientFactory,
+} from '../WarehouseClientFactory/WarehouseClientFactory';
 
 const gzipAsync = promisify(gzip);
 
@@ -52,6 +54,7 @@ export const withConnectionWarnings = (
 export type FetchSourceManifest = (
     source: CompilableDbtSource,
     warehouseCredentials: CreateWarehouseCredentials,
+    connection: ScopedWarehouseConnection,
 ) => Promise<{ manifest: DbtManifest; selectedModelIds?: string[] }>;
 
 export type LoadExtraConnectionCredentials = (
@@ -59,6 +62,7 @@ export type LoadExtraConnectionCredentials = (
 ) => Promise<CreateWarehouseCredentials>;
 
 export type PrimaryCompileInput = {
+    connection: ScopedWarehouseConnection;
     manifest: DbtManifest;
     selectedModelIds?: string[];
     dbtProjectDir: string | undefined;
@@ -86,6 +90,7 @@ type CompiledExtraGroup = {
 };
 
 type MultiConnectionCompilerArguments = {
+    warehouseClientFactory: WarehouseClientFactory;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
@@ -128,8 +133,11 @@ export class MultiConnectionCompiler {
 
     private readonly warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 
+    private readonly warehouseClientFactory: WarehouseClientFactory;
+
     constructor(args: MultiConnectionCompilerArguments) {
         this.projectModel = args.projectModel;
+        this.warehouseClientFactory = args.warehouseClientFactory;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.warehouseConnectionCompileModel =
             args.warehouseConnectionCompileModel;
@@ -152,22 +160,10 @@ export class MultiConnectionCompiler {
         });
     }
 
-    private async getWarehouseClientOptions(
-        projectUuid: string,
-        credentials: CreateWarehouseCredentials,
-    ) {
-        if (!usesAwsWebIdentity(credentials)) return undefined;
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        return this.projectModel.getWarehouseClientIdentityOptions(
-            credentials,
-            organizationUuid,
-        );
-    }
-
     private static async fetchSourceManifests(
         sources: CompilableDbtSource[],
         warehouseCredentials: CreateWarehouseCredentials,
+        connection: ScopedWarehouseConnection,
         fetchSourceManifest: FetchSourceManifest,
     ): Promise<SourceManifest[]> {
         return Promise.all(
@@ -179,7 +175,11 @@ export class MultiConnectionCompiler {
                         : '';
                 try {
                     const { manifest, selectedModelIds } =
-                        await fetchSourceManifest(source, warehouseCredentials);
+                        await fetchSourceManifest(
+                            source,
+                            warehouseCredentials,
+                            connection,
+                        );
                     return {
                         name: source.name,
                         precedence: source.precedence,
@@ -201,6 +201,7 @@ export class MultiConnectionCompiler {
 
     private async compileExtraGroup({
         projectUuid,
+        context,
         plan,
         dbtVersion,
         fetchSourceManifest,
@@ -209,6 +210,7 @@ export class MultiConnectionCompiler {
         warnings,
     }: {
         projectUuid: string;
+        context: ConnectionContext;
         plan: CompileGroupPlan & { warehouseConnectionUuid: string };
         dbtVersion: SupportedDbtVersions;
         fetchSourceManifest: FetchSourceManifest;
@@ -219,62 +221,68 @@ export class MultiConnectionCompiler {
         const credentials = await loadExtraCredentials(
             plan.warehouseConnectionUuid,
         );
-        const sshTunnel = new SshTunnel(credentials);
-        try {
-            const warehouseCredentials = await sshTunnel.connect();
-            const warehouseClient = warehouseClientForCompileGroup(
-                warehouseCredentials,
-                plan.listedDatabases,
-                (database) => {
-                    const warning = `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`;
-                    if (!warnings.includes(warning)) warnings.push(warning);
-                },
-                await this.getWarehouseClientOptions(
-                    projectUuid,
-                    warehouseCredentials,
-                ),
-            );
-            await warehouseClient.test();
-            const sourceManifests =
-                await MultiConnectionCompiler.fetchSourceManifests(
-                    plan.sources,
-                    warehouseCredentials,
-                    fetchSourceManifest,
-                );
-            const { manifest, selectedModelIds } =
-                mergeCompileGroupManifests(sourceManifests);
-            let catalog: WarehouseCatalog | null = null;
-            const adapter = new DbtManifestProjectAdapter({
-                parsedManifest: manifest,
-                warehouseClient,
-                cachedWarehouse: {
-                    warehouseCatalog:
-                        await this.warehouseConnectionCompileModel.getCatalogCache(
-                            projectUuid,
-                            plan.warehouseConnectionUuid,
-                        ),
-                    onWarehouseCatalogChange: async (changed) => {
-                        catalog = changed;
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid,
+                credentials,
+                compileGroup: {
+                    listedDatabases: plan.listedDatabases,
+                    onSkippedDatabase: (database) => {
+                        const warning = `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`;
+                        if (!warnings.includes(warning)) warnings.push(warning);
                     },
                 },
-                dbtVersion,
-                selectedModelIds,
-            });
-            const sources = modelSources(manifest);
-            const explores = (
-                await adapter.compileAllExplores(trackingParams, false, true)
-            ).map((explore) => withErrorSource(explore, sources));
-            return {
-                plan,
-                explores,
-                manifest: await gzipAsync(
-                    JSON.stringify(projectMergedManifest(manifest)),
-                ),
-                catalog,
-            };
-        } finally {
-            await sshTunnel.disconnect();
-        }
+            },
+            context,
+            async (connection) => {
+                const { warehouseClient } = connection;
+                const warehouseCredentials = warehouseClient.credentials;
+                await warehouseClient.test();
+                const sourceManifests =
+                    await MultiConnectionCompiler.fetchSourceManifests(
+                        plan.sources,
+                        warehouseCredentials,
+                        connection,
+                        fetchSourceManifest,
+                    );
+                const { manifest, selectedModelIds } =
+                    mergeCompileGroupManifests(sourceManifests);
+                let catalog: WarehouseCatalog | null = null;
+                const adapter = new DbtManifestProjectAdapter({
+                    parsedManifest: manifest,
+                    warehouseClient,
+                    cachedWarehouse: {
+                        warehouseCatalog:
+                            await this.warehouseConnectionCompileModel.getCatalogCache(
+                                projectUuid,
+                                plan.warehouseConnectionUuid,
+                            ),
+                        onWarehouseCatalogChange: async (changed) => {
+                            catalog = changed;
+                        },
+                    },
+                    dbtVersion,
+                    selectedModelIds,
+                });
+                const sources = modelSources(manifest);
+                const explores = (
+                    await adapter.compileAllExplores(
+                        trackingParams,
+                        false,
+                        true,
+                    )
+                ).map((explore) => withErrorSource(explore, sources));
+                return {
+                    plan,
+                    explores,
+                    manifest: await gzipAsync(
+                        JSON.stringify(projectMergedManifest(manifest)),
+                    ),
+                    catalog,
+                };
+            },
+        );
     }
 
     private static async *groupExplores(
@@ -309,6 +317,7 @@ export class MultiConnectionCompiler {
 
     async compile({
         projectUuid,
+        context,
         primary,
         dbtVersion,
         includeUnboundSources,
@@ -318,6 +327,7 @@ export class MultiConnectionCompiler {
         analytics,
     }: {
         projectUuid: string;
+        context: ConnectionContext;
         primary: PrimaryCompileInput;
         dbtVersion: SupportedDbtVersions;
         includeUnboundSources: boolean;
@@ -345,24 +355,25 @@ export class MultiConnectionCompiler {
             ...(await MultiConnectionCompiler.fetchSourceManifests(
                 originalPlan.sources,
                 primary.warehouseCredentials,
+                primary.connection,
                 fetchSourceManifest,
             )),
         ];
         const originalMerged = mergeCompileGroupManifests(originalSources);
         const originalAdapter = new DbtManifestProjectAdapter({
             parsedManifest: originalMerged.manifest,
-            warehouseClient: warehouseClientForCompileGroup(
+            warehouseClient: primary.connection.deriveClient(
                 primary.warehouseCredentials,
-                originalPlan.listedDatabases,
-                (database) => {
-                    warnings.push(
-                        `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
-                    );
+                {
+                    compileGroup: {
+                        listedDatabases: originalPlan.listedDatabases,
+                        onSkippedDatabase: (database) => {
+                            warnings.push(
+                                `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
+                            );
+                        },
+                    },
                 },
-                await this.getWarehouseClientOptions(
-                    projectUuid,
-                    primary.warehouseCredentials,
-                ),
             ),
             cachedWarehouse: primary.cachedWarehouse,
             dbtVersion,
@@ -387,6 +398,7 @@ export class MultiConnectionCompiler {
                 compiledExtraGroups.push(
                     await this.compileExtraGroup({
                         projectUuid,
+                        context,
                         plan: extraPlan,
                         dbtVersion,
                         fetchSourceManifest,

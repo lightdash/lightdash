@@ -4,19 +4,11 @@ import {
     getModelsFromManifest,
     ParameterError,
     UnexpectedServerError,
-    WarehouseTypes,
-    type CreateWarehouseCredentials,
     type DbtManifest,
     type DbtProjectConfig,
     type ManifestCollision,
-    type WarehouseClient,
 } from '@lightdash/common';
-import {
-    ListedDatabasesPostgresWarehouseClient,
-    warehouseClientFromCredentials,
-    type WarehouseClientOptions,
-    type WarehouseListedDatabases,
-} from '@lightdash/warehouses';
+import { type WarehouseListedDatabases } from '@lightdash/warehouses';
 import { type BoundProjectDbtSource } from '../models/ProjectDbtSourcesModel';
 import { type CompileConnection } from '../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 
@@ -270,17 +262,3 @@ export const planCompileGroups = ({
         ...extraPlans,
     ];
 };
-
-export const warehouseClientForCompileGroup = (
-    credentials: CreateWarehouseCredentials,
-    listedDatabases: WarehouseListedDatabases,
-    onSkippedDatabase: (database: string) => void,
-    options?: WarehouseClientOptions,
-): WarehouseClient =>
-    credentials.type === WarehouseTypes.POSTGRES
-        ? new ListedDatabasesPostgresWarehouseClient(
-              credentials,
-              listedDatabases,
-              onSkippedDatabase,
-          )
-        : warehouseClientFromCredentials(credentials, options);
