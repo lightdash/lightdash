@@ -36,13 +36,16 @@ export default abstract class WarehouseBaseClient<
 
     protected sqlBuilder: WarehouseSqlBuilder;
 
+    protected readonly agentSession: boolean;
+
     protected readonly aiTransport: AiTransport | null;
 
     protected constructor(
         credentials: T,
         sqlBuilder: WarehouseSqlBuilder,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
+        this.agentSession = options?.agentSession ?? false;
         this.aiTransport = options?.aiTransport ?? null;
         this.credentials = credentials;
         this.sqlBuilder = sqlBuilder;

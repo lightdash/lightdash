@@ -35,7 +35,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
 
     constructor(private readonly deps: AiCredentialProviderDependencies) {}
 
-    capabilities(): AiWarehouseCapabilities {
+    capabilities(): Omit<AiWarehouseCapabilities, 'marker'> {
         const { clientId, clientSecret, authorizationEndpoint, tokenEndpoint } =
             this.deps.lightdashConfig.auth.snowflakeAi;
         const unavailable = {

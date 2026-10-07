@@ -17,7 +17,7 @@ export class UnavailableAiCredentialProvider<
         private readonly reason: string,
     ) {}
 
-    capabilities(): AiWarehouseCapabilities {
+    capabilities(): Omit<AiWarehouseCapabilities, 'marker'> {
         const unavailable = { available: false as const, reason: this.reason };
         return {
             warehouseType: this.warehouseType,

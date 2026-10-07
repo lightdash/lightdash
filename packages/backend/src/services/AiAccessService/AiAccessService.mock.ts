@@ -5,6 +5,7 @@ import {
     WarehouseTypes,
     type AiExecutionPlan,
 } from '@lightdash/common';
+import { describeAgentMarker } from './agentMarker';
 
 export const aiExecutionPlanMock: AiExecutionPlan = {
     principal: {
@@ -44,3 +45,5 @@ export const aiExecutionPlanMock: AiExecutionPlan = {
         queryTags: { ai_principal: 'ai_shared' },
     },
 };
+
+export const aiAgentMarkerMock = describeAgentMarker(WarehouseTypes.POSTGRES);

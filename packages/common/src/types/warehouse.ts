@@ -20,6 +20,7 @@ export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     project_uuid?: string;
     user_uuid?: string;
     ai_principal?: string;
+    agent?: 'true';
     organization_uuid?: string;
     app_uuid?: string;
     chart_uuid?: string;

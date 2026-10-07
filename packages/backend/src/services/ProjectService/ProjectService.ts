@@ -278,6 +278,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    withAgentMarkerTag,
     type AgentSqlScope,
     type AiExecutionPlan,
     type ApiCreateProjectResults,
@@ -3250,6 +3251,7 @@ export class ProjectService extends BaseService {
         credentials: CreateWarehouseCredentials,
         overrides?: {
             aiPlan?: AiExecutionPlan | null;
+            agentSession?: boolean;
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
         },
@@ -3289,7 +3291,9 @@ export class ProjectService extends BaseService {
         const { snowflakeVirtualWarehouse, databricksCompute, aiPlan } =
             overrides || {};
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
+        const agentSession = overrides?.agentSession ?? !!aiPlan;
+
+        const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
             databricksCompute || ''
         }${aiPlan ? JSON.stringify([aiPlan.principal.aiPrincipalUuid, aiPlan.transport]) : ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
@@ -3391,6 +3395,7 @@ export class ProjectService extends BaseService {
             credentialsWithOverrides,
             {
                 aiTransport: aiPlan?.transport ?? null,
+                agentSession,
                 enableInstanceCache,
                 projectUuid,
                 logger: this.logger,
@@ -6738,11 +6743,11 @@ export class ProjectService extends BaseService {
             // sets from dataTimezone (the third runQuery arg below).
             const nowWallClock = currentUtcWallClock();
             const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
-            const queryTags: RunQueryTags = {
+            const queryTags: RunQueryTags = withAgentMarkerTag({
                 organization_uuid: account.organization.organizationUuid,
                 user_uuid: account.user.userUuid,
                 query_context: QueryExecutionContext.API,
-            };
+            });
             const { rows } = await warehouseClient.runQuery(
                 sql,
                 queryTags,
@@ -9597,13 +9602,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
             query_context: context,
-        };
+        });
 
         return this.runQueryAndFormatRows({
             account,
@@ -9682,14 +9687,14 @@ export class ProjectService extends BaseService {
 
         const { metricQuery } = savedChart;
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
             explore_name: savedChart.tableName,
             query_context: context,
-        };
+        });
 
         const { cacheMetadata, rows, fields } =
             await this.runQueryAndFormatRows({
@@ -9817,7 +9822,7 @@ export class ProjectService extends BaseService {
                     : savedChart.metricQuery.sorts,
         };
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
@@ -9825,7 +9830,7 @@ export class ProjectService extends BaseService {
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         const exploreDimensions = getDimensions(explore);
 
@@ -9918,13 +9923,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
             query_context: context,
-        };
+        });
 
         const explore = await this.getExplore(
             account,
@@ -10347,6 +10352,7 @@ export class ProjectService extends BaseService {
                             warehouseCredentials,
                             {
                                 aiPlan,
+                                agentSession: isAiAccessQueryContext(context),
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
                             },
@@ -10595,14 +10601,19 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
-            { aiPlan },
+            {
+                aiPlan,
+                agentSession: isAiAccessQueryContext(
+                    QueryExecutionContext.SQL_RUNNER,
+                ),
+            },
         );
         this.logger.debug(`Run query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             query_context: QueryExecutionContext.SQL_RUNNER,
-        };
+        });
 
         const { maxLimit } = await resolveOrganizationExportLimits(
             this.organizationSettingsModel,
@@ -10675,14 +10686,14 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
-            { aiPlan },
+            { aiPlan, agentSession: isAiAccessQueryContext(context) },
         );
         this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
             query_context: context,
-        };
+        });
 
         const columns: VizColumn[] = [];
 
@@ -10778,7 +10789,7 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
-            { aiPlan },
+            { aiPlan, agentSession: isAiAccessQueryContext(context) },
         );
 
         // Apply limit and pivot to the SQL query
@@ -10799,11 +10810,11 @@ export class ProjectService extends BaseService {
         });
 
         this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
             query_context: context,
-        };
+        });
 
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
@@ -11115,6 +11126,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             {
                 aiPlan,
+                agentSession: isAiAccessQueryContext(context),
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
             },
@@ -11185,13 +11197,13 @@ export class ProjectService extends BaseService {
             }
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         const valueFieldId = getItemId(field);
@@ -12539,13 +12551,18 @@ export class ProjectService extends BaseService {
                 isRegisteredUser: true,
             });
 
-        if (aiPlan) {
+        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
+        if (aiPlan || isAiAccessQueryContext(queryContext)) {
             const { warehouseClient, sshTunnel } =
                 await this._getWarehouseClient(projectUuid, credentials, {
                     aiPlan,
+                    agentSession: isAiAccessQueryContext(queryContext),
                 });
             try {
-                const tables = await warehouseClient.getAllTables();
+                const tables = await warehouseClient.getAllTables(
+                    undefined,
+                    withAgentMarkerTag({ query_context: queryContext }),
+                );
                 return WarehouseAvailableTablesModel.toWarehouseCatalog(
                     tables.map((table) => ({
                         ...table,
@@ -12625,15 +12642,15 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
-            { aiPlan },
+            { aiPlan, agentSession: isAiAccessQueryContext(queryContext) },
         );
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             query_context: queryContext,
-        };
+        });
 
         let database =
             databaseName ?? ProjectService.getWarehouseDatabase(credentials);
@@ -12729,10 +12746,12 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         run: (warehouseClient: WarehouseClient) => Promise<T>,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<T> {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
+            { agentSession: isAiAccessQueryContext(context) },
         );
         try {
             return await run(warehouseClient);
@@ -12745,6 +12764,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         connection: WarehouseConnection,
         credentials: CreateWarehouseCredentials,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseDatabaseListing> {
         return listConnectionDatabases({
             connection,
@@ -12753,7 +12773,11 @@ export class ProjectService extends BaseService {
                 this.withConnectionWarehouseClient(
                     projectUuid,
                     credentials,
-                    (warehouseClient) => warehouseClient.listDatabases(),
+                    (warehouseClient) =>
+                        warehouseClient.listDatabases(
+                            withAgentMarkerTag({ query_context: context }),
+                        ),
+                    context,
                 ),
         });
     }
@@ -12826,6 +12850,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 connection,
                 credentials,
+                context,
             );
             trackSafely(() => {
                 this.analytics.trackAccount(account, {
@@ -12876,6 +12901,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 connection,
                 credentials,
+                context,
             ),
             listedDatabaseName,
         );
@@ -12896,8 +12922,21 @@ export class ProjectService extends BaseService {
             credentials,
             (warehouseClient) =>
                 supportsConnectionDatabaseListing(credentials.type)
-                    ? warehouseClient.getTablesForDatabase(listedDatabase)
-                    : warehouseClient.getAllTables(),
+                    ? warehouseClient.getTablesForDatabase(
+                          listedDatabase,
+                          withAgentMarkerTag({
+                              query_context:
+                                  context ?? QueryExecutionContext.SQL_RUNNER,
+                          }),
+                      )
+                    : warehouseClient.getAllTables(
+                          undefined,
+                          withAgentMarkerTag({
+                              query_context:
+                                  context ?? QueryExecutionContext.SQL_RUNNER,
+                          }),
+                      ),
+            context,
         );
         await this.warehouseConnectionTablesModel.replaceTables(
             scope,
@@ -12959,15 +12998,16 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 connection,
                 credentials,
+                queryContext,
             ),
             databaseName,
         );
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: account.organization.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: account.user.userUuid,
             query_context: queryContext,
-        };
+        });
         const listedDatabaseCredentials = credentialsForListedDatabase(
             credentials,
             listedDatabase,
@@ -12987,6 +13027,7 @@ export class ProjectService extends BaseService {
                         database,
                         queryTags,
                     ),
+                queryContext,
             );
             const fields =
                 warehouseCatalog[database]?.[schemaName]?.[tableName];

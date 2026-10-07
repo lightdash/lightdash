@@ -6279,6 +6279,76 @@ describe('AsyncQueryService', () => {
         },
     );
 
+    test.each([
+        QueryExecutionContext.AI,
+        QueryExecutionContext.MCP_RUN_SQL,
+        QueryExecutionContext.DATA_APP_SAMPLE,
+        QueryExecutionContext.EXPLORE,
+    ])('marks warehouse queries without a policy for %s', async (context) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'getWarehouseCredentialsWithConnection',
+        ).mockResolvedValue({
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: null,
+        });
+        const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+        vi.spyOn(service, '_getWarehouseClient').mockResolvedValue({
+            warehouseClient: {
+                ...warehouseClientMock,
+                executeAsyncQuery: execute,
+            },
+            sshTunnel: mockSshTunnel,
+            tunnelConnectMs: 0,
+        });
+        const markErrored = vi
+            .spyOn(service as AnyType, 'markAsyncQueryErrored')
+            .mockResolvedValue(undefined);
+        await service.runAsyncWarehouseQuery({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            query: 'SELECT 1',
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: {
+                ...service.getUserQueryTags(sessionAccount),
+                query_context: context,
+            },
+            warehouseCredentialsOverrides: undefined,
+            queryUuid: 'audited-query',
+            cacheKey: 'cache',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+        expect(execute).toHaveBeenCalledOnce();
+        const { tags } = execute.mock.calls[0][0];
+        if (context === QueryExecutionContext.EXPLORE) {
+            expect(tags).not.toHaveProperty('agent');
+        } else {
+            expect(tags).toHaveProperty('agent', 'true');
+        }
+        expect(service._getWarehouseClient).toHaveBeenCalledWith(
+            projectUuid,
+            warehouseCredentialsMock,
+            expect.objectContaining({
+                agentSession: context !== QueryExecutionContext.EXPLORE,
+            }),
+        );
+        expect(markErrored).not.toHaveBeenCalled();
+    });
+
     test.each([false, true])(
         'audits before warehouse execution and fails closed on audit failure: %s',
         async (auditFails) => {
@@ -6352,6 +6422,7 @@ describe('AsyncQueryService', () => {
                         tags: expect.objectContaining({
                             user_uuid: sessionAccount.user.id,
                             ai_principal: aiExecutionPlanMock.principal.ref,
+                            agent: 'true',
                         }),
                     }),
                     expect.any(Function),
@@ -6472,7 +6543,7 @@ describe('AsyncQueryService', () => {
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
                     originalCredentials,
-                    { aiPlan: null },
+                    { aiPlan: null, agentSession: false },
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
@@ -6480,6 +6551,7 @@ describe('AsyncQueryService', () => {
                     mockProjectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
                     aiTransport: null,
+                    agentSession: false,
                     enableInstanceCache: false,
                     projectUuid: 'project uuid',
                     logger: expect.anything(),

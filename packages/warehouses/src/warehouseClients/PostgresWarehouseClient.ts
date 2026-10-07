@@ -1,4 +1,6 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
+    AI_AGENT_SESSION_SETTING,
     AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
@@ -291,14 +293,23 @@ export class PostgresClient<
     constructor(
         credentials: T,
         config: pg.PoolConfig,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
         super(
             credentials,
             new PostgresSqlBuilder(credentials.startOfWeek),
             options,
         );
-        this.config = config;
+        this.config = {
+            ...config,
+            ...(this.agentSession
+                ? { application_name: AI_AGENT_APPLICATION_NAME }
+                : {}),
+        };
+    }
+
+    protected getAgentSessionStatement(): string {
+        return `SET ${AI_AGENT_SESSION_SETTING} = 'true'`;
     }
 
     protected getCatalogQueryFilters(
@@ -541,6 +552,11 @@ export class PostgresClient<
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
+                    .then(() =>
+                        this.agentSession
+                            ? client.query(this.getAgentSessionStatement())
+                            : undefined,
+                    )
                     .then(() => {
                         if (options?.timezone) {
                             console.debug(
@@ -952,7 +968,7 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
 
     constructor(
         credentials: CreatePostgresCredentials,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
         const ssl = getSSLConfigFromMode(credentials);
         super(

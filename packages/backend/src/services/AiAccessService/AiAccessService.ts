@@ -37,6 +37,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
+import { describeAgentMarker } from './agentMarker';
 import {
     type AiCredentialProvider,
     type AiMintArgs,
@@ -212,7 +213,10 @@ export class AiAccessService extends BaseService {
             projectUuid,
             warehouseConnectionUuid,
         );
-        return this.providerRegistry(connection.type).capabilities(connection);
+        return {
+            ...this.providerRegistry(connection.type).capabilities(connection),
+            marker: describeAgentMarker(connection.type),
+        };
     }
 
     async getPolicy(

@@ -317,7 +317,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
     constructor(
         credentials: CreateTrinoCredentials,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
         super(
             credentials,

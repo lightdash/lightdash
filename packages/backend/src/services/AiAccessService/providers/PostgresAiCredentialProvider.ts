@@ -32,7 +32,7 @@ const quoteLiteral = (value: string): string =>
 export class PostgresAiCredentialProvider implements AiCredentialProvider<CreatePostgresCredentials> {
     readonly warehouseType = WarehouseTypes.POSTGRES;
 
-    capabilities(): AiWarehouseCapabilities {
+    capabilities(): Omit<AiWarehouseCapabilities, 'marker'> {
         const available = {
             available: true as const,
             method: AiCredentialMethod.KEY,
@@ -42,7 +42,7 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
             principals: {
                 person: {
                     available: false,
-                    reason: 'Postgres has no agent-marked session. Use a group, twin or shared principal.',
+                    reason: 'Postgres has no verified agent session. Use a group, twin or shared principal.',
                 },
                 twin: available,
                 group: available,

@@ -121,6 +121,7 @@ import {
     WarehouseClient,
     WarehouseQueryError,
     WarehouseTypes,
+    withAgentMarkerTag,
     type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
@@ -3807,6 +3808,9 @@ export class AsyncQueryService extends ProjectService {
                 {
                     ...warehouseCredentialsOverrides,
                     aiPlan: resolvedCredentials.aiPlan,
+                    agentSession: isAiAccessQueryContext(
+                        queryTags.query_context,
+                    ),
                 },
             );
             sshTunnel = warehouseConnection.sshTunnel;
@@ -3937,11 +3941,11 @@ export class AsyncQueryService extends ProjectService {
                         AsyncQueryService.runQueryAndTransformRows({
                             warehouseClient: client,
                             query,
-                            queryTags: {
+                            queryTags: withAgentMarkerTag({
                                 ...queryTags,
                                 ...aiQueryTags,
                                 query_uuid: queryUuid,
-                            },
+                            }),
                             write: resultsStream
                                 ? (rows) => {
                                       hasWrittenRows = true;
@@ -5779,7 +5783,7 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             ...AsyncQueryService.getAppQueryTags(),
@@ -5787,7 +5791,7 @@ export class AsyncQueryService extends ProjectService {
             project_uuid: projectUuid,
             explore_name: inputMetricQuery.exploreName,
             query_context: context,
-        };
+        });
 
         const metricQueryStart = Date.now();
 
@@ -6611,14 +6615,14 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const baseQueryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         const {
             warehouseCredentials,
@@ -6914,7 +6918,7 @@ export class AsyncQueryService extends ProjectService {
             maxLimit,
         );
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: savedChartOrganizationUuid,
@@ -6922,7 +6926,7 @@ export class AsyncQueryService extends ProjectService {
             chart_uuid: chartUuid,
             explore_name: savedChartTableName,
             query_context: context,
-        };
+        });
 
         const { explore, userAccessControls: preloadedUserAccessControls } =
             await this.getExploreWithUserAccessControls(
@@ -7716,7 +7720,7 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const baseQueryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -7725,7 +7729,7 @@ export class AsyncQueryService extends ProjectService {
             dashboard_uuid: resolvedDashboardUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         // Load project warehouse config once, shared by warehouse credentials and timezone resolution
         const { organizationWarehouseCredentialsUuid, queryTimezone } =
@@ -8142,14 +8146,14 @@ export class AsyncQueryService extends ProjectService {
             sorts,
         };
 
-        const baseQueryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
             query_context: context,
-        };
+        });
 
         const underlyingDataMetricQuery: MetricQuery = {
             exploreName,
@@ -8705,13 +8709,13 @@ export class AsyncQueryService extends ProjectService {
                 scope: null,
             });
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             query_context: context,
-        };
+        });
 
         // The row is created before references are resolved so the queryUuid
         // returns immediately even when referenced queries are still running;
@@ -9394,13 +9398,13 @@ export class AsyncQueryService extends ProjectService {
                 scope: null,
             });
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             query_context: context,
-        };
+        });
 
         const placeholderComposer = new SqlQueryComposer({
             userSql: sql,
@@ -10758,10 +10762,10 @@ export class AsyncQueryService extends ProjectService {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
-            { aiPlan },
+            { aiPlan, agentSession: isAiAccessQueryContext(context) },
         );
 
-        const baseQueryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -10769,7 +10773,7 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
             ...(chartUuid ? { chart_uuid: chartUuid } : {}),
             ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
-        };
+        });
         const queryTags = AsyncQueryService.addUserAttributeQueryTags(
             baseQueryTags,
             { userAttributes, intrinsicUserAttributes },

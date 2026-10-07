@@ -33,7 +33,7 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
-import { aiExecutionPlanMock } from './AiAccessService.mock';
+import { aiAgentMarkerMock, aiExecutionPlanMock } from './AiAccessService.mock';
 import {
     type AiCreatedSecret,
     type AiCredentialProvider,
@@ -140,7 +140,7 @@ const setup = () => {
     const provider = {
         warehouseType: WarehouseTypes.POSTGRES,
         capabilities: vi.fn(
-            (): AiWarehouseCapabilities => ({
+            (): Omit<AiWarehouseCapabilities, 'marker'> => ({
                 warehouseType: WarehouseTypes.POSTGRES,
                 principals: {
                     person: {
@@ -660,7 +660,12 @@ describe('AiAccessService', () => {
     });
     test('loads extra connection credentials in the project scope', async () => {
         const { service, connections, projects } = setup();
-        await service.getCapabilities(account, 'project', 'extra');
+        const capabilities = await service.getCapabilities(
+            account,
+            'project',
+            'extra',
+        );
+        expect(capabilities.marker).toEqual(aiAgentMarkerMock);
         expect(connections.getProject).toHaveBeenCalledWith('project');
         expect(connections.getCredentials).toHaveBeenCalledWith(
             { projectUuid: 'project' },

@@ -1142,6 +1142,7 @@ export class EmbedService extends BaseService {
         queryTags: Omit<
             Required<RunQueryTags>,
             | 'ai_principal'
+            | 'agent'
             | 'user_uuid'
             | 'app_uuid'
             | 'chart_uuid'

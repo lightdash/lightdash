@@ -187,6 +187,7 @@ export type DuckdbConnectionCredentials =
     | DuckdbParquetCredentials;
 
 export type DuckdbWarehouseClientOptions = {
+    agentSession?: boolean;
     aiTransport?: AiTransport | null;
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;

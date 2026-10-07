@@ -439,7 +439,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     constructor(
         credentials: CreateBigqueryCredentials,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
         super(
             credentials,

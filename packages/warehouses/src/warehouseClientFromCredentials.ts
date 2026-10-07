@@ -27,7 +27,10 @@ import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
-    AthenaWarehouseClientOptions & { aiTransport?: AiTransport | null };
+    AthenaWarehouseClientOptions & {
+        agentSession?: boolean;
+        aiTransport?: AiTransport | null;
+    };
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,

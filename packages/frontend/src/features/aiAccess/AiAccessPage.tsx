@@ -28,6 +28,7 @@ import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
+import { AiAgentMarkerSection } from './AiAgentMarkerSection';
 import { AiPolicyEditor } from './AiPolicyEditor';
 import { AiPrincipalStatusBadge } from './AiPrincipalStatusBadge';
 import { AiSetupScriptDrawer } from './AiSetupScriptDrawer';
@@ -310,6 +311,8 @@ const ConnectionAccess = ({
     );
     return (
         <Stack gap="xl">
+            <AiAgentMarkerSection marker={capabilities.data.marker} />
+            <Title order={4}>Run AI as a separate principal (optional)</Title>
             {noModeAvailable && (
                 <Alert color="blue" title="Coming soon">
                     AI principals for {capabilities.data.warehouseType} are not

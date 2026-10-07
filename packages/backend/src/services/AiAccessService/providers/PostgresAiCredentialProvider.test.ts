@@ -127,7 +127,7 @@ describe('PostgresAiCredentialProvider', () => {
             principals: {
                 person: {
                     available: false,
-                    reason: 'Postgres has no agent-marked session. Use a group, twin or shared principal.',
+                    reason: 'Postgres has no verified agent session. Use a group, twin or shared principal.',
                 },
                 twin: { available: true, method: AiCredentialMethod.KEY },
                 group: { available: true, method: AiCredentialMethod.KEY },

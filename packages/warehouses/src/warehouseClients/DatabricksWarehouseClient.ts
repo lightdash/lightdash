@@ -488,7 +488,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     constructor(
         credentials: CreateDatabricksCredentials,
-        options?: { aiTransport?: AiTransport | null },
+        options?: { agentSession?: boolean; aiTransport?: AiTransport | null },
     ) {
         super(
             credentials,

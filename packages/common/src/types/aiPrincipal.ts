@@ -4,6 +4,24 @@ import {
     type WarehouseTypes,
 } from './projects';
 
+export const AI_AGENT_TAG = 'agent';
+export const AI_AGENT_APPLICATION_NAME = 'lightdash-ai';
+export const AI_AGENT_SESSION_SETTING = 'lightdash.agent';
+
+export enum AiAgentMarkerLevel {
+    VERIFIED_SESSION = 'verified_session',
+    ADVISORY_SESSION = 'advisory_session',
+    IDENTIFY_ONLY = 'identify_only',
+    NONE = 'none',
+}
+
+export type AiAgentMarker = {
+    level: AiAgentMarkerLevel;
+    channels: string[];
+    identify: string;
+    enforce: string | null;
+};
+
 export enum AiPrincipalKind {
     PERSON = 'person',
     TWIN = 'twin',
@@ -107,6 +125,7 @@ export enum AiSetupScriptFormat {
 }
 
 export type AiWarehouseCapabilities = {
+    marker: AiAgentMarker;
     warehouseType: WarehouseTypes;
     principals: Record<AiPrincipalKind, AiPrincipalKindCapability>;
     transports: Record<AiTransportKind, AiTransportCapability>;

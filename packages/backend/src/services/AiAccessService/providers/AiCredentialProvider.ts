@@ -52,7 +52,7 @@ export interface AiCredentialProvider<
 > {
     readonly warehouseType: T['type'];
 
-    capabilities(connection: T): AiWarehouseCapabilities;
+    capabilities(connection: T): Omit<AiWarehouseCapabilities, 'marker'>;
 
     createSecret(): Promise<AiCreatedSecret | null>;
 

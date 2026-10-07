@@ -32,6 +32,7 @@ import {
     getDbtManifestVersion,
     getItemId,
     getModelsFromManifest,
+    isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
     JobStepType,
@@ -1397,6 +1398,7 @@ describe('ProjectService', () => {
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
                     aiTransport: null,
+                    agentSession: false,
                     enableInstanceCache: expected,
                     projectUuid: targetProjectUuid,
                     logger: expect.anything(),
@@ -1426,6 +1428,7 @@ describe('ProjectService', () => {
                 vi.mocked(projectModel.getWarehouseClientFromCredentials),
             ).toHaveBeenCalledWith(expect.anything(), {
                 aiTransport: null,
+                agentSession: false,
                 enableInstanceCache: false,
                 projectUuid,
                 logger: expect.anything(),
@@ -14310,6 +14313,44 @@ describe('AI principal credential routing', () => {
         expect(result.aiPlan).toBeNull();
         expect(personal).toHaveBeenCalledOnce();
     });
+    test('caches AI and explore clients separately without a policy', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        ).mockImplementation(() => ({ ...warehouseClientMock }));
+        vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
+        const getClient = (context: QueryExecutionContext) =>
+            configured._getWarehouseClient(projectUuid, credentials, {
+                agentSession: isAiAccessQueryContext(context),
+            });
+        const first = await getClient(QueryExecutionContext.AI);
+        const second = await getClient(QueryExecutionContext.EXPLORE);
+        const again = await getClient(QueryExecutionContext.AI);
+        const clients = [first, second, again];
+        expect(clients[0].warehouseClient).not.toBe(clients[1].warehouseClient);
+        expect(clients[0].warehouseClient).toBe(clients[2].warehouseClient);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenNthCalledWith(
+            1,
+            warehouseClientMock.credentials,
+            expect.objectContaining({ agentSession: true }),
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenNthCalledWith(
+            2,
+            warehouseClientMock.credentials,
+            expect.objectContaining({ agentSession: false }),
+        );
+        await Promise.all(
+            clients.map((client) => client.sshTunnel.disconnect()),
+        );
+    });
+
     test('caches clients separately for different principals with the same credentials', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
         vi.mocked(

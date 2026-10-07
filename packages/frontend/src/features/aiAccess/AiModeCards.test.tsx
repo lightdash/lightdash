@@ -1,5 +1,6 @@
 import {
     AiCredentialMethod,
+    AiAgentMarkerLevel,
     AiPrincipalKind,
     AiSetupScriptFormat,
     WarehouseTypes,
@@ -10,6 +11,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiModeCards } from './AiModeCards';
 const capabilities: AiWarehouseCapabilities = {
+    marker: {
+        level: AiAgentMarkerLevel.VERIFIED_SESSION,
+        channels: ['Query tag'],
+        identify: 'Agent query tag',
+        enforce: null,
+    },
     warehouseType: WarehouseTypes.SNOWFLAKE,
     setupFormat: AiSetupScriptFormat.SQL,
     principals: {

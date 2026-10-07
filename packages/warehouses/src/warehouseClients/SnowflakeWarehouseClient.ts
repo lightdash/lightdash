@@ -790,6 +790,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     constructor(
         credentials: CreateSnowflakeCredentials,
         options?: {
+            agentSession?: boolean;
             aiTransport?: AiTransport | null;
             logger?: {
                 info: (
