@@ -33,6 +33,7 @@ import {
     registerCustomCompletionProvider,
     registerMonacoLanguage,
 } from '../utils/monaco';
+import { getSqlFunctions } from '../utils/sqlCompletion/vocabulary';
 import styles from './SqlEditor.module.css';
 
 // monaco highlight character
@@ -54,6 +55,8 @@ const SQL_RUNNER_MONACO_OPTIONS: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
     padding: { top: 12, bottom: 12 },
     fixedOverflowWidgets: true,
+    // Suggestions come from the context-aware provider only
+    wordBasedSuggestions: 'off',
 };
 
 export type SqlEditorProps = {
@@ -242,11 +245,14 @@ export const SqlEditorView: FC<
             const provider = registerCustomCompletionProvider(
                 monaco,
                 language,
-                quoteChar,
-                transformedData,
-                allFieldsData.length > 0 ? allFieldsData : undefined,
-                settings,
-                availableParameters,
+                {
+                    quoteChar,
+                    catalog: transformedData,
+                    fields: allFieldsData,
+                    parameters: availableParameters ?? {},
+                    functions: getSqlFunctions(warehouseConnectionType),
+                    settings,
+                },
             );
             completionProviderRef.current = provider;
         }

@@ -18,6 +18,7 @@ const catalog: SqlCatalog = {
 describe('parseQualifiedPrefix', () => {
     it('returns no qualifiers for a bare word', () => {
         expect(parseQualifiedPrefix('select * from sil', '`')).toEqual({
+            chainStart: 14,
             qualifiers: [],
             partial: 'sil',
             partialStart: 14,
@@ -28,6 +29,7 @@ describe('parseQualifiedPrefix', () => {
 
     it('parses an unquoted qualifier', () => {
         expect(parseQualifiedPrefix('select * from silver.', '`')).toEqual({
+            chainStart: 14,
             qualifiers: ['silver'],
             partial: '',
             partialStart: 21,
@@ -50,6 +52,7 @@ describe('parseQualifiedPrefix', () => {
 
     it('parses a path inside one open backtick quote', () => {
         expect(parseQualifiedPrefix('from `silver.or', '`')).toEqual({
+            chainStart: 5,
             qualifiers: ['silver'],
             partial: 'or',
             partialStart: 13,
@@ -60,6 +63,7 @@ describe('parseQualifiedPrefix', () => {
 
     it('parses an open quote after a qualifier', () => {
         expect(parseQualifiedPrefix('from "silver"."or', '"')).toEqual({
+            chainStart: 5,
             qualifiers: ['silver'],
             partial: 'or',
             partialStart: 15,
@@ -76,6 +80,7 @@ describe('parseQualifiedPrefix', () => {
 
     it('treats a closed quote as no prefix', () => {
         expect(parseQualifiedPrefix('from `silver`', '`')).toEqual({
+            chainStart: 13,
             qualifiers: [],
             partial: '',
             partialStart: 13,

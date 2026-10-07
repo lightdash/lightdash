@@ -7,6 +7,8 @@ export type SqlCatalog = {
 };
 
 export type QualifiedPrefix = {
+    // Offset in the text where the qualified name (qualifiers + partial) starts
+    chainStart: number;
     // Identifiers before the last dot, unquoted, e.g. ['silver'] for `silver.or`
     qualifiers: string[];
     // Text typed after the last dot (without quotes)
@@ -39,20 +41,23 @@ export const parseQualifiedPrefix = (
     quoteChar: string,
 ): QualifiedPrefix => {
     const q = escapeRegExp(quoteChar);
-    const segment = `(?:${q}[^${q}]*${q}|[A-Za-z_][\\w$]*)`;
+    const word = '[\\p{L}_][\\p{L}\\p{N}_$]*';
+    const segment = `(?:${q}[^${q}]*${q}|${word})`;
     const match = textUntilCursor.match(
-        new RegExp(`((?:${segment}\\.)*)(${q}[^${q}]*|[A-Za-z_][\\w$]*)?$`),
+        new RegExp(`((?:${segment}\\.)*)(${q}[^${q}]*|${word})?$`, 'u'),
     );
 
+    const chainStart = match?.index ?? textUntilCursor.length;
     const qualifiersText = match?.[1] ?? '';
     const partialText = match?.[2] ?? '';
     const qualifiers = (
-        qualifiersText.match(new RegExp(`${segment}(?=\\.)`, 'g')) ?? []
+        qualifiersText.match(new RegExp(`${segment}(?=\\.)`, 'gu')) ?? []
     ).flatMap((s) => unquoteSegment(s, quoteChar));
 
     const partialTextStart = textUntilCursor.length - partialText.length;
     if (!partialText.startsWith(quoteChar)) {
         return {
+            chainStart,
             qualifiers,
             partial: partialText,
             partialStart: partialTextStart,
@@ -65,6 +70,7 @@ export const parseQualifiedPrefix = (
     const quoteCount = textUntilCursor.split(quoteChar).length - 1;
     if (quoteCount % 2 === 0) {
         return {
+            chainStart: textUntilCursor.length,
             qualifiers: [],
             partial: '',
             partialStart: textUntilCursor.length,
@@ -77,6 +83,7 @@ export const parseQualifiedPrefix = (
     const innerParts = quoteChar === '`' ? inner.split('.') : [inner];
     const partial = innerParts[innerParts.length - 1];
     return {
+        chainStart,
         qualifiers: [...qualifiers, ...innerParts.slice(0, -1)],
         partial,
         partialStart: textUntilCursor.length - partial.length,

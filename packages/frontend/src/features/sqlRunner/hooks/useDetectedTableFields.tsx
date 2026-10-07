@@ -1,107 +1,57 @@
 import { useMemo } from 'react';
+import { extractTableReferences } from '../utils/sqlCompletion/analyze';
+import { type SqlCatalog } from '../utils/sqlCompletionScope';
 import {
     useMultipleTableFields,
     type TableReference,
 } from './useMultipleTableFields';
-import { type TablesBySchema } from './useTables';
 
-type ParsedTableReference = {
-    database?: string;
-    schema?: string;
-    table: string;
-    fullReference: string;
-};
+// A bare table name can match the same table in several schemas
+const MAX_SCHEMAS_PER_BARE_TABLE = 5;
 
-const hasSchema = (
-    tableRef: ParsedTableReference,
-): tableRef is ParsedTableReference & { schema: string } => {
-    return !!tableRef.schema;
-};
+const equalsIgnoreCase = (a: string, b: string) =>
+    a.toLowerCase() === b.toLowerCase();
 
-const parseTableReferencesFromSQL = (
-    sql: string,
-    quoteChar: string,
-): Array<ParsedTableReference> => {
-    if (!sql) return [];
+/**
+ * Resolves table paths from SQL against the catalog, using the catalog's
+ * database as the default. Returns catalog-cased schema and table names.
+ */
+export const resolveCatalogTables = (
+    paths: string[][],
+    catalog: SqlCatalog,
+): Array<{ schema: string; table: string }> => {
+    const resolved = new Map<string, { schema: string; table: string }>();
+    const add = (schema: string, table: string) =>
+        resolved.set(`${schema}.${table}`.toLowerCase(), { schema, table });
+    const schemas = catalog.tablesBySchema ?? [];
+    const findTable = (tables: Record<string, unknown>, name: string) =>
+        Object.keys(tables).find((table) => equalsIgnoreCase(table, name));
 
-    const tableReferences: Array<ParsedTableReference> = [];
+    paths.forEach((path) => {
+        const [table, schema, database] = [...path].reverse();
+        if (!table) return;
+        if (database && !equalsIgnoreCase(database, catalog.database)) return;
+        if (path.length > 3) return;
 
-    // Regex to match quoted identifiers in SQL
-    // This matches patterns like: "database"."schema"."table" or schema.table or just table
-    const quotedIdentifierRegex = new RegExp(
-        `\\${quoteChar}([^${quoteChar}]+)\\${quoteChar}(?:\\.\\${quoteChar}([^${quoteChar}]+)\\${quoteChar})?(?:\\.\\${quoteChar}([^${quoteChar}]+)\\${quoteChar})?`,
-        'gi',
-    );
-
-    // Also match unquoted identifiers (word.word.word pattern)
-    const unquotedIdentifierRegex =
-        /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*){1,2})\b/g;
-
-    let match;
-
-    // Parse quoted identifiers
-    while ((match = quotedIdentifierRegex.exec(sql)) !== null) {
-        // Backtick warehouses allow a whole path in one quote: `dataset.table`
-        const parts = [match[1], match[2], match[3]]
-            .filter(Boolean)
-            .flatMap((part) => (quoteChar === '`' ? part.split('.') : [part]));
-        const fullReference = match[0];
-
-        if (parts.length === 3) {
-            // database.schema.table
-            tableReferences.push({
-                database: parts[0],
-                schema: parts[1],
-                table: parts[2],
-                fullReference,
-            });
-        } else if (parts.length === 2) {
-            // schema.table
-            tableReferences.push({
-                schema: parts[0],
-                table: parts[1],
-                fullReference,
-            });
-        } else if (parts.length === 1) {
-            // just table
-            tableReferences.push({
-                table: parts[0],
-                fullReference,
-            });
+        if (schema) {
+            const match = schemas.find((s) =>
+                equalsIgnoreCase(s.schema.toString(), schema),
+            );
+            const actualTable = match && findTable(match.tables, table);
+            if (match && actualTable) add(match.schema.toString(), actualTable);
+            return;
         }
-    }
-
-    // Parse unquoted identifiers
-    while ((match = unquotedIdentifierRegex.exec(sql)) !== null) {
-        const parts = match[1].split('.');
-        const fullReference = match[0];
-
-        if (parts.length === 3) {
-            // database.schema.table
-            tableReferences.push({
-                database: parts[0],
-                schema: parts[1],
-                table: parts[2],
-                fullReference,
-            });
-        } else if (parts.length === 2) {
-            // schema.table
-            tableReferences.push({
-                schema: parts[0],
-                table: parts[1],
-                fullReference,
-            });
-        }
-    }
-
-    // Remove duplicates based on fullReference
-    const uniqueReferences = tableReferences.filter(
-        (ref, index, self) =>
-            index ===
-            self.findIndex((r) => r.fullReference === ref.fullReference),
-    );
-
-    return uniqueReferences;
+        schemas
+            .flatMap((s) => {
+                const actualTable = findTable(s.tables, table);
+                return actualTable
+                    ? [{ schema: s.schema.toString(), actualTable }]
+                    : [];
+            })
+            .slice(0, MAX_SCHEMAS_PER_BARE_TABLE)
+            .forEach((match) => add(match.schema, match.actualTable));
+    });
+    return [...resolved.values()];
 };
 
 export const useDetectedTableFields = ({
@@ -114,59 +64,21 @@ export const useDetectedTableFields = ({
     sql: string;
     quoteChar: string;
     projectUuid: string;
-    transformedData?: { database: string; tablesBySchema: TablesBySchema };
+    transformedData?: SqlCatalog;
     connectionId?: string;
 }) => {
-    // Parse SQL to detect table references
-    const detectedTables = useMemo(() => {
+    const detectedPaths = useMemo(() => {
         if (!sql || !quoteChar) return [];
-        return parseTableReferencesFromSQL(sql, quoteChar);
+        return extractTableReferences(sql, quoteChar);
     }, [sql, quoteChar]);
 
-    // Filter and prepare table references for React Query
     const tableReferences = useMemo((): TableReference[] => {
-        if (!transformedData || !projectUuid || detectedTables.length === 0) {
-            return [];
-        }
-
-        return detectedTables.reduce<TableReference[]>((acc, tableRef) => {
-            // Only include tables that exist in our catalog
-            if (!hasSchema(tableRef)) {
-                return acc;
-            }
-
-            // `schema.table` resolves against the default database
-            const matchesCurrentDatabase =
-                !tableRef.database ||
-                tableRef.database.toLowerCase() ===
-                    transformedData.database.toLowerCase();
-
-            // Find the matching schema (case-insensitive) - do this once
-            const matchingSchema = transformedData.tablesBySchema?.find(
-                (s) =>
-                    s.schema.toString().toLowerCase() ===
-                    tableRef.schema.toLowerCase(),
-            );
-
-            if (!matchingSchema || !matchesCurrentDatabase) {
-                return acc;
-            }
-
-            // Check if table exists in the matching schema (case-insensitive)
-            const actualTableName = Object.keys(matchingSchema.tables).find(
-                (tableName) =>
-                    tableName.toLowerCase() === tableRef.table.toLowerCase(),
-            );
-
-            if (!actualTableName) {
-                return acc;
-            }
-
-            // Add the validated and transformed table reference
-            acc.push({
+        if (!transformedData || !projectUuid) return [];
+        return resolveCatalogTables(detectedPaths, transformedData).map(
+            ({ schema, table }) => ({
                 projectUuid,
-                tableName: actualTableName, // Use actual table name from catalog
-                schema: matchingSchema.schema.toString(), // Use actual schema name from catalog
+                tableName: table,
+                schema,
                 ...(connectionId
                     ? {
                           connection: {
@@ -175,18 +87,9 @@ export const useDetectedTableFields = ({
                           },
                       }
                     : {}),
-            });
+            }),
+        );
+    }, [detectedPaths, transformedData, projectUuid, connectionId]);
 
-            return acc;
-        }, []);
-    }, [detectedTables, transformedData, projectUuid, connectionId]);
-
-    // Use the new multi-table fields hook
-    const result = useMultipleTableFields(tableReferences);
-
-    return {
-        ...result,
-        detectedTableCount: detectedTables.length,
-        validTableCount: tableReferences.length,
-    };
+    return useMultipleTableFields(tableReferences);
 };
