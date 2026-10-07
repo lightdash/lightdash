@@ -17,9 +17,10 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
+import TruncatedText from '../../../../components/common/TruncatedText';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../../hooks/useOrganizationUsers';
 import {
@@ -61,16 +62,10 @@ type FormProps = {
     department: DepartmentWithMetrics | null;
     departments: DepartmentWithMetrics[];
     onClose: () => void;
+    onCreated?: (name: string) => void;
 };
 
-const EMPTY_CORE: CreateDepartment = {
-    name: '',
-    parentDepartmentUuid: null,
-    headcount: null,
-    headcountNote: null,
-    targetActiveUsers: null,
-    targetDate: null,
-};
+type SavedDepartment = { departmentUuid: string; core: CreateDepartment };
 
 const getFullName = (person: {
     firstName: string;
@@ -82,6 +77,7 @@ export const DepartmentForm: FC<FormProps> = ({
     department,
     departments,
     onClose,
+    onCreated,
 }) => {
     const createDepartment = useCreateDepartment();
     const updateDepartment = useUpdateDepartment();
@@ -96,11 +92,23 @@ export const DepartmentForm: FC<FormProps> = ({
     );
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    // A create whose follow-up saves failed must not create a second department on retry
-    const [createdCore, setCreatedCore] = useState<{
-        departmentUuid: string;
-        core: CreateDepartment;
-    } | null>(null);
+    // What the server holds, snapshotted on mount so a refetched prop cannot
+    // change the diff. Set after a create too, so a retry updates, not creates
+    const [saved, setSaved] = useState<SavedDepartment | null>(() =>
+        department === null
+            ? null
+            : {
+                  departmentUuid: department.departmentUuid,
+                  core: {
+                      name: department.name,
+                      parentDepartmentUuid: department.parentDepartmentUuid,
+                      headcount: department.headcount,
+                      headcountNote: department.headcountNote,
+                      targetActiveUsers: department.targetActiveUsers,
+                      targetDate: department.targetDate,
+                  },
+              },
+    );
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -194,30 +202,24 @@ export const DepartmentForm: FC<FormProps> = ({
         };
         setIsSaving(true);
         try {
-            let departmentUuid: string;
-            if (department === null && createdCore === null) {
+            let target: SavedDepartment;
+            if (saved === null) {
                 const created = await createDepartment.mutateAsync(next);
-                departmentUuid = created.departmentUuid;
-                setCreatedCore({ departmentUuid, core: next });
+                target = { departmentUuid: created.departmentUuid, core: next };
+                setSaved(target);
+                onCreated?.(next.name);
             } else {
-                departmentUuid =
-                    department?.departmentUuid ??
-                    createdCore?.departmentUuid ??
-                    '';
-                const data = buildDepartmentUpdate(
-                    department ?? createdCore?.core ?? EMPTY_CORE,
-                    next,
-                );
+                const data = buildDepartmentUpdate(saved.core, next);
                 if (Object.keys(data).length > 0) {
                     await updateDepartment.mutateAsync({
-                        departmentUuid,
+                        departmentUuid: saved.departmentUuid,
                         data,
                     });
-                    if (createdCore !== null) {
-                        setCreatedCore({ departmentUuid, core: next });
-                    }
                 }
+                target = { departmentUuid: saved.departmentUuid, core: next };
+                setSaved(target);
             }
+            const { departmentUuid } = target;
             if (form.isDirty('owners')) {
                 await setOwners.mutateAsync({
                     departmentUuid,
@@ -352,9 +354,9 @@ export const DepartmentForm: FC<FormProps> = ({
                                             justify="space-between"
                                             wrap="nowrap"
                                         >
-                                            <Text fz="sm" truncate>
+                                            <TruncatedText maxWidth="70%">
                                                 {getFullName(member)}
-                                            </Text>
+                                            </TruncatedText>
                                             <Text fz="xs" c="dimmed">
                                                 {via === null
                                                     ? 'Direct'
@@ -384,7 +386,7 @@ export const DepartmentForm: FC<FormProps> = ({
                                 Cancel
                             </Button>
                             <Button type="submit" loading={isSaving}>
-                                {department === null
+                                {saved === null
                                     ? 'Create department'
                                     : 'Save changes'}
                             </Button>
@@ -432,23 +434,32 @@ export const DepartmentDrawer: FC<DrawerProps> = ({
     onClose,
     department,
     departments,
-}) => (
-    <Drawer
-        opened={opened}
-        onClose={onClose}
-        position="right"
-        size="lg"
-        title={
-            department === null ? 'New department' : `Edit ${department.name}`
-        }
-    >
-        {opened && (
-            <DepartmentForm
-                key={department?.departmentUuid ?? 'new'}
-                department={department}
-                departments={departments}
-                onClose={onClose}
-            />
-        )}
-    </Drawer>
-);
+}) => {
+    const [createdName, setCreatedName] = useState<string | null>(null);
+    useEffect(() => {
+        if (!opened) setCreatedName(null);
+    }, [opened]);
+    return (
+        <Drawer
+            opened={opened}
+            onClose={onClose}
+            position="right"
+            size="lg"
+            title={
+                department === null && createdName === null
+                    ? 'New department'
+                    : `Edit ${department?.name ?? createdName}`
+            }
+        >
+            {opened && (
+                <DepartmentForm
+                    key={department?.departmentUuid ?? 'new'}
+                    department={department}
+                    departments={departments}
+                    onClose={onClose}
+                    onCreated={setCreatedName}
+                />
+            )}
+        </Drawer>
+    );
+};
