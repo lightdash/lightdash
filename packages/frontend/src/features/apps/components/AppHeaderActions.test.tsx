@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import {
     useAppThumbnailDelete,
     useAppThumbnailUrl,
+    useAppVersionThumbnailUrl,
 } from '../hooks/useAppThumbnail';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import AppHeaderActions from './AppHeaderActions';
@@ -23,6 +24,11 @@ vi.mock('../hooks/useCanCreateDataApp', () => ({
 }));
 vi.mock('../hooks/useAppThumbnail', () => ({
     useAppThumbnailUrl: vi.fn(() => ({ data: undefined, isError: false })),
+    useAppVersionThumbnailUrl: vi.fn(() => ({
+        data: undefined,
+        isError: false,
+    })),
+    refreshAppThumbnailQueries: vi.fn(),
     useAppThumbnailDelete: vi.fn(() => ({
         mutateAsync: vi.fn(),
         isLoading: false,
@@ -216,6 +222,10 @@ describe('AppHeaderActions — Remove thumbnail', () => {
             data: { thumbnailUrl: 'https://example.com/thumbnail.png' },
             isError: false,
         } as ReturnType<typeof useAppThumbnailUrl>);
+        vi.mocked(useAppVersionThumbnailUrl).mockReturnValue({
+            data: { thumbnailUrl: 'https://example.com/version.png' },
+            isError: false,
+        } as ReturnType<typeof useAppVersionThumbnailUrl>);
     });
 
     const removeThumbnailWhileViewing = async (
@@ -248,6 +258,27 @@ describe('AppHeaderActions — Remove thumbnail', () => {
             appUuid: 'app-1',
             version: 2,
         });
+    });
+
+    it('offers no removal for an older version on screen that has no thumbnail', async () => {
+        vi.mocked(useAppVersionThumbnailUrl).mockReturnValue({
+            data: undefined,
+            isError: true,
+        } as ReturnType<typeof useAppVersionThumbnailUrl>);
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                latestVersionNumber={3}
+                captureThumbnail={{ onCapture: vi.fn(), disabled: false }}
+                previewVersion={2}
+            />,
+        );
+
+        await openMenu();
+
+        expect(
+            (await screen.findByText('Remove thumbnail')).closest('button'),
+        ).toBeDisabled();
     });
 
     it("removes the latest ready version's thumbnail when no version is on screen", async () => {

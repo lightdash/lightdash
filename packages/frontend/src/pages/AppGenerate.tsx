@@ -116,7 +116,10 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppSubmitState } from '../features/apps/hooks/useAppSubmitState';
-import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
+import {
+    refreshAppThumbnailQueries,
+    useAppThumbnailUpload,
+} from '../features/apps/hooks/useAppThumbnail';
 import {
     getBuildOutcome,
     useBuildNotification,
@@ -666,7 +669,10 @@ const AppGenerate: FC = () => {
     // Project history drawer over the chat; `openHistory` is also the target
     // of the thread divider's CTA in the chat.
     const [isHistoryOpen, { open: openHistory, close: closeHistory }] =
-        useDisclosure(false);
+        useDisclosure(false, {
+            // A thumbnail captured after the build finished shows up on open.
+            onOpen: () => invalidateAppData(activeAppUuid),
+        });
     const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
@@ -1604,8 +1610,10 @@ const AppGenerate: FC = () => {
                         version: previewApp?.version ?? null,
                         file,
                     });
-                    void queryClient.invalidateQueries({
-                        queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
+                    void refreshAppThumbnailQueries(queryClient, {
+                        projectUuid,
+                        appUuid: activeAppUuid,
+                        change: 'captured',
                     });
                 } catch (err) {
                     showToastWarning({
@@ -3304,6 +3312,14 @@ const AppGenerate: FC = () => {
                                     isFetchingEarlier={isFetchingNextPage}
                                     fetchEarlier={loadEarlierMessages}
                                     currentThreadNumber={currentThreadNumber}
+                                    thumbnailSource={
+                                        projectUuid && activeAppUuid
+                                            ? {
+                                                  projectUuid,
+                                                  appUuid: activeAppUuid,
+                                              }
+                                            : null
+                                    }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (

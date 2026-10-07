@@ -1290,6 +1290,34 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Get a short-lived URL for the thumbnail of one version of a data app
+     * @summary Get app version thumbnail
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/versions/{version}/thumbnail')
+    @OperationId('getAppVersionThumbnailUrl')
+    async getAppVersionThumbnailUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiAppThumbnailUrlResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getVersionThumbnailUrl(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
      * List schedulers for a data app
      * @summary List app schedulers
      * @param includeLatestRun include the most recent run for each scheduler

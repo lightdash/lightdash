@@ -2532,6 +2532,25 @@ export class AppGenerateService extends BaseService {
         return { thumbnailUrl };
     }
 
+    async getVersionThumbnailUrl(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+    ): Promise<{ thumbnailUrl: string }> {
+        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const thumbnailUrl =
+            await this.appThumbnailClient.getVersionThumbnailUrl({
+                projectUuid,
+                appUuid,
+                version,
+            });
+        if (thumbnailUrl === null) {
+            throw new NotFoundError('App version thumbnail not found');
+        }
+        return { thumbnailUrl };
+    }
+
     /**
      * Removes a version's thumbnail; `version: null` targets the latest ready
      * version. Idempotent.
@@ -9710,6 +9729,7 @@ export class AppGenerateService extends BaseService {
                 lastName: string;
             } | null;
             resources: AppVersionResources | null;
+            hasThumbnail: boolean;
             dependencies?: { custom: AppVersionDependencies['custom'] };
         }[];
         hasMore: boolean;
@@ -9820,6 +9840,8 @@ export class AppGenerateService extends BaseService {
                               vizPreview: v.viz_preview ?? null,
                           }
                         : null,
+                hasThumbnail:
+                    v.status === 'ready' && Boolean(v.thumbnail_captured_at),
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
                 // Custom-deps summary only; the lockfile hash is internal.

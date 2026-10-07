@@ -59,8 +59,10 @@ import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
 import { useDataAppAnalysisAvailability } from '../analysis/useDataAppAnalysisAvailability';
 import {
+    refreshAppThumbnailQueries,
     useAppThumbnailDelete,
     useAppThumbnailUrl,
+    useAppVersionThumbnailUrl,
 } from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
@@ -248,11 +250,26 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
-    const thumbnailQuery = useAppThumbnailUrl(
+    const checksThumbnail =
+        menuOpened && canEditVerified && captureThumbnail !== null;
+    // The app's thumbnail is its latest ready version's, so any other version
+    // on screen is asked about directly.
+    const isViewingAnotherVersion =
+        previewVersion !== null && previewVersion !== latestVersionNumber;
+    const appThumbnailQuery = useAppThumbnailUrl(
         projectUuid,
         appUuid,
-        menuOpened && canEditVerified && captureThumbnail !== null,
+        checksThumbnail && !isViewingAnotherVersion,
     );
+    const versionThumbnailQuery = useAppVersionThumbnailUrl(
+        projectUuid,
+        appUuid,
+        previewVersion,
+        checksThumbnail && isViewingAnotherVersion,
+    );
+    const thumbnailQuery = isViewingAnotherVersion
+        ? versionThumbnailQuery
+        : appThumbnailQuery;
     const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
     const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
         useAppThumbnailDelete();
@@ -263,10 +280,10 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                 appUuid,
                 version: previewVersion,
             });
-            // Reset (not invalidate): the refetch 404s and react-query would
-            // keep the stale signed URL as data.
-            void queryClient.resetQueries({
-                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid,
+                change: 'removed',
             });
             showToastSuccess({ title: 'Thumbnail removed' });
         } catch (err) {
