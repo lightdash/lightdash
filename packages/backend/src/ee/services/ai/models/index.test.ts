@@ -595,6 +595,57 @@ describe('Sonnet model lifecycle', () => {
     );
 });
 
+describe('Haiku model lifecycle', () => {
+    it.each(['anthropic', 'bedrock'] as const)(
+        'enables adaptive reasoning for Haiku 5.5 on %s',
+        (provider) => {
+            const config = {
+                ...baseCopilotConfig,
+                providers: {
+                    anthropic: {
+                        apiKey: 'test',
+                        modelName: 'claude-haiku-5-5',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                    bedrock: {
+                        apiKey: 'test',
+                        region: 'us-east-1',
+                        modelName: 'claude-haiku-5-5',
+                        embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            };
+            const model = getModel(config, { provider, enableReasoning: true });
+            expect(model.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-haiku-5-5'
+                    : 'us.anthropic.claude-haiku-5-5',
+            );
+            expect(model.callOptions.temperature).toBeUndefined();
+            expect(model.providerOptions).toMatchObject(
+                provider === 'anthropic'
+                    ? {
+                          anthropic: {
+                              thinking: { type: 'adaptive' },
+                              effort: 'medium',
+                          },
+                      }
+                    : {
+                          bedrock: {
+                              reasoningConfig: {
+                                  type: 'adaptive',
+                                  maxReasoningEffort: 'medium',
+                              },
+                          },
+                      },
+            );
+        },
+    );
+});
+
 describe('OpenRouter model options', () => {
     it('surfaces the default and allowlisted models for the picker', () => {
         const models = getAvailableModels({
