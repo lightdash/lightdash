@@ -59,6 +59,8 @@ import {
     SnowflakeTokenError,
     SupportedDbtAdapter,
     UserWarehouseCredentialPurpose,
+    VizAggregationOptions,
+    VizIndexType,
     WarehouseTypes,
     WeekDay,
     type AiExecutionPlan,
@@ -3816,6 +3818,315 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('scoped query tunnel lifecycle', () => {
+        const fileUrl = 'https://example.test/results';
+        const adminAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'all', action: 'manage' },
+                ]),
+            },
+        } as typeof account;
+        const indexColumn = {
+            reference: 'a_dim1',
+            type: VizIndexType.CATEGORY,
+        };
+        const valuesColumns = [
+            {
+                reference: 'tc',
+                aggregation: VizAggregationOptions.SUM,
+            },
+        ];
+        const payload = {
+            userUuid: user.userUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            sql: 'SELECT a_dim1, tc FROM events',
+            limit: 10,
+            context: QueryExecutionContext.SQL_RUNNER,
+        };
+        const cases = [
+            {
+                name: 'runMetricQuery',
+                run: (configured: ProjectService) =>
+                    configured.runMetricQuery({
+                        account,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        exploreName: validExplore.name,
+                        explore: validExplore,
+                        csvLimit: undefined,
+                        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                        queryTags: {},
+                        chartUuid: undefined,
+                    }),
+                expected: {
+                    rows: resultsWith1Row.rows,
+                    cacheMetadata: { cacheHit: false },
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+                method: 'runQuery' as const,
+                queryContext: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                binding: { kind: 'explore', exploreName: validExplore.name },
+                userUuid: account.user.id,
+            },
+            {
+                name: 'runAgentMarkerProbe',
+                run: (configured: ProjectService) =>
+                    configured.runAgentMarkerProbe(
+                        adminAccount,
+                        projectUuid,
+                        null,
+                        'SELECT 1',
+                    ),
+                expected: resultsWith1Row.rows,
+                method: 'runQuery' as const,
+                queryContext: QueryExecutionContext.AI,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: account.user.id,
+            },
+            {
+                name: 'runSqlQuery',
+                run: (configured: ProjectService) =>
+                    configured.runSqlQuery(user, projectUuid, 'SELECT 1', {
+                        kind: 'connection',
+                        warehouseConnectionUuid: null,
+                    }),
+                expected: resultsWith1Row,
+                method: 'runQuery' as const,
+                queryContext: null,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            },
+            {
+                name: 'streamSqlQueryIntoFile',
+                run: (configured: ProjectService) =>
+                    configured.streamSqlQueryIntoFile(payload),
+                expected: {
+                    fileUrl,
+                    columns: Object.entries(resultsWith1Row.fields).map(
+                        ([reference, field]) => ({
+                            reference,
+                            type: field.type,
+                        }),
+                    ),
+                },
+                method: 'streamQuery' as const,
+                queryContext: payload.context,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            },
+            ...[undefined, 'saved-sql-chart'].map((sqlChartUuid) => ({
+                name: sqlChartUuid
+                    ? 'pivotQueryWorkerTask saved chart'
+                    : 'pivotQueryWorkerTask',
+                run: (configured: ProjectService) =>
+                    configured.pivotQueryWorkerTask({
+                        ...payload,
+                        sqlChartUuid,
+                        indexColumn,
+                        valuesColumns,
+                        groupByColumns: undefined,
+                        sortBy: undefined,
+                    }),
+                expected: {
+                    fileUrl,
+                    indexColumn: [indexColumn],
+                    valuesColumns: [
+                        {
+                            referenceField: 'tc',
+                            pivotColumnName: 'tc_sum',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [],
+                        },
+                    ],
+                },
+                method: 'streamQuery' as const,
+                queryContext: payload.context,
+                binding: sqlChartUuid
+                    ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                    : { kind: 'connection', warehouseConnectionUuid: null },
+                userUuid: user.userUuid,
+            })),
+            {
+                name: 'searchFieldUniqueValues',
+                run: (configured: ProjectService) =>
+                    configured.searchFieldUniqueValues(
+                        user,
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        '',
+                        10,
+                        undefined,
+                        false,
+                        undefined,
+                        undefined,
+                        QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+                    ),
+                expected: { results: ['val1'], search: '', cached: false },
+                method: 'runQuery' as const,
+                queryContext: QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+                binding: { kind: 'explore', exploreName: validExplore.name },
+                userUuid: user.userUuid,
+            },
+        ];
+
+        const setup = () => {
+            const writer = vi.fn();
+            const streamFunction = vi.fn<DownloadFileModel['streamFunction']>(
+                () => async (_url, callback) => {
+                    await callback(writer);
+                    expect(
+                        vi.mocked(SshTunnel).mock.results.at(-1)?.value
+                            .disconnect,
+                    ).not.toHaveBeenCalled();
+                    return fileUrl;
+                },
+            );
+            const configured = getMockedProjectService(
+                {
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        cacheEnabled: false,
+                        autocompleteEnabled: false,
+                    },
+                },
+                {
+                    downloadFileModel: {
+                        streamFunction,
+                    } as unknown as DownloadFileModel,
+                },
+            );
+            const client = {
+                ...warehouseClientMock,
+                runQuery: vi.fn(async () => resultsWith1Row),
+                streamQuery: vi.fn<WarehouseClient['streamQuery']>(
+                    async (_sql, callback) => {
+                        await callback(resultsWith1Row);
+                    },
+                ),
+            };
+            projectModel.getWarehouseClientFromCredentials.mockReturnValueOnce(
+                client,
+            );
+            const scoped = vi.spyOn(
+                configured.warehouseClientFactory,
+                'withWarehouseClient',
+            );
+            return { configured, client, writer, scoped };
+        };
+
+        test.each(cases)(
+            '$name releases once after success and preserves the result',
+            async (site) => {
+                const { configured, client, writer, scoped } = setup();
+                await expect(site.run(configured)).resolves.toMatchObject(
+                    site.expected,
+                );
+                expect(client[site.method]).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+                ).toHaveBeenCalledOnce();
+                expect(scoped).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        kind: 'binding',
+                        projectUuid,
+                        binding: site.binding,
+                    }),
+                    expect.objectContaining({
+                        organizationUuid: projectSummary.organizationUuid,
+                        queryContext: site.queryContext,
+                        actor: expect.objectContaining({
+                            person: {
+                                userUuid: site.userUuid,
+                                isRegisteredUser: true,
+                                isServiceAccount: false,
+                            },
+                        }),
+                    }),
+                    expect.any(Function),
+                );
+                expect(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).toHaveBeenLastCalledWith(
+                    warehouseClientMock.credentials,
+                    expect.objectContaining({
+                        agentSession:
+                            site.queryContext !== null &&
+                            isAiAccessQueryContext(site.queryContext),
+                    }),
+                );
+                if (site.method === 'streamQuery') {
+                    expect(writer).toHaveBeenCalledOnce();
+                    expect(writer.mock.calls[0][0]).toEqual(
+                        resultsWith1Row.rows[0],
+                    );
+                }
+            },
+        );
+
+        test.each(cases)(
+            '$name releases once and preserves the warehouse error',
+            async (site) => {
+                const { configured, client } = setup();
+                const error = new Error('warehouse query failed');
+                client[site.method].mockRejectedValueOnce(error);
+                await expect(site.run(configured)).rejects.toBe(error);
+                expect(client[site.method]).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+                ).toHaveBeenCalledOnce();
+            },
+        );
+
+        test.each([
+            [
+                'cache hit',
+                JSON.stringify({ results: ['cached'], cached: true }),
+                ['cached'],
+                0,
+            ],
+            ['invalid cache', '{', ['val1'], 1],
+        ] as const)(
+            'autocomplete releases once after %s',
+            async (_name, cached, results, queryCount) => {
+                const { configured, client } = setup();
+                Object.assign(configured, {
+                    lightdashConfig: {
+                        ...lightdashConfigMock,
+                        results: {
+                            ...lightdashConfigMock.results,
+                            autocompleteEnabled: true,
+                        },
+                    },
+                    s3CacheClient: {
+                        getIfFresh: vi.fn(async () => cached),
+                        uploadResults: vi.fn(async () => undefined),
+                    },
+                });
+                await expect(
+                    configured.searchFieldUniqueValues(
+                        user,
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        '',
+                        10,
+                        undefined,
+                    ),
+                ).resolves.toMatchObject({ results });
+                expect(client.runQuery).toHaveBeenCalledTimes(queryCount);
+                expect(
+                    vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+                ).toHaveBeenCalledOnce();
+            },
+        );
+    });
+
     test('rejects SQL Runner on managed analytics before executing a query', async () => {
         vi.spyOn(analyticsMock, 'track');
         projectModel.getSummary.mockResolvedValueOnce({
@@ -6891,10 +7202,14 @@ describe('ProjectService', () => {
                 const uploadResults = vi.fn(async () => undefined);
                 Object.assign(flaggedService, {
                     s3CacheClient: { getIfFresh, uploadResults },
-                    getWarehouseCredentialsWithConnection: vi.fn(async () => ({
-                        warehouseCredentials: warehouseClientMock.credentials,
-                        aiPlan,
-                    })),
+                });
+                vi.spyOn(
+                    flaggedService.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                ).mockResolvedValue({
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                    aiPlan: aiPlan ?? undefined,
                 });
                 vi.mocked(
                     projectModel.getWarehouseClientFromCredentials,
@@ -6981,12 +7296,8 @@ describe('ProjectService', () => {
                 runQuery: vi.fn(async (_sql: string) => resultsWith1Row),
             }));
             const credentialsSpy = vi.spyOn(
-                service as unknown as {
-                    getWarehouseCredentialsWithConnection: (args: {
-                        context?: QueryExecutionContext;
-                    }) => Promise<unknown>;
-                },
-                'getWarehouseCredentialsWithConnection',
+                service.warehouseClientFactory,
+                'withWarehouseClient',
             );
             await service.searchFieldUniqueValues(
                 user,
@@ -7002,7 +7313,11 @@ describe('ProjectService', () => {
                 QueryExecutionContext.AI,
             );
             expect(credentialsSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ context: QueryExecutionContext.AI }),
+                expect.objectContaining({ kind: 'binding', projectUuid }),
+                expect.objectContaining({
+                    queryContext: QueryExecutionContext.AI,
+                }),
+                expect.any(Function),
             );
             credentialsSpy.mockRestore();
         });
@@ -7158,19 +7473,12 @@ describe('ProjectService', () => {
 
             // Mock getWarehouseCredentials to simulate per-user credentials
             vi.spyOn(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                serviceWithCache as any,
-                'getWarehouseCredentialsWithConnection',
-            ).mockImplementation(async (...args: unknown[]) => {
-                const { userId } = args[0] as { userId: string };
-                return {
-                    warehouseCredentials: {
-                        ...warehouseClientMock.credentials,
-                        userWarehouseCredentialsUuid: `cred-${userId}`,
-                    },
-                    aiPlan: null,
-                };
-            });
+                serviceWithCache.warehouseClientFactory,
+                'resolveLoadedCredentials',
+            ).mockImplementation(async (_base, context) => ({
+                ...warehouseClientMock.credentials,
+                userWarehouseCredentialsUuid: `cred-${context.actor.person?.userUuid}`,
+            }));
 
             // Mock S3 cache: track all cache key lookups
             const cacheKeyLookups: string[] = [];
@@ -7244,13 +7552,12 @@ describe('ProjectService', () => {
 
             // No userWarehouseCredentialsUuid — shared project credentials
             vi.spyOn(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                serviceWithCache as any,
-                'getWarehouseCredentialsWithConnection',
-            ).mockImplementation(async () => ({
-                warehouseCredentials: warehouseClientMock.credentials,
-                aiPlan: null,
-            }));
+                serviceWithCache.warehouseClientFactory,
+                'resolveLoadedCredentials',
+            ).mockResolvedValue({
+                ...warehouseClientMock.credentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
 
             const cacheKeyLookups: string[] = [];
             const cachedResults = new Map<string, string>();

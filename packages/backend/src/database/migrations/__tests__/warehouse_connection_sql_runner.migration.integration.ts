@@ -49,7 +49,7 @@ type SqlRunnerApi = Pick<
     | 'getConnectionTables'
     | 'refreshConnectionTables'
     | 'getConnectionTableFields'
-    | '_getWarehouseClient'
+    | 'warehouseClientFactory'
 >;
 
 type Fixture = {
@@ -718,7 +718,10 @@ describe('SQL runner catalog by connection on the real schema', () => {
             userB,
             fixture.projectUuid,
         );
-        const getClient = vi.spyOn(service, '_getWarehouseClient');
+        const getClient = vi.spyOn(
+            service.warehouseClientFactory,
+            'acquireUnscoped',
+        );
         const read = (userUuid: string) =>
             service.getConnectionTables(
                 developer(userUuid, fixture.organizationUuid),
@@ -793,7 +796,10 @@ describe('SQL runner catalog by connection on the real schema', () => {
 
     test('a user without a personal credential is refused before any warehouse read and leaves no cache row', async () => {
         const fixture = await createPersonalCredentialsProject();
-        const getClient = vi.spyOn(service, '_getWarehouseClient');
+        const getClient = vi.spyOn(
+            service.warehouseClientFactory,
+            'acquireUnscoped',
+        );
 
         await expect(
             service.getConnectionTables(
@@ -828,7 +834,10 @@ describe('SQL runner catalog by connection on the real schema', () => {
             warehouse_connection_uuid: fixture.extraUuid,
             user_warehouse_credentials_uuid: snowflakeCredential,
         });
-        const getClient = vi.spyOn(service, '_getWarehouseClient');
+        const getClient = vi.spyOn(
+            service.warehouseClientFactory,
+            'acquireUnscoped',
+        );
 
         await expect(
             service.getConnectionTables(
@@ -993,7 +1002,10 @@ describe('SQL runner catalog by connection on the real schema', () => {
 
     test('refuses fields from a database the connection does not list', async () => {
         const fixture = await createProject({ mode: 'multi', withExtra: true });
-        const getClient = vi.spyOn(service, '_getWarehouseClient');
+        const getClient = vi.spyOn(
+            service.warehouseClientFactory,
+            'acquireUnscoped',
+        );
 
         await expect(
             service.getConnectionTableFields(
@@ -1012,11 +1024,13 @@ describe('SQL runner catalog by connection on the real schema', () => {
 
     describe('with stubbed warehouse clients', () => {
         const stubClient = (client: Partial<WarehouseClient>) =>
-            vi.spyOn(service, '_getWarehouseClient').mockResolvedValue({
-                warehouseClient: client as WarehouseClient,
-                sshTunnel: { disconnect: vi.fn() } as never,
-                tunnelConnectMs: null,
-            });
+            vi
+                .spyOn(service.warehouseClientFactory, 'acquireUnscoped')
+                .mockResolvedValue({
+                    warehouseClient: client as WarehouseClient,
+                    sshTunnel: { disconnect: vi.fn() } as never,
+                    tunnelConnectMs: null,
+                });
 
         test('lists tables for a non-listing warehouse on a cold cache', async () => {
             const snowflakeCredentials: CreateSnowflakeCredentials = {

@@ -466,6 +466,8 @@ import {
 import { UserService } from '../UserService';
 import {
     aiClientFromQueryContext,
+    connectionContextFromAccount,
+    connectionContextFromUser,
     surfaceFromQueryContext,
     type ConnectionContext,
 } from '../WarehouseClientFactory/ConnectionContext';
@@ -10317,205 +10319,226 @@ export class ProjectService
                             exploreName,
                         ));
 
-                    const {
-                        warehouseCredentials,
-                        warehouseConnectionUuid,
-                        connectionRoute,
-                        aiPlan,
-                    } = await this.getWarehouseCredentialsWithConnection({
-                        context,
-                        projectUuid,
-                        binding: { kind: 'explore', exploreName },
-                        userId: account.user.id,
-                        isRegisteredUser: account.isRegisteredUser(),
-                        isServiceAccount: account.isServiceAccount(),
-                    });
-                    const { warehouseClient, sshTunnel } =
-                        await this._getWarehouseClient(
+                    return await this.warehouseClientFactory.withWarehouseClient(
+                        {
+                            kind: 'binding',
                             projectUuid,
-                            warehouseCredentials,
-                            {
-                                aiPlan,
-                                agentSession: isAiAccessQueryContext(context),
+                            binding: { kind: 'explore', exploreName },
+                            overrides: {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
                             },
-                        );
-
-                    const { userAttributes, intrinsicUserAttributes } =
-                        await this.getUserAttributes({
-                            account,
-                        });
-
-                    const mergedUserAttributes = userAttributeOverrides
-                        ? {
-                              ...userAttributes,
-                              ...userAttributeOverrides,
-                          }
-                        : userAttributes;
-
-                    const availableParameterDefinitions =
-                        await this.getAvailableParameters(projectUuid, explore);
-
-                    const projectTimezone =
-                        await this.getQueryTimezoneForProject(projectUuid);
-                    const timezone = resolveQueryTimezone({
-                        sessionTimezone: null,
-                        metricQuery: metricQueryWithLimit,
-                        projectTimezone,
-                        userTimezone: getAccountUserTimezone(account),
-                    });
-                    const useTimezoneAwareDateTrunc =
-                        await this.isTimezoneSupportEnabled({
-                            userUuid: account.user.id,
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        });
-
-                    const fullQuery = new QueryComposer(
-                        { metricQuery: metricQueryWithLimit },
-                        {
-                            explore,
-                            warehouseSqlBuilder: warehouseClient,
-                            intrinsicUserAttributes,
-                            userAttributes: mergedUserAttributes,
-                            timezone,
-                            dateZoom,
-                            parameters,
-                            availableParameterDefinitions,
-                            pivotDimensions:
-                                metricQueryWithLimit.pivotDimensions,
-                            useTimezoneAwareDateTrunc,
-                            columnTimezone: getColumnTimezone(
-                                warehouseClient.credentials,
-                            ),
-                            dataTimezone:
-                                warehouseClient.credentials.dataTimezone,
                         },
-                    ).compile();
-
-                    const { query } = fullQuery;
-
-                    const resolvedMetricOverrides =
-                        getMetricOverridesWithPopInheritance(metricQuery);
-
-                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
-                        Object.entries(fullQuery.fields).map(([key, value]) => {
-                            // Check for metric or dimension overrides. PoP
-                            // metric overrides are inherited from their base
-                            // metric by the shared util above.
-                            const override =
-                                resolvedMetricOverrides[key] ||
-                                metricQuery.dimensionOverrides?.[key];
-                            const formatOptions = override?.formatOptions;
-                            if (formatOptions) {
-                                return [
-                                    key,
-                                    {
-                                        ...value,
-                                        ...getFieldFormatOverrideProps(
-                                            formatOptions,
-                                        ),
-                                    },
-                                ];
-                            }
-                            return [key, value];
+                        connectionContextFromAccount(account, {
+                            organizationUuid,
+                            queryContext: context,
                         }),
-                    );
-
-                    const onboardingFlow = await this.getOnboardingFlow({
-                        userUuid: account.user.id,
-                        organizationUuid: account.organization.organizationUuid,
-                    });
-                    const onboardingRecord =
-                        await this.onboardingModel.getByOrganizationUuid(
-                            account.organization.organizationUuid,
-                        );
-                    if (!onboardingRecord.ranQueryAt) {
-                        await this.onboardingModel.update(
-                            account.organization.organizationUuid,
-                            {
-                                ranQueryAt: new Date(),
-                            },
-                        );
-                        this.analytics.trackAccount(account, {
-                            event: 'onboarding.step_completed',
-                            properties: {
-                                step: 'first_query',
-                                stepIndex: 5,
-                                onboardingFlow,
-                                organizationId:
-                                    account.organization.organizationUuid,
-                            },
-                        });
-                    }
-
-                    this.analytics.trackAccount(account, {
-                        event: 'query.executed',
-                        properties: {
-                            ...this.getQueryConnectionAnalyticsProperties({
-                                warehouseConnectionUuid,
-                                warehouseType: warehouseCredentials.type,
-                                connectionRoute,
-                            }),
-                            organizationId: organizationUuid,
-                            projectId: projectUuid,
-                            context,
-                            onboardingFlow,
-                            ...ProjectService.getMetricQueryExecutionProperties(
-                                {
-                                    metricQuery: metricQueryWithLimit,
-                                    queryTags,
-                                    chartUuid,
-                                    dateZoom,
-                                    explore,
-                                    parameters,
-                                },
-                            ),
-                        },
-                    });
-                    this.logger.debug(
-                        `Fetch query results from cache or warehouse`,
-                    );
-                    span.setAttribute('generatedSql', query);
-
-                    span.setAttribute('lightdash.projectUuid', projectUuid);
-                    span.setAttribute(
-                        'warehouse.type',
-                        warehouseClient.credentials.type,
-                    );
-                    const userUuid = getCacheUserUuid(
-                        warehouseCredentials,
-                        account.user.id,
-                    );
-                    const { rows, cacheMetadata } =
-                        await this.getResultsFromCacheOrWarehouse({
-                            projectUuid,
-                            userUuid,
-                            user: {
-                                userUuid: account.user.id,
-                                organizationUuid:
-                                    account.organization.organizationUuid,
-                                organizationName: account.organization.name,
-                            },
-                            context,
+                        async ({
                             warehouseClient,
-                            metricQuery: metricQueryWithLimit,
-                            resolvedTimezone: timezone,
-                            query,
-                            queryTags,
-                            invalidateCache,
-                        });
-                    await sshTunnel.disconnect();
-                    return {
-                        rows,
-                        cacheMetadata,
-                        fields: fieldsWithOverrides,
-                        displayTimezone: useTimezoneAwareDateTrunc
-                            ? timezone
-                            : undefined,
-                        warehouseType: warehouseClient.credentials.type,
-                    };
+                            warehouseCredentials,
+                            warehouseConnectionUuid,
+                            connectionRoute,
+                        }) => {
+                            const { userAttributes, intrinsicUserAttributes } =
+                                await this.getUserAttributes({
+                                    account,
+                                });
+
+                            const mergedUserAttributes = userAttributeOverrides
+                                ? {
+                                      ...userAttributes,
+                                      ...userAttributeOverrides,
+                                  }
+                                : userAttributes;
+
+                            const availableParameterDefinitions =
+                                await this.getAvailableParameters(
+                                    projectUuid,
+                                    explore,
+                                );
+
+                            const projectTimezone =
+                                await this.getQueryTimezoneForProject(
+                                    projectUuid,
+                                );
+                            const timezone = resolveQueryTimezone({
+                                sessionTimezone: null,
+                                metricQuery: metricQueryWithLimit,
+                                projectTimezone,
+                                userTimezone: getAccountUserTimezone(account),
+                            });
+                            const useTimezoneAwareDateTrunc =
+                                await this.isTimezoneSupportEnabled({
+                                    userUuid: account.user.id,
+                                    organizationUuid:
+                                        account.organization.organizationUuid,
+                                });
+
+                            const fullQuery = new QueryComposer(
+                                { metricQuery: metricQueryWithLimit },
+                                {
+                                    explore,
+                                    warehouseSqlBuilder: warehouseClient,
+                                    intrinsicUserAttributes,
+                                    userAttributes: mergedUserAttributes,
+                                    timezone,
+                                    dateZoom,
+                                    parameters,
+                                    availableParameterDefinitions,
+                                    pivotDimensions:
+                                        metricQueryWithLimit.pivotDimensions,
+                                    useTimezoneAwareDateTrunc,
+                                    columnTimezone: getColumnTimezone(
+                                        warehouseClient.credentials,
+                                    ),
+                                    dataTimezone:
+                                        warehouseClient.credentials
+                                            .dataTimezone,
+                                },
+                            ).compile();
+
+                            const { query } = fullQuery;
+
+                            const resolvedMetricOverrides =
+                                getMetricOverridesWithPopInheritance(
+                                    metricQuery,
+                                );
+
+                            const fieldsWithOverrides: ItemsMap =
+                                Object.fromEntries(
+                                    Object.entries(fullQuery.fields).map(
+                                        ([key, value]) => {
+                                            // Check for metric or dimension overrides. PoP
+                                            // metric overrides are inherited from their base
+                                            // metric by the shared util above.
+                                            const override =
+                                                resolvedMetricOverrides[key] ||
+                                                metricQuery
+                                                    .dimensionOverrides?.[key];
+                                            const formatOptions =
+                                                override?.formatOptions;
+                                            if (formatOptions) {
+                                                return [
+                                                    key,
+                                                    {
+                                                        ...value,
+                                                        ...getFieldFormatOverrideProps(
+                                                            formatOptions,
+                                                        ),
+                                                    },
+                                                ];
+                                            }
+                                            return [key, value];
+                                        },
+                                    ),
+                                );
+
+                            const onboardingFlow = await this.getOnboardingFlow(
+                                {
+                                    userUuid: account.user.id,
+                                    organizationUuid:
+                                        account.organization.organizationUuid,
+                                },
+                            );
+                            const onboardingRecord =
+                                await this.onboardingModel.getByOrganizationUuid(
+                                    account.organization.organizationUuid,
+                                );
+                            if (!onboardingRecord.ranQueryAt) {
+                                await this.onboardingModel.update(
+                                    account.organization.organizationUuid,
+                                    {
+                                        ranQueryAt: new Date(),
+                                    },
+                                );
+                                this.analytics.trackAccount(account, {
+                                    event: 'onboarding.step_completed',
+                                    properties: {
+                                        step: 'first_query',
+                                        stepIndex: 5,
+                                        onboardingFlow,
+                                        organizationId:
+                                            account.organization
+                                                .organizationUuid,
+                                    },
+                                });
+                            }
+
+                            this.analytics.trackAccount(account, {
+                                event: 'query.executed',
+                                properties: {
+                                    ...this.getQueryConnectionAnalyticsProperties(
+                                        {
+                                            warehouseConnectionUuid,
+                                            warehouseType:
+                                                warehouseCredentials.type,
+                                            connectionRoute,
+                                        },
+                                    ),
+                                    organizationId: organizationUuid,
+                                    projectId: projectUuid,
+                                    context,
+                                    onboardingFlow,
+                                    ...ProjectService.getMetricQueryExecutionProperties(
+                                        {
+                                            metricQuery: metricQueryWithLimit,
+                                            queryTags,
+                                            chartUuid,
+                                            dateZoom,
+                                            explore,
+                                            parameters,
+                                        },
+                                    ),
+                                },
+                            });
+                            this.logger.debug(
+                                `Fetch query results from cache or warehouse`,
+                            );
+                            span.setAttribute('generatedSql', query);
+
+                            span.setAttribute(
+                                'lightdash.projectUuid',
+                                projectUuid,
+                            );
+                            span.setAttribute(
+                                'warehouse.type',
+                                warehouseClient.credentials.type,
+                            );
+                            const userUuid = getCacheUserUuid(
+                                warehouseCredentials,
+                                account.user.id,
+                            );
+                            const { rows, cacheMetadata } =
+                                await this.getResultsFromCacheOrWarehouse({
+                                    projectUuid,
+                                    userUuid,
+                                    user: {
+                                        userUuid: account.user.id,
+                                        organizationUuid:
+                                            account.organization
+                                                .organizationUuid,
+                                        organizationName:
+                                            account.organization.name,
+                                    },
+                                    context,
+                                    warehouseClient,
+                                    metricQuery: metricQueryWithLimit,
+                                    resolvedTimezone: timezone,
+                                    query,
+                                    queryTags,
+                                    invalidateCache,
+                                });
+                            return {
+                                rows,
+                                cacheMetadata,
+                                fields: fieldsWithOverrides,
+                                displayTimezone: useTimezoneAwareDateTrunc
+                                    ? timezone
+                                    : undefined,
+                                warehouseType: warehouseClient.credentials.type,
+                            };
+                        },
+                    );
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
@@ -10544,34 +10567,29 @@ export class ProjectService
             )
         )
             throw new ForbiddenError();
-        const { warehouseCredentials, aiPlan } =
-            await this.getWarehouseCredentialsWithConnection({
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
                 projectUuid,
                 binding: { kind: 'connection', warehouseConnectionUuid },
-                context: QueryExecutionContext.AI,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-            { aiPlan, agentSession: true },
+            },
+            connectionContextFromAccount(account, {
+                organizationUuid,
+                queryContext: QueryExecutionContext.AI,
+            }),
+            async ({ warehouseClient, aiPlan }) => {
+                const { rows } = await warehouseClient.runQuery(
+                    sql,
+                    withAgentMarkerTag({
+                        ...aiPlan?.audit.queryTags,
+                        query_context: QueryExecutionContext.AI,
+                        user_uuid: account.user.id,
+                        organization_uuid: organizationUuid,
+                    }),
+                );
+                return rows;
+            },
         );
-        try {
-            const { rows } = await warehouseClient.runQuery(
-                sql,
-                withAgentMarkerTag({
-                    ...aiPlan?.audit.queryTags,
-                    query_context: QueryExecutionContext.AI,
-                    user_uuid: account.user.id,
-                    organization_uuid: organizationUuid,
-                }),
-            );
-            return rows;
-        } finally {
-            await sshTunnel.disconnect();
-        }
     }
 
     async runSqlQuery(
@@ -10599,61 +10617,63 @@ export class ProjectService
             );
         }
 
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-        } = await this.getWarehouseCredentialsWithConnection({
-            projectUuid,
-            binding,
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
-        const connectionAnalytics = this.getQueryConnectionAnalyticsProperties({
-            warehouseConnectionUuid,
-            warehouseType: warehouseCredentials.type,
-            connectionRoute,
-        });
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'query.executed',
-            properties: {
-                ...connectionAnalytics,
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                context: QueryExecutionContext.SQL_RUNNER,
-                usingStreaming: false,
-                onboardingFlow: await this.getOnboardingFlow(user),
+        return this.warehouseClientFactory.withWarehouseClient(
+            { kind: 'binding', projectUuid, binding },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext: null },
+            ),
+            async ({
+                warehouseClient,
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+            }) => {
+                const connectionAnalytics =
+                    this.getQueryConnectionAnalyticsProperties({
+                        warehouseConnectionUuid,
+                        warehouseType: warehouseCredentials.type,
+                        connectionRoute,
+                    });
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'query.executed',
+                    properties: {
+                        ...connectionAnalytics,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        usingStreaming: false,
+                        onboardingFlow: await this.getOnboardingFlow(user),
+                    },
+                });
+
+                this.logger.debug(`Run query against warehouse`);
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: organizationUuid,
+                    user_uuid: user.userUuid,
+                    query_context: QueryExecutionContext.SQL_RUNNER,
+                });
+
+                const { maxLimit } = await resolveOrganizationExportLimits(
+                    this.organizationSettingsModel,
+                    this.lightdashConfig.query,
+                    organizationUuid,
+                );
+
+                // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
+                const cteWithLimit = applyLimitToSqlQuery({
+                    sqlQuery: sql,
+                    limit: maxLimit,
+                });
+
+                const results = await warehouseClient.runQuery(
+                    cteWithLimit,
+                    queryTags,
+                );
+                return results;
             },
-        });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-            { aiPlan },
         );
-        this.logger.debug(`Run query against warehouse`);
-        const queryTags: RunQueryTags = withAgentMarkerTag({
-            organization_uuid: organizationUuid,
-            user_uuid: user.userUuid,
-            query_context: QueryExecutionContext.SQL_RUNNER,
-        });
-
-        const { maxLimit } = await resolveOrganizationExportLimits(
-            this.organizationSettingsModel,
-            this.lightdashConfig.query,
-            organizationUuid,
-        );
-
-        // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
-        const cteWithLimit = applyLimitToSqlQuery({
-            sqlQuery: sql,
-            limit: maxLimit,
-        });
-
-        const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
-        await sshTunnel.disconnect();
-        return results;
     }
 
     // TODO: consider removing this method in milestone #212
@@ -10674,84 +10694,87 @@ export class ProjectService
 
         const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
 
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-        } = await this.getWarehouseCredentialsWithConnection({
-            context,
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: userUuid,
-            isRegisteredUser: true,
-        });
-        const connectionAnalytics = this.getQueryConnectionAnalyticsProperties({
-            warehouseConnectionUuid,
-            warehouseType: warehouseCredentials.type,
-            connectionRoute,
-        });
-        this.analytics.track({
-            userId: userUuid,
-            event: 'query.executed',
-            properties: {
-                ...connectionAnalytics,
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                context,
-                sqlChartId: sqlChartUuid,
-                usingStreaming: true,
-                onboardingFlow: await this.getOnboardingFlow({
-                    userUuid,
-                    organizationUuid,
-                }),
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
             },
-        });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-            { aiPlan, agentSession: isAiAccessQueryContext(context) },
-        );
-        this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = withAgentMarkerTag({
-            organization_uuid: organizationUuid,
-            user_uuid: userUuid,
-            query_context: context,
-        });
-
-        const columns: VizColumn[] = [];
-
-        const fileUrl = await this.downloadFileModel.streamFunction(
-            this.fileStorageClient,
-            projectUuid,
-        )(
-            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
-            async (writer) => {
-                await warehouseClient.streamQuery(
-                    query,
-                    async ({ rows, fields }) => {
-                        if (!columns.length) {
-                            // Get column types from first row of results
-                            columns.push(
-                                ...Object.keys(fields).map((fieldName) => ({
-                                    reference: fieldName,
-                                    type: fields[fieldName].type,
-                                })),
-                            );
-                        }
-
-                        rows.forEach(writer);
+            connectionContextFromUser(
+                { userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext: context },
+            ),
+            async ({
+                warehouseClient,
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+            }) => {
+                const connectionAnalytics =
+                    this.getQueryConnectionAnalyticsProperties({
+                        warehouseConnectionUuid,
+                        warehouseType: warehouseCredentials.type,
+                        connectionRoute,
+                    });
+                this.analytics.track({
+                    userId: userUuid,
+                    event: 'query.executed',
+                    properties: {
+                        ...connectionAnalytics,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        context,
+                        sqlChartId: sqlChartUuid,
+                        usingStreaming: true,
+                        onboardingFlow: await this.getOnboardingFlow({
+                            userUuid,
+                            organizationUuid,
+                        }),
                     },
-                    {
-                        tags: queryTags,
+                });
+
+                this.logger.debug(`Stream query against warehouse`);
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: organizationUuid,
+                    user_uuid: userUuid,
+                    query_context: context,
+                });
+
+                const columns: VizColumn[] = [];
+
+                const fileUrl = await this.downloadFileModel.streamFunction(
+                    this.fileStorageClient,
+                    projectUuid,
+                )(
+                    `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+                    async (writer) => {
+                        await warehouseClient.streamQuery(
+                            query,
+                            async ({ rows, fields }) => {
+                                if (!columns.length) {
+                                    // Get column types from first row of results
+                                    columns.push(
+                                        ...Object.keys(fields).map(
+                                            (fieldName) => ({
+                                                reference: fieldName,
+                                                type: fields[fieldName].type,
+                                            }),
+                                        ),
+                                    );
+                                }
+
+                                rows.forEach(writer);
+                            },
+                            {
+                                tags: queryTags,
+                            },
+                        );
                     },
                 );
+
+                return { fileUrl, columns };
             },
         );
-
-        await sshTunnel.disconnect();
-
-        return { fileUrl, columns };
     }
 
     async pivotQueryWorkerTask({
@@ -10775,195 +10798,210 @@ export class ProjectService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-        } = await this.getWarehouseCredentialsWithConnection({
-            context,
-            projectUuid,
-            binding: sqlChartUuid
-                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
-                : { kind: 'connection', warehouseConnectionUuid: null },
-            userId: userUuid,
-            isRegisteredUser: true,
-        });
-
-        this.analytics.track({
-            userId: userUuid,
-            event: 'query.executed',
-            properties: {
-                ...this.getQueryConnectionAnalyticsProperties({
-                    warehouseConnectionUuid,
-                    warehouseType: warehouseCredentials.type,
-                    connectionRoute,
-                }),
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                context,
-                sqlChartId: sqlChartUuid,
-                usingStreaming: true,
-                onboardingFlow: await this.getOnboardingFlow({
-                    userUuid,
-                    organizationUuid,
-                }),
-            },
-        });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-            { aiPlan, agentSession: isAiAccessQueryContext(context) },
-        );
-
-        // Apply limit and pivot to the SQL query
-        const pivotQueryBuilder = new PivotQueryBuilder(
-            sql,
+        return this.warehouseClientFactory.withWarehouseClient(
             {
-                indexColumn: indexColumns,
-                valuesColumns,
-                groupByColumns,
-                sortBy,
+                kind: 'binding',
+                projectUuid,
+                binding: sqlChartUuid
+                    ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                    : { kind: 'connection', warehouseConnectionUuid: null },
             },
-            warehouseClient,
-            limit,
-        );
+            connectionContextFromUser(
+                { userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext: context },
+            ),
+            async ({
+                warehouseClient,
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+            }) => {
+                this.analytics.track({
+                    userId: userUuid,
+                    event: 'query.executed',
+                    properties: {
+                        ...this.getQueryConnectionAnalyticsProperties({
+                            warehouseConnectionUuid,
+                            warehouseType: warehouseCredentials.type,
+                            connectionRoute,
+                        }),
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        context,
+                        sqlChartId: sqlChartUuid,
+                        usingStreaming: true,
+                        onboardingFlow: await this.getOnboardingFlow({
+                            userUuid,
+                            organizationUuid,
+                        }),
+                    },
+                });
 
-        const pivotedSql = pivotQueryBuilder.toSql({
-            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-        });
+                // Apply limit and pivot to the SQL query
+                const pivotQueryBuilder = new PivotQueryBuilder(
+                    sql,
+                    {
+                        indexColumn: indexColumns,
+                        valuesColumns,
+                        groupByColumns,
+                        sortBy,
+                    },
+                    warehouseClient,
+                    limit,
+                );
 
-        this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = withAgentMarkerTag({
-            organization_uuid: organizationUuid,
-            user_uuid: userUuid,
-            query_context: context,
-        });
+                const pivotedSql = pivotQueryBuilder.toSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+                });
 
-        const columns: VizColumn[] = [];
-        let currentRowIndex = 0;
-        let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnData = new Map<string, PivotValuesColumn>();
+                this.logger.debug(`Stream query against warehouse`);
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: organizationUuid,
+                    user_uuid: userUuid,
+                    query_context: context,
+                });
 
-        let columnCount: undefined | number;
+                const columns: VizColumn[] = [];
+                let currentRowIndex = 0;
+                let currentTransformedRow: ResultRow | undefined;
+                const valuesColumnData = new Map<string, PivotValuesColumn>();
 
-        const fileUrl = await this.downloadFileModel.streamFunction(
-            this.fileStorageClient,
-            projectUuid,
-        )(
-            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
-            async (writer) => {
-                try {
-                    await warehouseClient.streamQuery(
-                        pivotedSql,
-                        async ({ rows, fields }) => {
-                            if ('total_columns' in rows[0]) {
-                                columnCount = rows[0].total_columns;
-                            }
-                            if (
-                                !groupByColumns ||
-                                groupByColumns.length === 0
-                            ) {
-                                rows.forEach(writer);
-                                return;
-                            }
+                let columnCount: undefined | number;
 
-                            // columns appears unused
-                            if (!columns.length) {
-                                // Get column types from first row of results
-                                columns.push(
-                                    ...Object.keys(fields).map((fieldName) => ({
-                                        reference: fieldName,
-                                        type: fields[fieldName].type,
-                                    })),
-                                );
-                            }
-
-                            rows.forEach((row) => {
-                                // Write rows to file in order of row_index. This is so that we can pivot the data later
-                                if (currentRowIndex !== row.row_index) {
-                                    if (currentTransformedRow) {
-                                        writer(currentTransformedRow);
+                const fileUrl = await this.downloadFileModel.streamFunction(
+                    this.fileStorageClient,
+                    projectUuid,
+                )(
+                    `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+                    async (writer) => {
+                        try {
+                            await warehouseClient.streamQuery(
+                                pivotedSql,
+                                async ({ rows, fields }) => {
+                                    if ('total_columns' in rows[0]) {
+                                        columnCount = rows[0].total_columns;
+                                    }
+                                    if (
+                                        !groupByColumns ||
+                                        groupByColumns.length === 0
+                                    ) {
+                                        rows.forEach(writer);
+                                        return;
                                     }
 
-                                    currentTransformedRow =
-                                        indexColumns.reduce<ResultRow>(
-                                            (acc, indexCol) => {
-                                                acc[indexCol.reference] =
-                                                    row[indexCol.reference];
-                                                return acc;
-                                            },
-                                            {},
+                                    // columns appears unused
+                                    if (!columns.length) {
+                                        // Get column types from first row of results
+                                        columns.push(
+                                            ...Object.keys(fields).map(
+                                                (fieldName) => ({
+                                                    reference: fieldName,
+                                                    type: fields[fieldName]
+                                                        .type,
+                                                }),
+                                            ),
                                         );
+                                    }
 
-                                    currentRowIndex = row.row_index;
-                                }
-                                // Suffix the value column with the group by columns to avoid collisions.
-                                // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
-                                // then the value column will be 'value_1_a_b'
-                                const valueSuffix = groupByColumns
-                                    ?.map((col) => row[col.reference])
-                                    .join('_');
-                                valuesColumns.forEach((col) => {
-                                    const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
-                                    valuesColumnData.set(valueColumnReference, {
-                                        referenceField: col.reference, // The original y field name
-                                        pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
-                                        aggregation: col.aggregation,
-                                        pivotValues: groupByColumns?.map(
-                                            (c) => ({
-                                                referenceField: c.reference,
-                                                value: row[c.reference],
-                                            }),
-                                        ),
+                                    rows.forEach((row) => {
+                                        // Write rows to file in order of row_index. This is so that we can pivot the data later
+                                        if (currentRowIndex !== row.row_index) {
+                                            if (currentTransformedRow) {
+                                                writer(currentTransformedRow);
+                                            }
+
+                                            currentTransformedRow =
+                                                indexColumns.reduce<ResultRow>(
+                                                    (acc, indexCol) => {
+                                                        acc[
+                                                            indexCol.reference
+                                                        ] =
+                                                            row[
+                                                                indexCol.reference
+                                                            ];
+                                                        return acc;
+                                                    },
+                                                    {},
+                                                );
+
+                                            currentRowIndex = row.row_index;
+                                        }
+                                        // Suffix the value column with the group by columns to avoid collisions.
+                                        // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                                        // then the value column will be 'value_1_a_b'
+                                        const valueSuffix = groupByColumns
+                                            ?.map((col) => row[col.reference])
+                                            .join('_');
+                                        valuesColumns.forEach((col) => {
+                                            const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                                            valuesColumnData.set(
+                                                valueColumnReference,
+                                                {
+                                                    referenceField:
+                                                        col.reference, // The original y field name
+                                                    pivotColumnName:
+                                                        valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                                    aggregation:
+                                                        col.aggregation,
+                                                    pivotValues:
+                                                        groupByColumns?.map(
+                                                            (c) => ({
+                                                                referenceField:
+                                                                    c.reference,
+                                                                value: row[
+                                                                    c.reference
+                                                                ],
+                                                            }),
+                                                        ),
+                                                },
+                                            );
+                                            currentTransformedRow =
+                                                currentTransformedRow ?? {};
+                                            currentTransformedRow[
+                                                valueColumnReference
+                                            ] =
+                                                row[
+                                                    `${col.reference}_${col.aggregation}`
+                                                ];
+                                        });
                                     });
-                                    currentTransformedRow =
-                                        currentTransformedRow ?? {};
-                                    currentTransformedRow[
-                                        valueColumnReference
-                                    ] =
-                                        row[
-                                            `${col.reference}_${col.aggregation}`
-                                        ];
-                                });
-                            });
-                        },
-                        {
-                            tags: queryTags,
-                        },
-                    );
-                } catch (error) {
-                    this.logger.error(
-                        `Error running pivot query: ${error}\nSQL: ${pivotedSql}`,
-                    );
-                    throw error;
-                }
-                // Write the last row
-                if (currentTransformedRow) {
-                    writer(currentTransformedRow);
-                }
+                                },
+                                {
+                                    tags: queryTags,
+                                },
+                            );
+                        } catch (error) {
+                            this.logger.error(
+                                `Error running pivot query: ${error}\nSQL: ${pivotedSql}`,
+                            );
+                            throw error;
+                        }
+                        // Write the last row
+                        if (currentTransformedRow) {
+                            writer(currentTransformedRow);
+                        }
+                    },
+                );
+
+                const processedColumns =
+                    groupByColumns && groupByColumns.length > 0
+                        ? Array.from(valuesColumnData.values())
+                        : valuesColumns.map((col) => ({
+                              referenceField: col.reference,
+                              pivotColumnName: `${col.reference}_${col.aggregation}`,
+                              aggregation: col.aggregation,
+                              pivotValues: [],
+                          }));
+
+                return {
+                    queryUuid: undefined,
+                    fileUrl,
+                    valuesColumns: processedColumns,
+                    indexColumn: indexColumns,
+                    columnCount: Number(columnCount) || undefined,
+                };
             },
         );
-
-        await sshTunnel.disconnect();
-
-        const processedColumns =
-            groupByColumns && groupByColumns.length > 0
-                ? Array.from(valuesColumnData.values())
-                : valuesColumns.map((col) => ({
-                      referenceField: col.reference,
-                      pivotColumnName: `${col.reference}_${col.aggregation}`,
-                      aggregation: col.aggregation,
-                      pivotValues: [],
-                  }));
-
-        return {
-            queryUuid: undefined,
-            fileUrl,
-            valuesColumns: processedColumns,
-            indexColumn: indexColumns,
-            columnCount: Number(columnCount) || undefined,
-        };
     }
 
     /** @deprecated Only used by the deprecated SQL runner results endpoint; use AsyncQueryService.getAsyncQueryResults instead. */
@@ -11126,172 +11164,178 @@ export class ProjectService
         }
 
         const [
-            { warehouseCredentials, aiPlan },
             availableParameterDefinitions,
             combinedParameters,
             projectTimezone,
             useTimezoneAwareDateTrunc,
         ] = await Promise.all([
-            this.getWarehouseCredentialsWithConnection({
-                context,
-                projectUuid,
-                binding: { kind: 'explore', exploreName: explore.name },
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
             this.getAvailableParameters(projectUuid, explore),
             this.combineParameters(projectUuid, explore, parameters),
             this.getQueryTimezoneForProject(projectUuid),
             this.isTimezoneSupportEnabled(user),
         ]);
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
+        return this.warehouseClientFactory.withWarehouseClient(
             {
-                aiPlan,
-                agentSession: isAiAccessQueryContext(context),
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+                overrides: {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
+                },
             },
-        );
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                { organizationUuid, queryContext: context },
+            ),
+            async ({ warehouseClient, warehouseCredentials, aiPlan }) => {
+                const timezone = resolveQueryTimezone({
+                    sessionTimezone: null,
+                    metricQuery,
+                    projectTimezone,
+                    userTimezone: user.timezone,
+                });
 
-        const timezone = resolveQueryTimezone({
-            sessionTimezone: null,
-            metricQuery,
-            projectTimezone,
-            userTimezone: user.timezone,
-        });
+                const { query } = new QueryComposer(
+                    { metricQuery },
+                    {
+                        explore,
+                        warehouseSqlBuilder: warehouseClient,
+                        intrinsicUserAttributes,
+                        userAttributes: mergedUserAttributes,
+                        timezone,
+                        parameters: combinedParameters,
+                        availableParameterDefinitions,
+                        useTimezoneAwareDateTrunc,
+                        columnTimezone: getColumnTimezone(
+                            warehouseClient.credentials,
+                        ),
+                    },
+                ).compile();
 
-        const { query } = new QueryComposer(
-            { metricQuery },
-            {
-                explore,
-                warehouseSqlBuilder: warehouseClient,
-                intrinsicUserAttributes,
-                userAttributes: mergedUserAttributes,
-                timezone,
-                parameters: combinedParameters,
-                availableParameterDefinitions,
-                useTimezoneAwareDateTrunc,
-                columnTimezone: getColumnTimezone(warehouseClient.credentials),
-            },
-        ).compile();
-
-        const { enabled: skipAiAccessCache } = isAiAccessQueryContext(context)
-            ? await this.featureFlagModel.get({
-                  user: { userUuid: user.userUuid, organizationUuid },
-                  featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
-              })
-            : { enabled: false };
-        const isUserCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled &&
-            !!user.userUuid &&
-            !skipAiAccessCache &&
-            aiPlan?.identity !== 'connected_person';
-
-        const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
-
-        const hashParts = [
-            projectUuid,
-            userUuid,
-            'cache_autocomplete',
-            query,
-            timezone,
-        ];
-        const queryHash = buildCacheHash(hashParts);
-
-        if (!forceRefresh && isUserCacheEnabled) {
-            const stringResults = await this.s3CacheClient
-                .getIfFresh(
-                    queryHash,
-                    this.lightdashConfig.results.cacheStateTimeSeconds,
+                const { enabled: skipAiAccessCache } = isAiAccessQueryContext(
+                    context,
                 )
-                .catch(() => undefined);
-            if (stringResults) {
-                try {
-                    await sshTunnel.disconnect();
-                    return JSON.parse(stringResults);
-                } catch (e) {
-                    this.logger.error(
-                        'Error parsing autocomplete cache results:',
-                        e,
-                    );
-                }
-            }
-        }
+                    ? await this.featureFlagModel.get({
+                          user: { userUuid: user.userUuid, organizationUuid },
+                          featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
+                      })
+                    : { enabled: false };
+                const isUserCacheEnabled =
+                    this.lightdashConfig.results.autocompleteEnabled &&
+                    !!user.userUuid &&
+                    !skipAiAccessCache &&
+                    aiPlan?.identity !== 'connected_person';
 
-        const queryTags: RunQueryTags = withAgentMarkerTag({
-            organization_uuid: organizationUuid,
-            user_uuid: user.userUuid,
-            project_uuid: projectUuid,
-            explore_name: explore.name,
-            query_context: context,
-        });
+                const userUuid = getCacheUserUuid(
+                    warehouseCredentials,
+                    user.userUuid,
+                );
 
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
-        const valueFieldId = getItemId(field);
-        const allResults: Set<string | number | boolean> = new Set();
-        const resultsWithLabels: FilterAutocompleteValue[] = [];
-        const seenLabeledValues = new Set<string>();
-        for (const row of rows) {
-            const value = row[valueFieldId];
-            if (value !== null && value !== undefined) {
-                allResults.add(value);
-                if (labelFieldId) {
-                    const valueKey = String(value);
-                    if (!seenLabeledValues.has(valueKey)) {
-                        seenLabeledValues.add(valueKey);
-                        const rawLabel = row[labelFieldId];
-                        resultsWithLabels.push({
-                            value: valueKey,
-                            label:
-                                rawLabel !== null && rawLabel !== undefined
-                                    ? String(rawLabel)
-                                    : valueKey,
-                        });
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    'cache_autocomplete',
+                    query,
+                    timezone,
+                ];
+                const queryHash = buildCacheHash(hashParts);
+
+                if (!forceRefresh && isUserCacheEnabled) {
+                    const stringResults = await this.s3CacheClient
+                        .getIfFresh(
+                            queryHash,
+                            this.lightdashConfig.results.cacheStateTimeSeconds,
+                        )
+                        .catch(() => undefined);
+                    if (stringResults) {
+                        try {
+                            return JSON.parse(stringResults);
+                        } catch (e) {
+                            this.logger.error(
+                                'Error parsing autocomplete cache results:',
+                                e,
+                            );
+                        }
                     }
                 }
-            }
-        }
 
-        const resultsArray = Array.from(allResults);
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: organizationUuid,
+                    user_uuid: user.userUuid,
+                    project_uuid: projectUuid,
+                    explore_name: explore.name,
+                    query_context: context,
+                });
 
-        if (isUserCacheEnabled) {
-            const searchResults = {
-                search,
-                results: resultsArray,
-                ...(labelFieldId ? { resultsWithLabels } : {}),
-                refreshedAt: new Date(),
-                cached: true,
-            };
-            const buffer = Buffer.from(JSON.stringify(searchResults));
-            this.s3CacheClient
-                .uploadResults(queryHash, buffer, queryTags)
-                .catch(() => undefined);
-        }
+                const { rows } = await warehouseClient.runQuery(
+                    query,
+                    queryTags,
+                );
+                const valueFieldId = getItemId(field);
+                const allResults: Set<string | number | boolean> = new Set();
+                const resultsWithLabels: FilterAutocompleteValue[] = [];
+                const seenLabeledValues = new Set<string>();
+                for (const row of rows) {
+                    const value = row[valueFieldId];
+                    if (value !== null && value !== undefined) {
+                        allResults.add(value);
+                        if (labelFieldId) {
+                            const valueKey = String(value);
+                            if (!seenLabeledValues.has(valueKey)) {
+                                seenLabeledValues.add(valueKey);
+                                const rawLabel = row[labelFieldId];
+                                resultsWithLabels.push({
+                                    value: valueKey,
+                                    label:
+                                        rawLabel !== null &&
+                                        rawLabel !== undefined
+                                            ? String(rawLabel)
+                                            : valueKey,
+                                });
+                            }
+                        }
+                    }
+                }
 
-        await sshTunnel.disconnect();
+                const resultsArray = Array.from(allResults);
 
-        this.analytics.track({
-            event: 'field_value.search',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-                fieldId: valueFieldId,
-                searchCharCount: search.length,
-                resultsCount: resultsArray.length,
-                searchLimit: metricQuery.limit,
+                if (isUserCacheEnabled) {
+                    const searchResults = {
+                        search,
+                        results: resultsArray,
+                        ...(labelFieldId ? { resultsWithLabels } : {}),
+                        refreshedAt: new Date(),
+                        cached: true,
+                    };
+                    const buffer = Buffer.from(JSON.stringify(searchResults));
+                    this.s3CacheClient
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch(() => undefined);
+                }
+
+                this.analytics.track({
+                    event: 'field_value.search',
+                    userId: user.userUuid,
+                    properties: {
+                        projectId: projectUuid,
+                        fieldId: valueFieldId,
+                        searchCharCount: search.length,
+                        resultsCount: resultsArray.length,
+                        searchLimit: metricQuery.limit,
+                    },
+                });
+
+                return {
+                    search,
+                    results: resultsArray,
+                    ...(labelFieldId ? { resultsWithLabels } : {}),
+                    refreshedAt: new Date(),
+                    cached: false,
+                };
             },
-        });
-
-        return {
-            search,
-            results: resultsArray,
-            ...(labelFieldId ? { resultsWithLabels } : {}),
-            refreshedAt: new Date(),
-            cached: false,
-        };
+        );
     }
 
     private async getProjectContextFromAdapter({
