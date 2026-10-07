@@ -67,6 +67,7 @@ import {
     useDefaultAiAgentModel,
 } from '../hooks/useAiAgentModelSelection';
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
+import { useAiProviderCredentials } from '../hooks/useAiProviderCredentials';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
 import { AgentSettingsSection } from './AgentSettingsSection';
@@ -103,6 +104,7 @@ const formSchema = z.object({
     enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
+    providerCredentialUuid: z.string().nullable(),
     version: z.number(),
     threadRetentionHours: z
         .number()
@@ -197,6 +199,45 @@ export const AiAgentFormSetup = ({
 }) => {
     const { data: aiOrganizationSettings } = useAiOrganizationSettings();
     const modelOptions = aiOrganizationSettings?.defaultAiAgentModelOptions;
+    // Shown when there is a real choice, or when a pin is already set — a
+    // pinned agent must always offer a way to clear its pin, even when the
+    // credential is unreadable or the viewer cannot list credentials.
+    const providerCredentialsQuery = useAiProviderCredentials({ retry: false });
+    const customProvidersFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrgAiCustomProviders,
+    );
+    const pinnedCredentialUuid = form.values.providerCredentialUuid;
+    const showCredentialSelector =
+        pinnedCredentialUuid !== null ||
+        (customProvidersFlagQuery.isSuccess &&
+            customProvidersFlagQuery.data.enabled &&
+            (providerCredentialsQuery.data?.credentials.length ?? 0) > 1);
+    const credentialOptions = useMemo(() => {
+        const options: { value: string; label: string; disabled?: boolean }[] =
+            (providerCredentialsQuery.data?.credentials ?? []).map(
+                (credential) => ({
+                    value: credential.uuid,
+                    label: `${credential.label} — ${credential.region}`,
+                }),
+            );
+        if (
+            pinnedCredentialUuid &&
+            !options.some((option) => option.value === pinnedCredentialUuid)
+        ) {
+            const unreadable =
+                providerCredentialsQuery.data?.unreadableCredentials.find(
+                    (credential) => credential.uuid === pinnedCredentialUuid,
+                );
+            options.push({
+                value: pinnedCredentialUuid,
+                label: unreadable
+                    ? `${unreadable.label} — unavailable`
+                    : 'Unavailable credential',
+                disabled: true,
+            });
+        }
+        return options;
+    }, [providerCredentialsQuery.data, pinnedCredentialUuid]);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
         projectUuid!,
         {
@@ -667,6 +708,32 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </AgentSettingsSubsection>
+
+                        {showCredentialSelector && (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="AI provider credential"
+                                    description="Where this agent's requests are processed. Leave empty to follow the project or organization setting."
+                                >
+                                    <Select
+                                        variant="subtle"
+                                        aria-label="AI provider credential"
+                                        value={pinnedCredentialUuid}
+                                        disabled={isSavingAgent}
+                                        placeholder="Project or organization default"
+                                        clearable
+                                        data={credentialOptions}
+                                        onChange={(value) =>
+                                            form.setFieldValue(
+                                                'providerCredentialUuid',
+                                                value ?? null,
+                                            )
+                                        }
+                                    />
+                                </AgentSettingsSubsection>
+                            </>
+                        )}
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
