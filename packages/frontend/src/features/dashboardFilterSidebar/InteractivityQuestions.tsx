@@ -15,8 +15,10 @@ import {
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
+    IconChevronDown,
     IconEye,
     IconEyeOff,
     IconLock,
@@ -56,7 +58,6 @@ type RowKey = 'who' | 'required' | 'pick' | 'where';
 
 type RowProps = {
     label: string;
-    action: string;
     summary: string;
     isChanged: boolean;
     isOpen: boolean;
@@ -66,7 +67,6 @@ type RowProps = {
 
 const QuestionRow: FC<RowProps> = ({
     label,
-    action,
     summary,
     isChanged,
     isOpen,
@@ -74,19 +74,30 @@ const QuestionRow: FC<RowProps> = ({
     children,
 }) => (
     <Stack gap={0} className={classes.row}>
-        <Group justify="space-between" wrap="nowrap" align="flex-start">
-            <Stack gap={0}>
-                <Text size="xs" fw={isChanged ? 600 : 500}>
-                    {label}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    {summary}
-                </Text>
-            </Stack>
-            <Button size="compact-xs" variant="subtle" onClick={onToggle}>
-                {isOpen ? 'Done' : action}
-            </Button>
-        </Group>
+        <UnstyledButton
+            className={classes.rowHeader}
+            aria-expanded={isOpen}
+            onClick={onToggle}
+        >
+            <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <Stack gap={0}>
+                    <Text size="xs" fw={isChanged ? 600 : 500}>
+                        {label}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        {summary}
+                    </Text>
+                </Stack>
+                <MantineIcon
+                    icon={IconChevronDown}
+                    size={14}
+                    color="dimmed"
+                    className={`${classes.chevron} ${
+                        isOpen ? classes.chevronOpen : ''
+                    }`}
+                />
+            </Group>
+        </UnstyledButton>
         {isOpen && (
             <Stack gap="xs" mt="xs">
                 {children}
@@ -356,7 +367,6 @@ export const InteractivityQuestions: FC<Props> = ({
         <Stack gap={0}>
             <QuestionRow
                 label="Visibility"
-                action="Change"
                 summary={whoSummary}
                 isChanged={isWhoChanged(filterRule, settings)}
                 {...rowProps('who')}
@@ -388,7 +398,6 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Required"
-                action="Change"
                 summary={requiredSummary}
                 isChanged={isRequired}
                 {...rowProps('required')}
@@ -463,7 +472,6 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Allowed values"
-                action="Change"
                 summary={pickSummary}
                 isChanged={!isPickDefault(settings) || !!filterRule.singleValue}
                 {...rowProps('pick')}
@@ -566,7 +574,6 @@ export const InteractivityQuestions: FC<Props> = ({
 
             <QuestionRow
                 label="Placement"
-                action="Change"
                 summary={
                     settings.placement === 'bar' ? 'On the bar' : 'Under More'
                 }

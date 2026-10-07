@@ -5,3 +5,23 @@
 .row + .row {
     border-top: 1px solid var(--mantine-color-default-border);
 }
+
+.rowHeader {
+    display: block;
+    width: 100%;
+}
+
+.chevron {
+    flex: 0 0 auto;
+    transition: transform 150ms ease;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chevron {
+        transition: none;
+    }
+}
