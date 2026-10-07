@@ -1,10 +1,19 @@
-import { SegmentedControl, Stack, Text } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { subject } from '@casl/ability';
+import { type DepartmentWithMetrics } from '@lightdash/common';
+import { Button, Group, SegmentedControl, Stack, Text } from '@mantine/core';
+import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
+import { useCallback, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import useApp from '../../providers/App/useApp';
+import { AdoptionEmptyState } from '../features/adoption/components/AdoptionEmptyState';
+import { AttentionStrip } from '../features/adoption/components/AttentionStrip';
+import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
+import { DepartmentsTable } from '../features/adoption/components/DepartmentsTable';
+import { MembershipModal } from '../features/adoption/components/MembershipModal';
 import {
     ADOPTION_VIEW_LABELS,
     ADOPTION_VIEWS,
@@ -15,10 +24,24 @@ import { useOrgAdoptionSummary } from '../hooks/useOrgDepartments';
 
 const VIEW_PARAM = 'view';
 
+type DrawerState =
+    | { opened: false }
+    | { opened: true; departmentUuid: string | null };
+
 const Adoption: FC = () => {
+    const { user } = useApp();
+    const canManage =
+        user.data?.ability.can(
+            'manage',
+            subject('OrganizationAdoption', {
+                organizationUuid: user.data.organizationUuid,
+            }),
+        ) ?? false;
     const summary = useOrgAdoptionSummary();
     const [searchParams, setSearchParams] = useSearchParams();
     const view = parseAdoptionView(searchParams.get(VIEW_PARAM));
+    const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
+    const [isPlacingPeople, setIsPlacingPeople] = useState(false);
 
     const setView = (next: AdoptionView) =>
         setSearchParams(
@@ -29,43 +52,121 @@ const Adoption: FC = () => {
             },
             { replace: true },
         );
+    const openCreate = useCallback(
+        () => setDrawer({ opened: true, departmentUuid: null }),
+        [],
+    );
+    const openEdit = useCallback(
+        (department: DepartmentWithMetrics) =>
+            setDrawer({
+                opened: true,
+                departmentUuid: department.departmentUuid,
+            }),
+        [],
+    );
 
-    const viewToggle =
-        ADOPTION_VIEWS.length > 1 ? (
-            <SegmentedControl
-                size="xs"
-                value={view}
-                onChange={(value) => setView(parseAdoptionView(value))}
-                data={ADOPTION_VIEWS.map((value) => ({
-                    value,
-                    label: ADOPTION_VIEW_LABELS[value],
-                }))}
-            />
-        ) : null;
+    const departments = summary.data?.departments ?? [];
+    // Read the edited department from fresh data so the drawer never shows stale values
+    const editing =
+        drawer.opened && drawer.departmentUuid !== null
+            ? (departments.find(
+                  (d) => d.departmentUuid === drawer.departmentUuid,
+              ) ?? null)
+            : null;
+
+    const statusCode = summary.error?.error.statusCode;
+    const isUnavailable = statusCode === 403 || statusCode === 404;
+
+    const actions = (
+        <Group gap="xs" wrap="nowrap">
+            {ADOPTION_VIEWS.length > 1 && (
+                <SegmentedControl
+                    size="xs"
+                    value={view}
+                    onChange={(value) => setView(parseAdoptionView(value))}
+                    data={ADOPTION_VIEWS.map((value) => ({
+                        value,
+                        label: ADOPTION_VIEW_LABELS[value],
+                    }))}
+                />
+            )}
+            {canManage && summary.data && departments.length > 0 && (
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={openCreate}
+                >
+                    New department
+                </Button>
+            )}
+        </Group>
+    );
 
     return (
         <SettingsPage
             title="Adoption"
             isBeta
             description="See how each department is adopting Lightdash, including the ones that haven't started"
-            actions={viewToggle}
+            actions={actions}
         >
             {summary.isInitialLoading && <EmptyStateLoader />}
             {summary.isError && (
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title="Adoption by department isn't available"
-                    description={summary.error.error.message}
+                    title={
+                        isUnavailable
+                            ? "Adoption isn't available for your organization"
+                            : "Adoption by department isn't available"
+                    }
+                    description={
+                        isUnavailable
+                            ? 'Ask an admin if you think you should have access'
+                            : summary.error.error.message
+                    }
                 />
             )}
-            {summary.data && (
+            {summary.data && departments.length === 0 && (
+                <AdoptionEmptyState
+                    canManage={canManage}
+                    onCreate={openCreate}
+                />
+            )}
+            {summary.data && departments.length > 0 && (
                 <Stack gap="md">
                     <Text fz="sm" c="dimmed">
                         {summary.data.organization.memberCount} people on
                         Lightdash · {summary.data.organization.activeCount30d}{' '}
                         active in the last 30 days
                     </Text>
+                    <AttentionStrip
+                        conflictCount={summary.data.attention.conflictCount}
+                        unassignedCount={summary.data.attention.unassignedCount}
+                        canManage={canManage}
+                        onReview={() => setIsPlacingPeople(true)}
+                    />
+                    {view === 'list' && (
+                        <DepartmentsTable
+                            departments={departments}
+                            canManage={canManage}
+                            onEdit={openEdit}
+                        />
+                    )}
                 </Stack>
+            )}
+            {canManage && (
+                <>
+                    <DepartmentDrawer
+                        opened={drawer.opened}
+                        onClose={() => setDrawer({ opened: false })}
+                        department={editing}
+                        departments={departments}
+                    />
+                    <MembershipModal
+                        opened={isPlacingPeople}
+                        onClose={() => setIsPlacingPeople(false)}
+                        departments={departments}
+                    />
+                </>
             )}
         </SettingsPage>
     );

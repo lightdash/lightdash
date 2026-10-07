@@ -427,8 +427,6 @@ export const DepartmentForm: FC<FormProps> = ({
 
 type DrawerProps = FormProps & { opened: boolean };
 
-// Consumed by the Adoption page that follows
-// ts-unused-exports:disable-next-line
 export const DepartmentDrawer: FC<DrawerProps> = ({
     opened,
     onClose,

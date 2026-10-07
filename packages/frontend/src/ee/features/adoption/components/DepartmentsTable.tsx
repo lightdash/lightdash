@@ -44,7 +44,6 @@ type Props = {
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
-// ts-unused-exports:disable-next-line
 export const DepartmentsTable: FC<Props> = ({
     departments,
     canManage,
