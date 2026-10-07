@@ -349,7 +349,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                         {rule.label || 'New filter'}
                                     </Text>{' '}
                                     <Text span c="dimmed">
-                                        {'· no fields'}
+                                        {'· no fields, not saved'}
                                     </Text>
                                 </Text>
                             </Button>

@@ -239,6 +239,8 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                 values: [],
                 label: undefined,
                 tileTargets: {},
+                // No default value until the author provides one
+                disabled: true,
             };
             setUnplacedFilters((current) => [...current, rule]);
             setUnplacedKinds((current) => ({ ...current, [rule.id]: kind }));

@@ -223,16 +223,13 @@ export const FieldsAndCharts: FC = () => {
                         Fields in this filter
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        {waitingLabel === null
-                            ? DEFAULT_HINT
-                            : `Not added yet. Click the dashed "+ ${waitingLabel}" on a chart, or All, to add it to this filter.`}
+                        {isUnplaced
+                            ? 'No fields yet. Add a field, then choose its charts.'
+                            : waitingLabel === null
+                              ? DEFAULT_HINT
+                              : `Not added yet. Click the dashed "+ ${waitingLabel}" on a chart, or All, to add it to this filter.`}
                     </Text>
                 </Stack>
-                {isUnplaced && (
-                    <Text fz="xs" c="dimmed">
-                        No fields yet. Add a field, then choose its charts.
-                    </Text>
-                )}
                 {fieldIds.map((fieldId) => {
                     const field = getField(fieldId);
                     const count = getFieldCount(
@@ -406,10 +403,13 @@ export const FieldsAndCharts: FC = () => {
                                         <Text size="xs">{option.label}</Text>
                                     </Group>
                                     <Text size="xs" c="dimmed">
-                                        {addOptions.chartCounts.get(
-                                            option.value,
-                                        ) ?? 0}{' '}
-                                        charts
+                                        {(() => {
+                                            const count =
+                                                addOptions.chartCounts.get(
+                                                    option.value,
+                                                ) ?? 0;
+                                            return `${count} ${count === 1 ? 'chart' : 'charts'}`;
+                                        })()}
                                     </Text>
                                 </Group>
                             );

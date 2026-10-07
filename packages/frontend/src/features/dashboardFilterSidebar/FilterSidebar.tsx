@@ -216,7 +216,7 @@ export const FilterSidebar: FC = () => {
             <Box className={classes.root}>
                 <Group justify="space-between" wrap="nowrap" px="md" pt="md">
                     <Title order={5} className={classes.title}>
-                        New filter
+                        New filter or control
                     </Title>
                     <Tooltip label="Cancel">
                         <ActionIcon

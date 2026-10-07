@@ -83,7 +83,7 @@ describe('FilterPills', () => {
         expect(pills[0]).toHaveTextContent('Status');
         expect(screen.getByText('Region')).toBeInTheDocument();
         expect(screen.getByText('New filter')).toBeInTheDocument();
-        expect(screen.getAllByText('· no fields')).toHaveLength(2);
+        expect(screen.getAllByText('· no fields, not saved')).toHaveLength(2);
 
         const selected = screen.getByRole('button', { pressed: true });
         expect(selected).toHaveTextContent('New filter');
