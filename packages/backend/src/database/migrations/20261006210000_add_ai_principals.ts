@@ -19,13 +19,7 @@ export async function up(knex: Knex): Promise<void> {
             .inTable('projects')
             .onDelete('CASCADE')
             .index();
-        table
-            .uuid('warehouse_connection_uuid')
-            .nullable()
-            .references('warehouse_connection_uuid')
-            .inTable('warehouse_connections')
-            .onDelete('CASCADE')
-            .index();
+        table.uuid('warehouse_connection_uuid').nullable().index();
         table.boolean('enabled').notNullable().defaultTo(false);
         table.text('principal_kind').notNullable().defaultTo('group');
         table.check("principal_kind IN ('person','twin','group','shared')");

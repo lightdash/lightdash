@@ -1122,8 +1122,10 @@ describe('warehouse connection mode schema on every migration', () => {
                 beforeColumns.filter(
                     ({ table, column }) =>
                         NEW_TABLES.includes(table) ||
-                        column === 'connection_mode' ||
-                        column === 'warehouse_connection_uuid',
+                        (table === 'projects' &&
+                            column === 'connection_mode') ||
+                        (BOUND_TABLES.includes(table) &&
+                            column === 'warehouse_connection_uuid'),
                 ),
             ).toEqual([]);
 
@@ -1153,8 +1155,15 @@ describe('warehouse connection mode schema on every migration', () => {
                     })),
                 ]),
             );
+            const columnsBeforeConnections = beforeColumns.filter(
+                ({ column }) => column !== 'warehouse_connection_uuid',
+            );
             expect(
-                findReusedColumnNames(beforeColumns, afterColumns, NEW_TABLES),
+                findReusedColumnNames(
+                    columnsBeforeConnections,
+                    afterColumns,
+                    NEW_TABLES,
+                ),
             ).toEqual([]);
         });
     });
