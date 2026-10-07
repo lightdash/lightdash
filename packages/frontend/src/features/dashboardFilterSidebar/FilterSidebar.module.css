@@ -46,3 +46,8 @@
     border-radius: 50%;
     background: var(--mantine-primary-color-filled);
 }
+
+/* Pending, not disabled: dashed but readable. Nested to outrank the button border */
+.pill .unplacedPill {
+    border-style: dashed;
+}
