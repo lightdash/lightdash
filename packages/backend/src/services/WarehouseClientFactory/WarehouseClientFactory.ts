@@ -50,7 +50,7 @@ export type WarehouseClientOverrides = {
 export type WarehouseClientBypassMode =
     | 'dbt_cloud_preview_webhook'
     | 'timezone_preview'
-    | 'git_sql_builder'
+    | 'connection_test'
     | 'test_and_compile';
 
 export type WarehouseClientRef =
@@ -115,6 +115,15 @@ type WarehouseClientFactoryDependencies = {
     credentialSource: WarehouseCredentialSource;
     logger: typeof Logger;
 };
+
+export class WarehouseClientConstructionError extends Error {
+    readonly originalError: unknown;
+
+    constructor(originalError: unknown) {
+        super('Warehouse client construction failed');
+        this.originalError = originalError;
+    }
+}
 
 export class WarehouseClientFactory {
     warehouseClients: Record<string, WarehouseClient> = {};
@@ -296,6 +305,11 @@ export class WarehouseClientFactory {
                 overrides,
                 tunnelOptions,
                 context.organizationUuid,
+                {
+                    cacheEnabled: ref.kind !== 'bypass',
+                    wrapConstructionErrors:
+                        ref.kind === 'bypass' && ref.mode === 'connection_test',
+                },
             );
         try {
             return await fn({
@@ -327,6 +341,13 @@ export class WarehouseClientFactory {
         },
         tunnelOptions?: SshTunnelOptions,
         organizationUuid: string | null = null,
+        {
+            cacheEnabled,
+            wrapConstructionErrors,
+        }: {
+            cacheEnabled: boolean;
+            wrapConstructionErrors: boolean;
+        } = { cacheEnabled: true, wrapConstructionErrors: false },
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -335,6 +356,7 @@ export class WarehouseClientFactory {
         Sentry.setTag('warehouse.type', credentials.type);
 
         const sshTunnel = new SshTunnel(credentials, tunnelOptions);
+        let constructingClient = false;
         try {
             if (
                 credentials.type === WarehouseTypes.DUCKDB &&
@@ -377,7 +399,9 @@ export class WarehouseClientFactory {
             }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid]) : ''}`;
 
             const existingClient = (
-                usedSshTunnel ? undefined : this.warehouseClients[cacheKey]
+                usedSshTunnel || !cacheEnabled
+                    ? undefined
+                    : this.warehouseClients[cacheKey]
             ) as (typeof this.warehouseClients)[string] | undefined;
             if (
                 existingClient &&
@@ -469,6 +493,7 @@ export class WarehouseClientFactory {
                     (projectUuids.length === 0 &&
                         emptyAllowlistEnablesAllProjects));
 
+            constructingClient = true;
             const identityOptions = usesAwsWebIdentity(credentialsWithOverrides)
                 ? await this.projectModel.getWarehouseClientIdentityOptions(
                       credentialsWithOverrides,
@@ -488,7 +513,8 @@ export class WarehouseClientFactory {
                     ...identityOptions,
                 },
             );
-            if (!usedSshTunnel) this.warehouseClients[cacheKey] = client;
+            if (cacheEnabled && !usedSshTunnel)
+                this.warehouseClients[cacheKey] = client;
             return {
                 warehouseClient: this.withSharedSignInAttribution(
                     projectUuid,
@@ -501,6 +527,9 @@ export class WarehouseClientFactory {
             };
         } catch (error) {
             await sshTunnel.disconnect();
+            if (constructingClient && wrapConstructionErrors) {
+                throw new WarehouseClientConstructionError(error);
+            }
             throw error;
         }
     }

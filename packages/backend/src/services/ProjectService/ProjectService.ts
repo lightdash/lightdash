@@ -472,6 +472,7 @@ import {
     type ConnectionContext,
 } from '../WarehouseClientFactory/ConnectionContext';
 import {
+    WarehouseClientConstructionError,
     WarehouseClientFactory,
     type ResolvedWarehouseConnection,
     type WarehouseClientRef,
@@ -6547,7 +6548,11 @@ export class ProjectService
         );
         return this.runWarehouseConnectionHops(
             resolved.warehouseConnection,
-            savedProject.organizationUuid,
+            connectionContextFromAccount(account, {
+                organizationUuid: savedProject.organizationUuid,
+                queryContext: null,
+                purpose: 'query',
+            }),
         );
     }
 
@@ -6573,57 +6578,63 @@ export class ProjectService
         );
         return this.runWarehouseConnectionHops(
             resolved.warehouseConnection,
-            organizationUuid,
+            connectionContextFromAccount(account, {
+                organizationUuid,
+                queryContext: null,
+                purpose: 'query',
+            }),
         );
     }
 
     private async runWarehouseConnectionHops(
         credentials: CreateWarehouseCredentials,
-        organizationUuid: string,
+        context: ConnectionContext,
     ): Promise<WarehouseConnectionTestResults> {
         const usesTunnel =
             (credentials.type === WarehouseTypes.POSTGRES ||
                 credentials.type === WarehouseTypes.REDSHIFT) &&
             !!credentials.useSshTunnel;
-        const sshTunnel = new SshTunnel(
-            credentials,
-            this.connectionTestTunnelOptions(),
-        );
+        const tunnelHops = usesTunnel ? tunnelHopsAllOk() : [];
+        const databaseFailure = (error: unknown) =>
+            buildConnectionTestResults([
+                ...tunnelHops,
+                {
+                    stage: 'database',
+                    status: 'failed',
+                    message: getErrorMessage(error),
+                },
+            ]);
         try {
-            const tunnelCredentials = await sshTunnel.connect();
-            const tunnelHops = usesTunnel ? tunnelHopsAllOk() : [];
-            try {
-                const warehouseClient =
-                    this.projectModel.getWarehouseClientFromCredentials(
-                        tunnelCredentials,
-                        usesAwsWebIdentity(tunnelCredentials)
-                            ? await this.projectModel.getWarehouseClientIdentityOptions(
-                                  tunnelCredentials,
-                                  organizationUuid,
-                              )
-                            : undefined,
-                    );
-                await warehouseClient.test();
-                if (usesAwsWebIdentity(tunnelCredentials)) {
-                    await this.projectModel.awsWebIdentity.assertRoleRequiresAudience(
-                        tunnelCredentials,
-                    );
-                }
-                return buildConnectionTestResults([
-                    ...tunnelHops,
-                    { stage: 'database', status: 'ok', message: null },
-                ]);
-            } catch (error) {
-                return buildConnectionTestResults([
-                    ...tunnelHops,
-                    {
-                        stage: 'database',
-                        status: 'failed',
-                        message: getErrorMessage(error),
-                    },
-                ]);
-            }
+            return await this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    projectUuid: null,
+                    credentials,
+                    tunnelOptions: this.connectionTestTunnelOptions(),
+                },
+                context,
+                async ({ warehouseClient }) => {
+                    try {
+                        await warehouseClient.test();
+                        if (usesAwsWebIdentity(credentials)) {
+                            await this.projectModel.awsWebIdentity.assertRoleRequiresAudience(
+                                credentials,
+                            );
+                        }
+                        return buildConnectionTestResults([
+                            ...tunnelHops,
+                            { stage: 'database', status: 'ok', message: null },
+                        ]);
+                    } catch (error) {
+                        return databaseFailure(error);
+                    }
+                },
+            );
         } catch (error) {
+            if (error instanceof WarehouseClientConstructionError) {
+                return databaseFailure(error.originalError);
+            }
             if (
                 error instanceof SshTunnelError &&
                 isSshTunnelErrorData(error.data)
@@ -6634,8 +6645,6 @@ export class ProjectService
                 ]);
             }
             throw error;
-        } finally {
-            await sshTunnel.disconnect();
         }
     }
 
@@ -6712,48 +6721,49 @@ export class ProjectService
             throw new ParameterError('Invalid data timezone');
         }
 
-        const sshTunnel = new SshTunnel(effectiveCredentials);
-        const tunnelCredentials = await sshTunnel.connect();
-        try {
-            const warehouseClient =
-                this.projectModel.getWarehouseClientFromCredentials(
-                    tunnelCredentials,
-                    usesAwsWebIdentity(tunnelCredentials)
-                        ? await this.projectModel.getWarehouseClientIdentityOptions(
-                              tunnelCredentials,
-                              connectionOrganizationUuid,
-                          )
-                        : undefined,
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'bypass',
+                mode: 'timezone_preview',
+                projectUuid: body.mode === 'edit' ? body.projectUuid : null,
+                credentials: effectiveCredentials,
+            },
+            connectionContextFromAccount(account, {
+                organizationUuid: connectionOrganizationUuid,
+                queryContext: QueryExecutionContext.API,
+            }),
+            async ({ warehouseClient }) => {
+                const adapterType = warehouseClient.getAdapterType();
+                // A fixed wall-clock, read through the session timezone the client
+                // sets from dataTimezone (the third runQuery arg below).
+                const nowWallClock = currentUtcWallClock();
+                const sql = buildDataTimezonePreviewSql(
+                    adapterType,
+                    nowWallClock,
                 );
-            const adapterType = warehouseClient.getAdapterType();
-            // A fixed wall-clock, read through the session timezone the client
-            // sets from dataTimezone (the third runQuery arg below).
-            const nowWallClock = currentUtcWallClock();
-            const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
-            const queryTags: RunQueryTags = withAgentMarkerTag({
-                organization_uuid: account.organization.organizationUuid,
-                user_uuid: account.user.userUuid,
-                query_context: QueryExecutionContext.API,
-            });
-            const { rows } = await warehouseClient.runQuery(
-                sql,
-                queryTags,
-                dataTimezone,
-            );
-            if (rows.length === 0) {
-                throw new UnexpectedServerError(
-                    'Data timezone preview query returned no rows',
+                const queryTags: RunQueryTags = withAgentMarkerTag({
+                    organization_uuid: account.organization.organizationUuid,
+                    user_uuid: account.user.userUuid,
+                    query_context: QueryExecutionContext.API,
+                });
+                const { rows } = await warehouseClient.runQuery(
+                    sql,
+                    queryTags,
+                    dataTimezone,
                 );
-            }
-            return buildDataTimezonePreviewResponse({
-                row: rows[0],
-                nowWallClock,
-                projectTimezone,
-                dataTimezone,
-            });
-        } finally {
-            await sshTunnel.disconnect();
-        }
+                if (rows.length === 0) {
+                    throw new UnexpectedServerError(
+                        'Data timezone preview query returned no rows',
+                    );
+                }
+                return buildDataTimezonePreviewResponse({
+                    row: rows[0],
+                    nowWallClock,
+                    projectTimezone,
+                    dataTimezone,
+                });
+            },
+        );
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
@@ -16289,37 +16299,54 @@ export class ProjectService
                 ['model', 'seed'].includes(node.resource_type) && node.meta,
         ) as DbtRawModelNode[];
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            project.warehouseConnection,
-        );
-
-        const [dbtModelNode, exploreErrors] =
-            DbtBaseProjectAdapter._validateDbtModel(
-                warehouseClient.getAdapterType(),
-                models,
-                DbtManifestVersion.V12,
-            );
         const disableTimestampConversion =
-            project.warehouseConnection?.type === 'snowflake' &&
+            project.warehouseConnection.type === 'snowflake' &&
             project.warehouseConnection.disableTimestampConversion === true;
-
-        const convertedExplores = await convertExplores(
-            dbtModelNode,
-            false,
-            warehouseClient.getAdapterType(),
-            warehouseClient,
-            {
-                spotlight: {
-                    default_visibility: 'hide', // todo: pass correct config
+        const { convertedExplores, exploreErrors } =
+            await this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'dbt_cloud_preview_webhook',
+                    projectUuid,
+                    credentials: project.warehouseConnection,
                 },
-                defaults: project.projectDefaults,
-            },
-            {
-                disableTimestampConversion,
-                postProcessors: [preAggregatePostProcessor],
-            },
-        );
+                connectionContextFromUser(
+                    { userUuid: user.userUuid, isRegisteredUser: true },
+                    {
+                        organizationUuid: project.organizationUuid,
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                async ({ warehouseClient }) => {
+                    const [dbtModelNode, validationErrors] =
+                        DbtBaseProjectAdapter._validateDbtModel(
+                            warehouseClient.getAdapterType(),
+                            models,
+                            DbtManifestVersion.V12,
+                        );
+                    const explores = await convertExplores(
+                        dbtModelNode,
+                        false,
+                        warehouseClient.getAdapterType(),
+                        warehouseClient,
+                        {
+                            spotlight: {
+                                default_visibility: 'hide', // todo: pass correct config
+                            },
+                            defaults: project.projectDefaults,
+                        },
+                        {
+                            disableTimestampConversion,
+                            postProcessors: [preAggregatePostProcessor],
+                        },
+                    );
+                    return {
+                        convertedExplores: explores,
+                        exploreErrors: validationErrors,
+                    };
+                },
+            );
         Logger.info(`Explore count: ${convertedExplores.length}`);
         const previewName = `preview_${jobId}_${prId}`;
         Logger.info(`Preview name: ${previewName}`);

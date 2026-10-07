@@ -58,6 +58,7 @@ import {
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
+    SshTunnelError,
     SupportedDbtAdapter,
     UserWarehouseCredentialPurpose,
     VizAggregationOptions,
@@ -107,6 +108,7 @@ import {
     type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import fetch, { Response } from 'node-fetch';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -216,6 +218,11 @@ import {
     virtualExplore,
 } from './ProjectService.mock';
 import { TRAINING_SPACE } from './provisionTrainingProject';
+
+vi.mock('node-fetch', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('node-fetch')>()),
+    default: vi.fn(),
+}));
 
 // Mock worker_threads so the >500 rows test doesn't need a compiled
 // dist/services/ProjectService/formatRows.js artifact. In production,
@@ -650,6 +657,7 @@ const getMockedProjectService = (
         } as unknown as EncryptionUtil,
         userModel: {
             invalidateSessionUserCache: vi.fn(),
+            findSessionUserByUUID: vi.fn(async () => user),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         aiAccessService: {
@@ -4698,6 +4706,7 @@ describe('ProjectService', () => {
                 { aiPlan: null, agentSession: false },
                 undefined,
                 projectSummary.organizationUuid,
+                { cacheEnabled: true, wrapConstructionErrors: false },
             );
             expect(client.getTablesForDatabase).toHaveBeenCalledExactlyOnceWith(
                 {
@@ -4755,6 +4764,7 @@ describe('ProjectService', () => {
                     { aiPlan: null, agentSession: false },
                     undefined,
                     projectSummary.organizationUuid,
+                    { cacheEnabled: true, wrapConstructionErrors: false },
                 );
                 expect(client.getFields).toHaveBeenCalledExactlyOnceWith(
                     'orders',
@@ -4859,6 +4869,7 @@ describe('ProjectService', () => {
                 { aiPlan: null, agentSession: true },
                 undefined,
                 projectSummary.organizationUuid,
+                { cacheEnabled: true, wrapConstructionErrors: false },
             );
             expect(disconnect).toHaveBeenCalledOnce();
         });
@@ -9612,6 +9623,221 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('dbt Cloud webhook scoped client', () => {
+        it.each([false, true])(
+            'releases before saving or after validation failure: %s',
+            async (fails) => {
+                const configured = getMockedProjectService(lightdashConfigMock);
+                const { credentials } = warehouseClientMock;
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: credentials,
+                });
+                vi.mocked(fetch).mockResolvedValueOnce(
+                    new Response(
+                        JSON.stringify({
+                            metadata: {
+                                env: {
+                                    DBT_CLOUD_PR_ID: '12',
+                                    DBT_CLOUD_JOB_ID: '34',
+                                },
+                            },
+                            nodes: {},
+                        }),
+                    ),
+                );
+                const validate = vi.spyOn(
+                    DbtBaseProjectAdapter,
+                    '_validateDbtModel',
+                );
+                const error = new Error('invalid manifest');
+                if (fails)
+                    validate.mockImplementationOnce(() => {
+                        throw error;
+                    });
+                const save = vi
+                    .spyOn(configured, 'saveExploresToCacheAndIndexCatalog')
+                    .mockResolvedValueOnce('projectUuid');
+                projectModel.getAllByOrganizationUuid.mockImplementationOnce(
+                    async () => {
+                        expect(
+                            vi.mocked(SshTunnel).mock.results.at(-1)?.value
+                                .disconnect,
+                        ).toHaveBeenCalledOnce();
+                        return [
+                            {
+                                ...projectWithSensitiveFields,
+                                createdByUserName: 'Test User',
+                                createdAt: new Date(),
+                                upstreamProjectUuid: null,
+                                name: 'preview_34_12',
+                                type: ProjectType.PREVIEW,
+                            },
+                        ];
+                    },
+                );
+                const scope = vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'withWarehouseClient',
+                );
+                try {
+                    const result = configured.createPreviewFromDbtCloudWebhook(
+                        'projectUuid',
+                        1,
+                        2,
+                        { rawBody: null, signature: null },
+                    );
+                    if (fails) {
+                        await expect(result).rejects.toBe(error);
+                        expect(save).not.toHaveBeenCalled();
+                    } else {
+                        await expect(result).resolves.toBe('projectUuid');
+                        expect(save).toHaveBeenCalledWith(
+                            expect.objectContaining({ explores: [] }),
+                        );
+                    }
+                    expect(scope).toHaveBeenCalledWith(
+                        {
+                            kind: 'bypass',
+                            mode: 'dbt_cloud_preview_webhook',
+                            projectUuid: 'projectUuid',
+                            credentials,
+                        },
+                        expect.objectContaining({
+                            organizationUuid:
+                                projectWithSensitiveFields.organizationUuid,
+                            queryContext: null,
+                            purpose: 'compile',
+                        }),
+                        expect.any(Function),
+                    );
+                    expect(
+                        vi.mocked(SshTunnel).mock.results.at(-1)?.value
+                            .disconnect,
+                    ).toHaveBeenCalledOnce();
+                    expect(
+                        configured.warehouseClientFactory.warehouseClients,
+                    ).toEqual({});
+                } finally {
+                    validate.mockRestore();
+                    save.mockRestore();
+                    projectModel.getAllByOrganizationUuid.mockReset();
+                }
+            },
+        );
+    });
+
+    describe('connection test scoped clients', () => {
+        const credentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse.internal',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+            user: 'warehouse-user',
+            password: 'password',
+        };
+        it.each([
+            'success',
+            'database',
+            'construction',
+            'tunnel',
+            'other',
+        ] as const)(
+            'preserves the %s result and releases once',
+            async (failure) => {
+                const configured = getMockedProjectService(lightdashConfigMock);
+                const disconnect = vi.fn();
+                const error =
+                    failure === 'tunnel'
+                        ? new SshTunnelError('key rejected', { stage: 'auth' })
+                        : new Error('connection failed');
+                const connect =
+                    failure === 'tunnel' || failure === 'other'
+                        ? vi.fn().mockRejectedValue(error)
+                        : vi.fn().mockResolvedValue(credentials);
+                vi.mocked(SshTunnel).mockImplementationOnce(
+                    function MockTestTunnel(
+                        this: SshTunnel<CreateWarehouseCredentials>,
+                    ) {
+                        this.connect = connect;
+                        this.disconnect = disconnect;
+                        return this;
+                    },
+                );
+                const test =
+                    failure === 'database'
+                        ? vi.fn().mockRejectedValue(error)
+                        : vi.fn().mockResolvedValue(undefined);
+                if (failure === 'construction') {
+                    projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                        () => {
+                            throw error;
+                        },
+                    );
+                } else if (failure !== 'tunnel' && failure !== 'other') {
+                    projectModel.getWarehouseClientFromCredentials.mockReturnValueOnce(
+                        {
+                            ...warehouseClientMock,
+                            runQuery: vi.fn(async () => resultsWith1Row),
+                            test,
+                        },
+                    );
+                }
+                const result = configured.testWarehouseConnectionCredentials(
+                    developerAccount as RegisteredAccount,
+                    projectSummary.organizationUuid,
+                    credentials,
+                );
+                if (failure === 'other') {
+                    await expect(result).rejects.toBe(error);
+                } else if (failure === 'tunnel') {
+                    await expect(result).resolves.toEqual({
+                        ok: false,
+                        hops: [
+                            { stage: 'resolve', status: 'ok', message: null },
+                            { stage: 'tcp', status: 'ok', message: null },
+                            { stage: 'handshake', status: 'ok', message: null },
+                            {
+                                stage: 'auth',
+                                status: 'failed',
+                                message: 'key rejected',
+                            },
+                            {
+                                stage: 'forward',
+                                status: 'skipped',
+                                message: null,
+                            },
+                            {
+                                stage: 'database',
+                                status: 'skipped',
+                                message: null,
+                            },
+                        ],
+                    });
+                } else {
+                    await expect(result).resolves.toEqual({
+                        ok: failure === 'success',
+                        hops: [
+                            {
+                                stage: 'database',
+                                status: failure === 'success' ? 'ok' : 'failed',
+                                message:
+                                    failure === 'success'
+                                        ? null
+                                        : 'connection failed',
+                            },
+                        ],
+                    });
+                }
+                expect(disconnect).toHaveBeenCalledOnce();
+                expect(
+                    configured.warehouseClientFactory.warehouseClients,
+                ).toEqual({});
+            },
+        );
+    });
+
     describe('previewDataTimezone', () => {
         const previewAccount = developerAccount as RegisteredAccount;
         const noAccessAccount = {
@@ -9658,14 +9884,25 @@ describe('ProjectService', () => {
                     type: WarehouseTypes.POSTGRES,
                 } as CreateWarehouseCredentials,
             });
+            vi.mocked(SshTunnel).mockImplementationOnce(
+                function MockTimezoneTunnel(
+                    this: SshTunnel<CreateWarehouseCredentials>,
+                    suppliedCredentials: CreateWarehouseCredentials,
+                ) {
+                    this.connect = vi.fn(async () => suppliedCredentials);
+                    this.disconnect = vi.fn(async () => undefined);
+                    return this;
+                },
+            );
+            const runQuery = vi.fn(async () => ({
+                fields: {},
+                rows: [{ naive_instant: '2026-06-08 18:30:00' }],
+            }));
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockReturnValueOnce({
                 getAdapterType: () => SupportedDbtAdapter.POSTGRES,
-                runQuery: vi.fn(async () => ({
-                    fields: {},
-                    rows: [{ naive_instant: '2026-06-08 18:30:00' }],
-                })),
+                runQuery,
             });
 
             const result = await service.previewDataTimezone(previewAccount, {
@@ -9675,6 +9912,28 @@ describe('ProjectService', () => {
                 dataTimezone: 'America/New_York',
             });
 
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenLastCalledWith(
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    dataTimezone: 'America/New_York',
+                },
+                expect.any(Object),
+            );
+            expect(runQuery).toHaveBeenCalledExactlyOnceWith(
+                expect.any(String),
+                expect.objectContaining({
+                    organization_uuid:
+                        previewAccount.organization.organizationUuid,
+                    user_uuid: previewAccount.user.userUuid,
+                    query_context: QueryExecutionContext.API,
+                }),
+                'America/New_York',
+            );
             expect(result.projectTimezone).toBe('UTC');
             expect(result.dataTimezoneApplies).toBe(true);
             expect(result.naive.interpretedAs).toBe('America/New_York');
@@ -9682,6 +9941,33 @@ describe('ProjectService', () => {
             expect(result.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
             expect(result.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
             expect(result.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
+        });
+
+        it('releases the tunnel when the preview query fails', async () => {
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: credentials,
+            });
+            const error = new Error('preview query failed');
+            projectModel.getWarehouseClientFromCredentials.mockReturnValueOnce({
+                ...warehouseClientMock,
+                getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+                runQuery: vi.fn().mockRejectedValue(error),
+            });
+            await expect(
+                service.previewDataTimezone(previewAccount, {
+                    mode: 'edit',
+                    projectUuid: 'projectUuid',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    dataTimezone: credentials.dataTimezone ?? null,
+                }),
+            ).rejects.toBe(error);
+            expect(
+                vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
+            ).toHaveBeenCalledOnce();
         });
 
         it('rejects an edit preview when the warehouse type was switched but not saved', async () => {

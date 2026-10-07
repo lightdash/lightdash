@@ -326,6 +326,7 @@ describe('WarehouseClientFactory', () => {
                 { aiPlan: plan, agentSession },
                 undefined,
                 'org-uuid',
+                { cacheEnabled: true, wrapConstructionErrors: false },
             );
             expect(
                 projectModel.getWarehouseClientFromCredentials,
@@ -905,13 +906,19 @@ describe('WarehouseClientFactory', () => {
         },
         {
             kind: 'bypass',
-            mode: 'git_sql_builder',
+            mode: 'connection_test',
             projectUuid: 'project-uuid',
             credentials,
         },
         {
             kind: 'bypass',
             mode: 'test_and_compile',
+            projectUuid: null,
+            credentials,
+        },
+        {
+            kind: 'bypass',
+            mode: 'connection_test',
             projectUuid: null,
             credentials,
         },
@@ -944,13 +951,71 @@ describe('WarehouseClientFactory', () => {
         },
     );
 
+    test.each([
+        'dbt_cloud_preview_webhook',
+        'timezone_preview',
+        'connection_test',
+        'test_and_compile',
+    ] as const)(
+        '%s bypass calls build fresh clients without populating the cache',
+        async (mode) => {
+            const { factory, projectModel } = buildFixture();
+            const ref = {
+                kind: 'bypass',
+                mode,
+                projectUuid: 'project-uuid',
+                credentials,
+            } satisfies WarehouseClientRef;
+            const first = await factory.withWarehouseClient(
+                ref,
+                contextFor(),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            const second = await factory.withWarehouseClient(
+                ref,
+                contextFor(),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(second).not.toBe(first);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            expect(factory.warehouseClients).toEqual({});
+            expect(disconnect).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    test('bypass calls do not read or replace an existing query client', async () => {
+        const { factory, projectModel } = buildFixture();
+        const cached = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        const bypass = await factory.withWarehouseClient(
+            {
+                kind: 'bypass',
+                mode: 'timezone_preview',
+                projectUuid: 'project-uuid',
+                credentials,
+            },
+            contextFor(),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        expect(bypass).not.toBe(cached);
+        expect(factory.warehouseClients).toEqual({ 'project-uuid': cached });
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+    });
+
     test('passes connection-test tunnel options through', async () => {
         const { factory } = buildFixture();
         const tunnelOptions = { staticIp: '192.0.2.1', probeForward: true };
         await factory.withWarehouseClient(
             {
                 kind: 'bypass',
-                mode: 'test_and_compile',
+                mode: 'connection_test',
                 projectUuid: null,
                 credentials: sshCredentials[0],
                 tunnelOptions,
@@ -1021,7 +1086,7 @@ describe('WarehouseClientFactory', () => {
         await factory.withWarehouseClient(
             {
                 kind: 'bypass',
-                mode: 'test_and_compile',
+                mode: 'connection_test',
                 projectUuid: null,
                 credentials: athenaCredentials,
             },

@@ -6496,6 +6496,7 @@ describe('AsyncQueryService', () => {
             }),
             undefined,
             sessionAccount.organization.organizationUuid,
+            { cacheEnabled: true, wrapConstructionErrors: false },
         );
         expect(markErrored).not.toHaveBeenCalled();
     });
@@ -6714,6 +6715,7 @@ describe('AsyncQueryService', () => {
                     { aiPlan: null, agentSession: false },
                     undefined,
                     sessionAccount.organization.organizationUuid,
+                    { cacheEnabled: true, wrapConstructionErrors: false },
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
