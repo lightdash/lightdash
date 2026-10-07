@@ -340,6 +340,21 @@ describe('quoted identifiers', () => {
         expect(apply(find('orders'))).toBe('SELECT * FROM `silver.orders`');
     });
 
+    it('resolves aliases after a quoted table on the same line', () => {
+        expect(
+            run('SELECT * FROM silver."orders" o WHERE o.stat|', {
+                quoteChar: '"',
+            }).labels,
+        ).toEqual(['amount', 'customer_id', 'order_id']);
+        expect(
+            run('SELECT * FROM `analytics`.`silver`.`orders` o WHERE o.|')
+                .labels,
+        ).toEqual(['amount', 'customer_id', 'order_id']);
+        expect(
+            run('SELECT * FROM `silver`.`orders` o WHERE amount |').labels,
+        ).toContain('AND');
+    });
+
     it('resolves double-quoted qualifiers on Snowflake and Postgres', () => {
         expect(
             run('SELECT * FROM "silver".|', { quoteChar: '"' }).labels,

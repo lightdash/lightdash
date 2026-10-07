@@ -43,8 +43,13 @@ export const parseQualifiedPrefix = (
     const q = escapeRegExp(quoteChar);
     const word = '[\\p{L}_][\\p{L}\\p{N}_$]*';
     const segment = `(?:${q}[^${q}]*${q}|${word})`;
+    // An odd quote count means the cursor is inside a quote opened at the last
+    // quote char; otherwise a closed quote earlier on the line is not a prefix
+    const isInsideQuote =
+        (textUntilCursor.split(quoteChar).length - 1) % 2 === 1;
+    const partialPattern = isInsideQuote ? `(${q}[^${q}]*)` : `(${word})?`;
     const match = textUntilCursor.match(
-        new RegExp(`((?:${segment}\\.)*)(${q}[^${q}]*|${word})?$`, 'u'),
+        new RegExp(`((?:${segment}\\.)*)${partialPattern}$`, 'u'),
     );
 
     const chainStart = match?.index ?? textUntilCursor.length;
@@ -55,25 +60,12 @@ export const parseQualifiedPrefix = (
     ).flatMap((s) => unquoteSegment(s, quoteChar));
 
     const partialTextStart = textUntilCursor.length - partialText.length;
-    if (!partialText.startsWith(quoteChar)) {
+    if (!isInsideQuote) {
         return {
             chainStart,
             qualifiers,
             partial: partialText,
             partialStart: partialTextStart,
-            openQuoteStart: null,
-            isQuotedPath: false,
-        };
-    }
-
-    // An even quote count means the cursor sits right after a closing quote
-    const quoteCount = textUntilCursor.split(quoteChar).length - 1;
-    if (quoteCount % 2 === 0) {
-        return {
-            chainStart: textUntilCursor.length,
-            qualifiers: [],
-            partial: '',
-            partialStart: textUntilCursor.length,
             openQuoteStart: null,
             isQuotedPath: false,
         };

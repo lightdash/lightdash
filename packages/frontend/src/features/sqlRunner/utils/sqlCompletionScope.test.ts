@@ -89,6 +89,30 @@ describe('parseQualifiedPrefix', () => {
         });
     });
 
+    it('ignores closed quoted identifiers earlier on the line', () => {
+        expect(
+            parseQualifiedPrefix('FROM jaffle."orders" o WHERE o.st', '"'),
+        ).toMatchObject({
+            qualifiers: ['o'],
+            partial: 'st',
+            openQuoteStart: null,
+        });
+        expect(
+            parseQualifiedPrefix('FROM `p.ds.orders` o WHERE o.', '`'),
+        ).toMatchObject({
+            qualifiers: ['o'],
+            partial: '',
+            openQuoteStart: null,
+        });
+        expect(
+            parseQualifiedPrefix('FROM `p.ds.orders` o JOIN `ds.cu', '`'),
+        ).toMatchObject({
+            qualifiers: ['ds'],
+            partial: 'cu',
+            openQuoteStart: 26,
+        });
+    });
+
     it('ignores numbers', () => {
         expect(parseQualifiedPrefix('select 1.', '`').qualifiers).toEqual([]);
     });
