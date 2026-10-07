@@ -1,9 +1,11 @@
 import { ManagedSignInError } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { AiAccessService } from '../services/AiAccessService/AiAccessService';
 import type { OAuthService } from '../services/OAuthService/OAuthService';
 import oauthRouter from './oauthRouter';
 
@@ -226,10 +228,12 @@ const requestAuthorizePage = async ({
     query,
     oauthService,
     user = authenticatedUser,
+    prompt = { required: false },
 }: {
     query: Record<string, string>;
     oauthService: ReturnType<typeof createOAuthService>;
     user?: Express.User;
+    prompt?: Awaited<ReturnType<AiAccessService['getAgentConnectPrompt']>>;
 }): Promise<{ body: string; status: number }> => {
     const app = express();
     app.use(express.json());
@@ -237,6 +241,10 @@ const requestAuthorizePage = async ({
         request.user = user;
         request.services = {
             getOauthService: () => oauthService as unknown as OAuthService,
+            getAiAccessService: () =>
+                ({
+                    getAgentConnectPrompt: vi.fn().mockResolvedValue(prompt),
+                }) as unknown as AiAccessService,
         } as Express.Request['services'];
         next();
     });
@@ -468,9 +476,102 @@ describe('OAuth authorize redirects', () => {
         expect(response.status).toBe(200);
         expect(response.body).toContain('Lightdash Mobile');
         expect(response.body).toContain('action="/api/v1/oauth/authorize"');
+        expect(response.body).not.toContain('warehouse agent');
+        expect(createHash('sha256').update(response.body).digest('hex')).toBe(
+            '65958e01412262970916671ca04c8d1b9bd2dc48517145d78891a38323394536',
+        );
         expect(oauthService.getClientDisplayName).toHaveBeenCalledWith(
             'client-id',
         );
+    });
+
+    it.each([
+        [
+            'needs_sign_in',
+            'Your organisation requires an agent connection for AI queries. Connect once now, or authorise and connect later from the link an AI tool shows you.',
+        ],
+        [
+            'sign_in_expired',
+            'Your agent connection expired. Connect again now, or authorise and connect later from the link an AI tool shows you.',
+        ],
+    ] as const)(
+        'offers an optional agent connection for %s',
+        async (reason, copy) => {
+            const query = {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                response_type: 'code',
+                scope: 'read',
+                state: 'request-state',
+                code_challenge: 'challenge',
+                code_challenge_method: 'S256',
+            };
+            const response = await requestAuthorizePage({
+                query,
+                oauthService: createOAuthService(),
+                prompt: { required: true, reason },
+            });
+            expect(response.status).toBe(200);
+            expect(response.body).toContain('Connect your warehouse agent');
+            expect(response.body).toContain(copy);
+            expect(response.body).toContain(
+                'class="oauth-btn deny" href="/api/v1/login/snowflake-ai?redirect&#x3D;',
+            );
+            const link =
+                /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
+                    response.body,
+                )?.[1];
+            expect(link).toBeDefined();
+            const connectUrl = new URL(
+                link!.replaceAll('&#x3D;', '='),
+                'https://eu1.lightdash.cloud',
+            );
+            expect(connectUrl.searchParams.get('redirect')).toBe(
+                `https://eu1.lightdash.cloud/api/v1/oauth/authorize?${new URLSearchParams(query)}`,
+            );
+            expect(response.body).toContain('name="approve" value="true"');
+            expect(response.body).toContain('name="approve" value="false"');
+        },
+    );
+
+    it('shows a sign-in error and removes it from the connection return URL', async () => {
+        const query = {
+            client_id: 'client-id',
+            error: 'not_agent_session',
+            redirect_uri: 'https://registered.example/callback',
+            state: 'request-state',
+        };
+        const response = await requestAuthorizePage({
+            query,
+            oauthService: createOAuthService(),
+            prompt: { required: true, reason: 'needs_sign_in' },
+        });
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(
+            'class="oauth-agent-connect-error" role="alert"',
+        );
+        expect(response.body).toContain(
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC &#x3D; TRUE on the security integration used for AI.',
+        );
+        const link = /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
+            response.body,
+        )?.[1];
+        expect(link).toBeDefined();
+        const connectUrl = new URL(
+            link!.replaceAll('&#x3D;', '='),
+            'https://eu1.lightdash.cloud',
+        );
+        const authorizeUrl = new URL(
+            `/api/v1/oauth/authorize?${new URLSearchParams(query)}`,
+            'https://eu1.lightdash.cloud',
+        );
+        authorizeUrl.searchParams.delete('error');
+        expect(connectUrl.searchParams.get('redirect')).toBe(authorizeUrl.href);
+        expect(
+            new URL(connectUrl.searchParams.get('redirect')!).searchParams.has(
+                'error',
+            ),
+        ).toBe(false);
     });
 
     it('sends an OAuth error when an approval comes from a user with no organization', async () => {

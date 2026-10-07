@@ -310,6 +310,30 @@ describe.skipIf(!stubUrl)(
             });
         });
 
+        it('offers an agent connection on consent only to an unconnected person', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            const access = await client.get<Body<AiAccessForUser>>(
+                `/api/v2/projects/${projectUuid}/ai-access/me`,
+            );
+            expect(access.body.results.refusal?.reason).toBe(
+                AiAccessRefusalReason.NEEDS_SIGN_IN,
+            );
+            const authorizePath =
+                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read';
+            const refusedPage = await client.get<string>(authorizePath);
+            expect(refusedPage.status).toBe(200);
+            expect(refusedPage.body).toContain('Connect your warehouse agent');
+            expect(refusedPage.body).toContain(
+                '/api/v1/login/snowflake-ai?redirect&#x3D;',
+            );
+            const connectedPage = await person!.get<string>(authorizePath);
+            expect(connectedPage.status).toBe(200);
+            expect(connectedPage.body).not.toContain('warehouse agent');
+        });
+
         it.each(['expiring-code', 'revoking-code'])(
             'refuses SQL after connecting with %s',
             async (code) => {

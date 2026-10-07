@@ -25,6 +25,7 @@ import {
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
     type QueryHistory,
+    type SessionUser,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -114,6 +115,54 @@ export class AiAccessService extends BaseService {
         if (!(await this.isEnabled(user))) {
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
         }
+    }
+
+    async getAgentConnectPrompt(
+        user: SessionUser,
+    ): Promise<
+        | { required: true; reason: 'needs_sign_in' | 'sign_in_expired' }
+        | { required: false }
+    > {
+        const { organizationUuid, userUuid } = user;
+        if (
+            !organizationUuid ||
+            !(await this.isEnabled({ organizationUuid, userUuid }))
+        )
+            return { required: false };
+        const settings =
+            await this.organizationAgentIdentitySettingsModel.get(
+                organizationUuid,
+            );
+        if (!settings.requireVerifiedAgentSessions) return { required: false };
+        const projects =
+            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
+        const ability = this.createAuditedAbility(user);
+        const project = projects.find(
+            ({ projectUuid, warehouseType }) =>
+                warehouseType === WarehouseTypes.SNOWFLAKE &&
+                ability.can(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                ),
+        );
+        if (!project) return { required: false };
+        const provider = this.providerRegistry(WarehouseTypes.SNOWFLAKE);
+        if (!provider) return { required: false };
+        const connection =
+            await this.projectModel.getWarehouseCredentialsForBinding(
+                project.projectUuid,
+                { kind: 'connection', warehouseConnectionUuid: null },
+            );
+        const reason = await provider.missingPrerequisite({
+            connection,
+            person: { userUuid, email: user.email ?? '' },
+        });
+        if (
+            reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
+            reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+        )
+            return { required: true, reason };
+        return { required: false };
     }
 
     async getOrganizationSettings(
