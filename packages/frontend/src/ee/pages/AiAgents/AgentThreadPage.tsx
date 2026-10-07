@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
-import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -28,6 +27,7 @@ import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
 } from '../../features/aiCopilot/hooks/useAiAgentAdmin';
+import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
@@ -36,7 +36,6 @@ import {
     useTrackDeepResearchFollowUp,
 } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
-import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
@@ -195,23 +194,20 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
-    const firstAssistantMessage = thread?.messages?.find(
-        (m) => m.role === 'assistant',
-    );
-    const threadModelConfig = firstAssistantMessage?.modelConfig ?? null;
-
-    const { data: availableModels } = useModelOptions({
+    const {
+        explicitModelConfig,
+        extendedThinking,
+        handleExtendedThinkingChange,
+        handleSelectedModelKeyChange,
+        modelOptions,
+        selectedModelKey,
+        showExtendedThinking,
+    } = useAiAgentModelSelection({
         projectUuid,
         agentUuid,
-        options: { enabled: !!threadModelConfig },
+        defaultModelConfig: agent.modelConfig,
+        organizationSettingsEnabled: !isEmbed,
     });
-
-    const isThreadModelUnavailable =
-        !!threadModelConfig &&
-        !!availableModels &&
-        !availableModels.some((model) =>
-            matchesModelConfig(model, threadModelConfig),
-        );
 
     const disabledReasons: { when: boolean; message: string }[] = [
         {
@@ -222,10 +218,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         {
             when: !isEmbed && !!thread && !isThreadFromCurrentUser,
             message: 'This thread is read-only. It belongs to another user.',
-        },
-        {
-            when: isThreadModelUnavailable,
-            message: `The model used in this thread (${threadModelConfig?.modelProvider} ${threadModelConfig?.modelName}) is no longer available. Start a new thread to continue.`,
         },
     ];
     const activeDisabledReason = disabledReasons.find((r) => r.when);
@@ -296,7 +288,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     }) => {
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig: threadModelConfig ?? undefined,
+            modelConfig: explicitModelConfig,
             context: mergeAiPromptContextInput(pageContextInput, context),
             optimisticContext: mergeAiPromptContextItems(
                 pagePreviewItems,
@@ -324,7 +316,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: threadModelConfig ?? undefined,
+                    modelConfig: explicitModelConfig,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -347,7 +339,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: threadModelConfig ?? undefined,
+                    modelConfig: explicitModelConfig,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -444,6 +436,17 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         threadUuid={threadUuid}
+                        models={modelOptions}
+                        selectedModelId={selectedModelKey}
+                        onModelChange={handleSelectedModelKeyChange}
+                        extendedThinking={
+                            showExtendedThinking ? extendedThinking : undefined
+                        }
+                        onExtendedThinkingChange={
+                            showExtendedThinking
+                                ? handleExtendedThinkingChange
+                                : undefined
+                        }
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

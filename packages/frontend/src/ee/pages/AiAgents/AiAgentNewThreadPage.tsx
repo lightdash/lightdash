@@ -207,10 +207,10 @@ const AiAgentNewThreadPage: FC = () => {
     );
 
     const {
+        explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        modelConfig,
         modelOptions,
         selectedModel,
         selectedModelKey,
@@ -327,7 +327,7 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext: mergedOptimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
-                modelConfig,
+                modelConfig: explicitModelConfig,
             });
         },
         [
@@ -339,7 +339,7 @@ const AiAgentNewThreadPage: FC = () => {
             previewItems,
             sqlModeAvailable,
             sqlMode,
-            modelConfig,
+            explicitModelConfig,
             isPinnedContextReady,
             isBattle,
             projectUuid,
@@ -363,7 +363,7 @@ const AiAgentNewThreadPage: FC = () => {
                 prompt: question,
                 context: contextInput,
                 optimisticContext: previewItems,
-                modelConfig,
+                modelConfig: explicitModelConfig,
                 skipAgentResponse: true,
             });
             await startDeepResearch.mutateAsync({
@@ -379,7 +379,7 @@ const AiAgentNewThreadPage: FC = () => {
             contextInput,
             createAgentThread,
             isPinnedContextReady,
-            modelConfig,
+            explicitModelConfig,
             previewItems,
             setPendingPrompt,
             startDeepResearch,

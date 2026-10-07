@@ -1320,13 +1320,21 @@ export class AiAgentService extends BaseService {
         organizationUuid,
         projectUuid,
         credentialUuid,
-        modelConfig,
+        agentModelConfig,
+        requestedModelConfig,
     }: {
         organizationUuid: string;
         projectUuid: string;
         credentialUuid: string | null;
-        modelConfig: AiAgentModelConfig | null;
+        agentModelConfig: AiAgentModelConfig | null | undefined;
+        requestedModelConfig: AiAgentModelConfig | null | undefined;
     }): Promise<AiAgentModelConfig | null> {
+        const modelConfig =
+            requestedModelConfig ??
+            agentModelConfig ??
+            (await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                organizationUuid,
+            ));
         if (!modelConfig) return null;
         const { catalogue } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
@@ -4591,6 +4599,8 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Every prompt, first or follow-up, resolves the same way so a thread
+    // follows the agent's current model unless the user picked one explicitly.
     async createAgentThread(
         user: SessionUser,
         agentUuid: string,
@@ -4671,21 +4681,12 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
         });
 
-        const organizationDefaultModelConfig =
-            body.modelConfig || agent.modelConfig
-                ? undefined
-                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
-                      organizationUuid,
-                  );
         const modelConfig = await this.resolvePromptModelConfig({
             organizationUuid,
             projectUuid: agent.projectUuid,
             credentialUuid: agent.providerCredentialUuid,
-            modelConfig:
-                body.modelConfig ??
-                agent.modelConfig ??
-                organizationDefaultModelConfig ??
-                null,
+            agentModelConfig: agent.modelConfig,
+            requestedModelConfig: body.modelConfig,
         });
 
         if (body.prompt) {
@@ -4893,17 +4894,20 @@ export class AiAgentService extends BaseService {
             runtimeOptions?.spaceAccess,
         );
 
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            credentialUuid: agent.providerCredentialUuid,
+            agentModelConfig: agent.modelConfig,
+            requestedModelConfig: body.modelConfig,
+        });
+
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
             context,
-            modelConfig: await this.resolvePromptModelConfig({
-                organizationUuid,
-                projectUuid: agent.projectUuid,
-                credentialUuid: agent.providerCredentialUuid,
-                modelConfig: body.modelConfig ?? null,
-            }),
+            modelConfig,
             hidden: body.hidden,
             externalUserId: runtimeOptions?.externalUserId ?? null,
         });
@@ -16233,18 +16237,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   agentUuid: data.agentUuid,
               })
             : undefined;
-        const orgDefaultModelConfig =
-            data.modelConfig || agent?.modelConfig
-                ? null
-                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
-                      user.organizationUuid,
-                  );
         const modelConfig = await this.resolvePromptModelConfig({
             organizationUuid: user.organizationUuid,
             projectUuid: data.projectUuid,
             credentialUuid: agent?.providerCredentialUuid ?? null,
-            modelConfig:
-                data.modelConfig ?? agent?.modelConfig ?? orgDefaultModelConfig,
+            agentModelConfig: agent?.modelConfig,
+            requestedModelConfig: data.modelConfig,
         });
 
         if (!threadUuid) {

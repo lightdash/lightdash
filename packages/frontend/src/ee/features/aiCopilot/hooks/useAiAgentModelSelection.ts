@@ -320,15 +320,19 @@ export const useAiAgentModelSelection = ({
         () => getAiAgentModelConfig(selectedModel, effectiveExtendedThinking),
         [effectiveExtendedThinking, selectedModel],
     );
+    const isModelSelectionExplicit =
+        selectedModelKey !== null ||
+        extendedThinking !== null ||
+        storedModel !== undefined;
 
     return {
+        // Sent with prompts; left unset so the server resolves the agent's
+        // current model unless the user picked one.
+        explicitModelConfig: isModelSelectionExplicit ? modelConfig : undefined,
         extendedThinking: effectiveExtendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        isModelSelectionExplicit:
-            selectedModelKey !== null ||
-            extendedThinking !== null ||
-            storedModel !== undefined,
+        isModelSelectionExplicit,
         modelConfig,
         modelOptions,
         selectedModel,

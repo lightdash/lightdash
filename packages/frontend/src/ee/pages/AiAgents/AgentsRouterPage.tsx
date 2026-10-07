@@ -103,11 +103,10 @@ const AgentsRouterPage = () => {
     });
 
     const {
+        explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        isModelSelectionExplicit,
-        modelConfig,
         modelOptions,
         selectedModelKey,
         showExtendedThinking,
@@ -147,7 +146,7 @@ const AgentsRouterPage = () => {
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
-                modelConfig: isModelSelectionExplicit ? modelConfig : undefined,
+                modelConfig: explicitModelConfig,
             });
             dispatch(
                 setThreadSqlMode({
@@ -157,14 +156,7 @@ const AgentsRouterPage = () => {
             );
             return thread;
         },
-        [
-            createThread,
-            dispatch,
-            isModelSelectionExplicit,
-            modelConfig,
-            agents,
-            sqlModeAvailable,
-        ],
+        [createThread, dispatch, explicitModelConfig, agents, sqlModeAvailable],
     );
 
     const createDeepResearchForAgent = useCallback<CreateThreadForAgent>(
@@ -172,7 +164,7 @@ const AgentsRouterPage = () => {
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
-                modelConfig,
+                modelConfig: explicitModelConfig,
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 skipAgentResponse: true,
@@ -185,7 +177,7 @@ const AgentsRouterPage = () => {
             });
             return thread;
         },
-        [createThread, modelConfig, startDeepResearch],
+        [createThread, explicitModelConfig, startDeepResearch],
     );
 
     const handleRouteError = useCallback(
