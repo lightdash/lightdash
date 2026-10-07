@@ -166,14 +166,15 @@ export const AiComposerVizFieldRows: FC<Props> = ({
             <Row
                 title="Y-axis"
                 action={
-                    isCartesian && (
+                    isCartesian &&
+                    canAddY && (
                         <Tooltip label="Add a Y axis value" withinPortal>
                             <ActionIcon
                                 size="sm"
                                 variant="subtle"
                                 color="gray"
                                 aria-label="Add a Y axis value"
-                                disabled={disabled || !canAddY}
+                                disabled={disabled}
                                 onClick={() =>
                                     onChange(addComposerVizY(value, columns))
                                 }
