@@ -1,0 +1,165 @@
+.svg {
+    display: block;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.svg:active {
+    cursor: grabbing;
+}
+
+/* Only moves made from the controls ease; wheel and drag follow the pointer */
+.viewport[data-animated] {
+    transition: transform 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .viewport[data-animated] {
+        transition: none;
+    }
+}
+
+.circle {
+    fill: var(--mantine-color-ldGray-0);
+    stroke: var(--mantine-color-ldGray-3);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+}
+
+.circle[data-nested] {
+    fill: var(--mantine-color-body);
+    stroke: light-dark(
+        var(--mantine-color-violet-2),
+        var(--mantine-color-violet-9)
+    );
+}
+
+.circle:hover {
+    stroke: var(--mantine-color-ldGray-5);
+}
+
+/* Sized by the people on Lightdash because no headcount is set */
+.circle[data-no-headcount] {
+    fill: var(--mantine-color-body);
+    stroke: light-dark(
+        var(--mantine-color-violet-3),
+        var(--mantine-color-violet-7)
+    );
+    stroke-width: 2px;
+    stroke-dasharray: 3 4;
+}
+
+/* Nobody on Lightdash yet */
+.circle[data-empty] {
+    fill: var(--mantine-color-ldGray-0);
+    stroke: var(--mantine-color-ldGray-4);
+    stroke-width: 2px;
+    stroke-dasharray: 6 5;
+}
+
+.circle[data-highlighted] {
+    stroke: var(--mantine-color-text);
+    stroke-width: 2.5px;
+    stroke-dasharray: none;
+}
+
+/* People who sit in a department itself, beside its sub-departments */
+.circle[data-kind='own'] {
+    cursor: inherit;
+    pointer-events: none;
+}
+
+.circle[data-kind='own'][data-nested] {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-2);
+    stroke-width: 1px;
+    stroke-dasharray: none;
+}
+
+.dots circle {
+    pointer-events: none;
+}
+
+.dots circle[data-user] {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.dots circle[data-dot='active'],
+.dots circle[data-dot='editor'] {
+    fill: var(--mantine-color-violet-filled);
+}
+
+.dots circle[data-dot='lapsed'],
+.dots circle[data-dot='interactiveViewer'] {
+    fill: var(--mantine-color-violet-filled);
+    fill-opacity: 0.45;
+}
+
+.dots circle[data-dot='admin'] {
+    fill: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-2)
+    );
+}
+
+.dots circle[data-dot='idle'],
+.dots circle[data-dot='inactive'],
+.dots circle[data-dot='viewer'] {
+    fill: var(--mantine-color-body);
+    stroke: var(--mantine-color-violet-outline);
+}
+
+.dots circle[data-dot='noAccount'] {
+    fill: var(--mantine-color-ldGray-3);
+}
+
+.dots circle[data-selected] {
+    stroke: var(--mantine-color-text);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+}
+
+.label {
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: var(--mantine-color-body);
+    stroke-linejoin: round;
+}
+
+.labelName {
+    fill: var(--mantine-color-text);
+    font-weight: 600;
+}
+
+.labelDetail {
+    fill: var(--mantine-color-dimmed);
+}
+
+.labelNested {
+    fill: var(--mantine-color-violet-light-color);
+    font-weight: 600;
+}
+
+.personName {
+    fill: var(--mantine-color-text);
+}
+
+.controls {
+    position: absolute;
+    left: var(--mantine-spacing-sm);
+    bottom: var(--mantine-spacing-sm);
+}
+
+.swatch {
+    display: block;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.swatch .circle {
+    cursor: inherit;
+}

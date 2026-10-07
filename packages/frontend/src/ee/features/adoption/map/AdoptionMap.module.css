@@ -1,0 +1,112 @@
+.body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--mantine-spacing-md);
+    align-items: stretch;
+}
+
+@media (max-width: 62em) {
+    .body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.frame {
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* The drawing is sized from this box, so its height is fixed here and nowhere else */
+.canvas {
+    position: relative;
+    height: 560px;
+    overflow: hidden;
+}
+
+.message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-lg);
+    text-align: center;
+}
+
+.footer {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px var(--mantine-spacing-md);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.count {
+    font-variant-numeric: tabular-nums;
+}
+
+.tile {
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.rows {
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
+
+.row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 3.5em;
+    gap: var(--mantine-spacing-sm);
+    align-items: center;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 0;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.row:last-child {
+    border-bottom: 0;
+}
+
+.row:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.selected {
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
+
+.actions {
+    margin-top: auto;
+}
+
+.card {
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}

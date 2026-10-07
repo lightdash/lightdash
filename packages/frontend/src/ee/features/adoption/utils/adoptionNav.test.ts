@@ -49,6 +49,11 @@ describe('parseAdoptionView', () => {
         expect(parseAdoptionView(null, ['map', 'list'])).toBe('map');
         expect(parseAdoptionView('grid', ['map', 'list'])).toBe('map');
     });
+    it('opens on the map by default', () => {
+        expect(parseAdoptionView(null)).toBe('map');
+        expect(parseAdoptionView('list')).toBe('list');
+        expect(parseAdoptionView('grid')).toBe('map');
+    });
     it('ignores a view that is not available yet', () => {
         expect(parseAdoptionView('map', ['list'])).toBe('list');
     });

@@ -8,8 +8,6 @@ import {
 } from '@lightdash/common';
 import { hierarchy, pack } from 'd3-hierarchy';
 
-// Consumed by the map components that follow
-// ts-unused-exports:disable-next-line
 export const MAP_SIZE = 720;
 export const MIN_CIRCLE_RADIUS = 14;
 // Above this many dots SVG gets slow; canvas rendering is a follow-up
@@ -76,13 +74,9 @@ const DOT_ORDER: DotKind[] = [
     'noAccount',
 ];
 
-// Consumed by the map components that follow
-// ts-unused-exports:disable-next-line
 export const getDepartmentSize = (department: DepartmentWithMetrics): number =>
     department.effectiveHeadcount ?? department.metrics.memberCount;
 
-// Consumed by the map components that follow
-// ts-unused-exports:disable-next-line
 export const countBucketPeople = (bucket: PeopleBucket): number =>
     Math.max(bucket.headcount ?? 0, bucket.metrics.memberCount);
 
