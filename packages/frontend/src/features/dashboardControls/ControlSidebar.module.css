@@ -1,0 +1,34 @@
+/* The page scrolls as a whole, so the panel is pinned to stay in view. */
+.root {
+    position: fixed;
+    top: var(--pinned-sidebar-top, var(--navbar-height));
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-width);
+    background-color: var(--mantine-color-body);
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.changedDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-primary-color-filled);
+}

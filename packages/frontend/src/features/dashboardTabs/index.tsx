@@ -46,6 +46,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import { ControlsBar } from '../dashboardControls/ControlsBar';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -271,6 +272,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardTabsInMemory,
     );
     const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
+
+    const { data: dashboardControlsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardControls,
+    );
+    const FiltersBar =
+        dashboardControlsFlag?.enabled === true
+            ? ControlsBar
+            : DashboardFiltersBar;
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
@@ -1088,7 +1097,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     }
                                                 />
                                             ) : (
-                                                <DashboardFiltersBar
+                                                <FiltersBar
                                                     isEditMode={isEditMode}
                                                     activeTabUuid={
                                                         activeTab?.uuid

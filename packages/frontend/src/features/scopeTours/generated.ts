@@ -55,6 +55,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         scope: 'view:Dashboard',
         title: 'Open and read a dashboard',
         sources: [
+            'packages/frontend/src/features/dashboardControls/ControlsBar.tsx',
             'packages/frontend/src/features/dashboardFilters/DashboardFiltersBar.tsx',
             'packages/frontend/src/components/DashboardTiles/DashboardChartTile.tsx',
             'packages/frontend/src/features/dateZoom/components/DateZoom.tsx',

@@ -1,0 +1,13 @@
+.pill {
+    position: relative;
+    display: inline-flex;
+}
+
+.selectedPill {
+    border-color: var(--mantine-primary-color-filled);
+    border-width: 2px;
+}
+
+.draftPill {
+    border-style: dashed;
+}
