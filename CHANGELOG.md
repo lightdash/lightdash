@@ -1,3 +1,10 @@
+## [2.455.4](https://github.com/lightdash/lightdash/compare/2.455.3...2.455.4) (2026-10-07)
+
+
+### Bug Fixes
+
+* **frontend:** hide instance license status in About modal on Cloud ([#30614](https://github.com/lightdash/lightdash/issues/30614)) ([8fc3401](https://github.com/lightdash/lightdash/commit/8fc3401fe19df0edfe918421cc580df302ead4ff))
+
 ## [2.455.3](https://github.com/lightdash/lightdash/compare/2.455.2...2.455.3) (2026-10-07)
 
 
