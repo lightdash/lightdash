@@ -1326,8 +1326,8 @@ export class AiAgentService extends BaseService {
         organizationUuid: string;
         projectUuid: string;
         credentialUuid: string | null;
-        agentModelConfig: AiAgentModelConfig | null | undefined;
-        requestedModelConfig: AiAgentModelConfig | null | undefined;
+        agentModelConfig: AiAgentModelConfig | null;
+        requestedModelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
         const modelConfig =
             requestedModelConfig ??
@@ -4686,7 +4686,7 @@ export class AiAgentService extends BaseService {
             projectUuid: agent.projectUuid,
             credentialUuid: agent.providerCredentialUuid,
             agentModelConfig: agent.modelConfig,
-            requestedModelConfig: body.modelConfig,
+            requestedModelConfig: body.modelConfig ?? null,
         });
 
         if (body.prompt) {
@@ -4899,7 +4899,7 @@ export class AiAgentService extends BaseService {
             projectUuid: agent.projectUuid,
             credentialUuid: agent.providerCredentialUuid,
             agentModelConfig: agent.modelConfig,
-            requestedModelConfig: body.modelConfig,
+            requestedModelConfig: body.modelConfig ?? null,
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -16241,8 +16241,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             organizationUuid: user.organizationUuid,
             projectUuid: data.projectUuid,
             credentialUuid: agent?.providerCredentialUuid ?? null,
-            agentModelConfig: agent?.modelConfig,
-            requestedModelConfig: data.modelConfig,
+            agentModelConfig: agent?.modelConfig ?? null,
+            requestedModelConfig: data.modelConfig ?? null,
         });
 
         if (!threadUuid) {

@@ -555,6 +555,7 @@ const ExistingThreadPanel: FC<{
         [threadContext],
     );
     const {
+        agentDefault,
         explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
@@ -731,6 +732,7 @@ const ExistingThreadPanel: FC<{
                                 ? handleExtendedThinkingChange
                                 : undefined
                         }
+                        agentDefault={agentDefault}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

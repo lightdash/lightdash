@@ -207,6 +207,7 @@ const AiAgentNewThreadPage: FC = () => {
     );
 
     const {
+        agentDefault,
         explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
@@ -575,6 +576,7 @@ const AiAgentNewThreadPage: FC = () => {
                                     ? handleExtendedThinkingChange
                                     : undefined
                             }
+                            agentDefault={isBattle ? undefined : agentDefault}
                             sqlMode={sqlModeAvailable ? sqlMode : undefined}
                             onSqlModeChange={
                                 sqlModeAvailable

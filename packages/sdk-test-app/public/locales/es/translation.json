@@ -337,6 +337,7 @@
         "explorer.backToChart": "Volver al gráfico",
         "explorer.backToAi": "Volver a la IA",
         "explorer.backToMetricsCatalog": "Volver al catálogo de métricas",
+        "aiAgent.modelSelector.agentDefault": "Predeterminado del agente",
         "tileMenu.actions": "Acciones del elemento",
         "comments.title": "Comentarios",
         "comments.close": "Cerrar comentarios",

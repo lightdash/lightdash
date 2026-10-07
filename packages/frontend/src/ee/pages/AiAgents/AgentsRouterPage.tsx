@@ -103,6 +103,7 @@ const AgentsRouterPage = () => {
     });
 
     const {
+        agentDefault,
         explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
@@ -446,6 +447,7 @@ const AgentsRouterPage = () => {
                                     ? handleExtendedThinkingChange
                                     : undefined
                             }
+                            agentDefault={agentDefault}
                             clearOnSubmit={false}
                             fullWidth
                             showSuggestions={false}

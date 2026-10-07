@@ -30,7 +30,7 @@ const buildService = ({
     agentModelConfig: AiAgentModelConfig | null;
     organizationModelConfig: AiAgentModelConfig | null;
 }) => {
-    const createWebAppPrompt = vi.fn(
+    const createPrompt = vi.fn(
         async (_args: { modelConfig?: AiAgentModelConfig }) => promptUuid,
     );
     const service = new AiAgentService({
@@ -41,13 +41,19 @@ const buildService = ({
                 modelConfig: agentModelConfig,
             })),
             createWebAppThread: vi.fn(async () => threadUuid),
-            createWebAppPrompt,
+            createWebAppPrompt: createPrompt,
+            createSlackThread: vi.fn(async () => threadUuid),
+            createSlackPrompt: createPrompt,
+            existsSlackPromptByChannelIdAndPromptTs: vi.fn(async () => false),
             getThread: vi.fn(async () => ({
                 uuid: threadUuid,
                 user: { uuid: userUuid },
             })),
             findThreadMessage: vi.fn(async () => ({ uuid: promptUuid })),
             getContextForPromptUuids: vi.fn(async () => new Map()),
+        },
+        userModel: {
+            getUserDetailsByUuid: vi.fn(async () => ({ organizationUuid })),
         },
         aiOrganizationSettingsService: {
             getDefaultModelConfig: vi.fn(async () => organizationModelConfig),
@@ -67,8 +73,7 @@ const buildService = ({
         persistSkillInvocation: vi.fn(async () => undefined),
     });
 
-    const storedModelConfig = () =>
-        createWebAppPrompt.mock.calls[0]?.[0].modelConfig;
+    const storedModelConfig = () => createPrompt.mock.calls[0]?.[0].modelConfig;
 
     return { service, storedModelConfig };
 };
@@ -88,6 +93,21 @@ const sendOnEachPath = {
     ) =>
         service.createAgentThreadMessage(user, agentUuid, threadUuid, {
             prompt: 'hi',
+            modelConfig,
+        }),
+    'Slack prompt': (
+        service: AiAgentService,
+        modelConfig: AiAgentModelConfig | undefined,
+    ) =>
+        service.createSlackPrompt({
+            userUuid,
+            projectUuid,
+            slackUserId: 'slack-user',
+            slackChannelId: 'slack-channel',
+            slackThreadTs: undefined,
+            prompt: 'hi',
+            promptSlackTs: '1700000000.000100',
+            agentUuid,
             modelConfig,
         }),
 };

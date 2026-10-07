@@ -1,4 +1,4 @@
-import { type AiModelOption } from '@lightdash/common';
+import { type AiAgentModelConfig, type AiModelOption } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAiAgentModelSelection } from './useAiAgentModelSelection';
@@ -38,9 +38,12 @@ const modelOptions = [
     otherModel,
 ];
 
-const renderSelection = (
-    defaultModelConfig: { modelProvider: string; modelName: string } | null,
-) =>
+const agentModelConfig: AiAgentModelConfig = {
+    modelProvider: 'anthropic',
+    modelName: 'agent-model',
+};
+
+const renderSelection = (defaultModelConfig: AiAgentModelConfig | null) =>
     renderHook(() =>
         useAiAgentModelSelection({
             projectUuid: 'project-1',
@@ -65,12 +68,11 @@ describe('useAiAgentModelSelection', () => {
     });
 
     it("shows the agent's model but sends nothing until the user picks", () => {
-        const { result } = renderSelection({
-            modelProvider: 'anthropic',
-            modelName: 'agent-model',
-        });
+        const { result } = renderSelection(agentModelConfig);
 
         expect(result.current.selectedModel).toEqual(agentModel);
+        expect(result.current.agentDefault.model).toEqual(agentModel);
+        expect(result.current.agentDefault.isSelected).toBe(true);
         expect(result.current.explicitModelConfig).toBeUndefined();
     });
 
@@ -82,10 +84,7 @@ describe('useAiAgentModelSelection', () => {
     });
 
     it('sends the model once the user picks one', () => {
-        const { result } = renderSelection({
-            modelProvider: 'anthropic',
-            modelName: 'agent-model',
-        });
+        const { result } = renderSelection(agentModelConfig);
 
         act(() => {
             result.current.handleSelectedModelKeyChange(
@@ -93,6 +92,7 @@ describe('useAiAgentModelSelection', () => {
             );
         });
 
+        expect(result.current.agentDefault.isSelected).toBe(false);
         expect(result.current.explicitModelConfig).toEqual({
             modelProvider: 'anthropic',
             modelName: 'other-model',
@@ -101,10 +101,7 @@ describe('useAiAgentModelSelection', () => {
     });
 
     it('keeps sending an earlier pick for the same agent', () => {
-        const first = renderSelection({
-            modelProvider: 'anthropic',
-            modelName: 'agent-model',
-        });
+        const first = renderSelection(agentModelConfig);
         act(() => {
             first.result.current.handleSelectedModelKeyChange(
                 'anthropic:other-model',
@@ -112,13 +109,32 @@ describe('useAiAgentModelSelection', () => {
         });
         first.unmount();
 
-        const { result } = renderSelection({
-            modelProvider: 'anthropic',
-            modelName: 'agent-model',
-        });
+        const { result } = renderSelection(agentModelConfig);
 
         expect(result.current.explicitModelConfig?.modelName).toBe(
             'other-model',
         );
+    });
+
+    it('follows the agent again, also on later visits, after choosing the agent default', () => {
+        const first = renderSelection(agentModelConfig);
+        act(() => {
+            first.result.current.handleSelectedModelKeyChange(
+                'anthropic:other-model',
+            );
+        });
+        act(() => {
+            first.result.current.agentDefault.onSelect();
+        });
+
+        expect(first.result.current.agentDefault.isSelected).toBe(true);
+        expect(first.result.current.selectedModel).toEqual(agentModel);
+        expect(first.result.current.explicitModelConfig).toBeUndefined();
+        first.unmount();
+
+        const { result } = renderSelection(agentModelConfig);
+
+        expect(result.current.agentDefault.isSelected).toBe(true);
+        expect(result.current.explicitModelConfig).toBeUndefined();
     });
 });

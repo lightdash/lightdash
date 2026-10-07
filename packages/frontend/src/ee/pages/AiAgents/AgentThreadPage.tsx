@@ -195,6 +195,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const dispatch = useAiAgentStoreDispatch();
 
     const {
+        agentDefault,
         explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
@@ -447,6 +448,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                                 ? handleExtendedThinkingChange
                                 : undefined
                         }
+                        agentDefault={agentDefault}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

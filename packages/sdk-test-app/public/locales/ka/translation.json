@@ -337,6 +337,7 @@
         "explorer.backToChart": "დიაგრამაზე დაბრუნება",
         "explorer.backToAi": "AI-ზე დაბრუნება",
         "explorer.backToMetricsCatalog": "მეტრიკების კატალოგზე დაბრუნება",
+        "aiAgent.modelSelector.agentDefault": "აგენტის ნაგულისხმევი",
         "tileMenu.actions": "ფილის მოქმედებები",
         "comments.title": "კომენტარები",
         "comments.close": "კომენტარების დახურვა",

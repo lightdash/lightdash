@@ -1,6 +1,7 @@
 import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useMemo, useReducer } from 'react';
+import { type AgentDefaultOption } from '../../../../components/common/ModelSelector/ModelSelector';
 import {
     filterDeprecatedModelsForPicker,
     getModelKey,
@@ -168,7 +169,8 @@ type ModelSelectionAction =
           modelKey: string;
           supportsReasoning: boolean;
           extendedThinking: boolean;
-      };
+      }
+    | { type: 'followAgentDefault' };
 
 const modelSelectionReducer = (
     state: ModelSelectionState,
@@ -188,6 +190,8 @@ const modelSelectionReducer = (
                     action.extendedThinking,
                 ),
             };
+        case 'followAgentDefault':
+            return { selectedModelKey: null, extendedThinking: null };
     }
 };
 
@@ -316,24 +320,49 @@ export const useAiAgentModelSelection = ({
         [setStoredSelection],
     );
 
-    const modelConfig = useMemo(
-        () => getAiAgentModelConfig(selectedModel, effectiveExtendedThinking),
-        [effectiveExtendedThinking, selectedModel],
+    const handleAgentDefaultSelect = useCallback(() => {
+        dispatch({ type: 'followAgentDefault' });
+        setStoredSelection(null);
+    }, [setStoredSelection]);
+
+    const isAgentDefaultSelected =
+        selectedModelKey === null && storedModel === undefined;
+    const agentDefault = useMemo<AgentDefaultOption>(
+        () => ({
+            model: defaultModelSelection?.model,
+            isSelected: isAgentDefaultSelected,
+            onSelect: handleAgentDefaultSelect,
+        }),
+        [
+            defaultModelSelection,
+            handleAgentDefaultSelect,
+            isAgentDefaultSelected,
+        ],
     );
-    const isModelSelectionExplicit =
-        selectedModelKey !== null ||
-        extendedThinking !== null ||
-        storedModel !== undefined;
+
+    // Left unset so the server resolves the agent's current model.
+    const explicitModelConfig = useMemo(
+        () =>
+            isAgentDefaultSelected && extendedThinking === null
+                ? undefined
+                : getAiAgentModelConfig(
+                      selectedModel,
+                      effectiveExtendedThinking,
+                  ),
+        [
+            effectiveExtendedThinking,
+            extendedThinking,
+            isAgentDefaultSelected,
+            selectedModel,
+        ],
+    );
 
     return {
-        // Sent with prompts; left unset so the server resolves the agent's
-        // current model unless the user picked one.
-        explicitModelConfig: isModelSelectionExplicit ? modelConfig : undefined,
+        agentDefault,
+        explicitModelConfig,
         extendedThinking: effectiveExtendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        isModelSelectionExplicit,
-        modelConfig,
         modelOptions,
         selectedModel,
         selectedModelKey: effectiveSelectedModelKey,

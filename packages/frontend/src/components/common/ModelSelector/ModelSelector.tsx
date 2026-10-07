@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
 import { RetiredModelBadge } from './RetiredModelBadge';
 import {
@@ -19,13 +20,26 @@ import {
     getModelKey,
 } from './utils';
 
+// Opt-in for composers only: settings pickers set the agent's own model and
+// have no default to fall back to.
+export type AgentDefaultOption = {
+    model: AiModelOption | undefined;
+    isSelected: boolean;
+    onSelect: () => void;
+};
+
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
     value: string | null;
     onChange: (modelKey: string) => void;
     reasoningEnabled?: boolean;
     onReasoningChange?: (enabled: boolean) => void;
+    agentDefault?: AgentDefaultOption;
 }
+
+const SelectedCheck: FC = () => (
+    <MantineIcon icon={IconCheck} size="sm" color="blue" />
+);
 
 export const ModelSelector: FC<Props> = ({
     models,
@@ -33,8 +47,10 @@ export const ModelSelector: FC<Props> = ({
     onChange,
     reasoningEnabled,
     onReasoningChange,
+    agentDefault,
     ...buttonProps
 }) => {
+    const agentDefaultLabel = useUiString('aiAgent.modelSelector.agentDefault');
     const selectedModel = useMemo(
         () => models.find((m) => getModelKey(m) === value),
         [models, value],
@@ -136,6 +152,29 @@ export const ModelSelector: FC<Props> = ({
                     </>
                 )}
                 <ScrollArea.Autosize mah={200}>
+                    {agentDefault && (
+                        <>
+                            <Menu.Item
+                                onClick={agentDefault.onSelect}
+                                rightSection={
+                                    agentDefault.isSelected ? (
+                                        <SelectedCheck />
+                                    ) : null
+                                }
+                            >
+                                <Text size="sm" fw={500}>
+                                    {agentDefaultLabel}
+                                    {agentDefault.model && (
+                                        <Text size="sm" c="dimmed" span>
+                                            {' · '}
+                                            {agentDefault.model.displayName}
+                                        </Text>
+                                    )}
+                                </Text>
+                            </Menu.Item>
+                            <Menu.Divider />
+                        </>
+                    )}
                     {modelGroups.map((groupLabel, groupIndex) => {
                         const groupModels = groupedModels.get(groupLabel) ?? [];
                         return (
@@ -146,18 +185,16 @@ export const ModelSelector: FC<Props> = ({
 
                                 {groupModels.map((model) => {
                                     const modelKey = getModelKey(model);
-                                    const isSelected = modelKey === value;
+                                    const isSelected =
+                                        modelKey === value &&
+                                        !agentDefault?.isSelected;
                                     return (
                                         <Menu.Item
                                             key={modelKey}
                                             onClick={() => onChange(modelKey)}
                                             rightSection={
                                                 isSelected ? (
-                                                    <MantineIcon
-                                                        icon={IconCheck}
-                                                        size="sm"
-                                                        color="blue"
-                                                    />
+                                                    <SelectedCheck />
                                                 ) : null
                                             }
                                         >
