@@ -15,6 +15,7 @@ import {
     type OrganizationAdoptionSummary,
     type UpdateDepartment,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
 import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import { type DepartmentModel } from '../../../models/DepartmentModel';
 import { BaseService } from '../../../services/BaseService';
@@ -36,12 +37,52 @@ type Deps = {
     departmentAnalyticsModel: DepartmentAnalyticsModel;
 };
 
+const MAX_INT4 = 2147483647;
+const NAME_MAX_LENGTH = 255;
+const MAX_LIST_LENGTH = 5000;
+
 const isWholeNonNegative = (value: number): boolean =>
-    Number.isInteger(value) && value >= 0;
+    Number.isInteger(value) && value >= 0 && value <= MAX_INT4;
+
+const isRealDate = (value: string): boolean => {
+    if (!ISO_DATE.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.toISOString().slice(0, 10) === value
+    );
+};
+
+const assertUuid = (value: unknown, label: string): void => {
+    if (typeof value !== 'string' || !isUuid(value)) {
+        throw new ParameterError(
+            `${label} must be a valid UUID: ${String(value)}`,
+        );
+    }
+};
+
+const assertUuidList = (values: unknown, label: string): void => {
+    if (!Array.isArray(values)) {
+        throw new ParameterError(`${label} must be a list`);
+    }
+    if (values.length > MAX_LIST_LENGTH) {
+        throw new ParameterError(
+            `${label} can hold at most ${MAX_LIST_LENGTH} entries`,
+        );
+    }
+    values.forEach((v) => assertUuid(v, label));
+};
 
 export const validateDepartmentInput = (data: UpdateDepartment): void => {
-    if (data.name !== undefined && data.name.trim().length === 0) {
-        throw new ParameterError('Department name is required');
+    if (data.name !== undefined) {
+        if (data.name.trim().length === 0) {
+            throw new ParameterError('Department name is required');
+        }
+        if (data.name.length > NAME_MAX_LENGTH) {
+            throw new ParameterError(
+                `Department name must be ${NAME_MAX_LENGTH} characters or fewer`,
+            );
+        }
     }
     if (
         data.headcount !== undefined &&
@@ -49,7 +90,7 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.headcount)
     ) {
         throw new ParameterError(
-            'Headcount must be a whole number of 0 or more',
+            `Headcount must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.headcount}`,
         );
     }
     if (
@@ -58,15 +99,17 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.targetActiveUsers)
     ) {
         throw new ParameterError(
-            'Target active users must be a whole number of 0 or more',
+            `Target active users must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.targetActiveUsers}`,
         );
     }
     if (
         data.targetDate !== undefined &&
         data.targetDate !== null &&
-        !ISO_DATE.test(data.targetDate)
+        !isRealDate(data.targetDate)
     ) {
-        throw new ParameterError('Target date must be YYYY-MM-DD');
+        throw new ParameterError(
+            `Target date must be a real date in YYYY-MM-DD format: ${data.targetDate}`,
+        );
     }
     if (
         data.headcountNote !== undefined &&
@@ -77,6 +120,31 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
             'Headcount note must be 500 characters or fewer',
         );
     }
+    if (
+        data.parentDepartmentUuid !== undefined &&
+        data.parentDepartmentUuid !== null
+    ) {
+        assertUuid(data.parentDepartmentUuid, 'Parent department');
+    }
+};
+
+const assertOwners = (owners: DepartmentOwnerInput[]): void => {
+    if (!Array.isArray(owners)) {
+        throw new ParameterError('Owners must be a list');
+    }
+    if (owners.length > MAX_LIST_LENGTH) {
+        throw new ParameterError(
+            `Owners can hold at most ${MAX_LIST_LENGTH} entries`,
+        );
+    }
+    owners.forEach((o) => {
+        if (o.type !== 'user' && o.type !== 'group') {
+            throw new ParameterError(
+                `Owner type must be user or group: ${String(o.type)}`,
+            );
+        }
+        assertUuid(o.uuid, 'Owner');
+    });
 };
 
 export class DepartmentService extends BaseService {
@@ -189,6 +257,7 @@ export class DepartmentService extends BaseService {
             account,
             'manage',
         );
+        assertUuid(departmentUuid, 'Department');
         validateDepartmentInput(data);
         return this.departmentModel.update(
             organizationUuid,
@@ -200,6 +269,7 @@ export class DepartmentService extends BaseService {
 
     async delete(account: Account, departmentUuid: string): Promise<void> {
         const { organizationUuid } = await this.authorize(account, 'manage');
+        assertUuid(departmentUuid, 'Department');
         await this.departmentModel.delete(organizationUuid, departmentUuid);
     }
 
@@ -209,6 +279,8 @@ export class DepartmentService extends BaseService {
         groupUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
+        assertUuid(departmentUuid, 'Department');
+        assertUuidList(groupUuids, 'Group');
         return this.departmentModel.setGroupLinks(
             organizationUuid,
             departmentUuid,
@@ -222,6 +294,8 @@ export class DepartmentService extends BaseService {
         userUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
+        assertUuid(departmentUuid, 'Department');
+        assertUuidList(userUuids, 'User');
         return this.departmentModel.setMembers(
             organizationUuid,
             departmentUuid,
@@ -235,6 +309,8 @@ export class DepartmentService extends BaseService {
         owners: DepartmentOwnerInput[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
+        assertUuid(departmentUuid, 'Department');
+        assertOwners(owners);
         return this.departmentModel.setOwners(
             organizationUuid,
             departmentUuid,

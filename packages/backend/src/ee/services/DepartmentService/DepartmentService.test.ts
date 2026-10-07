@@ -15,6 +15,9 @@ import {
 } from './DepartmentService';
 
 const ORG = 'org-1';
+const DEP = '11111111-1111-4111-8111-111111111111';
+const GRP = '22222222-2222-4222-8222-222222222222';
+const USR = '33333333-3333-4333-8333-333333333333';
 
 const buildAccount = (ability: MemberAbility): Account =>
     ({
@@ -138,44 +141,220 @@ describe('DepartmentService gating', () => {
             service.getSummary(buildAccount(abilityWith(['view', 'other']))),
         ).rejects.toThrow(ForbiddenError);
     });
+    it('throws NotFoundError for a write when the flag is off, without touching the model', async () => {
+        const { service, departmentModel } = buildService({ flag: false });
+        await expect(
+            service.create(
+                buildAccount(abilityWith(['view', ORG], ['manage', ORG])),
+                newDepartment,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(departmentModel.create).not.toHaveBeenCalled();
+    });
     it.each([
         [
             'create',
             (s: DepartmentService, a: Account) => s.create(a, newDepartment),
+            'create',
         ],
         [
             'update',
             (s: DepartmentService, a: Account) =>
-                s.update(a, 'd', { name: 'x' }),
+                s.update(a, DEP, { name: 'x' }),
+            'update',
         ],
-        ['delete', (s: DepartmentService, a: Account) => s.delete(a, 'd')],
+        [
+            'delete',
+            (s: DepartmentService, a: Account) => s.delete(a, DEP),
+            'delete',
+        ],
         [
             'setGroups',
-            (s: DepartmentService, a: Account) => s.setGroups(a, 'd', []),
+            (s: DepartmentService, a: Account) => s.setGroups(a, DEP, []),
+            'setGroupLinks',
         ],
         [
             'setMembers',
-            (s: DepartmentService, a: Account) => s.setMembers(a, 'd', []),
+            (s: DepartmentService, a: Account) => s.setMembers(a, DEP, []),
+            'setMembers',
         ],
         [
             'setOwners',
-            (s: DepartmentService, a: Account) => s.setOwners(a, 'd', []),
+            (s: DepartmentService, a: Account) => s.setOwners(a, DEP, []),
+            'setOwners',
         ],
-    ])('%s needs manage, not just view', async (_name, call) => {
-        const { service } = buildService({ flag: true });
+    ])('%s needs manage, not just view', async (_name, call, modelMethod) => {
+        const { service, departmentModel } = buildService({ flag: true });
         await expect(
             call(service, buildAccount(abilityWith(['view', ORG]))),
         ).rejects.toThrow(ForbiddenError);
+        expect(
+            departmentModel[modelMethod as keyof typeof departmentModel],
+        ).not.toHaveBeenCalled();
     });
-    it('always passes the session org to the model', async () => {
+    it('passes the account organization to the model on every write', async () => {
         const { service, departmentModel } = buildService({ flag: true });
         const account = buildAccount(
             abilityWith(['view', ORG], ['manage', ORG]),
         );
-        await service.setOwners(account, 'd', [{ type: 'group', uuid: 'g' }]);
-        expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, 'd', [
-            { type: 'group', uuid: 'g' },
+        await service.create(account, newDepartment);
+        await service.update(account, DEP, { name: 'x' });
+        await service.setOwners(account, DEP, [{ type: 'group', uuid: GRP }]);
+        expect(departmentModel.create).toHaveBeenCalledWith(
+            ORG,
+            newDepartment,
+            'user-uuid',
+        );
+        expect(departmentModel.update).toHaveBeenCalledWith(
+            ORG,
+            DEP,
+            { name: 'x' },
+            'user-uuid',
+        );
+        expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, DEP, [
+            { type: 'group', uuid: GRP },
         ]);
+    });
+});
+
+describe('DepartmentService.getMembership', () => {
+    it('throws NotFoundError when the flag is off', async () => {
+        const { service } = buildService({ flag: false });
+        await expect(
+            service.getMembership(buildAccount(abilityWith(['view', ORG]))),
+        ).rejects.toThrow(NotFoundError);
+    });
+    it('throws ForbiddenError without the view scope', async () => {
+        const { service } = buildService({ flag: true });
+        await expect(
+            service.getMembership(buildAccount(abilityWith())),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it('returns the resolved membership', async () => {
+        const { service } = buildService({
+            flag: true,
+            rows: [
+                {
+                    userUuid: 'u1',
+                    email: 'u1@example.com',
+                    firstName: 'U',
+                    lastName: 'One',
+                    role: OrganizationMemberRole.MEMBER,
+                    explicitDepartmentUuid: null,
+                    groupLinks: [],
+                },
+            ],
+        });
+        const result = await service.getMembership(
+            buildAccount(abilityWith(['view', ORG])),
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({
+            userUuid: 'u1',
+            resolution: { kind: 'unassigned' },
+        });
+    });
+});
+
+describe('DepartmentService input validation', () => {
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+    it('create rejects invalid input without calling the model', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await expect(
+            service.create(manager(), { ...newDepartment, name: '  ' }),
+        ).rejects.toThrow(ParameterError);
+        expect(departmentModel.create).not.toHaveBeenCalled();
+    });
+    it('update rejects invalid input without calling the model', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await expect(
+            service.update(manager(), DEP, { headcount: -1 }),
+        ).rejects.toThrow(ParameterError);
+        expect(departmentModel.update).not.toHaveBeenCalled();
+    });
+    it.each([
+        [
+            'malformed department uuid on update',
+            (s: DepartmentService, a: Account) =>
+                s.update(a, 'nope', { name: 'x' }),
+        ],
+        [
+            'malformed department uuid on delete',
+            (s: DepartmentService, a: Account) => s.delete(a, 'nope'),
+        ],
+        [
+            'malformed department uuid on setGroups',
+            (s: DepartmentService, a: Account) => s.setGroups(a, 'nope', []),
+        ],
+        [
+            'malformed department uuid on setMembers',
+            (s: DepartmentService, a: Account) => s.setMembers(a, 'nope', []),
+        ],
+        [
+            'malformed department uuid on setOwners',
+            (s: DepartmentService, a: Account) => s.setOwners(a, 'nope', []),
+        ],
+        [
+            'malformed parent uuid on create',
+            (s: DepartmentService, a: Account) =>
+                s.create(a, { ...newDepartment, parentDepartmentUuid: 'nope' }),
+        ],
+        [
+            'malformed parent uuid on update',
+            (s: DepartmentService, a: Account) =>
+                s.update(a, DEP, { parentDepartmentUuid: 'nope' }),
+        ],
+        [
+            'malformed group uuid',
+            (s: DepartmentService, a: Account) =>
+                s.setGroups(a, DEP, [GRP, 'nope']),
+        ],
+        [
+            'malformed user uuid',
+            (s: DepartmentService, a: Account) =>
+                s.setMembers(a, DEP, [USR, 'nope']),
+        ],
+        [
+            'malformed owner uuid',
+            (s: DepartmentService, a: Account) =>
+                s.setOwners(a, DEP, [{ type: 'user', uuid: 'nope' }]),
+        ],
+        [
+            'bad owner type',
+            (s: DepartmentService, a: Account) =>
+                s.setOwners(a, DEP, [{ type: 'team', uuid: USR } as never]),
+        ],
+        [
+            'too many groups',
+            (s: DepartmentService, a: Account) =>
+                s.setGroups(a, DEP, Array(5001).fill(GRP)),
+        ],
+        [
+            'too many users',
+            (s: DepartmentService, a: Account) =>
+                s.setMembers(a, DEP, Array(5001).fill(USR)),
+        ],
+        [
+            'too many owners',
+            (s: DepartmentService, a: Account) =>
+                s.setOwners(
+                    a,
+                    DEP,
+                    Array(5001).fill({ type: 'user', uuid: USR }),
+                ),
+        ],
+    ])('rejects %s before any model call', async (_name, call) => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await expect(call(service, manager())).rejects.toThrow(ParameterError);
+        Object.values(departmentModel).forEach((fn) =>
+            expect(fn).not.toHaveBeenCalled(),
+        );
+    });
+    it('accepts the maximum list size', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.setMembers(manager(), DEP, Array(5000).fill(USR));
+        expect(departmentModel.setMembers).toHaveBeenCalled();
     });
 });
 
@@ -259,31 +438,69 @@ describe('DepartmentService analytics scoping', () => {
 
 describe('validateDepartmentInput', () => {
     it.each([
-        [{ name: '   ' }, 'Department name is required'],
-        [{ headcount: -1 }, 'Headcount must be a whole number of 0 or more'],
-        [{ headcount: 1.5 }, 'Headcount must be a whole number of 0 or more'],
+        ['empty name', { name: '   ' }, 'Department name is required'],
         [
-            { targetActiveUsers: -3 },
-            'Target active users must be a whole number of 0 or more',
+            'long name',
+            { name: 'x'.repeat(256) },
+            'Department name must be 255 characters or fewer',
         ],
-        [{ targetDate: '31/12/2026' }, 'Target date must be YYYY-MM-DD'],
         [
+            'negative headcount',
+            { headcount: -1 },
+            'Headcount must be a whole number of 0 or more, up to 2147483647: -1',
+        ],
+        [
+            'fractional headcount',
+            { headcount: 1.5 },
+            'Headcount must be a whole number of 0 or more, up to 2147483647: 1.5',
+        ],
+        [
+            'huge headcount',
+            { headcount: 2147483648 },
+            'Headcount must be a whole number of 0 or more, up to 2147483647: 2147483648',
+        ],
+        [
+            'negative target',
+            { targetActiveUsers: -3 },
+            'Target active users must be a whole number of 0 or more, up to 2147483647: -3',
+        ],
+        [
+            'huge target',
+            { targetActiveUsers: 2147483648 },
+            'Target active users must be a whole number of 0 or more, up to 2147483647: 2147483648',
+        ],
+        [
+            'bad date format',
+            { targetDate: '31/12/2026' },
+            'DATEMSG: 31/12/2026',
+        ],
+        ['month 13', { targetDate: '2026-13-45' }, 'DATEMSG: 2026-13-45'],
+        ['feb 30', { targetDate: '2026-02-30' }, 'DATEMSG: 2026-02-30'],
+        [
+            'long note',
             { headcountNote: 'x'.repeat(501) },
             'Headcount note must be 500 characters or fewer',
         ],
-    ])('rejects %j', (data, message) => {
+    ])('rejects %s', (_label, data, message) => {
         expect(() => validateDepartmentInput(data)).toThrow(
-            new ParameterError(message),
+            new ParameterError(
+                message.replace(
+                    'DATEMSG',
+                    'Target date must be a real date in YYYY-MM-DD format',
+                ),
+            ),
         );
     });
-    it('accepts nulls, zero and omitted fields', () => {
+    it('accepts boundaries, nulls and omitted fields', () => {
         expect(() =>
             validateDepartmentInput({
-                headcount: 0,
+                name: 'x'.repeat(255),
+                headcount: 2147483647,
                 targetActiveUsers: null,
-                targetDate: null,
+                targetDate: '2028-02-29',
             }),
         ).not.toThrow();
+        expect(() => validateDepartmentInput({ headcount: 0 })).not.toThrow();
         expect(() => validateDepartmentInput({})).not.toThrow();
     });
 });
