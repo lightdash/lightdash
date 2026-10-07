@@ -1299,6 +1299,8 @@ describe('AiAgentReviewClassifierModel', () => {
                         description:
                             'Use when the user asks for weekly revenue.',
                         instructions: '## Steps\n1. Query weekly revenue.',
+                        arguments: [],
+                        argumentHint: null,
                     },
                 },
             });

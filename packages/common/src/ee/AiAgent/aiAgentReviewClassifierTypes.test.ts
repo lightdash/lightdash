@@ -588,6 +588,8 @@ describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
                     name: 'weekly-revenue-table',
                     description: 'Use when the user asks for weekly revenue.',
                     instructions: '## Steps\n1. Query weekly revenue.',
+                    arguments: [],
+                    argumentHint: null,
                 },
             }).success,
         ).toBe(true);

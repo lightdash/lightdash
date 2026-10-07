@@ -259,6 +259,8 @@ describe('single-tier judge', () => {
             description: 'Use when the user asks for weekly revenue in GBP.',
             instructions:
                 '## When to use\nWeekly revenue.\n\n## Steps\n1. Query.',
+            arguments: [],
+            argumentHint: null,
         };
         generateTextMock
             .mockResolvedValueOnce({ output } as never)

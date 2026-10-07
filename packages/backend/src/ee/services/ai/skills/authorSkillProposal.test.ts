@@ -110,6 +110,8 @@ describe('authorSkillProposal', () => {
             description: 'Use when the user asks for the monthly churn review.',
             instructions:
                 '## When to use\nMonthly churn.\n\n## Steps\n1. Query churn.',
+            arguments: [],
+            argumentHint: null,
         };
 
         await expect(author(proposal)).resolves.toEqual(proposal);
@@ -121,6 +123,8 @@ describe('authorSkillProposal', () => {
                 name: 'weekly-revenue-table',
                 description: 'Duplicate of an existing skill.',
                 instructions: '## Steps\n1. Repeat.',
+                arguments: [],
+                argumentHint: null,
             }),
         ).resolves.toBeNull();
     });
@@ -131,6 +135,8 @@ describe('authorSkillProposal', () => {
                 name: 'Weekly Revenue',
                 description: 'Spaces and capitals are not allowed.',
                 instructions: '## Steps\n1. Repeat.',
+                arguments: [],
+                argumentHint: null,
             }),
         ).resolves.toBeNull();
     });
@@ -141,8 +147,39 @@ describe('authorSkillProposal', () => {
                 name: 'lightdash-weekly',
                 description: 'Reserved prefix.',
                 instructions: '## Steps\n1. Repeat.',
+                arguments: [],
+                argumentHint: null,
             }),
         ).resolves.toBeNull();
+    });
+
+    it('declares every named placeholder the draft uses, in lowercase', async () => {
+        const result = await author({
+            name: 'weekly-sales-review',
+            description: 'Use when the user asks for the weekly sales review.',
+            instructions:
+                '## Steps\n1. Query the period given as $PERIOD for $Region.\n2. Keep $ARGUMENTS out of it.',
+            arguments: ['period'],
+            argumentHint: null,
+        });
+
+        expect(result?.arguments).toEqual(['period', 'region']);
+        expect(result?.argumentHint).toBe('<period> <region>');
+        expect(result?.instructions).toContain('$period for $region');
+        expect(result?.instructions).toContain('$ARGUMENTS');
+    });
+
+    it('leaves a free-text draft on $ARGUMENTS with no named arguments', async () => {
+        const result = await author({
+            name: 'churn-digest',
+            description: 'Use when the user asks for a churn digest.',
+            instructions: '## Steps\n1. Summarise churn for $ARGUMENTS.',
+            arguments: [],
+            argumentHint: null,
+        });
+
+        expect(result?.arguments).toEqual([]);
+        expect(result?.argumentHint).toBeNull();
     });
 
     it('passes through a null draft', async () => {

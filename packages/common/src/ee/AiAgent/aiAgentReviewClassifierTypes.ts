@@ -745,6 +745,9 @@ export const aiAgentJudgeSkillProposalSchema = z.object({
     name: z.string().min(1),
     description: z.string().min(1),
     instructions: z.string().min(1),
+    // Named inputs the procedure varies on, referenced as $name in the body.
+    arguments: z.array(z.string()),
+    argumentHint: z.string().nullable(),
 });
 
 // Concrete type (not z.infer) so tsoa can resolve it in API responses.
@@ -752,6 +755,8 @@ export type AiAgentJudgeSkillProposal = {
     name: string;
     description: string;
     instructions: string;
+    arguments: string[];
+    argumentHint: string | null;
 };
 
 // Second-call schema for the create_skill path: just the proposal.

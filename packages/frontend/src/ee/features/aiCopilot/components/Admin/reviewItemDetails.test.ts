@@ -234,6 +234,8 @@ describe('skill proposals', () => {
                 description:
                     'Use when the user asks for weekly revenue in GBP.',
                 instructions: '## Steps\n1. Query weekly revenue.',
+                arguments: [],
+                argumentHint: null,
             },
         },
     });

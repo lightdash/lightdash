@@ -50,6 +50,8 @@ const skillProposalFinding = {
         name: 'weekly-revenue-table',
         description: 'Use when the user asks for weekly revenue in GBP.',
         instructions: '## Steps\n1. Query weekly revenue.',
+        arguments: [],
+        argumentHint: null,
     },
     createdAt: new Date('2026-10-05T08:00:00.000Z'),
 };

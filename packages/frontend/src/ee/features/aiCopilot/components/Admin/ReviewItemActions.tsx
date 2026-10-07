@@ -107,6 +107,12 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                   {
                       name: skillProposal.name,
                       description: skillProposal.description,
+                      ...(skillProposal.arguments.length > 0
+                          ? { arguments: skillProposal.arguments }
+                          : {}),
+                      ...(skillProposal.argumentHint
+                          ? { 'argument-hint': skillProposal.argumentHint }
+                          : {}),
                   },
                   skillProposal.instructions,
               ),
