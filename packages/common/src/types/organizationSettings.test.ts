@@ -30,7 +30,23 @@ describe('resolveEffectiveOrganizationSettings', () => {
             queryLimit: 5000,
             csvCellsLimit: 100000,
             corsAllowedDomains: [],
+            dataAppAutomaticThumbnailsEnabled: true,
         });
+    });
+
+    test('automatic data app thumbnails are on until an org turns them off', () => {
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppAutomaticThumbnailsEnabled: null },
+                INSTANCE_DEFAULTS,
+            ).dataAppAutomaticThumbnailsEnabled,
+        ).toBe(true);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppAutomaticThumbnailsEnabled: false },
+                INSTANCE_DEFAULTS,
+            ).dataAppAutomaticThumbnailsEnabled,
+        ).toBe(false);
     });
 
     test('export limits resolve to an effective number, inheriting the env when unset', () => {

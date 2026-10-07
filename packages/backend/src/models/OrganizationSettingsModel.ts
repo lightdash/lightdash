@@ -62,6 +62,8 @@ export class OrganizationSettingsModel {
             queryLimit: row?.query_limit ?? null,
             csvCellsLimit: row?.csv_cells_limit ?? null,
             corsAllowedDomains: row?.cors_allowed_domains ?? null,
+            dataAppAutomaticThumbnailsEnabled:
+                row?.data_app_automatic_thumbnails_enabled ?? null,
         };
     }
 
@@ -101,6 +103,8 @@ export class OrganizationSettingsModel {
             query_limit: patch.queryLimit,
             csv_cells_limit: patch.csvCellsLimit,
             cors_allowed_domains: patch.corsAllowedDomains,
+            data_app_automatic_thumbnails_enabled:
+                patch.dataAppAutomaticThumbnailsEnabled,
         };
         const toWrite = omitBy(
             columns,

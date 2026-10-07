@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type SettingsContext } from './types';
@@ -132,6 +133,44 @@ describe('MCP settings navigation', () => {
                 )
                 .map(({ label, to }) => ({ label, to })),
         ).toEqual([{ label: 'Connect', to: '/generalSettings/mcp/connect' }]);
+    });
+});
+
+describe('Data apps settings navigation', () => {
+    const dataAppsChildren = (rules: { action: string; subject: string }[]) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            dataAppsFlag: {
+                id: 'data-apps',
+                enabled: true,
+            } as SettingsContext['dataAppsFlag'],
+        })
+            ?.find((item) => item.label === 'Data apps')
+            ?.children.map(({ label, to }) => ({ label, to }));
+
+    it('shows General first to users who can manage the organization', () => {
+        expect(
+            dataAppsChildren([
+                { action: 'manage', subject: 'Organization' },
+                { action: 'manage', subject: 'OrganizationDesign' },
+            ]),
+        ).toEqual([
+            { label: 'General', to: '/generalSettings/dataApps/general' },
+            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
+            { label: 'Activity', to: '/generalSettings/dataApps/activity' },
+        ]);
+    });
+
+    it('hides General from users who cannot manage the organization', () => {
+        expect(
+            dataAppsChildren([
+                { action: 'manage', subject: 'OrganizationDesign' },
+            ]),
+        ).toEqual([
+            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
+        ]);
     });
 });
 

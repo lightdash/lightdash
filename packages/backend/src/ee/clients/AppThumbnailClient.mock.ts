@@ -1,3 +1,4 @@
+import { type OrganizationSettings } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     AppThumbnailClient,
@@ -34,11 +35,39 @@ export const createInMemoryAppThumbnailStorage = () => {
     return { storage, objects, download };
 };
 
+const NOTHING_STORED: OrganizationSettings = {
+    oidcLinkingEnabled: null,
+    oidcToEmailLinkingEnabled: null,
+    supportImpersonationEnabled: null,
+    semanticLayerPgwireEnabled: null,
+    inviteLinkExpirationDays: null,
+    scheduledDeliveryExpirationSeconds: null,
+    scheduledDeliveryExpirationSecondsEmail: null,
+    scheduledDeliveryExpirationSecondsSlack: null,
+    scheduledDeliveryExpirationSecondsMsTeams: null,
+    scheduledDeliveryExpirationSecondsGoogleChat: null,
+    queryLimit: null,
+    csvCellsLimit: null,
+    corsAllowedDomains: null,
+    dataAppAutomaticThumbnailsEnabled: null,
+};
+
+/** Organization settings where each org's stored automatic capture choice is read on every call. */
+export const organizationSettingsModelWith = (
+    storedChoice: (organizationUuid: string) => boolean | null,
+): AppThumbnailClientArgs['organizationSettingsModel'] => ({
+    get: async (organizationUuid) => ({
+        ...NOTHING_STORED,
+        dataAppAutomaticThumbnailsEnabled: storedChoice(organizationUuid),
+    }),
+});
+
 type AppThumbnailClientMockArgs = {
     appModel: AppThumbnailClientArgs['appModel'];
     headlessBrowserConfigured: boolean;
     captureDataAppVersion: AppThumbnailClientArgs['unfurlService']['captureDataAppVersion'];
     storage: AppThumbnailStorage;
+    organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
 };
 
 /** A thumbnail client on fakes: no headless browser and an empty bucket by default. */
@@ -49,6 +78,7 @@ export const buildAppThumbnailClientMock = ({
         throw new Error('No headless browser in this test');
     },
     storage = createInMemoryAppThumbnailStorage().storage,
+    organizationSettingsModel = organizationSettingsModelWith(() => null),
 }: Partial<AppThumbnailClientMockArgs> = {}): AppThumbnailClient =>
     new AppThumbnailClient({
         lightdashConfig: {
@@ -63,4 +93,5 @@ export const buildAppThumbnailClientMock = ({
         appModel,
         unfurlService: { captureDataAppVersion },
         storage,
+        organizationSettingsModel,
     });

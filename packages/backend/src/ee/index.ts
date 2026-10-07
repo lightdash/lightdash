@@ -609,6 +609,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         storage: new AppRuntimeThumbnailStorage({
                             lightdashConfig: context.lightdashConfig,
                         }),
+                        organizationSettingsModel:
+                            models.getOrganizationSettingsModel(),
                     }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

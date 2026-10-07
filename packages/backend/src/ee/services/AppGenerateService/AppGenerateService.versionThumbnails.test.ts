@@ -19,6 +19,7 @@ import { Readable } from 'node:stream';
 import {
     buildAppThumbnailClientMock,
     createInMemoryAppThumbnailStorage,
+    organizationSettingsModelWith,
 } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -114,6 +115,7 @@ function buildScenario({
     promotedBefore?: boolean;
 }) {
     const state = {
+        automaticCaptureEnabled: true,
         renderFails: false,
         queueIsDown: false,
         buildFails: false,
@@ -416,6 +418,9 @@ function buildScenario({
             appModel: appModel as never,
             storage: thumbnailStorage.storage,
             headlessBrowserConfigured: true,
+            organizationSettingsModel: organizationSettingsModelWith(
+                () => state.automaticCaptureEnabled,
+            ),
             captureDataAppVersion: async ({
                 appUuid,
                 version,
@@ -561,9 +566,10 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             );
         });
 
-        it('copies a manual thumbnail', async () => {
+        it('copies a manual thumbnail, even with automatic capture turned off', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
             await s.captureManually(1);
+            s.state.automaticCaptureEnabled = false;
 
             await restoreFirstVersion(s);
 
@@ -601,6 +607,7 @@ describe('AppGenerateService thumbnails for versions created without a build', (
         it("gives the duplicate's first version the source version's thumbnail", async () => {
             const s = buildScenario({ versions: twoReadyVersions });
             await s.captureAutomatically(2);
+            s.state.automaticCaptureEnabled = false;
 
             const copy = await duplicate(s);
 
@@ -706,6 +713,20 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             );
         });
 
+        it('captures nothing while automatic capture is turned off', async () => {
+            const s = buildScenario({
+                versions: [{ version: 3, status: 'ready' }],
+            });
+            s.state.automaticCaptureEnabled = false;
+
+            const promoted = await promote(s);
+            await s.runQueuedCaptures();
+
+            expect(
+                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
+            ).toBeNull();
+        });
+
         it.each([
             ['the capture fails', { renderFails: true }],
             ['the capture cannot be queued', { queueIsDown: true }],
@@ -755,6 +776,17 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             expect(await s.thumbnailOf(APP_UUID)).toBe(
                 renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
             );
+        });
+
+        it('captures nothing while automatic capture is turned off', async () => {
+            const s = buildScenario({ versions: uploadedVersion });
+            s.state.automaticCaptureEnabled = false;
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('ready');
+            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
         });
 
         it('leaves the upload ready when the app is deleted while it builds', async () => {
