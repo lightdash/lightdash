@@ -312,6 +312,21 @@ describe.skipIf(!stubUrl)(
             );
         });
 
+        it('returns a non-agent session failure to the local client', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            const callback = await completeSignIn(
+                client,
+                'http://localhost:4321/done',
+                'plain-code',
+            );
+            expect(callback.status).toBe(302);
+            expect(callback.headers.get('location')).toBe(
+                'http://localhost:4321/done?error=not_agent_session',
+            );
+        });
+
         it('ignores an external redirect and returns to the site root', async () => {
             const callback = await completeSignIn(
                 person!,
