@@ -393,6 +393,47 @@ Use `tileTargets` when a single dashboard filter needs to apply to tiles from di
 
 **Key concept:** A single conceptual filter like `"Time Period"` can target different physical fields across different explores. The default `target` applies to tiles using that explore; use `tileTargets` keyed by tile slug to override for tiles using different explores.
 
+#### Finding Each Tile's Explore Without Reading Charts
+
+The dashboard JSON from `readContent` already tells you what every chart tile queries: each `saved_chart` tile carries a read-only `chartQuery` with the chart's `exploreName` and the `fieldIds` it selects. Use it to build `tileTargets` directly. Do NOT call `readContent` on each chart to find its explore.
+
+```json
+{
+    "tiles": [
+        {
+            "tileSlug": "revenue-summary",
+            "type": "saved_chart",
+            "properties": {
+                "chartSlug": "revenue-summary",
+                "chartQuery": {
+                    "exploreName": "orders",
+                    "fieldIds": ["orders_created_at", "orders_total_revenue"]
+                }
+            }
+        },
+        {
+            "tileSlug": "customer-metrics",
+            "type": "saved_chart",
+            "properties": {
+                "chartSlug": "customer-metrics",
+                "chartQuery": {
+                    "exploreName": "customers",
+                    "fieldIds": ["customers_signup_date", "customers_count"]
+                }
+            }
+        }
+    ]
+}
+```
+
+Rules for building `tileTargets` from `chartQuery`:
+
+- Pick the filter's `target` from the explore most tiles use (`target.tableName` is that explore, `target.fieldId` a dimension in it).
+- Tiles whose `chartQuery.exploreName` equals `target.tableName` need no `tileTargets` entry: the filter applies to them automatically.
+- Tiles on a different explore need a `tileTargets` entry keyed by their `tileSlug` with the equivalent field in that explore (`{ "fieldId": ..., "tableName": ... }`), or `false` when the filter must not apply to them.
+- Tiles with `chartQuery: null` (missing chart), `sql_chart`, `markdown`, `heading`, `loom` and `data_app` tiles cannot be targeted; leave them out.
+- `chartQuery` is read-only and ignored on write. Never include it in patches; filter edits only touch `/filters`.
+
 #### Cross-Explore Filter Example
 
 When your dashboard has tiles from multiple explores like `orders` and `customers`, map the filter to the equivalent field in each:
@@ -786,7 +827,7 @@ When `config` is omitted, date zoom is enabled with all default granularities.
 3. **Use appropriate operators**: Date ranges vs. exact matches
 4. **Consider required filters**: When context is needed
 5. **Target filters correctly**: Not all filters apply to all charts
-6. **Use tileTargets for multi-explore dashboards**: When tiles come from different explores, use `tileTargets` to map the filter to the equivalent field in each explore
+6. **Use tileTargets for multi-explore dashboards**: When tiles come from different explores, use `tileTargets` to map the filter to the equivalent field in each explore. Read each tile's explore from its `chartQuery` in the dashboard JSON instead of opening each chart
 
 ### Filter Troubleshooting
 
