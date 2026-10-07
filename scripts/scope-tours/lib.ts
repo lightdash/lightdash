@@ -896,9 +896,23 @@ export const buildLessonTours = (
                 fieldRow,
                 EXPLORE_ROUTE,
                 docsHeading(firstCitation(lesson.resultDocs)),
-                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just deployed.`,
+                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just added.`,
                 [newMenu, newChart, search, table, fieldSearch],
             ),
+            // How the change reaches a team's real project (a pull request
+            // and CI, outside Lightdash). The card stays on the new field:
+            // a centred step would leave the ring behind on the row.
+            ...(lesson.shipDocs
+                ? [
+                      look(
+                          fieldRow,
+                          EXPLORE_ROUTE,
+                          docsHeading(firstCitation(lesson.shipDocs)),
+                          cite(lesson.shipDocs),
+                          [newMenu, newChart, search, table, fieldSearch],
+                      ),
+                  ]
+                : []),
         ];
         return { scope: lesson.id, title, sources: [LESSON_SOURCE], steps };
     });

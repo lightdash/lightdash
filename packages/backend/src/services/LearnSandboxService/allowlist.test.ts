@@ -1,17 +1,30 @@
 import { LEARN_TERMINAL_SUBCOMMANDS } from '@lightdash/common';
-import { buildArgv, LEARN_TERMINAL_REJECTION } from './allowlist';
+import {
+    buildArgv,
+    LEARN_TERMINAL_REJECTION,
+    PREVIEW_NAME_REQUIRED,
+    previewName,
+    toSpawnArgv,
+} from './allowlist';
 
 describe('the shared subcommand list', () => {
     it('is exactly what buildArgv accepts, so the browser and the server agree', () => {
         for (const tool of ['lightdash', 'dbt'] as const) {
             for (const subcommand of LEARN_TERMINAL_SUBCOMMANDS[tool]) {
+                // Known to the server: it runs as typed, or asks for the
+                // argument it requires (start-preview's name). Only an
+                // unknown one gets the generic refusal.
+                const answer = buildArgv(
+                    { tool, subcommand, args: [] },
+                    '/tmp/ws',
+                );
                 expect(
-                    buildArgv({ tool, subcommand, args: [] }, '/tmp/ws'),
-                ).toMatchObject({ ok: true });
+                    answer.ok || answer.message !== LEARN_TERMINAL_REJECTION,
+                ).toBe(true);
             }
             expect(
                 buildArgv({ tool, subcommand: 'depl', args: [] }, '/tmp/ws'),
-            ).toMatchObject({ ok: false });
+            ).toEqual({ ok: false, message: LEARN_TERMINAL_REJECTION });
         }
     });
 });
@@ -198,5 +211,111 @@ describe('buildArgv', () => {
             ok: true,
             argv: ['dbt', 'ls', ...args],
         });
+    });
+});
+
+describe('lightdash start-preview', () => {
+    const startPreview = (args: string[]) =>
+        buildArgv({ tool: 'lightdash', subcommand: 'start-preview', args }, ws);
+
+    it('is accepted with the name the CLI requires, and stored as typed', () => {
+        expect(startPreview(['--name', 'my-preview'])).toEqual({
+            ok: true,
+            argv: ['lightdash', 'start-preview', '--name', 'my-preview'],
+        });
+        expect(
+            startPreview(['--select', 'payments', '--name', 'my-preview']),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'start-preview',
+                '--select',
+                'payments',
+                '--name',
+                'my-preview',
+            ],
+        });
+    });
+
+    it('accepts the names the docs use', () => {
+        ['PR: Add Revenue Metric', 'ecom-shop-analytics', 'v2.1'].forEach(
+            (name) => expect(startPreview(['--name', name]).ok).toBe(true),
+        );
+    });
+
+    it("says a name is required, in the CLI's words, when there is none", () => {
+        expect(startPreview([])).toEqual({
+            ok: false,
+            message: PREVIEW_NAME_REQUIRED,
+        });
+        expect(startPreview(['--select', 'payments'])).toEqual({
+            ok: false,
+            message: PREVIEW_NAME_REQUIRED,
+        });
+        expect(PREVIEW_NAME_REQUIRED).toMatch(/^--name argument is required/);
+    });
+
+    it.each([
+        ['no value', ['--name']],
+        ['a flag for a value', ['--name', '--select']],
+        ['an empty value', ['--name', '']],
+        ['a path', ['--name', '../other']],
+        ['a shell word', ['--name', 'a;rm -rf']],
+        ['a name over 64 characters', ['--name', 'a'.repeat(65)]],
+        ['a second name', ['--name', 'one', '--name', 'two']],
+    ])('refuses %s', (_case, args) => {
+        expect(startPreview(args)).toEqual({
+            ok: false,
+            message: LEARN_TERMINAL_REJECTION,
+        });
+    });
+
+    it('takes no name on any other command', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'deploy',
+                    args: ['--name', 'mine'],
+                },
+                ws,
+            ),
+        ).toEqual({ ok: false, message: LEARN_TERMINAL_REJECTION });
+    });
+
+    it('spawns as a deploy to the copy: the name is set aside, other flags kept', () => {
+        expect(
+            toSpawnArgv([
+                'lightdash',
+                'start-preview',
+                '--name',
+                'my-preview',
+                '--select',
+                'payments',
+            ]),
+        ).toEqual(['lightdash', 'deploy', '--select', 'payments']);
+        expect(
+            toSpawnArgv([
+                'lightdash',
+                'start-preview',
+                '--select',
+                'payments',
+                '--name',
+                'PR: Add Revenue Metric',
+            ]),
+        ).toEqual(['lightdash', 'deploy', '--select', 'payments']);
+        expect(toSpawnArgv(['lightdash', 'deploy'])).toEqual([
+            'lightdash',
+            'deploy',
+        ]);
+        expect(toSpawnArgv(['dbt', 'parse'])).toEqual(['dbt', 'parse']);
+    });
+
+    it('reads the name back from a stored command', () => {
+        expect(
+            previewName(['lightdash', 'start-preview', '--name', 'my-preview']),
+        ).toBe('my-preview');
+        expect(previewName(['lightdash', 'deploy'])).toBeUndefined();
     });
 });

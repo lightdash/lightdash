@@ -833,7 +833,8 @@ describe('LearnSandboxService.runCommand', () => {
     // the afterEach cleanup.
     const buildService = ({
         partialParse = false,
-    }: { partialParse?: boolean } = {}) => {
+        commandTimeoutMs,
+    }: { partialParse?: boolean; commandTimeoutMs?: number } = {}) => {
         const pat = {
             createPersonalAccessToken: vi.fn(async () => ({
                 uuid: 'pat-1',
@@ -859,6 +860,7 @@ describe('LearnSandboxService.runCommand', () => {
             schedulerClient,
             workspaceRoot,
             partialParseRoot: partialParse ? partialParseRoot : null,
+            ...(commandTimeoutMs === undefined ? {} : { commandTimeoutMs }),
         });
         return { service, pat, userService };
     };
@@ -1052,6 +1054,127 @@ describe('LearnSandboxService.runCommand', () => {
         expect(files.updateCommand).toHaveBeenLastCalledWith(
             'c-v',
             expect.objectContaining({ status: 'done', exit_code: 0 }),
+        );
+    });
+
+    it("runs start-preview as a deploy to the learner's copy, without the name, and reports the named preview", async () => {
+        await writeFile(
+            path.join(bin, 'lightdash'),
+            '#!/bin/sh\necho "args=$*" 1>&2\nexit 0\n',
+            { mode: 0o755 },
+        );
+        const appended: { stream: string; text: string }[] = [];
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-preview',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: [
+                'lightdash',
+                'start-preview',
+                '--name',
+                'my-preview',
+                '--select',
+                'payments',
+            ],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        const { service } = buildService();
+        await service.runCommand({
+            commandUuid: 'c-preview',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        const text = appended.map((c) => c.text).join('');
+        // The name the learner gave, as the CLI prints it; the deploy gets
+        // the selector and not the name.
+        expect(text).toContain('Updating preview project: my-preview\n');
+        expect(text).toContain('args=deploy --select payments\n');
+        // The CLI's own closing line, which links to the project's tables.
+        expect(text).toContain(
+            'Project updated on https://learn.test/projects/copy/tables\n',
+        );
+        expect(text.indexOf('Updating preview project')).toBeLessThan(
+            text.indexOf('args=deploy'),
+        );
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c-preview',
+            expect.objectContaining({ status: 'done', exit_code: 0 }),
+        );
+    });
+
+    it('does not claim the preview was updated when start-preview fails', async () => {
+        await writeFile(
+            path.join(bin, 'lightdash'),
+            '#!/bin/sh\necho "compile failed" 1>&2\nexit 1\n',
+            { mode: 0o755 },
+        );
+        const appended: { stream: string; text: string }[] = [];
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-preview-fail',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['lightdash', 'start-preview', '--name', 'my-preview'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        const { service } = buildService();
+        await service.runCommand({
+            commandUuid: 'c-preview-fail',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        const text = appended.map((c) => c.text).join('');
+        expect(text).toContain('compile failed');
+        expect(text).not.toContain('Project updated on');
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c-preview-fail',
+            expect.objectContaining({ status: 'error', exit_code: 1 }),
+        );
+    });
+
+    it('does not claim the preview was updated when start-preview times out', async () => {
+        await writeFile(
+            path.join(bin, 'lightdash'),
+            '#!/bin/sh\n/bin/sleep 30\n',
+            { mode: 0o755 },
+        );
+        const appended: { stream: string; text: string }[] = [];
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-preview-timeout',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['lightdash', 'start-preview', '--name', 'my-preview'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        const { service } = buildService({ commandTimeoutMs: 1_000 });
+        await service.runCommand({
+            commandUuid: 'c-preview-timeout',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        const text = appended.map((c) => c.text).join('');
+        expect(text).toContain('Command stopped after 1s');
+        expect(text).not.toContain('Project updated on');
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c-preview-timeout',
+            expect.objectContaining({ status: 'timeout' }),
         );
     });
 

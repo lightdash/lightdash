@@ -31,7 +31,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import type { PersonalAccessTokenService } from '../PersonalAccessTokenService';
 import type { UserService } from '../UserService';
-import { buildArgv } from './allowlist';
+import { buildArgv, previewName, toSpawnArgv } from './allowlist';
 import { OutputBuffer } from './outputBuffer';
 import {
     buildPartialParseBaseline,
@@ -579,7 +579,16 @@ export class LearnSandboxService extends BaseService {
                     ? {}
                     : { LIGHTDASH_DBT_VERSION: dbtVersion }),
             };
-            const [bin, ...args] = command.argv;
+            const isPreview = command.argv[1] === 'start-preview';
+            if (isPreview) {
+                // The real CLI's line when a preview of that name exists:
+                // here the learner's copy is that preview.
+                buffer.push(
+                    'stderr',
+                    `\nUpdating preview project: ${previewName(command.argv)}\n\n`,
+                );
+            }
+            const [bin, ...args] = toSpawnArgv(command.argv);
             // No `forceKillAfterTimeout` here on purpose: it isn't part of
             // execa v5's top-level Options type, and reading execa's own
             // lib/kill.js shows it wouldn't be honoured by the `timeout`
@@ -640,6 +649,12 @@ export class LearnSandboxService extends BaseService {
                 );
             } else if (result.exitCode === 0) {
                 status = 'done';
+                if (isPreview) {
+                    buffer.push(
+                        'stderr',
+                        `Project updated on ${this.lightdashConfig.siteUrl.replace(/\/$/, '')}/projects/${command.project_uuid}/tables\n`,
+                    );
+                }
             } else {
                 status = 'error';
             }

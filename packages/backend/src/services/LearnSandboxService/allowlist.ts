@@ -13,12 +13,16 @@ export { LEARN_TERMINAL_REJECTION };
 // parser/argv, so it's rejected outright rather than parsed.
 const MAX_ARGS = 16;
 
-type Flag = 'select' | 'charts' | 'dashboards' | 'path';
+type Flag = 'select' | 'charts' | 'dashboards' | 'path' | 'name';
 // Keys are the shared LEARN_TERMINAL_SUBCOMMANDS; the test pins the two together.
 const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
     lightdash: {
         compile: ['select'],
         deploy: ['select'],
+        // --name is required, as the CLI requires it, and then set aside:
+        // the learner's training copy is already a preview project, and it
+        // is the only one a trainee may update (see toSpawnArgv).
+        'start-preview': ['select', 'name'],
         validate: [],
         lint: [],
         download: ['charts', 'dashboards', 'path'],
@@ -29,6 +33,14 @@ const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
     dbt: { parse: [], compile: ['select'], ls: ['select'] },
 };
 const reject = { ok: false as const, message: LEARN_TERMINAL_REJECTION };
+
+// A preview's name, in the shapes the docs' examples use ("PR: Add Revenue
+// Metric", "ecom-shop-analytics"). It is printed back and never reaches a
+// process.
+const PREVIEW_NAME = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,63}$/;
+/** The CLI's own words for a start-preview without a name, plus a way out. */
+export const PREVIEW_NAME_REQUIRED =
+    '--name argument is required, for example: lightdash start-preview --name my-preview';
 
 // Plain object literals inherit `toString`/`constructor`/`__proto__` from
 // Object.prototype, so a naive `RULES[request.tool]` or `tools[subcommand]`
@@ -77,6 +89,11 @@ export const buildArgv = (
             allowed.includes(flag.slice(2) as Flag)
         ) {
             argv.push(flag);
+        } else if (flag === '--name' && allowed.includes('name')) {
+            const value = args.shift();
+            if (!value || !PREVIEW_NAME.test(value) || argv.includes('--name'))
+                return reject;
+            argv.push(flag, value);
         } else if (flag === '--path' && allowed.includes('path')) {
             const value = args.shift();
             if (
@@ -90,5 +107,29 @@ export const buildArgv = (
             return reject;
         }
     }
+    if (allowed.includes('name') && !argv.includes('--name')) {
+        return { ok: false as const, message: PREVIEW_NAME_REQUIRED };
+    }
     return { ok: true as const, argv };
+};
+
+/** The name a stored `start-preview` was given. */
+export const previewName = (argv: string[]): string | undefined => {
+    const at = argv.indexOf('--name');
+    return at === -1 ? undefined : argv[at + 1];
+};
+
+/**
+ * What actually runs for a stored argv. The training copy is itself a
+ * preview project, so `start-preview --name <name>` updates it with a deploy
+ * rather than creating a project of that name: trainees cannot create
+ * projects, and a new preview per run would leave orphans. The name is set
+ * aside (deploy takes none); the row keeps what the learner typed.
+ */
+export const toSpawnArgv = (argv: string[]): string[] => {
+    if (argv[0] !== 'lightdash' || argv[1] !== 'start-preview') return argv;
+    const flags = argv.slice(2);
+    const name = flags.indexOf('--name');
+    if (name !== -1) flags.splice(name, 2);
+    return ['lightdash', 'deploy', ...flags];
 };
