@@ -100,8 +100,8 @@ export const AiGeneralSettingsPage = () => {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,
         selectedModelKey: selectedDefaultModelKey,
+        modelReplacement: defaultModelReplacement,
         showReasoningDefault,
-        supersedingModel: supersedingDefaultModel,
         visibleModelOptions: visibleDefaultModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions: defaultModelOptions,
@@ -263,26 +263,19 @@ export const AiGeneralSettingsPage = () => {
                                     />
                                 </Flex>
 
-                                {selectedDefaultModel &&
-                                    supersedingDefaultModel && (
-                                        <DeprecatedModelNotice
-                                            model={selectedDefaultModel}
-                                            replacement={
-                                                supersedingDefaultModel
-                                            }
-                                            disabled={isUpdatingSettings}
-                                            onSwitch={() =>
-                                                updateSettings({
-                                                    defaultAiAgentModelConfig:
-                                                        getAiAgentModelConfig(
-                                                            supersedingDefaultModel,
-                                                            defaultModelConfig?.reasoning ??
-                                                                false,
-                                                        ) ?? null,
-                                                })
-                                            }
-                                        />
-                                    )}
+                                {selectedDefaultModel?.deprecated && (
+                                    <DeprecatedModelNotice
+                                        model={selectedDefaultModel}
+                                        replacement={defaultModelReplacement}
+                                        disabled={isUpdatingSettings}
+                                        onSwitch={(modelConfig) =>
+                                            updateSettings({
+                                                defaultAiAgentModelConfig:
+                                                    modelConfig,
+                                            })
+                                        }
+                                    />
+                                )}
 
                                 {showReasoningDefault && (
                                     <>

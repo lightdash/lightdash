@@ -286,10 +286,10 @@ export const AiAgentFormSetup = ({
         useDisclosure(false);
     const {
         fallbackModelLabel: organizationDefaultModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
-        supersedingModel,
         visibleModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions,
@@ -686,19 +686,15 @@ export const AiAgentFormSetup = ({
                                 }}
                             />
 
-                            {selectedModel && supersedingModel && (
+                            {selectedModel?.deprecated && (
                                 <DeprecatedModelNotice
                                     model={selectedModel}
-                                    replacement={supersedingModel}
+                                    replacement={modelReplacement}
                                     disabled={isSavingAgent ?? false}
-                                    onSwitch={() => {
+                                    onSwitch={(modelConfig) => {
                                         form.setFieldValue(
                                             'modelConfig',
-                                            getAiAgentModelConfig(
-                                                supersedingModel,
-                                                form.values.modelConfig
-                                                    ?.reasoning ?? false,
-                                            ) ?? null,
+                                            modelConfig,
                                         );
                                         onSubmit();
                                     }}

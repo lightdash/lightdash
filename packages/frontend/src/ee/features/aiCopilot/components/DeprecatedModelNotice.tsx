@@ -1,13 +1,14 @@
-import type { AiModelOption } from '@lightdash/common';
+import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../../components/common/Callout';
+import type { ModelReplacement } from '../hooks/useAiAgentModelSelection';
 
 type Props = {
     model: AiModelOption;
-    replacement: AiModelOption;
+    replacement: ModelReplacement | null;
     disabled: boolean;
-    onSwitch: () => void;
+    onSwitch: (modelConfig: AiAgentModelConfig) => void;
 };
 
 export const DeprecatedModelNotice: FC<Props> = ({
@@ -17,20 +18,27 @@ export const DeprecatedModelNotice: FC<Props> = ({
     onSwitch,
 }) => (
     <Callout variant="warning" title={`${model.displayName} is retired`}>
-        <Stack gap="xs" align="flex-start">
+        {replacement ? (
+            <Stack gap="xs" align="flex-start">
+                <Text fz="xs">
+                    New chats already run on {replacement.model.displayName}.
+                    Switch this setting so it matches the model that runs.
+                </Text>
+                <Button
+                    size="compact-xs"
+                    variant="light"
+                    color="yellow"
+                    disabled={disabled}
+                    onClick={() => onSwitch(replacement.modelConfig)}
+                >
+                    Switch to {replacement.model.displayName}
+                </Button>
+            </Stack>
+        ) : (
             <Text fz="xs">
-                New chats already run on {replacement.displayName}. Switch this
-                setting so it matches the model that runs.
+                No replacement is available on this instance, so new chats still
+                run on it. Pick another model to move off it.
             </Text>
-            <Button
-                size="compact-xs"
-                variant="light"
-                color="yellow"
-                disabled={disabled}
-                onClick={onSwitch}
-            >
-                Switch to {replacement.displayName}
-            </Button>
-        </Stack>
+        )}
     </Callout>
 );

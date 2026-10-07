@@ -39,20 +39,28 @@ vi.mock('./useAiOrganizationSettings', () => ({
 }));
 
 describe('useDefaultAiAgentModel', () => {
-    it('keeps a retired selection visible and names its replacement', () => {
+    it('keeps a retired selection visible and offers its replacement with the same reasoning choice', () => {
         const { result } = renderHook(() =>
             useDefaultAiAgentModel({
                 modelOptions,
                 modelConfig: {
                     modelName: 'claude-sonnet-5',
                     modelProvider: 'anthropic',
+                    reasoning: true,
                 },
                 fallbackLabel: 'Organization default',
             }),
         );
 
         expect(result.current.selectedModel).toBe(sonnet5);
-        expect(result.current.supersedingModel).toBe(sonnet55);
+        expect(result.current.modelReplacement).toEqual({
+            model: sonnet55,
+            modelConfig: {
+                modelName: 'claude-sonnet-5-5',
+                modelProvider: 'anthropic',
+                reasoning: true,
+            },
+        });
         expect(result.current.visibleModelOptions).toEqual(modelOptions);
     });
 
@@ -68,8 +76,26 @@ describe('useDefaultAiAgentModel', () => {
             }),
         );
 
-        expect(result.current.supersedingModel).toBeNull();
+        expect(result.current.modelReplacement).toBeNull();
         expect(result.current.visibleModelOptions).toEqual([sonnet55]);
+    });
+
+    it('keeps a retired selection without a replacement the org can pick', () => {
+        const unreplaced = { ...sonnet5, supersededBy: null };
+        const { result } = renderHook(() =>
+            useDefaultAiAgentModel({
+                modelOptions: [unreplaced],
+                modelConfig: {
+                    modelName: 'claude-sonnet-5',
+                    modelProvider: 'anthropic',
+                },
+                fallbackLabel: 'Organization default',
+            }),
+        );
+
+        expect(result.current.selectedModel).toBe(unreplaced);
+        expect(result.current.selectedModel?.deprecated).toBe(true);
+        expect(result.current.modelReplacement).toBeNull();
     });
 });
 

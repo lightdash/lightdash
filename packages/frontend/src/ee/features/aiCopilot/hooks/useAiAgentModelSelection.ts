@@ -83,6 +83,11 @@ export const getAiAgentModelConfig = (
           }
         : undefined;
 
+export type ModelReplacement = {
+    model: AiModelOption;
+    modelConfig: AiAgentModelConfig;
+};
+
 type UseDefaultAiAgentModelProps = {
     modelOptions: AiModelOption[] | undefined;
     modelConfig: AiAgentModelConfig | null | undefined;
@@ -109,13 +114,19 @@ export const useDefaultAiAgentModel = ({
             ),
         [modelOptions, selectedModelKey],
     );
-    const supersedingModel = useMemo(
-        () =>
-            selectedModel
-                ? getSupersedingModel(modelOptions ?? [], selectedModel)
-                : null,
-        [modelOptions, selectedModel],
-    );
+    const modelReplacement = useMemo((): ModelReplacement | null => {
+        const model = selectedModel
+            ? getSupersedingModel(modelOptions ?? [], selectedModel)
+            : null;
+        if (!model) return null;
+        const replacementConfig = getAiAgentModelConfig(
+            model,
+            modelConfig?.reasoning ?? false,
+        );
+        return replacementConfig
+            ? { model, modelConfig: replacementConfig }
+            : null;
+    }, [modelConfig?.reasoning, modelOptions, selectedModel]);
     const fallbackModel = useMemo(
         () =>
             getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
@@ -130,10 +141,10 @@ export const useDefaultAiAgentModel = ({
     return {
         fallbackModel,
         fallbackModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
-        supersedingModel,
         visibleModelOptions,
     };
 };
