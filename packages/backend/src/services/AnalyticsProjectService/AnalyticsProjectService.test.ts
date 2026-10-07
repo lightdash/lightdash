@@ -27,7 +27,21 @@ describe('AnalyticsProjectService', () => {
     };
     const getAllByOrganizationUuid = vi.fn();
     const saveExploresToCache = vi.fn();
-    const getCachedExploreNames = vi.fn();
+    const getAnalyticsModelCounts = vi.fn();
+    const modelCounts = analyticsExplores
+        .createAnalyticsExplores()
+        .map((explore) => ({
+            name: explore.name,
+            fields: Object.values(explore.tables).reduce(
+                (total, table) =>
+                    total +
+                    Object.keys(table.dimensions).length +
+                    Object.keys(table.metrics).length,
+                0,
+            ),
+            hiddenJoins: explore.joinedTables.filter((join) => join.hidden)
+                .length,
+        }));
     const assertAnalyticsProjectAccess = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
@@ -45,7 +59,7 @@ describe('AnalyticsProjectService', () => {
         projectModel: {
             getAllByOrganizationUuid,
             saveExploresToCache,
-            getCachedExploreNames,
+            getAnalyticsModelCounts,
             runInAnalyticsProvisioningLock: async <T>(
                 org: string,
                 callback: () => Promise<T>,
@@ -71,9 +85,7 @@ describe('AnalyticsProjectService', () => {
                 charts.map(({ slug }) => ({ slug })),
             ),
         );
-        getCachedExploreNames.mockResolvedValue([
-            ...analyticsExplores.analyticsExploreNames,
-        ]);
+        getAnalyticsModelCounts.mockResolvedValue(modelCounts);
         getChart.mockRejectedValue(new NotFoundError('missing'));
         getAllByOrganizationUuid.mockResolvedValue([
             defaultProject,
@@ -106,8 +118,9 @@ describe('AnalyticsProjectService', () => {
             },
         });
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
-        expect(getCachedExploreNames).toHaveBeenCalledExactlyOnceWith(
+        expect(getAnalyticsModelCounts).toHaveBeenCalledExactlyOnceWith(
             analyticsProject.projectUuid,
+            analyticsExplores.analyticsExploreNames,
         );
         expect(findDashboard).toHaveBeenCalledExactlyOnceWith({
             projectUuid: analyticsProject.projectUuid,
@@ -126,9 +139,7 @@ describe('AnalyticsProjectService', () => {
     });
 
     it('flags missing models even when all managed dashboards exist', async () => {
-        getCachedExploreNames.mockResolvedValue(
-            analyticsExplores.analyticsExploreNames.slice(1),
-        );
+        getAnalyticsModelCounts.mockResolvedValue(modelCounts.slice(1));
         findDashboard.mockResolvedValue(
             analyticsContentAsCode.map(({ dashboard }) => ({
                 slug: dashboard.slug,
@@ -167,9 +178,9 @@ describe('AnalyticsProjectService', () => {
     });
 
     it('ignores custom models when managed counts match', async () => {
-        getCachedExploreNames.mockResolvedValue([
-            ...analyticsExplores.analyticsExploreNames,
-            'custom_model',
+        getAnalyticsModelCounts.mockResolvedValue([
+            ...modelCounts,
+            { name: 'custom_model', fields: 1, hiddenJoins: 0 },
         ]);
         findDashboard.mockResolvedValue(
             analyticsContentAsCode.map(({ dashboard }) => ({
@@ -181,12 +192,32 @@ describe('AnalyticsProjectService', () => {
         );
     });
 
+    it.each(['fields', 'hiddenJoins'] as const)(
+        'flags changed %s counts without new models or dashboards',
+        async (key) => {
+            findDashboard.mockResolvedValue(
+                analyticsContentAsCode.map(({ dashboard }) => ({
+                    slug: dashboard.slug,
+                })),
+            );
+            getAnalyticsModelCounts.mockResolvedValue(
+                modelCounts.map((model, index) =>
+                    index === 0 ? { ...model, [key]: model[key] + 1 } : model,
+                ),
+            );
+            expect(
+                (await service.getStatus(user)).project?.hasContentUpdates,
+            ).toBe(true);
+            expect(saveExploresToCache).not.toHaveBeenCalled();
+        },
+    );
+
     it('checks authorization before reading content counts', async () => {
         assertAnalyticsProjectAccess.mockRejectedValue(
             new ForbiddenError('Not allowed'),
         );
         await expect(service.getStatus(user)).rejects.toThrow('Not allowed');
-        expect(getCachedExploreNames).not.toHaveBeenCalled();
+        expect(getAnalyticsModelCounts).not.toHaveBeenCalled();
         expect(findDashboard).not.toHaveBeenCalled();
         expect(findCharts).not.toHaveBeenCalled();
     });
@@ -196,7 +227,7 @@ describe('AnalyticsProjectService', () => {
         await expect(service.getStatus(user)).resolves.toEqual({
             project: null,
         });
-        expect(getCachedExploreNames).not.toHaveBeenCalled();
+        expect(getAnalyticsModelCounts).not.toHaveBeenCalled();
         expect(findDashboard).not.toHaveBeenCalled();
         expect(findCharts).not.toHaveBeenCalled();
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
