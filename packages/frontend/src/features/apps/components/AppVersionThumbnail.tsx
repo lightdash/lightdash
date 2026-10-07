@@ -1,6 +1,6 @@
 import { Box, Image, UnstyledButton } from '@mantine/core';
 import { useIntersection } from '@mantine/hooks';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useAppVersionThumbnailUrl } from '../hooks/useAppThumbnail';
 import classes from './AppVersionThumbnail.module.css';
 
@@ -24,19 +24,12 @@ const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
     const { ref: frameRef, entry: frameEntry } = useIntersection({
         rootMargin: '200px',
     });
-    const isInView = frameEntry?.isIntersecting === true;
-    // Latched, so the image stays loaded once its row has been on screen.
-    const [hasBeenInView, setHasBeenInView] = useState(false);
-
-    useEffect(() => {
-        if (isInView) setHasBeenInView(true);
-    }, [isInView]);
-
+    // Disabling the query off screen keeps its data, so the image stays once loaded.
     const thumbnail = useAppVersionThumbnailUrl(
         source.projectUuid,
         source.appUuid,
         version,
-        hasBeenInView,
+        frameEntry?.isIntersecting === true,
     );
     // A failed refetch keeps stale data, so an error means no thumbnail.
     const thumbnailUrl = thumbnail.isError

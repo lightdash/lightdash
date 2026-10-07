@@ -181,20 +181,27 @@ describe('AppVersionHistoryPanel thumbnails', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
-    /** Brings the row of one version on screen. */
-    const scrollToVersion = (version: number) => {
+    const setVersionVisibility = (version: number, isIntersecting: boolean) => {
         const row = screen.getByText(`v${version}`).closest('li');
         expect(row).not.toBeNull();
         act(() => {
             [...observed].forEach(([target, callback]) => {
                 if (!row!.contains(target)) return;
                 callback(
-                    [{ target, isIntersecting: true }] as never,
+                    [{ target, isIntersecting }] as never,
                     {} as IntersectionObserver,
                 );
             });
         });
     };
+
+    /** Brings the row of one version on screen. */
+    const scrollToVersion = (version: number) =>
+        setVersionVisibility(version, true);
+
+    /** Takes the row of one version off screen again. */
+    const scrollAwayFromVersion = (version: number) =>
+        setVersionVisibility(version, false);
 
     const withThumbnail = (version: number): ApiAppVersionSummary => ({
         ...entry(version, 1),
@@ -227,6 +234,26 @@ describe('AppVersionHistoryPanel thumbnails', () => {
         );
         // v2 has a thumbnail too, but its row is still off screen.
         expect(thumbnails()).toHaveLength(1);
+        expect(lightdashApi).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a loaded thumbnail when its row scrolls off screen again', async () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                thumbnailSource={thumbnailSource}
+                versions={[withThumbnail(3), entry(2, 1)]}
+            />,
+        );
+
+        scrollToVersion(3);
+        await screen.findByRole('img', { name: 'Thumbnail of v3' });
+
+        scrollAwayFromVersion(3);
+
+        expect(
+            screen.getByRole('img', { name: 'Thumbnail of v3' }),
+        ).toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledOnce();
     });
 
