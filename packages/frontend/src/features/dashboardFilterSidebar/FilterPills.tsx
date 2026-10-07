@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     getConditionalRuleLabelFromItem,
     isFilterLockedOnTab,
     type DashboardFilterRule,
@@ -26,6 +27,13 @@ import { useFilterSidebar } from './useFilterSidebar';
 type Props = {
     activeTabUuid: string | undefined;
 };
+
+// Operators that take no value, mirroring getFilterRuleWithDefaultValue
+const UNARY_OPERATORS = new Set<FilterOperator>([
+    FilterOperator.NULL,
+    FilterOperator.NOT_NULL,
+    FilterOperator.IN_PERIOD_TO_DATE,
+]);
 
 export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
@@ -111,10 +119,11 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 const name = isDraft
                     ? 'New filter'
                     : filter.label || labels?.field || 'Filter';
-                const hasNoDefault =
-                    filter.disabled ||
-                    filter.values === undefined ||
-                    filter.values.length === 0;
+                const hasNoDefault = filter.disabled === true;
+                const needsValue =
+                    !hasNoDefault &&
+                    !UNARY_OPERATORS.has(filter.operator) &&
+                    (filter.values === undefined || filter.values.length === 0);
                 const sessionSettings = getSessionSettings(filter.id);
                 const isHidden =
                     !!tabKey && isHiddenOnTab(sessionSettings, tabKey);
@@ -275,6 +284,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                     {labels === null || hasNoDefault ? (
                                         <Text span c="dimmed">
                                             {'\u00b7 no default'}
+                                        </Text>
+                                    ) : needsValue ? (
+                                        <Text span c="dimmed">
+                                            {'\u00b7 value needed'}
                                         </Text>
                                     ) : (
                                         <>

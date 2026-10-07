@@ -59,6 +59,7 @@ import {
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
+import { DashboardHeaderGuard } from '../features/dashboardFilterSidebar/DashboardHeaderGuard';
 import { FilterSidebarPage } from '../features/dashboardFilterSidebar/FilterSidebarPage';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -1482,7 +1483,13 @@ const Dashboard: FC = () => {
                 fullPageScroll
             >
                 <div>
-                    <DashboardHeader {...dashboardHeaderProps} />
+                    {isFilterSidebarEnabled ? (
+                        <DashboardHeaderGuard>
+                            <DashboardHeader {...dashboardHeaderProps} />
+                        </DashboardHeaderGuard>
+                    ) : (
+                        <DashboardHeader {...dashboardHeaderProps} />
+                    )}
 
                     {isChartEditorEnabled && dashboard.uuid ? (
                         <DashboardChartEditorModal

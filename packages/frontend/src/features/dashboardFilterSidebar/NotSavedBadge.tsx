@@ -6,7 +6,7 @@ type Props = {
 };
 
 export const NotSavedBadge: FC<Props> = ({
-    tooltip = 'This setting is not saved yet. It lasts until you reload.',
+    tooltip = 'Not saved. This setting resets when you reload the page.',
 }) => (
     <Tooltip label={tooltip}>
         <Badge size="xs" variant="light" color="gray" radius="sm">

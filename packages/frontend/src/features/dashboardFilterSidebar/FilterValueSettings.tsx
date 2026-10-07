@@ -8,7 +8,7 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Select, Stack, Switch, Text } from '@mantine/core';
+import { Box, Input, Select, Stack, Switch, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../components/common/Filters/FilterInputs/utils';
@@ -38,6 +38,10 @@ export const FilterValueSettings: FC<Props> = ({
     const isDisabled = !!filterRule.disabled;
     const hasRequirement =
         !!filterRule.required || !!filterRule.requiredGroupId;
+    const isMissingValue =
+        !isDisabled &&
+        isWithValueFilter(filterRule.operator) &&
+        (filterRule.values ?? []).length === 0;
 
     const handleOperator = (operator: FilterRule['operator']) => {
         // Absolute dates are already normalized; defaults could shift timezones
@@ -115,6 +119,11 @@ export const FilterValueSettings: FC<Props> = ({
                                 onChange(next as DashboardFilterRule)
                             }
                         />
+                    )}
+                    {isMissingValue && (
+                        <Input.Error>
+                            Choose a value or turn this off
+                        </Input.Error>
                     )}
                     {hasRequirement && (filterRule.values ?? []).length > 0 && (
                         <Text size="xs" c="ldGray.7">

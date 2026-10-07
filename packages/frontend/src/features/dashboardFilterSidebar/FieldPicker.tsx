@@ -87,7 +87,6 @@ export const FieldPicker: FC<Props> = ({
         ? fields.filter((field) => matchesSearch(field, search))
         : [];
     const counts = countFieldsByKind(isSearching ? matches : fields);
-    const currentOpen = openTable ?? explores[0]?.table ?? null;
     const chipLabel = (field: DashboardFilterableField) =>
         getFieldDisplayLabel(field, fields);
     const kinds = lockedKind ? [lockedKind] : FIELD_KINDS;
@@ -131,6 +130,7 @@ export const FieldPicker: FC<Props> = ({
         <Stack gap="sm">
             <TextInput
                 placeholder="Search fields"
+                autoFocus
                 aria-label="Search fields"
                 leftSection={<MantineIcon icon={IconSearch} />}
                 value={search}
@@ -212,7 +212,7 @@ export const FieldPicker: FC<Props> = ({
                             </Text>
                         )}
                         {explores.map((explore) => {
-                            const isOpen = currentOpen === explore.table;
+                            const isOpen = openTable === explore.table;
                             const rows = foldFieldGrains(explore.fields);
                             return (
                                 <Stack key={explore.table} gap={0}>

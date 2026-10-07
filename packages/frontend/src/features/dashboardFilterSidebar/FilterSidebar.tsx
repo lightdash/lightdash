@@ -4,6 +4,7 @@ import {
     Box,
     Button,
     Group,
+    Menu,
     Stack,
     Tabs,
     Text,
@@ -11,7 +12,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -21,7 +22,12 @@ import { FieldPicker } from './FieldPicker';
 import { FieldsAndCharts } from './FieldsAndCharts';
 import classes from './FilterSidebar.module.css';
 import { Interactivity } from './Interactivity';
-import { getTabCounts, getTileField, isTileFilterable } from './peers';
+import {
+    getFilterFields,
+    getTabCounts,
+    getTileField,
+    isTileFilterable,
+} from './peers';
 import { isInteractivityChanged } from './sessionSettings';
 import { findFilterRule } from './sidebarState';
 import { useFilterSidebar } from './useFilterSidebar';
@@ -34,6 +40,7 @@ export const FilterSidebar: FC = () => {
         originalFilterRule,
         addFirstField,
         listFieldId,
+        listedFieldIds,
         removeFilter,
         getSessionSettings,
         activeSection,
@@ -45,6 +52,39 @@ export const FilterSidebar: FC = () => {
     } = useFilterSidebar();
     const [chosen, setChosen] = useState<DashboardFilterableField[]>([]);
     const [kind, setKind] = useState<FieldKind | null>(null);
+    const [removeArmed, setRemoveArmed] = useState(false);
+    const handleRemoveClick = useCallback(() => {
+        if (removeArmed) {
+            setRemoveArmed(false);
+            removeFilter();
+            return;
+        }
+        setRemoveArmed(true);
+    }, [removeArmed, removeFilter]);
+    const moreActions = (
+        <Menu
+            position="bottom-end"
+            closeOnItemClick={false}
+            onClose={() => setRemoveArmed(false)}
+        >
+            <Menu.Target>
+                <Tooltip label="More actions">
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="More actions"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Tooltip>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Item color="red" onClick={handleRemoveClick}>
+                    {removeArmed ? 'Click again to remove' : 'Remove filter'}
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
+    );
     const toggleChosen = useCallback((field: DashboardFilterableField) => {
         const id = getItemId(field);
         setChosen((current) =>
@@ -199,16 +239,19 @@ export const FilterSidebar: FC = () => {
                     <Title order={5} className={classes.title}>
                         {originalFilterRule?.label ?? 'Filter'}
                     </Title>
-                    <Tooltip label="Close">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Close"
-                            onClick={cancel}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
+                    <Group gap={4} wrap="nowrap">
+                        {moreActions}
+                        <Tooltip label="Close">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                aria-label="Close"
+                                onClick={cancel}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
                 </Group>
                 <Stack gap="md" p="md" className={classes.body}>
                     <Text fw={600} fz="sm">
@@ -228,20 +271,11 @@ export const FilterSidebar: FC = () => {
                     <Text fz="xs" c="dimmed">
                         Pick a field
                     </Text>
-                    <Group justify="space-between" gap="xs">
-                        <Button
-                            variant="subtle"
-                            color="red"
-                            onClick={removeFilter}
-                        >
-                            Remove filter
+                    <Group justify="flex-end" gap="xs">
+                        <Button variant="default" onClick={cancel}>
+                            Cancel
                         </Button>
-                        <Group gap="xs">
-                            <Button variant="default" onClick={cancel}>
-                                Cancel
-                            </Button>
-                            <Button disabled>Apply</Button>
-                        </Group>
+                        <Button disabled>Apply</Button>
                     </Group>
                 </Stack>
             </Box>
@@ -264,28 +298,40 @@ export const FilterSidebar: FC = () => {
         : isDirty
           ? '. Not applied yet'
           : '';
+    const fieldCount = getFilterFields(filterRule, listedFieldIds).length;
+    const landingCue = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'chart' : 'charts'}`;
 
     return (
         <Box className={classes.root}>
             <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-                <Title order={5} className={classes.title}>
-                    {title}
-                </Title>
-                <Tooltip label="Close">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Close"
-                        onClick={cancel}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
+                <Stack gap={2}>
+                    <Title order={5} className={classes.title}>
+                        {title}
+                    </Title>
+                    <Text fz="xs" c="dimmed">
+                        {landingCue}
+                    </Text>
+                </Stack>
+                <Group gap={4} wrap="nowrap">
+                    {!isNew && moreActions}
+                    <Tooltip label="Close">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Close"
+                            onClick={cancel}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
 
             <Stack gap="md" p="md" className={classes.body}>
                 <TextInput
                     label="Filter label"
+                    withAsterisk
+                    required
                     placeholder="What viewers will see"
                     value={filterRule.label ?? ''}
                     onChange={(event) =>
@@ -341,7 +387,16 @@ export const FilterSidebar: FC = () => {
                         >
                             Interactivity
                         </Tabs.Tab>
-                        <Tabs.Tab value="fields">Fields and charts</Tabs.Tab>
+                        <Tabs.Tab
+                            value="fields"
+                            rightSection={
+                                <Text fz="xs" c="dimmed" span>
+                                    ({fieldCount})
+                                </Text>
+                            }
+                        >
+                            Fields and charts
+                        </Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel value="fields">
                         <FieldsAndCharts />
@@ -365,26 +420,19 @@ export const FilterSidebar: FC = () => {
                         : ''}
                     {statusSuffix}
                 </Text>
-                <Group justify="space-between" gap="xs">
-                    {isNew ? (
-                        <span />
+                <Group justify="flex-end" gap="xs">
+                    <Button variant="default" onClick={cancel}>
+                        Cancel
+                    </Button>
+                    {isNew && !hasLabel ? (
+                        <Tooltip label="Add a label to apply">
+                            <Box>
+                                <Button disabled>Apply</Button>
+                            </Box>
+                        </Tooltip>
                     ) : (
-                        <Button
-                            variant="default"
-                            c="red"
-                            onClick={removeFilter}
-                        >
-                            Remove filter
-                        </Button>
+                        <Button onClick={apply}>Apply</Button>
                     )}
-                    <Group gap="xs">
-                        <Button variant="default" onClick={cancel}>
-                            Cancel
-                        </Button>
-                        <Button onClick={apply} disabled={isNew && !hasLabel}>
-                            Apply
-                        </Button>
-                    </Group>
                 </Group>
             </Stack>
         </Box>

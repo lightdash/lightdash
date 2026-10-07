@@ -1,5 +1,16 @@
-import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Menu,
+    Stack,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import classes from './FieldsAndCharts.module.css';
 import { type FieldCount } from './peers';
 
@@ -74,32 +85,40 @@ export const FieldRow: FC<Props> = ({
                             Apply to all {count.possible}
                         </Button>
                     )}
-                    {showNone && (
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            aria-label={
-                                count.applied === 1
-                                    ? `Clear ${label} from the 1 chart`
-                                    : `Clear ${label} from all ${count.applied} charts`
-                            }
-                            onClick={onNone}
-                        >
-                            Clear from charts
-                        </Button>
-                    )}
-                    {
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            aria-label={`Remove ${label} from this filter`}
-                            onClick={onRemove}
-                        >
-                            Remove field
-                        </Button>
-                    }
+                    <Menu position="bottom-end">
+                        <Menu.Target>
+                            <Tooltip label="More">
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label={`More actions for ${label}`}
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {showNone && (
+                                <Menu.Item
+                                    aria-label={
+                                        count.applied === 1
+                                            ? `Clear ${label} from the 1 chart`
+                                            : `Clear ${label} from all ${count.applied} charts`
+                                    }
+                                    onClick={onNone}
+                                >
+                                    Clear from charts
+                                </Menu.Item>
+                            )}
+                            <Menu.Item
+                                aria-label={`Remove ${label} from this filter`}
+                                onClick={onRemove}
+                            >
+                                Remove field
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Group>
             </Stack>
         </Stack>
