@@ -25,6 +25,10 @@ CREATE SECURITY INTEGRATION LIGHTDASH_AGENT
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');
 ```
 
+The sign-in requests the `refresh_token` scope, so the integration must keep `OAUTH_ISSUE_REFRESH_TOKENS = TRUE`.
+Snowflake blocks the ACCOUNTADMIN, SECURITYADMIN, ORGADMIN and GLOBALORGADMIN roles from OAuth sessions. The sign-in uses the person's default role, so each person who uses agents needs a default role outside that list.
+For a local test over `http://localhost`, add `OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE` to the integration. Do not set it in production.
+
 Set these environment variables on the instance:
 
 - `SNOWFLAKE_AI_OAUTH_CLIENT_ID`: the client ID from the secret output.
@@ -114,7 +118,8 @@ Run a query through an agent. Run a normal query as the same person.
 Inspect the session context in each session:
 
 ```sql
-SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED') AS agent_activated;
+SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED') AS agent_activated,
+       SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS active_scopes;
 ```
 
 Inspect recent query history with an authorized audit role:

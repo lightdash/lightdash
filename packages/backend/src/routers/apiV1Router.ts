@@ -881,7 +881,7 @@ apiV1Router.get(
     isAuthenticated,
     requireSnowflakeAiSignIn,
     storeOIDCRedirect,
-    passport.authenticate('snowflake-ai'),
+    passport.authenticate('snowflake-ai', { scope: ['refresh_token'] }),
 );
 
 apiV1Router.get(
