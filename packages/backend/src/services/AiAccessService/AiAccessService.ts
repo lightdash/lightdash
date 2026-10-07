@@ -29,7 +29,6 @@ import {
     type AiPrincipalWithSecrets,
     type AiSetupScript,
     type AiWarehouseCapabilities,
-    type ApiAiQueryAuditResponse,
     type CreateWarehouseCredentials,
     type QueryExecutionContext,
     type UpsertAiAccessPolicy,
@@ -611,15 +610,6 @@ export class AiAccessService extends BaseService {
         await this.aiPrincipalModel.deletePrincipal(aiPrincipalUuid);
     }
 
-    async listAudit(
-        account: Account,
-        projectUuid: string,
-        args: { page: number; pageSize: number },
-    ): Promise<ApiAiQueryAuditResponse['results']> {
-        await this.authorizeProject(account, projectUuid, 'manage');
-        return this.aiPrincipalModel.listAudit(projectUuid, args);
-    }
-
     async getMyAccess(
         account: Account,
         projectUuid: string,
@@ -642,18 +632,20 @@ export class AiAccessService extends BaseService {
         });
     }
 
-    async recordQuery({
+    recordQuery({
         queryUuid,
         projectUuid,
         warehouseConnectionUuid,
         plan,
+        context,
     }: {
         queryUuid: string;
         projectUuid: string;
         warehouseConnectionUuid: string | null;
         plan: AiExecutionPlan;
-    }): Promise<void> {
-        await this.aiPrincipalModel.insertAudit({
+        context: QueryExecutionContext;
+    }): void {
+        this.logger.info('Agent query', {
             queryUuid,
             projectUuid,
             warehouseConnectionUuid,
@@ -661,24 +653,14 @@ export class AiAccessService extends BaseService {
                 plan.identity === 'marked_person'
                     ? plan.audit.userUuid
                     : plan.audit.personUuid,
-            aiPrincipalUuid:
-                plan.identity === 'principal'
-                    ? plan.principal.aiPrincipalUuid
-                    : null,
+            identity: plan.identity,
             principalKind:
                 plan.identity === 'principal'
                     ? plan.principal.kind
                     : AiPrincipalKind.PERSON,
             principalRef: plan.audit.principalRef,
             transport: plan.transport,
-            probeOk:
-                plan.identity === 'marked_person' ||
-                (plan.principal.lastProbe?.ok ?? false),
-            probeCheckedAt:
-                plan.identity === 'principal'
-                    ? (plan.principal.lastProbe?.checkedAt ?? null)
-                    : null,
-            personTag: plan.audit.personUuid,
+            context,
         });
     }
 

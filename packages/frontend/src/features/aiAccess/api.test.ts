@@ -68,12 +68,6 @@ describe('AI access API URLs', () => {
                     url: `/projects/project/ai-access/setup-script?principal=principal${connection ? '&connection=connection+%2F+one' : ''}`,
                 }),
             );
-            await aiAccessApi.audit('project', connection, 2, 25);
-            expect(lightdashApi).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    url: `/projects/project/ai-access/audit?page=2&pageSize=25${connection ? '&connection=connection+%2F+one' : ''}`,
-                }),
-            );
             await aiAccessApi.test('project', connection, 'principal');
             expect(lightdashApi).toHaveBeenLastCalledWith(
                 expect.objectContaining({

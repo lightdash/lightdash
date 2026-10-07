@@ -20,9 +20,10 @@ export const SnowflakeAiSignInSection = ({
     return (
         <Paper p="md">
             <Stack gap="sm">
-                <Title order={5}>Snowflake sign-in for AI</Title>
+                <Title order={5}>Snowflake agent sign-in</Title>
                 <Text c="dimmed" fz="sm">
-                    AI agents and MCP use this separate Snowflake sign-in.
+                    Sign in for agent sessions. AI agents and MCP use this
+                    separate Snowflake sign-in.
                 </Text>
                 <Group gap="sm">
                     <Text fz="sm">
@@ -33,7 +34,7 @@ export const SnowflakeAiSignInSection = ({
                         onClick={() => login.mutate()}
                         loading={login.isLoading}
                     >
-                        Sign in to Snowflake for AI
+                        Sign in for agent sessions
                     </Button>
                     {credential && (
                         <Button
@@ -41,7 +42,7 @@ export const SnowflakeAiSignInSection = ({
                             variant="default"
                             onClick={() => setIsRemoving(true)}
                         >
-                            Remove
+                            Sign out
                         </Button>
                     )}
                 </Group>

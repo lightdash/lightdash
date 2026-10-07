@@ -3787,12 +3787,13 @@ export class AsyncQueryService extends ProjectService {
                 });
             const { warehouseCredentials, aiPlan } = resolvedCredentials;
             if (aiPlan) {
-                await this.aiAccessService.recordQuery({
+                this.aiAccessService.recordQuery({
                     queryUuid,
                     projectUuid,
                     warehouseConnectionUuid:
                         resolvedCredentials.warehouseConnectionUuid,
                     plan: aiPlan,
+                    context: queryTags.query_context,
                 });
                 aiQueryTags = aiPlan.audit.queryTags;
             }

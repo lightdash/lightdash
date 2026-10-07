@@ -204,22 +204,6 @@ export type AiSetupScript = {
     parts: AiSetupScriptPart[];
 };
 
-export type AiQueryAudit = {
-    queryUuid: string;
-    projectUuid: string;
-    warehouseConnectionUuid: string | null;
-    userUuid: string | null;
-    personEmail: string | null;
-    aiPrincipalUuid: string | null;
-    principalKind: AiPrincipalKind;
-    principalRef: string;
-    transport: AiTransport;
-    probeOk: boolean;
-    probeCheckedAt: Date | null;
-    personTag: string;
-    createdAt: Date;
-};
-
 type AiExecutionAudit = {
     personUuid: string;
     principalRef: string;
@@ -381,17 +365,4 @@ export type ApiAiSetupScriptResponse = {
 export type ApiAiAccessForUserResponse = {
     status: 'ok';
     results: AiAccessForUser;
-};
-
-export type ApiAiQueryAuditResponse = {
-    status: 'ok';
-    results: {
-        data: AiQueryAudit[];
-        pagination: {
-            page: number;
-            pageSize: number;
-            totalResults: number;
-            totalPageCount: number;
-        };
-    };
 };

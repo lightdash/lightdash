@@ -27,6 +27,7 @@ import {
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type GroupsModel } from '../../models/GroupsModel';
@@ -35,7 +36,11 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
-import { aiAgentMarkerMock, aiExecutionPlanMock } from './AiAccessService.mock';
+import {
+    aiAgentMarkerMock,
+    aiExecutionPlanMock,
+    markedPersonPlanMock,
+} from './AiAccessService.mock';
 import {
     type AiCreatedSecret,
     type AiCredentialProvider,
@@ -116,7 +121,6 @@ const setup = () => {
         listPrincipals: vi.fn(async (): Promise<AiPrincipal[]> => []),
         resetStatus: vi.fn(async () => principal),
         deletePrincipal: vi.fn(async () => {}),
-        insertAudit: vi.fn(async () => {}),
         findPolicy: vi.fn(async (): Promise<AiAccessPolicy | null> => policy),
         findPrincipalByRef: vi.fn(
             async (): Promise<AiPrincipalWithSecrets | null> => principal,
@@ -274,24 +278,8 @@ describe('AiAccessService', () => {
             principal: null,
             refusal: null,
         });
-        if (!plan) throw new Error('Expected a marked plan');
-        await service.recordQuery({
-            queryUuid: 'query',
-            projectUuid: args.projectUuid,
-            warehouseConnectionUuid: null,
-            plan,
-        });
-        expect(model.insertAudit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                aiPrincipalUuid: null,
-                principalKind: AiPrincipalKind.PERSON,
-                principalRef: 'a.b+tag@example.test',
-                probeOk: true,
-                personTag: args.userUuid,
-            }),
-        );
     });
-    test('keeps external caller tags out of the audit user foreign key', async () => {
+    test('keeps external callers separate from registered users', async () => {
         const { service, model } = setup();
         model.findPolicy.mockResolvedValue(null);
         const plan = await service.resolvePlan({
@@ -303,19 +291,6 @@ describe('AiAccessService', () => {
             identity: 'marked_person',
             audit: { personUuid: 'external-person', userUuid: null },
         });
-        if (!plan) throw new Error('Expected a marked plan');
-        await service.recordQuery({
-            queryUuid: 'query',
-            projectUuid: args.projectUuid,
-            warehouseConnectionUuid: null,
-            plan,
-        });
-        expect(model.insertAudit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                userUuid: null,
-                personTag: 'external-person',
-            }),
-        );
     });
     test('reports marked identity without a policy', async () => {
         const { service, model } = setup();
@@ -966,48 +941,57 @@ describe('AiAccessService', () => {
             SnowflakeAiCredentialProvider,
         );
     });
-    test.each([aiExecutionPlanMock.principal.lastProbe, null])(
-        'records the audit with probe %s',
-        async (lastProbe) => {
-            const { service, model } = setup();
-            const plan = {
-                ...aiExecutionPlanMock,
-                principal: { ...aiExecutionPlanMock.principal, lastProbe },
-            };
-            await service.recordQuery({
+    test.each([
+        {
+            plan: markedPersonPlanMock,
+            userUuid: 'person-uuid',
+            principalKind: AiPrincipalKind.PERSON,
+            principalRef: 'person@example.test',
+        },
+        {
+            plan: aiExecutionPlanMock,
+            userUuid: 'person-uuid',
+            principalKind: AiPrincipalKind.SHARED,
+            principalRef: 'ai_shared',
+        },
+        {
+            plan: {
+                ...markedPersonPlanMock,
+                audit: { ...markedPersonPlanMock.audit, userUuid: null },
+            },
+            userUuid: null,
+            principalKind: AiPrincipalKind.PERSON,
+            principalRef: 'person@example.test',
+        },
+    ])(
+        'logs an agent query for $plan.identity with user $userUuid',
+        ({ plan, userUuid, principalKind, principalRef }) => {
+            const { service } = setup();
+            const logger = Logger.child({});
+            const info = vi
+                .spyOn(logger, 'info')
+                .mockImplementation(() => logger);
+            Object.assign(service, { logger });
+            service.recordQuery({
                 queryUuid: 'query',
                 projectUuid: 'project',
                 warehouseConnectionUuid: 'connection',
                 plan,
+                context: QueryExecutionContext.AI,
             });
-            expect(model.insertAudit).toHaveBeenCalledExactlyOnceWith({
+            expect(info).toHaveBeenCalledExactlyOnceWith('Agent query', {
                 queryUuid: 'query',
                 projectUuid: 'project',
                 warehouseConnectionUuid: 'connection',
-                userUuid: plan.audit.personUuid,
-                aiPrincipalUuid: plan.principal.aiPrincipalUuid,
-                principalKind: plan.principal.kind,
-                principalRef: plan.principal.ref,
+                userUuid,
+                identity: plan.identity,
+                principalKind,
+                principalRef,
                 transport: plan.transport,
-                probeOk: lastProbe?.ok ?? false,
-                probeCheckedAt: lastProbe?.checkedAt ?? null,
-                personTag: plan.audit.personUuid,
+                context: QueryExecutionContext.AI,
             });
         },
     );
-    test('propagates audit storage failures', async () => {
-        const { service, model } = setup();
-        const error = new Error('audit unavailable');
-        model.insertAudit.mockRejectedValue(error);
-        await expect(
-            service.recordQuery({
-                queryUuid: 'query',
-                projectUuid: 'project',
-                warehouseConnectionUuid: null,
-                plan: aiExecutionPlanMock,
-            }),
-        ).rejects.toBe(error);
-    });
     test('creates and reloads a secret before minting', async () => {
         const { service, model, provider } = setup();
         const created = {

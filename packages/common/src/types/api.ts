@@ -133,7 +133,6 @@ import type {
     ApiAiMarkerTestResponse,
     ApiAiPrincipalResponse,
     ApiAiPrincipalsResponse,
-    ApiAiQueryAuditResponse,
     ApiAiSetupScriptResponse,
     ApiAiWarehouseCapabilitiesResponse,
 } from './aiPrincipal';
@@ -1568,7 +1567,6 @@ type ApiResults =
     | ApiAiSetupScriptResponse['results']
     | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']
-    | ApiAiQueryAuditResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

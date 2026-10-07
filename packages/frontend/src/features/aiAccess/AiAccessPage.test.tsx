@@ -8,6 +8,7 @@ import { AiAccessPage } from './AiAccessPage';
 
 let warehouseType = WarehouseTypes.POSTGRES;
 let enabled = true;
+let canManage = true;
 const policyQuery = vi.fn();
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -29,7 +30,7 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: { data: { rudder: {} } },
-        user: { data: { ability: { can: () => true } } },
+        user: { data: { ability: { can: () => canManage } } },
     }),
 }));
 vi.mock('../../hooks/useWarehouseConnections', () => ({
@@ -64,9 +65,6 @@ vi.mock('./api', () => ({
         return { data: null };
     },
     useAiAccessCapabilities: () => ({ data: {} }),
-    useAiAccessAudit: () => ({
-        data: { data: [], pagination: { totalPageCount: 0 } },
-    }),
 }));
 vi.mock('./AiIdentitySettings', () => ({
     AiIdentitySettings: ({
@@ -81,6 +79,7 @@ describe('Agent identity page', () => {
         vi.clearAllMocks();
         warehouseType = WarehouseTypes.POSTGRES;
         enabled = true;
+        canManage = true;
     });
     it('leaves the page for a Postgres project without loading the policy', () => {
         renderWithProviders(<AiAccessPage />);
@@ -89,6 +88,18 @@ describe('Agent identity page', () => {
                 'redirect to /generalSettings/projectManagement/project',
             ),
         ).toBeInTheDocument();
+        expect(policyQuery).not.toHaveBeenCalled();
+    });
+    it('redirects non-admins without rendering the page shell or loading the policy', () => {
+        warehouseType = WarehouseTypes.SNOWFLAKE;
+        canManage = false;
+        renderWithProviders(<AiAccessPage />);
+        expect(
+            screen.getByText(
+                'redirect to /generalSettings/projectManagement/project',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Agent identity')).not.toBeInTheDocument();
         expect(policyQuery).not.toHaveBeenCalled();
     });
     it('keeps the feature flag guard', () => {
@@ -117,6 +128,6 @@ describe('Agent identity page', () => {
             'project',
             'extra-snowflake',
         );
-        expect(screen.getByText('Audit')).toBeInTheDocument();
+        expect(screen.queryByText('Audit')).not.toBeInTheDocument();
     });
 });

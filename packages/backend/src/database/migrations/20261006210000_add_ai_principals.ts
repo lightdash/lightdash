@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds new AI policy, principal and audit tables without changing existing data',
+    reason: 'Adds new AI policy and principal tables without changing existing data',
 } as const;
 
 export async function up(knex: Knex): Promise<void> {
@@ -102,41 +102,6 @@ export async function up(knex: Knex): Promise<void> {
         });
         table.index(['ai_access_policy_uuid', 'status']);
     });
-    await knex.schema.createTable('ai_query_audit', (table) => {
-        table.uuid('query_uuid').primary();
-        table
-            .uuid('project_uuid')
-            .notNullable()
-            .references('project_uuid')
-            .inTable('projects')
-            .onDelete('CASCADE')
-            .index();
-        table
-            .uuid('user_uuid')
-            .nullable()
-            .references('user_uuid')
-            .inTable('users')
-            .onDelete('SET NULL')
-            .index();
-        table
-            .uuid('ai_principal_uuid')
-            .nullable()
-            .references('ai_principal_uuid')
-            .inTable('ai_principals')
-            .onDelete('SET NULL')
-            .index();
-        table.uuid('warehouse_connection_uuid').nullable();
-        table.text('principal_kind').notNullable();
-        table.text('principal_ref').notNullable();
-        table.jsonb('transport').notNullable();
-        table.boolean('probe_ok').notNullable();
-        table.timestamp('probe_checked_at', { useTz: true }).nullable();
-        table.text('person_tag').notNullable();
-        table
-            .timestamp('created_at', { useTz: true })
-            .notNullable()
-            .defaultTo(knex.fn.now());
-    });
     await knex.raw(
         'CREATE UNIQUE INDEX ai_access_policies_original_connection_unique ON ai_access_policies (project_uuid) WHERE warehouse_connection_uuid IS NULL',
     );
@@ -146,13 +111,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(
         'CREATE UNIQUE INDEX ai_principals_policy_user_unique ON ai_principals (ai_access_policy_uuid, user_uuid) WHERE user_uuid IS NOT NULL',
     );
-    await knex.raw(
-        'CREATE INDEX ai_query_audit_project_created_idx ON ai_query_audit (project_uuid, created_at DESC)',
-    );
 }
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
-    await knex.schema.dropTable('ai_query_audit');
     await knex.schema.dropTable('ai_principals');
     await knex.schema.dropTable('ai_principal_group_mappings');
     await knex.schema.dropTable('ai_access_policies');

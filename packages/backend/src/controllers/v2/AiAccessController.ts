@@ -4,7 +4,6 @@ import {
     ApiAiMarkerTestResponse,
     ApiAiPrincipalResponse,
     ApiAiPrincipalsResponse,
-    ApiAiQueryAuditResponse,
     ApiAiSetupScriptResponse,
     ApiAiWarehouseCapabilitiesResponse,
     ApiErrorPayload,
@@ -272,25 +271,5 @@ export class AiAccessController extends BaseController {
         );
         await service.deletePrincipal(req.account!, aiPrincipalUuid);
         return { status: 'ok', results: undefined };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/audit')
-    @OperationId('listAuditAiAccess')
-    async listAudit(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Query() page: number = 1,
-        @Query() pageSize: number = 25,
-    ): Promise<ApiAiQueryAuditResponse> {
-        const service = this.services.getAiAccessService();
-        return {
-            status: 'ok',
-            results: await service.listAudit(req.account!, projectUuid, {
-                page: Math.max(1, Math.floor(page)),
-                pageSize: Math.min(100, Math.max(1, Math.floor(pageSize))),
-            }),
-        };
     }
 }

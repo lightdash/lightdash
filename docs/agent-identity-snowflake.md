@@ -38,7 +38,7 @@ Use the same Snowflake account for the integration and the project connection.
 
 Enable `ai-principals`. The `snowflake-ai-sign-in` flag is optional for this path.
 Either flag permits agent sign-in. The licence check still applies.
-The Agent identity page is available on Snowflake projects only.
+The Agent identity page is available to project admins on Snowflake projects only.
 Use Console organization overrides or the generic feature flag environment lists.
 See [feature flag precedence and refresh](feature-flags.md).
 
@@ -63,6 +63,7 @@ The callback checks agent activation before it stores the refresh token.
 Check the sign-in date on the page. Run the marker test in the Test card.
 Each person who uses agents completes this sign-in.
 Select Sign out to remove the stored agent credential.
+People who are not project admins sign in from the chat prompt or from My warehouse connections.
 
 ## Set warehouse rules
 
@@ -131,6 +132,13 @@ Use `query_tag` to inspect the application attribution.
 A query tag alone does not prove that Snowflake verified the session.
 Check that the row, masking, and session policies produce the expected restrictions.
 See [QUERY_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/query_history).
+
+Agent queries produce a structured info log line with the message `Agent query`
+before warehouse execution. Admins read it in the instance logs.
+Use the JSON log format to retain the structured fields.
+The fields are `queryUuid`, `projectUuid`, `warehouseConnectionUuid`, `userUuid`,
+`identity` (`marked_person` or `principal`), `principalKind`, `principalRef`,
+`transport`, and `context`. Agent query audits are not stored in an application table.
 
 ## Known gap
 

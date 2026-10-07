@@ -7,7 +7,6 @@ import {
     AiPrincipalWithSecrets,
     AiProbeResult,
     aiProbeResultSchema,
-    AiQueryAudit,
     AiTransport,
     aiTransportSchema,
     NotFoundError,
@@ -19,10 +18,8 @@ import {
     AiAccessPoliciesTableName,
     AiPrincipalGroupMappingsTableName,
     AiPrincipalsTableName,
-    AiQueryAuditTableName,
     DbAiAccessPolicy,
     DbAiPrincipal,
-    DbAiQueryAudit,
 } from '../../database/entities/aiPrincipals';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
@@ -308,84 +305,5 @@ export class AiPrincipalModel {
         await this.database(AiPrincipalsTableName)
             .where('ai_principal_uuid', aiPrincipalUuid)
             .delete();
-    }
-    async insertAudit(
-        audit: Omit<AiQueryAudit, 'createdAt' | 'personEmail'>,
-    ): Promise<void> {
-        await this.database(AiQueryAuditTableName)
-            .insert({
-                query_uuid: audit.queryUuid,
-                project_uuid: audit.projectUuid,
-                warehouse_connection_uuid: audit.warehouseConnectionUuid,
-                user_uuid: audit.userUuid,
-                ai_principal_uuid: audit.aiPrincipalUuid,
-                principal_kind: audit.principalKind,
-                principal_ref: audit.principalRef,
-                transport: audit.transport,
-                probe_ok: audit.probeOk,
-                probe_checked_at: audit.probeCheckedAt,
-                person_tag: audit.personTag,
-            })
-            .onConflict('query_uuid')
-            .merge();
-    }
-    private static audit(
-        row: DbAiQueryAudit & { person_email: string | null },
-    ): AiQueryAudit {
-        return {
-            queryUuid: row.query_uuid,
-            projectUuid: row.project_uuid,
-            warehouseConnectionUuid: row.warehouse_connection_uuid,
-            userUuid: row.user_uuid,
-            personEmail: row.person_email,
-            aiPrincipalUuid: row.ai_principal_uuid,
-            principalKind: row.principal_kind,
-            principalRef: row.principal_ref,
-            transport: AiPrincipalModel.transport(row.transport),
-            probeOk: row.probe_ok,
-            probeCheckedAt: row.probe_checked_at,
-            personTag: row.person_tag,
-            createdAt: row.created_at,
-        };
-    }
-    async listAudit(
-        projectUuid: string,
-        args: { page: number; pageSize: number },
-    ): Promise<{
-        data: AiQueryAudit[];
-        pagination: {
-            page: number;
-            pageSize: number;
-            totalResults: number;
-            totalPageCount: number;
-        };
-    }> {
-        const [count] = await this.database(AiQueryAuditTableName)
-            .where('project_uuid', projectUuid)
-            .count<{ total: string }[]>('* as total');
-        const { database } = this;
-        const rows = await database(AiQueryAuditTableName)
-            .leftJoin('users', 'users.user_uuid', 'ai_query_audit.user_uuid')
-            .leftJoin('emails', function joinPrimaryEmail() {
-                this.on('emails.user_id', '=', 'users.user_id').andOn(
-                    'emails.is_primary',
-                    '=',
-                    database.raw('true'),
-                );
-            })
-            .select('ai_query_audit.*', 'emails.email as person_email')
-            .where('ai_query_audit.project_uuid', projectUuid)
-            .orderBy('ai_query_audit.created_at', 'desc')
-            .limit(args.pageSize)
-            .offset((args.page - 1) * args.pageSize);
-        const totalResults = Number(count.total);
-        return {
-            data: rows.map(AiPrincipalModel.audit),
-            pagination: {
-                ...args,
-                totalResults,
-                totalPageCount: Math.ceil(totalResults / args.pageSize),
-            },
-        };
     }
 }

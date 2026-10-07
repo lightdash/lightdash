@@ -46,24 +46,9 @@ export type DbAiPrincipal = {
     created_at: Date;
     updated_at: Date;
 };
-export type DbAiQueryAudit = {
-    query_uuid: string;
-    project_uuid: string;
-    warehouse_connection_uuid: string | null;
-    user_uuid: string | null;
-    ai_principal_uuid: string | null;
-    principal_kind: AiPrincipalKind;
-    principal_ref: string;
-    transport: AiTransport;
-    probe_ok: boolean;
-    probe_checked_at: Date | null;
-    person_tag: string;
-    created_at: Date;
-};
 export const AiAccessPoliciesTableName = 'ai_access_policies';
 export const AiPrincipalGroupMappingsTableName = 'ai_principal_group_mappings';
 export const AiPrincipalsTableName = 'ai_principals';
-export const AiQueryAuditTableName = 'ai_query_audit';
 export type AiAccessPoliciesTable = Knex.CompositeTableType<
     DbAiAccessPolicy,
     Omit<
@@ -92,9 +77,4 @@ export type AiPrincipalsTable = Knex.CompositeTableType<
         | 'status'
     >,
     Partial<Omit<DbAiPrincipal, 'ai_principal_uuid' | 'created_at'>>
->;
-export type AiQueryAuditTable = Knex.CompositeTableType<
-    DbAiQueryAudit,
-    Omit<DbAiQueryAudit, 'created_at'>,
-    never
 >;

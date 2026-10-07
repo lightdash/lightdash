@@ -6,7 +6,6 @@ import {
     type AiAccessForUser,
     type AiAccessPolicy,
     type AiMarkerTestResult,
-    type ApiAiQueryAuditResponse,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ApiClient, type Body } from '../helpers/api-client';
@@ -23,15 +22,11 @@ describe('Postgres marked person agent identity', () => {
     let originalPolicy: AiAccessPolicy | null = null;
     let clearFlag = false;
     let restorePolicy = false;
-    let adminUuid: string;
     const baseUrl = `/api/v2/projects/${projectUuid}/ai-access`;
     const flagUrl = `/api/v2/feature-flag/${FeatureFlags.AiPrincipals}`;
 
     beforeAll(async () => {
         admin = await login();
-        adminUuid = (
-            await admin.get<Body<{ userUuid: string }>>('/api/v1/user')
-        ).body.results.userUuid;
         const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
         if (!flag.body.results.enabled) {
             expect((await admin.post(flagUrl, { enabled: true })).status).toBe(
@@ -135,31 +130,6 @@ describe('Postgres marked person agent identity', () => {
                 result: { rows: [{ agent: 'true', app: 'lightdash-ai' }] },
             },
         });
-
-        const audit = await pollUntil<ApiAiQueryAuditResponse>(
-            admin,
-            `${baseUrl}/audit`,
-            {
-                timeout: 60_000,
-                condition: ({ results }) =>
-                    results.data.some(
-                        (row) =>
-                            row.principalKind === AiPrincipalKind.PERSON &&
-                            row.aiPrincipalUuid === null &&
-                            row.personTag === adminUuid &&
-                            new Date(row.createdAt).getTime() >= startedAt,
-                    ),
-            },
-        );
-        expect(audit.results.data).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    principalKind: AiPrincipalKind.PERSON,
-                    aiPrincipalUuid: null,
-                    personTag: adminUuid,
-                }),
-            ]),
-        );
 
         const started = await admin.post<Body<{ queryUuid: string }>>(
             `/api/v2/projects/${projectUuid}/query/sql`,

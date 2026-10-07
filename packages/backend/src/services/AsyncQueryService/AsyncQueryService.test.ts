@@ -6380,12 +6380,15 @@ describe('AsyncQueryService', () => {
     });
 
     test.each([false, true])(
-        'audits before warehouse execution and fails closed on audit failure: %s',
+        'logs before warehouse execution and fails closed on log failure: %s',
         async (auditFails) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const recordQuery = vi.fn().mockResolvedValue(undefined);
-            const auditError = new Error('audit unavailable');
-            if (auditFails) recordQuery.mockRejectedValue(auditError);
+            const recordQuery = vi.fn();
+            const auditError = new Error('log unavailable');
+            if (auditFails)
+                recordQuery.mockImplementation(() => {
+                    throw auditError;
+                });
             Object.assign(service, { aiAccessService: { recordQuery } });
             vi.spyOn(
                 service as AnyType,
@@ -6438,6 +6441,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 warehouseConnectionUuid: null,
                 plan: aiExecutionPlanMock,
+                context: QueryExecutionContext.AI,
             });
             if (auditFails) {
                 expect(execute).not.toHaveBeenCalled();

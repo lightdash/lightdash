@@ -9,8 +9,6 @@ import {
     AiPrincipalGroupMappingsTableName,
     AiPrincipalsTable,
     AiPrincipalsTableName,
-    AiQueryAuditTable,
-    AiQueryAuditTableName,
 } from '../database/entities/aiPrincipals';
 import {
     AiUsageLedgerTable,
@@ -723,7 +721,6 @@ declare module 'knex/types/tables' {
         [AiAccessPoliciesTableName]: AiAccessPoliciesTable;
         [AiPrincipalGroupMappingsTableName]: AiPrincipalGroupMappingsTable;
         [AiPrincipalsTableName]: AiPrincipalsTable;
-        [AiQueryAuditTableName]: AiQueryAuditTable;
 
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;

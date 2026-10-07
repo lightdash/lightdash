@@ -1,24 +1,10 @@
 import { subject } from '@casl/ability';
-import {
-    AiTransportKind,
-    AiPrincipalKind,
-    FeatureFlags,
-    WarehouseTypes,
-} from '@lightdash/common';
-import {
-    Paper,
-    Pagination,
-    Select,
-    Stack,
-    Table,
-    Text,
-    Title,
-} from '@mantine/core';
+import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { Select, Stack } from '@mantine/core';
 import { useState, type ReactNode } from 'react';
 import { Navigate, useParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
-import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import {
     SettingsPage,
     SettingsPageContainer,
@@ -29,97 +15,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
 import { AiIdentitySettings } from './AiIdentitySettings';
-import {
-    useAiAccessAudit,
-    useAiAccessCapabilities,
-    useAiAccessPolicy,
-} from './api';
-const Audit = ({ projectUuid }: { projectUuid: string }) => {
-    const [page, setPage] = useState(1);
-    const query = useAiAccessAudit(projectUuid, null, page);
-    return (
-        <Stack>
-            <Title order={5}>Audit</Title>
-            <Text fz="xs" c="dimmed">
-                Queries across all project connections.
-            </Text>
-            {query.isLoading ? (
-                <EmptyStateLoader />
-            ) : query.isError ? (
-                <InlineErrorState
-                    message="Could not load the audit."
-                    onRetry={() => void query.refetch()}
-                />
-            ) : !query.data?.data.length ? (
-                <Paper variant="dotted" p="md">
-                    <Text c="dimmed" size="sm">
-                        No agent queries yet.
-                    </Text>
-                </Paper>
-            ) : (
-                <Table.ScrollContainer minWidth={650}>
-                    <Table>
-                        <Table.Thead>
-                            <Table.Tr>
-                                {[
-                                    'Time',
-                                    'Person',
-                                    'Ran as',
-                                    'Transport',
-                                    'Checked',
-                                ].map((label) => (
-                                    <Table.Th key={label}>{label}</Table.Th>
-                                ))}
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {query.data.data.map((row) => (
-                                <Table.Tr key={row.queryUuid}>
-                                    <Table.Td>
-                                        {new Date(
-                                            row.createdAt,
-                                        ).toLocaleString()}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {row.personEmail ??
-                                            row.userUuid ??
-                                            'Unknown'}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {row.principalKind ===
-                                            AiPrincipalKind.PERSON &&
-                                        row.aiPrincipalUuid === null
-                                            ? 'Person, marked'
-                                            : row.principalRef}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {row.transport.kind ===
-                                        AiTransportKind.DIRECT
-                                            ? 'Direct'
-                                            : 'Procedure'}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {row.probeOk ? 'Yes' : 'No'}
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                        </Table.Tbody>
-                    </Table>
-                </Table.ScrollContainer>
-            )}
-            {(query.data?.pagination.totalPageCount ?? 0) > 1 && (
-                <Pagination
-                    total={Math.max(
-                        1,
-                        query.data?.pagination.totalPageCount ?? 1,
-                    )}
-                    value={page}
-                    onChange={setPage}
-                />
-            )}
-        </Stack>
-    );
-};
+import { useAiAccessCapabilities, useAiAccessPolicy } from './api';
 const ConnectionAccess = ({
     projectUuid,
     connection,
@@ -196,9 +92,6 @@ const ProjectAccess = ({ projectUuid }: { projectUuid: string }) => {
                         projectUuid={projectUuid}
                         connection={selectedConnection}
                     />
-                    <SettingsCard>
-                        <Audit projectUuid={projectUuid} />
-                    </SettingsCard>
                 </Stack>
             </SettingsPageContainer>
         </SettingsPage>
@@ -212,15 +105,14 @@ export const AiAccessPage = () => {
         FeatureFlags.AiPrincipals,
     );
     if (isLoading || project.isLoading) return <EmptyStateLoader />;
-    if (
-        !project.data ||
-        !flag?.enabled ||
-        !user.data?.ability.can('manage', subject('Project', project.data))
-    )
+    if (!project.data || !flag?.enabled)
         return (
             <SuboptimalState title="Agent identity settings are not available." />
         );
-    if (project.data.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE)
+    if (
+        !user.data?.ability.can('manage', subject('Project', project.data)) ||
+        project.data.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE
+    )
         return (
             <Navigate
                 to={`/generalSettings/projectManagement/${project.data.projectUuid}`}

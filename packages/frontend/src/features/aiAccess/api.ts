@@ -6,7 +6,6 @@ import {
     type AiPrincipal,
     type AiSetupScript,
     type AiWarehouseCapabilities,
-    type ApiAiQueryAuditResponse,
     type ApiError,
     type ApiResponse,
     type UpsertAiAccessPolicy,
@@ -60,16 +59,6 @@ export const aiAccessApi = {
         ),
     me: (project: string, connection: string | null) =>
         get<AiAccessForUser>(project, 'me', connection),
-    audit: (
-        project: string,
-        connection: string | null,
-        page: number,
-        pageSize: number,
-    ) =>
-        get<ApiAiQueryAuditResponse['results']>(project, 'audit', connection, {
-            page: String(page),
-            pageSize: String(pageSize),
-        }),
     upsertPolicy: (
         project: string,
         connection: string | null,
@@ -157,20 +146,6 @@ export const useAiAccessCapabilities = (
 export const useAiAccessPolicy = (project: string, connection: string | null) =>
     useAccessQuery(project, connection, 'policy', () =>
         aiAccessApi.policy(project, connection),
-    );
-export const useAiAccessAudit = (
-    project: string,
-    connection: string | null,
-    page: number,
-    pageSize = 25,
-) =>
-    useAccessQuery(
-        project,
-        connection,
-        'audit',
-        () => aiAccessApi.audit(project, connection, page, pageSize),
-        true,
-        [page, pageSize],
     );
 export const useMyAiAccess = (
     project: string | undefined,

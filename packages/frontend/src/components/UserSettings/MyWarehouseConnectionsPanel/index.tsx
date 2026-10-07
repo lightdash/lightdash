@@ -25,11 +25,14 @@ export const MyWarehouseConnectionsPanel = () => {
     const { data: aiSignInFlag } = useServerFeatureFlag(
         FeatureFlags.SnowflakeAiSignIn,
     );
+    const { data: aiPrincipalsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiPrincipals,
+    );
     const defaultCredentials = credentials?.filter(
         ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
     );
     const showAiSignIn = shouldShowSnowflakeAiSignIn(
-        aiSignInFlag?.enabled === true,
+        aiSignInFlag?.enabled === true || aiPrincipalsFlag?.enabled === true,
         health?.auth.snowflakeAi.enabled === true,
     );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
@@ -60,7 +63,7 @@ export const MyWarehouseConnectionsPanel = () => {
     return (
         <SettingsPage
             title="My warehouse connections"
-            description="Manage the personal credentials used to connect Lightdash to warehouses."
+            description="Manage your personal warehouse credentials."
             actions={
                 <Button
                     size="xs"

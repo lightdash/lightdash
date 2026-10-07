@@ -5,7 +5,6 @@ import {
     type AiPrincipal,
     type AiSetupScript,
     type AiWarehouseCapabilities,
-    type ApiAiQueryAuditResponse,
 } from '@lightdash/common';
 import { randomBytes } from 'node:crypto';
 import { Client } from 'pg';
@@ -13,7 +12,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, type Body } from '../helpers/api-client';
 import { login, loginAsEditor } from '../helpers/auth';
 import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
-import { pollUntil } from '../helpers/polling';
 import {
     createAndRefreshProject,
     deleteProjectsByName,
@@ -22,7 +20,7 @@ import {
 
 /**
  * Exercises Postgres AI principals from group policy and warehouse setup through
- * real MCP queries, warehouse permission enforcement, audit attribution and
+ * real MCP queries, warehouse permission enforcement and
  * secret rotation. No model is called, and all temporary access is removed.
  */
 
@@ -291,31 +289,6 @@ describe.sequential('Postgres AI principals', () => {
         expect(mcpText(result)).toContain(
             'permission denied for table customers',
         );
-    });
-
-    it('audits both queries with the group principal and admin person tag', async () => {
-        const response = await pollUntil<ApiAiQueryAuditResponse>(
-            admin,
-            `${baseUrl}/audit?page=1&pageSize=10`,
-            {
-                condition: ({ results }) =>
-                    results.data.filter((row) => row.principalRef === roleName)
-                        .length >= 2,
-            },
-        );
-        const rows = response.results.data.filter(
-            (row) => row.principalRef === roleName,
-        );
-        expect(rows.length).toBeGreaterThanOrEqual(2);
-        for (const row of rows) {
-            expect(row).toMatchObject({
-                principalRef: roleName,
-                principalKind: 'group',
-                transport: { kind: 'direct' },
-                probeOk: true,
-                personTag: adminUuid,
-            });
-        }
     });
 
     it('refuses a person without a group mapping, in the API and over MCP', async () => {
