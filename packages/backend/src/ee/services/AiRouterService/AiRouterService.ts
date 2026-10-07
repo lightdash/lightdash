@@ -196,6 +196,9 @@ export class AiRouterService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid,
+                // Routing runs before an agent is chosen; the chosen agent's
+                // own pin applies to its answer.
+                credentialUuid: null,
             });
         const { model, keyManagement } = getModel(copilotConfig);
         const decisions = await this.aiAgentService.getDecisionClient({

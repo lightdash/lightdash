@@ -2980,6 +2980,7 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid,
                     projectUuid,
+                    credentialUuid: null,
                 });
             const modelOptions =
                 await this.orgAiCopilotConfigResolver.resolveFastModel(
@@ -3755,6 +3756,7 @@ export class AiAgentService extends BaseService {
             this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
+                credentialUuid: null,
             }),
             this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                 organizationUuid,
@@ -7161,6 +7163,7 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid: prompt.projectUuid,
+                credentialUuid: null,
             });
         const latestCompaction =
             await this.aiAgentModel.findLatestThreadCompaction(threadUuid);
@@ -8505,6 +8508,7 @@ export class AiAgentService extends BaseService {
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid: user.organizationUuid ?? null,
                         projectUuid,
+                        credentialUuid: null,
                     });
                 return getModel(copilotConfig, {
                     enableReasoning: modelConfig?.reasoning,
@@ -8649,6 +8653,7 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid,
+                credentialUuid: null,
             });
         const configuredProviders = Object.keys(
             copilotConfig.providers,
@@ -8755,6 +8760,7 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: user.organizationUuid ?? null,
                     projectUuid: agent.projectUuid,
+                    credentialUuid: null,
                 });
             const modelOptions = {
                 ...(await this.orgAiCopilotConfigResolver.resolveFastModel(
@@ -8827,6 +8833,7 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: user.organizationUuid ?? null,
                 projectUuid: agent.projectUuid,
+                credentialUuid: null,
             });
         const { model } = getModel(copilotConfig, {
             enableReasoning: false,
@@ -9922,6 +9929,8 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: payload.organizationUuid,
                     projectUuid: payload.projectUuid,
+                    // Artifact questions carry no agent context.
+                    credentialUuid: null,
                 });
             const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
@@ -13428,6 +13437,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid: user.organizationUuid ?? null,
                     projectUuid: prompt.projectUuid,
+                    credentialUuid: null,
                 });
             const generated = await generateChartMetadata(
                 {
@@ -15089,6 +15099,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: promptProject.organizationUuid,
                 projectUuid: prompt.projectUuid,
+                credentialUuid: null,
             });
         let modelProperties = getModel(copilotConfig, {
             enableReasoning: prompt.modelConfig?.reasoning,
@@ -18863,6 +18874,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid,
                         projectUuid: null,
+                        // Routing picks a project before any project or agent
+                        // scope exists, so it runs on the org default.
+                        credentialUuid: null,
                     });
                 const { model, keyManagement } = getModel(copilotConfig);
                 const routedProjectUuid = await routeProjectForSlack(
@@ -18986,6 +19000,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: null,
+                // Agent selection runs before an agent exists; once a
+                // channel-bound agent answers, its own pin applies.
+                credentialUuid: null,
             });
         const { model, keyManagement } = getModel(copilotConfig);
 

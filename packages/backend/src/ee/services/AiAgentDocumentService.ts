@@ -144,6 +144,9 @@ export class AiAgentDocumentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
                 projectUuid: args.projectUuid,
+                // Documents are shared across a project's agents, so the
+                // project selection applies rather than any one agent's pin.
+                credentialUuid: null,
             });
         return generateDocumentSummary(
             {
