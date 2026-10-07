@@ -192,11 +192,15 @@ export type TurnDecision = {
     correction: DetectedCorrection | null;
 };
 
+export type FieldKind = 'date' | 'number' | 'boolean' | 'text' | 'metric';
+
 export type FieldCandidate = {
     id: string;
     label: string;
     table: string;
     description: string | null;
+    /** What the field holds; null for catalog hits that did not say. */
+    kind: FieldKind | null;
     isDate: boolean;
     /** Verified charts using this field; a tie-breaker, never a relevance signal. */
     verifiedUsage: number;
@@ -285,6 +289,15 @@ export const CHART_INTENT_THRESHOLDS = {
     clearLead: 0.3,
     verifiedTieMargin: 0.15,
     covers: 0.6,
+    // Dominance rule: a top option below its threshold still counts when it leads the
+    // runner-up by `lead` and sits above `leadFloor`. Scale-free, so a provider that spreads
+    // its tail is read the same as one that peaks; on peaked answers it almost never fires.
+    lead: 0.2,
+    leadFloor: 0.25,
+    // A predicate saying "two things" or "also a filter" only counts when the intent choice agrees:
+    // the extra edit needs at least this share of the top option's mass. Scale-free, so it reads the
+    // same for a provider that peaks at 0.95 and one that peaks at 0.5.
+    extraIntentShare: 0.25,
 } as const;
 
 const INTENTS = {
@@ -407,6 +420,14 @@ const SCALES: Record<string, number> = { k: 1_000, m: 1_000_000 };
 
 /** Amounts stated in the prompt, with decimals, thousands separators and k/m suffixes. */
 export const extractAmountCandidates = (prompt: string): number[] => {
+    // "6 months" is a period, never a threshold; leaving it in asks threshold questions that cannot apply.
+    const periods = new Set(
+        [
+            ...prompt.matchAll(
+                /(\d[\d,]*(?:\.\d+)?)\s*(?:days?|weeks?|months?|quarters?|years?)\b/gi,
+            ),
+        ].map(([, digits]) => Number(digits.replaceAll(',', ''))),
+    );
     const amounts = [
         ...prompt.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?(?![a-zA-Z])/g),
     ].map(
@@ -414,7 +435,13 @@ export const extractAmountCandidates = (prompt: string): number[] => {
             Number(digits.replaceAll(',', '')) *
             (SCALES[suffix?.toLowerCase() ?? ''] ?? 1),
     );
-    return [...new Set(amounts.filter(Number.isFinite))].slice(0, 12);
+    return [
+        ...new Set(
+            amounts.filter(
+                (amount) => Number.isFinite(amount) && !periods.has(amount),
+            ),
+        ),
+    ].slice(0, 12);
 };
 
 const MAX_TEXT_CANDIDATES = 20;
@@ -441,6 +468,20 @@ export const extractTextCandidates = (prompt: string): string[] => {
         .slice(0, MAX_TEXT_CANDIDATES);
 };
 
+const fieldKind = (field: ReturnType<typeof getFields>[number]): FieldKind => {
+    if (!isDimension(field)) return 'metric';
+    switch (getFilterTypeFromItemType(field.type)) {
+        case FilterType.DATE:
+            return 'date';
+        case FilterType.NUMBER:
+            return 'number';
+        case FilterType.BOOLEAN:
+            return 'boolean';
+        default:
+            return 'text';
+    }
+};
+
 const toCandidate = (
     field: ReturnType<typeof getFields>[number],
     explore: Explore,
@@ -453,6 +494,7 @@ const toCandidate = (
     label: getItemLabelWithoutTableName(field),
     table: explore.tables[field.table]?.label ?? field.table,
     description: field.description?.slice(0, 100) ?? null,
+    kind: fieldKind(field),
     isDate:
         isDimension(field) &&
         getFilterTypeFromItemType(field.type) === FilterType.DATE,
@@ -674,9 +716,14 @@ const fieldCriteria = (
     Object.fromEntries(
         fields.map((field) => [
             field.id,
-            withDescriptions && field.description
-                ? `${field.label} (${field.table}): ${field.description}`
-                : `${field.label} (${field.table})`,
+            // The kind is a fact the model cannot infer from a label, so it travels with every option.
+            [
+                `${field.label} (${field.table})`,
+                field.kind ? `, ${field.kind}` : '',
+                withDescriptions && field.description
+                    ? `: ${field.description}`
+                    : '',
+            ].join(''),
         ]),
     );
 
@@ -722,7 +769,7 @@ export const buildChartIntentQuestions = ({
         wantsFilter: {
             type: 'noul',
             instructions:
-                'Does the request ask to restrict the chart to, or exclude, certain values or a time window?',
+                'Does the request ask to keep only some of the rows, by limiting a field to certain values, a numeric range or a date range, or by excluding some? Changing the chart type, grouping, date grain, sort or metrics keeps every row and is not a filter.',
         },
         wantsSort: {
             type: 'noul',
@@ -1148,11 +1195,22 @@ const MAX_EVIDENCE_FIELDS = 3;
 const confident = (
     answer: DecisionAnswers[string] | undefined,
     threshold: number,
-): string | null =>
-    answer?.type === 'choice' &&
-    (answer.probabilities[answer.choice] ?? 0) >= threshold
+    dominance?: Pick<ChartIntentThresholds, 'lead' | 'leadFloor'>,
+): string | null => {
+    if (answer?.type !== 'choice') return null;
+    const top = answer.probabilities[answer.choice] ?? 0;
+    if (top >= threshold) return answer.choice;
+    if (!dominance) return null;
+    const runnerUp = Math.max(
+        0,
+        ...Object.entries(answer.probabilities)
+            .filter(([option]) => option !== answer.choice)
+            .map(([, probability]) => probability),
+    );
+    return top >= dominance.leadFloor && top - runnerUp >= dominance.lead
         ? answer.choice
         : null;
+};
 
 const isChartType = (value: string | null): value is ChartTypeOption =>
     CHART_TYPES.some((type) => type === value);
@@ -1234,7 +1292,7 @@ const statedRowLimit = (
     numbers: number[],
     thresholds: ChartIntentThresholds,
 ): number | null => {
-    const stated = confident(answers.number, thresholds.option);
+    const stated = confident(answers.number, thresholds.option, thresholds);
     return stated && stated !== 'none' && numbers.includes(Number(stated))
         ? Number(stated)
         : null;
@@ -1247,7 +1305,7 @@ const resolveSort = (
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
     const { option, field } = thresholds;
-    const direction = confident(answers.sortDirection, option);
+    const direction = confident(answers.sortDirection, option, thresholds);
     const named = (decisionProbability(answers.sortFieldNamed) ?? 0) >= 0.5;
     const split = named
         ? resolveFieldSplit(
@@ -1258,7 +1316,7 @@ const resolveSort = (
         : ({ type: 'none' } as const);
     let sortField: string | null = null;
     if (split.type === 'pick') sortField = split.fieldId;
-    else if (named) sortField = confident(answers.sortField, field);
+    else if (named) sortField = confident(answers.sortField, field, thresholds);
     const limit = statedRowLimit(answers, numbers, thresholds);
     // With several dimensions a row limit keeps N combinations, not the top N of one of them.
     if (
@@ -1420,7 +1478,7 @@ const pickThresholdField = (
     thresholds: ChartIntentThresholds,
 ): FieldCandidate | null => {
     const answer = answers.thresholdField;
-    const chosen = confident(answer, thresholds.field);
+    const chosen = confident(answer, thresholds.field, thresholds);
     const picked = context.thresholdFields.find(({ id }) => id === chosen);
     if (!picked || answer?.type !== 'choice') return null;
     const pickedIsMetric = isChartMetric(context, picked.id);
@@ -1455,7 +1513,11 @@ const resolveThreshold = (
         reason: 'filter-threshold',
     } as const;
     const field = pickThresholdField(answers, context, thresholds);
-    const comparison = confident(answers.comparison, thresholds.option);
+    const comparison = confident(
+        answers.comparison,
+        thresholds.option,
+        thresholds,
+    );
     const low = pickStated(answers.amountLow, amounts, thresholds.option);
     if (!field || !isNumberComparison(comparison) || low === null)
         return unresolved;
@@ -1495,11 +1557,12 @@ const resolveTextMatch = (
     const textFields = context.filterableFields.filter(({ isDate }) => !isDate);
     const textField = textFields.find(
         ({ id }) =>
-            id === confident(answers.valueFilterField, thresholds.field),
+            id ===
+            confident(answers.valueFilterField, thresholds.field, thresholds),
     );
-    const mode = confident(answers.matchMode, thresholds.option);
+    const mode = confident(answers.matchMode, thresholds.option, thresholds);
     const picked = [answers.matchText, answers.matchTextAlso]
-        .map((answer) => confident(answer, thresholds.option))
+        .map((answer) => confident(answer, thresholds.option, thresholds))
         .filter(
             (text): text is string =>
                 text !== null && context.textCandidates.includes(text),
@@ -1533,15 +1596,19 @@ const resolveFilter = (
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
     const { option, field } = thresholds;
-    const kind = confident(answers.filterKind, option);
+    const kind = confident(answers.filterKind, option, thresholds);
     if (!kind || kind === 'other')
         return { type: 'unresolved', reason: 'filter-kind' };
     if (kind === 'yes_no') {
-        const chosenBoolean = confident(answers.booleanField, field);
+        const chosenBoolean = confident(
+            answers.booleanField,
+            field,
+            thresholds,
+        );
         const booleanField = context.booleanFields.find(
             ({ id }) => id === chosenBoolean,
         );
-        const value = confident(answers.booleanValue, option);
+        const value = confident(answers.booleanValue, option, thresholds);
         return booleanField && (value === 'true' || value === 'false')
             ? {
                   type: 'intent',
@@ -1557,9 +1624,10 @@ const resolveFilter = (
         return resolveTextMatch(answers, context, thresholds);
     if (kind === 'blank') {
         const blankField = context.filterableFields.find(
-            ({ id }) => id === confident(answers.filterField, field),
+            ({ id }) =>
+                id === confident(answers.filterField, field, thresholds),
         );
-        const mode = confident(answers.blankMode, option);
+        const mode = confident(answers.blankMode, option, thresholds);
         return blankField && (mode === 'blank' || mode === 'not_blank')
             ? {
                   type: 'intent',
@@ -1573,7 +1641,7 @@ const resolveFilter = (
     }
     if (kind === 'number_threshold')
         return resolveThreshold(answers, context, thresholds);
-    const chosen = confident(answers.filterField, field);
+    const chosen = confident(answers.filterField, field, thresholds);
     const chosenField = context.filterableFields.find(
         ({ id }) => id === chosen,
     );
@@ -1620,7 +1688,7 @@ const resolveFilter = (
                   }
                 : { type: 'unresolved', reason: 'filter-calendar' };
         }
-        const unit = confident(answers.periodUnit, option);
+        const unit = confident(answers.periodUnit, option, thresholds);
         if (!isPeriodUnit(unit))
             return { type: 'unresolved', reason: 'filter-period' };
         if (kind === 'previous_period')
@@ -1641,7 +1709,7 @@ const resolveFilter = (
                     period: { type: 'current', unit },
                 },
             };
-        const count = confident(answers.number, option);
+        const count = confident(answers.number, option, thresholds);
         if (!count || count === 'none' || !numbers.includes(Number(count)))
             return { type: 'unresolved', reason: 'filter-period-count' };
         return {
@@ -1659,7 +1727,7 @@ const resolveFilter = (
             .map(({ id }) => id),
     );
     const answer = answers.valueFilterField;
-    const confidentId = confident(answer, field);
+    const confidentId = confident(answer, field, thresholds);
     // An uncertain field choice is settled by which field's values the request names.
     const [fieldId, ...alternativeFieldIds] =
         confidentId && valueFieldIds.has(confidentId)
@@ -1721,7 +1789,7 @@ const pickNew = (
     const chosen =
         split.type === 'pick'
             ? split.fieldId
-            : confident(answer, thresholds.field);
+            : confident(answer, thresholds.field, thresholds);
     return fields.find(({ id }) => id === chosen) ?? null;
 };
 
@@ -1811,7 +1879,7 @@ const resolveAddField = (
     const fieldId =
         split.type === 'pick'
             ? split.fieldId
-            : confident(answers.addField, thresholds.field);
+            : confident(answers.addField, thresholds.field, thresholds);
     const field = context.addableFields.find(({ id }) => id === fieldId);
     if (!field) return { type: 'unresolved', reason: 'add-field' };
     const replaces = decisionProbability(answers.replacesField) ?? 0;
@@ -1888,7 +1956,11 @@ const resolveRemoveFilter = (
     const chosen =
         split.type === 'pick'
             ? split.fieldId
-            : confident(answers.removeFilterField, thresholds.field);
+            : confident(
+                  answers.removeFilterField,
+                  thresholds.field,
+                  thresholds,
+              );
     const field = context.filteredFields.find(({ id }) => id === chosen);
     return field
         ? {
@@ -1984,7 +2056,11 @@ const resolveFieldEdit = (
                 : unresolved;
         }
         case 'change_grain': {
-            const chosen = confident(answers.grain, thresholds.option);
+            const chosen = confident(
+                answers.grain,
+                thresholds.option,
+                thresholds,
+            );
             const to = context.grain?.options.find(({ id }) => id === chosen);
             return context.grain && to
                 ? {
@@ -2027,6 +2103,29 @@ const INHERENT: Partial<Record<IntentKey, ComposableIntent[]>> = {
     change_grain: ['add_field', 'filter'],
 };
 
+/** Mass on `kind` relative to the chosen intent; 1 when there is no choice to compare against. */
+const intentShare = (answers: DecisionAnswers, kind: IntentKey): number => {
+    const { intent } = answers;
+    if (intent?.type !== 'choice') return 1;
+    const top = intent.probabilities[intent.choice] ?? 0;
+    return top > 0 ? (intent.probabilities[kind] ?? 0) / top : 1;
+};
+
+/** A second edit the intent choice itself gives real weight to, beyond the primary pick. */
+const hasSecondIntent = (
+    answers: DecisionAnswers,
+    primary: IntentKey,
+    thresholds: ChartIntentThresholds,
+): boolean =>
+    answers.intent?.type !== 'choice' ||
+    (Object.keys(INTENTS) as IntentKey[]).some(
+        (kind) =>
+            kind !== primary &&
+            kind !== 'unclear' &&
+            kind !== 'new_question' &&
+            intentShare(answers, kind) >= thresholds.extraIntentShare,
+    );
+
 /** Edit kinds requested beyond the primary intent; any extra makes the turn compound. */
 const extraEdits = (
     answers: DecisionAnswers,
@@ -2038,7 +2137,8 @@ const extraEdits = (
             kind !== primary &&
             !INHERENT[primary]?.includes(kind) &&
             (decisionProbability(answers[COMPOSABLE[kind]]) ?? 0) >=
-                thresholds.wants,
+                thresholds.wants &&
+            intentShare(answers, kind) >= thresholds.extraIntentShare,
     );
 
 /** Several chart edits in one request, applied in order only when every one resolves. */
@@ -2050,7 +2150,11 @@ const resolveCompound = (
     kinds: Set<ComposableIntent>,
     requireSeveral: boolean,
 ): ChartIntentResolution => {
-    const chartTypeAnswer = confident(answers.chartType, thresholds.option);
+    const chartTypeAnswer = confident(
+        answers.chartType,
+        thresholds.option,
+        thresholds,
+    );
     const chartType = isChartType(chartTypeAnswer) ? chartTypeAnswer : null;
     const addField = kinds.has('add_field');
     const resolutions: ChartIntentResolution[] = [
@@ -2115,7 +2219,7 @@ const resolveFieldChoices = (
     )
         return null;
     const metricAnswer = answers.metricToAdd;
-    const metricId = confident(metricAnswer, thresholds.field);
+    const metricId = confident(metricAnswer, thresholds.field, thresholds);
     const metric = context.metricOptions.find(({ id }) => id === metricId);
     if (metric) {
         const options: ChartChoice[] = [
@@ -2148,7 +2252,7 @@ const resolveFieldChoices = (
         (metricAnswer.probabilities.none ?? 0) < thresholds.field
     )
         return null;
-    const fieldId = confident(answers.addField, thresholds.field);
+    const fieldId = confident(answers.addField, thresholds.field, thresholds);
     const field = context.addableFields.find(({ id }) => id === fieldId);
     if (!field) return null;
     const choices = breakdownChoices(field, context);
@@ -2224,12 +2328,15 @@ export const interpretChartIntent = ({
     const picked = confident(
         answers.intent,
         thresholds.intent,
+        thresholds,
     ) as IntentKey | null;
     // split_series only reuses fields already in the chart; a confident pick of a new field means add_field.
     const namesNewField =
         (decisionProbability(answers.wantsAddField) ?? 0) >= thresholds.wants &&
         context.addableFields.some(
-            ({ id }) => id === confident(answers.addField, thresholds.field),
+            ({ id }) =>
+                id ===
+                confident(answers.addField, thresholds.field, thresholds),
         );
     const intent =
         picked === 'split_series' && namesNewField ? 'add_field' : picked;
@@ -2256,8 +2363,10 @@ export const interpretChartIntent = ({
         statedRowLimit(answers, numbers, thresholds) !== null
             ? requested.filter((kind) => kind !== 'filter')
             : requested;
+    // The "several things" predicate is checked against the intent choice the same way.
     const multiple =
-        (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple;
+        (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple &&
+        hasSecondIntent(answers, intent, thresholds);
     if (extras.length > 0 || multiple) {
         if (!isComposable(intent))
             return { type: 'unresolved', reason: 'multiple' };
@@ -2271,7 +2380,11 @@ export const interpretChartIntent = ({
         );
     }
 
-    const chartType = confident(answers.chartType, thresholds.option);
+    const chartType = confident(
+        answers.chartType,
+        thresholds.option,
+        thresholds,
+    );
     switch (intent) {
         case 'chart_type':
             return isChartType(chartType)
@@ -2326,7 +2439,7 @@ export const interpretChartIntent = ({
     }
 };
 
-const labelFor = (context: ChartIntentContext, fieldId: string) =>
+const candidateFor = (context: ChartIntentContext, fieldId: string) =>
     [
         ...context.currentFields,
         ...context.addableFields,
@@ -2334,7 +2447,16 @@ const labelFor = (context: ChartIntentContext, fieldId: string) =>
         ...context.filteredFields,
         ...context.metricOptions,
         ...(context.grain?.options ?? []),
-    ].find(({ id }) => id === fieldId)?.label ?? fieldId;
+    ].find(({ id }) => id === fieldId);
+
+/** Label with its table, so a plan says which of two same-named fields it means. */
+const qualifiedLabelFor = (context: ChartIntentContext, fieldId: string) => {
+    const field = candidateFor(context, fieldId);
+    return field ? `${field.label} (${field.table})` : fieldId;
+};
+
+const labelFor = (context: ChartIntentContext, fieldId: string) =>
+    candidateFor(context, fieldId)?.label ?? fieldId;
 
 const describePeriod = (period: ChartPeriod): string => {
     switch (period.type) {
@@ -2366,23 +2488,29 @@ const describeStep = (
     step: CompoundStep,
     context: ChartIntentContext,
 ): string => {
-    if (step.type === 'needs_values')
-        return `${step.filter.exclude ? 'Exclude' : 'Keep only'} the ${labelFor(context, step.filter.fieldId)} values the user names`;
+    if (step.type === 'needs_values') {
+        // The values are looked up after this check, so the plan quotes what the request named.
+        const named = context.textCandidates.map((text) =>
+            JSON.stringify(text),
+        );
+        return `${step.filter.exclude ? 'Exclude' : 'Keep only'} ${qualifiedLabelFor(context, step.filter.fieldId)} values named in the request${named.length > 0 ? ` (${named.join(', ')})` : ''}`;
+    }
     const { intent } = step;
     switch (intent.kind) {
         case 'chart_type':
             return `Show the same data as ${CHART_TYPE_NAMES[intent.chartType]}`;
         case 'series':
             return {
-                stack: 'Stack the existing bar series',
-                unstack: 'Unstack the existing bar series',
-                swap: 'Swap the bar chart between vertical and horizontal',
+                stack: 'Stack the existing series on top of each other, one segment per series',
+                unstack:
+                    'Show the existing series side by side instead of stacked',
+                swap: 'Swap the chart between vertical and horizontal',
                 split: 'Show one series per dimension already in the chart',
             }[intent.op];
         case 'add_field':
             return `Break the chart down by ${labelFor(context, intent.fieldId)}, with one series per ${labelFor(context, intent.fieldId)} value${intent.chartType ? `, shown as ${CHART_TYPE_NAMES[intent.chartType]}` : ''}`;
         case 'filter_values':
-            return `${intent.exclude ? 'Exclude' : 'Keep only'} ${labelFor(context, intent.fieldId)} values ${intent.values.join(', ')}`;
+            return `${intent.exclude ? 'Exclude' : 'Keep only'} ${qualifiedLabelFor(context, intent.fieldId)} values ${intent.values.join(', ')}`;
         case 'filter_period':
             return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
         case 'remove_filter':
@@ -2394,7 +2522,7 @@ const describeStep = (
         case 'filter_blank':
             return `${intent.blank ? 'Keep only' : 'Remove'} rows where ${labelFor(context, intent.fieldId)} is empty`;
         case 'filter_number':
-            return `Keep only ${labelFor(context, intent.fieldId)} ${
+            return `Keep only ${qualifiedLabelFor(context, intent.fieldId)} ${
                 {
                     gt: 'greater than',
                     gte: 'at least',
@@ -2535,32 +2663,37 @@ export const decideTurn = async ({
     instructions,
     conversation,
     context,
+    thresholds = CHART_INTENT_THRESHOLDS,
 }: {
     decisions: Pick<AiDecisionClient, 'evaluate'>;
     prompt: string;
     instructions: string | null;
     conversation: unknown[];
     context: ChartIntentContext | null;
+    thresholds?: ChartIntentThresholds;
 }): Promise<{ decision: TurnDecision; answers: DecisionAnswers | null }> => {
+    const state = context
+        ? {
+              prompt,
+              instructions,
+              conversation,
+              chart: describeChart(context, { filterDetails: true }),
+          }
+        : { prompt, instructions };
+    const allQuestions: Record<string, DecisionQuestion> = {
+        ...(context
+            ? buildChartIntentQuestions({ prompt, context })
+            : { simple: SIMPLE_DATA_ANSWER_QUESTION }),
+        ...INSTANT_REPLY_QUESTIONS,
+        ...CORRECTION_QUESTION,
+    };
+    // One batched request: provider latency is per request, not per question.
     const answers = await decisions.evaluate({
         operation: context ? 'chart-intent' : 'model-routing',
         // A timeout here costs a full agent run, so the batched request gets more room.
         timeoutMs: context ? CHART_INTENT_TIMEOUT_MS : undefined,
-        state: context
-            ? {
-                  prompt,
-                  instructions,
-                  conversation,
-                  chart: describeChart(context, { filterDetails: true }),
-              }
-            : { prompt, instructions },
-        questions: {
-            ...(context
-                ? buildChartIntentQuestions({ prompt, context })
-                : { simple: SIMPLE_DATA_ANSWER_QUESTION }),
-            ...INSTANT_REPLY_QUESTIONS,
-            ...CORRECTION_QUESTION,
-        },
+        state,
+        questions: allQuestions,
     });
     if (!answers)
         return {
@@ -2575,7 +2708,7 @@ export const decideTurn = async ({
             answers: null,
         };
     const interpreted = context
-        ? interpretChartIntent({ answers, prompt, context })
+        ? interpretChartIntent({ answers, prompt, context, thresholds })
         : null;
     const chart =
         context && interpreted && isChartEditAttempt(interpreted)
