@@ -74,6 +74,33 @@ describe('getAnthropicModel', () => {
     });
 });
 
+describe('getAnthropicModel context management', () => {
+    const config = {
+        apiKey: 'anthropic-key',
+        modelName: preset.name,
+        availableModels: [],
+        customHeaders: {},
+        supportsStreaming: true,
+        supportsContextManagement: true,
+    };
+
+    test('keeps loaded skills and the recent working set when clearing tool results', () => {
+        const model = getAnthropicModel(config, preset);
+        expect(model.providerOptions?.anthropic).toMatchObject({
+            contextManagement: {
+                edits: [
+                    {
+                        type: 'clear_tool_uses_20250919',
+                        trigger: { type: 'input_tokens', value: 120_000 },
+                        keep: { type: 'tool_uses', value: 10 },
+                        excludeTools: ['loadSkill'],
+                    },
+                ],
+            },
+        });
+    });
+});
+
 describe('getAnthropicModel reasoning effort', () => {
     const config = {
         apiKey: 'anthropic-key',

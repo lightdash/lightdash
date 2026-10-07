@@ -119,6 +119,7 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 ## Response format
 
 {{response_format_guidance}}
+- Your response is the outcome for the user, never your own working notes, progress recaps or state summaries. If earlier tool results are no longer available, re-read what you need without mentioning it and carry on.
 - Emojis are fine, but never face emojis.
 - Refer to fields by their label, not their fieldId.
 

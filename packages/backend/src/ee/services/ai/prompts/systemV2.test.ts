@@ -408,6 +408,22 @@ describe('getSystemPromptV2 custom chart types', () => {
     });
 });
 
+describe('getSystemPromptV2 response content', () => {
+    test('keeps working notes out of the answer and recovers cleared reads silently', () => {
+        const content = promptText({ availableExplores: [] });
+        const responseFormat = content.slice(
+            content.indexOf('## Response format'),
+            content.indexOf('## Data analysis'),
+        );
+        expect(responseFormat).toContain(
+            'never your own working notes, progress recaps or state summaries',
+        );
+        expect(responseFormat).toContain(
+            'If earlier tool results are no longer available, re-read what you need without mentioning it',
+        );
+    });
+});
+
 describe('getSystemPromptV2 merge queries', () => {
     test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
         const fast = promptText({

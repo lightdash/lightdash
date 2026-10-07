@@ -1,4 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
+import type { ToolName } from '@lightdash/common';
 import { getAnthropicApiBaseUrl } from '../../../../config/aiGatewayConfig';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
@@ -11,6 +12,11 @@ import {
 import { AiModel } from './types';
 
 const PROVIDER = 'anthropic';
+
+// Skills are instructions the agent follows until the end of the run, not data.
+const TOOL_RESULTS_EXEMPT_FROM_CLEARING: ToolName[] = ['loadSkill'];
+// Enough to keep a content read plus the charts inspected just before an edit.
+const TOOL_RESULTS_KEPT_AFTER_CLEARING = 10;
 
 export const getAnthropicModel = (
     config: NonNullable<
@@ -73,11 +79,15 @@ export const getAnthropicModel = (
                                     type: 'input_tokens',
                                     value: 120_000,
                                 },
-                                keep: { type: 'tool_uses', value: 3 },
+                                keep: {
+                                    type: 'tool_uses',
+                                    value: TOOL_RESULTS_KEPT_AFTER_CLEARING,
+                                },
                                 clearAtLeast: {
                                     type: 'input_tokens',
                                     value: 5_000,
                                 },
+                                excludeTools: TOOL_RESULTS_EXEMPT_FROM_CLEARING,
                             },
                         ],
                     },
