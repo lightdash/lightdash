@@ -124,6 +124,12 @@ export enum FeatureFlags {
     EnableDataAppAnalysis = 'enable-data-app-analysis',
 
     /**
+     * Per-organization gate for automatic (obscured) data app thumbnail
+     * capture and its settings card. Disabled by default.
+     */
+    EnableDataAppAutomaticThumbnails = 'enable-data-app-automatic-thumbnails',
+
+    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',

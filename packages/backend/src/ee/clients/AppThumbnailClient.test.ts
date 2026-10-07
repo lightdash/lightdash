@@ -9,6 +9,7 @@ import {
 import {
     buildAppThumbnailClientMock,
     createInMemoryAppThumbnailStorage,
+    featureFlagModelWith,
     organizationSettingsModelWith,
 } from './AppThumbnailClient.mock';
 
@@ -116,6 +117,7 @@ const buildScenario = ({
     const state = {
         // The organization's stored choice; null when it never changed it.
         automaticCaptureEnabled: null as boolean | null,
+        featureFlagEnabled: true,
         renderFails: false,
         // Runs while the headless render is in flight.
         duringRender: async () => {},
@@ -148,6 +150,7 @@ const buildScenario = ({
         organizationSettingsModel: organizationSettingsModelWith(
             () => state.automaticCaptureEnabled,
         ),
+        featureFlagModel: featureFlagModelWith(() => state.featureFlagEnabled),
     });
 
     if (legacyImage) {
@@ -383,6 +386,80 @@ describe('AppThumbnailClient', () => {
             expect(await s.versionThumbnail(1)).toBeNull();
             expect(await s.versionThumbnail(2)).toBe(
                 `render of app-1 v2 as ${CREATOR_UUID}`,
+            );
+        });
+    });
+
+    describe('with the automatic thumbnails feature flag off for the organization', () => {
+        it('captures nothing when a version becomes ready', async () => {
+            const s = buildScenario();
+            s.state.featureFlagEnabled = false;
+            s.state.automaticCaptureEnabled = true;
+
+            await s.becomeReady({ version: 1 });
+
+            expect(await s.versionThumbnail(1)).toBeNull();
+        });
+
+        it('skips a capture that was already enqueued', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.state.featureFlagEnabled = false;
+
+            const outcome = await s.thumbnails.captureVersion({
+                appUuid: APP_UUID,
+                version: 1,
+            });
+
+            expect(outcome).toEqual({
+                status: 'skipped',
+                reason: 'feature_flag_off',
+            });
+            expect(await s.versionThumbnail(1)).toBeNull();
+        });
+
+        it('is off only for the organization without the flag', async () => {
+            const client = buildAppThumbnailClientMock({
+                headlessBrowserConfigured: true,
+                featureFlagModel: featureFlagModelWith(
+                    (organizationUuid) => organizationUuid === 'org-2',
+                ),
+            });
+            const capturesFor = (organizationUuid: string) =>
+                client.shouldCaptureAutomatically({
+                    organizationUuid,
+                    isCustomChartType: false,
+                });
+
+            expect(await capturesFor('org-1')).toBe(false);
+            expect(await capturesFor('org-2')).toBe(true);
+        });
+
+        it('still saves a manual capture', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.state.featureFlagEnabled = false;
+
+            await s.thumbnails.setManualThumbnail({
+                ...APP,
+                version: 1,
+                image: image('hand-picked state'),
+            });
+
+            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
+        });
+
+        it('stores exactly the rendered image once the flag is on', async () => {
+            const s = buildScenario();
+            s.state.featureFlagEnabled = true;
+            s.state.automaticCaptureEnabled = true;
+
+            await s.becomeReady({ version: 1, createdByUserUuid: 'ada' });
+
+            expect(await s.versionThumbnail(1)).toBe(
+                'render of app-1 v1 as ada',
             );
         });
     });

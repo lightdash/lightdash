@@ -2,7 +2,10 @@ import {
     type AppCaptureThumbnailJobPayload,
     type AppGeneratePipelineJobPayload,
 } from '@lightdash/common';
-import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
+import {
+    buildAppThumbnailClientMock,
+    featureFlagModelWith,
+} from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -33,7 +36,9 @@ function buildService({
     headlessBrowserConfigured = true,
     cancelledBeforeReady = false,
     queueIsDown = false,
+    automaticThumbnailsFlagOn = true,
 }: {
+    automaticThumbnailsFlagOn?: boolean;
     headlessBrowserConfigured?: boolean;
     cancelledBeforeReady?: boolean;
     queueIsDown?: boolean;
@@ -138,6 +143,9 @@ function buildService({
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock({
             headlessBrowserConfigured,
+            featureFlagModel: featureFlagModelWith(
+                () => automaticThumbnailsFlagOn,
+            ),
         }),
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
@@ -236,6 +244,17 @@ describe('AppGenerateService thumbnail capture after a build', () => {
     it('queues nothing when no headless browser is configured', async () => {
         const { runStages, statuses, queuedCaptures } = buildService({
             headlessBrowserConfigured: false,
+        });
+
+        await runStages();
+
+        expect(statuses.at(-1)).toBe('ready');
+        expect(queuedCaptures).toEqual([]);
+    });
+
+    it('queues nothing when the automatic thumbnails flag is off for the organization', async () => {
+        const { runStages, statuses, queuedCaptures } = buildService({
+            automaticThumbnailsFlagOn: false,
         });
 
         await runStages();
