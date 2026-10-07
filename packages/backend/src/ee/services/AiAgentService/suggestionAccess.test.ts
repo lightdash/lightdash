@@ -1,8 +1,12 @@
-import type { AgentSuggestion } from '@lightdash/common';
+import type { AgentSuggestion, AiAgentMessage } from '@lightdash/common';
 import {
     canGeneratePostResponseSuggestions,
+    DOCUMENT_SUGGESTION_CHIP,
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
+    shouldSuggestDocument,
+    withDocumentSuggestion,
+    withoutDocumentOffer,
 } from './suggestionAccess';
 
 describe('canGeneratePostResponseSuggestions', () => {
@@ -109,5 +113,97 @@ describe('filterSuggestionsByEnabledTools', () => {
         expect(
             filterSuggestionsByEnabledTools([navigateChip], ['findContent']),
         ).toEqual([navigateChip]);
+    });
+});
+
+describe('Document suggestion chip', () => {
+    const reply = ({
+        artifacts = 0,
+        savedDocument = false,
+    }: {
+        artifacts?: number;
+        savedDocument?: boolean;
+    }) =>
+        ({
+            role: 'assistant',
+            artifacts: Array.from({ length: artifacts }, (_, index) => ({
+                artifactUuid: `artifact-${index}`,
+                artifactType: 'chart',
+            })),
+            toolCalls: savedDocument
+                ? [
+                      {
+                          toolName: 'createContent',
+                          toolArgs: { type: 'document' },
+                      },
+                  ]
+                : [],
+        }) as unknown as AiAgentMessage;
+
+    it('suggests a Document once the thread has two or more artifacts', () => {
+        expect(shouldSuggestDocument([reply({ artifacts: 1 })])).toBe(false);
+        expect(
+            shouldSuggestDocument([
+                reply({ artifacts: 1 }),
+                reply({ artifacts: 1 }),
+            ]),
+        ).toBe(true);
+    });
+
+    it('stops suggesting once the thread saved a Document', () => {
+        expect(
+            shouldSuggestDocument([
+                reply({ artifacts: 2 }),
+                reply({ savedDocument: true }),
+            ]),
+        ).toBe(false);
+    });
+
+    it('puts the Document chip first and keeps at most five chips', () => {
+        const chips = Array.from(
+            { length: 5 },
+            (_, index): AgentSuggestion => ({
+                ...DOCUMENT_SUGGESTION_CHIP,
+                label: `Chip ${index}`,
+                tool: 'generateVisualization',
+            }),
+        );
+
+        const withDocument = withDocumentSuggestion(chips);
+
+        expect(withDocument).toHaveLength(5);
+        expect(withDocument[0]).toEqual(DOCUMENT_SUGGESTION_CHIP);
+        expect(withDocument[0]).toMatchObject({ tool: 'createContent' });
+    });
+
+    it('drops generated chips that duplicate the Document offer', () => {
+        const duplicate: AgentSuggestion = {
+            ...DOCUMENT_SUGGESTION_CHIP,
+            label: 'Save this chart as a document',
+            tool: 'generateVisualization',
+        };
+        const followUp: AgentSuggestion = {
+            ...DOCUMENT_SUGGESTION_CHIP,
+            label: 'Compare 2024 vs 2025 monthly revenue',
+            tool: 'generateVisualization',
+        };
+
+        expect(withDocumentSuggestion([duplicate, followUp])).toEqual([
+            DOCUMENT_SUGGESTION_CHIP,
+            followUp,
+        ]);
+    });
+});
+
+describe('withoutDocumentOffer', () => {
+    it('drops the Document offer so the reply is not read as a question', () => {
+        expect(
+            withoutDocumentOffer(
+                'Credit card leads.\nWant me to save this as a Document you can share?',
+            ),
+        ).toBe('Credit card leads.');
+        expect(withoutDocumentOffer('Which region do you mean?')).toBe(
+            'Which region do you mean?',
+        );
     });
 });

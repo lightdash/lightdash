@@ -46,7 +46,13 @@ export const AGENT_SUGGESTION_TOOLS = [
     'findContent',
 ] as const;
 
-export type AgentSuggestionTool = (typeof AGENT_SUGGESTION_TOOLS)[number];
+// 'createContent' is added by the server to offer saving the thread as a Document; the suggestion model never emits it.
+export type AgentSuggestionTool =
+    | (typeof AGENT_SUGGESTION_TOOLS)[number]
+    | 'createContent';
+
+export const DOCUMENT_SUGGESTION_TOOL =
+    'createContent' satisfies AgentSuggestionTool;
 
 export type AgentSuggestionPromptChip = {
     kind: 'prompt';

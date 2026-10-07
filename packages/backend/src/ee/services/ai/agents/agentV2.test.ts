@@ -44,6 +44,7 @@ import {
     getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getDocumentNudgeOutcome,
     getDocumentWriteFastResponse,
     getFastDataAnswerPreparedContext,
     getPromptMcpServers,
@@ -3355,5 +3356,81 @@ describe('shouldOfferDocument', () => {
                 { role: 'user', content: 'And by region?' },
             ]),
         ).toBe(false);
+    });
+});
+
+describe('getDocumentNudgeOutcome', () => {
+    const offer = 'Want me to save this as a Document you can share?';
+    const nudgedArgs = (messageHistory: ModelMessage[]) => {
+        const args = buildAgentArgs();
+        args.enableDataAccess = true;
+        args.enableContentTools = true;
+        args.enableDocuments = true;
+        args.messageHistory = messageHistory;
+        return args;
+    };
+    const documentSave = (output: unknown) => [
+        {
+            toolCalls: [
+                {
+                    toolCallId: 'document-1',
+                    toolName: 'createContent',
+                    input: { type: 'document' },
+                },
+            ],
+            toolResults: [
+                { toolCallId: 'document-1', toolName: 'createContent', output },
+            ],
+        },
+    ];
+    const offeredHistory: ModelMessage[] = [
+        { role: 'user', content: 'Break it down by status' },
+        { role: 'assistant', content: `Here it is.\n\n${offer}` },
+        { role: 'user', content: 'Yes please' },
+    ];
+
+    it('reports the offer when the reply ends with it', () => {
+        expect(
+            getDocumentNudgeOutcome(
+                nudgedArgs([{ role: 'user', content: 'Break it down' }]),
+                [],
+                `Done.\n\n${offer}`,
+            ),
+        ).toEqual({
+            documentNudgesEnabled: true,
+            documentOfferShown: true,
+            documentOfferAccepted: false,
+        });
+    });
+
+    it('reports acceptance when this turn saves a Document after the offer', () => {
+        expect(
+            getDocumentNudgeOutcome(
+                nudgedArgs(offeredHistory),
+                documentSave({ metadata: { status: 'success' } }),
+                'Saved.',
+            ).documentOfferAccepted,
+        ).toBe(true);
+        expect(
+            getDocumentNudgeOutcome(nudgedArgs(offeredHistory), [], 'Okay.')
+                .documentOfferAccepted,
+        ).toBe(false);
+    });
+
+    it('reports nothing when Documents are off', () => {
+        const args = nudgedArgs(offeredHistory);
+        args.enableDocuments = false;
+
+        expect(
+            getDocumentNudgeOutcome(
+                args,
+                documentSave({ metadata: { status: 'success' } }),
+                offer,
+            ),
+        ).toEqual({
+            documentNudgesEnabled: false,
+            documentOfferShown: false,
+            documentOfferAccepted: false,
+        });
     });
 });

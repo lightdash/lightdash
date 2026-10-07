@@ -558,6 +558,66 @@ export const shouldOfferDocument = (
     return hasChart;
 };
 
+const previousReplyOfferedDocument = (
+    messageHistory: ModelMessage[],
+): boolean => {
+    const latestUserIndex = messageHistory.findLastIndex(
+        (message) => message.role === 'user',
+    );
+    for (let index = latestUserIndex - 1; index >= 0; index -= 1) {
+        const message = messageHistory[index];
+        if (message.role === 'user') return false;
+        if (message.role === 'assistant') {
+            const text =
+                typeof message.content === 'string'
+                    ? message.content
+                    : message.content
+                          .map((part) =>
+                              part.type === 'text' ? part.text : '',
+                          )
+                          .join('');
+            if (text.includes(DOCUMENT_OFFER_LINE)) return true;
+        }
+    }
+    return false;
+};
+
+const savedDocument = (steps: ReadonlyArray<FastChartStep>): boolean => {
+    const documentCallIds = new Set(
+        steps
+            .flatMap((step) => step.toolCalls)
+            .filter(
+                ({ toolName, input }) =>
+                    DOCUMENT_SAVE_TOOLS.has(toolName) && isDocumentInput(input),
+            )
+            .map(({ toolCallId }) => toolCallId),
+    );
+    return steps
+        .flatMap((step) => step.toolResults)
+        .some(
+            ({ toolCallId, output }) =>
+                documentCallIds.has(toolCallId) && !isErrorToolResult(output),
+        );
+};
+
+/** Document nudge analytics for one turn: whether nudges applied, the offer was shown, or an earlier offer was taken up. */
+export const getDocumentNudgeOutcome = (
+    args: AiAgentArgs,
+    steps: ReadonlyArray<FastChartStep>,
+    response: string,
+) => {
+    const documentNudgesEnabled = areDocumentNudgesEnabled(args);
+    return {
+        documentNudgesEnabled,
+        documentOfferShown:
+            documentNudgesEnabled && response.includes(DOCUMENT_OFFER_LINE),
+        documentOfferAccepted:
+            documentNudgesEnabled &&
+            previousReplyOfferedDocument(args.messageHistory) &&
+            savedDocument(steps),
+    };
+};
+
 const withDocumentOfferHint = (
     messageHistory: ModelMessage[],
 ): ModelMessage[] => {
@@ -3785,6 +3845,11 @@ export const streamAgentResponse = async ({
                         surface:
                             args.slackChannelId === null ? 'web_app' : 'slack',
                         executionMode: args.execution.mode,
+                        ...getDocumentNudgeOutcome(
+                            args,
+                            steps,
+                            completeResponse,
+                        ),
                     },
                 });
                 logger(

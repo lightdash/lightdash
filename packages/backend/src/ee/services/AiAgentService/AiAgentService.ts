@@ -590,6 +590,9 @@ import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
+    shouldSuggestDocument,
+    withDocumentSuggestion,
+    withoutDocumentOffer,
 } from './suggestionAccess';
 import {
     buildChartSuggestionContext,
@@ -3022,6 +3025,24 @@ export class AiAgentService extends BaseService {
             });
         }
 
+        // Chips answer the agent's question when it asked one, so no Document offer then.
+        const documentChipShown =
+            threadMessages !== undefined &&
+            threadContext !== null &&
+            !threadContext.latestAssistantTurn.askedClarifyingQuestion &&
+            agent.enableDataAccess &&
+            canManageContent &&
+            shouldSuggestDocument(threadMessages) &&
+            (
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.Documents,
+                })
+            ).enabled;
+        if (documentChipShown) {
+            chips = withDocumentSuggestion(chips);
+        }
+
         this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
             event: 'ai_agent.suggestions_generated',
             userId: user.userUuid,
@@ -3035,6 +3056,7 @@ export class AiAgentService extends BaseService {
                 latencyMs: Date.now() - startedAt,
                 modelId,
                 usingFallback,
+                documentChipShown,
             },
         });
 
@@ -3159,10 +3181,9 @@ export class AiAgentService extends BaseService {
 
         if (!latestAssistant) return null;
 
-        const latestAssistantText = (latestAssistant.message ?? '').slice(
-            0,
-            1600,
-        );
+        const latestAssistantText = withoutDocumentOffer(
+            latestAssistant.message ?? '',
+        ).slice(0, 1600);
         const askedClarifyingQuestion =
             detectClarifyingQuestion(latestAssistantText);
         const refused = detectRefusal(latestAssistantText);
