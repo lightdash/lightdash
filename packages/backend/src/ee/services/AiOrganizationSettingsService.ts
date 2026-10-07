@@ -760,16 +760,14 @@ export class AiOrganizationSettingsService extends BaseService {
                     'AI copilot is not enabled for this organization',
                 );
             }
-        }
-
-        if (aiSettingsUpdate.providerApiKeys?.providerBaseUrls !== undefined) {
-            const { enabled } = await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.OrgAiProviderBaseUrls,
-            });
-            if (!enabled) {
+            const { enabled: customProvidersEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.OrgAiCustomProviders,
+                });
+            if (!customProvidersEnabled) {
                 throw new ForbiddenError(
-                    'Custom AI provider base URLs are not enabled for this organization',
+                    'Custom AI providers are not enabled for this organization',
                 );
             }
         }

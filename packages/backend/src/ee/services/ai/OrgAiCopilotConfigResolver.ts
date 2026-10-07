@@ -326,23 +326,21 @@ export class OrgAiCopilotConfigResolver {
                       ...(legacyKeys ?? {}),
                       bedrock: resolution.credential.config,
                   };
-        return this.withBaseUrlsIfEnabled(organizationUuid, keys);
+        return this.withCustomProvidersIfEnabled(organizationUuid, keys);
     }
 
-    // Stored base URLs only take effect while the org flag is on, so the
-    // feature ships dark and can be enabled per organization from Console.
-    private async withBaseUrlsIfEnabled(
+    // Stored org provider config (keys, base URLs) only takes effect while
+    // the org flag is on, so it can be enabled per organization from Console.
+    private async withCustomProvidersIfEnabled(
         organizationUuid: string,
         keys: AiOrgProviderApiKeys | null,
     ): Promise<AiOrgProviderApiKeys | null> {
-        if (!keys?.providerBaseUrls) return keys;
+        if (!keys) return null;
         const { enabled } = await this.featureFlagModel.get({
             user: { organizationUuid },
-            featureFlagId: FeatureFlags.OrgAiProviderBaseUrls,
+            featureFlagId: FeatureFlags.OrgAiCustomProviders,
         });
-        if (enabled) return keys;
-        const { providerBaseUrls: _, ...withoutBaseUrls } = keys;
-        return withoutBaseUrls;
+        return enabled ? keys : null;
     }
 
     async getCopilotConfig({

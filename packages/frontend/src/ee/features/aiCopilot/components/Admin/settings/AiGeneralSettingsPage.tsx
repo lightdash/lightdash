@@ -68,8 +68,8 @@ export const AiGeneralSettingsPage = () => {
     const dataAppAnalysisFlag = useServerFeatureFlag(
         FeatureFlags.EnableDataAppAnalysis,
     );
-    const providerBaseUrlsFlag = useServerFeatureFlag(
-        FeatureFlags.OrgAiProviderBaseUrls,
+    const customProvidersFlag = useServerFeatureFlag(
+        FeatureFlags.OrgAiCustomProviders,
     );
     const threadRetentionFlag = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
@@ -325,52 +325,53 @@ export const AiGeneralSettingsPage = () => {
                         </SettingsCard>
                     </Section>
 
-                    {settings.isCopilotEnabled && (
-                        <Section
-                            label="Providers & keys"
-                            description="Your own keys take precedence over the instance keys."
-                        >
-                            <AiProvidersCard
-                                providerApiKeysSet={settings.providerApiKeysSet}
-                                providerApiKeyHints={
-                                    settings.providerApiKeyHints
-                                }
-                                modelVisibility={
-                                    settings.modelVisibility ?? null
-                                }
-                                configurableModelOptions={
-                                    settings.configurableModelOptions ?? null
-                                }
-                                dataAppModelVisibility={
-                                    settings.dataAppModelVisibility ?? null
-                                }
-                                showDataAppModels={
-                                    dataAppsFlag.data?.enabled === true
-                                }
-                                bedrockModelOptions={
-                                    settings.bedrockModelOptions ?? []
-                                }
-                                providerBaseUrls={settings.providerBaseUrls}
-                                showProviderBaseUrls={
-                                    providerBaseUrlsFlag.data?.enabled === true
-                                }
-                                disabled={isUpdatingSettings}
-                                onUpdateKeys={(providerApiKeys) =>
-                                    updateSettings({ providerApiKeys })
-                                }
-                                onUpdateVisibility={(modelVisibility) =>
-                                    updateSettings({ modelVisibility })
-                                }
-                                onUpdateDataAppVisibility={(
-                                    dataAppModelVisibility,
-                                ) =>
-                                    updateSettings({
+                    {settings.isCopilotEnabled &&
+                        customProvidersFlag.data?.enabled === true && (
+                            <Section
+                                label="Providers & keys"
+                                description="Your own keys take precedence over the instance keys."
+                            >
+                                <AiProvidersCard
+                                    providerApiKeysSet={
+                                        settings.providerApiKeysSet
+                                    }
+                                    providerApiKeyHints={
+                                        settings.providerApiKeyHints
+                                    }
+                                    modelVisibility={
+                                        settings.modelVisibility ?? null
+                                    }
+                                    configurableModelOptions={
+                                        settings.configurableModelOptions ??
+                                        null
+                                    }
+                                    dataAppModelVisibility={
+                                        settings.dataAppModelVisibility ?? null
+                                    }
+                                    showDataAppModels={
+                                        dataAppsFlag.data?.enabled === true
+                                    }
+                                    bedrockModelOptions={
+                                        settings.bedrockModelOptions ?? []
+                                    }
+                                    providerBaseUrls={settings.providerBaseUrls}
+                                    disabled={isUpdatingSettings}
+                                    onUpdateKeys={(providerApiKeys) =>
+                                        updateSettings({ providerApiKeys })
+                                    }
+                                    onUpdateVisibility={(modelVisibility) =>
+                                        updateSettings({ modelVisibility })
+                                    }
+                                    onUpdateDataAppVisibility={(
                                         dataAppModelVisibility,
-                                    })
-                                }
-                            />
-                        </Section>
-                    )}
+                                    ) =>
+                                        updateSettings({
+                                            dataAppModelVisibility,
+                                        })
+                                    }
+                                />
+                            </Section>
+                        )}
 
                     <Section label="Quality & review">
                         <SettingsCard>

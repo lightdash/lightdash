@@ -391,7 +391,7 @@ const resolutionFor = (
 
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
-        baseUrlsEnabled?: boolean;
+        customProvidersEnabled?: boolean;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -413,14 +413,16 @@ describe('OrgAiCopilotConfigResolver', () => {
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
-        baseUrlsEnabled = true,
+        customProvidersEnabled = true,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
                 ai: { copilot: instanceConfig },
             } as LightdashConfig,
             featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: baseUrlsEnabled }),
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ enabled: customProvidersEnabled }),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
@@ -469,7 +471,7 @@ describe('OrgAiCopilotConfigResolver', () => {
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
     });
 
-    it('ignores a stored base URL while the org flag is off', async () => {
+    it('ignores stored org provider config while the org flag is off', async () => {
         const orgKeys = {
             openai: 'org-openai-key',
             providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
@@ -482,17 +484,20 @@ describe('OrgAiCopilotConfigResolver', () => {
             'https://litellm.example.com/v1',
         );
 
+        // Off: every piece of org provider config is ignored, keys included,
+        // so the org resolves to the instance providers.
         const off = await makeResolver({
             orgKeys,
-            baseUrlsEnabled: false,
+            customProvidersEnabled: false,
         }).getCopilotConfig({
             organizationUuid: 'org-uuid',
             projectUuid: null,
         });
-        expect(off.providers.openai?.apiKey).toBe('org-openai-key');
+        expect(off.providers.openai?.apiKey).toBe('instance-openai-key');
         expect(off.providers.openai?.baseUrl).toBe(
             baseConfig.providers.openai?.baseUrl,
         );
+        expect(off.byoProviders).toEqual([]);
     });
 
     describe('named provider credentials', () => {
