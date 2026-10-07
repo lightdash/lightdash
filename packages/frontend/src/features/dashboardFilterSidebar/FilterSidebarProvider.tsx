@@ -123,18 +123,27 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         setListedFieldIds([]);
     }, []);
 
+    // Opening another filter keeps the current edits (they only live in the
+    // dashboard draft until Save) and starts a fresh snapshot for the new one.
     const open = useCallback(
         (filterId: string) => {
-            setState((current) =>
-                current !== null
-                    ? current
-                    : {
-                          filterId,
-                          isNew: false,
-                          snapshot: { dashboardFilters, haveFiltersChanged },
-                          sessionSnapshot: sessionSettings,
-                      },
-            );
+            setState((current) => {
+                if (current !== null && current.filterId === filterId) {
+                    return current;
+                }
+                if (current !== null && current.isNew) return current;
+                return {
+                    filterId,
+                    isNew: false,
+                    snapshot: { dashboardFilters, haveFiltersChanged },
+                    sessionSnapshot: sessionSettings,
+                };
+            });
+            setEmptyDraft(null);
+            setWaitingField(null);
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
+            setListedFieldIds([]);
         },
         [dashboardFilters, haveFiltersChanged, sessionSettings],
     );

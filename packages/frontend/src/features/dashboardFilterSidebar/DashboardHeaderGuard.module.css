@@ -1,3 +1,8 @@
-.guard[inert] {
+/* display: contents keeps the header's own sticky positioning intact */
+.guard {
+    display: contents;
+}
+
+.guard[inert] > * {
     opacity: 0.6;
 }

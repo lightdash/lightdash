@@ -71,7 +71,7 @@ describe('FilterSidebarProvider', () => {
         latest.changed = false;
     });
 
-    it('opens on a filter and ignores a second open while editing', () => {
+    it('opens on a filter and a second open moves to that filter, keeping edits', () => {
         const { result } = renderHook(() => useFilterSidebar(), {
             wrapper: Wrapper,
         });
@@ -82,8 +82,17 @@ describe('FilterSidebarProvider', () => {
         expect(result.current.originalFilterRule).toEqual(rule('a', ['1']));
         expect(result.current.isDirty).toBe(false);
 
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                label: 'Edited',
+            }),
+        );
         act(() => result.current.open('b'));
-        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.editing).toEqual({ filterId: 'b' });
+        expect(result.current.isDirty).toBe(false);
+        act(() => result.current.cancel());
+        expect(result.current.editing).toBeNull();
     });
 
     it('previews edits in the dashboard context and restores them on cancel', () => {
