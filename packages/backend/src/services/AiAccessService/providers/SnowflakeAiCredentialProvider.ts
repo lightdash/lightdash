@@ -149,7 +149,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             session = await checkSnowflakeAgentSessionWithToken(
                 credentials.account,
                 credentials.token,
-                { throwOnError: true },
+                { throwOnError: true, accessUrl: credentials.accessUrl },
             );
         } catch (error) {
             const detail =

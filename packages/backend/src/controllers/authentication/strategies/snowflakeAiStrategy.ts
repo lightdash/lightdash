@@ -78,7 +78,10 @@ export const snowflakeAiPassportStrategy = !(
                   const account = getSnowflakeAiAccount();
                   const agentSession = account
                       ? await snowflakeAiSessionCheck
-                            .check(account, accessToken)
+                            .check(account, accessToken, {
+                                accessUrl: new URL(config.tokenEndpoint!)
+                                    .origin,
+                            })
                             .catch(() => null)
                       : null;
                   if (!agentSession?.agentActivated) {

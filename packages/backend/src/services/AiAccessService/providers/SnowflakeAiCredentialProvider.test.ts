@@ -27,6 +27,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 const connection: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
     account: 'account',
+    accessUrl: 'https://private.example.test',
     user: 'connection-user',
     password: 'connection-password',
     database: 'database',
@@ -261,6 +262,7 @@ describe('SnowflakeAiCredentialProvider', () => {
             checkSnowflakeAgentSessionWithToken,
         ).toHaveBeenCalledExactlyOnceWith('account', 'access-token', {
             throwOnError: true,
+            accessUrl: connection.accessUrl,
         });
     });
     test.each(assurances)(

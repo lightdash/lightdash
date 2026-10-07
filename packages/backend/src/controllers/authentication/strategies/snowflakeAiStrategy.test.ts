@@ -181,7 +181,14 @@ describe('Snowflake AI OAuth callback', () => {
         try {
             const result = await callVerify(true, 'refresh-token');
             expect(result.checkCalls).toEqual([
-                ['myorg-myaccount', 'access-token'],
+                [
+                    'myorg-myaccount',
+                    'access-token',
+                    {
+                        accessUrl:
+                            'https://myorg-myaccount.snowflakecomputing.com',
+                    },
+                ],
             ]);
             expect(result.upsertAiSnowflakeCredential).toHaveBeenCalled();
         } finally {
@@ -200,6 +207,13 @@ describe('Snowflake AI OAuth callback', () => {
             result.user,
             'refresh-token',
         );
+        expect(result.checkCalls).toEqual([
+            [
+                'test-account',
+                'access-token',
+                { accessUrl: 'https://snowflake.example' },
+            ],
+        ]);
         expect(result.done).toHaveBeenCalledWith(null, result.user);
     });
 });
