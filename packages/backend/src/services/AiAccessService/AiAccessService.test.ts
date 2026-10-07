@@ -16,6 +16,7 @@ import {
     QueryExecutionContext,
     WarehouseTypes,
     type AiAccessPolicy,
+    type AiPrincipal,
     type AiPrincipalWithSecrets,
     type AiProbeResult,
     type AiWarehouseCapabilities,
@@ -111,7 +112,7 @@ const setup = () => {
     const model = {
         getPolicy: vi.fn(async () => policy),
         upsertPolicy: vi.fn(async () => policy),
-        listPrincipals: vi.fn(async () => []),
+        listPrincipals: vi.fn(async (): Promise<AiPrincipal[]> => []),
         resetStatus: vi.fn(async () => principal),
         deletePrincipal: vi.fn(async () => {}),
         insertAudit: vi.fn(async () => {}),
@@ -676,6 +677,55 @@ describe('AiAccessService', () => {
             );
         }
         expect(provider.createSecret).toHaveBeenCalledTimes(2);
+    });
+    test('retires principals that no longer match the saved policy', async () => {
+        const { service, model, provider } = setup();
+        const sharedPolicy = {
+            ...policy,
+            principalKind: AiPrincipalKind.SHARED,
+            sharedRef: 'ai_shared',
+            groupMappings: [],
+        };
+        model.upsertPolicy.mockResolvedValue(sharedPolicy);
+        model.listPrincipals.mockResolvedValue([
+            {
+                ...principal,
+                aiPrincipalUuid: 'stale-group',
+                kind: AiPrincipalKind.GROUP,
+                ref: 'ai_group',
+                groupUuid: '11111111-1111-4111-8111-111111111111',
+            },
+            {
+                ...principal,
+                aiPrincipalUuid: 'kept-shared',
+                kind: AiPrincipalKind.SHARED,
+                ref: 'ai_shared',
+                groupUuid: null,
+            },
+        ]);
+        model.createPrincipal.mockImplementation(async (entry) => ({
+            ...principal,
+            ...entry,
+            aiPrincipalUuid: entry.ref,
+        }));
+        model.getPrincipal.mockImplementation(async (id) => ({
+            ...principal,
+            aiPrincipalUuid: id,
+        }));
+        provider.createSecret.mockResolvedValue({
+            secret: 'generated',
+            publicKey: null,
+            publicKeyFingerprint: null,
+        });
+        await service.upsertPolicy(account, 'project', null, sharedPolicy);
+        expect(model.deletePrincipal).toHaveBeenCalledWith('stale-group');
+        expect(model.deletePrincipal).not.toHaveBeenCalledWith('kept-shared');
+        expect(model.createPrincipal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: AiPrincipalKind.SHARED,
+                ref: 'ai_shared',
+            }),
+        );
     });
     test('rejects a setup principal from another policy', async () => {
         const { service, model, provider } = setup();

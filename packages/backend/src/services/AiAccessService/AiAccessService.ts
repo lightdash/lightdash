@@ -320,6 +320,28 @@ export class AiAccessService extends BaseService {
         } else if (policy.principalKind === AiPrincipalKind.GROUP) {
             principals = policy.groupMappings;
         }
+        const desired = new Map(principals.map((entry) => [entry.ref, entry]));
+        const staticKind =
+            policy.principalKind === AiPrincipalKind.SHARED ||
+            policy.principalKind === AiPrincipalKind.GROUP;
+        const existing = await this.aiPrincipalModel.listPrincipals(
+            policy.aiAccessPolicyUuid,
+        );
+        await Promise.all(
+            existing
+                .filter(
+                    (principal) =>
+                        principal.kind !== policy.principalKind ||
+                        (staticKind &&
+                            desired.get(principal.ref)?.groupUuid !==
+                                principal.groupUuid),
+                )
+                .map((principal) =>
+                    this.aiPrincipalModel.deletePrincipal(
+                        principal.aiPrincipalUuid,
+                    ),
+                ),
+        );
         await Promise.all(
             principals.map(async (entry) => {
                 const created = await this.aiPrincipalModel.createPrincipal({
