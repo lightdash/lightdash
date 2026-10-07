@@ -10601,12 +10601,7 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
-            {
-                aiPlan,
-                agentSession: isAiAccessQueryContext(
-                    QueryExecutionContext.SQL_RUNNER,
-                ),
-            },
+            { aiPlan },
         );
         this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = withAgentMarkerTag({
