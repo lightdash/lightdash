@@ -88,6 +88,21 @@ describe('AiProvidersCard', () => {
         );
     });
 
+    it('keeps Save disabled and shows an error for an invalid URL', async () => {
+        const user = userEvent.setup();
+        const onUpdateKeys = vi.fn();
+        renderCard({ onUpdateKeys, openaiKeySet: true });
+
+        const input = screen.getByLabelText('Custom base URL');
+        await user.type(input, 'https://user:pw@gateway.example.com{Enter}');
+
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(
+            screen.getByText(/without credentials, query parameters/),
+        ).toBeInTheDocument();
+        expect(onUpdateKeys).not.toHaveBeenCalled();
+    });
+
     it('saves a custom base URL for the provider on Enter', async () => {
         const user = userEvent.setup();
         const onUpdateKeys = vi.fn();

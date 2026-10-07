@@ -95,6 +95,23 @@ type ProviderRowProps = {
     onSaveGatewayBaseUrl: (baseUrl: string | null) => void;
 };
 
+// Mirrors the backend rule (parseLlmGatewayBaseUrl): HTTP(S), no
+// credentials, query or fragment. The server remains authoritative.
+const isValidGatewayBaseUrl = (value: string): boolean => {
+    try {
+        const url = new URL(value);
+        return (
+            ['http:', 'https:'].includes(url.protocol) &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+        );
+    } catch {
+        return false;
+    }
+};
+
 const GatewayUrlInput: FC<{
     baseUrl: string | null;
     placeholder: string;
@@ -102,8 +119,9 @@ const GatewayUrlInput: FC<{
     onSave: (baseUrl: string | null) => void;
 }> = ({ baseUrl, placeholder, disabled, onSave }) => {
     const [value, setValue] = useState(baseUrl ?? '');
-    const canSave =
-        !disabled && value.trim().length > 0 && value.trim() !== baseUrl;
+    const trimmed = value.trim();
+    const isValid = isValidGatewayBaseUrl(trimmed);
+    const canSave = !disabled && isValid && trimmed !== baseUrl;
     return (
         <Group gap="xs" wrap="nowrap" align="flex-end">
             <TextInput
@@ -114,16 +132,21 @@ const GatewayUrlInput: FC<{
                 placeholder={placeholder}
                 value={value}
                 disabled={disabled}
+                error={
+                    trimmed.length > 0 && !isValid
+                        ? 'Enter an http(s) URL without credentials, query parameters or a fragment'
+                        : undefined
+                }
                 onChange={(event) => setValue(event.currentTarget.value)}
                 onKeyDown={(event) => {
-                    if (event.key === 'Enter' && canSave) onSave(value.trim());
+                    if (event.key === 'Enter' && canSave) onSave(trimmed);
                 }}
             />
             <Button
                 size="xs"
                 variant="default"
                 disabled={!canSave}
-                onClick={() => onSave(value.trim())}
+                onClick={() => onSave(trimmed)}
             >
                 Save
             </Button>
