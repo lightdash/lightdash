@@ -1,5 +1,6 @@
 import {
     FilterOperator,
+    getCurrentPeriodBounds,
     type PreAggregateMaterializationRole,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationWarning,
@@ -76,10 +77,17 @@ const formatFilterValue = (
         case FilterOperator.NOT_NULL:
             return null;
         case FilterOperator.IN_THE_CURRENT:
-        case FilterOperator.NOT_IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT: {
+            const bounds = getCurrentPeriodBounds(settings);
+            const bound = bounds.excludeToday
+                ? ' to date, excluding today'
+                : bounds.toDate
+                  ? ' to date'
+                  : '';
             return `${settings?.completed ? 'completed ' : ''}${
                 settings?.unitOfTime?.slice(0, -1) ?? 'day'
-            }`;
+            }${bound}`;
+        }
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:

@@ -3,8 +3,11 @@ import {
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     FilterOperator,
+    getCurrentPeriodBounds,
     isFilterRuleDefinedForFieldId,
     removeFieldFromFilterGroup,
+    UnitOfTime,
+    unitOfTimeSupportsToDate,
     type AndFilterGroup,
     type DashboardTileTarget,
     type FilterGroup,
@@ -445,5 +448,52 @@ describe('isFilterRuleDefinedForFieldId', () => {
         expect(
             isFilterRuleDefinedForFieldId(filterGroup, fieldToBeFound3, false),
         ).toEqual(false);
+    });
+});
+
+describe('unitOfTimeSupportsToDate', () => {
+    it.each([
+        [UnitOfTime.milliseconds, false],
+        [UnitOfTime.hours, false],
+        [UnitOfTime.days, false],
+        [UnitOfTime.weeks, true],
+        [UnitOfTime.months, true],
+        [UnitOfTime.years, true],
+    ])('%s -> %s', (unit, expected) => {
+        expect(unitOfTimeSupportsToDate(unit)).toBe(expected);
+    });
+});
+
+describe('getCurrentPeriodBounds', () => {
+    it('is the whole period when settings are absent', () => {
+        expect(getCurrentPeriodBounds(undefined)).toStrictEqual({
+            toDate: false,
+            excludeToday: false,
+        });
+    });
+
+    it('defaults the unit to days, which ignores the bounds', () => {
+        expect(
+            getCurrentPeriodBounds({ toDate: true, excludeToday: true }),
+        ).toStrictEqual({ toDate: false, excludeToday: false });
+    });
+
+    it('ignores excludeToday without toDate', () => {
+        expect(
+            getCurrentPeriodBounds({
+                unitOfTime: UnitOfTime.months,
+                excludeToday: true,
+            }),
+        ).toStrictEqual({ toDate: false, excludeToday: false });
+    });
+
+    it('applies both bounds on a supported unit', () => {
+        expect(
+            getCurrentPeriodBounds({
+                unitOfTime: UnitOfTime.weeks,
+                toDate: true,
+                excludeToday: true,
+            }),
+        ).toStrictEqual({ toDate: true, excludeToday: true });
     });
 });

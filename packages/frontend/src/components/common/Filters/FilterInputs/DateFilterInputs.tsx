@@ -7,10 +7,14 @@ import {
     isFilterRule,
     TimeFrames,
     timeframeToUnitOfTime,
+    unitOfTimeSupportsToDate,
     type BaseFilterRule,
+    type CurrentPeriodBounds,
     type DateFilterRule,
+    type DateFilterSettings,
+    type UnitOfTime,
 } from '@lightdash/common';
-import { Flex, Text } from '@mantine/core';
+import { Checkbox, Flex, Stack, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -392,38 +396,80 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 </Flex>
             );
         case FilterOperator.IN_THE_CURRENT:
-        case FilterOperator.NOT_IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT: {
+            const currentSettings = rule.settings as
+                | DateFilterSettings
+                | undefined;
+            const currentUnit = currentSettings?.unitOfTime;
+            const isToDate =
+                currentUnit !== undefined &&
+                unitOfTimeSupportsToDate(currentUnit) &&
+                currentSettings?.toDate === true;
+            const isExcludeToday =
+                isToDate && currentSettings?.excludeToday === true;
+            const setCurrentSettings = (
+                unitOfTime: UnitOfTime,
+                bounds: CurrentPeriodBounds,
+            ) =>
+                onChange({
+                    ...rule,
+                    settings: {
+                        unitOfTime,
+                        completed: false,
+                        ...(bounds.toDate && { toDate: true }),
+                        ...(bounds.toDate &&
+                            bounds.excludeToday && { excludeToday: true }),
+                    },
+                });
             return (
-                <FilterUnitOfTimeAutoComplete
-                    w="100%"
-                    disabled={disabled}
-                    isTimestamp={isTimestamp}
-                    unitOfTime={rule.settings?.unitOfTime}
-                    minUnitOfTime={
-                        isDimension(field) && field.timeInterval
-                            ? timeframeToUnitOfTime(field.timeInterval)
-                            : undefined
-                    }
-                    showOptionsInPlural={false}
-                    showCompletedOptions={false}
-                    data-autofocus={!rule.settings?.unitOfTime || undefined}
-                    completed={false}
-                    comboboxProps={{
-                        withinPortal: popoverProps?.withinPortal,
-                    }}
-                    onDropdownOpen={popoverProps?.onOpen}
-                    onDropdownClose={popoverProps?.onClose}
-                    onChange={(value) =>
-                        onChange({
-                            ...rule,
-                            settings: {
-                                unitOfTime: value.unitOfTime,
-                                completed: false,
-                            },
-                        })
-                    }
-                />
+                <Stack gap="xs" w="100%">
+                    <FilterUnitOfTimeAutoComplete
+                        w="100%"
+                        disabled={disabled}
+                        isTimestamp={isTimestamp}
+                        unitOfTime={currentUnit}
+                        minUnitOfTime={
+                            isDimension(field) && field.timeInterval
+                                ? timeframeToUnitOfTime(field.timeInterval)
+                                : undefined
+                        }
+                        showOptionsInPlural={false}
+                        showCompletedOptions={false}
+                        showToDateOptions
+                        data-autofocus={!currentUnit || undefined}
+                        completed={false}
+                        toDate={isToDate}
+                        comboboxProps={{
+                            withinPortal: popoverProps?.withinPortal,
+                        }}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
+                        onChange={(value) =>
+                            setCurrentSettings(value.unitOfTime, {
+                                toDate: value.toDate,
+                                excludeToday: value.toDate && isExcludeToday,
+                            })
+                        }
+                    />
+                    {isToDate && currentUnit !== undefined && (
+                        <Checkbox
+                            size="xs"
+                            label={getUiString(
+                                'filters.currentPeriod.includeToday',
+                            )}
+                            disabled={disabled}
+                            checked={!isExcludeToday}
+                            onChange={(e) =>
+                                setCurrentSettings(currentUnit, {
+                                    toDate: true,
+                                    excludeToday: !e.currentTarget.checked,
+                                })
+                            }
+                        />
+                    )}
+                </Stack>
             );
+        }
         case FilterOperator.IN_BETWEEN:
             const invalidStartValue = getInvalidDateFilterValue(
                 rule.values?.[0] ? [rule.values[0]] : undefined,

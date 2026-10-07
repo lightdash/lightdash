@@ -156,6 +156,10 @@ export const DEFAULT_UI_STRINGS = {
     'filters.periodToDateSelect.quarters': 'quarters to date',
     'filters.periodToDateSelect.months': 'months to date',
     'filters.periodToDateSelect.weeks': 'weeks to date',
+    'filters.currentPeriod.includeToday': 'Include today',
+    'filters.currentPeriod.toDateValue': '{unit} to date',
+    'filters.currentPeriod.toDateExcludingTodayValue':
+        '{unit} to date, excluding today',
     'filters.unitsOfTime.milliseconds.singular': 'millisecond',
     'filters.unitsOfTime.milliseconds.plural': 'milliseconds',
     'filters.unitsOfTime.milliseconds.completedSingular':
