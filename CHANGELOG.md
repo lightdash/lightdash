@@ -1,3 +1,10 @@
+## [2.455.1](https://github.com/lightdash/lightdash/compare/2.455.0...2.455.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* detect parameters in conditional format expressions ([#30597](https://github.com/lightdash/lightdash/issues/30597)) ([c4b4f08](https://github.com/lightdash/lightdash/commit/c4b4f08d6c8aa7d0c9337ccf24886f1ff390d4e7))
+
 # [2.455.0](https://github.com/lightdash/lightdash/compare/2.454.0...2.455.0) (2026-10-07)
 
 
