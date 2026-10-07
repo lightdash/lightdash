@@ -209,7 +209,11 @@ export const getControlCount = (
     tiles: DashboardTile[],
     tileParameterReferences: TileReferences,
 ): KeyCount => ({
-    possible: getControlTiles(control, tiles, tileParameterReferences).length,
+    possible: tiles.filter((tile) =>
+        control.parameterKeys.some((key) =>
+            doesTileReferenceKey(tile, key, tileParameterReferences),
+        ),
+    ).length,
     applied: tiles.filter((tile) =>
         doesControlApplyToTile(control, tile, tileParameterReferences),
     ).length,
