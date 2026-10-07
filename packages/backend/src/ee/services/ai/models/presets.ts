@@ -674,14 +674,16 @@ export function matchesPreset(
 // Whether a provider's /v1/models listing grants access to a base model id.
 // Matches the exact id or a dated variant of it — e.g. "claude-opus-4-8" is
 // granted by "claude-opus-4-8" or "claude-opus-4-8-20260115", but not by
-// "claude-opus-4-80".
+// "claude-opus-4-80". Gateways list models as "vendor/model", so a path
+// prefix is ignored.
 export function keyGrantsModel(
     accessibleModelIds: readonly string[],
     baseModelId: string,
 ): boolean {
-    return accessibleModelIds.some(
-        (id) => id === baseModelId || id.startsWith(`${baseModelId}-`),
-    );
+    return accessibleModelIds.some((listedId) => {
+        const id = listedId.slice(listedId.lastIndexOf('/') + 1);
+        return id === baseModelId || id.startsWith(`${baseModelId}-`);
+    });
 }
 
 export function getModelPreset<T extends ModelPresetProvider>(
