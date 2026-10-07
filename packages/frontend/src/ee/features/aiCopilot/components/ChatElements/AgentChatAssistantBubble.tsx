@@ -586,6 +586,7 @@ const AssistantBubbleContent: FC<{
                 <AiAccessCallout
                     projectUuid={projectUuid}
                     refusal={aiAccessRefusal}
+                    variant="inline"
                 />
             )}
             {shouldShowRetry && (

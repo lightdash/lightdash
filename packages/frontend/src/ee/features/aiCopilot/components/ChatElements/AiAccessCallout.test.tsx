@@ -9,7 +9,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiAccessCallout } from './AiAccessCallout';
 import { getAiAccessRefusal } from './aiAccessRefusal';
-const mocks = vi.hoisted(() => ({ can: vi.fn(), login: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    can: vi.fn(),
+    login: vi.fn(),
+    isLoading: false,
+    error: null as Error | null,
+}));
 vi.mock('../../../../../providers/App/useApp', () => ({
     default: () => ({
         health: {},
@@ -22,7 +27,11 @@ vi.mock('../../../../../hooks/useProject', () => ({
     }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
-    useSnowflakeAiLoginPopup: () => ({ mutate: mocks.login, isLoading: false }),
+    useSnowflakeAiLoginPopup: () => ({
+        mutate: mocks.login,
+        isLoading: mocks.isLoading,
+        error: mocks.error,
+    }),
 }));
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
@@ -44,12 +53,56 @@ describe('AI access callout', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.can.mockReturnValue(false);
+        mocks.isLoading = false;
+        mocks.error = null;
     });
-    it('offers AI sign-in', () => {
+    it('offers agent session sign-in', () => {
         render(AiAccessRefusalAction.SIGN_IN);
-        expect(screen.getByText(refusal.message)).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Sign in for AI' }));
+        expect(
+            screen.getByRole('heading', {
+                name: 'Sign in to your warehouse for agent sessions',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'My warehouse connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+        );
         expect(mocks.login).toHaveBeenCalled();
+    });
+    it('disables sign-in while the popup is open', () => {
+        mocks.isLoading = true;
+        render(AiAccessRefusalAction.SIGN_IN);
+        expect(
+            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+        ).toBeDisabled();
+    });
+    it('shows the popup error and allows another attempt', () => {
+        mocks.error = new Error('The warehouse rejected this session.');
+        render(AiAccessRefusalAction.SIGN_IN);
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            mocks.error.message,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+        ).toBeEnabled();
+    });
+    it('renders a compact inline sign-in action', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={refusal}
+                    variant="inline"
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Sign in for agent sessions' }),
+        ).toBeEnabled();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
     it('links project managers to settings', () => {
         mocks.can.mockReturnValue(true);

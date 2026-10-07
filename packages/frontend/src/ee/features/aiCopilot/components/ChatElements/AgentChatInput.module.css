@@ -361,3 +361,14 @@
 .dropOverlay[data-variant='inline'] {
     border-radius: rem(18px);
 }
+
+.composerArea {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+
+    &[data-access-refused='true'] {
+        opacity: 0.5;
+    }
+}
