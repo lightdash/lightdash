@@ -80,7 +80,7 @@ type ProviderRowProps = {
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
-    // Gateway (e.g. LiteLLM) the org's key is sent to instead of the public API.
+    // Endpoint the org's key is sent to instead of the provider's public API.
     gatewayBaseUrl: string | null;
     onSaveGatewayBaseUrl: (baseUrl: string | null) => void;
 };
@@ -91,26 +91,27 @@ const GatewayUrlInput: FC<{
     onSave: (baseUrl: string | null) => void;
 }> = ({ baseUrl, disabled, onSave }) => {
     const [value, setValue] = useState(baseUrl ?? '');
+    const canSave =
+        !disabled && value.trim().length > 0 && value.trim() !== baseUrl;
     return (
         <Group gap="xs" wrap="nowrap" align="flex-end">
             <TextInput
                 flex={1}
                 size="xs"
-                label="Gateway base URL"
-                description="Optional. A gateway such as LiteLLM that speaks this provider's API. Model names are sent as-is, so alias them in the gateway."
-                placeholder="https://litellm.example.com"
+                label="Custom base URL"
+                description="Optional. Send requests for this key to a proxy or gateway that speaks this provider's API. Model names are passed through unchanged."
+                placeholder="https://ai-gateway.example.com"
                 value={value}
                 disabled={disabled}
                 onChange={(event) => setValue(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter' && canSave) onSave(value.trim());
+                }}
             />
             <Button
                 size="xs"
                 variant="default"
-                disabled={
-                    disabled ||
-                    value.trim().length === 0 ||
-                    value.trim() === baseUrl
-                }
+                disabled={!canSave}
                 onClick={() => onSave(value.trim())}
             >
                 Save
