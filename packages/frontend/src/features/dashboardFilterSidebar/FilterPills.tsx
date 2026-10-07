@@ -126,10 +126,12 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 const eyeLabel = isHidden
                     ? 'Hidden from viewers. Click to show.'
                     : 'Visible to viewers. Click to hide.';
-                const slotClass =
-                    isLocked || isHidden
-                        ? pillClasses.lockSlotActive
-                        : pillClasses.lockSlot;
+                const lockSlotClass = isLocked
+                    ? pillClasses.lockSlotActive
+                    : pillClasses.lockSlot;
+                const eyeSlotClass = isHidden
+                    ? pillClasses.lockSlotActive
+                    : pillClasses.lockSlot;
                 return (
                     <Tooltip
                         key={filter.id}
@@ -163,7 +165,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                             {tabKey && (
                                                 <Box
                                                     component="span"
-                                                    className={slotClass}
+                                                    className={lockSlotClass}
                                                 >
                                                     <Tooltip
                                                         fz="xs"
@@ -202,7 +204,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                             {tabKey && (
                                                 <Box
                                                     component="span"
-                                                    className={slotClass}
+                                                    className={eyeSlotClass}
                                                 >
                                                     <Tooltip
                                                         fz="xs"
