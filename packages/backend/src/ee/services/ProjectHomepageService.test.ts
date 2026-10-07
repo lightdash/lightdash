@@ -449,6 +449,11 @@ describe('ProjectHomepageService', () => {
                 const slug = 'confidential-acquisition-plan';
                 const upsertAsCode = vi.fn();
                 const documentService = new DocumentService({
+                    contentVerificationModel: {
+                        getByContent: vi.fn().mockResolvedValue(null),
+                        verify: vi.fn(),
+                        unverify: vi.fn(),
+                    },
                     projectModel: {
                         getSummary: vi.fn().mockResolvedValue({
                             projectUuid: PROJECT_UUID,

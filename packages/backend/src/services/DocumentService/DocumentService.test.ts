@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    ContentType,
     FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
@@ -23,6 +24,7 @@ const documentUuid = 'document-uuid';
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -101,6 +103,7 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
         listSpaceUuids: vi.fn().mockResolvedValue([spaceUuid]),
         listSummariesByUuid: vi.fn().mockResolvedValue([]),
         moveToSpace: vi.fn().mockResolvedValue(document),
+        updateMetadata: vi.fn().mockResolvedValue(document),
         getVersion: vi.fn(),
         listVersions: vi
             .fn()
@@ -136,7 +139,13 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     const schedulerClient = {
         scheduleTask: vi.fn().mockResolvedValue({ jobId: 'export-job' }),
     };
+    const contentVerificationModel = {
+        getByContent: vi.fn().mockResolvedValue(null),
+        verify: vi.fn().mockResolvedValue(undefined),
+        unverify: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new DocumentService({
+        contentVerificationModel,
         analytics,
         analyticsModel,
         lightdashConfig: { softDelete: { enabled: softDelete } },
@@ -150,6 +159,7 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        contentVerificationModel,
         schedulerClient,
         analytics,
         analyticsModel,
@@ -1396,5 +1406,157 @@ describe('DocumentService', () => {
         await expect(
             service.get(makeAccount(), projectUuid, documentUuid),
         ).rejects.toThrow(NotFoundError);
+    });
+});
+
+describe('DocumentService verification', () => {
+    const verification = {
+        verifiedBy: { userUuid: 'admin-uuid', firstName: 'Ada', lastName: 'A' },
+        verifiedAt: new Date('2026-10-01'),
+    };
+    const admin = () => makeAccount(OrganizationMemberRole.ADMIN);
+    const editor = () => makeAccount(OrganizationMemberRole.EDITOR);
+
+    test('an admin verifies a Document in a Space', async () => {
+        const { service, contentVerificationModel, analytics } = setup();
+        contentVerificationModel.getByContent.mockResolvedValue(verification);
+
+        await expect(
+            service.verify(admin(), projectUuid, documentUuid),
+        ).resolves.toEqual(verification);
+        expect(contentVerificationModel.verify).toHaveBeenCalledWith(
+            ContentType.DOCUMENT,
+            documentUuid,
+            projectUuid,
+            userUuid,
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'content_verification.created',
+                properties: expect.objectContaining({
+                    contentType: ContentType.DOCUMENT,
+                    contentId: documentUuid,
+                }),
+            }),
+        );
+    });
+
+    test('only verification managers verify or unverify', async () => {
+        const { service, contentVerificationModel } = setup();
+
+        await expect(
+            service.verify(editor(), projectUuid, documentUuid),
+        ).rejects.toThrow('Only admins can verify Documents');
+        await expect(
+            service.unverify(editor(), projectUuid, documentUuid),
+        ).rejects.toThrow(ForbiddenError);
+        expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+        expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+    });
+
+    test('a personal Document cannot be verified', async () => {
+        const { service, documentModel, contentVerificationModel } = setup();
+        documentModel.get.mockResolvedValue({ ...document, spaceUuid: null });
+
+        await expect(
+            service.verify(admin(), projectUuid, documentUuid),
+        ).rejects.toThrow(ParameterError);
+        expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+    });
+
+    test('an admin removes verification', async () => {
+        const { service, contentVerificationModel } = setup();
+
+        await service.unverify(admin(), projectUuid, documentUuid);
+        expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
+            ContentType.DOCUMENT,
+            documentUuid,
+        );
+    });
+
+    describe('a verified Document', () => {
+        const verifiedSetup = () => {
+            const built = setup();
+            const editorContext = makeContext([
+                { userUuid, role: SpaceMemberRole.EDITOR },
+            ]);
+            built.spacePermissionService.resolveAccess.mockResolvedValue(
+                editorContext,
+            );
+            built.spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
+                editorContext,
+            );
+            built.spacePermissionService.resolveAccessBatch.mockResolvedValue([
+                { context: editorContext },
+                { context: editorContext },
+            ]);
+            built.documentModel.get.mockResolvedValue({
+                ...document,
+                verification,
+            });
+            built.contentVerificationModel.getByContent.mockResolvedValue(
+                verification,
+            );
+            return built;
+        };
+
+        test('is read-only for an editor without verified-content rights', async () => {
+            const { service, documentModel, contentVerificationModel } =
+                verifiedSetup();
+
+            await expect(
+                service.updateMetadata(editor(), projectUuid, documentUuid, {
+                    name: 'Renamed',
+                }),
+            ).rejects.toThrow('This Document is verified');
+            await expect(
+                service.delete(editor(), projectUuid, documentUuid),
+            ).rejects.toThrow('This Document is verified');
+            await expect(
+                service.moveToSpace(editor(), {
+                    projectUuid,
+                    itemUuid: documentUuid,
+                    targetSpaceUuid: 'other-space',
+                }),
+            ).rejects.toThrow('This Document is verified');
+            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+            expect(documentModel.softDelete).not.toHaveBeenCalled();
+            expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+
+        test('keeps its verification when an admin edits it', async () => {
+            const { service, documentModel, contentVerificationModel } =
+                verifiedSetup();
+
+            const updated = await service.updateMetadata(
+                admin(),
+                projectUuid,
+                documentUuid,
+                { name: 'Renamed' },
+            );
+            expect(documentModel.updateMetadata).toHaveBeenCalled();
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+            expect(updated.verification).toEqual(verification);
+        });
+
+        test('keeps its verification when the verifier edits it', async () => {
+            const { service, documentModel, contentVerificationModel } =
+                verifiedSetup();
+            contentVerificationModel.getByContent.mockResolvedValue({
+                ...verification,
+                verifiedBy: { ...verification.verifiedBy, userUuid },
+            });
+
+            const updated = await service.updateMetadata(
+                editor(),
+                projectUuid,
+                documentUuid,
+                { name: 'Renamed' },
+            );
+            expect(documentModel.updateMetadata).toHaveBeenCalled();
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+            expect(updated.verification).not.toBeNull();
+        });
     });
 });

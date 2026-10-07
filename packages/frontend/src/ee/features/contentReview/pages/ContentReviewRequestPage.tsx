@@ -178,10 +178,7 @@ const DecisionCard: FC<{
                         request.contentType ===
                         ContentReviewContentType.SQL_CHART
                             ? 'SQL charts cannot be verified yet'
-                            : request.contentType ===
-                                ContentReviewContentType.DOCUMENT
-                              ? 'Documents cannot be verified yet'
-                              : 'You need permission to verify content'
+                            : 'You need permission to verify content'
                     }
                     disabled={request.canVerify}
                     withArrow

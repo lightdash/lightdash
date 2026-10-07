@@ -151,6 +151,7 @@ const cells: TestCell[] = [
 ];
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,

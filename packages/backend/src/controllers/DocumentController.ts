@@ -4,6 +4,8 @@ import {
     LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
+    type ApiContentVerificationDeleteResponse,
+    type ApiContentVerificationResponse,
     type ApiDocumentAsCodeResponse,
     type ApiDocumentChartQueryResponse,
     type ApiDocumentListResponse,
@@ -24,6 +26,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -113,6 +116,54 @@ export class DocumentController extends BaseController {
                     documentUuidOrSlug,
                 ),
         };
+    }
+
+    /**
+     * Verify a Document
+     * @summary Verify Document
+     */
+    @Post('{documentUuid}/verification')
+    @OperationId('VerifyDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    async verify(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .verify(req.account, projectUuid, documentUuid),
+        };
+    }
+
+    /**
+     * Remove verification from a Document
+     * @summary Unverify Document
+     */
+    @Delete('{documentUuid}/verification')
+    @OperationId('UnverifyDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    async unverify(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getDocumentService()
+            .unverify(req.account, projectUuid, documentUuid);
+        return { status: 'ok', results: undefined };
     }
 
     @Post()

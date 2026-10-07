@@ -76,6 +76,11 @@ const setup = ({ enabled = true, granted = true } = {}) => {
         ]),
     };
     const documentService = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         projectModel,
         featureFlagModel,
         documentModel,

@@ -41,6 +41,7 @@ const chart = {
 const markdown = '## Findings';
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid: 'document',
@@ -512,24 +513,69 @@ describe('MCP Document runtime', () => {
         expect(result.content[0]).not.toHaveProperty('versionUuid');
     });
 
-    test.each(['native', 'verified'] as const)(
-        '%s search does not discover Documents',
-        async (mode) => {
-            const { runtime, service, context, contentService } = setup();
-            const target =
-                mode === 'native'
-                    ? service.createRuntime({ ...context, source: 'ai_agent' })
-                    : runtime;
-            await expect(
-                target.findContent({
+    test('native search without Documents enabled does not discover Documents', async () => {
+        const { service, context, contentService } = setup();
+        await expect(
+            service
+                .createRuntime({ ...context, source: 'ai_agent' })
+                .findContent({
                     searchQuery: { label: 'weekly' },
                     spaceSlug: null,
-                    verifiedOnly: mode === 'verified',
+                    verifiedOnly: false,
                 }),
-            ).resolves.toEqual({ content: [] });
-            expect(contentService.find).not.toHaveBeenCalled();
-        },
-    );
+        ).resolves.toEqual({ content: [] });
+        expect(contentService.find).not.toHaveBeenCalled();
+    });
+
+    test('verified search returns only verified Documents', async () => {
+        const { runtime, contentService } = setup();
+        const space = { uuid: spaceUuid, path: 'reports', name: 'Reports' };
+        contentService.find.mockResolvedValue({
+            data: [
+                {
+                    contentType: ContentType.DOCUMENT,
+                    uuid: 'verified-uuid',
+                    slug: 'verified-report',
+                    name: 'Verified report',
+                    description: null,
+                    space,
+                    verification: {
+                        verifiedBy: {
+                            userUuid: 'admin-uuid',
+                            firstName: 'Ada',
+                            lastName: 'Admin',
+                        },
+                        verifiedAt: new Date('2026-10-01'),
+                    },
+                },
+                {
+                    contentType: ContentType.DOCUMENT,
+                    uuid: 'draft-uuid',
+                    slug: 'draft-report',
+                    name: 'Draft report',
+                    description: null,
+                    space,
+                    verification: null,
+                },
+            ],
+            pagination: {
+                page: 1,
+                pageSize: 25,
+                totalResults: 2,
+                totalPageCount: 1,
+            },
+        });
+        const { content: found } = await runtime.findContent({
+            searchQuery: { label: 'report' },
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+        expect(
+            found
+                .filter((item) => item.contentType === ContentType.DOCUMENT)
+                .map((item) => item.uuid),
+        ).toEqual(['verified-uuid']);
+    });
 
     test('search denies an explicitly requested Space outside MCP scope', async () => {
         const { runtime, contentService } = setup(['different-space']);

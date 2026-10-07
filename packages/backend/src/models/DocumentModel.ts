@@ -2,6 +2,7 @@ import {
     assignDocumentChartIds,
     ConflictError,
     ContentReviewContentType,
+    ContentType,
     Document,
     DOCUMENT_SCHEMA_VERSION,
     DocumentContent,
@@ -18,6 +19,7 @@ import {
     UpdateDocumentContentRequest,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { ContentVerificationTableName } from '../database/entities/contentVerification';
 import {
     DbDocument,
     DbDocumentVersion,
@@ -565,6 +567,27 @@ export class DocumentModel {
                 'owner_user.last_name as owner_last_name',
                 'owner_email.email as owner_email',
             )
+            .leftJoin(ContentVerificationTableName, function verification() {
+                this.on(
+                    `${ContentVerificationTableName}.content_uuid`,
+                    '=',
+                    'documents.document_uuid',
+                ).andOnVal(
+                    `${ContentVerificationTableName}.content_type`,
+                    ContentType.DOCUMENT,
+                );
+            })
+            .leftJoin(
+                `${UserTableName} as verifier`,
+                'verifier.user_uuid',
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+            )
+            .select(
+                `${ContentVerificationTableName}.verified_at`,
+                'verifier.user_uuid as verifier_uuid',
+                'verifier.first_name as verifier_first_name',
+                'verifier.last_name as verifier_last_name',
+            )
             .where('documents.document_uuid', documentUuid)
             .first();
         if (!row) {
@@ -611,6 +634,17 @@ export class DocumentModel {
                 createdByUserUuid: version.created_by_user_uuid,
                 createdAt: version.created_at,
             },
+            verification:
+                row.verified_at && row.verifier_uuid
+                    ? {
+                          verifiedBy: {
+                              userUuid: row.verifier_uuid,
+                              firstName: row.verifier_first_name ?? '',
+                              lastName: row.verifier_last_name ?? '',
+                          },
+                          verifiedAt: row.verified_at,
+                      }
+                    : null,
         };
     }
 

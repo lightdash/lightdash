@@ -30,8 +30,9 @@ const contentTypeLabel = (contentType: ContentType): string => {
             return 'dashboard';
         case ContentType.DATA_APP:
             return 'data app';
-        case ContentType.SPACE:
         case ContentType.DOCUMENT:
+            return 'Document';
+        case ContentType.SPACE:
             return 'content';
         default:
             return assertUnreachable(contentType, 'Unknown content type');

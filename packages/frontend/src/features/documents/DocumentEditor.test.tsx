@@ -110,6 +110,7 @@ vi.mock('./DocumentPageLayout', () => ({
 
 const report: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,

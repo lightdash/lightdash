@@ -1551,14 +1551,14 @@ export class AiAgentToolsService extends BaseService {
                     );
 
                 const documentResults =
-                    (context.source === 'mcp' || context.enableDocuments) &&
-                    !verifiedOnly
+                    context.source === 'mcp' || context.enableDocuments
                         ? await this.findDocumentContent(
                               context,
                               args.searchQuery.label,
                               scopedSpaceUuids,
                               spacesByUuid,
                               spacesByPath,
+                              verifiedOnly,
                           )
                         : [];
                 return {
@@ -4348,6 +4348,7 @@ export class AiAgentToolsService extends BaseService {
         scopedSpaceUuids: Set<string> | null,
         spacesByUuid: Map<string, ProjectSpace>,
         spacesByPath: Map<string, ProjectSpace>,
+        verifiedOnly: boolean,
     ): Promise<FindContentResult[]> {
         const agentSpaceUuids = context.spaceAccess?.length
             ? context.spaceAccess
@@ -4376,7 +4377,9 @@ export class AiAgentToolsService extends BaseService {
             { page: 1, pageSize: 25 },
         );
         const documents = results.data.filter(
-            (item) => item.contentType === ContentType.DOCUMENT,
+            (item) =>
+                item.contentType === ContentType.DOCUMENT &&
+                (!verifiedOnly || item.verification !== null),
         );
         if (documents.length === 0) {
             return [];

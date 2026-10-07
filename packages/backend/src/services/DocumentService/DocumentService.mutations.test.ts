@@ -100,6 +100,11 @@ describe('Document as-code chart round-trip', () => {
         async (cell) => {
             const content = toContent([markdown, cell]);
             const service = new DocumentService({
+                contentVerificationModel: {
+                    getByContent: vi.fn().mockResolvedValue(null),
+                    verify: vi.fn(),
+                    unverify: vi.fn(),
+                },
                 spaceModel: {
                     find: vi.fn().mockResolvedValue([{ path: 'reports' }]),
                 },
@@ -129,6 +134,7 @@ describe('Document as-code chart round-trip', () => {
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -219,6 +225,11 @@ const setup = () => {
         getOrganizationMemberByUuid: vi.fn().mockResolvedValue({}),
     };
     const service = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         analytics,
         documentModel,
         projectModel,

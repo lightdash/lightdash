@@ -5,7 +5,7 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
     Link,
@@ -99,6 +99,19 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                 onScrollTopChange={trackScroll}
                 actions={
                     <Group gap="xs" wrap="nowrap">
+                        {document.verification && (
+                            <Tooltip
+                                label={`Verified by ${document.verification.verifiedBy.firstName} ${document.verification.verifiedBy.lastName}`}
+                            >
+                                <IconCircleCheckFilled
+                                    size={16}
+                                    style={{
+                                        color: 'var(--mantine-color-green-6)',
+                                    }}
+                                    aria-label="Verified"
+                                />
+                            </Tooltip>
+                        )}
                         {contentReview.pendingRequest && (
                             <PendingReviewBadge
                                 request={contentReview.pendingRequest}

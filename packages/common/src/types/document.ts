@@ -2,6 +2,7 @@ import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
 import type { ContentAsCodeUpsertAction } from './contentAsCode/base';
 import type { ChartAsCode } from './contentAsCode/charts';
+import type { ContentVerificationInfo } from './contentVerification';
 import type { DashboardOwner } from './dashboard';
 import type { SavedMergeQuery } from './mergeQuery';
 import type { SpaceAccess, SpaceMemberRole } from './space';
@@ -74,6 +75,7 @@ export type Document = DocumentSummary & {
     owner: DocumentOwner | null;
     version: DocumentVersion;
     pinnedListUuid: string | null;
+    verification: ContentVerificationInfo | null;
 };
 
 export type DocumentAsCode = Pick<

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ContentType,
+    getDocumentUrl,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import {
@@ -19,6 +20,7 @@ import {
     IconAppWindow,
     IconCircleX,
     IconDots,
+    IconFileText,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -27,6 +29,7 @@ import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
     useUnverifyDataAppMutation,
+    useUnverifyDocumentMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
 import {
@@ -68,6 +71,12 @@ const getItemPresentation = (
                 typeLabel: 'Data app',
                 typeIcon: IconAppWindow,
             };
+        case ContentType.DOCUMENT:
+            return {
+                href: getDocumentUrl(projectUuid, item.contentUuid, item.slug),
+                typeLabel: 'Document',
+                typeIcon: IconFileText,
+            };
         default:
             return assertUnreachable(item, 'Unknown verified content type');
     }
@@ -89,6 +98,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
     const { mutate: unverifyChart } = useUnverifyChartMutation();
     const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
     const { mutate: unverifyDataApp } = useUnverifyDataAppMutation();
+    const { mutate: unverifyDocument } = useUnverifyDocumentMutation();
 
     const handleUnverify = useCallback(
         (item: VerifiedContentListItem) => {
@@ -100,15 +110,27 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     const handleConfirmUnverify = useCallback(() => {
         if (!itemToUnverify) return;
-        if (itemToUnverify.contentType === ContentType.CHART) {
-            unverifyChart(itemToUnverify.contentUuid);
-        } else if (itemToUnverify.contentType === ContentType.DASHBOARD) {
-            unverifyDashboard(itemToUnverify.contentUuid);
-        } else {
-            unverifyDataApp({
-                projectUuid,
-                appUuid: itemToUnverify.contentUuid,
-            });
+        switch (itemToUnverify.contentType) {
+            case ContentType.CHART:
+                unverifyChart(itemToUnverify.contentUuid);
+                break;
+            case ContentType.DASHBOARD:
+                unverifyDashboard(itemToUnverify.contentUuid);
+                break;
+            case ContentType.DATA_APP:
+                unverifyDataApp({
+                    projectUuid,
+                    appUuid: itemToUnverify.contentUuid,
+                });
+                break;
+            case ContentType.DOCUMENT:
+                unverifyDocument({
+                    projectUuid,
+                    documentUuid: itemToUnverify.contentUuid,
+                });
+                break;
+            default:
+                assertUnreachable(itemToUnverify, 'Unknown verified content');
         }
         closeUnverifyModal();
         setItemToUnverify(null);
@@ -118,6 +140,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         unverifyChart,
         unverifyDashboard,
         unverifyDataApp,
+        unverifyDocument,
         projectUuid,
     ]);
 
@@ -310,7 +333,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <SettingsEmptyState
                 icon={IconCircleX}
                 title="No verified content"
-                description="Charts, dashboards, and data apps that are verified will appear here."
+                description="Charts, dashboards, data apps, and Documents that are verified will appear here."
             />
         );
     }
