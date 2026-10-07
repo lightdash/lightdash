@@ -137,7 +137,7 @@ const ChartTypeBuilder: FC = () => {
         }
     }, [location.search]);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const isAmbientAiEnabled = useAmbientAiEnabled() === true;
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid) === true;
     const canCreate = useCanCreateDataApp(projectUuid);
 
     // `useGetApp` accepts slugs, so the raw URL param is the right key.

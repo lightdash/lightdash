@@ -59,6 +59,7 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -197,7 +198,9 @@ const TableCalculationModal: FC<Props> = ({
             project.warehouseConnection.type as Dialect,
         );
 
-    const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
+    const ambientAiEnabled = useAmbientAiEnabled(projectUuid);
+    const isAmbientAiEnabled =
+        ambientAiEnabled && health?.ai?.isAmbientAiEnabled === true;
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );

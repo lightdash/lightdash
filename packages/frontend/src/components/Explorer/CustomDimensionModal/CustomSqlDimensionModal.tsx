@@ -45,6 +45,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useExplore } from '../../../hooks/useExplore';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './CustomSqlDimensionModal.module.css';
@@ -82,7 +83,8 @@ export const CustomSqlDimensionModal: FC<{
 
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
 
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);

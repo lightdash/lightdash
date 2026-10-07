@@ -238,12 +238,13 @@ export const useAmbientFieldSuggestions = ({
         staleTime: Infinity,
         cacheTime: 0,
     });
-    const current =
-        data?.sourceKey === sourceKey
-            ? data
-            : history.current?.sourceKey === sourceKey
-              ? history.current
-              : null;
+    const current = !enabled
+        ? null
+        : data?.sourceKey === sourceKey
+          ? data
+          : history.current?.sourceKey === sourceKey
+            ? history.current
+            : null;
 
     const pendingFields = useMemo(() => {
         if (!enabled || !projectUuid || !sourceKey || !explore || !fields) {

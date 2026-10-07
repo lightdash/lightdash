@@ -28,7 +28,7 @@ export const SaveChartButton: FC<Props> = ({
     canSave,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const { embedToken, writeActions } = useEmbed();
     const [isSaveChartModalOpen, setIsSaveChartModalOpen] = useState(false);
     const [isPendingOpen, setIsPendingOpen] = useState(false);

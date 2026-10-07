@@ -81,6 +81,36 @@ describe('useAmbientFieldSuggestions', () => {
         vi.mocked(lightdashApi).mockResolvedValue(answer);
     });
 
+    it('does not fetch or prefetch while disabled, and hides cached picks', async () => {
+        const initial: Props = {
+            projectUuid: 'p1',
+            enabled: false,
+            sourceKey: 'orders:1',
+            explore,
+            fields,
+            context,
+            suggestedExploreName: 'other-orders',
+        };
+        const { result, rerender } = renderHook(
+            (props: Props) => useAmbientFieldSuggestions(props),
+            { wrapper: wrapper(), initialProps: initial },
+        );
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(result.current.picks).toEqual({});
+        expect(result.current.pendingFieldNames.size).toBe(0);
+
+        rerender({ ...initial, enabled: true });
+        await waitFor(() =>
+            expect(Object.keys(result.current.picks)).not.toHaveLength(0),
+        );
+        const calls = vi.mocked(lightdashApi).mock.calls.length;
+        rerender({ ...initial, suggestedExploreName: 'another-table' });
+        expect(result.current.picks).toEqual({});
+        expect(result.current.seed).toEqual({});
+        expect(result.current.pendingFieldNames.size).toBe(0);
+        expect(lightdashApi).toHaveBeenCalledTimes(calls);
+    });
+
     it('asks about the suggested table before it is attached and reuses the answer on attach', async () => {
         const initial: Props = {
             projectUuid: 'p1',

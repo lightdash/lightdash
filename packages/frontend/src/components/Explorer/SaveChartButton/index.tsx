@@ -53,7 +53,6 @@ const SaveChartButton: FC<{
     onSaveModalOpenChange?: (isOpen: boolean) => void;
     verificationSavePrompt?: VerificationSavePrompt;
 }> = ({ disabled, onSaveModalOpenChange, verificationSavePrompt }) => {
-    const isAmbientAiEnabled = useAmbientAiEnabled();
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
     const isModalHosted = useIsModalHosted();
@@ -61,6 +60,7 @@ const SaveChartButton: FC<{
     // Both mean the Explorer is not the page, so saving must not navigate away.
     const suppressNavigation = isEmbedded || isModalHosted;
     const projectUuid = useProjectUuid();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     // For saving: enriched with map extent (only subscribes here to avoid re-renders elsewhere)
     const unsavedChartVersionForSave = useExplorerSelector(

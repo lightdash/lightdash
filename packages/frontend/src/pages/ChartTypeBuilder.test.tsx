@@ -2319,6 +2319,7 @@ describe('ChartTypeBuilder', () => {
             vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
             renderBuilder(path);
 
+            expect(useAmbientAiEnabled).toHaveBeenCalledWith('p1');
             expect(suggestChartTypeFields).not.toHaveBeenCalled();
             expect(lastPreviewCall()).toMatchObject({
                 isPickingFields: false,
