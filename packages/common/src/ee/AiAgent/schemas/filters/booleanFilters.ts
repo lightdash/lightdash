@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
+import { nameAgentDefinition } from '../agentJsonSchema';
 import { getFieldIdSchema } from '../fieldId';
 import {
     filterOperatorList,
@@ -69,5 +70,7 @@ const booleanFilterSchema = z.union([
             )}`,
         ),
 ]);
+
+nameAgentDefinition('BooleanFilterRule', booleanFilterSchema);
 
 export default booleanFilterSchema;

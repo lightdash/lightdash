@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { dataAppVizGradientValueSchema } from '../../../apps/types';
+import { nameAgentDefinition } from '../agentJsonSchema';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -35,6 +36,30 @@ const parameterValueSchema = z.union([
     z.array(z.number()),
 ]);
 
+const queryDimensionsSchema = z
+    .array(getFieldIdSchema({ additionalDescription: null }))
+    .describe(
+        'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.',
+    );
+
+nameAgentDefinition('QueryDimensions', queryDimensionsSchema);
+
+const queryMetricsSchema = z
+    .array(getFieldIdSchema({ additionalDescription: null }))
+    .describe(
+        'The field ids of the metrics to be calculated. They will be grouped by the dimensions.',
+    );
+
+nameAgentDefinition('QueryMetrics', queryMetricsSchema);
+
+const querySortsSchema = z
+    .array(sortFieldSchema)
+    .describe(
+        'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+    );
+
+nameAgentDefinition('QuerySorts', querySortsSchema);
+
 // Query configuration schema - what data to fetch
 export const queryConfigBaseSchema = z.object({
     exploreName: z
@@ -42,21 +67,9 @@ export const queryConfigBaseSchema = z.object({
         .describe(
             'The name of the explore containing the metrics and dimensions used for the chart.',
         ),
-    dimensions: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .describe(
-            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.',
-        ),
-    metrics: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .describe(
-            'The field ids of the metrics to be calculated. They will be grouped by the dimensions.',
-        ),
-    sorts: z
-        .array(sortFieldSchema)
-        .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-        ),
+    dimensions: queryDimensionsSchema,
+    metrics: queryMetricsSchema,
+    sorts: querySortsSchema,
     limit: z.coerce
         .number()
         .nullable()

@@ -146,35 +146,39 @@ describe('toLlmJsonSchema', () => {
         });
     });
 
-    test('inlines small shared schemas instead of referencing them', () => {
+    test('keeps schemas referenced more than once as definitions', () => {
         const connector = z.union([z.literal('and'), z.literal('or')]);
         const schema = toLlmJsonSchema(
             z.object({ first: connector, second: connector.nullable() }),
             { reused: 'ref' },
         );
 
-        expect(schema).not.toHaveProperty('definitions');
-        expect(schema.properties).toEqual({
-            first: { type: 'string', enum: ['and', 'or'] },
-            second: { type: ['string', 'null'], enum: ['and', 'or', null] },
+        expect(Object.values(schema.definitions ?? {})[0]).toEqual({
+            type: 'string',
+            enum: ['and', 'or'],
+        });
+        expect(schema.properties?.first).toEqual({
+            $ref: '#/definitions/__schema0',
         });
     });
 
-    test('merges the allOf wrapper Zod uses for described shared schemas', () => {
+    test('inlines a named definition used only once', () => {
         const shared = z.record(z.string(), z.string()).nullable();
+        const definitionNames = new WeakMap<z.core.$ZodType, string>([
+            [shared, 'Shared'],
+        ]);
         const schema = toLlmJsonSchema(
-            z.object({
-                first: shared.default(null).describe('First'),
-                second: shared.describe('Second'),
-            }),
-            { reused: 'ref' },
+            z.object({ first: shared.describe('First') }),
+            {
+                resolveDefinitionName: (candidate) =>
+                    definitionNames.get(candidate),
+            },
         );
 
         expect(schema).not.toHaveProperty('definitions');
         expect(schema.properties?.first).toEqual({
             type: ['object', 'null'],
             additionalProperties: { type: 'string' },
-            default: null,
             description: 'First',
         });
     });

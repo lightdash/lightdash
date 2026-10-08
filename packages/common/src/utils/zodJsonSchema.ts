@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 type JsonSchemaIo = 'input' | 'output';
 type ReusedStrategy = 'inline' | 'ref';
+type DefinitionNameResolver = (schema: z.core.$ZodType) => string | undefined;
 
 type JsonSchemaTypeName =
     | 'object'
@@ -41,6 +42,44 @@ export type JsonSchema = {
     exclusiveMinimum?: number | boolean;
 };
 
+class DefinitionMetadataRegistry extends z.core.$ZodRegistry<z.GlobalMeta> {
+    constructor(private readonly resolveName: DefinitionNameResolver) {
+        super();
+    }
+
+    override get<TSchema extends z.core.$ZodType>(
+        schema: TSchema,
+    ): z.core.$replace<z.GlobalMeta, TSchema> | undefined {
+        const metadata = z.globalRegistry.get(schema);
+        const id = this.resolveName(schema);
+
+        return id === undefined ? metadata : { ...metadata, id };
+    }
+}
+
+const convertToJsonSchema = (
+    schema: z.ZodType,
+    {
+        io,
+        reused,
+        resolveDefinitionName,
+    }: {
+        io: JsonSchemaIo;
+        reused: ReusedStrategy;
+        resolveDefinitionName?: DefinitionNameResolver;
+    },
+): JsonSchema =>
+    z.toJSONSchema(schema, {
+        target: 'draft-07',
+        io,
+        reused,
+        cycles: 'throw',
+        metadata:
+            resolveDefinitionName === undefined
+                ? undefined
+                : new DefinitionMetadataRegistry(resolveDefinitionName),
+    });
+
 /**
  * Native Zod 4 conversion with the settings the MCP SDK uses when it serves
  * `tools/list`, so committed MCP contracts match the live server byte for byte.
@@ -48,13 +87,7 @@ export type JsonSchema = {
 export const toJsonSchema = (
     schema: z.ZodType,
     { io, reused = 'inline' }: { io: JsonSchemaIo; reused?: ReusedStrategy },
-): JsonSchema =>
-    z.toJSONSchema(schema, {
-        target: 'draft-07',
-        io,
-        reused,
-        cycles: 'throw',
-    });
+): JsonSchema => convertToJsonSchema(schema, { io, reused });
 
 const isJsonSchema = (value: unknown): value is JsonSchema =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -222,24 +255,37 @@ const dropNoiseKeywords = ({
     };
 };
 
-// A `$ref` costs about as much as a small schema and hides it from the model;
-// only larger shared schemas earn a definition.
-const INLINE_DEFINITION_MAX_CHARS = 160;
-
 const DEFINITIONS_PREFIX = '#/definitions/';
 
-/** Replace refs to small self-contained definitions with the definition. */
-const inlineSmallDefinitionsOnce = (root: JsonSchema): JsonSchema => {
+const countDefinitionReferences = (root: JsonSchema): Map<string, number> => {
+    const counts = new Map<string, number>();
+    const count = (value: unknown): void => {
+        if (Array.isArray(value)) {
+            value.forEach(count);
+            return;
+        }
+        if (!isJsonSchema(value)) return;
+
+        if (value.$ref?.startsWith(DEFINITIONS_PREFIX)) {
+            const name = value.$ref.slice(DEFINITIONS_PREFIX.length);
+            counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+        Object.values(value).forEach(count);
+    };
+
+    count(root);
+    return counts;
+};
+
+/** A definition only earns an indirection when more than one location uses it. */
+const inlineSingleUseDefinitionsOnce = (root: JsonSchema): JsonSchema => {
     const { definitions } = root;
     if (!definitions) return root;
+    const referenceCounts = countDefinitionReferences(root);
     const inlineable = new Map(
-        Object.entries(definitions).filter(([, definition]) => {
-            const serialized = JSON.stringify(definition);
-            return (
-                serialized.length <= INLINE_DEFINITION_MAX_CHARS &&
-                !serialized.includes('"$ref"')
-            );
-        }),
+        Object.entries(definitions).filter(
+            ([name]) => (referenceCounts.get(name) ?? 0) <= 1,
+        ),
     );
     if (inlineable.size === 0) return root;
 
@@ -280,13 +326,13 @@ const inlineSmallDefinitionsOnce = (root: JsonSchema): JsonSchema => {
         : inlined;
 };
 
-// A definition only becomes self-contained once the definitions it refers to
-// are inlined, so repeat until the definition count settles.
-const inlineSmallDefinitions = (root: JsonSchema): JsonSchema => {
+// Inlining one definition can make one of its dependencies single-use, so
+// repeat until the definition count settles.
+const inlineSingleUseDefinitions = (root: JsonSchema): JsonSchema => {
     let current = root;
     let remaining = Object.keys(current.definitions ?? {}).length;
     while (remaining > 0) {
-        current = inlineSmallDefinitionsOnce(current);
+        current = inlineSingleUseDefinitionsOnce(current);
         const next = Object.keys(current.definitions ?? {}).length;
         if (next === remaining) break;
         remaining = next;
@@ -353,8 +399,20 @@ export const normalizeJsonSchema = (schema: JsonSchema): JsonSchema => {
  */
 export const toLlmJsonSchema = (
     schema: z.ZodType,
-    { reused = 'inline' }: { reused?: ReusedStrategy } = {},
+    {
+        reused = 'inline',
+        resolveDefinitionName,
+    }: {
+        reused?: ReusedStrategy;
+        resolveDefinitionName?: DefinitionNameResolver;
+    } = {},
 ): JsonSchema =>
     normalizeJsonSchema(
-        inlineSmallDefinitions(toJsonSchema(schema, { io: 'input', reused })),
+        inlineSingleUseDefinitions(
+            convertToJsonSchema(schema, {
+                io: 'input',
+                reused,
+                resolveDefinitionName,
+            }),
+        ),
     );

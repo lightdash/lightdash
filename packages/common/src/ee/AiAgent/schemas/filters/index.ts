@@ -7,6 +7,7 @@ import type {
     FilterType,
 } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { nameAgentDefinition } from '../agentJsonSchema';
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
@@ -30,6 +31,8 @@ export const filterRuleSchema = z.union([
     numberFilterSchema,
     dateFilterSchema,
 ]);
+
+nameAgentDefinition('FilterRule', filterRuleSchema);
 
 export type AiFilterRule = FilterRule<
     FilterOperator,
@@ -55,6 +58,8 @@ export const filtersSchemaV2 = z.object({
     metrics: z.array(filterRuleSchema).nullable(),
     tableCalculations: z.array(numberFilterSchema).nullable(),
 });
+
+nameAgentDefinition('Filters', filtersSchemaV2);
 
 const filtersSchemaAndFilterRulesTransformed = z
     .object({
