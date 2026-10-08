@@ -2140,9 +2140,17 @@ describe('AiAgentToolsService', () => {
                     sqlCharts: [makeSqlChartContent({ slug })],
                 }),
             );
+            const getCurrentContentVersionBySlug = vi
+                .fn()
+                .mockResolvedValueOnce({ versionUuid: 'version-before' })
+                .mockResolvedValue({ versionUuid: 'version-after' });
             const service = makeService({
                 spaceModel,
-                coderService: { upsertSqlChart, getSqlChartsForRead },
+                coderService: {
+                    upsertSqlChart,
+                    getSqlChartsForRead,
+                    getCurrentContentVersionBySlug,
+                },
                 aiAgentContentValidation:
                     new AiAgentContentValidation() as unknown as Record<
                         string,
@@ -2292,6 +2300,179 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 ['orders-by-status'],
             );
+        });
+
+        it('saves an edit that leaves the SQL untouched without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const edited = await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/limit', value: 100 }],
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ limit: 100 }),
+            );
+            expect(edited).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+                versionUuids: {
+                    before: 'version-before',
+                    after: 'version-after',
+                },
+            });
+        });
+
+        it('asks for approval of the new SQL before saving an edit that changes it', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const sql = 'select status from orders';
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(approveSql.mock.invocationCallOrder[0]).toBeLessThan(
+                upsertSqlChart.mock.invocationCallOrder[0],
+            );
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ sql }),
+            );
+        });
+
+        it('settles an edit that rewrites the SQL unchanged without new SQL to approve', async () => {
+            const { service } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const { sql } = makeSqlChartContent();
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: false,
+            });
+        });
+
+        it('writes nothing when the new SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not move a SQL chart into a space outside the scoped agent spaces', async () => {
+            const hasSpaceWithPathAndUuids = vi
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: { hasSpaceWithPathAndUuids },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/spaceSlug',
+                            value: 'blocked-space',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses an edit without the SQL chart save permission', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects patches to read-only SQL chart fields', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/connection',
+                            value: 'Finance',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(
+                'patch[0].path: Patch path "/connection" is not allowed',
+            );
+            expect(upsertSqlChart).not.toHaveBeenCalled();
         });
 
         it('does not read a SQL chart outside the scoped agent spaces', async () => {

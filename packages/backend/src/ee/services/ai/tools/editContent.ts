@@ -1,5 +1,6 @@
 import {
     editContentToolDefinition,
+    isSqlApprovalToolCall,
     mcpEditContentArgsSchema,
     mcpEditContentToolDefinition,
     ParameterError,
@@ -12,11 +13,25 @@ import type { EditContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
+import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { createSqlApprovalGate } from './sqlApprovalGate';
+import {
+    approveClientSql,
+    SqlNotApprovedError,
+    type ApproveSqlFn,
+} from './sqlApprovals';
+import {
+    getSqlChartApproveSql,
+    SQL_CHART_APPROVAL_COPY,
+    SQL_CHART_DISABLED_RESULT,
+    type SqlChartSaving,
+} from './sqlChartApproval';
 
 type Dependencies = {
     editContent: EditContentFn;
+    sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
 };
@@ -33,7 +48,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart' | 'document';
+    type: EditedContent['type'];
     warnings: string[];
 }) => {
     const warningText =
@@ -65,10 +80,20 @@ const toStructuredContent = (
               warnings,
           };
 
-/** Runs an edit exactly as the agent's editContent tool does, for callers that apply an edit without the model. */
+/**
+ * Runs an edit exactly as the agent's editContent tool does, for callers that
+ * apply an edit without the model. `approveSql` gates SQL chart edits that
+ * change the SQL; without it they need `client_approved` SQL chart saving.
+ */
 export const executeEditContent = async (
-    { editContent, documentsEnabled = false, artifacts }: Dependencies,
+    {
+        editContent,
+        sqlChartSaving = { mode: 'disabled' },
+        documentsEnabled = false,
+        artifacts,
+    }: Dependencies,
     args: z.infer<typeof mcpEditContentArgsSchema>,
+    approveSql: ApproveSqlFn | null = null,
 ) => {
     const { slug, type, patch, documentEdit } = args;
     try {
@@ -76,6 +101,9 @@ export const executeEditContent = async (
             ? mcpEditContentArgsSchema
             : toolEditContentArgsSchema
         ).parse(args);
+        if (type === 'sql_chart' && sqlChartSaving.mode === 'disabled') {
+            return toolFailure(SQL_CHART_DISABLED_RESULT);
+        }
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
                 if (patch !== undefined || documentEdit === undefined) {
@@ -102,6 +130,18 @@ export const executeEditContent = async (
                 throw new ParameterError(
                     'Charts and dashboards require patch instead of documentEdit.',
                 );
+            }
+            if (type === 'sql_chart') {
+                const sqlApproval =
+                    sqlChartSaving.mode === 'client_approved'
+                        ? approveClientSql
+                        : approveSql;
+                if (!sqlApproval) {
+                    throw new ParameterError(
+                        'SQL chart edits need a SQL approval step.',
+                    );
+                }
+                return { slug, type, patch, approveSql: sqlApproval };
             }
             return { slug, type, patch };
         };
@@ -137,6 +177,9 @@ export const executeEditContent = async (
             structuredContent: toStructuredContent(result, warnings),
         };
     } catch (error) {
+        if (error instanceof SqlNotApprovedError) {
+            return toolFailure(error.message);
+        }
         return toolErrorOutput(
             error,
             `Error editing ${type} "${slug}". Changes were not applied.`,
@@ -146,6 +189,7 @@ export const executeEditContent = async (
 
 export const getEditContent = ({
     editContent,
+    sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     artifacts,
 }: Dependencies) => {
@@ -155,14 +199,43 @@ export const getEditContent = ({
     const inputSchema: FlexibleSchema<
         z.infer<typeof mcpEditContentArgsSchema>
     > = definition.inputSchema;
+    const approvalGate =
+        sqlChartSaving.mode === 'thread_approval'
+            ? createSqlApprovalGate(
+                  sqlChartSaving.approval,
+                  'editContent',
+                  SQL_CHART_APPROVAL_COPY,
+              )
+            : null;
+
     return tool({
         ...definition,
         inputSchema,
-        execute: (args) =>
-            executeEditContent(
-                { editContent, documentsEnabled, artifacts },
+        needsApproval: async (input) =>
+            isSqlApprovalToolCall('editContent', input) &&
+            approvalGate !== null &&
+            approvalGate.usesNativeApproval(),
+        execute: async (args, { toolCallId }) => {
+            const sqlChartApproval =
+                args.type === 'sql_chart' && approvalGate
+                    ? await approvalGate.forToolCall(toolCallId, {
+                          needsApproval: isSqlApprovalToolCall(
+                              'editContent',
+                              args,
+                          ),
+                      })
+                    : null;
+            const output = await executeEditContent(
+                { editContent, sqlChartSaving, documentsEnabled, artifacts },
                 args,
-            ),
+                sqlChartApproval
+                    ? getSqlChartApproveSql(sqlChartApproval)
+                    : null,
+            );
+            return sqlChartApproval
+                ? sqlChartApproval.persistIfResumed(output)
+                : output;
+        },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

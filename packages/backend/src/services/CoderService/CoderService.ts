@@ -2890,7 +2890,7 @@ export class CoderService extends BaseService {
     async getCurrentContentVersionBySlug(
         user: SessionUser,
         projectUuid: string,
-        type: 'dashboard' | 'chart',
+        type: 'dashboard' | 'chart' | 'sql_chart',
         slug: string,
     ): Promise<{ contentUuid: string; versionUuid: string | null }> {
         const { name: projectName, organizationUuid } =
@@ -2948,6 +2948,21 @@ export class CoderService extends BaseService {
                 return {
                     contentUuid: chart.uuid,
                     versionUuid: version?.versionUuid ?? null,
+                };
+            }
+            case 'sql_chart': {
+                const [sqlChart] = await this.savedSqlModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                });
+                if (!sqlChart) {
+                    throw new NotFoundError(
+                        `SQL chart with slug "${slug}" not found`,
+                    );
+                }
+                return {
+                    contentUuid: sqlChart.saved_sql_uuid,
+                    versionUuid: sqlChart.saved_sql_version_uuid,
                 };
             }
             default:

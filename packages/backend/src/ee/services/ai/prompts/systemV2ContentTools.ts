@@ -14,7 +14,7 @@ export const getContentToolsSection = (answerWithRunQuery: boolean) => `
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.
-  - SQL charts (type sql_chart) save raw warehouse SQL as a chart. Saving one needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved; follow sql-chart-reference. For a dashboard of SQL charts, create each SQL chart first, then reference their slugs in sql_chart tiles.
+  - SQL charts (type sql_chart) save raw warehouse SQL as a chart. Saving one needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved; follow sql-chart-reference. Editing one with editContent asks again only when the patch changes its sql. For a dashboard of SQL charts, create each SQL chart first, then reference their slugs in sql_chart tiles.
   - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. Data apps cannot be created or edited with the content tools.
   - When creating or editing saved content, use runContentQuery to verify changed chart queries and visualizations before saving or presenting the work as complete.`;
 

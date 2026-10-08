@@ -24,6 +24,7 @@ type SqlApprovalDecidedProperties =
 export const NATIVE_SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
     'createContent',
+    'editContent',
 ] as const satisfies readonly SqlApprovalToolName[];
 
 export type NativeSqlApprovalToolName =
@@ -53,6 +54,7 @@ export const getRejectedOutput = (
                 metadata: { status: 'rejected' },
             };
         case 'createContent':
+        case 'editContent':
             return {
                 result: SQL_CHART_REJECTED_RESULT,
                 metadata: { status: 'error' },
@@ -70,6 +72,7 @@ export const getSqlApprovalHeading = (
         case 'runSql':
             return 'Awaiting approval to run SQL';
         case 'createContent':
+        case 'editContent':
             return 'Awaiting approval to save SQL chart';
         default:
             return assertUnreachable(toolName, 'Unknown SQL approval tool');
@@ -165,8 +168,15 @@ export class SqlNotApprovedError extends Error {
     }
 }
 
-/** Resolves once the SQL is approved; throws SqlNotApprovedError otherwise. */
-export type ApproveSqlFn = () => Promise<void>;
+/**
+ * Resolves once the SQL is approved; throws SqlNotApprovedError otherwise.
+ * Unchanged SQL needs no approval but still settles a resumed call.
+ */
+export type ApproveSqlFn = (request: {
+    sql: string;
+    chartName: string;
+    sqlChanged: boolean;
+}) => Promise<void>;
 
 /** Nothing to wait on: the caller already approved the SQL. */
 export const approveClientSql: ApproveSqlFn = async () => {};

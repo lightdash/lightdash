@@ -12,6 +12,7 @@ import {
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
     documentAsCodeSchema,
+    doesPatchTouchSqlChartSql,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -2597,6 +2598,19 @@ export class AiAgentToolsService extends BaseService {
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
                     }
+                    case 'sql_chart': {
+                        if (args.type !== 'sql_chart') {
+                            throw new ParameterError('Invalid content type');
+                        }
+                        uuid = await this.saveEditedSqlChart(context, {
+                            slug,
+                            current: currentContent.content as SqlChartAsCode,
+                            patch,
+                            patched: patchedContent,
+                            approveSql: args.approveSql,
+                        });
+                        break;
+                    }
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
@@ -2622,11 +2636,14 @@ export class AiAgentToolsService extends BaseService {
                 return {
                     ...editedContent,
                     uuid,
-                    href: AiAgentToolsService.getContentUrl(
-                        context,
-                        type,
-                        uuid,
-                    ),
+                    href:
+                        editedContent.type === 'sql_chart'
+                            ? editedContent.href
+                            : AiAgentToolsService.getContentUrl(
+                                  context,
+                                  editedContent.type,
+                                  uuid,
+                              ),
                     versionUuids: {
                         before: versionBefore?.versionUuid ?? null,
                         after: versionAfter?.versionUuid ?? null,
@@ -2739,6 +2756,47 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** Saves an edited SQL chart, asking for approval only when its SQL changed. */
+    private async saveEditedSqlChart(
+        context: AiAgentToolsRuntimeContext,
+        {
+            slug,
+            current,
+            patch,
+            patched,
+            approveSql,
+        }: {
+            slug: string;
+            current: SqlChartAsCode;
+            patch: unknown;
+            patched: unknown;
+            approveSql: ApproveSqlFn;
+        },
+    ): Promise<string | undefined> {
+        this.validateContentAsCode('sql_chart', patched);
+        await this.assertContentSpaceInScope(
+            context,
+            patched.spaceSlug,
+            `SQL chart "${slug}" was not found`,
+        );
+        this.assertCanSaveSqlCharts(context);
+        const sqlChanged = patched.sql !== current.sql;
+        if (sqlChanged || doesPatchTouchSqlChartSql(patch)) {
+            await approveSql({
+                sql: patched.sql,
+                chartName: patched.name,
+                sqlChanged,
+            });
+        }
+        const promotionChanges = await this.coderService.upsertSqlChart(
+            context.user,
+            context.projectUuid,
+            slug,
+            patched,
+        );
+        return promotionChanges.charts[0]?.data.uuid;
+    }
+
     private assertCanSaveSqlCharts(context: AiAgentToolsRuntimeContext) {
         if (
             this.createAuditedAbility(context.user).cannot(
@@ -2759,7 +2817,11 @@ export class AiAgentToolsService extends BaseService {
         approveSql: ApproveSqlFn,
     ) {
         this.assertCanSaveSqlCharts(context);
-        await approveSql();
+        await approveSql({
+            sql: content.sql,
+            chartName: content.name,
+            sqlChanged: true,
+        });
 
         const promotionChanges = await this.coderService.upsertSqlChart(
             context.user,

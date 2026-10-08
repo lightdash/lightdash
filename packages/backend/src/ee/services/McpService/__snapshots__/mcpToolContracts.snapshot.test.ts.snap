@@ -1855,7 +1855,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+      "description": "Edit a dashboard, chart, or SQL chart by applying a patch to its JSON, then validate before persisting. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1866,7 +1866,7 @@ Usage tips:
             "type": "string",
           },
           "patch": {
-            "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+            "description": "RFC6902 Patch objects array to apply to the current dashboard, chart, or SQL chart JSON",
             "items": {},
             "type": "array",
           },
@@ -1877,7 +1877,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the dashboard or chart to edit",
+            "description": "Slug of the dashboard, chart, or SQL chart to edit",
             "minLength": 1,
             "type": "string",
           },
@@ -1886,6 +1886,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
             ],
             "type": "string",
           },

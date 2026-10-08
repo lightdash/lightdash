@@ -2194,6 +2194,7 @@ export class McpService extends BaseService {
 
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
+                    sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
                     if (

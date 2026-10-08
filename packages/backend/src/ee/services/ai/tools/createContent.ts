@@ -15,9 +15,10 @@ import type { CreateContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import type {
-    ExecuteStructuredToolResult,
-    ExecuteToolErrorResult,
+import {
+    toolFailure,
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -28,7 +29,7 @@ import {
     type ApproveSqlFn,
 } from './sqlApprovals';
 import {
-    getSqlChartApprovalHeading,
+    getSqlChartApproveSql,
     SQL_CHART_APPROVAL_COPY,
     SQL_CHART_DISABLED_RESULT,
     type SqlChartSaving,
@@ -51,12 +52,6 @@ type ExecuteCreateContentResult =
     | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
-
-const failure = (result: string): ExecuteToolErrorResult => ({
-    result,
-    metadata: { status: 'error' },
-    structuredContent: { error: result, refusal: null },
-});
 
 const resolveDocumentContent = async (
     content: unknown,
@@ -167,11 +162,7 @@ export const getCreateContent = ({
                       })
                     : null;
             const approveSql: ApproveSqlFn = sqlChartApproval
-                ? () =>
-                      sqlChartApproval.approveSql({
-                          sql: getSqlApprovalSql(args),
-                          heading: getSqlChartApprovalHeading(content.name),
-                      })
+                ? getSqlChartApproveSql(sqlChartApproval)
                 : approveClientSql;
 
             const run = async (): Promise<ExecuteCreateContentResult> => {
@@ -184,7 +175,7 @@ export const getCreateContent = ({
                         type === 'sql_chart' &&
                         sqlChartSaving.mode === 'disabled'
                     ) {
-                        return failure(SQL_CHART_DISABLED_RESULT);
+                        return toolFailure(SQL_CHART_DISABLED_RESULT);
                     }
                     const result = await createContent(
                         await getCreateArgs(args, approveSql),
@@ -220,7 +211,7 @@ export const getCreateContent = ({
                     };
                 } catch (error) {
                     if (error instanceof SqlNotApprovedError) {
-                        return failure(error.message);
+                        return toolFailure(error.message);
                     }
                     return toolErrorOutput(
                         error,

@@ -6,6 +6,7 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    getPatchedSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
@@ -78,7 +79,8 @@ type ToolReadContentArgs = {
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'document';
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    patch?: unknown;
 };
 
 type ToolCreateContentArgs = {
@@ -272,6 +274,23 @@ export const ToolCallDescription: FC<{
         case 'editContent':
             const editContentToolArgs =
                 toolCall.toolArgs as ToolEditContentArgs;
+            if (
+                editContentToolArgs.type === 'sql_chart' &&
+                editContentToolArgs.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="edit"
+                        slug={editContentToolArgs.slug}
+                        chart={{
+                            sql:
+                                getPatchedSql(editContentToolArgs.patch) ??
+                                undefined,
+                        }}
+                        approval={sqlApproval}
+                    />
+                );
+            }
             return editContentToolArgs.slug && editContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="edit"

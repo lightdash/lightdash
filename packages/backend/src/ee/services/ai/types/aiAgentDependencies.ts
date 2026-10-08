@@ -389,6 +389,13 @@ export type EditContentFn = (
               type: 'dashboard' | 'chart';
               patch: unknown;
           }
+        | {
+              slug: string;
+              type: 'sql_chart';
+              patch: unknown;
+              // Runs only when the patch changes the SQL, before saving.
+              approveSql: ApproveSqlFn;
+          }
         | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
 ) => Promise<
     | DocumentContentResult
@@ -405,6 +412,16 @@ export type EditContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           uuid: string;
           href: string;
           versionUuids: {

@@ -26,7 +26,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.
-  - SQL charts (type sql_chart) save raw warehouse SQL as a chart. Saving one needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved; follow sql-chart-reference. For a dashboard of SQL charts, create each SQL chart first, then reference their slugs in sql_chart tiles.
+  - SQL charts (type sql_chart) save raw warehouse SQL as a chart. Saving one needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved; follow sql-chart-reference. Editing one with editContent asks again only when the patch changes its sql. For a dashboard of SQL charts, create each SQL chart first, then reference their slugs in sql_chart tiles.
   - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. Data apps cannot be created or edited with the content tools.
   - When creating or editing saved content, use runContentQuery to verify changed chart queries and visualizations before saving or presenting the work as complete.
 
@@ -2528,18 +2528,18 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+    "description": "Edit a dashboard, chart, or SQL chart by applying a patch to its JSON, then validate before persisting. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "patch": {
-          "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+          "description": "RFC6902 Patch objects array to apply to the current dashboard, chart, or SQL chart JSON",
           "items": {},
           "type": "array",
         },
         "slug": {
-          "description": "Slug of the dashboard or chart to edit",
+          "description": "Slug of the dashboard, chart, or SQL chart to edit",
           "minLength": 1,
           "type": "string",
         },
@@ -2548,6 +2548,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "enum": [
             "dashboard",
             "chart",
+            "sql_chart",
           ],
           "type": "string",
         },
@@ -2660,7 +2661,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "properties": {
                     "content": {
                       "additionalProperties": {},
-                      "description": "The dashboard or chart as code after the edit",
+                      "description": "The dashboard, chart, or SQL chart as code after the edit",
                       "propertyNames": {
                         "type": "string",
                       },
@@ -2674,6 +2675,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                       "enum": [
                         "dashboard",
                         "chart",
+                        "sql_chart",
                       ],
                       "type": "string",
                     },

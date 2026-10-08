@@ -8,7 +8,7 @@ import {
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
-    isSqlChartContentArgs,
+    isSqlApprovalToolCall,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
@@ -138,10 +138,12 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 const hasComposerSqlNodes = (toolArgs: unknown): boolean =>
     getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode);
 
-// Tool calls whose SQL waits on the user inside the activity card.
+// Tool calls whose SQL waits on the user inside the activity card; runSql
+// has its own approval card.
 const needsInlineSqlApproval = (toolName: string, toolArgs: unknown) =>
-    (toolName === 'runComposerQueries' && hasComposerSqlNodes(toolArgs)) ||
-    (toolName === 'createContent' && isSqlChartContentArgs(toolArgs));
+    toolName === 'runComposerQueries'
+        ? hasComposerSqlNodes(toolArgs)
+        : toolName !== 'runSql' && isSqlApprovalToolCall(toolName, toolArgs);
 
 // Complete args, no result, no decision: the tool is waiting on the user.
 const getPendingSqlApprovalIds = (

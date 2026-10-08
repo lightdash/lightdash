@@ -4359,6 +4359,7 @@ export class AiAgentService extends BaseService {
                 }
                 return;
             case 'createContent':
+            case 'editContent':
                 if (
                     ability.cannot(
                         'manage',
