@@ -1,5 +1,6 @@
-/* The icon sits in a 28px outlined chip in the alert's own ink colour, so it
-   follows every colour and both schemes without extra configuration. */
+/* The icon sits in a 28px chip tinted from the alert's own ink colour, so it
+   follows every colour and both schemes without extra configuration. The
+   pale light tone leaves the chip unfilled so it does not outweigh the wash. */
 .icon {
     width: rem(28px);
     height: rem(28px);
@@ -7,7 +8,12 @@
     margin-inline-end: var(--mantine-spacing-sm);
     justify-content: center;
     border-radius: var(--mantine-radius-md);
+    background-color: color-mix(in srgb, var(--alert-color) 6%, transparent);
     border: 1px solid color-mix(in srgb, var(--alert-color) 8%, transparent);
+}
+
+.root[data-variant='light'] .icon {
+    background-color: transparent;
 }
 
 .body {
