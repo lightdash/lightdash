@@ -11,6 +11,7 @@ import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import { FilterPills } from './FilterPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -227,13 +228,116 @@ describe('FilterPills', () => {
         ).toBeInTheDocument();
     });
 
-    it('hides the remove action while the sidebar is open', () => {
+    it('hides the remove and lock actions while the sidebar is open', () => {
         mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
         expect(
             screen.queryByRole('button', { name: 'Remove filter' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /ock filter/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    describe('lock', () => {
+        const tabs = [
+            { uuid: 't1', name: 'One', order: 0 },
+            { uuid: 't2', name: 'Two', order: 1 },
+        ];
+
+        it('locks the filter on the active tab without opening it', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardTabs: tabs,
+                dashboardTiles: [tile('tile-1', 't1')],
+            });
+            renderWithProviders(<FilterPills activeTabUuid="t1" />);
+
+            await user.click(
+                screen.getAllByRole('button', {
+                    name: 'Lock filter on this tab',
+                })[0],
+            );
+
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(open).not.toHaveBeenCalled();
+            const update = setDashboardFilters.mock.calls[0][0];
+            expect(update(filters).dimensions).toEqual([
+                { ...savedRule, lockedTabUuids: ['t1'] },
+                noDefaultRule,
+            ]);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action: 'lock',
+                    dashboardUuid: 'dashboard-1',
+                    tabUuid: 't1',
+                    fieldId: 'orders_status',
+                    tableName: 'orders',
+                },
+            });
+        });
+
+        it('pins the lock only for a filter locked on the active tab', () => {
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['t1'] },
+                        { ...noDefaultRule, lockedTabUuids: ['t2'] },
+                    ],
+                },
+                dashboardTabs: tabs,
+                dashboardTiles: [tile('tile-1', 't1')],
+            });
+            renderWithProviders(<FilterPills activeTabUuid="t1" />);
+
+            const unlock = screen.getByRole('button', {
+                name: 'Unlock filter on this tab',
+            });
+            expect(unlock).toHaveAttribute('aria-pressed', 'true');
+            expect(unlock.parentElement?.className).toContain('lockSlotActive');
+            const lock = screen.getByRole('button', {
+                name: 'Lock filter on this tab',
+            });
+            expect(lock.parentElement?.className).not.toContain(
+                'lockSlotActive',
+            );
+        });
+
+        it('locks on the dashboard uuid when the dashboard has no tabs', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(
+                screen.getByRole('button', { name: 'Unlock filter' }),
+            );
+
+            const update = setDashboardFilters.mock.calls[0][0];
+            expect(update(filters).dimensions[0]).toEqual({
+                ...savedRule,
+                lockedTabUuids: undefined,
+            });
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action: 'unlock',
+                    dashboardUuid: 'dashboard-1',
+                    tabUuid: undefined,
+                    fieldId: 'orders_status',
+                    tableName: 'orders',
+                },
+            });
+        });
     });
 
     describe('value text', () => {

@@ -5,8 +5,14 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type FilterableItem,
+    type FilterType,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    getSqlColumnFilterType,
+    getUniqueSqlColumns,
+} from '../dashboardFilters/FilterConfiguration/utils';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 
 // A dashboard only ever lists dimensions and metrics
@@ -33,3 +39,18 @@ export const useFilterRuleField = (
         [resolveField, rule],
     );
 };
+
+// The filter type of a SQL column filter, as the shipped popover reads it.
+// Null unless the filter is on a SQL column
+export const useFilterRuleSqlColumnType = (
+    rule: DashboardFilterRule | null,
+): FilterType | null =>
+    useDashboardTileStatusContext((c) =>
+        rule !== null && rule.target.isSqlColumn
+            ? getSqlColumnFilterType(
+                  getUniqueSqlColumns(c.sqlChartTilesMetadata),
+                  rule.target.fieldId,
+                  rule.target.fallbackType,
+              )
+            : null,
+    );

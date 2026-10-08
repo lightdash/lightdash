@@ -39,6 +39,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const removeFilterById = useControlsSidebarSelector(
         (c) => c.removeFilterById,
     );
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -46,6 +47,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         (c) => c.setHaveFiltersChanged,
     );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const hasTabs = useDashboardContext((c) => c.dashboardTabs.length > 0);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -110,6 +112,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 isSelected={isSelected}
                 isDraft={isNew && isSelected && !filter.label}
                 isSidebarOpen={isSidebarOpen}
+                activeTabUuid={activeTabUuid}
+                hasTabs={hasTabs}
+                dashboardUuid={dashboardUuid}
             />
         );
     };

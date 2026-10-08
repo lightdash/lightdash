@@ -39,6 +39,14 @@ vi.mock('./FieldsAndTiles', () => ({
     FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
 }));
 
+vi.mock('./FilterSettings', () => ({
+    FilterSettings: ({ field }: { field: { label: string } | null }) => (
+        <div data-testid="filter-settings">
+            {field ? `Settings for ${field.label}` : 'Settings with no field'}
+        </div>
+    ),
+}));
+
 const FIELD_ID = 'orders_status';
 
 const field = {
@@ -78,6 +86,8 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
+        activeSection: 'fields',
+        setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
         addFirstField: vi.fn(),
@@ -208,6 +218,65 @@ describe('ControlSidebar', () => {
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
     });
 
+    it('disables Settings for a placeholder and says why', () => {
+        setSidebar({
+            isPlaceholder: true,
+            activeSection: 'settings',
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        const settings = screen.getByRole('tab', { name: 'Settings' });
+        expect(settings).toHaveAttribute('title', 'Pick a field first');
+        expect(settings).toBeDisabled();
+        expect(
+            screen.getByRole('tab', { name: /^Fields and tiles/ }),
+        ).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+        expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
+    });
+
+    it('switches between the two tabs', () => {
+        const { setActiveSection } = setSidebar({});
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('tab', { name: 'Fields and tiles (1)' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        const settings = screen.getByRole('tab', { name: 'Settings' });
+        expect(settings).toBeEnabled();
+        expect(settings).not.toHaveAttribute('title');
+        fireEvent.click(settings);
+        expect(setActiveSection).toHaveBeenCalledWith('settings');
+
+        setSidebar({ activeSection: 'settings', setActiveSection });
+        rerender(<ControlSidebar />);
+        expect(screen.getByTestId('filter-settings')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('fields-and-tiles'),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: /^Fields and tiles/ }));
+        expect(setActiveSection).toHaveBeenCalledWith('fields');
+    });
+
+    it('closes with a missing default value and says it stays off', () => {
+        const { close } = setSidebar({
+            activeSection: 'settings',
+            editingRule: makeRule({ label: 'Order status', values: [] }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByText(
+                'No default value chosen, so the default stays off',
+            ),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
     it('says nothing in the footer for a filter that can be kept', () => {
         setSidebar({
             isNew: false,
@@ -216,6 +285,7 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.queryByText(/to keep/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/stays off/)).not.toBeInTheDocument();
     });
 
     it('titles an unlabelled filter with its field and suggests the name', () => {
@@ -287,6 +357,15 @@ describe('ControlSidebar', () => {
                 screen.getByText('1 field · reaches 1 of 3 tiles'),
             ).toBeInTheDocument();
         });
+
+        it('hands the metric to its settings', () => {
+            setSidebar({ editingRule: metricRule, activeSection: 'settings' });
+            renderWithProviders(<ControlSidebar />);
+
+            expect(screen.getByTestId('filter-settings')).toHaveTextContent(
+                'Settings for Revenue',
+            );
+        });
     });
 
     describe('a SQL column filter', () => {
@@ -310,6 +389,15 @@ describe('ControlSidebar', () => {
                 'country',
             );
             expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
+        });
+
+        it('has settings with no field', () => {
+            setSidebar({ editingRule: sqlRule, activeSection: 'settings' });
+            renderWithProviders(<ControlSidebar />);
+
+            expect(screen.getByTestId('filter-settings')).toHaveTextContent(
+                'Settings with no field',
+            );
         });
     });
 

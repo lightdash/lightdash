@@ -1,17 +1,32 @@
 import {
+    isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
-import { IconAsterisk, IconGripVertical, IconX } from '@tabler/icons-react';
+import {
+    IconAsterisk,
+    IconGripVertical,
+    IconLock,
+    IconLockOpen,
+    IconX,
+} from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../providers/Tracking/useTracking';
 import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { showsComposedFilterValue } from '../dashboardFilters/ActiveFilters/filterLabels';
+import {
+    getFilterLockKey,
+    getFilterLockLabel,
+    getFilterLockToggle,
+} from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterRuleLabel } from '../dashboardFilters/ActiveFilters/FilterRuleLabel';
 import { getTruncatedValuesDisplay } from '../dashboardFilters/ActiveFilters/utils';
 import { useFilterChipRequirementState } from '../dashboardFilters/FilterRequirements/useFilterChipRequirementState';
 import classes from './FilterPills.module.css';
+import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = {
@@ -22,8 +37,11 @@ type Props = {
     isSelected: boolean;
     /** A new control that has no label yet. */
     isDraft: boolean;
-    /** While open the pill is only a click target: no grip or X. */
+    /** While open the pill is only a click target: no grip, lock or X. */
     isSidebarOpen: boolean;
+    activeTabUuid: string | undefined;
+    hasTabs: boolean;
+    dashboardUuid: string | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
@@ -35,10 +53,20 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDraft,
         isSidebarOpen,
+        activeTabUuid,
+        hasTabs,
+        dashboardUuid,
     }) => {
+        const { track } = useTracking();
         const open = useControlsSidebarSelector((c) => c.open);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
+        );
+        const setDashboardFilters = useDashboardContext(
+            (c) => c.setDashboardFilters,
+        );
+        const setHaveFiltersChanged = useDashboardContext(
+            (c) => c.setHaveFiltersChanged,
         );
         const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =
             useFilterChipRequirementState(filter);
@@ -55,6 +83,29 @@ export const FilterPill: FC<Props> = memo(
                 ),
             [filter, field],
         );
+
+        const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
+        const lockKey = getFilterLockKey({
+            hasTabs,
+            activeTabUuid,
+            dashboardUuid,
+        });
+        const lockLabel = getFilterLockLabel(isLocked, hasTabs);
+
+        const toggleLock = () => {
+            const toggle = getFilterLockToggle(filter, {
+                isLocked,
+                hasTabs,
+                activeTabUuid,
+                dashboardUuid,
+            });
+            if (!toggle) return;
+            track(toggle.event);
+            setDashboardFilters((filters) =>
+                replaceFilterRule(filters, toggle.filterRule),
+            );
+            setHaveFiltersChanged(true);
+        };
 
         const isDraggable = !isSidebarOpen;
 
@@ -114,6 +165,38 @@ export const FilterPill: FC<Props> = memo(
                         rightSection={
                             !isSidebarOpen && (
                                 <Group gap={2} wrap="nowrap">
+                                    {lockKey && (
+                                        <Box
+                                            component="span"
+                                            className={
+                                                isLocked
+                                                    ? pillClasses.lockSlotActive
+                                                    : pillClasses.lockSlot
+                                            }
+                                        >
+                                            <Tooltip fz="xs" label={lockLabel}>
+                                                <ActionIcon
+                                                    size="xs"
+                                                    radius="xl"
+                                                    aria-label={lockLabel}
+                                                    aria-pressed={isLocked}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleLock();
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            isLocked
+                                                                ? IconLock
+                                                                : IconLockOpen
+                                                        }
+                                                        size="sm"
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Box>
+                                    )}
                                     <Tooltip fz="xs" label="Remove filter">
                                         <ActionIcon
                                             size="xs"

@@ -5,12 +5,14 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import { FilterSettings } from './FilterSettings';
 import {
     getFilterFields,
     getTabCounts,
     getTileField,
     canTileTakeFilter,
 } from './peers';
+import { isDefaultValueIncomplete } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
@@ -26,6 +28,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
+    const activeSection = useControlsSidebarSelector((c) => c.activeSection);
+    const setActiveSection = useControlsSidebarSelector(
+        (c) => c.setActiveSection,
+    );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const discard = useControlsSidebarSelector((c) => c.discard);
     const close = useControlsSidebarSelector((c) => c.close);
@@ -121,7 +127,9 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
         ? 'Add a field to keep this control'
-        : null;
+        : isDefaultValueIncomplete(filterRule)
+          ? 'No default value chosen, so the default stays off'
+          : null;
     const discardLabel = isNew
         ? 'Discard control'
         : isDirty
@@ -135,6 +143,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const subtitle = isPlaceholder
         ? 'No mapping yet'
         : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
+    const showSettings = activeSection === 'settings' && !isPlaceholder;
 
     return (
         <EditorShell
@@ -145,6 +154,24 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             onClose={close}
             discardLabel={discardLabel}
             onDiscard={discard}
+            tabs={[
+                {
+                    value: 'fields',
+                    label: 'Fields and tiles',
+                    count: isPlaceholder ? 0 : fieldCount,
+                },
+                {
+                    value: 'settings',
+                    label: 'Settings',
+                    disabled: isPlaceholder,
+                    disabledReason: 'Pick a field first',
+                },
+            ]}
+            activeTab={showSettings ? 'settings' : 'fields'}
+            onTabChange={(value) => {
+                if (value === 'fields' || value === 'settings')
+                    setActiveSection(value);
+            }}
             footerStatus={footerStatus}
             aboveTabs={
                 <>
@@ -184,7 +211,15 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 </>
             }
         >
-            {fieldsAndTiles}
+            {showSettings ? (
+                <FilterSettings
+                    rule={filterRule}
+                    field={field}
+                    onChange={updateFilter}
+                />
+            ) : (
+                fieldsAndTiles
+            )}
         </EditorShell>
     );
 };
