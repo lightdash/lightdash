@@ -223,3 +223,8 @@ export type DepartmentOverlaps = {
     venn: { sets: DepartmentRef[]; regions: DepartmentVennRegion[] } | null;
     members: DepartmentMember[] | null;
 };
+
+export type ApiDepartmentOverlapsResponse = {
+    status: 'ok';
+    results: DepartmentOverlaps;
+};

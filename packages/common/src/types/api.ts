@@ -237,6 +237,7 @@ import { type DbtExposure } from './dbt';
 import {
     type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
+    type ApiDepartmentOverlapsResponse,
     type ApiDepartmentResponse,
     type ApiOrganizationAdoptionSummaryResponse,
 } from './departments';
@@ -1471,6 +1472,7 @@ type ApiResults =
     | ApiDepartmentResponse['results']
     | ApiDepartmentDetailResponse['results']
     | ApiDepartmentMembershipResponse['results']
+    | ApiDepartmentOverlapsResponse['results']
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']

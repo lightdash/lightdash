@@ -2,8 +2,11 @@ import {
     assertRegisteredAccount,
     MissingConfigError,
     NotFoundError,
+    ParameterError,
+    truncateForMessage,
     type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
+    type ApiDepartmentOverlapsResponse,
     type ApiDepartmentResponse,
     type ApiErrorPayload,
     type ApiOrganizationAdoptionSummaryResponse,
@@ -12,6 +15,7 @@ import {
     type SetDepartmentGroups,
     type SetDepartmentMembers,
     type SetDepartmentOwners,
+    type SetPrimaryDepartment,
     type UpdateDepartment,
     type UUID,
 } from '@lightdash/common';
@@ -26,18 +30,57 @@ import {
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { validate as isUuid } from 'uuid';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { type DepartmentService } from '../services/DepartmentService/DepartmentService';
+
+// The overlap diagram shows at most three sets: the department and two others
+const MAX_COMPARED_DEPARTMENTS = 2;
+
+// Lower case, as the service compares uuids; a malformed one never reaches the database
+const toUuid = (value: unknown, label: string): string => {
+    if (typeof value !== 'string' || !isUuid(value)) {
+        throw new ParameterError(
+            `${label} must be a valid UUID: ${truncateForMessage(value)}`,
+        );
+    }
+    return value.toLowerCase();
+};
+
+// Comma-separated department uuids; an empty value is the same as leaving it out
+const toDepartmentList = (
+    parameter: 'with' | 'without',
+    value: string | undefined,
+    departmentUuid: string,
+): string[] | undefined => {
+    if (value === undefined || value === '') return undefined;
+    const entries = value.split(',');
+    if (entries.length > MAX_COMPARED_DEPARTMENTS) {
+        throw new ParameterError(
+            `"${parameter}" can list at most ${MAX_COMPARED_DEPARTMENTS} departments`,
+        );
+    }
+    const uuids = entries.map((entry) =>
+        toUuid(entry, `Department in "${parameter}"`),
+    );
+    if (uuids.includes(departmentUuid)) {
+        throw new ParameterError(
+            `"${parameter}" cannot list the department itself`,
+        );
+    }
+    return uuids;
+};
 
 @Route('/api/v1/org/departments')
 // Under development: hidden until the feature is generally available
@@ -115,6 +158,38 @@ export class OrgDepartmentsController extends BaseController {
         const results = await this.departmentService().getDetail(
             req.account,
             departmentUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{departmentUuid}/overlaps')
+    @OperationId('getDepartmentOverlaps')
+    async getOverlaps(
+        @Request() req: express.Request,
+        @Path() departmentUuid: UUID,
+        @Query('with') withDepartmentUuids?: string,
+        @Query('without') withoutDepartmentUuids?: string,
+    ): Promise<ApiDepartmentOverlapsResponse> {
+        assertRegisteredAccount(req.account);
+        const validDepartmentUuid = toUuid(departmentUuid, 'Department');
+        const withUuids = toDepartmentList(
+            'with',
+            withDepartmentUuids,
+            validDepartmentUuid,
+        );
+        const withoutUuids = toDepartmentList(
+            'without',
+            withoutDepartmentUuids,
+            validDepartmentUuid,
+        );
+        const results = await this.departmentService().getOverlaps(
+            req.account,
+            validDepartmentUuid,
+            withUuids,
+            withoutUuids,
         );
         this.setStatus(200);
         return { status: 'ok', results };
@@ -208,5 +283,29 @@ export class OrgDepartmentsController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/people/{userUuid}/primary')
+    @OperationId('setPrimaryDepartment')
+    async setPrimaryDepartment(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+        @Body() body: SetPrimaryDepartment,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        const validUserUuid = toUuid(userUuid, 'User');
+        const validDepartmentUuid =
+            body.departmentUuid === null
+                ? null
+                : toUuid(body.departmentUuid, 'Department');
+        await this.departmentService().setPrimaryDepartment(
+            req.account,
+            validUserUuid,
+            { departmentUuid: validDepartmentUuid },
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
     }
 }
