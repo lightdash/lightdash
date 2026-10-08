@@ -21,6 +21,7 @@ import {
     type ModelMessage,
     type OnToolCallFinishEvent,
     type Output,
+    type ProviderMetadata,
     type TextStreamPart,
     type ToolCallPart,
     type ToolSet,
@@ -156,6 +157,7 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
+import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
@@ -257,12 +259,22 @@ const createAgentStepUsageRecorder = ({
               'agent',
           )
         : null;
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
     let isFirstStep = true;
 
     const record = async (step: {
         usage: LanguageModelUsage;
         toolCalls?: ReadonlyArray<{ toolName: string }>;
+        providerMetadata?: ProviderMetadata;
     }) => {
+        const appliedEdits =
+            step.providerMetadata?.anthropic?.contextManagement;
+        if (appliedEdits !== undefined) {
+            logger(
+                'Context Management',
+                `Prompt UUID ${args.promptUuid}: ${JSON.stringify(appliedEdits)}`,
+            );
+        }
         const tokens = await recordAgentStepUsage({
             usage: step.usage,
             telemetry:
@@ -1630,7 +1642,7 @@ export const buildPrepareStep = ({
             );
         }
 
-        const stepMessages =
+        const compactedMessages =
             args.decisions &&
             stepNumber === 0 &&
             intentToolGate?.intent === 'chart_from_previous' &&
@@ -1638,6 +1650,14 @@ export const buildPrepareStep = ({
             steers.length === 0
                 ? compactChartDiscovery(messages)
                 : messages;
+        const { messages: stepMessages, replacedReads } =
+            pruneSupersededContentReads(compactedMessages);
+        if (replacedReads > 0) {
+            logger(
+                'Content Reads',
+                `Step ${stepNumber} for prompt UUID ${args.promptUuid}: replaced ${replacedReads} earlier content read(s) with stubs`,
+            );
+        }
         if (
             stepMessages === messages &&
             extraMessages.length === 0 &&

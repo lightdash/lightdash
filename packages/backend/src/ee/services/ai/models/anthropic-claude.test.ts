@@ -84,7 +84,7 @@ describe('getAnthropicModel context management', () => {
         supportsContextManagement: true,
     };
 
-    test('keeps loaded skills and the recent working set when clearing tool results', () => {
+    test('keeps loaded skills, content reads and the recent working set when clearing tool results', () => {
         const model = getAnthropicModel(config, preset);
         const clearToolUses =
             model.providerOptions?.anthropic?.contextManagement?.edits.find(
@@ -92,7 +92,7 @@ describe('getAnthropicModel context management', () => {
             );
         expect(clearToolUses).toMatchObject({
             keep: { value: 10 },
-            excludeTools: ['loadSkill'],
+            excludeTools: ['loadSkill', 'readContent'],
         });
     });
 });
