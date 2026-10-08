@@ -201,6 +201,12 @@ const execute = async (
 };
 
 describe('listWarehouseTables tool', () => {
+    test('passes the AI context to warehouse table discovery', async () => {
+        const list = vi.fn().mockResolvedValue({});
+        await execute(list, { limit: 100 });
+        expect(list).toHaveBeenCalledWith('ai');
+    });
+
     test('renders matched tables grouped by schema and as structured content', async () => {
         const output = await execute(async () => structuredCatalog, {
             limit: 100,
@@ -308,7 +314,10 @@ describe('listWarehouseTables tool', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error listing warehouse tables.');
         expect(output.result).toContain('warehouse unreachable');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,
         ).toBe(true);

@@ -12,6 +12,7 @@ type Props = {
     align?: 'center' | 'left';
     showPromptAffordance?: boolean;
     maxVisible?: number;
+    disabled?: boolean;
 };
 
 const chipKey = (chip: AgentSuggestion, idx: number) =>
@@ -39,6 +40,7 @@ export const AgentSuggestionChips = ({
     align = 'center',
     showPromptAffordance = false,
     maxVisible,
+    disabled = false,
 }: Props) => {
     const impressedRef = useRef<string | null>(null);
     const visibleChips = useMemo(
@@ -66,6 +68,7 @@ export const AgentSuggestionChips = ({
                 return (
                     <Button
                         key={chipKey(chip, idx)}
+                        disabled={disabled}
                         variant="default"
                         size="xs"
                         className={classes.join(' ')}

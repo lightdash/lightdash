@@ -436,8 +436,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     client: BigQuery;
 
-    constructor(credentials: CreateBigqueryCredentials) {
-        super(credentials, new BigquerySqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateBigqueryCredentials,
+        options?: { agentSession?: boolean },
+    ) {
+        super(
+            credentials,
+            new BigquerySqlBuilder(credentials.startOfWeek),
+            options,
+        );
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
@@ -973,7 +980,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],

@@ -216,12 +216,18 @@ importers:
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
+      '@types/pg':
+        specifier: 8.11.10
+        version: 8.11.10
       oxlint:
         specifier: 1.75.0
         version: 1.75.0(oxlint-tsgolint@7.0.2001)
       oxlint-tsgolint:
         specifier: 7.0.2001
         version: 7.0.2001
+      pg:
+        specifier: 8.13.1
+        version: 8.13.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2

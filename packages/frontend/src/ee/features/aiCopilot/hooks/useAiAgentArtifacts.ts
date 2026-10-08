@@ -14,6 +14,10 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import {
+    getAiAccessRefusal,
+    isAiAgentAuthorizationError,
+} from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
@@ -123,11 +127,11 @@ export const useAiAgentArtifact = ({
         queryFn,
         ...options,
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: versionUuid
                         ? 'Failed to fetch artifact version'
@@ -232,11 +236,11 @@ export const useSetArtifactVersionVerified = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to update answer verification',
                     apiError: error,

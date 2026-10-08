@@ -485,8 +485,15 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     private readonly enableTimeouts: boolean;
 
-    constructor(credentials: CreateDatabricksCredentials) {
-        super(credentials, new DatabricksSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateDatabricksCredentials,
+        options?: { agentSession?: boolean },
+    ) {
+        super(
+            credentials,
+            new DatabricksSqlBuilder(credentials.startOfWeek),
+            options,
+        );
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
         this.enableTimeouts = process.env.DATABRICKS_ENABLE_TIMEOUTS === 'true';

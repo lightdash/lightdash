@@ -1,5 +1,6 @@
 import {
     listWarehouseTablesToolDefinition,
+    QueryExecutionContext,
     type ToolListWarehouseTablesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -37,7 +38,7 @@ export const getListWarehouseTables = ({
             | ExecuteToolErrorResult
         > => {
             try {
-                const all = await listWarehouseTables();
+                const all = await listWarehouseTables(QueryExecutionContext.AI);
 
                 const searchLower = search?.toLowerCase();
                 let matches: ToolListWarehouseTablesStructuredContent['tables'] =

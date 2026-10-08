@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DimensionType,
     FeatureFlags,
@@ -107,6 +109,9 @@ function buildService(
         deleteDailyCountersBefore: vi.fn().mockResolvedValue(0),
         deleteExpiredBatch: vi.fn().mockResolvedValue(0),
     };
+    const aiAccessService = {
+        getAiAccessForUser: vi.fn().mockResolvedValue({ enabled: false }),
+    };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
             context: overrides.queryContext ?? QueryExecutionContext.EXPLORE,
@@ -158,6 +163,16 @@ function buildService(
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
     const service = new DataAppAnalysisService({
+        projectModel: {
+            getSummary: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: 'org-1' }),
+            getWarehouseCredentialsForBinding: vi.fn().mockResolvedValue({}),
+        },
+        warehouseConnectionModel: {
+            getProject: vi.fn().mockResolvedValue({}),
+            getCredentials: vi.fn().mockResolvedValue({}),
+        },
         dataAppAnalysisModel,
         appModel,
         externalConnectionModel: {
@@ -181,6 +196,7 @@ function buildService(
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({}),
         },
+        aiAccessService,
         asyncQueryService,
         aiService,
         aiAgentService: {
@@ -199,6 +215,7 @@ function buildService(
     return {
         service,
         dataAppAnalysisModel,
+        aiAccessService,
         asyncQueryService,
         aiService,
         appModel,
@@ -216,6 +233,45 @@ const completedEvent = (analytics: { track: ReturnType<typeof vi.fn> }) =>
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
 describe('DataAppAnalysisService.detect', () => {
+    it('refuses saved rows when the agent is disconnected', async () => {
+        const { service, asyncQueryService, aiService } = buildService();
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(error);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ refusal: error.refusal });
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+    it('refuses normal-session rows for a connected person', async () => {
+        const { service, asyncQueryService, aiService } = buildService();
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(error);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ refusal: error.refusal });
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+    it('reads saved rows as the person when no policy applies', async () => {
+        const { service, asyncQueryService } = buildService();
+        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: expect.any(String) }),
+        );
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
+    });
+
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue({
             directOnly: false,

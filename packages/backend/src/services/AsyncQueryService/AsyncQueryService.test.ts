@@ -1,6 +1,8 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AnyType,
     assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
@@ -128,6 +130,11 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import {
+    aiExecutionPlanMock,
+    markedPersonPlanMock,
+} from '../AiAccessService/AiAccessService.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { DocumentService } from '../DocumentService/DocumentService';
@@ -372,6 +379,7 @@ const inMemoryDuckdbHistory = ({
                 if (spec) specs.set(uuid, { ...spec, refusal });
             },
         ),
+        recordAiSignInCredential: vi.fn(),
         update: vi.fn(),
         ...overrides,
     };
@@ -387,6 +395,10 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        aiAccessService: {
+            resolvePlan: vi.fn(async () => null),
+            assertCanReadResults: vi.fn(async () => null),
+        } as unknown as AiAccessService,
         getDocumentService: () =>
             ({
                 ...(documentService ?? {
@@ -482,6 +494,7 @@ const getMockedAsyncQueryService = (
             create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: vi.fn(async () => undefined),
             getByQueryUuid: vi.fn(async () => undefined),
+            recordAiSignInCredential: vi.fn(),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
             updateStatusToQueued: vi.fn(async () => 1),
@@ -2095,6 +2108,7 @@ describe('AsyncQueryService', () => {
                 try {
                     await service['executeAsyncQuery'](
                         {
+                            aiPrincipalUuid: null,
                             account: sessionAccount,
                             projectUuid,
                             context: QueryExecutionContext.EXPLORE,
@@ -2165,6 +2179,67 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test.each([
+            [QueryExecutionContext.AI, true, null, false],
+            [QueryExecutionContext.AI, false, null, true],
+            [QueryExecutionContext.EXPLORE, true, null, true],
+            [QueryExecutionContext.AI, false, 'agent-credential', false],
+            [
+                QueryExecutionContext.MCP_RUN_SQL,
+                false,
+                'agent-credential',
+                false,
+            ],
+        ])(
+            'cache lookup for %s with flag %s and credential %s',
+            async (context, enabled, aiPrincipalUuid, looksUpCache) => {
+                vi.mocked(
+                    serviceWithCache.featureFlagModel.get,
+                ).mockImplementation(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.AiAccessSkipResultsCache && enabled,
+                }));
+                vi.mocked(
+                    serviceWithCache.queryHistoryModel.create,
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+                vi.spyOn(
+                    serviceWithCache,
+                    'runAsyncWarehouseQuery',
+                ).mockResolvedValue(undefined);
+
+                await serviceWithCache['executeAsyncQuery'](
+                    {
+                        aiPrincipalUuid,
+                        account: sessionAccount,
+                        projectUuid,
+                        context,
+                        queryTags: { query_context: context },
+                        invalidateCache: false,
+                        queryComposer: createQueryComposerMock(),
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                expect(serviceWithCache.findResultsCache).toHaveBeenCalledTimes(
+                    looksUpCache ? 1 : 0,
+                );
+                const history = vi.mocked(
+                    serviceWithCache.queryHistoryModel.create,
+                ).mock.calls[0][1];
+                if (!looksUpCache) {
+                    expect(history.cacheKey).toMatch(
+                        /^[a-f0-9]{64}\.[a-f0-9-]{36}$/,
+                    );
+                }
+            },
+        );
+
         test('Cache Hit - Complete Flow', async () => {
             // GIVEN: Cache returns a hit with metadata
             const createdAt = new Date();
@@ -2210,6 +2285,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2299,6 +2375,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2384,6 +2461,7 @@ describe('AsyncQueryService', () => {
             const execute = (warehouseConnectionUuid: string | null) =>
                 serviceWithCache['executeAsyncQuery'](
                     {
+                        aiPrincipalUuid: null,
                         account: sessionAccount,
                         projectUuid,
                         context: QueryExecutionContext.EXPLORE,
@@ -2455,6 +2533,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2499,6 +2578,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2554,6 +2634,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2611,6 +2692,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2695,6 +2777,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2753,6 +2836,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithoutCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2840,6 +2924,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with missing parameter references
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2910,6 +2995,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2977,6 +3063,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3059,6 +3146,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3148,6 +3236,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3455,13 +3544,206 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    test('an execution plan bypasses pre-aggregates and refuses pre-aggregate explores', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: false,
+            }),
+        );
+        const getRoutingDecision = vi.fn();
+        Object.assign(service, {
+            preAggregateStrategy: { getRoutingDecision },
+        });
+        const args = {
+            account: sessionAccount,
+            metricQuery: metricQueryMock,
+            explore: validExplore,
+            context: QueryExecutionContext.AI,
+            forceWarehouse: false,
+            aiPlan: aiExecutionPlanMock,
+        };
+        await expect(
+            service['getPreAggregationRoutingDecision'](args),
+        ).resolves.toEqual({ target: 'warehouse' });
+        await expect(
+            service['getPreAggregationRoutingDecision']({
+                ...args,
+                explore: { ...validExplore, type: ExploreType.PRE_AGGREGATE },
+            }),
+        ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+        expect(getRoutingDecision).not.toHaveBeenCalled();
+    });
+
+    test.each([true, false])(
+        'marked person follows the cache bypass flag: %s',
+        async (enabled) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled,
+            });
+            const getRoutingDecision = vi.fn(() => ({
+                target: 'pre_aggregate' as const,
+            }));
+            Object.assign(service, {
+                preAggregateStrategy: { getRoutingDecision },
+            });
+            const result = await service['getPreAggregationRoutingDecision']({
+                account: sessionAccount,
+                metricQuery: metricQueryMock,
+                explore: validExplore,
+                context: QueryExecutionContext.AI,
+                forceWarehouse: false,
+                aiPlan: markedPersonPlanMock,
+            });
+            expect(result.target).toBe(enabled ? 'warehouse' : 'pre_aggregate');
+            expect(getRoutingDecision).toHaveBeenCalledTimes(enabled ? 0 : 1);
+        },
+    );
+
+    test('a switch flip bypasses the earlier marked-person cache and uses the agent credential key', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const credentials = vi
+            .spyOn(service as AnyType, 'getWarehouseCredentialsWithConnection')
+            .mockResolvedValue({
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+                connectionRoute: {
+                    route: 'single',
+                    originalWarehouseConnectionUuid: null,
+                },
+                aiPlan: aiExecutionPlanMock,
+            });
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(
+            service as AnyType,
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock());
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        const findCache = vi
+            .spyOn(service, 'findResultsCache')
+            .mockResolvedValue({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            });
+        credentials.mockResolvedValueOnce({
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: markedPersonPlanMock,
+        });
+        const execution = {
+            account: sessionAccount,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+        };
+        await service.executeAsyncMetricQuery(execution);
+        expect(findCache).toHaveBeenCalledOnce();
+        const cacheKey = vi.spyOn(QueryHistoryModel, 'getCacheKey');
+        await service.executeAsyncMetricQuery({
+            account: sessionAccount,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+        });
+        expect(cacheKey).toHaveBeenCalledWith(
+            projectUuid,
+            expect.objectContaining({
+                aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
+            }),
+        );
+        expect(findCache).toHaveBeenCalledOnce();
+        cacheKey.mockRestore();
+    });
+
     describe('executeAsyncMetricQuery', () => {
+        test.each([
+            [QueryExecutionContext.AI, true, 'warehouse'],
+            [QueryExecutionContext.AI, false, 'pre_aggregate'],
+            [QueryExecutionContext.EXPLORE, true, 'pre_aggregate'],
+        ] as const)(
+            'routes %s with flag %s to %s',
+            async (context, enabled, target) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                    id: FeatureFlags.AiAccessSkipResultsCache,
+                    enabled,
+                });
+                const decision = {
+                    target: 'pre_aggregate' as const,
+                    preAggregateMetadata: { hit: true },
+                    route: {
+                        mode: 'opportunistic' as const,
+                        sourceExploreName: validExplore.name,
+                        preAggregateName: 'summary',
+                    },
+                };
+                const getRoutingDecision = vi.fn(() => decision);
+                (service as AnyType).preAggregateStrategy = {
+                    getRoutingDecision,
+                };
+                const result = await service[
+                    'getPreAggregationRoutingDecision'
+                ]({
+                    account: sessionAccount,
+                    metricQuery: metricQueryMock,
+                    explore: validExplore,
+                    context,
+                    forceWarehouse: false,
+                    aiPlan: null,
+                });
+                expect(result.target).toBe(target);
+                expect(getRoutingDecision).toHaveBeenCalledTimes(
+                    target === 'warehouse' ? 0 : 1,
+                );
+            },
+        );
+
+        test('refuses a direct pre-aggregate explore for flagged AI access', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled: true,
+            });
+            await expect(
+                service['getPreAggregationRoutingDecision']({
+                    account: sessionAccount,
+                    metricQuery: metricQueryMock,
+                    explore: {
+                        ...validExplore,
+                        type: ExploreType.PRE_AGGREGATE,
+                    },
+                    context: QueryExecutionContext.AI,
+                    forceWarehouse: false,
+                    aiPlan: null,
+                }),
+            ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+        });
+
         test.each([
             'reuse',
             'scope-change',
             'expired',
             'denied',
             'ordinary',
+            'principal',
         ] as const)(
             'presentation reuse keeps current authorization and compilation: %s',
             async (scenario) => {
@@ -3475,6 +3757,20 @@ describe('AsyncQueryService', () => {
                             intrinsicUserAttributes: {},
                         },
                     });
+                if (scenario === 'principal') {
+                    vi.spyOn(
+                        service as AnyType,
+                        'getWarehouseCredentialsWithConnection',
+                    ).mockResolvedValue({
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: {
+                            route: 'single',
+                            originalWarehouseConnectionUuid: null,
+                        },
+                        aiPlan: aiExecutionPlanMock,
+                    });
+                }
                 if (scenario === 'denied')
                     access.mockRejectedValue(new ForbiddenError());
                 service['getWarehouseCredentials'] = vi
@@ -3549,7 +3845,15 @@ describe('AsyncQueryService', () => {
                 expect(execute).toHaveBeenCalledTimes(
                     scenario === 'reuse' ? 0 : 1,
                 );
-                if (scenario === 'ordinary')
+                if (scenario === 'principal') {
+                    expect(execute).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
+                        }),
+                        expect.anything(),
+                    );
+                }
+                if (scenario === 'ordinary' || scenario === 'principal')
                     expect(history).not.toHaveBeenCalled();
                 else
                     expect(history).toHaveBeenCalledWith({
@@ -3753,6 +4057,106 @@ describe('AsyncQueryService', () => {
                 name: 'rollup',
             });
         });
+    });
+
+    test.each([false, true])(
+        'AI raw reads check current access with bypass flag=%s',
+        async (enabled) => {
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            );
+            const assertCanReadResults = vi.fn().mockRejectedValue(refusal);
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            Object.assign(service, {
+                aiAccessService: { assertCanReadResults },
+            });
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled,
+            });
+            const history = {
+                context: QueryExecutionContext.EXPLORE,
+                status: QueryHistoryStatus.READY,
+            } as QueryHistory;
+            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
+                history,
+            );
+            await expect(
+                service.getRawAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'normal',
+                    aiAccessOnly: true,
+                }),
+            ).rejects.toMatchObject({ refusal: refusal.refusal });
+            expect(assertCanReadResults).toHaveBeenCalledWith(
+                sessionAccount,
+                projectUuid,
+                history,
+            );
+            expect(
+                service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    test('formatted AI polling checks current access even without aiAccessOnly', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        const assertCanReadResults = vi.fn().mockRejectedValue(refusal);
+        Object.assign(service, { aiAccessService: { assertCanReadResults } });
+        const history = {
+            context: QueryExecutionContext.MCP_RUN_SQL,
+            status: QueryHistoryStatus.READY,
+        } as QueryHistory;
+        vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
+        vi.spyOn(
+            service as AnyType,
+            'throwIfCannotReadQueryHistory',
+        ).mockResolvedValue(undefined);
+        await expect(
+            service.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'agent-query',
+            }),
+        ).rejects.toMatchObject({ refusal: refusal.refusal });
+        expect(assertCanReadResults).toHaveBeenCalledWith(
+            sessionAccount,
+            projectUuid,
+            history,
+        );
+        expect(
+            service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('marked-person reads keep normal-session rows with the bypass flag on', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+            id: FeatureFlags.AiAccessSkipResultsCache,
+            enabled: true,
+        });
+        vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue({
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            metricQuery: {},
+            fields: {},
+            resultsFileName: 'normal-session-results',
+        } as QueryHistory);
+        await expect(
+            service.getRawAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'normal',
+                aiAccessOnly: true,
+            }),
+        ).resolves.toMatchObject({ rows: [{}] });
+        expect(
+            service.resultsStorageClient.getDownloadStream,
+        ).toHaveBeenCalledWith('normal-session-results');
     });
 
     describe('getAsyncQueryResults', () => {
@@ -5281,6 +5685,40 @@ describe('AsyncQueryService', () => {
                 metricQuery: metricQueryMock,
             }) as QueryHistory;
 
+        it.each([QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL])(
+            'preserves a typed identity refusal when polling %s history',
+            async (context) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                ]);
+                const history = { ...createQueryHistory(), context };
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                );
+                const assertCanReadResults = vi.fn().mockRejectedValue(refusal);
+                Object.assign(service, {
+                    aiAccessService: { assertCanReadResults },
+                });
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
+                    history,
+                );
+                await expect(
+                    service.getAsyncQueryHistory({
+                        account,
+                        projectUuid,
+                        queryUuid: history.queryUuid,
+                    }),
+                ).rejects.toBe(refusal);
+                expect(assertCanReadResults).toHaveBeenCalledWith(
+                    account,
+                    projectUuid,
+                    history,
+                );
+            },
+        );
+
         it('allows caller-owned query history with explore-level access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
@@ -5687,6 +6125,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.SQL_RUNNER,
@@ -5762,6 +6201,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.SQL_RUNNER,
@@ -5978,6 +6418,175 @@ describe('AsyncQueryService', () => {
         },
     );
 
+    test.each([
+        QueryExecutionContext.AI,
+        QueryExecutionContext.MCP_RUN_SQL,
+        QueryExecutionContext.DATA_APP_SAMPLE,
+        QueryExecutionContext.EXPLORE,
+    ])('marks warehouse queries without a policy for %s', async (context) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'getWarehouseCredentialsWithConnection',
+        ).mockResolvedValue({
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: null,
+        });
+        const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+        vi.spyOn(service, '_getWarehouseClient').mockResolvedValue({
+            warehouseClient: {
+                ...warehouseClientMock,
+                executeAsyncQuery: execute,
+            },
+            sshTunnel: mockSshTunnel,
+            tunnelConnectMs: 0,
+        });
+        const markErrored = vi
+            .spyOn(service as AnyType, 'markAsyncQueryErrored')
+            .mockResolvedValue(undefined);
+        await service.runAsyncWarehouseQuery({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            query: 'SELECT 1',
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: {
+                ...service.getUserQueryTags(sessionAccount),
+                query_context: context,
+            },
+            warehouseCredentialsOverrides: undefined,
+            queryUuid: 'audited-query',
+            cacheKey: 'cache',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+        expect(execute).toHaveBeenCalledOnce();
+        const { tags } = execute.mock.calls[0][0];
+        if (context === QueryExecutionContext.EXPLORE) {
+            expect(tags).not.toHaveProperty('agent');
+        } else {
+            expect(tags).toHaveProperty('agent', 'true');
+        }
+        expect(service._getWarehouseClient).toHaveBeenCalledWith(
+            projectUuid,
+            warehouseCredentialsMock,
+            expect.objectContaining({
+                agentSession: context !== QueryExecutionContext.EXPLORE,
+            }),
+        );
+        expect(markErrored).not.toHaveBeenCalled();
+    });
+
+    test.each([false, true])(
+        'logs before warehouse execution and fails closed on log failure: %s',
+        async (auditFails) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const recordQuery = vi.fn();
+            const auditError = new Error('log unavailable');
+            if (auditFails)
+                recordQuery.mockImplementation(() => {
+                    throw auditError;
+                });
+            Object.assign(service, { aiAccessService: { recordQuery } });
+            vi.spyOn(
+                service as AnyType,
+                'getWarehouseCredentialsWithConnection',
+            ).mockResolvedValue({
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+                connectionRoute: {
+                    route: 'single',
+                    originalWarehouseConnectionUuid: null,
+                },
+                aiPlan: aiExecutionPlanMock,
+            });
+            const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+            vi.spyOn(service, '_getWarehouseClient').mockResolvedValue({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    executeAsyncQuery: execute,
+                },
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: 0,
+            });
+            const markErrored = vi
+                .spyOn(service as AnyType, 'markAsyncQueryErrored')
+                .mockResolvedValue(undefined);
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: {
+                    ...service.getUserQueryTags(sessionAccount),
+                    query_context: QueryExecutionContext.AI,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'audited-query',
+                cacheKey: 'cache',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            expect(recordQuery).toHaveBeenCalledExactlyOnceWith({
+                queryUuid: 'audited-query',
+                projectUuid,
+                warehouseConnectionUuid: null,
+                plan: aiExecutionPlanMock,
+                context: QueryExecutionContext.AI,
+            });
+            expect(
+                service.queryHistoryModel.recordAiSignInCredential,
+            ).toHaveBeenCalledWith(
+                'audited-query',
+                projectUuid,
+                sessionAccount.user.id,
+                aiExecutionPlanMock.identityUuid,
+            );
+            if (auditFails) {
+                expect(execute).not.toHaveBeenCalled();
+                expect(markErrored).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        errorMessage: auditError.message,
+                    }),
+                );
+            } else {
+                expect(execute).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        tags: expect.objectContaining({
+                            user_uuid: sessionAccount.user.id,
+                            ai_principal:
+                                aiExecutionPlanMock.audit.principalRef,
+                            agent: 'true',
+                        }),
+                    }),
+                    expect.any(Function),
+                );
+                expect(recordQuery.mock.invocationCallOrder[0]).toBeLessThan(
+                    execute.mock.invocationCallOrder[0],
+                );
+                expect(markErrored).not.toHaveBeenCalled();
+            }
+        },
+    );
+
     describe('runAsyncWarehouseQuery', () => {
         describe('when credentials have sshTunnel config', () => {
             const originalCredentials: CreateWarehouseCredentials = {
@@ -6086,13 +6695,14 @@ describe('AsyncQueryService', () => {
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
                     originalCredentials,
-                    undefined,
+                    { aiPlan: null, agentSession: false },
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
                 expect(
                     mockProjectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
+                    agentSession: false,
                     enableInstanceCache: false,
                     projectUuid: 'project uuid',
                     logger: expect.anything(),
@@ -10410,6 +11020,7 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                recordAiSignInCredential: vi.fn(),
                 update: vi.fn(),
                 pollForQueryCompletion,
                 recordDuckdbRefusal,
@@ -10713,6 +11324,7 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                recordAiSignInCredential: vi.fn(),
                 update: vi.fn(),
                 pollForQueryCompletion: vi.fn(
                     async ({ queryUuid }: { queryUuid: string }) => ({
@@ -10868,6 +11480,44 @@ describe('runDuckdbQuery', () => {
                 warehouse_execution_time_ms: 0,
             }),
             expect.anything(),
+        );
+    });
+
+    it('agent-derived results bypass an existing composed cache hit', async () => {
+        const { warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const {
+            run,
+            runWarehouseQuery,
+            pollForQueryCompletion,
+            findCachedResultsFile,
+            markDuckdbCacheHit,
+        } = buildService(cachedResults);
+        pollForQueryCompletion.mockResolvedValue({
+            ...legHistory(1),
+            requestParameters: {
+                query: metricQueryMock,
+                aiSignInCredentialUuid: 'agent-credential',
+            },
+        });
+        await run(
+            baseArgs({
+                context: QueryExecutionContext.AI,
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+        expect(findCachedResultsFile).not.toHaveBeenCalled();
+        expect(markDuckdbCacheHit).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).toHaveBeenCalledOnce();
+        expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
+            /\.duckdb-query-uuid$/,
         );
     });
 

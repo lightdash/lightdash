@@ -124,7 +124,10 @@ describe('getEditDbtProject', () => {
             'Error starting AI writeback. No pull request was opened.',
         );
         expect(output.result).toContain('Unable to enqueue writeback');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,
         );

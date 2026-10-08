@@ -12,6 +12,10 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'aiAccess.settings': 'Review agent identity',
+    'aiAccess.loadError': 'Could not load AI access',
+    'aiAccess.signInError': 'AI sign-in failed',
+
     'skillMenu.header': 'Skills',
     'skillMenu.noneAvailable': 'No skills available for this agent',
     'skillMenu.noMatch':

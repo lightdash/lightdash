@@ -127,6 +127,12 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
+import type {
+    ApiAiAccessForUserResponse,
+    ApiAiMarkerTestResponse,
+    ApiAiWarehouseCapabilitiesResponse,
+    OrganizationAgentIdentitySettings,
+} from './aiPrincipal';
 import {
     type ApiUserActivityDownloadCsv,
     type QueryExecutionContext,
@@ -744,6 +750,9 @@ export type HealthState = {
         snowflake: {
             enabled: boolean;
         };
+        snowflakeAi: {
+            enabled: boolean;
+        };
         databricks: {
             enabled: boolean;
         };
@@ -1345,6 +1354,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
     | ApiDbtSourceBindingsResponse['results']
@@ -1548,6 +1558,9 @@ type ApiResults =
     | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiAiWarehouseCapabilitiesResponse['results']
+    | ApiAiMarkerTestResponse
+    | ApiAiAccessForUserResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

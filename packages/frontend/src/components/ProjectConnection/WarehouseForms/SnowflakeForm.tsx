@@ -48,6 +48,7 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
+import SnowflakeAgentIdentityIndicator from './SnowflakeAgentIdentityIndicator';
 import {
     useSetSnowflakeCliSsoMode,
     useSnowflakeCliSsoMode,
@@ -113,7 +114,13 @@ const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
-    const { savedProject } = useProjectFormContext();
+    const {
+        savedProject,
+        projectUuid,
+        warehouseConnectionUuid,
+        isProjectExtraConnection,
+        isDbtSource,
+    } = useProjectFormContext();
     const { track } = useTracking();
     const { health } = useApp();
     const form = useFormContext();
@@ -272,6 +279,18 @@ const SnowflakeForm: FC<{
     return (
         <>
             <Stack mt="xs">
+                {isEditMode &&
+                    !isDbtSource &&
+                    (!isProjectExtraConnection ||
+                        warehouseConnectionUuid !== undefined) &&
+                    (projectUuid ?? savedProject?.projectUuid) && (
+                        <SnowflakeAgentIdentityIndicator
+                            projectUuid={
+                                (projectUuid ?? savedProject?.projectUuid)!
+                            }
+                            connection={warehouseConnectionUuid ?? null}
+                        />
+                    )}
                 {snowflakeOrgCredentials?.length > 0 && (
                     <Radio.Group
                         value={useOrgCredentials ? 'org' : 'manual'}
@@ -726,7 +745,7 @@ const SnowflakeForm: FC<{
                                             label="Snowflake URL override"
                                             description={
                                                 <>
-                                                    Usually Lightdash would
+                                                    Usually this instance would
                                                     connect to a default url:
                                                     account.snowflakecomputing.com.
                                                     If you'd like to override
@@ -750,7 +769,7 @@ const SnowflakeForm: FC<{
                                         <BooleanSwitch
                                             name="warehouse.disableTimestampConversion"
                                             label="Disable timestamp conversion to UTC"
-                                            description="When disabled, Lightdash will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
+                                            description="When disabled, the connection will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
                                             onLabel="Yes"
                                             offLabel="No"
                                             disabled={disabled}

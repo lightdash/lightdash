@@ -14,6 +14,7 @@ export const ConnectionFields: FC<{
     form: Form;
     intro: string;
     projectUuid: string;
+    warehouseConnectionUuid?: string | null;
     warehouseType: WarehouseTypes;
     nameRef?: React.Ref<HTMLInputElement>;
     savedProject?: Project;
@@ -22,6 +23,7 @@ export const ConnectionFields: FC<{
     form,
     intro,
     projectUuid,
+    warehouseConnectionUuid,
     warehouseType,
     nameRef,
     savedProject,
@@ -30,6 +32,7 @@ export const ConnectionFields: FC<{
     <FormProvider form={form}>
         <ProjectFormProvider
             projectUuid={projectUuid}
+            warehouseConnectionUuid={warehouseConnectionUuid}
             savedProject={savedProject}
             isProjectExtraConnection
         >

@@ -1,4 +1,6 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
+    AI_AGENT_SESSION_SETTING,
     AnyType,
     CreateRedshiftCredentials,
     getWarehouseTableType,
@@ -64,7 +66,10 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         | { config: PoolConfig; expiresAt: number }
         | undefined;
 
-    constructor(credentials: CreateRedshiftCredentials) {
+    constructor(
+        credentials: CreateRedshiftCredentials,
+        options?: { agentSession?: boolean },
+    ) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
 
@@ -90,10 +95,15 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
                           ),
                       ssl,
                   },
+            options,
         );
         this.ssl = ssl;
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
+    }
+
+    protected getAgentSessionStatement(): string {
+        return `SELECT set_config('${AI_AGENT_SESSION_SETTING}', 'true', false)`;
     }
 
     private static getConnectionString(
@@ -202,6 +212,9 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             await mintRedshiftIamCredentials(this.credentials);
 
         const config: PoolConfig = {
+            ...(this.agentSession
+                ? { application_name: AI_AGENT_APPLICATION_NAME }
+                : {}),
             connectionString: RedshiftWarehouseClient.getConnectionString(
                 this.credentials,
                 dbUser,

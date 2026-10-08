@@ -17,6 +17,7 @@ import type {
 import { Knex } from 'knex';
 
 export type DbQueryHistory = {
+    warehouse_connection_uuid?: string | null;
     query_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;

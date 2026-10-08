@@ -45,7 +45,10 @@ import {
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../../models/UserModel';
+import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CsvService } from '../../../services/CsvService/CsvService';
@@ -212,6 +215,9 @@ type Dependencies = {
     externalConnectionModel: ExternalConnectionModel;
     featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
+    aiAccessService: AiAccessService;
+    projectModel: ProjectModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
     asyncQueryService: AsyncQueryService;
     aiService: AiService;
     aiAgentService: AiAgentService;
@@ -525,6 +531,7 @@ export class DataAppAnalysisService extends BaseService {
                             projectUuid,
                             queryUuid: source.queryUuid,
                             maxRows: MAX_ROWS_PER_CHART,
+                            aiAccessOnly: true,
                         })
                         .catch((e: unknown) => {
                             if (e instanceof ResultsExpiredError) {

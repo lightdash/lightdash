@@ -1,9 +1,90 @@
 import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
-import type { Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
+import { buildAccount } from '../../auth/account/account.mock';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
+describe('QueryHistoryModel connection attribution', () => {
+    test.each(['connection', null])(
+        'returns the stored warehouse connection %s',
+        async (connection) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            const account = buildAccount();
+            tracker.on.select('query_history').response({
+                query_uuid: 'query',
+                project_uuid: 'project',
+                created_by_user_uuid: account.user.id,
+                warehouse_connection_uuid: connection,
+            });
+            try {
+                const model = new QueryHistoryModel({ database });
+                expect(
+                    await model.get('query', 'project', account),
+                ).toMatchObject({ warehouseConnectionUuid: connection });
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+});
+
 describe('QueryHistoryModel', () => {
+    test('records the actual agent credential in the existing request metadata', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.recordAiSignInCredential(
+                'query',
+                'project',
+                'person',
+                'credential',
+            );
+            const update = tracker.history.update[0];
+            expect(update.sql).toContain('jsonb_set');
+            expect(update.sql).toContain('aiSignInCredentialUuid');
+            expect(update.bindings).toEqual([
+                'credential',
+                'query',
+                'project',
+                'person',
+            ]);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('isolates cached results by principal after the connection segment', () => {
+        const identifiers = {
+            sql: 'SELECT 1',
+            userUuid: null,
+            warehouseConnectionUuid: 'connection',
+        };
+        const human = QueryHistoryModel.getCacheKey('project', identifiers);
+        const first = QueryHistoryModel.getCacheKey('project', {
+            ...identifiers,
+            aiPrincipalUuid: 'first',
+        });
+        const second = QueryHistoryModel.getCacheKey('project', {
+            ...identifiers,
+            aiPrincipalUuid: 'second',
+        });
+        expect(new Set([human, first, second]).size).toBe(3);
+        expect(first).toBe(
+            createHash('sha256')
+                .update(
+                    'v3.project.SELECT 1.connection:connection.principal:first',
+                )
+                .digest('hex'),
+        );
+    });
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';

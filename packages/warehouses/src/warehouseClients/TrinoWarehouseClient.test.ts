@@ -221,6 +221,35 @@ describe('TrinoWarehouseClient', () => {
         );
     });
 
+    it.each([false, true])(
+        'binds agent headers only for agent sessions (%s)',
+        async (agentSession) => {
+            const warehouse = new TrinoWarehouseClient(credentials, {
+                agentSession,
+            });
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            await warehouse.runQuery('SELECT 1', { agent: 'true' });
+
+            expect(queryResultMock).toHaveBeenLastCalledWith({
+                query: 'SELECT 1\n-- {"agent":"true"}',
+                extraHeaders: {
+                    'X-Trino-Client-Tags': 'agent=true',
+                    ...(agentSession
+                        ? {
+                              'X-Trino-Extra-Credential': 'agent=true',
+                              'User-Agent': 'lightdash-ai',
+                          }
+                        : {}),
+                },
+            });
+        },
+    );
+
     describe('streamQuery client tag headers', () => {
         it('sends X-Trino-Client-Tags header as comma-separated key=value pairs when tags are provided', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);

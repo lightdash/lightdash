@@ -129,6 +129,7 @@ import {
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
+    isAiAccessQueryContext,
     isAwsIamRoleArn,
     isCartesianChartConfig,
     isCustomDimension,
@@ -261,6 +262,7 @@ import {
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
+    UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
@@ -276,7 +278,9 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    withAgentMarkerTag,
     type AgentSqlScope,
+    type AiExecutionPlan,
     type ApiCreateProjectResults,
     type ChartUsageIn,
     type CreateDatabricksCredentials,
@@ -301,10 +305,12 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
+    checkSnowflakeAgentSessionWithToken,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
+    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     SshTunnel,
     warehouseSqlBuilderFromType,
     type WarehouseClientOptions,
@@ -440,6 +446,7 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -542,7 +549,11 @@ type RefreshTokenRotationSource =
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
       }
-    | { kind: 'user'; userWarehouseCredentialsUuid: string }
+    | {
+          kind: 'user';
+          userWarehouseCredentialsUuid: string;
+          purpose?: UserWarehouseCredentialPurpose;
+      }
     | {
           kind: 'warehouseConnection';
           project: WarehouseConnectionProject;
@@ -595,6 +606,7 @@ export type ProjectServiceArguments = {
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
     featureFlagModel: FeatureFlagModel;
+    aiAccessService: AiAccessService;
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     organizationModel: OrganizationModel;
@@ -711,6 +723,11 @@ type PreparedExploreStream = {
 
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
 
+type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    userWarehouseCredentialsUuid: string | undefined;
+    aiPlan?: AiExecutionPlan;
+};
+
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -782,6 +799,7 @@ export class ProjectService extends BaseService {
     userOAuthGrantsModel: UserOAuthGrantsModel;
 
     featureFlagModel: FeatureFlagModel;
+    aiAccessService: AiAccessService;
 
     projectParametersModel: ProjectParametersModel;
 
@@ -867,6 +885,7 @@ export class ProjectService extends BaseService {
         userModel,
         userOAuthGrantsModel,
         featureFlagModel,
+        aiAccessService,
         projectParametersModel,
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
@@ -929,6 +948,7 @@ export class ProjectService extends BaseService {
         this.userModel = userModel;
         this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.featureFlagModel = featureFlagModel;
+        this.aiAccessService = aiAccessService;
         this.projectParametersModel = projectParametersModel;
         this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
@@ -1563,6 +1583,7 @@ export class ProjectService extends BaseService {
     private async refreshCredentials<T extends CreateWarehouseCredentials>(
         args: T,
         userUuid: string,
+        credentialPurpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<T> {
         if (
             args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1583,9 +1604,25 @@ export class ProjectService extends BaseService {
                 // If we try to generate access token from token instead of refreshToken
                 // it will throw an error: The request was invalid.
                 const { accessToken, refreshToken: newRefreshToken } =
-                    await UserService.generateSnowflakeAccessToken(
-                        refreshToken,
-                    );
+                    credentialPurpose === UserWarehouseCredentialPurpose.AI
+                        ? await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                              UserWarehouseCredentialPurpose.AI,
+                          )
+                        : await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                          );
+                if (credentialPurpose === UserWarehouseCredentialPurpose.AI) {
+                    const session = await checkSnowflakeAgentSessionWithToken(
+                        args.account,
+                        accessToken,
+                    ).catch(() => null);
+                    if (!session?.agentActivated) {
+                        throw new ForbiddenError(
+                            SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                        );
+                    }
+                }
                 return {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
@@ -1772,15 +1809,20 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid).catch(
-            (error: unknown) =>
-                source.kind === 'project'
-                    ? this.attributeSharedSignInExpiry(
-                          source.projectUuid,
-                          args,
-                          error,
-                      )
-                    : Promise.reject(error),
+        const refreshed = await this.refreshCredentials(
+            args,
+            userUuid,
+            source.kind === 'user'
+                ? source.purpose
+                : UserWarehouseCredentialPurpose.DEFAULT,
+        ).catch((error: unknown) =>
+            source.kind === 'project'
+                ? this.attributeSharedSignInExpiry(
+                      source.projectUuid,
+                      args,
+                      error,
+                  )
+                : Promise.reject(error),
         );
 
         const newRefreshToken =
@@ -2237,6 +2279,7 @@ export class ProjectService extends BaseService {
         warehouseConnectionUuid,
         userId,
         isRegisteredUser,
+        context,
         isServiceAccount = false,
         purpose = 'query',
     }: {
@@ -2244,9 +2287,10 @@ export class ProjectService extends BaseService {
         warehouseConnectionUuid: string;
         userId: string;
         isRegisteredUser: boolean;
+        context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
-    }) {
+    }): Promise<ResolvedWarehouseCredentials> {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const source =
@@ -2282,33 +2326,53 @@ export class ProjectService extends BaseService {
         let userWarehouseCredentialsUuid: string | undefined;
 
         if (purpose === 'compile') {
-            return {
-                ...(await this.refreshCredentialsAndPersistRotation(
-                    credentials,
-                    userId,
-                    organizationWarehouseCredentialsUuid
-                        ? {
-                              kind: 'organization',
-                              organizationWarehouseCredentialsUuid,
-                          }
-                        : connectionRotationSource,
-                )),
-                userWarehouseCredentialsUuid,
-            };
-        }
-
-        if (
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                organizationWarehouseCredentialsUuid
+                    ? {
+                          kind: 'organization',
+                          organizationWarehouseCredentialsUuid,
+                      }
+                    : connectionRotationSource,
+            );
+        } else if (
             organizationWarehouseCredentialsUuid &&
             !credentials.requireUserCredentials
         ) {
             credentials = await this.refreshCredentialsAndPersistRotation(
                 credentials,
                 userId,
-                {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid,
-                },
+                { kind: 'organization', organizationWarehouseCredentialsUuid },
             );
+        }
+
+        const aiPlan =
+            context && isAiAccessQueryContext(context)
+                ? await this.aiAccessService.resolvePlan({
+                      projectUuid,
+                      organizationUuid: project.organizationUuid,
+                      warehouseConnectionUuid,
+                      connection: credentials,
+                      context,
+                      userUuid: userId,
+                      isRegisteredUser,
+                      isServiceAccount,
+                  })
+                : null;
+        if (aiPlan?.identity === 'connected_person') {
+            return {
+                ...aiPlan.credentials,
+                userWarehouseCredentialsUuid: undefined,
+                aiPlan,
+            };
+        }
+
+        if (purpose === 'compile') {
+            return {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+            };
         }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
@@ -2417,6 +2481,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(aiPlan ? { aiPlan } : {}),
         };
     }
 
@@ -2781,27 +2846,33 @@ export class ProjectService extends BaseService {
             originalWarehouseConnectionUuid,
         };
         switch (target.kind) {
-            case 'original':
+            case 'original': {
+                const { aiPlan, ...warehouseCredentials } =
+                    await this.getSingleRouteWarehouseCredentials(args);
                 return {
-                    warehouseCredentials:
-                        await this.getSingleRouteWarehouseCredentials(args),
+                    warehouseCredentials,
                     warehouseConnectionUuid: null,
                     connectionRoute,
+                    aiPlan: aiPlan ?? null,
                 };
-            case 'extra':
+            }
+            case 'extra': {
+                const { aiPlan, ...warehouseCredentials } =
+                    await this.getExtraConnectionWarehouseCredentials({
+                        projectUuid: args.projectUuid,
+                        warehouseConnectionUuid: target.warehouseConnectionUuid,
+                        userId: args.userId,
+                        isRegisteredUser: args.isRegisteredUser,
+                        isServiceAccount: args.isServiceAccount,
+                        context: args.context,
+                    });
                 return {
-                    warehouseCredentials:
-                        await this.getExtraConnectionWarehouseCredentials({
-                            projectUuid: args.projectUuid,
-                            warehouseConnectionUuid:
-                                target.warehouseConnectionUuid,
-                            userId: args.userId,
-                            isRegisteredUser: args.isRegisteredUser,
-                            isServiceAccount: args.isServiceAccount,
-                        }),
+                    warehouseCredentials,
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
+                    aiPlan: aiPlan ?? null,
                 };
+            }
             default:
                 return assertUnreachable(target, 'Unknown credential target');
         }
@@ -2955,15 +3026,17 @@ export class ProjectService extends BaseService {
         projectUuid,
         userId,
         isRegisteredUser,
+        context,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
+        context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
-    }) {
+    }): Promise<ResolvedWarehouseCredentials> {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
             preloadedOrgWarehouseCredentialsUuid !== undefined
@@ -2995,7 +3068,10 @@ export class ProjectService extends BaseService {
                 project.organizationUuid,
             );
             await this.assertAnalyticsProjectAccess(user, project);
-            return { ...credentials, userWarehouseCredentialsUuid };
+            return {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+            };
         }
 
         if (
@@ -3013,6 +3089,29 @@ export class ProjectService extends BaseService {
                     organizationWarehouseCredentialsUuid,
                 },
             );
+        }
+
+        const aiPlan =
+            context && isAiAccessQueryContext(context)
+                ? await this.aiAccessService.resolvePlan({
+                      projectUuid,
+                      organizationUuid: (
+                          await this.projectModel.getSummary(projectUuid)
+                      ).organizationUuid,
+                      warehouseConnectionUuid: null,
+                      connection: credentials,
+                      context,
+                      userUuid: userId,
+                      isRegisteredUser,
+                      isServiceAccount,
+                  })
+                : null;
+        if (aiPlan?.identity === 'connected_person') {
+            return {
+                ...aiPlan.credentials,
+                userWarehouseCredentialsUuid: undefined,
+                aiPlan,
+            };
         }
 
         // Service accounts cannot use personal warehouse credentials
@@ -3123,6 +3222,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(aiPlan ? { aiPlan } : {}),
         };
     }
 
@@ -3152,6 +3252,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         overrides?: {
+            aiPlan?: AiExecutionPlan | null;
+            agentSession?: boolean;
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
         },
@@ -3188,12 +3290,14 @@ export class ProjectService extends BaseService {
             ? performance.now() - tunnelStart
             : null;
 
-        const { snowflakeVirtualWarehouse, databricksCompute } =
+        const { snowflakeVirtualWarehouse, databricksCompute, aiPlan } =
             overrides || {};
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
+        const agentSession = overrides?.agentSession ?? !!aiPlan;
+
+        const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
             databricksCompute || ''
-        }`;
+        }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid]) : ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -3208,6 +3312,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     credentials,
                     existingClient,
+                    aiPlan,
                 ),
                 sshTunnel,
                 tunnelConnectMs,
@@ -3291,6 +3396,7 @@ export class ProjectService extends BaseService {
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
             {
+                agentSession,
                 enableInstanceCache,
                 projectUuid,
                 logger: this.logger,
@@ -3303,6 +3409,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 credentials,
                 client,
+                aiPlan,
             ),
             sshTunnel,
             tunnelConnectMs,
@@ -3313,7 +3420,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         client: T,
+        aiPlan?: AiExecutionPlan | null,
     ): T {
+        if (aiPlan?.identity === 'connected_person') return client;
         if (!getPersonSignIn(credentials)) return client;
         return attributeClientErrors(client, (error) =>
             this.attributeSharedSignInExpiry(projectUuid, credentials, error),
@@ -6629,11 +6738,11 @@ export class ProjectService extends BaseService {
             // sets from dataTimezone (the third runQuery arg below).
             const nowWallClock = currentUtcWallClock();
             const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
-            const queryTags: RunQueryTags = {
+            const queryTags: RunQueryTags = withAgentMarkerTag({
                 organization_uuid: account.organization.organizationUuid,
                 user_uuid: account.user.userUuid,
                 query_context: QueryExecutionContext.API,
-            };
+            });
             const { rows } = await warehouseClient.runQuery(
                 sql,
                 queryTags,
@@ -9488,13 +9597,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
             query_context: context,
-        };
+        });
 
         return this.runQueryAndFormatRows({
             account,
@@ -9573,14 +9682,14 @@ export class ProjectService extends BaseService {
 
         const { metricQuery } = savedChart;
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
             explore_name: savedChart.tableName,
             query_context: context,
-        };
+        });
 
         const { cacheMetadata, rows, fields } =
             await this.runQueryAndFormatRows({
@@ -9708,7 +9817,7 @@ export class ProjectService extends BaseService {
                     : savedChart.metricQuery.sorts,
         };
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
@@ -9716,7 +9825,7 @@ export class ProjectService extends BaseService {
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         const exploreDimensions = getDimensions(explore);
 
@@ -9809,13 +9918,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
             query_context: context,
-        };
+        });
 
         const explore = await this.getExplore(
             account,
@@ -10223,7 +10332,9 @@ export class ProjectService extends BaseService {
                         warehouseCredentials,
                         warehouseConnectionUuid,
                         connectionRoute,
+                        aiPlan,
                     } = await this.getWarehouseCredentialsWithConnection({
+                        context,
                         projectUuid,
                         binding: { kind: 'explore', exploreName },
                         userId: account.user.id,
@@ -10235,6 +10346,8 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             warehouseCredentials,
                             {
+                                aiPlan,
+                                agentSession: isAiAccessQueryContext(context),
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
                             },
@@ -10427,6 +10540,51 @@ export class ProjectService extends BaseService {
         );
     }
 
+    async runAgentMarkerProbe(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        sql: string,
+    ): Promise<Record<string, unknown>[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        )
+            throw new ForbiddenError();
+        const { warehouseCredentials, aiPlan } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid },
+                context: QueryExecutionContext.AI,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+            { aiPlan, agentSession: true },
+        );
+        try {
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                withAgentMarkerTag({
+                    ...aiPlan?.audit.queryTags,
+                    query_context: QueryExecutionContext.AI,
+                    user_uuid: account.user.id,
+                    organization_uuid: organizationUuid,
+                }),
+            );
+            return rows;
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
     async runSqlQuery(
         user: SessionUser,
         projectUuid: string,
@@ -10456,6 +10614,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding,
@@ -10482,13 +10641,14 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            { aiPlan },
         );
         this.logger.debug(`Run query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             query_context: QueryExecutionContext.SQL_RUNNER,
-        };
+        });
 
         const { maxLimit } = await resolveOrganizationExportLimits(
             this.organizationSettingsModel,
@@ -10529,7 +10689,9 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: userUuid,
@@ -10547,7 +10709,7 @@ export class ProjectService extends BaseService {
                 ...connectionAnalytics,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                context: context as QueryExecutionContext,
+                context,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
                 onboardingFlow: await this.getOnboardingFlow({
@@ -10559,13 +10721,14 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            { aiPlan, agentSession: isAiAccessQueryContext(context) },
         );
         this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
             query_context: context,
-        };
+        });
 
         const columns: VizColumn[] = [];
 
@@ -10627,7 +10790,9 @@ export class ProjectService extends BaseService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: sqlChartUuid
                 ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
@@ -10647,7 +10812,7 @@ export class ProjectService extends BaseService {
                 }),
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                context: context as QueryExecutionContext,
+                context,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
                 onboardingFlow: await this.getOnboardingFlow({
@@ -10659,6 +10824,7 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            { aiPlan, agentSession: isAiAccessQueryContext(context) },
         );
 
         // Apply limit and pivot to the SQL query
@@ -10679,11 +10845,11 @@ export class ProjectService extends BaseService {
         });
 
         this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
             query_context: context,
-        };
+        });
 
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
@@ -10971,13 +11137,14 @@ export class ProjectService extends BaseService {
         }
 
         const [
-            warehouseCredentials,
+            { warehouseCredentials, aiPlan },
             availableParameterDefinitions,
             combinedParameters,
             projectTimezone,
             useTimezoneAwareDateTrunc,
         ] = await Promise.all([
-            this.getWarehouseCredentials({
+            this.getWarehouseCredentialsWithConnection({
+                context,
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
@@ -10993,6 +11160,8 @@ export class ProjectService extends BaseService {
             projectUuid,
             warehouseCredentials,
             {
+                aiPlan,
+                agentSession: isAiAccessQueryContext(context),
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
             },
@@ -11020,8 +11189,17 @@ export class ProjectService extends BaseService {
             },
         ).compile();
 
+        const { enabled: skipAiAccessCache } = isAiAccessQueryContext(context)
+            ? await this.featureFlagModel.get({
+                  user: { userUuid: user.userUuid, organizationUuid },
+                  featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
+              })
+            : { enabled: false };
         const isUserCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
+            this.lightdashConfig.results.autocompleteEnabled &&
+            !!user.userUuid &&
+            !skipAiAccessCache &&
+            aiPlan?.identity !== 'connected_person';
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
@@ -11054,13 +11232,13 @@ export class ProjectService extends BaseService {
             }
         }
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
             query_context: context,
-        };
+        });
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         const valueFieldId = getItemId(field);
@@ -12385,6 +12563,7 @@ export class ProjectService extends BaseService {
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12398,13 +12577,38 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials: credentials, aiPlan } =
+            await this.getWarehouseCredentialsWithConnection({
+                context,
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            });
 
+        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
+        if (aiPlan || isAiAccessQueryContext(queryContext)) {
+            const { warehouseClient, sshTunnel } =
+                await this._getWarehouseClient(projectUuid, credentials, {
+                    aiPlan,
+                    agentSession: isAiAccessQueryContext(queryContext),
+                });
+            try {
+                const tables = await warehouseClient.getAllTables(
+                    undefined,
+                    withAgentMarkerTag({ query_context: queryContext }),
+                );
+                return WarehouseAvailableTablesModel.toWarehouseCatalog(
+                    tables.map((table) => ({
+                        ...table,
+                        partition_column: table.partitionColumn || null,
+                        table_type: table.tableType,
+                    })),
+                );
+            } finally {
+                await sshTunnel.disconnect();
+            }
+        }
         let catalog: WarehouseTablesCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
@@ -12461,24 +12665,27 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials: credentials, aiPlan } =
+            await this.getWarehouseCredentialsWithConnection({
+                context: queryContext,
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
+            { aiPlan, agentSession: isAiAccessQueryContext(queryContext) },
         );
 
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             query_context: queryContext,
-        };
+        });
 
         let database =
             databaseName ?? ProjectService.getWarehouseDatabase(credentials);
@@ -12525,6 +12732,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
         metadata?: Record<string, unknown>,
+        context?: QueryExecutionContext,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12555,15 +12763,17 @@ export class ProjectService extends BaseService {
             project,
             warehouseConnectionUuid,
         );
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: {
-                kind: 'connection',
-                warehouseConnectionUuid: connection.warehouseConnectionUuid,
-            },
-            userId: account.user.userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials: credentials } =
+            await this.getWarehouseCredentialsWithConnection({
+                context,
+                projectUuid,
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                },
+                userId: account.user.userUuid,
+                isRegisteredUser: true,
+            });
         return { connection, credentials, organizationUuid };
     }
 
@@ -12571,10 +12781,12 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         run: (warehouseClient: WarehouseClient) => Promise<T>,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<T> {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
+            { agentSession: isAiAccessQueryContext(context) },
         );
         try {
             return await run(warehouseClient);
@@ -12587,6 +12799,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         connection: WarehouseConnection,
         credentials: CreateWarehouseCredentials,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseDatabaseListing> {
         return listConnectionDatabases({
             connection,
@@ -12595,7 +12808,11 @@ export class ProjectService extends BaseService {
                 this.withConnectionWarehouseClient(
                     projectUuid,
                     credentials,
-                    (warehouseClient) => warehouseClient.listDatabases(),
+                    (warehouseClient) =>
+                        warehouseClient.listDatabases(
+                            withAgentMarkerTag({ query_context: context }),
+                        ),
+                    context,
                 ),
         });
     }
@@ -12640,12 +12857,15 @@ export class ProjectService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         warehouseConnectionUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseDatabaseListing> {
         const { connection, credentials, organizationUuid } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         const connectionAnalytics = await this.getConnectionAnalyticsProperties(
             {
@@ -12665,6 +12885,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 connection,
                 credentials,
+                context,
             );
             trackSafely(() => {
                 this.analytics.trackAccount(account, {
@@ -12700,18 +12921,22 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
         listedDatabaseName: string,
+        context?: QueryExecutionContext,
     ): Promise<WarehouseTablesCatalog> {
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         const listedDatabase = findListedDatabase(
             await this.listConnectionSqlRunnerDatabases(
                 projectUuid,
                 connection,
                 credentials,
+                context,
             ),
             listedDatabaseName,
         );
@@ -12732,8 +12957,21 @@ export class ProjectService extends BaseService {
             credentials,
             (warehouseClient) =>
                 supportsConnectionDatabaseListing(credentials.type)
-                    ? warehouseClient.getTablesForDatabase(listedDatabase)
-                    : warehouseClient.getAllTables(),
+                    ? warehouseClient.getTablesForDatabase(
+                          listedDatabase,
+                          withAgentMarkerTag({
+                              query_context:
+                                  context ?? QueryExecutionContext.SQL_RUNNER,
+                          }),
+                      )
+                    : warehouseClient.getAllTables(
+                          undefined,
+                          withAgentMarkerTag({
+                              query_context:
+                                  context ?? QueryExecutionContext.SQL_RUNNER,
+                          }),
+                      ),
+            context,
         );
         await this.warehouseConnectionTablesModel.replaceTables(
             scope,
@@ -12753,12 +12991,15 @@ export class ProjectService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         warehouseConnectionUuid: string,
+        context?: QueryExecutionContext,
     ): Promise<void> {
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
+                undefined,
+                context,
             );
         await this.warehouseConnectionTablesModel.clearTables({
             projectUuid,
@@ -12777,29 +13018,31 @@ export class ProjectService extends BaseService {
             schemaName,
             tableName,
         }: { databaseName: string; schemaName: string; tableName: string },
+        queryContext: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<WarehouseTableSchema> {
-        const queryContext = QueryExecutionContext.SQL_RUNNER;
         const { connection, credentials } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
                 { tableName, schemaName, databaseName, queryContext },
+                queryContext,
             );
         const listedDatabase = findListedCatalogDatabase(
             await this.listConnectionSqlRunnerDatabases(
                 projectUuid,
                 connection,
                 credentials,
+                queryContext,
             ),
             databaseName,
         );
-        const queryTags: RunQueryTags = {
+        const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: account.organization.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: account.user.userUuid,
             query_context: queryContext,
-        };
+        });
         const listedDatabaseCredentials = credentialsForListedDatabase(
             credentials,
             listedDatabase,
@@ -12819,6 +13062,7 @@ export class ProjectService extends BaseService {
                         database,
                         queryTags,
                     ),
+                queryContext,
             );
             const fields =
                 warehouseCatalog[database]?.[schemaName]?.[tableName];

@@ -28,6 +28,7 @@ import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader'
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
@@ -47,6 +48,7 @@ import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
+import { AiAccessCallout } from './AiAccessCallout';
 import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -247,6 +249,24 @@ const AiArtifactPanelContent: FC<
         const shouldShowPill =
             parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
             !isCustomChartTypeAnswer;
+
+        const accessRefusal =
+            getAiAccessRefusal(artifactError?.error) ??
+            getAiAccessRefusal(threadError?.error) ??
+            getAiAccessRefusal(queryExecutionHandle.error?.error) ??
+            getAiAccessRefusal(queryResults.error?.error);
+
+        if (accessRefusal) {
+            return (
+                <Box className={styles.floatingPanel} p="md">
+                    <AiAccessCallout
+                        projectUuid={artifact.projectUuid}
+                        refusal={accessRefusal}
+                        variant="inline"
+                    />
+                </Box>
+            );
+        }
 
         if (fastDecisions && (artifactError || threadError)) {
             return (

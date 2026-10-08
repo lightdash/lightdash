@@ -3,7 +3,13 @@ import {
     WarehouseTypes,
     type CreateRedshiftCredentials,
 } from '@lightdash/common';
+import { PostgresClient } from './PostgresWarehouseClient';
+import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 import { RedshiftWarehouseClient } from './RedshiftWarehouseClient';
+
+vi.mock('./redshiftIamCredentials', () => ({
+    mintRedshiftIamCredentials: vi.fn(),
+}));
 
 const credentials: CreateRedshiftCredentials = {
     type: WarehouseTypes.REDSHIFT,
@@ -24,6 +30,36 @@ const redshiftVersion = {
 };
 
 describe('RedshiftWarehouseClient', () => {
+    it.each([false, true])(
+        'preserves the agent application name after IAM credentials refresh: %s',
+        async (agentSession) => {
+            vi.mocked(mintRedshiftIamCredentials).mockResolvedValue({
+                dbUser: 'iam_user',
+                dbPassword: 'iam_password',
+                expiration: new Date(Date.now() + 60_000),
+            });
+            const stream = vi
+                .spyOn(PostgresClient.prototype, 'streamQuery')
+                .mockResolvedValue(undefined);
+            try {
+                const warehouse = new RedshiftWarehouseClient(
+                    {
+                        ...credentials,
+                        authenticationType: RedshiftAuthenticationType.IAM,
+                    },
+                    { agentSession },
+                );
+                await warehouse.streamQuery('select 1', () => {}, {});
+                expect(warehouse.config.application_name).toBe(
+                    agentSession ? 'lightdash-ai' : undefined,
+                );
+                expect(stream).toHaveBeenCalledOnce();
+            } finally {
+                stream.mockRestore();
+            }
+        },
+    );
+
     it('keeps catalog filters in the Redshift query', async () => {
         const warehouse = new RedshiftWarehouseClient(credentials);
         const runQuery = vi

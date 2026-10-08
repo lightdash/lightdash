@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     assertUnreachable,
     ForbiddenError,
     hasAiAgentAccessToSpace,
@@ -18,10 +20,14 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
+import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
+import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
+import { BaseService } from '../../../services/BaseService';
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
@@ -48,12 +54,15 @@ type Dependencies = {
     schedulerService: SchedulerService;
     userModel: UserModel;
     dashboardModel: DashboardModel;
+    aiAccessService: AiAccessService;
+    projectModel: ProjectModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
     asyncQueryService: AsyncQueryService;
     aiAgentService: AiAgentService;
     aiService: AiService;
 };
 
-export class SchedulerAiAugmentationService {
+export class SchedulerAiAugmentationService extends BaseService {
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
 
     private readonly schedulerService: SchedulerService;
@@ -62,6 +71,12 @@ export class SchedulerAiAugmentationService {
 
     private readonly dashboardModel: DashboardModel;
 
+    private readonly projectModel: ProjectModel;
+
+    private readonly warehouseConnectionModel: WarehouseConnectionModel;
+
+    private readonly aiAccessService: AiAccessService;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly aiAgentService: AiAgentService;
@@ -69,6 +84,10 @@ export class SchedulerAiAugmentationService {
     private readonly aiService: AiService;
 
     constructor(dependencies: Dependencies) {
+        super();
+        this.aiAccessService = dependencies.aiAccessService;
+        this.projectModel = dependencies.projectModel;
+        this.warehouseConnectionModel = dependencies.warehouseConnectionModel;
         this.schedulerAiAugmentationModel =
             dependencies.schedulerAiAugmentationModel;
         this.schedulerService = dependencies.schedulerService;
@@ -151,6 +170,36 @@ export class SchedulerAiAugmentationService {
         await this.schedulerAiAugmentationModel.delete(schedulerUuid);
     }
 
+    private async getQueryAiAccess(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const connection =
+            warehouseConnectionUuid === null
+                ? await this.projectModel.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
+                  )
+                : await this.warehouseConnectionModel.getCredentials(
+                      await this.warehouseConnectionModel.getProject(
+                          projectUuid,
+                      ),
+                      warehouseConnectionUuid,
+                  );
+        return this.aiAccessService.getAiAccessForUser({
+            projectUuid,
+            warehouseConnectionUuid,
+            organizationUuid,
+            connection,
+            userUuid: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+    }
+
     /**
      * Runs the augmentation for a firing delivery and returns the message, or
      * null when there is none. Executes as the delivery's creator so their
@@ -175,6 +224,41 @@ export class SchedulerAiAugmentationService {
             : (scheduler.aiAugmentation ?? null);
         if (!augmentation) return null;
 
+        const { projectUuid, organizationUuid } =
+            await this.schedulerService.getSchedulerProjectContext(scheduler);
+        const creator = await this.userModel.findSessionUserAndOrgByUuid(
+            createdBy,
+            organizationUuid,
+        );
+        const account = fromSession(creator);
+        const histories = await Promise.all(
+            (deliveryQueries ?? []).map((query) =>
+                this.asyncQueryService.getAsyncQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: query.queryUuid,
+                }),
+            ),
+        );
+        const connections = new Set(
+            histories.map((history) => history.warehouseConnectionUuid ?? null),
+        );
+        if (connections.size === 0) connections.add(null);
+        await Promise.all(
+            [...connections].map(async (connection) => {
+                const access = await this.getQueryAiAccess(
+                    account,
+                    projectUuid,
+                    connection,
+                );
+                if (access.refusal) {
+                    throw new AiAccessRefusedError(
+                        access.refusal.reason,
+                        access.refusal,
+                    );
+                }
+            }),
+        );
         switch (augmentation.type) {
             case 'agent':
                 return this.runAgentForDelivery(
@@ -321,11 +405,21 @@ export class SchedulerAiAugmentationService {
         deliveryQueries: SchedulerDeliveryQuery[] | undefined;
     }): Promise<string> {
         if (deliveryQueries && deliveryQueries.length > 0) {
-            return this.getDeliveryQueriesContent(
-                account,
-                projectUuid,
-                deliveryQueries,
-            );
+            try {
+                return await this.getDeliveryQueriesContent(
+                    account,
+                    projectUuid,
+                    deliveryQueries,
+                );
+            } catch (error) {
+                if (
+                    !(error instanceof AiAccessRefusedError) ||
+                    error.refusal.reason !==
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED
+                ) {
+                    throw error;
+                }
+            }
         }
         if (dashboard) {
             return this.getDashboardDeliveryContent(
@@ -355,6 +449,7 @@ export class SchedulerAiAugmentationService {
                     projectUuid,
                     queryUuid,
                     maxRows: MAX_ROWS_PER_CHART,
+                    aiAccessOnly: true,
                 });
             return appendCsvSection(
                 acc,
@@ -389,7 +484,7 @@ export class SchedulerAiAugmentationService {
                     parameters: isChartScheduler(scheduler)
                         ? scheduler.parameters
                         : undefined,
-                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    context: QueryExecutionContext.AI,
                 },
                 SCHEDULER_POLLING_OPTIONS,
             );
@@ -438,7 +533,7 @@ export class SchedulerAiAugmentationService {
                             dashboardUuid: dashboard.uuid,
                             dashboardFilters,
                             dashboardSorts: [],
-                            context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                            context: QueryExecutionContext.AI,
                             parameters,
                         },
                         SCHEDULER_POLLING_OPTIONS,

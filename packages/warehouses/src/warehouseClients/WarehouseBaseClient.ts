@@ -31,7 +31,14 @@ export default abstract class WarehouseBaseClient<
 
     protected sqlBuilder: WarehouseSqlBuilder;
 
-    protected constructor(credentials: T, sqlBuilder: WarehouseSqlBuilder) {
+    protected readonly agentSession: boolean;
+
+    protected constructor(
+        credentials: T,
+        sqlBuilder: WarehouseSqlBuilder,
+        options?: { agentSession?: boolean },
+    ) {
+        this.agentSession = options?.agentSession ?? false;
         this.credentials = credentials;
         this.sqlBuilder = sqlBuilder;
     }

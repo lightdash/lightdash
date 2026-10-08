@@ -415,6 +415,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             clients.getSchedulerClient() as CommercialSchedulerClient,
                         asyncQueryService: repository.getAsyncQueryService(),
                         queryHistoryModel: models.getQueryHistoryModel(),
+                        userModel: models.getUserModel(),
                         executor: (run, executionContext) =>
                             executorHolder.execute!(run, executionContext),
                     });
@@ -995,6 +996,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    projectModel: models.getProjectModel(),
+                    warehouseConnectionModel:
+                        models.getWarehouseConnectionModel(),
+                    aiAccessService: repository.getAiAccessService(),
                     schedulerAiAugmentationModel:
                         models.getSchedulerAiAugmentationModel<SchedulerAiAugmentationModel>(),
                     schedulerService: repository.getSchedulerService(),
@@ -1012,6 +1017,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new DataAppAnalysisService({
+                    projectModel: models.getProjectModel(),
+                    warehouseConnectionModel:
+                        models.getWarehouseConnectionModel(),
+                    aiAccessService: repository.getAiAccessService(),
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
                     appModel: models.getAppModel(),
@@ -1156,6 +1165,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
@@ -1392,6 +1402,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,

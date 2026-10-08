@@ -1,18 +1,37 @@
-import { type UserWarehouseCredentials } from '@lightdash/common';
+import {
+    FeatureFlags,
+    UserWarehouseCredentialPurpose,
+    type UserWarehouseCredentials,
+} from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
+import { AgentConnectionSection } from './AgentConnectionSection';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
+import { shouldShowAgentConnection } from './snowflakeAiVisibility';
 
 export const MyWarehouseConnectionsPanel = () => {
     const { data: credentials } = useUserWarehouseCredentials();
+    const { data: health } = useHealth();
+    const { data: agentIdentityFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentity,
+    );
+    const defaultCredentials = credentials?.filter(
+        ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
+    );
+    const showAiSignIn = shouldShowAgentConnection(
+        agentIdentityFlag?.enabled === true,
+        health?.auth.snowflakeAi.enabled === true,
+    );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
         useState<UserWarehouseCredentials | undefined>(undefined);
@@ -41,7 +60,7 @@ export const MyWarehouseConnectionsPanel = () => {
     return (
         <SettingsPage
             title="My warehouse connections"
-            description="Manage the personal credentials used to connect Lightdash to warehouses."
+            description="Manage your personal warehouse credentials."
             actions={
                 <Button
                     size="xs"
@@ -52,11 +71,14 @@ export const MyWarehouseConnectionsPanel = () => {
                 </Button>
             }
         >
-            {credentials && credentials.length > 0 ? (
+            {showAiSignIn && (
+                <AgentConnectionSection credentials={credentials ?? []} />
+            )}
+            {defaultCredentials && defaultCredentials.length > 0 ? (
                 <>
                     {personalConnectionsCallout}
                     <CredentialsTable
-                        credentials={credentials}
+                        credentials={defaultCredentials}
                         setWarehouseCredentialsToBeDeleted={
                             setWarehouseCredentialsToBeDeleted
                         }

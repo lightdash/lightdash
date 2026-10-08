@@ -26,6 +26,7 @@ import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmb
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
 import 'ace-builds/src-noconflict/mode-sql';
@@ -113,7 +114,8 @@ export const SqlForm: FC<Props> = ({
     });
 
     const { setAceEditor } = useTableCalculationAceEditorCompleter();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
 
     const handleEditorLoad = useCallback(

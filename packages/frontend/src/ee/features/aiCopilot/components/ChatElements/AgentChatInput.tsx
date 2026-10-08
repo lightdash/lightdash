@@ -55,6 +55,7 @@ import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
+import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
 import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useUser from '../../../../../hooks/user/useUser';
@@ -106,6 +107,7 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { AiAccessGate } from './AiAccessGate';
 import {
     ComposerThemeButton,
     ComposerThemeMenuEntry,
@@ -258,6 +260,7 @@ interface AgentChatInputProps {
     disabledReason?: string;
     placeholder?: string;
     messageCount?: number;
+    accessCalloutVariant?: 'card' | 'inline';
     projectUuid?: string;
     agentUuid?: string;
     threadUuid?: string;
@@ -325,10 +328,11 @@ export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
     loading = false,
-    disabled = false,
+    disabled: disabledProp = false,
     disabledReason,
     placeholder = 'Ask anything',
     messageCount = 0,
+    accessCalloutVariant,
     projectUuid,
     agentUuid,
     threadUuid,
@@ -353,6 +357,9 @@ export const AgentChatInput = ({
     footerNotice,
     showFastMode = true,
 }: AgentChatInputProps) => {
+    const accessGate = useAiAccessGate(projectUuid);
+    const accessRefused = accessGate.disabled;
+    const disabled = disabledProp || accessRefused;
     const user = useUser(true);
     const app = useApp();
     const isEmbedded = useIsEmbedded();
@@ -587,7 +594,7 @@ export const AgentChatInput = ({
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
-        disabled,
+        disabled: disabledProp,
         isMinimalMode,
         loading,
         messageCount,
@@ -1085,6 +1092,7 @@ export const AgentChatInput = ({
         return (
             <AgentSuggestionChips
                 chips={chips}
+                disabled={accessRefused}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
                 align={isThreadInput ? 'left' : 'center'}
@@ -1093,6 +1101,7 @@ export const AgentChatInput = ({
             />
         );
     }, [
+        accessRefused,
         emptyStateMode,
         postResponseMode,
         suggestionsQuery.isError,
@@ -1493,37 +1502,48 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {isThreadInput && renderChipRow(styles.threadChipFlow)}
+                <AiAccessGate
+                    projectUuid={projectUuid}
+                    refusal={accessGate.refusal}
+                    isLoading={accessGate.isLoading}
+                    isError={accessGate.isError}
+                    refetch={accessGate.refetch}
+                    variant={
+                        accessCalloutVariant ??
+                        (messageCount === 0 ? 'card' : 'inline')
+                    }
+                >
+                    {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                <Box className={styles.threadInputStack}>
-                    <Box className={styles.dropTarget} {...dropTargetProps}>
-                        <PromptComposer
-                            {...composerCommonProps}
-                            variant="inline"
-                            attachments={renderedAttachments}
-                            toolbarLeft={
-                                <Group gap={4} align="center" wrap="nowrap">
-                                    {renderComposerActionsMenu()}
-                                    {renderFastModeButton()}
-                                    {renderThemeButton()}
-                                </Group>
-                            }
-                            toolbarRight={
-                                <Group gap={4} align="center" wrap="nowrap">
-                                    {renderComposerAction('sm')}
-                                </Group>
-                            }
-                        />
-                        {renderDropOverlay('inline')}
+                    <Box className={styles.threadInputStack}>
+                        <Box className={styles.dropTarget} {...dropTargetProps}>
+                            <PromptComposer
+                                {...composerCommonProps}
+                                variant="inline"
+                                attachments={renderedAttachments}
+                                toolbarLeft={
+                                    <Group gap={4} align="center" wrap="nowrap">
+                                        {renderComposerActionsMenu()}
+                                        {renderFastModeButton()}
+                                        {renderThemeButton()}
+                                    </Group>
+                                }
+                                toolbarRight={
+                                    <Group gap={4} align="center" wrap="nowrap">
+                                        {renderComposerAction('sm')}
+                                    </Group>
+                                }
+                            />
+                            {renderDropOverlay('inline')}
+                        </Box>
                     </Box>
-                </Box>
 
-                {!isThreadInput &&
-                    renderChipRow(
-                        styles.chipTray,
-                        shouldReserveEmptyStateSuggestions,
-                    )}
-
+                    {!isThreadInput &&
+                        renderChipRow(
+                            styles.chipTray,
+                            shouldReserveEmptyStateSuggestions,
+                        )}
+                </AiAccessGate>
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
                         {disabledReason}
@@ -1545,82 +1565,98 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
-            {isThreadInput && renderChipRow(styles.threadChipFlow)}
+            <AiAccessGate
+                projectUuid={projectUuid}
+                refusal={accessGate.refusal}
+                isLoading={accessGate.isLoading}
+                isError={accessGate.isError}
+                refetch={accessGate.refetch}
+                variant={
+                    accessCalloutVariant ??
+                    (messageCount === 0 ? 'card' : 'inline')
+                }
+            >
+                {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box className={styles.dropTarget} {...dropTargetProps}>
-                <PromptComposer
-                    {...composerCommonProps}
-                    variant="card"
-                    size={dense ? 'sm' : 'lg'}
-                    className={styles.agentComposer}
-                    onMouseDown={handleInputCardMouseDown}
-                    attachments={renderedAttachments}
-                    toolbarLeft={
-                        <Group gap="xs" align="center" wrap="nowrap">
-                            {renderComposerActionsMenu()}
-                            {renderFastModeButton()}
-                            {renderThemeButton()}
-                        </Group>
-                    }
-                    toolbarRight={
-                        <Group gap="xs" align="center" wrap="nowrap">
-                            <Box className={styles.toolbarSelectors}>
-                                {showAgentSelector && (
-                                    <Box
-                                        className={styles.controlsReveal}
-                                        data-visible={hasClickedInput}
-                                    >
-                                        <Group
-                                            gap="xs"
-                                            align="center"
-                                            wrap="nowrap"
+                <Box className={styles.dropTarget} {...dropTargetProps}>
+                    <PromptComposer
+                        {...composerCommonProps}
+                        variant="card"
+                        size={dense ? 'sm' : 'lg'}
+                        className={styles.agentComposer}
+                        onMouseDown={handleInputCardMouseDown}
+                        attachments={renderedAttachments}
+                        toolbarLeft={
+                            <Group gap="xs" align="center" wrap="nowrap">
+                                {renderComposerActionsMenu()}
+                                {renderFastModeButton()}
+                                {renderThemeButton()}
+                            </Group>
+                        }
+                        toolbarRight={
+                            <Group gap="xs" align="center" wrap="nowrap">
+                                <Box className={styles.toolbarSelectors}>
+                                    {showAgentSelector && (
+                                        <Box
+                                            className={styles.controlsReveal}
+                                            data-visible={hasClickedInput}
                                         >
-                                            <AgentSelector
-                                                projectUuid={projectUuid!}
-                                                agents={agents!}
-                                                selectedAgent={selectedAgent!}
-                                                compact
-                                            />
-                                        </Group>
-                                    </Box>
-                                )}
-
-                                {(showModelSelector ||
-                                    onExtendedThinkingChange) &&
-                                    models &&
-                                    onModelChange && (
-                                        <Box className={styles.modelGroup}>
-                                            <ModelSelector
-                                                models={models}
-                                                value={selectedModelId ?? null}
-                                                onChange={onModelChange}
-                                                variant="subtle"
-                                                color="gray"
-                                                size="xs"
-                                                reasoningEnabled={
-                                                    extendedThinking
-                                                }
-                                                onReasoningChange={
-                                                    onExtendedThinkingChange
-                                                }
-                                            />
+                                            <Group
+                                                gap="xs"
+                                                align="center"
+                                                wrap="nowrap"
+                                            >
+                                                <AgentSelector
+                                                    projectUuid={projectUuid!}
+                                                    agents={agents!}
+                                                    selectedAgent={
+                                                        selectedAgent!
+                                                    }
+                                                    compact
+                                                />
+                                            </Group>
                                         </Box>
                                     )}
-                            </Box>
 
-                            {renderComposerAction('lg')}
-                        </Group>
-                    }
-                />
-                {renderDropOverlay('card')}
-            </Box>
+                                    {(showModelSelector ||
+                                        onExtendedThinkingChange) &&
+                                        models &&
+                                        onModelChange && (
+                                            <Box className={styles.modelGroup}>
+                                                <ModelSelector
+                                                    disabled={accessRefused}
+                                                    models={models}
+                                                    value={
+                                                        selectedModelId ?? null
+                                                    }
+                                                    onChange={onModelChange}
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    size="xs"
+                                                    reasoningEnabled={
+                                                        extendedThinking
+                                                    }
+                                                    onReasoningChange={
+                                                        onExtendedThinkingChange
+                                                    }
+                                                />
+                                            </Box>
+                                        )}
+                                </Box>
 
-            {!isThreadInput &&
-                renderChipRow(
-                    styles.chipTray,
-                    shouldReserveEmptyStateSuggestions,
-                )}
+                                {renderComposerAction('lg')}
+                            </Group>
+                        }
+                    />
+                    {renderDropOverlay('card')}
+                </Box>
 
+                {!isThreadInput &&
+                    renderChipRow(
+                        styles.chipTray,
+                        shouldReserveEmptyStateSuggestions,
+                    )}
+            </AiAccessGate>
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
                     <Text size="xs" c="dimmed" ta="right">

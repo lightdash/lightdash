@@ -553,6 +553,62 @@ describe('PostgresWarehouseClient statement timeout', () => {
         vi.useRealTimers();
     });
 
+    it.each([false, true])(
+        'sets the Postgres agent session only when enabled: %s',
+        async (agentSession) => {
+            const queryMock = respondingQueryMock();
+            mockPoolWithQuery(queryMock);
+            const warehouse = new PostgresWarehouseClient(credentials, {
+                agentSession,
+            });
+            await warehouse.runQuery('select 1', {}, 'UTC');
+            expect(
+                queryMock.mock.calls
+                    .map(([arg]) => arg)
+                    .filter((arg) => typeof arg === 'string'),
+            ).toEqual([
+                'SET statement_timeout = 540000',
+                ...(agentSession ? ["SET lightdash.agent = 'true'"] : []),
+                "SET timezone TO 'UTC'",
+            ]);
+            expect(warehouse.config.application_name).toBe(
+                agentSession ? 'lightdash-ai' : undefined,
+            );
+            expect(
+                (pg.Pool as unknown as Mock).mock.lastCall?.[0]
+                    .application_name,
+            ).toBe(agentSession ? 'lightdash-ai' : undefined);
+        },
+    );
+
+    it.each([false, true])(
+        'sets the Redshift agent session only when enabled: %s',
+        async (agentSession) => {
+            const queryMock = respondingQueryMock();
+            mockPoolWithQuery(queryMock);
+            const warehouse = new RedshiftWarehouseClient(
+                { ...credentials, type: WarehouseTypes.REDSHIFT },
+                { agentSession },
+            );
+            await warehouse.runQuery('select 1', {}, 'UTC');
+            expect(
+                queryMock.mock.calls
+                    .map(([arg]) => arg)
+                    .filter((arg) => typeof arg === 'string'),
+            ).toEqual([
+                'SET statement_timeout = 540000',
+                ...(agentSession
+                    ? ["SELECT set_config('lightdash.agent', 'true', false)"]
+                    : []),
+                "SET timezone TO 'UTC'",
+            ]);
+            expect(
+                (pg.Pool as unknown as Mock).mock.lastCall?.[0]
+                    .application_name,
+            ).toBe(agentSession ? 'lightdash-ai' : undefined);
+        },
+    );
+
     it('sets a server-side statement_timeout using the 9-minute default ceiling', async () => {
         const queryMock = respondingQueryMock();
         mockPoolWithQuery(queryMock);

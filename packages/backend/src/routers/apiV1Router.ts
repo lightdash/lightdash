@@ -1,4 +1,8 @@
-import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ForbiddenError,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
@@ -16,6 +20,7 @@ import {
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
+import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
     isAzureAdPassportStrategyAvailableToUse,
@@ -836,6 +841,26 @@ apiV1Router.get(
     lightdashConfig.auth.snowflake.callbackPath,
     (req, res, next) => {
         passport.authenticate('snowflake', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+        })(req, res, next);
+    },
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.loginPath,
+    isAuthenticated,
+    requireAgentIdentity,
+    storeOIDCRedirect,
+    passport.authenticate('snowflake-ai', { scope: ['refresh_token'] }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.callbackPath,
+    isAuthenticated,
+    requireAgentIdentity,
+    (req, res, next) => {
+        passport.authenticate('snowflake-ai', {
             failureRedirect: getOidcRedirectURL(false)(req),
             successRedirect: getOidcRedirectURL(true)(req),
         })(req, res, next);

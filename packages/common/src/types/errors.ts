@@ -1,3 +1,10 @@
+import {
+    AI_ACCESS_REFUSED_CODE,
+    getAiAccessRefusalAction,
+    getAiAccessRefusalMessage,
+    type AiAccessRefusal,
+    type AiAccessRefusalReason,
+} from './aiPrincipal';
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
@@ -55,6 +62,35 @@ export class ForbiddenError extends LightdashError {
             statusCode: 403,
             data,
         });
+    }
+}
+
+export class FeatureNotEnabledError extends ForbiddenError {
+    constructor(featureFlagId: string) {
+        super('This feature is not enabled for your organisation.', {
+            code: 'feature_not_enabled',
+            featureFlagId,
+        });
+        this.name = 'FeatureNotEnabledError';
+    }
+}
+
+export class AiAccessRefusedError extends ForbiddenError {
+    readonly refusal: AiAccessRefusal;
+
+    constructor(
+        reason: AiAccessRefusalReason,
+        options: { message?: string; settingsUrl?: string | null } = {},
+    ) {
+        const refusal: AiAccessRefusal = {
+            code: AI_ACCESS_REFUSED_CODE,
+            reason,
+            message: options.message ?? getAiAccessRefusalMessage(reason),
+            action: getAiAccessRefusalAction(reason),
+            settingsUrl: options.settingsUrl ?? null,
+        };
+        super(refusal.message, refusal);
+        this.refusal = refusal;
     }
 }
 

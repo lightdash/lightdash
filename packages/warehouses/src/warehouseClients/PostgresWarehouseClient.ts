@@ -1,4 +1,6 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
+    AI_AGENT_SESSION_SETTING,
     AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
@@ -287,9 +289,26 @@ export class PostgresClient<
 
     config: pg.PoolConfig;
 
-    constructor(credentials: T, config: pg.PoolConfig) {
-        super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
-        this.config = config;
+    constructor(
+        credentials: T,
+        config: pg.PoolConfig,
+        options?: { agentSession?: boolean },
+    ) {
+        super(
+            credentials,
+            new PostgresSqlBuilder(credentials.startOfWeek),
+            options,
+        );
+        this.config = {
+            ...config,
+            ...(this.agentSession
+                ? { application_name: AI_AGENT_APPLICATION_NAME }
+                : {}),
+        };
+    }
+
+    protected getAgentSessionStatement(): string {
+        return `SET ${AI_AGENT_SESSION_SETTING} = 'true'`;
     }
 
     protected getCatalogQueryFilters(
@@ -532,6 +551,11 @@ export class PostgresClient<
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
+                    .then(() =>
+                        this.agentSession
+                            ? client.query(this.getAgentSessionStatement())
+                            : undefined,
+                    )
                     .then(() => {
                         if (options?.timezone) {
                             console.debug(
@@ -941,16 +965,23 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
         };
     }
 
-    constructor(credentials: CreatePostgresCredentials) {
+    constructor(
+        credentials: CreatePostgresCredentials,
+        options?: { agentSession?: boolean },
+    ) {
         const ssl = getSSLConfigFromMode(credentials);
-        super(credentials, {
-            connectionString: `postgres://${encodeURIComponent(
-                credentials.user,
-            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
-                credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
-            ssl,
-        });
+        super(
+            credentials,
+            {
+                connectionString: `postgres://${encodeURIComponent(
+                    credentials.user,
+                )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                    credentials.host,
+                )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
+                ssl,
+            },
+            options,
+        );
     }
 
     private toListedDatabase(name: string): WarehouseListedDatabase {

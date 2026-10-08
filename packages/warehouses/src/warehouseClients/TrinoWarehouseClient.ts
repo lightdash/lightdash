@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
@@ -314,8 +315,15 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
 export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredentials> {
     connectionOptions: ConnectionOptions;
 
-    constructor(credentials: CreateTrinoCredentials) {
-        super(credentials, new TrinoSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateTrinoCredentials,
+        options?: { agentSession?: boolean },
+    ) {
+        super(
+            credentials,
+            new TrinoSqlBuilder(credentials.startOfWeek),
+            options,
+        );
         this.connectionOptions = {
             auth: new BasicAuth(credentials.user, credentials.password),
             catalog: credentials.dbname,
@@ -383,12 +391,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
 
             query = await session.query(
-                options?.tags
+                options?.tags || this.agentSession
                     ? {
                           query: alteredQuery,
                           extraHeaders: {
                               [TRINO_CLIENT_TAGS_HEADER]: Object.entries(
-                                  options.tags,
+                                  options.tags ?? {},
                               )
                                   .map(
                                       ([key, value]) =>
@@ -397,6 +405,13 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                                           )}=${sanitizeClientTag(value)}`,
                                   )
                                   .join(','),
+                              ...(this.agentSession
+                                  ? {
+                                        'X-Trino-Extra-Credential':
+                                            'agent=true',
+                                        'User-Agent': AI_AGENT_APPLICATION_NAME,
+                                    }
+                                  : {}),
                           },
                       }
                     : alteredQuery,

@@ -902,7 +902,10 @@ describe('getFindContent', () => {
                 'Error finding content for search queries: revenue',
             );
             expect(output.result).toContain('search index unavailable');
-            expect(output.structuredContent).toEqual({ error: output.result });
+            expect(output.structuredContent).toEqual({
+                error: output.result,
+                refusal: null,
+            });
         });
     });
 });
@@ -1041,7 +1044,10 @@ describe('getGetDashboardCharts', () => {
             'Error getting charts for dashboard: missing-dash',
         );
         expect(output.result).toContain('Dashboard not found');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,
         ).toBe(true);

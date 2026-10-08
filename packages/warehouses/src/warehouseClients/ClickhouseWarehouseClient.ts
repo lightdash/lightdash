@@ -297,6 +297,7 @@ export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
         : DEFAULT_MAX_OPEN_CONNECTIONS;
 
 export type ClickhouseWarehouseClientOptions = {
+    agentSession?: boolean;
     /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
     maxOpenConnections?: number;
 };
@@ -308,7 +309,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         credentials: CreateClickhouseCredentials,
         options?: ClickhouseWarehouseClientOptions,
     ) {
-        super(credentials, new ClickhouseSqlBuilder(credentials.startOfWeek));
+        super(
+            credentials,
+            new ClickhouseSqlBuilder(credentials.startOfWeek),
+            options,
+        );
 
         const protocol = credentials.secure ? 'https' : 'http';
         const url = `${protocol}://${credentials.host}:${credentials.port}`;

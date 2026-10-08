@@ -306,6 +306,7 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
 type AwsCredentialProvider = ReturnType<typeof fromTemporaryCredentials>;
 
 export type AthenaWarehouseClientOptions = {
+    agentSession?: boolean;
     // AWS credentials for web identity auth, resolved by the server.
     awsCredentials?: AwsCredentialProvider;
 };
@@ -320,7 +321,11 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         credentials: CreateAthenaCredentials,
         options?: AthenaWarehouseClientOptions,
     ) {
-        super(credentials, new AthenaSqlBuilder(credentials.startOfWeek));
+        super(
+            credentials,
+            new AthenaSqlBuilder(credentials.startOfWeek),
+            options,
+        );
 
         try {
             const authenticationType =

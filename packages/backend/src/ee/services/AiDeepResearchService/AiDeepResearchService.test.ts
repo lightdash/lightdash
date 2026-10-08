@@ -2,6 +2,8 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AiResultType,
     AnyType,
     ConflictError,
@@ -193,6 +195,7 @@ const userWithProjectAccess = (): SessionUser => {
         organizationCreatedAt: new Date(),
         role: 'member',
         ability: build(),
+        abilityRules: build().rules,
     } as AnyType;
 };
 
@@ -362,6 +365,11 @@ const buildService = (
         schedulerClient: schedulerClient as AnyType,
         asyncQueryService: asyncQueryService as AnyType,
         queryHistoryModel: queryHistoryModel as AnyType,
+        userModel: {
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockResolvedValue(userWithProjectAccess()),
+        },
         executor,
     });
     return {
@@ -769,6 +777,7 @@ describe('AiDeepResearchService', () => {
             const user = {
                 ...userWithProjectAccess(),
                 ability: build(),
+                abilityRules: build().rules,
             } as SessionUser;
             const { service, model, aiAgentService } = buildService();
 
@@ -798,6 +807,7 @@ describe('AiDeepResearchService', () => {
             const user = {
                 ...userWithProjectAccess(),
                 ability: build(),
+                abilityRules: build().rules,
             } as SessionUser;
             const { service, model, aiAgentService } = buildService();
 
@@ -823,6 +833,7 @@ describe('AiDeepResearchService', () => {
             const user = {
                 ...userWithProjectAccess(),
                 ability: build(),
+                abilityRules: build().rules,
             } as SessionUser;
             const { service, model, aiAgentService } = buildService();
 
@@ -1988,12 +1999,35 @@ describe('AiDeepResearchService', () => {
                         .mockResolvedValue(evidenceQueryHistory),
                 },
                 asyncQueryService: {
-                    getResultsPageFromS3: vi
+                    getRawAsyncQueryResults: vi
                         .fn()
                         .mockResolvedValue({ rows: resultRows }),
                 },
                 ...overrides,
             });
+
+        it('excludes evidence refused by the current agent access check', async () => {
+            const getRawAsyncQueryResults = vi
+                .fn()
+                .mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    ),
+                );
+            const { service } = buildEvidenceService({
+                asyncQueryService: { getRawAsyncQueryResults },
+            });
+            const { evidencePack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
+            expect(evidencePack.queries).toEqual([]);
+            expect(hasEvidenceBuildFailures).toBe(true);
+            expect(getRawAsyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    aiAccessOnly: true,
+                    projectUuid: 'project-1',
+                }),
+            );
+        });
 
         it('rebuilds evidence from the run own verified executions', async () => {
             const { service } = buildEvidenceService();
@@ -2060,7 +2094,7 @@ describe('AiDeepResearchService', () => {
                     }),
                 },
                 asyncQueryService: {
-                    getResultsPageFromS3: vi
+                    getRawAsyncQueryResults: vi
                         .fn()
                         .mockResolvedValue({ rows: [{ total: 42 }] }),
                 },
@@ -2112,7 +2146,7 @@ describe('AiDeepResearchService', () => {
                     }),
                 },
                 asyncQueryService: {
-                    getResultsPageFromS3: vi
+                    getRawAsyncQueryResults: vi
                         .fn()
                         .mockResolvedValue({ rows: [] }),
                 },
@@ -2177,7 +2211,7 @@ describe('AiDeepResearchService', () => {
         it('drops a query whose result cannot be read rather than the pack', async () => {
             const { service } = buildEvidenceService({
                 asyncQueryService: {
-                    getResultsPageFromS3: vi
+                    getRawAsyncQueryResults: vi
                         .fn()
                         .mockRejectedValue(new Error('results expired')),
                 },

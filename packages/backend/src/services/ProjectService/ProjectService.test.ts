@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    AiAgentMarkerLevel,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -29,6 +30,7 @@ import {
     getDbtManifestVersion,
     getItemId,
     getModelsFromManifest,
+    isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
     JobStepType,
@@ -56,8 +58,10 @@ import {
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SupportedDbtAdapter,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     WeekDay,
+    type AiExecutionPlan,
     type ChartSummary,
     type CopyPreviewContentPayload,
     type CreateAthenaCredentials,
@@ -89,8 +93,10 @@ import {
     type WarehouseLocation,
 } from '@lightdash/common';
 import {
+    checkSnowflakeAgentSessionWithToken,
     SshTunnel,
     warehouseClientFromCredentials,
+    type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable } from 'stream';
@@ -156,6 +162,8 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -248,6 +256,10 @@ vi.mock('worker_threads', async () => {
 });
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    checkSnowflakeAgentSessionWithToken: vi.fn(),
+    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     // The merge compiler needs the real dialect builder, not a stub
     warehouseSqlBuilderFromType: (
         await importOriginal<typeof import('@lightdash/warehouses')>()
@@ -600,6 +612,9 @@ const getMockedProjectService = (
             invalidateSessionUserCache: vi.fn(),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
+        aiAccessService: {
+            resolvePlan: vi.fn(async () => null),
+        } as unknown as AiAccessService,
         featureFlagModel:
             overrides.featureFlagModel ??
             ({
@@ -1380,6 +1395,7 @@ describe('ProjectService', () => {
                 expect(
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
+                    agentSession: false,
                     enableInstanceCache: expected,
                     projectUuid: targetProjectUuid,
                     logger: expect.anything(),
@@ -1408,6 +1424,7 @@ describe('ProjectService', () => {
             expect(
                 vi.mocked(projectModel.getWarehouseClientFromCredentials),
             ).toHaveBeenCalledWith(expect.anything(), {
+                agentSession: false,
                 enableInstanceCache: false,
                 projectUuid,
                 logger: expect.anything(),
@@ -6845,6 +6862,63 @@ describe('ProjectService', () => {
     });
 
     describe('searchFieldUniqueValues', () => {
+        test.each([
+            [QueryExecutionContext.AI, true, false, null],
+            [QueryExecutionContext.AI, false, true, null],
+            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true, null],
+            [QueryExecutionContext.AI, false, false, aiExecutionPlanMock],
+        ])(
+            'autocomplete cache for %s with flag %s',
+            async (context, enabled, usesCache, aiPlan) => {
+                const flaggedService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        autocompleteEnabled: true,
+                    },
+                });
+                flaggedService.warehouseClients = {};
+                vi.mocked(
+                    flaggedService.featureFlagModel.get,
+                ).mockResolvedValue({
+                    id: FeatureFlags.AiAccessSkipResultsCache,
+                    enabled,
+                });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(flaggedService, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                    getWarehouseCredentialsWithConnection: vi.fn(async () => ({
+                        warehouseCredentials: warehouseClientMock.credentials,
+                        aiPlan,
+                    })),
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                await flaggedService.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    'a',
+                    'a_dim1',
+                    'test',
+                    10,
+                    undefined,
+                    false,
+                    undefined,
+                    undefined,
+                    context,
+                );
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
 
@@ -6895,6 +6969,39 @@ describe('ProjectService', () => {
                                    ORDER BY "a_dim1"
                                    LIMIT 10`),
             );
+        });
+        test('resolves credentials with the AI context for an AI field search', async () => {
+            (
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: vi.fn(async (_sql: string) => resultsWith1Row),
+            }));
+            const credentialsSpy = vi.spyOn(
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: (args: {
+                        context?: QueryExecutionContext;
+                    }) => Promise<unknown>;
+                },
+                'getWarehouseCredentialsWithConnection',
+            );
+            await service.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                'a',
+                'a_dim1',
+                '',
+                10,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                QueryExecutionContext.AI,
+            );
+            expect(credentialsSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ context: QueryExecutionContext.AI }),
+            );
+            credentialsSpy.mockRestore();
         });
         test('returns resultsWithLabels deduped by value for a label dimension', async () => {
             const exploreWithLabelDimension: Explore = {
@@ -7050,12 +7157,15 @@ describe('ProjectService', () => {
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async (...args: unknown[]) => {
                 const { userId } = args[0] as { userId: string };
                 return {
-                    ...warehouseClientMock.credentials,
-                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                    warehouseCredentials: {
+                        ...warehouseClientMock.credentials,
+                        userWarehouseCredentialsUuid: `cred-${userId}`,
+                    },
+                    aiPlan: null,
                 };
             });
 
@@ -7133,9 +7243,10 @@ describe('ProjectService', () => {
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async () => ({
-                ...warehouseClientMock.credentials,
+                warehouseCredentials: warehouseClientMock.credentials,
+                aiPlan: null,
             }));
 
             const cacheKeyLookups: string[] = [];
@@ -14036,4 +14147,348 @@ describe('homepage popularity', () => {
             [],
         );
     });
+});
+
+describe('AI principal credential routing', () => {
+    const projectUuid = 'projectUuid';
+    const credentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'localhost',
+        port: 5432,
+        dbname: 'test',
+        schema: 'public',
+        user: 'ai',
+        password: 'test',
+    };
+    const plan: Extract<AiExecutionPlan, { identity: 'connected_person' }> = {
+        identity: 'connected_person',
+        identityUuid: 'ai-one',
+        credentials,
+        assurances: [],
+        audit: {
+            personUuid: 'user',
+            principalRef: 'ai',
+            queryTags: { ai_principal: 'ai' },
+        },
+    };
+    const resolveCredentials = (configured: ProjectService) =>
+        (
+            configured as unknown as {
+                getWarehouseCredentialsWithConnection: (args: {
+                    projectUuid: string;
+                    userId: string;
+                    isRegisteredUser: boolean;
+                    context: QueryExecutionContext;
+                    binding: { kind: 'original' };
+                }) => Promise<{
+                    warehouseCredentials: CreateWarehouseCredentials;
+                    aiPlan: AiExecutionPlan | null;
+                }>;
+            }
+        ).getWarehouseCredentialsWithConnection({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+            context: QueryExecutionContext.AI,
+            binding: { kind: 'original' },
+        });
+
+    test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(credentials);
+        const resolve = vi
+            .spyOn(configured.aiAccessService, 'resolvePlan')
+            .mockResolvedValue(plan);
+        const getAllTables = vi.fn().mockResolvedValue([]);
+        const disconnect = vi.fn();
+        vi.spyOn(configured, '_getWarehouseClient').mockResolvedValue({
+            warehouseClient: { getAllTables } as unknown as WarehouseClient,
+            sshTunnel: {
+                disconnect,
+            } as unknown as SshTunnel<CreateWarehouseCredentials>,
+            tunnelConnectMs: null,
+        });
+        await expect(
+            configured.getWarehouseTables(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+            ),
+        ).resolves.toEqual({});
+        expect(resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
+        );
+        expect(getAllTables).toHaveBeenCalledOnce();
+        expect(disconnect).toHaveBeenCalledOnce();
+    });
+    test('uses the AI credentials before looking up personal credentials', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            plan,
+        );
+        const personal = vi.spyOn(
+            configured.userWarehouseCredentialsModel,
+            'findForProjectWithSecrets',
+        );
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toEqual({
+            ...credentials,
+            userWarehouseCredentialsUuid: undefined,
+        });
+        expect(result.aiPlan).toBe(plan);
+        expect(personal).not.toHaveBeenCalled();
+    });
+    test('keeps personal credentials and the audit plan for marked person', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        const marked: AiExecutionPlan = {
+            identity: 'marked_person',
+            assurances: [
+                {
+                    kind: 'agent_marker',
+                    level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                },
+            ],
+            audit: {
+                personUuid: user.userUuid,
+                userUuid: user.userUuid,
+                principalRef: 'person@example.test',
+                queryTags: { agent: 'true' },
+            },
+        };
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            marked,
+        );
+        const personal = vi
+            .spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            )
+            .mockResolvedValue({
+                uuid: 'personal',
+                credentials: { ...credentials, user: 'person' },
+            });
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toMatchObject({
+            user: 'person',
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        expect(result.aiPlan).toBe(marked);
+        expect(personal).toHaveBeenCalledOnce();
+    });
+    test('uses personal credentials when the resolver returns null', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        const personal = vi
+            .spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            )
+            .mockResolvedValue({
+                uuid: 'personal',
+                credentials: { ...credentials, user: 'person' },
+            });
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toMatchObject({
+            user: 'person',
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        expect(result.aiPlan).toBeNull();
+        expect(personal).toHaveBeenCalledOnce();
+    });
+    test('caches AI and explore clients separately without a policy', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        ).mockImplementation(() => ({ ...warehouseClientMock }));
+        vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
+        const getClient = (context: QueryExecutionContext) =>
+            configured._getWarehouseClient(projectUuid, credentials, {
+                agentSession: isAiAccessQueryContext(context),
+            });
+        const first = await getClient(QueryExecutionContext.AI);
+        const second = await getClient(QueryExecutionContext.EXPLORE);
+        const again = await getClient(QueryExecutionContext.AI);
+        const clients = [first, second, again];
+        expect(clients[0].warehouseClient).not.toBe(clients[1].warehouseClient);
+        expect(clients[0].warehouseClient).toBe(clients[2].warehouseClient);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenNthCalledWith(
+            1,
+            warehouseClientMock.credentials,
+            expect.objectContaining({ agentSession: true }),
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenNthCalledWith(
+            2,
+            warehouseClientMock.credentials,
+            expect.objectContaining({ agentSession: false }),
+        );
+        await Promise.all(
+            clients.map((client) => client.sshTunnel.disconnect()),
+        );
+    });
+
+    test('caches clients separately for different principals with the same credentials', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        ).mockImplementation(() => ({ ...warehouseClientMock }));
+        vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
+        const first = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            { aiPlan: plan },
+        );
+        const second = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            {
+                aiPlan: {
+                    ...plan,
+                    identityUuid: 'ai-two',
+                },
+            },
+        );
+        const again = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            { aiPlan: plan },
+        );
+        expect(first.warehouseClient).not.toBe(second.warehouseClient);
+        expect(Object.keys(configured.warehouseClients)).toHaveLength(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            warehouseClientMock.credentials,
+            expect.objectContaining({ agentSession: true }),
+        );
+        await first.sshTunnel.disconnect();
+        await second.sshTunnel.disconnect();
+        await again.sshTunnel.disconnect();
+    });
+});
+
+describe('Snowflake AI query credentials', () => {
+    beforeEach(() => {
+        vi.mocked(checkSnowflakeAgentSessionWithToken)
+            .mockReset()
+            .mockResolvedValue({
+                agentActivated: true,
+                currentRole: 'ANALYST',
+                activeRestrictedSessionScopes: null,
+            });
+    });
+    it.each([true, false, 'error'] as const)(
+        'checks a refreshed AI token before persistence when activation is %s',
+        async (activation) => {
+            const check = vi.mocked(checkSnowflakeAgentSessionWithToken);
+            if (activation === 'error') {
+                check.mockRejectedValueOnce(new Error('session check failed'));
+            } else {
+                check.mockResolvedValueOnce({
+                    agentActivated: activation,
+                    currentRole: null,
+                    activeRestrictedSessionScopes: null,
+                });
+            }
+            const service = getMockedProjectService(lightdashConfigMock);
+            const rotateRefreshToken = vi.fn(async () => true);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        rotateRefreshToken: typeof rotateRefreshToken;
+                    };
+                }
+            ).userWarehouseCredentialsModel = { rotateRefreshToken };
+            const generateToken = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValue({
+                    accessToken: 'access-token',
+                    refreshToken: 'rotated-token',
+                });
+            try {
+                const refreshed = (
+                    service as unknown as {
+                        refreshCredentialsAndPersistRotation: (
+                            credentials: CreateWarehouseCredentials,
+                            userUuid: string,
+                            source: {
+                                kind: 'user';
+                                userWarehouseCredentialsUuid: string;
+                                purpose: UserWarehouseCredentialPurpose.AI;
+                            },
+                        ) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).refreshCredentialsAndPersistRotation(
+                    {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'old-token',
+                        account: 'test-account',
+                    } as CreateWarehouseCredentials,
+                    'user-uuid',
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid: 'ai-credential',
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    },
+                );
+                if (activation !== true) {
+                    await expect(refreshed).rejects.toBeInstanceOf(
+                        ForbiddenError,
+                    );
+                    expect(rotateRefreshToken).not.toHaveBeenCalled();
+                    return;
+                }
+                await expect(refreshed).resolves.toMatchObject({
+                    token: 'access-token',
+                });
+                expect(check).toHaveBeenCalledWith(
+                    'test-account',
+                    'access-token',
+                );
+                expect(check.mock.invocationCallOrder.at(-1)).toBeLessThan(
+                    rotateRefreshToken.mock.invocationCallOrder[0]!,
+                );
+                expect(generateToken).toHaveBeenCalledWith('old-token', 'ai');
+                expect(rotateRefreshToken).toHaveBeenCalledWith(
+                    'ai-credential',
+                    'old-token',
+                    'rotated-token',
+                );
+            } finally {
+                generateToken.mockRestore();
+            }
+        },
+    );
 });

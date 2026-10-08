@@ -1,6 +1,8 @@
 import { ChartKind, type AllVizChartConfig } from '@lightdash/common';
 import { type FC, type ReactNode } from 'react';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { AiAccessCallout } from './AiAccessCallout';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 import { AiComposerResultsExpired } from './AiComposerResultsExpired';
@@ -26,6 +28,17 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
     headerContent,
     flush = false,
 }) => {
+    const refusal = getAiAccessRefusal(results.error?.error);
+    if (refusal) {
+        return (
+            <AiAccessCallout
+                projectUuid={projectUuid}
+                refusal={refusal}
+                variant="inline"
+            />
+        );
+    }
+
     if (results.error) {
         return <AiComposerResultsExpired headerContent={headerContent} />;
     }

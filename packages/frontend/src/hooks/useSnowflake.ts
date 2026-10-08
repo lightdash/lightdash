@@ -2,15 +2,20 @@ import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../api';
+import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
+import { getAiAccessRefusal } from '../features/aiAccess/errors';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
 // TODO: This is a stub for the actual implementation
 //       It could maybe be abstracted into a generic oauth login hook
-const triggerSnowflakeLogin = async (siteUrl: string) => {
+const triggerSnowflakeLogin = async (
+    siteUrl: string,
+    loginPath: '/login/snowflake' | '/login/snowflake-ai',
+) => {
     return new Promise<void>((resolve, reject) => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
-        const loginUrl = `${siteUrl}/api/v1/login/snowflake?isPopup=true`;
+        const loginUrl = `${siteUrl}/api/v1${loginPath}?isPopup=true`;
         console.info(`Opening popup with url: ${loginUrl}`);
 
         const popupWindow = window.open(
@@ -56,7 +61,11 @@ export function useSnowflakeLoginPopup({
     const health = useHealth();
     const queryClient = useQueryClient();
     const ssoMutation = useMutation({
-        mutationFn: () => triggerSnowflakeLogin(health.data?.siteUrl || ''),
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake',
+            ),
         onSuccess: async () => {
             // Invalidate user warehouse credentials since the backend creates
             // credentials during the OAuth flow
@@ -77,6 +86,37 @@ export function useSnowflakeLoginPopup({
             isSsoEnabled: health.data?.auth.snowflake.enabled,
         };
     }, [ssoMutation, health.data?.auth.snowflake.enabled]);
+}
+
+export function useSnowflakeAiLoginPopup() {
+    const t = useUiStrings();
+    const health = useHealth();
+    const queryClient = useQueryClient();
+    const { showToastError } = useToaster();
+    return useMutation({
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake-ai',
+            ),
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries(['user_warehouse_credentials']),
+                queryClient.invalidateQueries(['ai-access']),
+                queryClient.invalidateQueries({
+                    predicate: (query) =>
+                        !!getAiAccessRefusal(
+                            (query.state.error as ApiError | null)?.error,
+                        ),
+                }),
+            ]);
+        },
+        onError: (error: Error) =>
+            showToastError({
+                title: t('aiAccess.signInError'),
+                subtitle: error.message,
+            }),
+    });
 }
 
 const getIsAuthenticated = async () =>

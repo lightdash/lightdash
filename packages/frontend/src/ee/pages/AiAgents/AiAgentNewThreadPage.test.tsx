@@ -10,8 +10,13 @@ import { PendingPromptProvider } from '../../features/aiCopilot/components/Pendi
 import { store } from '../../features/aiCopilot/store';
 import AiAgentNewThreadPage from './AiAgentNewThreadPage';
 
-const { composerProps } = vi.hoisted(() => ({
+const { composerProps, access } = vi.hoisted(() => ({
     composerProps: vi.fn(),
+    access: { isLoading: false, isError: false, disabled: false },
+}));
+
+vi.mock('../../../features/aiAccess/useAiAccessGate', () => ({
+    useAiAccessGate: () => access,
 }));
 
 vi.mock('../../../hooks/useProjectUuid', () => ({
@@ -55,11 +60,24 @@ vi.mock('../../features/aiCopilot/hooks/usePinnedContext', () => ({
 }));
 
 vi.mock('../../features/aiCopilot/hooks/useAiAgentModelSelection', () => ({
-    useAiAgentModelSelection: () => ({ modelOptions: undefined }),
+    useAiAgentModelSelection: () => ({
+        modelOptions: [
+            {
+                name: 'test',
+                modelId: 'test',
+                provider: 'openai',
+                displayName: 'Test',
+                description: 'Test',
+                default: true,
+                supportsReasoning: false,
+                deprecated: false,
+            },
+        ],
+    }),
 }));
 
 vi.mock('../../features/aiCopilot/hooks/useAiAgentBattleModeEnabled', () => ({
-    useAiAgentBattleModeEnabled: () => false,
+    useAiAgentBattleModeEnabled: () => true,
 }));
 
 vi.mock(
@@ -103,7 +121,7 @@ const renderPage = (isEmbed: boolean, agentCount: number) => {
         uuid: `agent-${index + 1}`,
     }));
 
-    renderWithProviders(
+    const page = () => (
         <Provider store={store}>
             <PendingPromptProvider>
                 <MemoryRouter initialEntries={[path]}>
@@ -127,15 +145,49 @@ const renderPage = (isEmbed: boolean, agentCount: number) => {
                     </Routes>
                 </MemoryRouter>
             </PendingPromptProvider>
-        </Provider>,
+        </Provider>
     );
-    return agents;
+    return { agents, page, ...renderWithProviders(page()) };
 };
 
 describe('AiAgentNewThreadPage embed controls', () => {
     afterEach(() => {
         window.history.replaceState(null, '', '/');
         vi.clearAllMocks();
+        access.isLoading = false;
+        access.isError = false;
+        access.disabled = false;
+    });
+
+    it.each(['loading', 'refused', 'error', 'allowed'])(
+        'shows Battle mode only when access is allowed: %s',
+        (state) => {
+            access.isLoading = state === 'loading';
+            access.isError = state === 'error';
+            access.disabled = state !== 'allowed';
+            renderPage(false, 1);
+            const battle = screen.queryByRole('switch', {
+                name: 'Battle mode',
+            });
+            if (state === 'allowed') {
+                expect(battle).toBeVisible();
+            } else {
+                expect(battle).not.toBeInTheDocument();
+            }
+        },
+    );
+
+    it('restores Battle mode when the connection completes without a reload', () => {
+        access.disabled = true;
+        const { rerender, page } = renderPage(false, 1);
+        expect(
+            screen.queryByRole('switch', { name: 'Battle mode' }),
+        ).not.toBeInTheDocument();
+        access.disabled = false;
+        rerender(page());
+        expect(
+            screen.getByRole('switch', { name: 'Battle mode' }),
+        ).toBeVisible();
     });
 
     it.each([1, 2])(
@@ -187,7 +239,7 @@ describe('AiAgentNewThreadPage embed controls', () => {
     });
 
     it('preserves agent controls outside embeds', () => {
-        const agents = renderPage(false, 2);
+        const { agents } = renderPage(false, 2);
 
         expect(composerProps).toHaveBeenLastCalledWith(
             expect.objectContaining({ agents, selectedAgent: agent }),

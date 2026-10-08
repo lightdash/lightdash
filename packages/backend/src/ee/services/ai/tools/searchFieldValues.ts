@@ -97,7 +97,10 @@ export const getSearchFieldValues = ({
                             return {
                                 result,
                                 metadata: { status: 'error' },
-                                structuredContent: { error: result },
+                                structuredContent: {
+                                    error: result,
+                                    refusal: null,
+                                },
                             };
                         }
                         filters = resolution.data;

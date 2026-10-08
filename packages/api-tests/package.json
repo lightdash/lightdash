@@ -21,8 +21,10 @@
     },
     "devDependencies": {
         "@types/js-yaml": "4.0.9",
+        "@types/pg": "8.11.10",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
+        "pg": "8.13.1",
         "typescript": "7.0.2",
         "vitest": "4.1.11"
     }

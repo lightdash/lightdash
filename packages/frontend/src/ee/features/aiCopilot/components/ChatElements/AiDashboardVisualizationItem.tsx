@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState, type FC } from 'react';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useCanViewAiAgentSql } from '../../hooks/useCanViewAiAgentSql';
@@ -28,6 +29,7 @@ import {
     getAiAgentDashboardChartVizQueryKey,
     useAiAgentDashboardChartVizQuery,
 } from '../../hooks/useProjectAiAgents';
+import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
@@ -193,6 +195,19 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                 </Group>
             </Group>
         );
+
+        const refusal =
+            getAiAccessRefusal(queryExecutionHandle.error?.error) ??
+            getAiAccessRefusal(queryResults.error?.error);
+        if (refusal) {
+            return (
+                <AiAccessCallout
+                    projectUuid={projectUuid}
+                    refusal={refusal}
+                    variant="inline"
+                />
+            );
+        }
 
         if (isQueryLoading) {
             return (

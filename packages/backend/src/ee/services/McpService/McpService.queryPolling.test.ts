@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     CatalogType,
     DimensionType,
     FieldType,
@@ -1623,6 +1625,7 @@ describe('MCP async query polling', () => {
                 queryUuid,
                 page: 1,
                 pageSize: 50_000,
+                aiAccessOnly: true,
             }),
         );
         expect(shareService.createShareUrl).toHaveBeenCalledWith(
@@ -2122,5 +2125,40 @@ describe('MCP async query polling', () => {
             asyncQueryService.pollQueryHistoryUntilDeadline,
         ).not.toHaveBeenCalled();
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
+    });
+});
+
+it('returns an AI access refusal as an MCP tool error', async () => {
+    const { asyncQueryService } = makeMcpService();
+    const error = new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
+    vi.mocked(asyncQueryService.executeAsyncMetricQuery).mockRejectedValue(
+        error,
+    );
+    const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
+        {
+            title: 'Orders',
+            description: 'Orders count',
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: ['orders_orders_count'],
+                sorts: [],
+                limit: 10,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: null,
+            },
+            chartConfig: null,
+        },
+        extra,
+    );
+    expect(result).toMatchObject({
+        isError: true,
+        content: [
+            {
+                type: 'text',
+                text: 'Error running metric query: Connect your agent to the warehouse once so it can run as you.',
+            },
+        ],
     });
 });

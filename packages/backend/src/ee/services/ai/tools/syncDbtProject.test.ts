@@ -142,6 +142,9 @@ describe('getSyncDbtProject', () => {
         expect(toolSyncDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,
         );
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
     });
 });

@@ -29,6 +29,7 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
+import { useAiAccessGate } from '../../../features/aiAccess/useAiAccessGate';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -100,6 +101,7 @@ const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const accessGate = useAiAccessGate(projectUuid);
     const { track } = useTracking();
     const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
@@ -520,62 +522,70 @@ const AiAgentNewThreadPage: FC = () => {
                         </Stack>
                     )}
 
-                    {showBattleSetup && (
-                        <BattleModeSetup
-                            enabled={battleMode}
-                            onEnabledChange={setBattleMode}
-                            battleType={battleType}
-                            onBattleTypeChange={setBattleType}
-                            speedBattleAvailable={speedBattleAvailable}
-                            models={battleModels}
-                            modelAKey={selectedModelKey}
-                            modelBKey={effectiveBattleModelBKey}
-                            onModelAChange={handleSelectedModelKeyChange}
-                            onModelBChange={setBattleModelBKey}
-                        />
-                    )}
+                    <Stack mih={320}>
+                        {showBattleSetup && !accessGate.disabled && (
+                            <BattleModeSetup
+                                enabled={battleMode}
+                                onEnabledChange={setBattleMode}
+                                battleType={battleType}
+                                onBattleTypeChange={setBattleType}
+                                speedBattleAvailable={speedBattleAvailable}
+                                models={battleModels}
+                                modelAKey={selectedModelKey}
+                                modelBKey={effectiveBattleModelBKey}
+                                onModelAChange={handleSelectedModelKeyChange}
+                                onModelBChange={setBattleModelBKey}
+                            />
+                        )}
 
-                    <AgentChatInput
-                        key={composerSeedKey}
-                        onSubmit={onSubmit}
-                        onStartDeepResearch={
-                            canStartDeepResearch && !isBattle
-                                ? onStartDeepResearch
-                                : undefined
-                        }
-                        loading={isCreatingThread || isCreatingBattleThreads}
-                        disabled={!isPinnedContextReady}
-                        showFastMode={!(isBattle && battleType !== 'models')}
-                        placeholder={
-                            isBattle
-                                ? `Ask both models anything about your data...`
-                                : `Ask ${agent.name} anything about your data...`
-                        }
-                        projectUuid={projectUuid}
-                        agentUuid={agent.uuid}
-                        agents={isEmbed ? undefined : agents}
-                        selectedAgent={agent}
-                        models={isBattle ? undefined : modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking && !isBattle
-                                ? extendedThinking
-                                : undefined
-                        }
-                        onExtendedThinkingChange={
-                            showExtendedThinking && !isBattle
-                                ? handleExtendedThinkingChange
-                                : undefined
-                        }
-                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                        onSqlModeChange={
-                            sqlModeAvailable ? setSqlModeOverride : undefined
-                        }
-                        defaultValue={pendingPrompt}
-                        onValueChange={setPendingPrompt}
-                        contentMentionPriorityItems={contentMentionItems}
-                    />
+                        <AgentChatInput
+                            key={composerSeedKey}
+                            onSubmit={onSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch && !isBattle
+                                    ? onStartDeepResearch
+                                    : undefined
+                            }
+                            loading={
+                                isCreatingThread || isCreatingBattleThreads
+                            }
+                            disabled={!isPinnedContextReady}
+                            showFastMode={
+                                !(isBattle && battleType !== 'models')
+                            }
+                            placeholder={
+                                isBattle
+                                    ? `Ask both models anything about your data...`
+                                    : `Ask ${agent.name} anything about your data...`
+                            }
+                            projectUuid={projectUuid}
+                            agentUuid={agent.uuid}
+                            agents={isEmbed ? undefined : agents}
+                            selectedAgent={agent}
+                            models={isBattle ? undefined : modelOptions}
+                            selectedModelId={selectedModelKey}
+                            onModelChange={handleSelectedModelKeyChange}
+                            extendedThinking={
+                                showExtendedThinking && !isBattle
+                                    ? extendedThinking
+                                    : undefined
+                            }
+                            onExtendedThinkingChange={
+                                showExtendedThinking && !isBattle
+                                    ? handleExtendedThinkingChange
+                                    : undefined
+                            }
+                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                            onSqlModeChange={
+                                sqlModeAvailable
+                                    ? setSqlModeOverride
+                                    : undefined
+                            }
+                            defaultValue={pendingPrompt}
+                            onValueChange={setPendingPrompt}
+                            contentMentionPriorityItems={contentMentionItems}
+                        />
+                    </Stack>
                 </Stack>
             </Stack>
         </Center>

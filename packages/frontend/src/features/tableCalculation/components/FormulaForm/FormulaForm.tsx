@@ -74,7 +74,7 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
             formula,
             metricQuery,
         );
-        const isAmbientAiEnabled = useAmbientAiEnabled();
+        const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
         const aiEnabled = isAmbientAiEnabled && !!onAiApply;
 
         const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);

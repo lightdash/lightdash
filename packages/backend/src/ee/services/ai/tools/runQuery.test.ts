@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     DimensionType,
     FilterOperator,
     FilterType,
@@ -3341,5 +3343,17 @@ describe('getRunQuery structured content', () => {
             parameters: null,
         });
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+    });
+});
+
+it('preserves the refusal envelope when a visualization query is refused', async () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.PRINCIPAL_FAILED,
+    );
+    const output = await executeTool(vi.fn().mockRejectedValue(error));
+    expect(output.result).toBe(error.message);
+    expect(output.structuredContent).toEqual({
+        error: error.message,
+        refusal: error.refusal,
     });
 });

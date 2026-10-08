@@ -13,7 +13,7 @@ export const useSimilarContent = (
     params: FindSimilarContentBody,
     enabled: boolean,
 ) => {
-    const ambientAiEnabled = useAmbientAiEnabled();
+    const ambientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEnabled =
         enabled &&
         !!ambientAiEnabled &&

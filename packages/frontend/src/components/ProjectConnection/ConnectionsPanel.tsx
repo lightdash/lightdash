@@ -232,6 +232,11 @@ const EditConnectionForm: FC<{
                 projectUuid={projectUuid}
                 warehouseType={connection.warehouseType}
                 savedProject={savedProject}
+                warehouseConnectionUuid={
+                    connection.isOriginal
+                        ? null
+                        : connection.warehouseConnectionUuid
+                }
                 showName={false}
                 intro="Leave a secret blank to keep the saved one. The connection is tested before it is saved."
             />

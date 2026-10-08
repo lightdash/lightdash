@@ -68,7 +68,7 @@ const failure = (
 ): ComposerQueriesOutput => ({
     result,
     metadata: { status },
-    structuredContent: { error: result },
+    structuredContent: { error: result, refusal: null },
 });
 
 /**

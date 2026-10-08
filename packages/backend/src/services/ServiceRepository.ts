@@ -21,6 +21,8 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AiAccessService } from './AiAccessService/AiAccessService';
+import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -151,6 +153,7 @@ interface ServiceManifest {
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
     pivotTableService: PivotTableService;
+    aiAccessService: AiAccessService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
@@ -957,11 +960,35 @@ export class ServiceRepository
         );
     }
 
+    public getAiAccessService(): AiAccessService {
+        return this.getService(
+            'aiAccessService',
+            () =>
+                new AiAccessService({
+                    providerRegistry: createAiCredentialProviderRegistry({
+                        lightdashConfig: this.context.lightdashConfig,
+                        userWarehouseCredentialsModel:
+                            this.models.getUserWarehouseCredentialsModel(),
+                    }),
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationAgentIdentitySettingsModel:
+                        this.models.getOrganizationAgentIdentitySettingsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
     public getProjectService(): ProjectService {
         return this.getService(
             'projectService',
             () =>
                 new ProjectService({
+                    aiAccessService: this.getAiAccessService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1116,6 +1143,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,

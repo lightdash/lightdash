@@ -26,6 +26,7 @@ const healthWithGoogleAuth = (enabled: boolean): Partial<HealthState> => ({
         oidc: { enabled: false, loginPath: '/login/oidc' },
         pat: { maxExpirationTimeInDays: undefined },
         snowflake: { enabled: false },
+        snowflakeAi: { enabled: false },
         databricks: { enabled: false },
     },
 });

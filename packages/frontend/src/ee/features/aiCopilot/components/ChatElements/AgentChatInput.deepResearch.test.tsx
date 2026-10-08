@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -52,9 +53,9 @@ const renderInput = ({
         adminOnly: false,
     };
     if (enableCsvAttachment) {
-        useServerFeatureFlagMock.mockReturnValue({
-            data: { enabled: true },
-        });
+        useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
+            data: { enabled: flag !== FeatureFlags.AgentIdentity },
+        }));
     }
 
     renderWithProviders(

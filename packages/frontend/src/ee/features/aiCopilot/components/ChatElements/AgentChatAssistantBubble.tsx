@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentToolCall,
@@ -44,6 +45,7 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import {
@@ -69,6 +71,8 @@ import { isJevTurn } from '../Battle/jevDecision';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
+import { AiAccessCallout } from './AiAccessCallout';
+import { getAiAccessRefusal } from './aiAccessRefusal';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
@@ -569,8 +573,27 @@ const AssistantBubbleContent: FC<{
             : null;
     })();
 
+    const { data: agentIdentityFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentity,
+    );
+    const aiAccessRefusal = [
+        ...(streamingState?.parts ?? []).flatMap((part) =>
+            part.type === 'toolCall'
+                ? [getAiAccessRefusal(part.toolResult)]
+                : [],
+        ),
+        ...message.toolResults.map(getAiAccessRefusal),
+    ].find((refusal) => refusal !== null);
+
     return (
         <>
+            {agentIdentityFlag?.enabled === true && aiAccessRefusal && (
+                <AiAccessCallout
+                    projectUuid={projectUuid}
+                    refusal={aiAccessRefusal}
+                    variant="inline"
+                />
+            )}
             {shouldShowRetry && (
                 <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
                     <Group gap="xs" align="center" justify="space-between">

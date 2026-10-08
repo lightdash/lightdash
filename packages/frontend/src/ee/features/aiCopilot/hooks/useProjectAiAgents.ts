@@ -48,6 +48,10 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import {
+    getAiAccessRefusal,
+    isAiAgentAuthorizationError,
+} from '../../../../features/aiAccess/errors';
 import { invalidateAppQueries } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
@@ -114,12 +118,18 @@ export const useProjectAiAgents = ({
         queryFn: () => listProjectAgents(projectUuid!),
         ...options,
         onError: (error) => {
-            if (error.error?.statusCode !== 403) {
+            if (
+                !isAiAgentAuthorizationError(error.error) &&
+                !getAiAccessRefusal(error.error)
+            ) {
                 showToastApiError({
                     title: 'Failed to fetch project AI agents',
                     apiError: error.error,
                 });
-            } else if (redirectOnUnauthorized) {
+            } else if (
+                redirectOnUnauthorized &&
+                isAiAgentAuthorizationError(error.error)
+            ) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
                 );
@@ -140,11 +150,11 @@ export const useProjectAiAgent = (
         queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
         queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: `Failed to fetch project AI agent details`,
                     apiError: error.error,
@@ -487,7 +497,7 @@ export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
             );
         },
         onError: ({ error }) => {
-            if (error.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                     { replace: true },
@@ -553,11 +563,11 @@ export const useInfiniteAiAgentThreads = (
             return page < totalPageCount ? page + 1 : undefined;
         },
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch AI agent threads',
                     apiError: error.error,
@@ -817,11 +827,11 @@ export const useAiAgentThread = (
             return getAgentThread(projectUuid, agentUuid!, threadUuid!);
         },
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch AI agent thread',
                     apiError: error.error,
@@ -1326,11 +1336,11 @@ export const useCreateAgentThreadMutation = (
             }
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to create AI agent',
                     apiError: error,
@@ -1528,11 +1538,11 @@ export const useCreateAgentThreadMessageMutation = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to generate AI agent thread response',
                     apiError: error,
@@ -1781,11 +1791,11 @@ export const useUpdatePromptFeedbackMutation = (
             );
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to submit feedback',
                     apiError: error,
@@ -1854,11 +1864,11 @@ export const useSavePromptQuery = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to save prompt query',
                     apiError: error,
@@ -1947,11 +1957,11 @@ export const useUpdateArtifactVersion = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to save artifact dashboard',
                     apiError: error,
@@ -2071,13 +2081,13 @@ export const useAiAgentArtifactVizQuery = (
             });
         },
         onError: (error: ApiError) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(
                         activeProjectUuid ?? projectUuid,
                     )}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch artifact visualization',
                     apiError: error.error,
@@ -2173,13 +2183,13 @@ export const useAiAgentDashboardChartVizQuery = (
             });
         },
         onError: (error: ApiError) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(
                         activeProjectUuid ?? projectUuid,
                     )}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch dashboard chart visualization',
                     apiError: error.error,

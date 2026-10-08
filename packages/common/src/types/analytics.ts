@@ -1,3 +1,5 @@
+import { AI_AGENT_TAG } from './aiPrincipal';
+
 export type UserWithCount = {
     userUuid: string;
     firstName: string;
@@ -162,3 +164,21 @@ export enum QueryExecutionContext {
     DATA_APP_SAMPLE = 'dataAppSample',
     DESKTOP = 'desktop',
 }
+
+export const isAiAccessQueryContext = (
+    context: QueryExecutionContext,
+): boolean =>
+    context === QueryExecutionContext.DATA_APP_SAMPLE ||
+    context === QueryExecutionContext.AI ||
+    context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
+    context === QueryExecutionContext.MCP_RUN_SQL ||
+    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+
+export const withAgentMarkerTag = <
+    T extends { query_context: QueryExecutionContext },
+>(
+    tags: T,
+): T & { agent?: 'true' } =>
+    isAiAccessQueryContext(tags.query_context)
+        ? { ...tags, [AI_AGENT_TAG]: 'true' }
+        : tags;

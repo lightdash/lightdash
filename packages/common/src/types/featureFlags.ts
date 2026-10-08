@@ -5,6 +5,12 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /**
+     * Agent identity gates agent query identity, organisation settings and
+     * Snowflake agent sign-in. Off by default; organization scope; no handler.
+     */
+    AgentIdentity = 'agent-identity',
+
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
@@ -107,6 +113,12 @@ export enum FeatureFlags {
      * connection forms. On by default; the flag is a kill switch only.
      */
     EgressIpNotice = 'egress-ip-notice',
+
+    /**
+     * AI access (in-app agent, Slack agent, MCP) skips the results cache,
+     * earlier results and pre-aggregates. Off by default; organization scope.
+     */
+    AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data

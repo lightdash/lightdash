@@ -319,7 +319,10 @@ describe('loadProjectContext tool', () => {
         expect(res.metadata).toEqual({ status: 'error' });
         expect(res.result).toContain('Error loading project context');
         expect(res.result).toContain('context file unreadable');
-        expect(res.structuredContent).toEqual({ error: res.result });
+        expect(res.structuredContent).toEqual({
+            error: res.result,
+            refusal: null,
+        });
         expect(toolLoadProjectContextOutputSchema.safeParse(res).success).toBe(
             true,
         );

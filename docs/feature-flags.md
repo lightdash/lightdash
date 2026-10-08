@@ -182,3 +182,33 @@ The internal analytics incident is the counterexample: the UI used the standard
 resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
+
+## Agent identity
+
+`agent-identity` enables the organisation "Require agent identity" switch and
+its API, the agent connection section in My warehouse connections, and the
+connect gate in AI chat. The same flag gates Snowflake agent sign-in, AI access
+checks, warehouse capabilities and marker tests. Disabled routes return a typed
+`FeatureNotEnabledError` with HTTP 403.
+
+The flag is off by default outside previews and uses the standard resolver with
+no custom handler. Preview defaults enable it. Use organisation overrides for
+Cloud rollouts; standard user overrides also apply. Self-hosted instances can
+use the generic ENV lists and precedence described above.
+
+Snowflake agent sign-in also needs an Enterprise licence and a second Snowflake
+OAuth security integration with `IS_AGENTIC = TRUE`. Configure its endpoints and
+client credentials in `SNOWFLAKE_AI_OAUTH_*`. Warehouse administrators manage
+restricted session scopes and masking policies in Snowflake. The app does not
+configure data access.
+
+Each sign-in and token refresh checks agent activation with the new token. Each
+new AI connection checks activation again and disables cached results. A failed
+check refuses the connection. AI and dashboard credentials use separate rows and
+client cache entries. Credential selection also requires the organisation's
+"Require agent identity" switch.
+
+Console changes apply to the next backend flag resolution. Reload or refetch the
+page to update the UI. ENV and OAuth configuration changes need a process
+restart. Disabling the flag preserves saved credentials and restores normal query
+identity. It does not cancel queries in progress or revoke Snowflake tokens.

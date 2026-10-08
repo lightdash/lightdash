@@ -1,6 +1,7 @@
 import refresh from 'passport-oauth2-refresh';
 import { googlePassportStrategy } from '../controllers/authentication';
 import { databricksPassportStrategy } from '../controllers/authentication/strategies/databricksStrategy';
+import { snowflakeAiPassportStrategy } from '../controllers/authentication/strategies/snowflakeAiStrategy';
 import { snowflakePassportStrategy } from '../controllers/authentication/strategies/snowflakeStrategy';
 
 export const registerOAuthRefreshStrategies = (): void => {
@@ -10,6 +11,9 @@ export const registerOAuthRefreshStrategies = (): void => {
 
     if (snowflakePassportStrategy) {
         refresh.use('snowflake', snowflakePassportStrategy);
+    }
+    if (snowflakeAiPassportStrategy) {
+        refresh.use('snowflake-ai', snowflakeAiPassportStrategy);
     }
 
     if (databricksPassportStrategy) {

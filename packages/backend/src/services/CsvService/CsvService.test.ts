@@ -48,6 +48,7 @@ import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnection
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -63,6 +64,9 @@ describe('Csv service', () => {
         analytics: analyticsMock,
         userModel: {} as UserModel,
         projectService: new ProjectService({
+            aiAccessService: {
+                resolvePlan: vi.fn(async () => null),
+            } as unknown as AiAccessService,
             lightdashConfig,
             analytics: analyticsMock,
             analyticsModel: {} as AnalyticsModel,

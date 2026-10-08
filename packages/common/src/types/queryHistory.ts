@@ -71,6 +71,7 @@ export type QueryUsageMetadata = {
 };
 
 export type QueryHistory = {
+    warehouseConnectionUuid?: string | null;
     queryUuid: string;
     createdAt: Date;
     createdBy: string | null;
@@ -89,6 +90,7 @@ export type QueryHistory = {
     requestParameters: ExecuteAsyncQueryRequestParams & {
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
+        aiSignInCredentialUuid?: string;
     };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */

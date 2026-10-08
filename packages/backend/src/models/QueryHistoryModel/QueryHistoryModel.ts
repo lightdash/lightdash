@@ -83,6 +83,7 @@ function convertDbQueryHistoryToQueryHistory(
         preAggregateExecution: queryHistory.pre_aggregate_execution,
         preAggregateFallbackReason: queryHistory.pre_aggregate_fallback_reason,
         processingStartedAt: queryHistory.processing_started_at,
+        warehouseConnectionUuid: queryHistory.warehouse_connection_uuid ?? null,
     };
 }
 
@@ -124,6 +125,7 @@ export class QueryHistoryModel {
              */
             externalSourceSalt?: string;
             warehouseConnectionUuid?: string;
+            aiPrincipalUuid?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -154,6 +156,10 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.warehouseConnectionUuid) {
             queryHashKey += `.connection:${resultsIdentifiers.warehouseConnectionUuid}`;
+        }
+
+        if (resultsIdentifiers.aiPrincipalUuid) {
+            queryHashKey += `.principal:${resultsIdentifiers.aiPrincipalUuid}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
@@ -251,6 +257,25 @@ export class QueryHistoryModel {
         return {
             queryUuid: result.query_uuid,
         };
+    }
+
+    async recordAiSignInCredential(
+        queryUuid: string,
+        projectUuid: string,
+        userUuid: string,
+        aiSignInCredentialUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere('created_by_user_uuid', userUuid)
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{aiSignInCredentialUuid}', to_jsonb(?::text), true)",
+                    [aiSignInCredentialUuid],
+                ),
+            );
     }
 
     async update(

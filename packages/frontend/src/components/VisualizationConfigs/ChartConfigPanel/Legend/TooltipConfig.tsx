@@ -18,6 +18,7 @@ import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/too
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/monaco';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -113,7 +114,8 @@ const calculateEditorHeight = (lineCount: number): number => {
 export const TooltipConfig: FC<Props> = ({ fields }) => {
     const { visualizationConfig } = useVisualizationContext();
     const { colorScheme } = useMantineColorScheme();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
