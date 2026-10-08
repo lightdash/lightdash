@@ -1,0 +1,68 @@
+/* The page scrolls as a whole, so the panel is pinned to stay in view. */
+.root {
+    --controls-ease: ease-in-out;
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+    --controls-duration-hover: 0.12s;
+
+    position: fixed;
+    top: var(--pinned-sidebar-top, var(--navbar-height));
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-width);
+    background-color: var(--mantine-color-body);
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+/* The content arrives, not the panel: a fading surface would show the page
+   behind it */
+.root > * {
+    animation: editorEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.done {
+    transition: transform var(--controls-duration-hover) var(--controls-ease);
+}
+
+.footer .done:active {
+    transform: scale(0.97);
+}
+
+.title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes editorEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .root > * {
+        animation: none;
+    }
+
+    .done {
+        transition: none;
+    }
+}

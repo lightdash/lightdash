@@ -58,6 +58,8 @@ import {
     useRebaseDraftMutation,
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
+import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
+import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -935,6 +937,14 @@ const Dashboard: FC = () => {
     );
     const isChartEditorEnabled =
         authoringEnabled && chartEditorFlag.data?.enabled === true;
+    const dashboardControlsFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardControls,
+    );
+    const isDashboardControlsEnabled =
+        dashboardControlsFlag.data?.enabled === true;
+    const DashboardPage = isDashboardControlsEnabled
+        ? ControlsSidebarPage
+        : Page;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
     );
@@ -1469,14 +1479,20 @@ const Dashboard: FC = () => {
                 )}
             </MantineModal>
 
-            <Page
+            <DashboardPage
                 title={dashboard.name}
                 noContentPadding
                 withFullHeight
                 fullPageScroll
             >
                 <div>
-                    <DashboardHeader {...dashboardHeaderProps} />
+                    {isDashboardControlsEnabled ? (
+                        <DashboardHeaderGuard>
+                            <DashboardHeader {...dashboardHeaderProps} />
+                        </DashboardHeaderGuard>
+                    ) : (
+                        <DashboardHeader {...dashboardHeaderProps} />
+                    )}
 
                     {isChartEditorEnabled && dashboard.uuid ? (
                         <DashboardChartEditorModal
@@ -1610,7 +1626,7 @@ const Dashboard: FC = () => {
                         onConfirm={duplicateModalHandlers.close}
                     />
                 )}
-            </Page>
+            </DashboardPage>
         </>
     );
 };
