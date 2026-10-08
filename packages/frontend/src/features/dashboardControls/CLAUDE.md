@@ -125,3 +125,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `pages/Dashboard.tsx` loads, resets and sends the controls only when changed;
   `useDashboardChartReadyQuery.ts` keys on the tile's narrowed values and sends
   the controls with the query.
+
+## Link prompts
+
+- `LinkPrompts` portals a veil and a card into a chart tile added while
+  editing, when a filter control could reach it through a field other than
+  the filter's own target (`getLinkCandidates`). A tile with the target field
+  links on its own and SQL chart tiles never prompt.
+- "New" is derived: `newTileUuids` is the dashboard's tiles that are not in the
+  saved dashboard. There is no snapshot state.
+- Link writes `tileTargets[tileUuid]` on the rule (`setTileField`), which ends
+  the prompt. Skip is `dismissLink`; skips live in the provider until edit mode
+  ends.
+- Rendered only in edit mode while the sidebar is closed, so it never stacks
+  on `TileOverlays`.

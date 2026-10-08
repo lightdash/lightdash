@@ -98,6 +98,9 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue> = {}) => {
         setControlValue: vi.fn(),
         removeControl: vi.fn(),
         removeControlById: vi.fn(),
+        newTileUuids: [],
+        dismissedLinks: [],
+        dismissLink: vi.fn(),
         ...overrides,
     };
     mockSidebar.current = value;

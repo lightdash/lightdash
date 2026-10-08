@@ -20,6 +20,7 @@ import {
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { getLinkKey } from './linkCandidates';
 import { getFilterFields } from './peers';
 import {
     findFilterRule,
@@ -71,6 +72,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const setParameter = useDashboardContext((c) => c.setParameter);
+    const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
     const [controlState, setControlState] = useState<ControlState | null>(null);
@@ -455,8 +459,28 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
     useEffect(() => {
-        if (!isEditMode) close();
+        if (!isEditMode) {
+            close();
+            setDismissedLinks([]);
+        }
     }, [isEditMode, close]);
+
+    const newTileUuids = useMemo(() => {
+        if (!savedTiles || !dashboardTiles) return [];
+        const saved = new Set(savedTiles.map((tile) => tile.uuid));
+        return dashboardTiles
+            .map((tile) => tile.uuid)
+            .filter((uuid) => !saved.has(uuid));
+    }, [savedTiles, dashboardTiles]);
+
+    const dismissLink = useCallback(
+        (tileUuid: string, ruleId: string) =>
+            setDismissedLinks((links) => [
+                ...links,
+                getLinkKey(tileUuid, ruleId),
+            ]),
+        [],
+    );
 
     const editingRule = useMemo(
         () =>
@@ -490,6 +514,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setControlValue,
             removeControl,
             removeControlById,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
             activeSection,
             setActiveSection,
             open,
@@ -548,6 +575,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setControlValue,
             removeControl,
             removeControlById,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
         ],
     );
 

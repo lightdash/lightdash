@@ -65,6 +65,11 @@ export type ControlsSidebarContextValue = {
     /** Removes the edited control; its parameters keep their values. */
     removeControl: () => void;
     removeControlById: (controlId: string) => void;
+    /** Tiles added since the dashboard was last saved. */
+    newTileUuids: string[];
+    /** Link prompts the author skipped, as keys from `getLinkKey`. */
+    dismissedLinks: string[];
+    dismissLink: (tileUuid: string, ruleId: string) => void;
 };
 
 export const ControlsSidebarContext =

@@ -19,6 +19,10 @@ const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockParams = vi.hoisted(() => ({ current: { mode: 'edit' } }));
+const mockTiles = vi.hoisted(() => ({
+    saved: [{ uuid: 't1' }],
+    current: [{ uuid: 't1' }],
+}));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -86,6 +90,8 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
         filterableFieldsByTileUuid: {},
         parameterControls,
         setParameterControls,
+        dashboard: { tiles: mockTiles.saved },
+        dashboardTiles: mockTiles.current,
         parameterValues,
         setParameter: (key: string, value: ParameterValue | null) =>
             setParameterValues((values) => {
@@ -387,6 +393,24 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.openControl('c1'));
             expect(result.current.editingControl?.id).toBe(id);
             expect(result.current.editing).toBeNull();
+        });
+    });
+
+    describe('link prompts', () => {
+        it('a tile is new until the dashboard that holds it is saved', () => {
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            const { result } = setup();
+            expect(result.current.newTileUuids).toEqual(['t2']);
+            mockTiles.current = [{ uuid: 't1' }];
+        });
+
+        it('remembers skipped prompts until edit mode ends', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.dismissLink('t2', 'a'));
+            expect(result.current.dismissedLinks).toEqual(['t2|a']);
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.dismissedLinks).toEqual([]);
         });
     });
 });

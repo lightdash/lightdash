@@ -1,0 +1,103 @@
+import {
+    DashboardTileTypes,
+    DimensionType,
+    FieldType,
+    type DashboardFilterRule,
+    type DashboardTile,
+    type FilterableDimension,
+} from '@lightdash/common';
+import { describe, expect, it } from 'vitest';
+import { getLinkCandidates } from './linkCandidates';
+
+const dim = (
+    table: string,
+    name: string,
+    type: DimensionType,
+): FilterableDimension =>
+    ({
+        fieldType: FieldType.DIMENSION,
+        type,
+        name,
+        label: name,
+        table,
+        tableLabel: table,
+        sql: '',
+        hidden: false,
+    }) as FilterableDimension;
+
+const ordersDate = dim('orders', 'created', DimensionType.DATE);
+const ordersStatus = dim('orders', 'status', DimensionType.STRING);
+const paymentsDate = dim('payments', 'paid_at', DimensionType.DATE);
+const paymentsShipped = dim('payments', 'shipped_at', DimensionType.DATE);
+const paymentsMethod = dim('payments', 'method', DimensionType.STRING);
+
+const fieldsMap = { orders_created: ordersDate, orders_status: ordersStatus };
+
+const tile = {
+    uuid: 'tile-1',
+    type: DashboardTileTypes.SAVED_CHART,
+} as DashboardTile;
+
+const rule = (
+    overrides: Partial<DashboardFilterRule> = {},
+): DashboardFilterRule =>
+    ({
+        id: 'rule-1',
+        target: { fieldId: 'orders_created', tableName: 'orders' },
+        operator: 'equals',
+        values: [],
+        ...overrides,
+    }) as DashboardFilterRule;
+
+describe('getLinkCandidates', () => {
+    it('returns nothing for a tile that is not filterable', () => {
+        expect(getLinkCandidates(rule(), tile, {}, fieldsMap)).toEqual([]);
+    });
+
+    it('returns nothing when the tile offers the target field', () => {
+        const fieldsByTile = { 'tile-1': [ordersDate, paymentsDate] };
+        expect(
+            getLinkCandidates(rule(), tile, fieldsByTile, fieldsMap),
+        ).toEqual([]);
+    });
+
+    it('returns nothing once the tile is already decided', () => {
+        const fieldsByTile = { 'tile-1': [paymentsDate] };
+        const decided = rule({ tileTargets: { 'tile-1': false } });
+        expect(
+            getLinkCandidates(decided, tile, fieldsByTile, fieldsMap),
+        ).toEqual([]);
+    });
+
+    it('prefers the peer fields the tile offers', () => {
+        const fieldsByTile = { 'tile-1': [paymentsShipped, paymentsDate] };
+        const withPeer = rule({
+            tileTargets: {
+                'tile-2': {
+                    fieldId: 'payments_paid_at',
+                    tableName: 'payments',
+                },
+            },
+        });
+        expect(
+            getLinkCandidates(withPeer, tile, fieldsByTile, fieldsMap),
+        ).toEqual([{ fieldId: 'payments_paid_at', tableName: 'payments' }]);
+    });
+
+    it('falls back to fields of the same kind in tile order', () => {
+        const fieldsByTile = {
+            'tile-1': [paymentsMethod, paymentsShipped, paymentsDate],
+        };
+        expect(
+            getLinkCandidates(rule(), tile, fieldsByTile, fieldsMap),
+        ).toEqual([
+            { fieldId: 'payments_shipped_at', tableName: 'payments' },
+            { fieldId: 'payments_paid_at', tableName: 'payments' },
+        ]);
+    });
+
+    it('returns nothing when the target field is unknown', () => {
+        const fieldsByTile = { 'tile-1': [paymentsDate] };
+        expect(getLinkCandidates(rule(), tile, fieldsByTile, {})).toEqual([]);
+    });
+});
