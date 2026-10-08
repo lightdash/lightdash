@@ -1,4 +1,9 @@
 import {
+    toolFailure,
+    type ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import {
+    createSqlApprovalGate,
     type SqlApprovalCall,
     type SqlApprovalCopy,
     type SqlApprovalDependencies,
@@ -34,7 +39,7 @@ const getSqlChartApprovalHeading = (chartName: string) =>
     `Awaiting approval to save SQL chart "${chartName}"`;
 
 /** The approval step a content tool hands the content service. */
-export const getSqlChartApproveSql =
+const getSqlChartApproveSql =
     (call: SqlApprovalCall): ApproveSqlFn =>
     ({ sql, chartName, sqlChanged }) =>
         sqlChanged
@@ -43,3 +48,50 @@ export const getSqlChartApproveSql =
                   heading: getSqlChartApprovalHeading(chartName),
               })
             : call.settleUnchangedSql();
+
+type SqlChartToolName = 'createContent' | 'editContent';
+
+type ToolOutput = { result: string; metadata?: Record<string, unknown> };
+
+/** The SQL chart gate the content tools share: refuses saves without SQL mode, approves gated calls. */
+export const createSqlChartGate = (
+    sqlChartSaving: SqlChartSaving,
+    toolName: SqlChartToolName,
+) => {
+    const approvalGate =
+        sqlChartSaving.mode === 'thread_approval'
+            ? createSqlApprovalGate(
+                  sqlChartSaving.approval,
+                  toolName,
+                  SQL_CHART_APPROVAL_COPY,
+              )
+            : null;
+
+    /** For the AI SDK: a gated call on Slack suspends until the user decides. */
+    const needsApproval = async (gated: boolean): Promise<boolean> =>
+        gated && approvalGate !== null && approvalGate.usesNativeApproval();
+
+    // `approveSql` is null when the thread does not gate the call.
+    const run = async <T extends ToolOutput>(
+        {
+            toolCallId,
+            isSqlChart,
+            gated,
+        }: { toolCallId: string; isSqlChart: boolean; gated: boolean },
+        execute: (approveSql: ApproveSqlFn | null) => Promise<T>,
+    ): Promise<T | ExecuteToolErrorResult> => {
+        if (isSqlChart && sqlChartSaving.mode === 'disabled') {
+            return toolFailure(SQL_CHART_DISABLED_RESULT);
+        }
+        const call =
+            isSqlChart && approvalGate
+                ? await approvalGate.forToolCall(toolCallId, {
+                      needsApproval: gated,
+                  })
+                : null;
+        const output = await execute(call ? getSqlChartApproveSql(call) : null);
+        return call ? call.persistIfResumed(output) : output;
+    };
+
+    return { needsApproval, run };
+};

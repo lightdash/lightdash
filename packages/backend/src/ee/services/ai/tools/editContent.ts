@@ -16,18 +16,12 @@ import { resolveDocumentConversationTags } from '../utils/documentConversationTa
 import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { createSqlApprovalGate } from './sqlApprovalGate';
 import {
     approveClientSql,
     SqlNotApprovedError,
     type ApproveSqlFn,
 } from './sqlApprovals';
-import {
-    getSqlChartApproveSql,
-    SQL_CHART_APPROVAL_COPY,
-    SQL_CHART_DISABLED_RESULT,
-    type SqlChartSaving,
-} from './sqlChartApproval';
+import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     editContent: EditContentFn;
@@ -80,11 +74,8 @@ const toStructuredContent = (
               warnings,
           };
 
-/**
- * Runs an edit exactly as the agent's editContent tool does, for callers that
- * apply an edit without the model. `approveSql` gates SQL chart edits that
- * change the SQL; without it they need `client_approved` SQL chart saving.
- */
+// Runs an edit as the agent's tool does, for callers without the model.
+// `approveSql` gates SQL chart edits; null means only client-approved saving.
 export const executeEditContent = async (
     {
         editContent,
@@ -101,9 +92,6 @@ export const executeEditContent = async (
             ? mcpEditContentArgsSchema
             : toolEditContentArgsSchema
         ).parse(args);
-        if (type === 'sql_chart' && sqlChartSaving.mode === 'disabled') {
-            return toolFailure(SQL_CHART_DISABLED_RESULT);
-        }
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
                 if (patch !== undefined || documentEdit === undefined) {
@@ -199,43 +187,34 @@ export const getEditContent = ({
     const inputSchema: FlexibleSchema<
         z.infer<typeof mcpEditContentArgsSchema>
     > = definition.inputSchema;
-    const approvalGate =
-        sqlChartSaving.mode === 'thread_approval'
-            ? createSqlApprovalGate(
-                  sqlChartSaving.approval,
-                  'editContent',
-                  SQL_CHART_APPROVAL_COPY,
-              )
-            : null;
+    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'editContent');
 
     return tool({
         ...definition,
         inputSchema,
-        needsApproval: async (input) =>
-            isSqlApprovalToolCall('editContent', input) &&
-            approvalGate !== null &&
-            approvalGate.usesNativeApproval(),
-        execute: async (args, { toolCallId }) => {
-            const sqlChartApproval =
-                args.type === 'sql_chart' && approvalGate
-                    ? await approvalGate.forToolCall(toolCallId, {
-                          needsApproval: isSqlApprovalToolCall(
-                              'editContent',
-                              args,
-                          ),
-                      })
-                    : null;
-            const output = await executeEditContent(
-                { editContent, sqlChartSaving, documentsEnabled, artifacts },
-                args,
-                sqlChartApproval
-                    ? getSqlChartApproveSql(sqlChartApproval)
-                    : null,
-            );
-            return sqlChartApproval
-                ? sqlChartApproval.persistIfResumed(output)
-                : output;
-        },
+        needsApproval: (input) =>
+            sqlChartGate.needsApproval(
+                isSqlApprovalToolCall('editContent', input),
+            ),
+        execute: (args, { toolCallId }) =>
+            sqlChartGate.run(
+                {
+                    toolCallId,
+                    isSqlChart: args.type === 'sql_chart',
+                    gated: isSqlApprovalToolCall('editContent', args),
+                },
+                (approveSql) =>
+                    executeEditContent(
+                        {
+                            editContent,
+                            sqlChartSaving,
+                            documentsEnabled,
+                            artifacts,
+                        },
+                        args,
+                        approveSql,
+                    ),
+            ),
         toModelOutput: ({ output }) => toModelOutput(output),
     });
 };
