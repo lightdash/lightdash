@@ -1251,6 +1251,97 @@ orders_order_dat inThePast=30{completed:false,unit:days} AND orders_product_cate
         ]);
     });
 
+    it.each([
+        {
+            expression: 'orders_order_date inTheCurrent=months',
+            settings: { unitOfTime: 'months', completed: false },
+        },
+        {
+            expression: 'orders_order_date inTheCurrent=months{toDate:true}',
+            settings: { unitOfTime: 'months', completed: false, toDate: true },
+        },
+        {
+            expression:
+                'orders_order_date notInTheCurrent=quarters{toDate:true,excludeToday:true}',
+            settings: {
+                unitOfTime: 'quarters',
+                completed: false,
+                toDate: true,
+                excludeToday: true,
+            },
+        },
+        {
+            expression:
+                'orders_order_date inTheCurrent=weeks{excludeToday:false,toDate:true}',
+            settings: { unitOfTime: 'weeks', completed: false, toDate: true },
+        },
+        {
+            expression:
+                'orders_order_date inTheCurrent=years{toDate:false,excludeToday:false}',
+            settings: { unitOfTime: 'years', completed: false },
+        },
+    ])(
+        'resolves current-period bounds in $expression without undefined keys',
+        async ({ expression, settings }) => {
+            const data = await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+            const dimensions =
+                data.persistedArgs.queryConfig.filters?.dimensions;
+            if (!Array.isArray(dimensions)) {
+                throw new Error('Expected a legacy dimensions rule array');
+            }
+            const [rule] = dimensions;
+            expect(rule).toMatchObject({ values: [1] });
+            expect('settings' in rule ? rule.settings : null).toEqual(settings);
+        },
+    );
+
+    it.each([
+        [
+            'orders_order_date inTheCurrent=months{excludeToday:true}',
+            'requires toDate:true',
+        ],
+        [
+            'orders_order_date inTheCurrent=days{toDate:true}',
+            'not valid for days',
+        ],
+        [
+            'orders_order_date inTheCurrent=months{toDate:yes}',
+            'must be exactly true or false',
+        ],
+        [
+            'orders_order_date inTheCurrent=months{unit:months}',
+            'Unknown current-period setting "unit"',
+        ],
+        [
+            'orders_order_date inTheCurrent=months{toDate:true,toDate:true}',
+            'may appear only once',
+        ],
+    ] as const)(
+        'rejects invalid current-period bounds in %s',
+        async (expression, problemText) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error.code).toBe('FILTER_EXPRESSION_INVALID_VALUE');
+            expect(formatFilterExpressionError(error)).toContain(problemText);
+        },
+    );
+
     it('does not recursively repair a second unknown field', async () => {
         const error = await expectResolutionError(
             expressionArgs({
@@ -2338,7 +2429,12 @@ const expressionFromExpected = (expected: ExpectedFilter): string => {
         if (!expected.settings?.unitOfTime) {
             throw new Error('Current-period fixture is missing its unit');
         }
-        return `${expected.fieldId} ${expected.operator}=${expected.settings.unitOfTime}`;
+        const bounds = [
+            ...(expected.settings.toDate ? ['toDate:true'] : []),
+            ...(expected.settings.excludeToday ? ['excludeToday:true'] : []),
+        ];
+        const boundsSuffix = bounds.length === 0 ? '' : `{${bounds.join(',')}}`;
+        return `${expected.fieldId} ${expected.operator}=${expected.settings.unitOfTime}${boundsSuffix}`;
     }
 
     if (

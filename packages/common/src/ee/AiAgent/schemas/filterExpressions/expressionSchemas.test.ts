@@ -218,7 +218,7 @@ describe('filter expression input schemas', () => {
                             break;
                         case 'currentDate':
                             expect(section).toContain(
-                                `\`${definition.operator}=<unit> [1 unit]\``,
+                                `\`${definition.operator}=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]\``,
                             );
                             break;
                         case 'values': {
@@ -276,6 +276,26 @@ describe('filter expression input schemas', () => {
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
             'completed=false includes partial, true completed only',
         );
+    });
+
+    it('documents current-period bounds once in the date section', () => {
+        const section = getFilterTypeSection(
+            FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+            FilterType.DATE,
+        );
+        expect(section).toContain(
+            '{toDate:true} ends the current week/month/quarter/year at today ("month to date")',
+        );
+        expect(section).toContain(
+            '{toDate:true,excludeToday:true} ends it at yesterday',
+        );
+        expect(section).toContain('Not valid for days.');
+        expect(
+            getFilterTypeSection(
+                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+                FilterType.NUMBER,
+            ),
+        ).not.toContain('toDate');
     });
 
     it('documents string quoting with one canonical punctuated example', () => {

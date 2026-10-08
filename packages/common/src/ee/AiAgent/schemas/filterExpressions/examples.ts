@@ -104,7 +104,13 @@ export const formatFilterExpressionExample = (
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.NOT_IN_THE_CURRENT: {
             const settings = requireSettings(example);
-            return `${fieldId} ${example.operator}=${settings.unitOfTime}`;
+            const bounds = [
+                ...(settings.toDate ? ['toDate:true'] : []),
+                ...(settings.excludeToday ? ['excludeToday:true'] : []),
+            ];
+            const boundsSuffix =
+                bounds.length === 0 ? '' : `{${bounds.join(',')}}`;
+            return `${fieldId} ${example.operator}=${settings.unitOfTime}${boundsSuffix}`;
         }
         default: {
             if (!example.values || example.values.length === 0) {

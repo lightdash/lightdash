@@ -1,5 +1,9 @@
 import { DimensionType, MetricType } from '../../../../types/field';
-import { FilterOperator, FilterType } from '../../../../types/filter';
+import {
+    FilterOperator,
+    FilterType,
+    UnitOfTime,
+} from '../../../../types/filter';
 import { filtersSchemaTransformed } from '../filters';
 import {
     toolRunQueryArgsSchemaPersisted,
@@ -173,6 +177,69 @@ describe('filterExpressionResolvedFiltersSchema', () => {
                 filterExpressionResolvedFiltersSchemaTransformed.parse(null),
             ),
         ).toEqual(withoutGeneratedIds(filtersSchemaTransformed.parse(null)));
+    });
+});
+
+describe('filterExpressionResolvedFiltersSchema current-period bounds', () => {
+    const currentPeriodRule = {
+        fieldId: 'orders_order_date',
+        fieldType: DimensionType.DATE,
+        fieldFilterType: FilterType.DATE,
+        operator: FilterOperator.IN_THE_CURRENT,
+        values: [1],
+        settings: {
+            completed: false,
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+            excludeToday: true,
+        },
+    };
+
+    it('round-trips bounds through the V2 shape and the domain transform', () => {
+        const payload = {
+            dimensions: { connector: 'and', rules: [currentPeriodRule] },
+            metrics: null,
+            tableCalculations: null,
+        };
+        expect(filterExpressionResolvedFiltersSchemaV2.parse(payload)).toEqual(
+            payload,
+        );
+        expect(
+            withoutGeneratedIds(
+                filterExpressionResolvedFiltersSchemaTransformed.parse(payload),
+            ),
+        ).toMatchObject({
+            dimensions: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_order_date' },
+                        settings: currentPeriodRule.settings,
+                    },
+                ],
+            },
+        });
+    });
+
+    it('rejects bounds the date filter schema rejects', () => {
+        expect(
+            filterExpressionResolvedFiltersSchemaV2.safeParse({
+                dimensions: {
+                    connector: 'and',
+                    rules: [
+                        {
+                            ...currentPeriodRule,
+                            settings: {
+                                completed: false,
+                                unitOfTime: UnitOfTime.days,
+                                toDate: true,
+                            },
+                        },
+                    ],
+                },
+                metrics: null,
+                tableCalculations: null,
+            }).success,
+        ).toBe(false);
     });
 });
 

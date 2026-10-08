@@ -4,6 +4,7 @@ import {
     FilterOperator,
     FilterType,
     UnitOfTime,
+    unitOfTimeSupportsToDate,
 } from '../../../../types/filter';
 import { getFieldIdSchema } from '../fieldId';
 import {
@@ -160,13 +161,37 @@ const dateFilterSchema = z.union([
                         .describe(
                             'Current period unit, e.g. weeks for this week.',
                         ),
+                    toDate: z
+                        .literal(true)
+                        .optional()
+                        .describe(
+                            'Set true to end the period at the end of today instead of the end of the period, for requests like "month to date", "quarter to date", or "this year so far". Only valid with weeks, months, quarters, or years; omit otherwise.',
+                        ),
+                    excludeToday: z
+                        .literal(true)
+                        .optional()
+                        .describe(
+                            'With toDate, end the period at the end of yesterday so today\'s partial data is excluded, for requests like "month to date excluding today" or "compare completed days only". Requires toDate; omit otherwise.',
+                        ),
                 })
                 .strict()
+                .refine(
+                    (settings) =>
+                        settings.excludeToday === undefined ||
+                        settings.toDate === true,
+                    'excludeToday requires toDate',
+                )
+                .refine(
+                    (settings) =>
+                        settings.toDate === undefined ||
+                        unitOfTimeSupportsToDate(settings.unitOfTime),
+                    'toDate is only valid with weeks, months, quarters, or years',
+                )
                 .describe('Current-period settings.'),
         })
         .strict()
         .describe(
-            `Use for current date requests such as "today", "this week", "this month", or "this year". ${filterJsonExamplesForOperators(
+            `Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,

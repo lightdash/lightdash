@@ -54,6 +54,7 @@ import {
     ToolSortField,
     TransformedCustomMetric,
     UnitOfTime,
+    unitOfTimeSupportsToDate,
     WeekDay,
     WindowFunctionType,
     withLeadingEquals,
@@ -280,8 +281,19 @@ const currentDateSettingsSchema = z
     .object({
         completed: z.literal(false),
         unitOfTime: relativeDateUnitSchema,
+        toDate: z.literal(true).optional(),
+        excludeToday: z.literal(true).optional(),
     })
-    .strict();
+    .strict()
+    .refine(
+        (settings) =>
+            settings.excludeToday === undefined || settings.toDate === true,
+    )
+    .refine(
+        (settings) =>
+            settings.toDate === undefined ||
+            unitOfTimeSupportsToDate(settings.unitOfTime),
+    );
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
@@ -434,7 +446,7 @@ const getFilterRuleProblem = (
                 (!hasCurrentDateValue(filterRule.values) ||
                     !hasCurrentDateSettings(filterRule.settings))
             ) {
-                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime, with optional toDate=true only with weeks, months, quarters, or years, and excludeToday=true only with toDate. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
             }
 
             if (
