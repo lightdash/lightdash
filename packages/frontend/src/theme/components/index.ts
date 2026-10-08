@@ -102,10 +102,10 @@ const isNeutral = (color: unknown) => color === undefined || color === 'gray';
  */
 type AlertTone = 'light' | 'filled' | 'outline';
 
-/** The same hairline the icon chip wears, so light alerts and their chip
- *  share one edge. */
+/** The icon chip's hairline tint, dashed so the pale wash reads as a note
+ *  rather than a panel. */
 const ALERT_INK_HAIRLINE =
-    '1px solid color-mix(in srgb, var(--alert-color) 8%, transparent)';
+    '1px dashed color-mix(in srgb, var(--alert-color) 8%, transparent)';
 
 const semanticHairline = (color: string) =>
     `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) 40%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) 40%, transparent))`;
