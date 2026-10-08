@@ -411,7 +411,7 @@ export class SavedSqlModel {
         data: CreateSqlChart,
         binding?: SqlChartConnectionBinding,
         // 'unique' treats data.slug as a base and appends -1, -2… on conflict.
-        slugMode: 'exact' | 'unique' = 'exact',
+        { slugMode }: { slugMode: 'exact' | 'unique' } = { slugMode: 'exact' },
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
