@@ -1,3 +1,10 @@
+## [2.487.1](https://github.com/lightdash/lightdash/compare/2.487.0...2.487.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **data-apps:** prefer modelled fields and validate custom SQL ([#30683](https://github.com/lightdash/lightdash/issues/30683)) ([b0f7404](https://github.com/lightdash/lightdash/commit/b0f740434a63b23fdc41eb1726217bf8fad151b8))
+
 # [2.487.0](https://github.com/lightdash/lightdash/compare/2.486.1...2.487.0) (2026-10-08)
 
 
