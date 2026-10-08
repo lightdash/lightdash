@@ -947,16 +947,19 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:OrganizationAdoption',
-        description: 'View adoption by department',
+        description:
+            "View adoption by department, including every member's email, role and recent activity, and the names of the dashboards, explores, agents and groups they use",
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
-        dependencies: [],
+        // It shows every member's email and role, so a role holding it must see member profiles too
+        dependencies: [{ name: 'view:OrganizationMemberProfile' }],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:OrganizationAdoption',
-        description: 'Create and edit departments, their owners and members',
+        description:
+            'Create and edit departments, their headcounts, targets, owners, linked groups and assigned people',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         dependencies: [{ name: 'view:OrganizationAdoption' }],

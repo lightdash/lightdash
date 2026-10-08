@@ -10,7 +10,9 @@ All of the following must hold, otherwise the API answers 404 (no flag, no licen
 
 - The `organization-adoption` feature flag is on for the user and organization (`FeatureFlags.OrganizationAdoption`).
 - The instance has the enterprise licence. Without it the service is not registered and the controller turns the missing provider into a 404.
-- The user holds `view:OrganizationAdoption` to read, and `manage:OrganizationAdoption` to change anything. `manage` depends on `view`. Organization admins get both; other roles need a custom role.
+- The user holds `view:OrganizationAdoption` to read, and `manage:OrganizationAdoption` to change anything. `manage` depends on `view`, and `view` depends on `view:OrganizationMemberProfile`, so the custom role builder cannot make a role that sees members here but not on the members page. Organization admins get both; other roles need a custom role.
+
+`view:OrganizationAdoption` shows every member's email, role and recent activity, and the names of the dashboards, explores, AI agents and groups they use, whatever the holder's own access to that content. Its description in the role builder says so: "View adoption by department, including every member's email, role and recent activity, and the names of the dashboards, explores, agents and groups they use". `manage:OrganizationAdoption` reads "Create and edit departments, their headcounts, targets, owners, linked groups and assigned people".
 
 The routes are hidden from the generated API docs while the feature is under development.
 
