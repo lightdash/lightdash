@@ -1,6 +1,14 @@
-import { WarehouseTypes, type AiActorKind } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    QueryExecutionContext,
+    WarehouseTypes,
+    type AiActorKind,
+} from '@lightdash/common';
+import { type Knex } from 'knex';
 import { OrganizationAgentIdentityRulesModel } from '../../../models/OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from '../../../models/OrganizationAgentIdentitySettingsModel';
+import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -9,6 +17,12 @@ import {
     down,
     up,
 } from '../20261008120100_add_organization_agent_identity_rules';
+
+vi.mock('../../../config/lightdashConfig', async () => {
+    const { lightdashConfigMock } =
+        await import('../../../config/lightdashConfig.mock');
+    return { lightdashConfig: lightdashConfigMock };
+});
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {
@@ -388,4 +402,154 @@ test('serializes concurrent writes and cascades organization deletion', async ()
             .database('organization_agent_identity_rules')
             .where('organization_uuid', organizationUuid),
     ).toHaveLength(0);
+});
+
+const writeLegacySettings = async (
+    database: Knex,
+    organizationUuid: string,
+    required: boolean,
+) =>
+    database.raw(
+        `INSERT INTO organization_agent_identity_settings
+        (organization_uuid, require_verified_agent_sessions)
+     VALUES (?, ?)
+     ON CONFLICT (organization_uuid) DO UPDATE
+     SET require_verified_agent_sessions = EXCLUDED.require_verified_agent_sessions,
+         updated_at = CURRENT_TIMESTAMP
+     RETURNING *`,
+        [organizationUuid, required],
+    );
+
+test.each([true, false])(
+    'reads an old pod legacy write of %s instead of stale Snowflake rules',
+    async (required) => {
+        const { organizationUuid } = await fixture();
+        await migrated.database.transaction(async (trx) => {
+            await down(trx);
+            await writeLegacySettings(trx, organizationUuid, !required);
+            await up(trx);
+            const model = new OrganizationAgentIdentityRulesModel({
+                database: trx,
+            });
+            await model.set(organizationUuid, WarehouseTypes.BIGQUERY, {
+                source: 'ai_service_account',
+            });
+            await writeLegacySettings(trx, organizationUuid, required);
+            const staleSource = required ? 'marked_person' : 'agent_sign_in';
+            const source = required ? 'agent_sign_in' : 'marked_person';
+            expect(
+                await trx('organization_agent_identity_rules')
+                    .where({
+                        organization_uuid: organizationUuid,
+                        warehouse_type: WarehouseTypes.SNOWFLAKE,
+                    })
+                    .pluck('source'),
+            ).toEqual([staleSource, staleSource]);
+            await Promise.all(
+                actors.map(async (actor) => {
+                    expect(
+                        await model.get(
+                            organizationUuid,
+                            WarehouseTypes.SNOWFLAKE,
+                            actor,
+                        ),
+                    ).toEqual({ source });
+                    expect(
+                        await model.get(
+                            organizationUuid,
+                            WarehouseTypes.BIGQUERY,
+                            actor,
+                        ),
+                    ).toEqual({ source: 'ai_service_account' });
+                }),
+            );
+            expect(await model.list(organizationUuid)).toEqual([
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source,
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'ai_service_account',
+                    projectsMissingAiServiceAccount: null,
+                },
+            ]);
+        });
+    },
+);
+
+test('ignores stale Snowflake rules when the legacy row is absent', async () => {
+    const { model, organizationUuid } = await fixture();
+    await model.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
+        source: 'agent_sign_in',
+    });
+    await migrated
+        .database('organization_agent_identity_settings')
+        .where('organization_uuid', organizationUuid)
+        .delete();
+    await Promise.all(
+        actors.map(async (actor) => {
+            expect(
+                await model.get(
+                    organizationUuid,
+                    WarehouseTypes.SNOWFLAKE,
+                    actor,
+                ),
+            ).toEqual({ source: 'marked_person' });
+        }),
+    );
+    expect((await model.list(organizationUuid))[0].source).toBe(
+        'marked_person',
+    );
+});
+
+test('resolvePlan refuses needs_sign_in after an old pod enables the legacy switch', async () => {
+    const { model, settings, organizationUuid } = await fixture();
+    await model.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
+        source: 'marked_person',
+    });
+    await writeLegacySettings(migrated.database, organizationUuid, true);
+    const mint = vi
+        .fn()
+        .mockRejectedValue(
+            new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+        );
+    const service = new AiAccessService({
+        organizationAgentIdentityRulesModel: model,
+        organizationAgentIdentitySettingsModel: settings,
+        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
+        userModel: {
+            getUserDetailsByUuid: vi
+                .fn()
+                .mockResolvedValue({ email: 'person@example.com' }),
+        },
+        lightdashConfig: { siteUrl: 'https://lightdash.example' },
+        analytics: { track: vi.fn() },
+        providerRegistry: () => ({ configurationError: () => null, mint }),
+    } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+    await expect(
+        service.resolvePlan({
+            organizationUuid,
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            userUuid: 'person',
+            isRegisteredUser: true,
+            isServiceAccount: false,
+            context: QueryExecutionContext.AI,
+            purpose: 'execute',
+            connection: {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'person',
+                password: 'test',
+                database: 'test',
+                warehouse: 'test',
+                schema: 'public',
+            },
+        }),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
+    });
+    expect(mint).toHaveBeenCalledOnce();
 });

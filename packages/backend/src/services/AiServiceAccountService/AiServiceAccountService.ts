@@ -193,28 +193,37 @@ export class AiServiceAccountService extends BaseService {
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
-        const saved =
-            await this.deps.aiServiceAccountCredentialsModel.getSecrets(
-                projectUuid,
-                warehouseConnectionUuid,
-            );
-        const secrets =
+        let secrets =
             input === null
-                ? saved
-                : mergeAiServiceAccountCredentials(input, saved);
-        if (secrets === null)
-            throw new NotFoundError(
-                'The connection has no AI service account.',
-            );
-        const credentials = applyAiServiceAccountCredentials(
-            connection,
-            secrets,
-        );
+                ? null
+                : mergeAiServiceAccountCredentials(
+                      input,
+                      await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
+                          projectUuid,
+                          warehouseConnectionUuid,
+                      ),
+                  );
         const sql = 'SELECT SESSION_USER() AS principal';
         let queryStarted = false;
         let result: AiServiceAccountTestResult;
         let failureReason: 'connection_failed' | 'query_failed' | null = null;
         try {
+            if (input === null) {
+                secrets =
+                    await this.deps.aiServiceAccountCredentialsModel.getSecrets(
+                        projectUuid,
+                        warehouseConnectionUuid,
+                    );
+            }
+            if (secrets === null) {
+                throw new NotFoundError(
+                    'The connection has no AI service account.',
+                );
+            }
+            const credentials = applyAiServiceAccountCredentials(
+                connection,
+                secrets,
+            );
             const { rows } =
                 await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
                     {
@@ -248,7 +257,8 @@ export class AiServiceAccountService extends BaseService {
                         : 'AI service account connection checked.',
                 checkedAt: new Date(),
             };
-        } catch {
+        } catch (error) {
+            if (secrets === null && error instanceof NotFoundError) throw error;
             failureReason = queryStarted ? 'query_failed' : 'connection_failed';
             result = {
                 ok: false,

@@ -22,6 +22,9 @@ export class OrganizationAgentIdentityRulesModel {
         warehouseType: WarehouseTypes,
         actorKind: AiActorKind,
     ): Promise<UpdateOrganizationAgentIdentityRule> {
+        if (warehouseType === WarehouseTypes.SNOWFLAKE) {
+            return this.getSnowflakeRule(organizationUuid);
+        }
         const row = await this.database(OrganizationAgentIdentityRulesTableName)
             .where({
                 organization_uuid: organizationUuid,
@@ -34,25 +37,49 @@ export class OrganizationAgentIdentityRulesModel {
         };
     }
 
+    private async getSnowflakeRule(
+        organizationUuid: string,
+    ): Promise<UpdateOrganizationAgentIdentityRule> {
+        const row = await this.database<{
+            require_verified_agent_sessions: boolean;
+        }>('organization_agent_identity_settings')
+            .where('organization_uuid', organizationUuid)
+            .first('require_verified_agent_sessions');
+        return {
+            source: row?.require_verified_agent_sessions
+                ? 'agent_sign_in'
+                : 'marked_person',
+        };
+    }
+
     async list(
         organizationUuid: string,
     ): Promise<OrganizationAgentIdentityRule[]> {
         const warehouseTypes = getAgentIdentityWarehouseTypes();
-        const rows = await this.database(
-            OrganizationAgentIdentityRulesTableName,
-        )
-            .where({
-                organization_uuid: organizationUuid,
-                actor_kind: 'person',
-            })
-            .whereIn('warehouse_type', warehouseTypes);
+        const [snowflakeRule, rows] = await Promise.all([
+            this.getSnowflakeRule(organizationUuid),
+            this.database(OrganizationAgentIdentityRulesTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    actor_kind: 'person',
+                })
+                .whereIn(
+                    'warehouse_type',
+                    warehouseTypes.filter(
+                        (type) => type !== WarehouseTypes.SNOWFLAKE,
+                    ),
+                ),
+        ]);
         return warehouseTypes.map((warehouseType) => {
             const row = rows.find(
                 (candidate) => candidate.warehouse_type === warehouseType,
             );
             return {
                 warehouseType,
-                source: row?.source ?? 'marked_person',
+                source:
+                    warehouseType === WarehouseTypes.SNOWFLAKE
+                        ? snowflakeRule.source
+                        : (row?.source ?? 'marked_person'),
                 projectsMissingAiServiceAccount: null,
             };
         });
