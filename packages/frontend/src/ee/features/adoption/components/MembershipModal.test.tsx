@@ -126,7 +126,7 @@ describe('MembershipModal', () => {
         await userEvent.click(
             screen.getByRole('checkbox', { name: 'Select Cat Test' }),
         );
-        expect(screen.getByText('2 people selected')).toBeVisible();
+        expect(screen.getByText('2 selected')).toBeVisible();
         await place('Place selected in', 'Ops');
         expect(placedSoFar()).toEqual([
             { departmentUuid: 'Ops', userUuids: ['u9', 'u3', 'u1'] },
@@ -145,6 +145,41 @@ describe('MembershipModal', () => {
         ]);
     });
 
+    it('keeps the selection when a save fails', async () => {
+        // The request fails: the hook shows the error and the per-call success never runs
+        mutate.mockImplementationOnce(() => undefined);
+        renderModal();
+        await userEvent.click(
+            screen.getByRole('checkbox', { name: 'Select Ann Test' }),
+        );
+        await place('Place selected in', 'Ops');
+        expect(placedSoFar()).toHaveLength(1);
+        expect(
+            screen.getByRole('checkbox', { name: 'Select Ann Test' }),
+        ).toBeChecked();
+        expect(screen.getByText('1 selected')).toBeVisible();
+    });
+
+    it('clears the selection when closed', async () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <MembershipModal
+                opened
+                onClose={onClose}
+                departments={departments}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('checkbox', { name: 'Select Ann Test' }),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(
+            screen.getByRole('checkbox', { name: 'Select Ann Test' }),
+        ).not.toBeChecked();
+        expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
+    });
+
     it('selects and clears everyone shown at once', async () => {
         renderModal();
         const all = screen.getByRole('checkbox', { name: 'Select all shown' });
@@ -154,7 +189,7 @@ describe('MembershipModal', () => {
                 screen.getByRole('checkbox', { name: `Select ${name}` }),
             ).toBeChecked(),
         );
-        expect(screen.getByText('3 people selected')).toBeVisible();
+        expect(screen.getByText('3 selected')).toBeVisible();
         await userEvent.click(all);
         expect(
             screen.getByRole('checkbox', { name: 'Select Ann Test' }),
@@ -294,13 +329,35 @@ describe('MembershipModal', () => {
                     screen.getByRole('checkbox', { name: 'Select all shown' }),
                 );
                 // Person29 and Person290 to Person299, plus Ann from before the search
-                expect(screen.getByText('12 people selected')).toBeVisible();
+                expect(
+                    screen.getByText('12 selected, 1 hidden by search'),
+                ).toBeVisible();
                 await place('Place selected in', 'Finance');
                 const [placement] = placedSoFar();
                 expect(placement).toMatchObject({ departmentUuid: 'Finance' });
                 expect(
                     (placement as { userUuids: string[] }).userUuids,
                 ).toHaveLength(12);
+            }),
+        );
+
+        it(
+            'says when selected people are past the first 50 shown',
+            withCrowd(async () => {
+                renderModal();
+                const search = screen.getByRole('textbox', {
+                    name: 'Search people',
+                });
+                fireEvent.change(search, { target: { value: 'person299' } });
+                await userEvent.click(
+                    screen.getByRole('checkbox', {
+                        name: 'Select Person299 Test',
+                    }),
+                );
+                fireEvent.change(search, { target: { value: '' } });
+                expect(
+                    screen.getByText('1 selected, 1 not shown'),
+                ).toBeVisible();
             }),
         );
 

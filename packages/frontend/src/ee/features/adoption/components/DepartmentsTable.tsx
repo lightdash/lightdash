@@ -9,6 +9,7 @@ import {
     Tooltip,
     type TextProps,
 } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconChevronDown,
@@ -29,7 +30,6 @@ import {
     buildDepartmentRows,
     formatOwners,
     formatRoleSplit,
-    formatShare,
     formatTarget,
     type DepartmentRow,
 } from '../utils/departmentRows';
@@ -40,6 +40,10 @@ import styles from './DepartmentsTable.module.css';
 const INDENT_PX = 24;
 const EXPANDER_WIDTH = 22;
 const EXPLANATION_MAX_WIDTH = 280;
+// Narrower tables leave out the role split; it stays on the department page and the map inspector
+const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
+// Hover, keyboard focus and touch, as the headcount note used to be visible text
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
 const BELOW_CHILDREN_WARNING =
     'Headcount is lower than the total of its sub-departments';
 const SUB_DEPARTMENTS: Noun = {
@@ -63,20 +67,27 @@ const CellText: FC<
     </Text>
 );
 
-// A value whose explanation shows on hover and keyboard focus, marked by a dotted underline
+// A value with an explanation in its tooltip, marked by a dotted underline; the tooltip repeats the value in case the column cuts it short
 const ExplainedValue: FC<{ value: string; explanation: string }> = ({
     value,
     explanation,
 }) => (
     <Tooltip
-        label={explanation}
+        label={
+            <>
+                {value}
+                <br />
+                {explanation}
+            </>
+        }
         multiline
         maw={EXPLANATION_MAX_WIDTH}
-        events={{ hover: true, focus: true, touch: false }}
+        events={TOOLTIP_EVENTS}
     >
         <Text
-            component="span"
             fz="sm"
+            truncate="end"
+            miw={0}
             tabIndex={0}
             className={styles.explained}
         >
@@ -84,6 +95,21 @@ const ExplainedValue: FC<{ value: string; explanation: string }> = ({
         </Text>
     </Tooltip>
 );
+
+// A share above 100% shows the counts behind it and says why
+const ShareCell: FC<{
+    pct: number | null;
+    count: number;
+    headcount: number | null;
+}> = ({ pct, count, headcount }) => {
+    const value = formatCoverage(pct, count, headcount);
+    const note = getCoverageNote(headcount, count);
+    return note === null ? (
+        <CellText>{value}</CellText>
+    ) : (
+        <ExplainedValue value={value} explanation={note} />
+    );
+};
 
 type Props = {
     departments: DepartmentWithMetrics[];
@@ -101,6 +127,8 @@ export const DepartmentsTable: FC<Props> = ({
         () => buildDepartmentRows(departments, expanded),
         [departments, expanded],
     );
+    const { ref, width } = useElementSize();
+    const showRoleSplit = width >= ROLE_SPLIT_MIN_TABLE_WIDTH;
     const toggle = useCallback((departmentUuid: string) => {
         setExpanded((previous) => {
             const next = new Set(previous);
@@ -110,7 +138,7 @@ export const DepartmentsTable: FC<Props> = ({
         });
     }, []);
 
-    // Widths add up to fit a 1,100 px table: names and numbers come first, the role split and target give way
+    // Without the role split the widths fit a 1,100 px table, so names, numbers and the target show whole
     const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(() => {
         const dataColumns: ContentTableColumnDef<DepartmentRow>[] = [
             {
@@ -220,11 +248,7 @@ export const DepartmentsTable: FC<Props> = ({
                             {department.headcountBelowChildren && (
                                 <Tooltip
                                     label={BELOW_CHILDREN_WARNING}
-                                    events={{
-                                        hover: true,
-                                        focus: true,
-                                        touch: false,
-                                    }}
+                                    events={TOOLTIP_EVENTS}
                                 >
                                     <Box
                                         component="span"
@@ -246,37 +270,25 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'coverage',
                 header: 'Coverage',
-                size: 116,
-                Cell: ({ row }) => {
-                    const { metrics, effectiveHeadcount } =
-                        row.original.department;
-                    const coverage = formatCoverage(
-                        metrics.coveragePct,
-                        metrics.memberCount,
-                        effectiveHeadcount,
-                    );
-                    const note = getCoverageNote(
-                        effectiveHeadcount,
-                        metrics.memberCount,
-                    );
-                    return note === null ? (
-                        <CellText>{coverage}</CellText>
-                    ) : (
-                        <ExplainedValue value={coverage} explanation={note} />
-                    );
-                },
+                size: 144,
+                Cell: ({ row }) => (
+                    <ShareCell
+                        pct={row.original.department.metrics.coveragePct}
+                        count={row.original.department.metrics.memberCount}
+                        headcount={row.original.department.effectiveHeadcount}
+                    />
+                ),
             },
             {
                 id: 'active',
                 header: 'Active 30d',
-                size: 110,
+                size: 120,
                 Cell: ({ row }) => (
-                    <CellText>
-                        {formatShare(
-                            row.original.department.metrics.activePct,
-                            row.original.department.metrics.activeCount30d,
-                        )}
-                    </CellText>
+                    <ShareCell
+                        pct={row.original.department.metrics.activePct}
+                        count={row.original.department.metrics.activeCount30d}
+                        headcount={row.original.department.effectiveHeadcount}
+                    />
                 ),
             },
             {
@@ -305,16 +317,35 @@ export const DepartmentsTable: FC<Props> = ({
                 id: 'owner',
                 header: 'Owner',
                 size: 130,
-                Cell: ({ row }) => (
-                    <CellText>
-                        {formatOwners(row.original.department.owners)}
-                    </CellText>
-                ),
+                Cell: ({ row }) => {
+                    const { owners } = row.original.department;
+                    if (owners.length === 0) {
+                        return <CellText>{formatOwners(owners)}</CellText>;
+                    }
+                    const [first, ...others] = owners;
+                    // Only the name gives way, so the count of other owners stays in sight
+                    return (
+                        <Group
+                            gap={4}
+                            wrap="nowrap"
+                            title={owners.map((owner) => owner.name).join(', ')}
+                        >
+                            <Text fz="sm" truncate="end" miw={0}>
+                                {first.name}
+                            </Text>
+                            {others.length > 0 && (
+                                <Text fz="sm" flex="none">
+                                    {`+${formatCount(others.length)}`}
+                                </Text>
+                            )}
+                        </Group>
+                    );
+                },
             },
             {
                 id: 'target',
                 header: 'Target',
-                size: 114,
+                size: 172,
                 Cell: ({ row }) => (
                     <CellText>{formatTarget(row.original.department)}</CellText>
                 ),
@@ -358,7 +389,12 @@ export const DepartmentsTable: FC<Props> = ({
         enableBottomToolbar: false,
         getRowId: (row) => row.department.departmentUuid,
         mantineTableProps: { highlightOnHover: true },
+        state: { columnVisibility: { roles: showRoleSplit } },
     });
 
-    return <ContentTable table={table} />;
+    return (
+        <Box ref={ref}>
+            <ContentTable table={table} />
+        </Box>
+    );
 };

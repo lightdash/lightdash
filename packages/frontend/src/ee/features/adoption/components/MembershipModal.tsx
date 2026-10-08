@@ -1,6 +1,7 @@
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Checkbox,
     Group,
     Select,
@@ -18,18 +19,22 @@ import {
 } from '../../../hooks/useOrgDepartments';
 import {
     countAttentionNames,
-    describeConflict,
+    describeCandidate,
     getAttentionRows,
     getMemberName,
     getPlacement,
     searchAttentionRows,
 } from '../utils/attention';
 import { getParentOptions } from '../utils/departmentForm';
-import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
+import { formatCount } from '../utils/format';
 
 // Rows drawn at once; a large organization narrows the list by searching
 const VISIBLE_ROW_LIMIT = 50;
-const SELECT_WIDTH = 260;
+// Selects keep this width while the modal has room, and shrink to the minimum on a narrow screen
+const SELECT_FLEX = '0 1 260px';
+const SELECT_MIN_WIDTH = 160;
+// The person takes the rest of the row, so every select lines up
+const PERSON_MIN_WIDTH = 120;
 
 type Props = {
     opened: boolean;
@@ -72,6 +77,14 @@ export const MembershipModal: FC<Props> = ({
     ).length;
     const isEveryoneShownSelected =
         visibleUuids.length > 0 && visibleSelectedCount === visibleUuids.length;
+    // Selected people the list does not show are placed too, so say how many there are
+    const hiddenSelectedCount = selectedUuids.filter(
+        (userUuid) => !visibleUuids.includes(userUuid),
+    ).length;
+    const selectionLabel =
+        hiddenSelectedCount === 0
+            ? `${formatCount(selectedUuids.length)} selected`
+            : `${formatCount(selectedUuids.length)} selected, ${formatCount(hiddenSelectedCount)} ${search.trim().length > 0 ? 'hidden by search' : 'not shown'}`;
 
     const toggle = (userUuid: string) =>
         setSelected((previous) => {
@@ -154,7 +167,7 @@ export const MembershipModal: FC<Props> = ({
                         align="flex-end"
                         wrap="nowrap"
                     >
-                        <Group gap="sm" wrap="nowrap">
+                        <Group gap="sm" flex={1} miw={PERSON_MIN_WIDTH}>
                             <Checkbox
                                 label="Select all shown"
                                 checked={isEveryoneShownSelected}
@@ -167,7 +180,7 @@ export const MembershipModal: FC<Props> = ({
                             />
                             {selectedUuids.length > 0 && (
                                 <Text fz="sm" c="dimmed">
-                                    {`${formatQuantity(selectedUuids.length, PEOPLE)} selected`}
+                                    {selectionLabel}
                                 </Text>
                             )}
                         </Group>
@@ -176,8 +189,8 @@ export const MembershipModal: FC<Props> = ({
                             placeholder="Choose a department"
                             data={departmentOptions}
                             searchable
-                            w={SELECT_WIDTH}
-                            flex="none"
+                            flex={SELECT_FLEX}
+                            miw={SELECT_MIN_WIDTH}
                             disabled={
                                 selectedUuids.length === 0 ||
                                 setMembers.isLoading
@@ -199,7 +212,6 @@ export const MembershipModal: FC<Props> = ({
                         (nameCounts.get(name) ?? 0) > 1
                             ? `${name} (${member.email})`
                             : name;
-                    const conflictLines = describeConflict(candidates);
                     return (
                         <Group
                             key={member.userUuid}
@@ -211,7 +223,8 @@ export const MembershipModal: FC<Props> = ({
                                 gap="sm"
                                 wrap="nowrap"
                                 align="flex-start"
-                                miw={0}
+                                flex={1}
+                                miw={PERSON_MIN_WIDTH}
                             >
                                 <Checkbox
                                     aria-label={`Select ${who}`}
@@ -223,28 +236,38 @@ export const MembershipModal: FC<Props> = ({
                                         <Text fz="sm" fw={500} truncate>
                                             {name}
                                         </Text>
-                                        <Badge
-                                            variant="light"
-                                            color={
-                                                kind === 'conflict'
-                                                    ? 'orange'
-                                                    : 'gray'
-                                            }
-                                            flex="none"
-                                        >
-                                            {kind === 'conflict'
-                                                ? 'In more than one department'
-                                                : 'No department'}
-                                        </Badge>
+                                        {/* The badge takes only the room the name leaves */}
+                                        <Box flex={1} miw={0}>
+                                            <Badge
+                                                variant="light"
+                                                color={
+                                                    kind === 'conflict'
+                                                        ? 'orange'
+                                                        : 'gray'
+                                                }
+                                                maw="100%"
+                                            >
+                                                {kind === 'conflict'
+                                                    ? 'In more than one department'
+                                                    : 'No department'}
+                                            </Badge>
+                                        </Box>
                                     </Group>
                                     <Text fz="xs" c="dimmed" truncate>
                                         {member.email}
                                     </Text>
-                                    {conflictLines.length > 0 && (
+                                    {candidates.length > 0 && (
                                         <Stack gap={0} mt={4}>
-                                            {conflictLines.map((line) => (
-                                                <Text key={line} fz="xs">
-                                                    {line}
+                                            {candidates.map((candidate) => (
+                                                <Text
+                                                    key={
+                                                        candidate.departmentUuid
+                                                    }
+                                                    fz="xs"
+                                                >
+                                                    {describeCandidate(
+                                                        candidate,
+                                                    )}
                                                 </Text>
                                             ))}
                                         </Stack>
@@ -256,8 +279,8 @@ export const MembershipModal: FC<Props> = ({
                                 placeholder="Choose a department"
                                 data={departmentOptions}
                                 searchable
-                                w={SELECT_WIDTH}
-                                flex="none"
+                                flex={SELECT_FLEX}
+                                miw={SELECT_MIN_WIDTH}
                                 disabled={setMembers.isLoading}
                                 value={null}
                                 onChange={(value) =>

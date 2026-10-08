@@ -8,6 +8,7 @@ import {
     type DepartmentOwnerInput,
     type UpdateDepartment,
 } from '@lightdash/common';
+import { formatCount } from './format';
 
 export const NAME_MAX_LENGTH = 255;
 export const HEADCOUNT_NOTE_MAX_LENGTH = 500;
@@ -152,7 +153,7 @@ export const validateWholeNumber = (
     const number = Number(value);
     return Number.isInteger(number) && number >= 0 && number <= MAX_WHOLE_NUMBER
         ? null
-        : `${label} must be a whole number from 0 to ${MAX_WHOLE_NUMBER.toLocaleString('en-US')}`;
+        : `${label} must be a whole number from 0 to ${formatCount(MAX_WHOLE_NUMBER)}`;
 };
 
 // Omitted field = unchanged, null = cleared

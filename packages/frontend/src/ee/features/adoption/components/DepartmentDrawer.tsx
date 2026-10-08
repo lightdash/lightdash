@@ -56,6 +56,7 @@ import {
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
+import { formatCount } from '../utils/format';
 
 type FormValues = {
     name: string;
@@ -418,7 +419,7 @@ export const DepartmentForm: FC<FormProps> = ({
                             {hiddenMemberCount > 0 &&
                                 (members !== null ? (
                                     <Text fz="xs" c="dimmed">
-                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, everyone is listed under People on this page`}
+                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, everyone is listed under People on this page`}
                                     </Text>
                                 ) : (
                                     <Anchor
@@ -428,7 +429,7 @@ export const DepartmentForm: FC<FormProps> = ({
                                         )}
                                         fz="xs"
                                     >
-                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, see everyone on the department page`}
+                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, see everyone on the department page`}
                                     </Anchor>
                                 ))}
                         </Stack>

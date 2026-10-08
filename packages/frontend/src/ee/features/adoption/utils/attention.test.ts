@@ -6,7 +6,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     countAttentionNames,
-    describeConflict,
+    describeCandidate,
     formatAttention,
     getAttentionRows,
     getMemberName,
@@ -75,7 +75,11 @@ describe('getAttentionRows', () => {
             departments,
         );
         expect(rows[0].candidates).toEqual([
-            { name: 'Operations', groupNames: ['ops-team'] },
+            {
+                departmentUuid: 'ops',
+                name: 'Operations',
+                groupNames: ['ops-team'],
+            },
         ]);
     });
 
@@ -90,8 +94,16 @@ describe('getAttentionRows', () => {
             departments,
         );
         expect(row.candidates).toEqual([
-            { name: 'Finance', groupNames: ['finance-all', 'finance-leads'] },
-            { name: 'Operations', groupNames: ['ops-team'] },
+            {
+                departmentUuid: 'fin',
+                name: 'Finance',
+                groupNames: ['finance-all', 'finance-leads'],
+            },
+            {
+                departmentUuid: 'ops',
+                name: 'Operations',
+                groupNames: ['ops-team'],
+            },
         ]);
     });
 
@@ -125,36 +137,31 @@ describe('getAttentionRows', () => {
     });
 });
 
-describe('describeConflict', () => {
-    it('names each department with the group that reaches it, one line each', () => {
-        expect(
-            describeConflict([
-                { name: 'Data', groupNames: ['data-champions'] },
-                { name: 'Finance', groupNames: ['finance-all'] },
-            ]),
-        ).toEqual([
+describe('describeCandidate', () => {
+    const candidate = (name: string, groupNames: string[]) => ({
+        departmentUuid: name.toLowerCase(),
+        name,
+        groupNames,
+    });
+    it('names the department with the group that reaches it', () => {
+        expect(describeCandidate(candidate('Data', ['data-champions']))).toBe(
             'Data through data-champions',
-            'Finance through finance-all',
-        ]);
+        );
     });
     it('offers every linked group when a department has several, as any of them can be the one', () => {
         expect(
-            describeConflict([
-                { name: 'Data', groupNames: ['analysts', 'bi', 'data-team'] },
-                {
-                    name: 'Finance',
-                    groupNames: ['finance-all', 'finance-leads'],
-                },
-                { name: 'Sales', groupNames: [] },
-            ]),
-        ).toEqual([
-            'Data through analysts, bi or data-team',
-            'Finance through finance-all or finance-leads',
-            'Sales',
-        ]);
+            describeCandidate(
+                candidate('Finance', ['finance-all', 'finance-leads']),
+            ),
+        ).toBe('Finance through finance-all or finance-leads');
+        expect(
+            describeCandidate(
+                candidate('Data', ['analysts', 'bi', 'data-team']),
+            ),
+        ).toBe('Data through analysts, bi or data-team');
     });
-    it('has nothing to say when no department is known', () => {
-        expect(describeConflict([])).toEqual([]);
+    it('names only the department when no linked group is known', () => {
+        expect(describeCandidate(candidate('Sales', []))).toBe('Sales');
     });
 });
 

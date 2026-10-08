@@ -1,10 +1,11 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { dept, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentsTable } from './DepartmentsTable';
+import styles from './DepartmentsTable.module.css';
 
 // ECharts needs a real layout engine
 vi.mock('../../../../components/EChartsReactWrapper', () => ({
@@ -24,6 +25,35 @@ const departments = [
     }),
 ];
 
+// jsdom has no layout, so the table's width is reported by hand
+const setTableWidth = (width: number) =>
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            constructor(private readonly callback: ResizeObserverCallback) {}
+
+            observe(target: Element) {
+                this.callback(
+                    [
+                        {
+                            target,
+                            contentRect: new DOMRect(0, 0, width, 600),
+                            borderBoxSize: [],
+                            contentBoxSize: [],
+                            devicePixelContentBoxSize: [],
+                        },
+                    ],
+                    new ResizeObserver(() => {}),
+                );
+            }
+
+            unobserve() {}
+
+            disconnect() {}
+        },
+    );
+const WIDE = 1400;
+
 const renderTable = (canManage = true, onEdit = vi.fn()) =>
     renderWithProviders(
         <MemoryRouter>
@@ -36,6 +66,10 @@ const renderTable = (canManage = true, onEdit = vi.fn()) =>
     );
 
 describe('DepartmentsTable', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
     it('lists top-level departments with the lowest coverage first', () => {
         renderTable();
         const links = screen.getAllByRole('link').map((l) => l.textContent);
@@ -52,7 +86,8 @@ describe('DepartmentsTable', () => {
             screen.getByRole('button', { name: 'Collapse Ops' }),
         ).toHaveAttribute('aria-expanded', 'true');
     });
-    it('shows only non-zero roles, or a placeholder when there are none', () => {
+    it('shows only non-zero roles, or a placeholder when there are none', async () => {
+        setTableWidth(WIDE);
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -76,10 +111,27 @@ describe('DepartmentsTable', () => {
                 />
             </MemoryRouter>,
         );
-        expect(screen.getByText('No one yet')).toBeInTheDocument();
+        expect(await screen.findByText('No one yet')).toBeInTheDocument();
         expect(
             screen.getByText('1 viewer, 1 editor, 1 admin'),
         ).toBeInTheDocument();
+    });
+    it('shows the role split only once the table is 1,300 px wide', async () => {
+        setTableWidth(1300);
+        const { unmount } = renderTable();
+        expect(
+            await screen.findByRole('columnheader', { name: 'Roles' }),
+        ).toBeInTheDocument();
+        unmount();
+        // Below that it stays on the department page and the map inspector
+        setTableWidth(1299);
+        renderTable();
+        await screen.findByRole('columnheader', { name: 'Target' });
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        expect(
+            screen.queryByRole('columnheader', { name: 'Roles' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/viewers?/)).not.toBeInTheDocument();
     });
     it('lets the keyboard expand a row', async () => {
         renderTable();
@@ -124,20 +176,21 @@ describe('DepartmentsTable', () => {
         ).not.toBeInTheDocument();
         const headcount = screen.getByText('300');
         await userEvent.hover(headcount);
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Full-time staff only',
-        );
+        // The tooltip repeats the value, as a narrow column can cut it short
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('300');
+        expect(tooltip).toHaveTextContent('Full-time staff only');
         await userEvent.unhover(headcount);
         headcount.focus();
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
             'Full-time staff only',
         );
     });
-    it('keeps every cell on one line, shortening long text with the full text in a title', () => {
+    it('keeps every cell on one line, shortening long text with the full text in a title', async () => {
+        setTableWidth(WIDE);
         const name = 'Customer Success Managers for Enterprise Accounts';
-        const owners = 'Valentina Choi-Attenborough +1';
         const roles = '493 viewers, 169 interactive, 165 editors, 7 admins';
-        const target = '300 active by 30 Nov 2026';
+        const target = '300 by 30 Nov 2026';
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -175,11 +228,26 @@ describe('DepartmentsTable', () => {
         const link = screen.getByRole('link', { name });
         expect(link).toHaveAttribute('data-truncate', 'end');
         expect(link).toHaveAttribute('title', name);
-        [owners, roles, target, '50% (5)'].forEach((text) => {
-            const cell = screen.getByText(text);
-            expect(cell).toHaveAttribute('data-truncate', 'end');
-            expect(cell).toHaveAttribute('title', text);
-        });
+        [await screen.findByText(roles), screen.getByText(target)].forEach(
+            (cell) => {
+                expect(cell).toHaveAttribute('data-truncate', 'end');
+                expect(cell).toHaveAttribute('title', cell.textContent);
+            },
+        );
+        expect(screen.getByText('50% (5)')).toHaveAttribute(
+            'data-truncate',
+            'end',
+        );
+        // Only the owner's name gives way, so the count of other owners stays in sight
+        const owner = screen.getByText('Valentina Choi-Attenborough');
+        expect(owner).toHaveAttribute('data-truncate', 'end');
+        const others = screen.getByText('+1');
+        expect(others).not.toHaveAttribute('data-truncate');
+        expect(owner.parentElement).toBe(others.parentElement);
+        expect(owner.parentElement).toHaveAttribute(
+            'title',
+            'Valentina Choi-Attenborough, emea-sales-leadership',
+        );
     });
     it('lets the count of deeper sub-departments give way before the name', async () => {
         renderWithProviders(
@@ -203,12 +271,19 @@ describe('DepartmentsTable', () => {
             screen.getByRole('button', { name: 'Expand Customer Success' }),
         );
         expect(screen.getByRole('link', { name: 'Support' })).toBeVisible();
+        const name = screen.getByRole('link', { name: 'Support' });
         const count = screen.getByText('1 sub-department');
         expect(count).toHaveAttribute('data-truncate', 'end');
         expect(count).toHaveAttribute('title', '1 sub-department');
         expect(count).toHaveStyle({ minWidth: '0rem' });
+        // Both can shrink, and the count shrinks first
+        expect(name).toHaveAttribute('data-truncate', 'end');
+        expect(count).toHaveClass(styles.yields);
+        expect(name).not.toHaveClass(styles.yields);
+        expect(name.parentElement).toBe(count.parentElement);
     });
-    it('groups thousands in every number', () => {
+    it('groups thousands in every number', async () => {
+        setTableWidth(WIDE);
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -235,11 +310,11 @@ describe('DepartmentsTable', () => {
                 />
             </MemoryRouter>,
         );
+        expect(await screen.findByText('1,317 viewers')).toBeVisible();
         expect(screen.getByText('2,350')).toBeVisible();
         expect(screen.getByText('56% (1,317)')).toBeVisible();
         expect(screen.getByText('51% (1,200)')).toBeVisible();
-        expect(screen.getByText('1,317 viewers')).toBeVisible();
-        expect(screen.getByText('1,200 active by 30 Nov 2026')).toBeVisible();
+        expect(screen.getByText('1,200 by 30 Nov 2026')).toBeVisible();
     });
     it('shows coverage above 100% with the counts behind it, explained in a tooltip', async () => {
         renderWithProviders(
@@ -268,6 +343,58 @@ describe('DepartmentsTable', () => {
             'end',
         );
     });
+    it('keeps a long coverage above 100% inside its column, with the whole value in the tooltip', async () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Data', null, null, {
+                            headcount: 110,
+                            effectiveHeadcount: 110,
+                            metrics: metricsFixture(191, 174),
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        const coverage = screen.getByText('174% (191 of 110)');
+        expect(coverage).toHaveAttribute('data-truncate', 'end');
+        expect(coverage).toHaveClass(styles.explained);
+        await userEvent.hover(coverage);
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('174% (191 of 110)');
+        expect(tooltip).toHaveTextContent('More accounts than headcount');
+    });
+    it('explains active people above the headcount the same way', async () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Data governance', null, null, {
+                            headcount: 8,
+                            effectiveHeadcount: 8,
+                            metrics: metricsFixture(9, 113, {
+                                activeCount30d: 9,
+                                activePct: 113,
+                            }),
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        const [coverage, active] = screen.getAllByText('113% (9 of 8)');
+        expect(coverage).toHaveClass(styles.explained);
+        expect(active).toHaveClass(styles.explained);
+        expect(active).toHaveAttribute('data-truncate', 'end');
+        await userEvent.hover(active);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'More accounts than headcount',
+        );
+    });
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();
         const warning = screen.getByRole('img', {
@@ -294,8 +421,10 @@ describe('DepartmentsTable', () => {
             }),
         ).toBeInTheDocument();
     });
-    it('hides edit controls from people who cannot manage', () => {
+    it('hides edit controls from people who cannot manage', async () => {
+        setTableWidth(WIDE);
         renderTable(false);
+        await screen.findByRole('columnheader', { name: 'Roles' });
         expect(screen.getAllByRole('columnheader')).toHaveLength(8);
         expect(
             screen.queryByRole('button', { name: /Add headcount/ }),

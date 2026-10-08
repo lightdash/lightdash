@@ -2,7 +2,11 @@ import { type Department, type DepartmentMembership } from '@lightdash/common';
 import { formatQuantity, PEOPLE } from './format';
 
 // A department a person in a conflict is reached in, with the groups linked to it
-export type ConflictCandidate = { name: string; groupNames: string[] };
+export type ConflictCandidate = {
+    departmentUuid: string;
+    name: string;
+    groupNames: string[];
+};
 
 export type AttentionRow = {
     member: DepartmentMembership;
@@ -47,6 +51,7 @@ export const getAttentionRows = (
                       candidates: member.resolution.departmentUuids
                           .flatMap((uuid) => byUuid.get(uuid) ?? [])
                           .map((department) => ({
+                              departmentUuid: department.departmentUuid,
                               name: department.name,
                               groupNames: department.linkedGroups
                                   .map((group) => group.name)
@@ -71,13 +76,14 @@ const listAlternatives = (names: string[]): string =>
         ? names.join('')
         : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
 
-// One line per department. The membership response names no groups, so every group linked to a department is offered
-export const describeConflict = (candidates: ConflictCandidate[]): string[] =>
-    candidates.map(({ name, groupNames }) =>
-        groupNames.length === 0
-            ? name
-            : `${name} through ${listAlternatives(groupNames)}`,
-    );
+// The membership response names no groups, so every group linked to the department is offered
+export const describeCandidate = ({
+    name,
+    groupNames,
+}: ConflictCandidate): string =>
+    groupNames.length === 0
+        ? name
+        : `${name} through ${listAlternatives(groupNames)}`;
 
 // The endpoint replaces a department's assigned people, so a request carries everyone already assigned
 export const getPlacement = (
