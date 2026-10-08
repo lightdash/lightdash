@@ -10,7 +10,7 @@ import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 
 const meta: Meta<typeof Alert> = {
-    title: 'Alert',
+    title: 'Components/Alert',
     component: Alert,
     tags: ['autodocs'],
     argTypes: {
