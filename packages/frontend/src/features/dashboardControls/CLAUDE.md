@@ -85,9 +85,9 @@ In `FilterConfiguration/`:
 
 - The context is a `use-context-selector` context, like the dashboard's.
   `useControlsSidebarSelector((c) => c.x)` re-renders its component's subtree
-  only when the selected value changes; use it in anything rendered
+  only when the selected value changes; use it in anything rendered per tile,
   per pill or around the whole page. `useControlsSidebar()` returns the whole
-  value and re-renders on every change. A selector must return
+  value and re-renders on every change, hover included. A selector must return
   a value that is stable for the same state (no new object or array).
 - Every callback in the value keeps one identity for the provider's life. They
   read state through the `latest` ref in `ControlsSidebarProvider`, which is
@@ -104,9 +104,14 @@ In `FilterConfiguration/`:
   the shipped `createDashboardFilterRuleFromSqlColumn`. Both are the
   sidebar's.
 - `ADD_FILTER_CLICKED` (`mode: 'edit'`, the shipped payload) is tracked where
-  a filter is created: `addFirstField` and `addFirstSqlColumn`.
-  Opening a placeholder tracks nothing.
-- `openNew()` works while anything is being edited: it calls `close()` first,
+  a filter is created: `addFirstField`, `addFirstSqlColumn` and
+  `addFirstFieldOnTile`. Opening a placeholder tracks nothing.
+- `addFirstFieldOnTile(field, tileUuid)` is the tile cards': the same
+  control, label carried over, on that tile only. Every other tile the filter
+  would reach (all tabs) is left out with `setTileField(rule, tile, null)`.
+- Adding from a tile links only that tile (first field, another field);
+  adding from the sidebar applies to every tile it can.
+  `openNew()` works while anything is being edited: it calls `close()` first,
   then opens the placeholder with a snapshot taken after that close. On a new
   control with no field yet it does nothing, whether or not a label was typed.
 - `open(id)` works while a new control is being edited: the new control is
@@ -128,6 +133,10 @@ In `FilterConfiguration/`:
   (`aria-pressed="true"`) and as the shipped "Add filter" button
   (`[data-filter-actions] > button[data-dashboard-filter-control]`); keep both
   on the bar.
+- `setHighlightedFieldId(id)` clicks a field; `clearHighlightedField()`
+  unclicks it and drops that field's hover with it, so the tiles show
+  everything again while the pointer is still on the row. Use it for every way
+  out, never `setHighlightedFieldId(null)` from a row.
 
 ## Dismissing (`useEditorDismiss`)
 
@@ -135,10 +144,15 @@ In `FilterConfiguration/`:
   open, so one press does one thing. In order: an open list, menu or popover
   (`aria-expanded="true"` on its target, or `data-expanded` on a Mantine
   combobox target) or a modal owns the press; an input
-  marked `data-own-escape` owns it (nothing carries it today);
+  marked `data-own-escape` owns it (nothing carries it today); a clicked field
+  is unclicked;
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
   editor closes as "Done" does. From the page, Escape never closes.
+- A mouse down unclicks the field unless it lands inside `data-keeps-field`
+  (the field rows, the tile cards) or inside a Mantine portal
+  (lists and menus). That listener exists only while a field is clicked. It
+  works on the tiles because their overlays stop no events.
 
 ## Editor
 
@@ -162,7 +176,8 @@ In `FilterConfiguration/`:
 - Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
   editor mounts (from a pill, from "Add", on a switch). The first field of a
   filter keeps the
-  same editor mounted, so the pick calls `focusLabelInput()`.
+  same editor mounted, so the pick calls `focusLabelInput()`, from the sidebar
+  and from a tile card.
 - The edited filter's field is resolved as the shipped bar does
   (`useFilterRuleField`, over the shipped `useDashboardFilterField`:
   dimensions and metrics, with the labels of the tile it is mapped on). A SQL
@@ -206,22 +221,131 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A field on no tile cannot be saved, so it *waits*: `waitingFieldIds` in the
   provider lists fields added with "Add a field" when every tile they fit
   already had one, and fields that lost their last tile. They show at
-  "0 of N tiles", and they
+  "0 of N tiles", every tile card that could take them offers them, and they
   are gone when the sidebar closes. "Add a field" offers any field of the
-  filter's kind that some tile offers.
+  filter's kind that some tile offers, and clicks the new field only when it
+  landed on a tile.
 - "Remove field" is switched off on a filter's only field: without it the
   filter could not be kept. Its tooltip points to "Remove filter" in More
   actions, or to "Discard control" for a new one.
+- The clicked row shows an x, "Show all tiles" (`ShowAllTilesButton`), above
+  the row's stretched click area like the other row actions.
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
   (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
   fields of the filter.
 - A data app tile takes the filter as a whole, as in the shipped popover: on
-  with no entry, off with `false`, never a field.
-  It counts as filtered in the tab and sidebar counts and
+  with no entry, off with `false`, never a field. Its card has the line
+  "Filtered" / "Not filtered" and a `Switch` in place of the select. While it
+  is on it is `mapped`, and `other` once any field is active, since it is on
+  no particular field. It counts as filtered in the tab and sidebar counts and
   never in a field's count; clearing or removing a field leaves it as it is.
+- A tile mapped to a field or column it no longer offers
+  (`getMissingTileFieldId`, the shipped invalid state) reads "Filtered by a
+  field this tile no longer has" with a warning icon naming the id. Its select
+  is empty, lists only what the tile does offer, and keeps the clear X. The
+  tile is `available`, and it always gets a card so the mapping can be
+  cleared. It still counts as filtered, as the shipped popover counts it
+  selected. Nothing is called missing while the tile's fields are unknown.
 - Counts (`getTabCounts`) use every tile on the tab or
   dashboard, not only the filterable ones.
+- A tile's look answers two questions only: is it filtered by this control, and, if a field is active, is it on that field. Whether the tile
+  could take the active field never changes the look. `data-highlighted` is:
+  - `mapped`: on the control, and either no field is active or the tile is on
+    the active one. A solid hairline in `--mantine-color-blue-5` over a faint
+    blue wash.
+  - `other`: on the control, but through another field than the active one.
+    A dashed `blue-5` border with no fill.
+  - `available`: reachable, but not on the control. A neutral dashed outline
+    in `ldGray-4` with no fill.
+  - no attribute: the control cannot reach the tile. No line.
+
+  Blue on a tile always means the control filters it. "On the control" is a
+  field or SQL column of the filter on the tile (`tileFieldId !== null`); a
+  SQL chart tile on a column, or a data app tile that is on, is `other` while any field is active.
+  A tile whose mapped field is missing is not on the control. The two blue
+  layers are the
+  `::before` (solid and wash) and `::after` (dashed) of the `.ring` child, and
+  the grey outline is `.overlay::after`; all three only change `opacity`. The
+  veil (`.overlay::before`) paints out the tile's own dashed edit border on
+  every veiled tile, so the only line on a tile is one of these three. The
+  highlighted sidebar row and the pill being edited use the same blue. No
+  ink: `--mantine-primary-color-filled` reads too heavy here.
+- Tiles are marked at rest too, so the marks alone never scroll, and neither
+  does hover. The list passes `scrollFieldId` only to a `mapped` tile while
+  the clicked field (`highlightedFieldId`) is the active one, which makes it a
+  tile on that field, and `useScrollToHighlightedTile` scrolls the first
+  `[data-highlighted='mapped']` tile into view when none of them is visible.
+  A clicked field that is on no tile scrolls nothing.
 - A waiting field's row carries `data-waiting` and a dashed border.
+- The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
+  and read no context. The list component derives each
+  tile's props, the highlight string included, and passes primitives, stable
+  references and short lists compared by item, plus one stable `onSelect`.
+  Keep it that way: an object built per render, or the rule itself, as a prop
+  re-renders every tile on every edit.
+- The select on a card is `LazySelect`: a button that looks like the closed
+  select (same `aria-label`, `aria-haspopup="listbox"`) and mounts the Mantine
+  `Select`, focused and open, on click, Enter, Space or an arrow key. Focus
+  alone never opens the list (`openOnFocus={false}`), so clearing from the
+  keyboard leaves it closed. The page scrolls as a whole, so Mantine's
+  `hideDetached` never fires for a tile under the pinned bar: while its list
+  is open, the select closes it on scroll once something else covers it.
+- A card's dropdown has up to two groups: first the control's own fields that
+  the tile offers, then the others the tile offers.
+
+  | Situation | First group | Second group |
+  | -- | -- | -- |
+  | Filter control | "In this filter" | "Other fields on this tile" |
+  | New control (placeholder) | "Fields on this tile" | none |
+
+  `LazySelect` takes `groups` and drops the empty ones. Labels show only
+  when two groups have entries: Mantine labels a lone group too, so one group
+  is passed as a plain list with no label. The second group of a filter control is every other field the
+  tile offers that the filter could take
+  (`fieldCandidates.ts`, the rule "Add a field" in the sidebar uses: same
+  kind, not already a row, one grain per date; grains folded to one entry,
+  the table label added where two entries read the same). Choosing one is the
+  same write as any other choice, `setTileField` for this tile only, and by
+  the model that is what adds the field to the filter. SQL chart tiles have no
+  second group. The dropdown is searchable when the second group has entries
+  or the first has more than 8.
+- A placeholder shows the cards too, so a new control can start from a tile.
+  A tile is reachable when it offers a filterable field; SQL chart tiles are
+  not. A reachable tile is `available` with "Not filtered" and an empty
+  select ("Select a field"); none is `mapped` or `other`. The list is the
+  tile's fields of every kind (`getTileStarterFieldIds`: grains folded,
+  sorted and labelled like the candidates), as one plain list.
+  `TileOverlays` builds these per tile
+  in one `useMemo` keyed on the dashboard, and names the select "New control
+  on <tile>", so typing the label re-renders no card.
+- A tile is reachable when it offers one of the filter's fields or a field it
+  could add; the second kind shows the empty select and is `available`. A data
+  app tile and a tile with a missing field are always reachable. Counts do not
+  depend on reachability.
+- The list component computes each tile's candidates in one `useMemo` keyed on
+  the filter's field ids (joined), not on the rule, and passes them as
+  `candidates`.
+- The select has no "Not filtered" entry; the line above it says that. A tile
+  the control leaves alone has an empty select with a placeholder ("Select a
+  field", "Select a column" on a SQL chart tile). A chosen value has a clear
+  button ("Leave this tile out") that reports `null`: `tileTargets[tileUuid] = false`.
+  The clear button works on the stand-in button without mounting the `Select`,
+  and it is a named tab stop, since it is the only way to clear.
+- `TileOverlays` portals a veil and a "Filtered by" card into each
+  `[data-tile-uuid]` grid item on the active tab. It resolves targets with
+  `usePortalTargets`.
+- A veiled tile is locked three ways, and none of them stops an event. Every
+  overlay root (`TileOverlay`) carries the
+  grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
+  drag starts on it, by mouse or touch. It carries `data-controls-overlay`,
+  and `usePortalTargets(..., lockSiblings: true)` sets `inert` on every other
+  child of the grid item, so the tile's own buttons are out of the tab order;
+  it re-applies as the tile's DOM changes and removes exactly what it set when
+  the editor closes, the tab changes or the list unmounts. A caller that locks
+  must portal an overlay into every target it gets. The stylesheet's
+  `pointer-events: none` on the siblings stays. Never call `stopPropagation`
+  on an overlay: Mantine closes lists on a `mousedown` that reaches
+  `document`, and the clicked field is cleared the same way.
 
 ## Motion
 
@@ -229,13 +353,13 @@ Values are the homepage builder's (`ee/features/homepageBuilder/HomepageEditor.m
 restated, never imported. Each stylesheet declares the ones it uses once, as
 custom properties on its root class:
 
-- `--controls-duration-hover: 0.12s`
-  with `--controls-ease: ease-in-out`.
+- `--controls-duration-hover: 0.12s` and `--controls-duration-state: 0.15s`,
+  both with `--controls-ease: ease-in-out`.
 - `--controls-duration-arrive: 0.28s` with
   `--controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1)`, from transparent
   and `translateY(-6px) scale(0.98)` (the editor uses `translateX(-6px)`, the
   footer status `translateY(4px)`).
-- Press is `scale(0.97)` on "Done".
+- Press is `scale(0.98)` on a row's name and `scale(0.97)` on "Done".
 
 Rules:
 
@@ -244,9 +368,14 @@ Rules:
   appear sits on its own layer and that layer's opacity changes.
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
-  count in a sidebar row, the footer status). The editor's
+  count in a sidebar row, the footer status, the `.confirm` line on a tile
+  card). The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
+- Tile cards arrive in one wave: `data-wave` is the tile's index modulo
+  `WAVE_BUCKETS`, and the stylesheet maps it to 20ms delay steps.
+- A row's press scales the name inside the button. A transform on the button
+  would shrink its card-wide `::after` click area mid-click.
 - Every animation and transition is switched off under
   `@media (prefers-reduced-motion: reduce)` at the end of its stylesheet.
 - No new `:has()` selectors.

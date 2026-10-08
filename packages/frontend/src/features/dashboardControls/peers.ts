@@ -33,7 +33,7 @@ const isSqlTile = (tile: DashboardTile, sqlColumnsByTile: SqlColumnsByTile) =>
 export type FieldCount = { applied: number; possible: number };
 export type TabCount = { applied: number; total: number };
 
-const doesTileOfferField = (
+export const doesTileOfferField = (
     tile: DashboardTile,
     fieldId: string,
     fieldsByTile: FieldsByTile,
@@ -88,6 +88,30 @@ const getFieldIdOnTile = (
         ? null
         : (getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
           null);
+
+// Mirrors the shipped invalid state: the tile is mapped to a field or column
+// it does not offer. Null while the tile's fields are not known
+export const getMissingTileFieldId = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): string | null => {
+    if (isDashboardDataAppTileType(tile)) return null;
+    const { relation, tileConfig } = getFilterTileRelation(rule, tile.uuid);
+    if (relation !== 'mapped' || !isDashboardFieldTarget(tileConfig))
+        return null;
+    const { fieldId } = tileConfig;
+    if (isSqlTile(tile, sqlColumnsByTile)) {
+        return sqlColumnsByTile[tile.uuid].some(
+            (column) => column.reference === fieldId,
+        )
+            ? null
+            : fieldId;
+    }
+    if (fieldsByTile?.[tile.uuid] === undefined) return null;
+    return doesTileOfferField(tile, fieldId, fieldsByTile) ? null : fieldId;
+};
 
 export const isTileChanged = (
     rule: DashboardFilterRule,
