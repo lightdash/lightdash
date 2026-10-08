@@ -60,20 +60,25 @@ const tree = [
 
 const summary = (
     departments: DepartmentWithMetrics[],
+    organization = metricsFixture(12, null, { activeCount30d: 6 }),
 ): OrganizationAdoptionSummary => ({
-    organization: metricsFixture(12, null, { activeCount30d: 6 }),
+    organization,
     departments,
     attention: { conflictCount: 1, unassignedCount: 2 },
 });
 
 const renderMap = (
     departments: DepartmentWithMetrics[] = tree,
-    { canManage = true, onEdit = vi.fn() } = {},
+    {
+        canManage = true,
+        onEdit = vi.fn(),
+        organization = metricsFixture(12, null, { activeCount30d: 6 }),
+    } = {},
 ) =>
     renderWithProviders(
         <MemoryRouter>
             <AdoptionMap
-                summary={summary(departments)}
+                summary={summary(departments, organization)}
                 canManage={canManage}
                 onEdit={onEdit}
                 measureText={estimateTextWidth}
@@ -738,20 +743,115 @@ describe('AdoptionMap', () => {
         ).toHaveTextContent(/^No account10$/);
     });
 
-    it('says the organization tile counts people placed in a department', async () => {
-        renderMap();
+    it("shows the organization's own numbers, then who is placed and who has no account", async () => {
+        renderMap(tree, {
+            organization: metricsFixture(1951, null, { activeCount30d: 1181 }),
+        });
         const details = screen.getByRole('complementary', {
             name: 'Details',
         });
+        // The same two numbers as the page header, from the summary's organization
         expect(
             within(details).getByText('On Lightdash').parentElement,
-        ).toHaveTextContent('placed in a department');
+        ).toHaveTextContent(/^On Lightdash1,951$/);
+        expect(
+            within(details).getByText('Active in 30 days').parentElement,
+        ).toHaveTextContent(/^Active in 30 days1,181$/);
+        // Placed: Stores 6, Depots 3 and Finance 3. Headcount: Ops 30 and Finance 8
+        expect(
+            within(details).getByText(
+                'Placed in a department: 12 of 1,951 on Lightdash',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText('Without an account: 26 of 38 headcount'),
+        ).toBeInTheDocument();
+        // The same number the legend gives its grey dots
+        const legend = screen.getByRole('list', { name: 'Legend' });
+        expect(
+            within(legend).getByText('No account').closest('li'),
+        ).toHaveTextContent(/^No account26$/);
+        expect(within(details).queryByText(/^Includes/)).toBeNull();
+        // A department keeps its own numbers
         await userEvent.click(
             screen.getByRole('button', { name: /^Finance,/ }),
         );
         expect(
-            within(details).queryByText('placed in a department'),
-        ).not.toBeInTheDocument();
+            within(details).queryByText(/^Placed in a department/),
+        ).toBeNull();
+        expect(
+            within(details).getByText('On Lightdash').parentElement,
+        ).toHaveTextContent(/^On Lightdash3of 8$/);
+    });
+
+    it('explains the people above a department headcount', () => {
+        renderMap([
+            d('Ops', null, 30, 25, 4, {
+                directMetrics: metricsFixture(0, null),
+            }),
+            d('Stores', 'Ops', 20, 25, 4),
+            d('Depots', 'Ops', 10, 0, 0),
+        ]);
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(
+            within(details).getByText('Without an account: 10 of 30 headcount'),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText(
+                'Includes 5 people in departments with more accounts than headcount',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('names the path of a sub-department in the cards', () => {
+        renderMap([
+            d('Ops', null, 30, 9, 4, {
+                directMetrics: metricsFixture(0, null),
+            }),
+            d('Stores', 'Ops', 20, 6, 4, { targetActiveUsers: 15 }),
+            d('Depots', 'Ops', 10, 3, 0),
+            d('Finance', null, 8, 3, 2, { targetActiveUsers: 3 }),
+        ]);
+        expect(screen.getByText('11 short')).toBeInTheDocument();
+        expect(
+            screen.getByText('Ops / Stores: 4 of 15 target'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a label it had no room for when its circle is hovered', () => {
+        // Forty long names in one panel: some labels have nowhere to go
+        const crowd = Array.from({ length: 40 }, (_, index) =>
+            d(
+                `A department with a long name, number ${index}`,
+                null,
+                4 + index * 7,
+                3,
+                2,
+            ),
+        );
+        const { container } = renderMap(crowd);
+        const unlabelled = [
+            ...container.querySelectorAll<SVGCircleElement>(
+                'svg[role="img"] [data-department]',
+            ),
+        ].filter(
+            (circle) =>
+                container.querySelector(
+                    `[data-label="${circle.dataset.department}"]`,
+                ) === null,
+        );
+        expect(unlabelled.length).toBeGreaterThan(0);
+        const [circle] = unlabelled;
+        const id = circle.dataset.department ?? '';
+        fireEvent.pointerOver(circle);
+        const shown = container.querySelectorAll(`[data-label="${id}"]`);
+        expect(shown.length).toBeGreaterThan(0);
+        // In full, even where a label under the circle would have been shortened
+        expect(shown[0].textContent).toBe(id);
+        fireEvent.pointerLeave(circle);
+        expect(container.querySelector(`[data-label="${id}"]`)).toBeNull();
     });
 
     it('lists departments lowest coverage first, the biggest first among equals', () => {

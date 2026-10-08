@@ -23,6 +23,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import styles from './DepartmentMap.module.css';
 import { truncateLabel, type PackedCircle } from './geometry';
 import {
+    getHoverLabel,
     getTopLevelGroups,
     getLabelLines,
     placeLabels,
@@ -104,6 +105,7 @@ const CirclesLayer = memo<{
                             <circle
                                 key={circle.id}
                                 className={styles.circle}
+                                data-circle={circle.id}
                                 data-kind={circle.kind}
                                 data-department={
                                     circle.kind === 'department'
@@ -189,6 +191,7 @@ const LabelsLayer = memo<{ labels: CircleLabel[]; zoomLevel: number }>(
                     <text
                         key={`${label.id}:${line.role}`}
                         className={`${styles.label} ${LINE_CLASSES[line.role]}`}
+                        data-label={label.id}
                         x={line.x}
                         y={line.y}
                         textAnchor={line.anchor}
@@ -248,6 +251,7 @@ export const DepartmentMap: FC<Props> = ({
     const svgRef = useRef<SVGSVGElement | null>(null);
     const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
     const pressRef = useRef<{ x: number; y: number } | null>(null);
+    const [hoveredId, setHoveredId] = useState<string | null>(null);
     // Read by the gesture filter, which runs outside React
     const scaleRef = useRef(1);
     const [view, setView] = useState<View>({
@@ -313,6 +317,29 @@ export const DepartmentMap: FC<Props> = ({
         () => placeLabels(circles, info, k, { width, height }, measureText),
         [circles, info, k, width, height, measureText],
     );
+    // A label left out for want of room shows while its circle is hovered or its control has focus
+    const shownId =
+        hoveredId ??
+        circles.find(
+            (circle) =>
+                circle.kind === 'department' &&
+                circle.departmentUuid === highlightedUuid,
+        )?.id ??
+        null;
+    const hoverLabels = useMemo(() => {
+        const circle = circles.find((each) => each.id === shownId);
+        if (!circle || labels.some((label) => label.id === circle.id)) {
+            return [];
+        }
+        const label = getHoverLabel(
+            circle,
+            info,
+            k,
+            { width, height },
+            measureText,
+        );
+        return label === null ? [] : [label];
+    }, [shownId, circles, labels, info, k, width, height, measureText]);
 
     const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
         pressRef.current = { x: event.clientX, y: event.clientY };
@@ -332,6 +359,20 @@ export const DepartmentMap: FC<Props> = ({
         if (isDragEnd(event) || !(target instanceof SVGElement)) return;
         const { opens } = target.dataset;
         if (opens) onDepartmentClick(opens);
+    };
+    const handleCircleOver = (event: PointerEvent<SVGGElement>) => {
+        const { target } = event;
+        setHoveredId(
+            target instanceof SVGElement
+                ? (target.dataset.circle ?? null)
+                : null,
+        );
+    };
+    // Moving straight onto another circle is followed by its own pointerover
+    const handleCircleOut = (event: PointerEvent<SVGGElement>) => {
+        const next = event.relatedTarget;
+        if (next instanceof SVGElement && next.dataset.circle) return;
+        setHoveredId(null);
     };
     const handleDotClick = (event: MouseEvent<SVGGElement>) => {
         const { target } = event;
@@ -357,7 +398,11 @@ export const DepartmentMap: FC<Props> = ({
                     data-animated={view.isAnimated || undefined}
                     transform={view.transform.toString()}
                 >
-                    <g onClick={handleCircleClick}>
+                    <g
+                        onClick={handleCircleClick}
+                        onPointerOver={handleCircleOver}
+                        onPointerOut={handleCircleOut}
+                    >
                         <CirclesLayer
                             circles={circles}
                             info={info}
@@ -372,6 +417,7 @@ export const DepartmentMap: FC<Props> = ({
                     </g>
                     <LabelsLayer labels={labels} zoomLevel={k} />
                     {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
+                    <LabelsLayer labels={hoverLabels} zoomLevel={k} />
                 </g>
             </svg>
             <Group gap={4} className={styles.controls}>

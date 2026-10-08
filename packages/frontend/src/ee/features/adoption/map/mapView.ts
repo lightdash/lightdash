@@ -2,10 +2,12 @@ import {
     getAncestorUuids,
     getChildrenMap,
     getParentMap,
+    type AdoptionMetrics,
     type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { formatLastActive } from '../utils/departmentDetail';
+import { formatCount } from '../utils/format';
 import {
     countBucketPeople,
     getDepartmentSize,
@@ -20,9 +22,6 @@ import {
 
 // First names are only readable when few people share the map
 export const NAME_LABEL_LIMIT = 150;
-
-export const formatCount = (count: number): string =>
-    count.toLocaleString('en-US');
 
 const plural = (count: number, singular: string, many: string): string =>
     `${formatCount(count)} ${count === 1 ? singular : many}`;
@@ -283,6 +282,111 @@ export const getViewTotals = (circles: PackedCircle[]): ViewTotals =>
                   },
         { people: 0, members: 0, active: 0 },
     );
+
+export type OrganizationOverview = {
+    // The page header's two numbers, for everyone on Lightdash
+    onLightdash: number;
+    active30d: number;
+    placed: number;
+    // People in the departments' headcount without an account, as the legend counts them
+    withoutAccount: number;
+    // The departments' effective headcounts added up, or null when none has one
+    headcount: number | null;
+    // Placed people beyond their department's headcount
+    aboveHeadcount: number;
+    // Placed people in departments with no headcount at all
+    withoutHeadcount: number;
+};
+
+// Totals reads the circles of the whole organization, as the legend does
+export const getOrganizationOverview = (
+    organization: AdoptionMetrics,
+    departments: DepartmentWithMetrics[],
+    totals: ViewTotals,
+): OrganizationOverview => {
+    const children = getChildrenMap(departments);
+    const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
+    const childrenOf = (uuid: string | null): DepartmentWithMetrics[] =>
+        (children.get(uuid) ?? []).flatMap((childUuid) => {
+            const child = byUuid.get(childUuid);
+            return child ? [child] : [];
+        });
+    const topLevel = childrenOf(null);
+    const counted = topLevel.filter(
+        (department) => department.effectiveHeadcount !== null,
+    );
+    // People placed in a department itself beyond the headcount its sub-departments leave it
+    const aboveHeadcount = departments.reduce((sum, department) => {
+        if (department.effectiveHeadcount === null) return sum;
+        const room =
+            getDepartmentSize(department) -
+            childrenOf(department.departmentUuid).reduce(
+                (taken, child) => taken + getDepartmentSize(child),
+                0,
+            );
+        return (
+            sum +
+            Math.max(
+                department.directMetrics.memberCount - Math.max(room, 0),
+                0,
+            )
+        );
+    }, 0);
+    return {
+        onLightdash: organization.memberCount,
+        active30d: organization.activeCount30d,
+        placed: totals.members,
+        withoutAccount: Math.max(totals.people - totals.members, 0),
+        headcount:
+            counted.length > 0
+                ? counted.reduce(
+                      (sum, department) =>
+                          sum + (department.effectiveHeadcount ?? 0),
+                      0,
+                  )
+                : null,
+        aboveHeadcount,
+        withoutHeadcount: topLevel
+            .filter((department) => department.effectiveHeadcount === null)
+            .reduce(
+                (sum, department) => sum + department.metrics.memberCount,
+                0,
+            ),
+    };
+};
+
+export type OrganizationOverviewCopy = {
+    placed: string;
+    withoutAccount: string | null;
+    caption: string | null;
+};
+
+// The caption explains why the placed people are more than the headcount with an account
+export const describeOrganizationOverview = (
+    overview: OrganizationOverview,
+): OrganizationOverviewCopy => {
+    const placed = `Placed in a department: ${formatCount(overview.placed)} of ${formatCount(overview.onLightdash)} on Lightdash`;
+    if (overview.headcount === null) {
+        return { placed, withoutAccount: null, caption: null };
+    }
+    const above =
+        overview.aboveHeadcount > 0
+            ? `${plural(overview.aboveHeadcount, 'person', 'people')} in departments with more accounts than headcount`
+            : null;
+    const unsized =
+        overview.withoutHeadcount > 0
+            ? `${above === null ? plural(overview.withoutHeadcount, 'person', 'people') : formatCount(overview.withoutHeadcount)} in departments without a headcount`
+            : null;
+    const reasons = [above, unsized].filter(
+        (reason): reason is string => reason !== null,
+    );
+    return {
+        placed,
+        withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
+        caption:
+            reasons.length > 0 ? `Includes ${reasons.join(' and ')}` : null,
+    };
+};
 
 export const buildMapAriaLabel = ({
     scopeName,

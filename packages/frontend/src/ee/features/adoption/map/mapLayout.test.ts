@@ -7,6 +7,7 @@ import {
 } from '../utils/adoptionFixtures';
 import {
     buildPackInput,
+    layoutPack,
     MIN_CIRCLE_RADIUS,
     type PackedCircle,
 } from './geometry';
@@ -32,13 +33,14 @@ const d = (
     headcount: number | null,
     members: number,
     active: number,
+    directMembers: number = members,
 ) =>
     dept(name, parent, null, {
         headcount,
         effectiveHeadcount: headcount,
         metrics: metricsFixture(members, null, { activeCount30d: active }),
-        directMetrics: metricsFixture(members, null, {
-            activeCount30d: active,
+        directMetrics: metricsFixture(directMembers, null, {
+            activeCount30d: directMembers === members ? active : 0,
         }),
     });
 
@@ -87,8 +89,8 @@ const boxesIntersect = (a: Box, b: Box): boolean =>
     a.y < b.y + b.height &&
     b.y < a.y + a.height;
 
-// The rule every placement must meet: a label touches no other label, and no circle
-// except the ones that contain its own circle
+// The rule every placement must meet: a label belongs to a circle on the map, never
+// overlaps another label and stays inside the drawing
 const expectCleanLabels = (
     circles: PackedCircle[],
     labels: CircleLabel[],
@@ -98,14 +100,6 @@ const expectCleanLabels = (
     labels.forEach((label, index) => {
         const own = circles.find((circle) => circle.id === label.id);
         expect(own).toBeDefined();
-        if (!own) return;
-        circles
-            .filter((circle) => !contains(circle, own))
-            .forEach((circle) => {
-                expect(boxTouchesCircle(label.box, circle, zoom, 0)).toBe(
-                    false,
-                );
-            });
         labels.slice(index + 1).forEach((other) => {
             expect(boxesIntersect(label.box, other.box)).toBe(false);
         });
@@ -161,14 +155,26 @@ describe('fitToArea', () => {
         ['forty departments', crowd, PANEL],
         ['a narrow panel', seededOrganization(), { width: 420, height: 560 }],
     ])(
-        'draws every circle of %s at the minimum radius or more',
+        'enlarges the small circles of %s without overlapping anything',
         (_, tree, area) => {
             const circles = fitToArea(buildPackInput(tree, null), area);
+            const byId = new Map(circles.map((circle) => [circle.id, circle]));
             expect(circles.length).toBeGreaterThan(0);
             circles.forEach((circle) => {
-                expect(circle.r).toBeGreaterThanOrEqual(
-                    MIN_CIRCLE_RADIUS - 1e-6,
-                );
+                const parent =
+                    circle.parentId === null ? null : byId.get(circle.parentId);
+                if (parent) expect(contains(parent, circle)).toBe(true);
+                circles
+                    .filter(
+                        (other) =>
+                            other.id !== circle.id &&
+                            other.parentId === circle.parentId,
+                    )
+                    .forEach((other) => {
+                        expect(
+                            Math.hypot(circle.x - other.x, circle.y - other.y),
+                        ).toBeGreaterThanOrEqual(circle.r + other.r - 1e-6);
+                    });
             });
         },
     );
@@ -177,7 +183,48 @@ describe('fitToArea', () => {
         const tiny = circles.find((circle) => circle.id === 'Tiny');
         const huge = circles.find((circle) => circle.id === 'Huge');
         expect(tiny?.isAreaHonest).toBe(false);
+        expect(tiny?.r).toBeCloseTo(MIN_CIRCLE_RADIUS, 6);
         expect(huge?.isAreaHonest).toBe(true);
+    });
+    it('enlarges a small leaf without enlarging its parent', () => {
+        // Group and Big hold the same number of people, so they are drawn the same size
+        const departments = [
+            d('Big', null, 1000, 10, 5),
+            d('Group', null, 1000, 10, 5, 0),
+            d('Core', 'Group', 997, 9, 5),
+            d('Tiny', 'Group', 3, 1, 0),
+        ];
+        const input = buildPackInput(departments, null);
+        // The drawing is packed at the panel's shorter side before it is fitted
+        const packed = new Map(
+            layoutPack(input, Math.min(PANEL.width, PANEL.height)).map(
+                (circle) => [circle.id, circle],
+            ),
+        );
+        const fitted = new Map(
+            fitToArea(input, PANEL).map((circle) => [circle.id, circle]),
+        );
+        const get = (circles: Map<string, PackedCircle>, id: string) => {
+            const circle = circles.get(id);
+            if (!circle) throw new Error(`No circle ${id}`);
+            return circle;
+        };
+        const scale = get(fitted, 'Big').r / get(packed, 'Big').r;
+        expect(get(fitted, 'Tiny').r).toBeGreaterThan(
+            get(packed, 'Tiny').r * scale + 1,
+        );
+        expect(get(fitted, 'Tiny').isAreaHonest).toBe(false);
+        expect(get(fitted, 'Group').r).toBeCloseTo(get(fitted, 'Big').r, 6);
+        expect(get(fitted, 'Group').r).toBeCloseTo(
+            get(packed, 'Group').r * scale,
+            6,
+        );
+        expect(get(fitted, 'Group').isAreaHonest).toBe(true);
+        expect(get(fitted, 'Core').r).toBeCloseTo(
+            get(packed, 'Core').r * scale,
+            6,
+        );
+        expect(contains(get(fitted, 'Group'), get(fitted, 'Tiny'))).toBe(true);
     });
     it('keeps every circle inside the panel, top-level circles apart and sub-departments inside their parent', () => {
         const { circles, find } = build(seededOrganization());
@@ -330,23 +377,39 @@ describe('placeLabels on the seeded organization', () => {
         expect(find('Product')?.detail).toMatch(/no headcount/i);
         expect(find('Finance')?.detail).toMatch(/^32/);
     });
-    it('touches no other label and no circle the label does not belong to', () => {
+    it('never overlaps another label', () => {
         expectCleanLabels(circles, labels, PANEL);
     });
-    it('keeps sub-department labels off the dots, including their own', () => {
-        const stores = find('Stores');
-        expect(stores).toBeDefined();
-        const dotted = circles.filter((circle) => circle.people !== null);
-        expect(dotted.length).toBeGreaterThan(5);
-        dotted.forEach((circle) => {
-            if (stores) {
-                expect(boxTouchesCircle(stores.box, circle, 1, 0)).toBe(false);
-            }
+    it("keeps every top-level label off other departments' circles", () => {
+        const groups = getTopLevelGroups(circles);
+        labels
+            .filter((label) => !label.isNested)
+            .forEach((label) => {
+                const own =
+                    groups.find((group) => group.anchor.id === label.id)
+                        ?.circles ?? [];
+                circles
+                    .filter((circle) => !own.includes(circle))
+                    .forEach((circle) => {
+                        expect(boxTouchesCircle(label.box, circle, 1, 0)).toBe(
+                            false,
+                        );
+                    });
+            });
+    });
+    it('names a sub-department once it is drawn large enough to point at, and leaves smaller ones to hover', () => {
+        const nested = circles.filter(
+            (circle) => circle.depth > 1 && circle.kind === 'department',
+        );
+        expect(nested.some((circle) => circle.r >= 16)).toBe(true);
+        expect(nested.some((circle) => circle.r < 16)).toBe(true);
+        nested.forEach((circle) => {
+            expect(find(circle.id) !== undefined).toBe(circle.r >= 16);
         });
     });
     it('does not shorten a name that has room', () => {
-        expect(find('Procurement')?.name).toBe('Procurement · 30');
-        expect(find('Logistics')?.name).toBe('Logistics · 50');
+        expect(find('Procurement')?.name).toMatch(/^Procurement( · 30)?$/);
+        expect(find('Logistics')?.name).toMatch(/^Logistics( · 50)?$/);
         labels.forEach((label) => expect(label.name).not.toContain('…'));
     });
     it.each([
@@ -446,9 +509,140 @@ describe('placeLabels on the seeded organization', () => {
     });
 });
 
+// One level down in a large organization: Supply chain's own sub-departments sit inside it
+const operations = [
+    d('Operations', null, 2350, 221, 126, 2),
+    d('Supply chain', 'Operations', 1750, 170, 96, 0),
+    d('Warehousing', 'Supply chain', 900, 12, 3),
+    d('Logistics', 'Supply chain', 600, 48, 27),
+    d('Demand planning', 'Supply chain', 120, 75, 45),
+    d('Procurement operations', 'Supply chain', 80, 35, 21),
+    d('Facilities', 'Operations', 120, 12, 7),
+    d('Health and safety', 'Operations', 45, 8, 5),
+    d('Quality', 'Operations', 90, 29, 17),
+];
+
+const placedCircle = (
+    id: string,
+    x: number,
+    y: number,
+    r: number,
+): PackedCircle => ({
+    id,
+    kind: 'department',
+    departmentUuid: id,
+    name: id,
+    hasHeadcount: true,
+    hasMembers: true,
+    childDepartmentCount: 0,
+    size: 10,
+    people: { metrics: metricsFixture(4, null), headcount: 10 },
+    depth: 1,
+    parentId: null,
+    x,
+    y,
+    r,
+    isAreaHonest: true,
+});
+
+const placeOn = (circles: PackedCircle[], area: Area = PANEL) =>
+    placeLabels(
+        circles,
+        describeCircles(
+            circles,
+            new Map(
+                circles.map((circle) => [
+                    circle.id,
+                    d(circle.id, null, 10, 4, 1),
+                ]),
+            ),
+        ),
+        1,
+        area,
+        estimateTextWidth,
+    );
+
+describe('placeLabels at the focused level', () => {
+    const { circles, labels } = build(operations, PANEL, 'Operations');
+    const labelOf = (id: string) => labels.find((label) => label.id === id);
+
+    it('labels every circle in view, sub-departments of sub-departments included', () => {
+        const named = circles.filter(
+            (circle) => circle.kind === 'department' || circle.depth === 1,
+        );
+        expect(named.map((circle) => circle.id).sort()).toEqual(
+            [
+                'Demand planning',
+                'Facilities',
+                'Health and safety',
+                'Logistics',
+                'Procurement operations',
+                'Quality',
+                'Supply chain',
+                'Warehousing',
+                'own:Operations',
+            ].sort(),
+        );
+        named.forEach((circle) => {
+            expect(labelOf(circle.id)).toBeDefined();
+        });
+        expectCleanLabels(circles, labels, PANEL);
+    });
+    it('puts a label inside its circle when it fits and under the circle when it does not', () => {
+        expect(labelOf('Warehousing')).toMatchObject({
+            placement: 'inside',
+            name: 'Warehousing · 900',
+        });
+        const small = labelOf('Health and safety');
+        const circle = circles.find((each) => each.id === 'Health and safety');
+        expect(small?.placement).toBe('below');
+        if (small && circle) {
+            expect(small.box.y).toBeGreaterThanOrEqual(circle.y);
+        }
+    });
+    it('never puts a label inside a circle that holds sub-departments', () => {
+        expect(labelOf('Supply chain')?.placement).toBe('below');
+    });
+});
+
+describe('placeLabels under small circles', () => {
+    it("shortens a label to the circle's width plus 80 pixels", () => {
+        const long = 'Procurement operations and vendor management';
+        const [label] = placeOn([placedCircle(long, 300, 200, 16)]);
+        expect(label.placement).toBe('below');
+        expect(label.name.endsWith('…')).toBe(true);
+        expect(label.name.length).toBeLessThan(long.length);
+        expect(label.box.width).toBeLessThanOrEqual(16 * 2 + 80);
+    });
+    it('moves a label down or up to clear another label before leaving it out', () => {
+        const left = placedCircle('Customer operations', 300, 200, 16);
+        const right = placedCircle('Revenue operations', 360, 200, 16);
+        const labels = placeOn([left, right]);
+        expect(labels.map((label) => label.id)).toEqual([
+            'Customer operations',
+            'Revenue operations',
+        ]);
+        const [first, second] = labels;
+        expect(boxesIntersect(first.box, second.box)).toBe(false);
+        // The first keeps its spot right under its circle; the second is moved, still centred under its own
+        expect(first.box.y).toBeCloseTo(200 + 16 + 4, 6);
+        expect(second.box.y).not.toBeCloseTo(200 + 16 + 4, 6);
+        expect(second.box.x + second.box.width / 2).toBeCloseTo(360, 6);
+    });
+    it('leaves a label out when no move clears the others', () => {
+        const stack = Array.from({ length: 12 }, (_, index) =>
+            placedCircle(`Department number ${index}`, 300 + index * 3, 200, 8),
+        );
+        const labels = placeOn(stack);
+        expect(labels.length).toBeGreaterThan(0);
+        expect(labels.length).toBeLessThan(stack.length);
+        expectCleanLabels(stack, labels, PANEL);
+    });
+});
+
 describe('placeLabels on a crowded map', () => {
     const { circles, labels } = build(crowd);
-    it('leaves labels out rather than overlapping anything', () => {
+    it('leaves labels out rather than overlapping another label', () => {
         expectCleanLabels(circles, labels, PANEL);
         expect(labels.length).toBeGreaterThan(10);
         expect(labels.length).toBeLessThanOrEqual(circles.length);
@@ -485,11 +679,13 @@ describe('getLabelLines', () => {
         expect(detail.y).toBeGreaterThan(name.y);
         expect(detail.y).toBeLessThanOrEqual(230);
     });
-    it('reads away from the circle when placed beside it', () => {
-        const [right] = getLabelLines({ ...base, placement: 'right' }, 1);
-        const [left] = getLabelLines({ ...base, placement: 'left' }, 1);
-        expect(right).toMatchObject({ anchor: 'start', x: 100 });
-        expect(left).toMatchObject({ anchor: 'end', x: 196 });
+    it('centres a label drawn inside its circle', () => {
+        const [name, detail] = getLabelLines(
+            { ...base, placement: 'inside' },
+            1,
+        );
+        expect(name).toMatchObject({ anchor: 'middle', x: 148 });
+        expect(detail).toMatchObject({ anchor: 'middle', x: 148 });
     });
     it('converts the screen footprint back to map coordinates when zoomed', () => {
         const [name] = getLabelLines(base, 4);

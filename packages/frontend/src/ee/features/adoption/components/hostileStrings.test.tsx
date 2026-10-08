@@ -161,6 +161,7 @@ describe('typed strings render as text', () => {
                     department={hostileDepartment}
                     subDepartments={[child]}
                     totals={{ people: 50, members: 5, active: 1 }}
+                    overview={null}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
                         departmentName: NAME,

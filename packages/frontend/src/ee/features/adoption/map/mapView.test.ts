@@ -1,3 +1,4 @@
+import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import {
@@ -7,15 +8,18 @@ import {
     SVG_DOT_LIMIT,
     type DotKind,
 } from './geometry';
+import { fitToArea } from './mapLayout';
 import { LEGEND_KINDS } from './mapStyles';
 import {
     buildDots,
     buildMapAriaLabel,
     countDotKinds,
     describeCircles,
+    describeOrganizationOverview,
     formatMemberActivity,
     formatPct,
     getFocusTrail,
+    getOrganizationOverview,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
@@ -222,7 +226,10 @@ describe('describeCircles', () => {
             d('Huge', null, 4000, 10, 5),
             d('Tiny', null, 1, 1, 1),
         ];
-        const circles = layoutPack(buildPackInput(lopsided, null));
+        const circles = fitToArea(buildPackInput(lopsided, null), {
+            width: 760,
+            height: 560,
+        });
         const described = describeCircles(
             circles,
             new Map(lopsided.map((each) => [each.departmentUuid, each])),
@@ -232,6 +239,140 @@ describe('describeCircles', () => {
         ).toBe(false);
         expect(described.get('Tiny')?.description).toMatch(/, not to scale$/);
         expect(described.get('Huge')?.description).not.toMatch(/not to scale/);
+    });
+});
+
+describe('getOrganizationOverview', () => {
+    const overview = (
+        departments: DepartmentWithMetrics[],
+        organization = metricsFixture(1951, null, { activeCount30d: 1181 }),
+    ) => {
+        const circles = layout(null, departments);
+        return getOrganizationOverview(
+            organization,
+            departments,
+            getViewTotals(circles),
+        );
+    };
+
+    it('repeats the organization numbers from the page header', () => {
+        expect(overview(tree)).toMatchObject({
+            onLightdash: 1951,
+            active30d: 1181,
+        });
+    });
+    it('counts the people placed in a department and the headcount without an account', () => {
+        // Placed: Stores 6, Depots 3, Finance 3, Product 5. Headcount: Ops 30, Finance 8, Supply 40
+        expect(overview(tree)).toEqual({
+            onLightdash: 1951,
+            active30d: 1181,
+            placed: 17,
+            withoutAccount: 66,
+            headcount: 78,
+            aboveHeadcount: 0,
+            withoutHeadcount: 5,
+        });
+    });
+    it('counts the people above a department headcount', () => {
+        const crowded = [
+            d('Ops', null, 30, 25, 4, 0),
+            d('Stores', 'Ops', 20, 25, 4),
+            d('Depots', 'Ops', 10, 0, 0),
+        ];
+        expect(overview(crowded)).toMatchObject({
+            placed: 25,
+            withoutAccount: 10,
+            headcount: 30,
+            aboveHeadcount: 5,
+            withoutHeadcount: 0,
+        });
+    });
+    it('counts only accounts beyond headcount, not headcount entered below the sub-departments', () => {
+        // People's own headcount of 120 is below its sub-departments' 125, and nobody is placed past it
+        const people = [
+            d('People', null, 120, 61, 36, 0),
+            d('Partners', 'People', 40, 18, 10),
+            d('Learning', 'People', 20, 9, 6),
+            d('Operations', 'People', 30, 15, 9),
+            d('Talent', 'People', 35, 19, 11),
+        ];
+        expect(overview(people)).toMatchObject({
+            placed: 61,
+            headcount: 120,
+            aboveHeadcount: 0,
+        });
+        // People placed directly in a department whose sub-departments take all of its headcount
+        const engineering = [
+            d('Engineering', null, 100, 72, 40, 12),
+            d('Platform', 'Engineering', 60, 40, 20),
+            d('Apps', 'Engineering', 40, 20, 10),
+        ];
+        expect(overview(engineering)).toMatchObject({
+            placed: 72,
+            headcount: 100,
+            aboveHeadcount: 12,
+        });
+    });
+    it('has no headcount when no department has one', () => {
+        expect(overview([d('Product', null, null, 5, 5)])).toMatchObject({
+            placed: 5,
+            withoutAccount: 0,
+            headcount: null,
+        });
+    });
+});
+
+describe('describeOrganizationOverview', () => {
+    const base = {
+        onLightdash: 1951,
+        active30d: 1181,
+        placed: 1763,
+        withoutAccount: 3837,
+        headcount: 5582,
+        aboveHeadcount: 0,
+        withoutHeadcount: 0,
+    };
+    it('says how many are placed and how many in headcount have no account', () => {
+        expect(describeOrganizationOverview(base)).toEqual({
+            placed: 'Placed in a department: 1,763 of 1,951 on Lightdash',
+            withoutAccount: 'Without an account: 3,837 of 5,582 headcount',
+            caption: null,
+        });
+    });
+    it('explains the people above a department headcount in one caption', () => {
+        expect(
+            describeOrganizationOverview({ ...base, aboveHeadcount: 84 })
+                .caption,
+        ).toBe(
+            'Includes 84 people in departments with more accounts than headcount',
+        );
+        expect(
+            describeOrganizationOverview({
+                ...base,
+                aboveHeadcount: 84,
+                withoutHeadcount: 14,
+            }).caption,
+        ).toBe(
+            'Includes 84 people in departments with more accounts than headcount and 14 in departments without a headcount',
+        );
+        expect(
+            describeOrganizationOverview({ ...base, withoutHeadcount: 1 })
+                .caption,
+        ).toBe('Includes 1 person in departments without a headcount');
+    });
+    it('leaves out the headcount line when nobody has entered a headcount', () => {
+        expect(
+            describeOrganizationOverview({
+                ...base,
+                headcount: null,
+                withoutAccount: 0,
+                withoutHeadcount: 1951,
+            }),
+        ).toEqual({
+            placed: 'Placed in a department: 1,763 of 1,951 on Lightdash',
+            withoutAccount: null,
+            caption: null,
+        });
     });
 });
 

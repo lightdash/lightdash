@@ -47,6 +47,7 @@ import {
     countDotKinds,
     describeCircles,
     getFocusTrail,
+    getOrganizationOverview,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
@@ -143,6 +144,17 @@ export const AdoptionMap: FC<Props> = ({
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
     const totals = useMemo(() => getViewTotals(circles), [circles]);
+    const overview = useMemo(
+        () =>
+            focus === null
+                ? getOrganizationOverview(
+                      summary.organization,
+                      departments,
+                      totals,
+                  )
+                : null,
+        [focus, summary.organization, departments, totals],
+    );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
 
@@ -184,16 +196,9 @@ export const AdoptionMap: FC<Props> = ({
         () => countDotKinds(circles, colourBy, membersByDepartment, now),
         [circles, colourBy, membersByDepartment, now],
     );
-    // Only the departments at this level compete: a parent would always beat its own children
     const cards = useMemo(
-        () =>
-            computeMapCards(
-                visibleDepartments.length > 0 || focus === null
-                    ? visibleDepartments
-                    : [focus],
-                summary.attention,
-            ),
-        [visibleDepartments, focus, summary.attention],
+        () => computeMapCards(departments, focusedUuid, summary.attention),
+        [departments, focusedUuid, summary.attention],
     );
 
     // Whether the last thing the person did in the map was a key press or a pointer press
@@ -419,6 +424,7 @@ export const AdoptionMap: FC<Props> = ({
                     department={focus}
                     subDepartments={visibleDepartments}
                     totals={totals}
+                    overview={overview}
                     member={selectedMember}
                     canManage={canManage}
                     onDepartmentClick={focusOn}

@@ -7,6 +7,7 @@ import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import {
     buildPackInput,
     countPeople,
+    enlargeSmallLeaves,
     expandDots,
     getDotRadius,
     getDotSegments,
@@ -20,6 +21,7 @@ import {
     sunflowerPositions,
     SVG_DOT_LIMIT,
     truncateLabel,
+    type PackedCircle,
 } from './geometry';
 
 const NOW = new Date('2026-10-07T12:00:00Z');
@@ -252,7 +254,7 @@ describe('layoutPack', () => {
             byId.get('Depots')?.r ?? 0,
         );
     });
-    it('enforces a minimum radius and flags the circle as not area-honest', () => {
+    it('packs every circle at its true size, leaving the minimum radius to the drawing', () => {
         const circles = layoutPack(
             buildPackInput(
                 [d('Huge', null, 5000, 10), d('Tiny', null, 1, 1)],
@@ -261,13 +263,18 @@ describe('layoutPack', () => {
             720,
         );
         const byId = new Map(circles.map((c) => [c.id, c]));
-        expect(byId.get('Tiny')).toMatchObject({
-            isAreaHonest: false,
-        });
-        expect(byId.get('Tiny')?.r ?? 0).toBeGreaterThanOrEqual(
-            MIN_CIRCLE_RADIUS - 0.001,
-        );
-        expect(byId.get('Huge')?.isAreaHonest).toBe(true);
+        circles.forEach((c) => expect(c.isAreaHonest).toBe(true));
+        expect(
+            ((byId.get('Tiny')?.r ?? 0) / (byId.get('Huge')?.r ?? 1)) ** 2,
+        ).toBeCloseTo(1 / 5000, 9);
+    });
+    it('records the circle each circle sits in', () => {
+        const circles = layoutPack(buildPackInput(tree, null), 720);
+        const parents = new Map(circles.map((c) => [c.id, c.parentId]));
+        expect(parents.get('Ops')).toBeNull();
+        expect(parents.get('Stores')).toBe('Ops');
+        expect(parents.get('own:Ops')).toBe('Ops');
+        expect(parents.get('Finance')).toBeNull();
     });
     it('returns nothing when there is nothing to draw', () => {
         expect(layoutPack(buildPackInput([], null))).toEqual([]);
@@ -476,86 +483,230 @@ describe('large department', () => {
     });
 });
 
-describe('minimum radius inside the layout', () => {
-    const TOLERANCE = 0.5;
-    const oneLeaf = (name: string, parent: string | null, headcount: number) =>
-        d(name, parent, headcount, headcount);
+// Shaped like a large organization: the biggest departments hold few sub-departments, smaller ones many
+const organization = [
+    d('Operations', null, 2350, 221, 2),
+    d('Supply chain', 'Operations', 1750, 170, 0),
+    d('Warehousing', 'Supply chain', 900, 12),
+    d('Logistics', 'Supply chain', 600, 48),
+    d('Demand planning', 'Supply chain', 120, 75),
+    d('Procurement operations', 'Supply chain', 80, 35),
+    d('Facilities', 'Operations', 120, 12),
+    d('Health and safety', 'Operations', 45, 8),
+    d('Quality', 'Operations', 90, 29),
+    d('Commercial', null, 1900, 834, 3),
+    d('Customer success', 'Commercial', 700, 312, 1),
+    d('Support', 'Customer success', 400, 141, 6),
+    d('Tier 1', 'Support', 250, 70),
+    d('Tier 2', 'Support', 110, 50),
+    d('Support leads', 'Support', 20, 15),
+    d('Account managers', 'Customer success', 150, 108),
+    d('Onboarding', 'Customer success', 60, 29),
+    d('Renewals', 'Customer success', 45, 33),
+    d('Sales', 'Commercial', 760, 420, 14),
+    d('Enterprise sales', 'Sales', 220, 155),
+    d('Mid-market sales', 'Sales', 300, 168),
+    d('Sales development', 'Sales', 180, 53),
+    d('Sales operations', 'Sales', 40, 30),
+    d('Marketing', 'Commercial', 180, 99, 2),
+    d('Brand', 'Marketing', 40, 24),
+    d('Growth', 'Marketing', 70, 49),
+    d('Marketing operations', 'Marketing', 25, 10),
+    d('Product marketing', 'Marketing', null, 14),
+    d('Finance', null, 420, 187, 24),
+    d('Controllership', 'Finance', 120, 49),
+    d('Planning', 'Finance', 60, 48),
+    d('Audit', 'Finance', 25, 9),
+    d('Procurement', 'Finance', 90, 25),
+    d('Tax', 'Finance', 40, 12),
+    d('Treasury', 'Finance', 35, 20),
+    d('Data', null, 70, 67, 5),
+    d('Analytics engineering', 'Data', 18, 18),
+    d('Business intelligence', 'Data', 22, 21),
+    d('Data governance', 'Data', 8, 9),
+    d('Data science', 'Data', 15, 14),
+    d('Legal', null, 60, 0),
+    d('Executive office', null, 12, 8),
+];
 
-    const check = (
-        circles: ReturnType<typeof layoutPack>,
-        parentOf: (id: string) => string | null,
-    ) => {
-        const byId = new Map(circles.map((c) => [c.id, c]));
-        circles.forEach((c) => {
-            expect(c.r).toBeGreaterThanOrEqual(MIN_CIRCLE_RADIUS - 0.001);
-            expect(c.x - c.r).toBeGreaterThanOrEqual(-TOLERANCE);
-            expect(c.x + c.r).toBeLessThanOrEqual(720 + TOLERANCE);
-            expect(c.y - c.r).toBeGreaterThanOrEqual(-TOLERANCE);
-            expect(c.y + c.r).toBeLessThanOrEqual(720 + TOLERANCE);
-            const parentId = parentOf(c.id);
-            const parent = parentId === null ? null : byId.get(parentId);
-            if (parent) {
-                expect(
-                    Math.hypot(c.x - parent.x, c.y - parent.y) + c.r,
-                ).toBeLessThanOrEqual(parent.r + TOLERANCE);
-            }
-            circles
-                .filter(
-                    (o) => o.id !== c.id && parentOf(o.id) === parentOf(c.id),
-                )
-                .forEach((o) =>
-                    expect(
-                        Math.hypot(c.x - o.x, c.y - o.y),
-                    ).toBeGreaterThanOrEqual(c.r + o.r - TOLERANCE),
-                );
+const distance = (a: PackedCircle, b: PackedCircle): number =>
+    Math.hypot(a.x - b.x, a.y - b.y);
+
+describe('sizing by headcount', () => {
+    const TOP: [string, number][] = [
+        ['Operations', 2350],
+        ['Commercial', 1900],
+        ['Finance', 420],
+        ['Data', 70],
+        ['Legal', 60],
+        ['Executive office', 12],
+    ];
+    const circles = layoutPack(buildPackInput(organization, null));
+    const byId = new Map(circles.map((c) => [c.id, c]));
+    const radius = (id: string): number => {
+        const circle = byId.get(id);
+        if (!circle) throw new Error(`No circle ${id}`);
+        return circle.r;
+    };
+    // Each area as a share of the first one's, against the same share of headcount
+    const expectAreasInProportion = (entries: [string, number][]) => {
+        const [firstId, firstHeadcount] = entries[0];
+        entries.forEach(([id, headcount]) => {
+            const areaShare = (radius(id) / radius(firstId)) ** 2;
+            const ratio = areaShare / (headcount / firstHeadcount);
+            expect(ratio).toBeGreaterThan(0.95);
+            expect(ratio).toBeLessThan(1.05);
         });
     };
 
-    it.each([
-        [3000, 2],
-        [3000, 5],
-        [3000, 20],
-        [20000, 3],
-        [20000, 20],
-    ])('keeps %i people beside %i one-person departments apart', (big, n) => {
-        const tiny = Array.from({ length: n }, (_, i) =>
-            oneLeaf(`tiny${i}`, null, 1),
-        );
-        const circles = layoutPack(
-            buildPackInput([oneLeaf('Big', null, big), ...tiny], null),
-        );
-        check(circles, () => null);
-        const byId = new Map(circles.map((c) => [c.id, c]));
-        expect(byId.get('Big')?.isAreaHonest).toBe(true);
-        tiny.forEach((t) =>
-            expect(byId.get(t.departmentUuid)?.isAreaHonest).toBe(false),
-        );
-        expect(countPeople(circles)).toBe(big + n);
+    it('orders the top-level circles by headcount, not by how many sub-departments they hold', () => {
+        const radii = TOP.map(([id]) => radius(id));
+        radii.slice(1).forEach((r, index) => {
+            expect(r).toBeLessThan(radii[index]);
+        });
     });
+    it('gives every top-level department an area within 5% of its share of headcount', () => {
+        expectAreasInProportion(TOP);
+    });
+    it('sizes sub-departments against their siblings the same way at every level', () => {
+        expectAreasInProportion([
+            ['Sales', 760],
+            ['Customer success', 700],
+            ['Marketing', 180],
+        ]);
+        expectAreasInProportion([
+            ['Warehousing', 900],
+            ['Logistics', 600],
+            ['Demand planning', 120],
+            ['Procurement operations', 80],
+        ]);
+        expectAreasInProportion([
+            ['Tier 1', 250],
+            ['Tier 2', 110],
+            ['Support leads', 20],
+        ]);
+    });
+    it('sizes a department without a headcount by its people on Lightdash', () => {
+        expectAreasInProportion([
+            ['Brand', 40],
+            ['Product marketing', 14],
+        ]);
+    });
+    it('keeps every sub-department inside its parent and apart from its siblings', () => {
+        circles.forEach((circle) => {
+            const parent =
+                circle.parentId === null ? null : byId.get(circle.parentId);
+            if (parent) {
+                expect(distance(circle, parent) + circle.r).toBeLessThanOrEqual(
+                    parent.r + 1e-6,
+                );
+            }
+            circles
+                .filter(
+                    (other) =>
+                        other.id !== circle.id &&
+                        other.parentId === circle.parentId,
+                )
+                .forEach((other) => {
+                    expect(distance(circle, other)).toBeGreaterThanOrEqual(
+                        circle.r + other.r - 1e-6,
+                    );
+                });
+        });
+    });
+});
 
-    it('keeps nested one-person departments inside their parent and flags only the affected branch', () => {
-        const departments = [
-            oneLeaf('Big', null, 3000),
-            d('Group', null, 3010, 3010, 0),
-            oneLeaf('Core', 'Group', 3000),
-            oneLeaf('S1', 'Group', 1),
-            oneLeaf('S2', 'Group', 1),
-            oneLeaf('S3', 'Group', 1),
-        ];
-        const circles = layoutPack(buildPackInput(departments, null));
-        const parents = new Map(
-            departments.map((x) => [x.departmentUuid, x.parentDepartmentUuid]),
+describe('enlargeSmallLeaves', () => {
+    const AREA = { width: 720, height: 720 };
+    // Group and Big hold the same number of people; Tiny is too small to select
+    const departments = [
+        d('Big', null, 1000, 10),
+        d('Group', null, 1000, 10, 0),
+        d('Core', 'Group', 997, 9),
+        d('Tiny', 'Group', 3, 1),
+    ];
+    const packed = layoutPack(buildPackInput(departments, null), 720);
+    const enlarged = enlargeSmallLeaves(packed, MIN_CIRCLE_RADIUS, AREA);
+    const pick = (circles: PackedCircle[], id: string): PackedCircle => {
+        const circle = circles.find((each) => each.id === id);
+        if (!circle) throw new Error(`No circle ${id}`);
+        return circle;
+    };
+
+    it('starts from a leaf drawn below the minimum radius', () => {
+        expect(pick(packed, 'Tiny').r).toBeLessThan(MIN_CIRCLE_RADIUS);
+    });
+    it('enlarges that leaf and says it is not to scale', () => {
+        const tiny = pick(enlarged, 'Tiny');
+        expect(tiny.r).toBeGreaterThan(pick(packed, 'Tiny').r + 1);
+        expect(tiny.r).toBeLessThanOrEqual(MIN_CIRCLE_RADIUS);
+        expect(tiny.isAreaHonest).toBe(false);
+    });
+    it('never changes the parent, moves the leaf or re-packs its siblings', () => {
+        ['Big', 'Group', 'Core'].forEach((id) => {
+            expect(pick(enlarged, id)).toEqual(pick(packed, id));
+        });
+        expect(pick(enlarged, 'Group').r).toBeCloseTo(
+            pick(enlarged, 'Big').r,
+            9,
         );
-        check(circles, (id) =>
-            id.startsWith('own:') ? id.slice(4) : (parents.get(id) ?? null),
+        expect(pick(enlarged, 'Tiny')).toMatchObject({
+            x: pick(packed, 'Tiny').x,
+            y: pick(packed, 'Tiny').y,
+        });
+    });
+    it('keeps the enlarged leaf inside its parent and clear of its sibling', () => {
+        const tiny = pick(enlarged, 'Tiny');
+        const group = pick(enlarged, 'Group');
+        const core = pick(enlarged, 'Core');
+        expect(distance(tiny, group) + tiny.r).toBeLessThanOrEqual(group.r);
+        expect(distance(tiny, core)).toBeGreaterThanOrEqual(tiny.r + core.r);
+    });
+    it('enlarges a top-level leaf without touching its neighbour or leaving the drawing', () => {
+        const pair = enlargeSmallLeaves(
+            layoutPack(
+                buildPackInput(
+                    [d('Huge', null, 5000, 10), d('Speck', null, 1, 1)],
+                    null,
+                ),
+                720,
+            ),
+            MIN_CIRCLE_RADIUS,
+            AREA,
         );
-        const byId = new Map(circles.map((c) => [c.id, c]));
-        ['S1', 'S2', 'S3', 'Group'].forEach((id) =>
-            expect(byId.get(id)?.isAreaHonest).toBe(false),
+        const speck = pick(pair, 'Speck');
+        const huge = pick(pair, 'Huge');
+        expect(speck.isAreaHonest).toBe(false);
+        expect(huge.isAreaHonest).toBe(true);
+        expect(distance(speck, huge)).toBeGreaterThanOrEqual(speck.r + huge.r);
+        expect(speck.x - speck.r).toBeGreaterThanOrEqual(0);
+        expect(speck.y - speck.r).toBeGreaterThanOrEqual(0);
+        expect(speck.x + speck.r).toBeLessThanOrEqual(AREA.width);
+        expect(speck.y + speck.r).toBeLessThanOrEqual(AREA.height);
+    });
+    it('leaves circles at the minimum radius or more alone', () => {
+        const roomy = layoutPack(
+            buildPackInput([d('A', null, 10, 1), d('B', null, 12, 1)], null),
+            720,
         );
-        ['Big', 'Core'].forEach((id) =>
-            expect(byId.get(id)?.isAreaHonest).toBe(true),
+        expect(enlargeSmallLeaves(roomy, MIN_CIRCLE_RADIUS, AREA)).toEqual(
+            roomy,
         );
+    });
+    it('never enlarges a circle that holds sub-departments', () => {
+        const nested = layoutPack(
+            buildPackInput(
+                [
+                    d('Huge', null, 20000, 10),
+                    d('Small', null, 2, 2, 0),
+                    d('Inner', 'Small', 2, 2),
+                ],
+                null,
+            ),
+            720,
+        );
+        const after = enlargeSmallLeaves(nested, MIN_CIRCLE_RADIUS, AREA);
+        expect(pick(after, 'Small')).toEqual(pick(nested, 'Small'));
     });
 });
 

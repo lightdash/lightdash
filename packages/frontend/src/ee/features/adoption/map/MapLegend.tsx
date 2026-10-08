@@ -1,10 +1,10 @@
 import { Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { formatCount } from '../utils/format';
 import styles from './AdoptionMap.module.css';
 import mapStyles from './DepartmentMap.module.css';
 import { type ColourBy, type DotKind } from './geometry';
 import { DOT_LABELS, LEGEND_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
-import { formatCount } from './mapView';
 
 type Props = {
     colourBy: ColourBy;

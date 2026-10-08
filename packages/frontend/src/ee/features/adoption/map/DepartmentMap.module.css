@@ -99,7 +99,11 @@
     fill: var(--mantine-color-violet-filled);
 }
 
-.dots circle[data-dot='lapsed'],
+/* Teal against the purple of the last 30 days: at least 3:1 apart in lightness in both schemes */
+.dots circle[data-dot='lapsed'] {
+    fill: var(--mantine-color-teal-3);
+}
+
 .dots circle[data-dot='interactiveViewer'] {
     fill: var(--mantine-color-violet-filled);
     fill-opacity: 0.45;

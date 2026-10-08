@@ -1,4 +1,11 @@
-import { type DepartmentWithMetrics } from '@lightdash/common';
+import {
+    getAncestorUuids,
+    getChildrenMap,
+    getDescendantUuids,
+    getParentMap,
+    type DepartmentWithMetrics,
+} from '@lightdash/common';
+import { formatCount } from '../utils/format';
 
 export type MapCard = {
     key: 'biggestGap' | 'furthestBehind' | 'seatsUnused' | 'unplaced';
@@ -8,51 +15,108 @@ export type MapCard = {
     departmentUuid: string | null;
 };
 
-type Ranked = { department: DepartmentWithMetrics; score: number };
+// A department and how a card names it: its path from the level shown when it sits further down
+type Entry = { department: DepartmentWithMetrics; label: string };
+type Ranked = Entry & { score: number };
 
+// The highest score wins and a tie goes to the name that comes first
 const top = (
-    departments: DepartmentWithMetrics[],
+    entries: Entry[],
     score: (department: DepartmentWithMetrics) => number | null,
 ): Ranked | null =>
-    departments.reduce<Ranked | null>((best, department) => {
-        const value = score(department);
+    entries.reduce<Ranked | null>((best, entry) => {
+        const value = score(entry.department);
         if (value === null || value <= 0) return best;
-        return best === null || value > best.score
-            ? { department, score: value }
-            : best;
+        const isBetter =
+            best === null ||
+            value > best.score ||
+            (value === best.score &&
+                entry.department.name.localeCompare(best.department.name) < 0);
+        return isBetter ? { ...entry, score: value } : best;
     }, null);
 
 const people = (count: number): string =>
-    `${count} ${count === 1 ? 'person' : 'people'}`;
+    `${formatCount(count)} ${count === 1 ? 'person' : 'people'}`;
+
+// The departments one level below the focus, and every department at or below that level.
+// A department without sub-departments is compared with itself.
+const getEntries = (
+    departments: DepartmentWithMetrics[],
+    focusUuid: string | null,
+): { level: Entry[]; below: Entry[] } => {
+    const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
+    const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
+    const lookup = (uuids: string[]): DepartmentWithMetrics[] =>
+        uuids.flatMap((uuid) => {
+            const department = byUuid.get(uuid);
+            return department ? [department] : [];
+        });
+    const levelUuids =
+        getChildrenMap(departments).get(focus?.departmentUuid ?? null) ?? [];
+    if (focus !== null && levelUuids.length === 0) {
+        const itself = [{ department: focus, label: focus.name }];
+        return { level: itself, below: itself };
+    }
+    const parentMap = getParentMap(departments);
+    const pathTo = (department: DepartmentWithMetrics): string => {
+        const ancestors = getAncestorUuids(
+            department.departmentUuid,
+            parentMap,
+        );
+        const end =
+            focus === null ? -1 : ancestors.indexOf(focus.departmentUuid);
+        const above = end < 0 ? ancestors : ancestors.slice(0, end);
+        return [...lookup(above).reverse(), department]
+            .map((each) => each.name)
+            .join(' / ');
+    };
+    return {
+        level: lookup(levelUuids).map((department) => ({
+            department,
+            label: department.name,
+        })),
+        below: (focus === null
+            ? departments
+            : lookup(getDescendantUuids(focus.departmentUuid, departments))
+        ).map((department) => ({ department, label: pathTo(department) })),
+    };
+};
 
 export const computeMapCards = (
     departments: DepartmentWithMetrics[],
+    focusUuid: string | null,
     attention: { conflictCount: number; unassignedCount: number },
 ): MapCard[] => {
-    const gap = top(departments, (d) =>
+    const { level, below } = getEntries(departments, focusUuid);
+    // A parent's numbers include its children's, so the gap is only compared across one level
+    const gap = top(level, (d) =>
         d.effectiveHeadcount === null
             ? null
             : d.effectiveHeadcount - d.metrics.activeCount30d,
     );
-    const withTargets = departments.filter((d) => d.targetActiveUsers !== null);
+    const withTargets = below.filter(
+        ({ department }) => department.targetActiveUsers !== null,
+    );
     const behind = top(withTargets, (d) =>
         d.targetActiveUsers === null
             ? null
             : d.targetActiveUsers - d.metrics.activeCount30d,
     );
     const unused = top(
-        departments,
+        below,
         (d) => d.metrics.memberCount - d.metrics.activeCount30d,
     );
     const unplaced = attention.conflictCount + attention.unassignedCount;
-    const hasHeadcount = departments.some((d) => d.effectiveHeadcount !== null);
+    const hasHeadcount = level.some(
+        ({ department }) => department.effectiveHeadcount !== null,
+    );
 
     const gapCard: MapCard = gap
         ? {
               key: 'biggestGap',
               title: 'Biggest gap',
               value: people(gap.score),
-              detail: `${gap.department.name}: ${gap.department.metrics.activeCount30d} of ${gap.department.effectiveHeadcount} active`,
+              detail: `${gap.label}: ${formatCount(gap.department.metrics.activeCount30d)} of ${formatCount(gap.department.effectiveHeadcount ?? 0)} active`,
               departmentUuid: gap.department.departmentUuid,
           }
         : {
@@ -71,8 +135,8 @@ export const computeMapCards = (
         ? {
               key: 'furthestBehind',
               title: 'Furthest behind',
-              value: `${behind.score} short`,
-              detail: `${behind.department.name}: ${behind.department.metrics.activeCount30d} of ${behind.department.targetActiveUsers} target`,
+              value: `${formatCount(behind.score)} short`,
+              detail: `${behind.label}: ${formatCount(behind.department.metrics.activeCount30d)} of ${formatCount(behind.department.targetActiveUsers ?? 0)} target`,
               departmentUuid: behind.department.departmentUuid,
           }
         : {
@@ -87,8 +151,8 @@ export const computeMapCards = (
         ? {
               key: 'seatsUnused',
               title: 'Most seats unused',
-              value: `${unused.score} idle`,
-              detail: `${unused.department.name}: on Lightdash but not active in 30 days`,
+              value: `${formatCount(unused.score)} idle`,
+              detail: `${unused.label}: on Lightdash but not active in 30 days`,
               departmentUuid: unused.department.departmentUuid,
           }
         : {

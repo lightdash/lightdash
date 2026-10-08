@@ -18,12 +18,14 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
 import { formatOwners } from '../utils/departmentRows';
+import { formatCount } from '../utils/format';
 import styles from './AdoptionMap.module.css';
 import {
-    formatCount,
+    describeOrganizationOverview,
     formatMemberActivity,
     formatPct,
     sortForInspector,
+    type OrganizationOverview,
     type ViewTotals,
 } from './mapView';
 
@@ -33,6 +35,8 @@ type Props = {
     // The departments one level down, which is what the map is showing
     subDepartments: DepartmentWithMetrics[];
     totals: ViewTotals;
+    // The whole organization's numbers, shown when no department is focused
+    overview: OrganizationOverview | null;
     member: DepartmentMember | null;
     canManage: boolean;
     onDepartmentClick: (departmentUuid: string) => void;
@@ -44,11 +48,9 @@ type TileProps = {
     label: string;
     value: number;
     note: string | null;
-    // A line under the value saying who the number covers
-    caption: string | null;
 };
 
-const Tile: FC<TileProps> = ({ label, value, note, caption }) => (
+const Tile: FC<TileProps> = ({ label, value, note }) => (
     <Box className={styles.tile}>
         <Text fz="xs" c="dimmed">
             {label}
@@ -63,11 +65,6 @@ const Tile: FC<TileProps> = ({ label, value, note, caption }) => (
                 </Text>
             )}
         </Group>
-        {caption !== null && (
-            <Text fz="xs" c="dimmed">
-                {caption}
-            </Text>
-        )}
     </Box>
 );
 
@@ -92,13 +89,11 @@ const getDepartmentTiles = (
                 effectiveHeadcount === null
                     ? 'no headcount'
                     : `of ${formatCount(effectiveHeadcount)}`,
-            caption: null,
         },
         {
             label: 'Active in 30 days',
             value: metrics.activeCount30d,
             note: formatPct(metrics.activePct, metrics.activeCount30d),
-            caption: null,
         },
         ...(effectiveHeadcount === null
             ? []
@@ -107,7 +102,6 @@ const getDepartmentTiles = (
                       label: 'No account',
                       value: countWithoutAccount(totals),
                       note: null,
-                      caption: null,
                   },
               ]),
         ...(targetActiveUsers === null
@@ -120,33 +114,29 @@ const getDepartmentTiles = (
                           remaining === 0
                               ? 'met'
                               : `${formatCount(remaining)} to go`,
-                      caption: null,
                   },
               ]),
     ];
 };
 
-const getOrganizationTiles = (totals: ViewTotals): TileProps[] => [
-    {
-        label: 'On Lightdash',
-        value: totals.members,
-        note: `of ${formatCount(totals.people)}`,
-        // People who still need a department are on Lightdash but not on the map
-        caption: 'placed in a department',
-    },
-    {
-        label: 'Active in 30 days',
-        value: totals.active,
-        note: null,
-        caption: null,
-    },
-    {
-        label: 'No account',
-        value: countWithoutAccount(totals),
-        note: null,
-        caption: null,
-    },
-];
+// The same two numbers as the page header
+const getOrganizationTiles = (
+    overview: OrganizationOverview | null,
+): TileProps[] =>
+    overview === null
+        ? []
+        : [
+              {
+                  label: 'On Lightdash',
+                  value: overview.onLightdash,
+                  note: null,
+              },
+              {
+                  label: 'Active in 30 days',
+                  value: overview.active30d,
+                  note: null,
+              },
+          ];
 
 const countOf = (count: number, singular: string): string =>
     `${formatCount(count)} ${singular}${count === 1 ? '' : 's'}`;
@@ -176,6 +166,7 @@ export const MapInspector: FC<Props> = ({
     department,
     subDepartments,
     totals,
+    overview,
     member,
     canManage,
     onDepartmentClick,
@@ -183,9 +174,14 @@ export const MapInspector: FC<Props> = ({
     onEdit,
 }) => {
     const summaryLine = getSummaryLine(department, subDepartments.length);
+    // People still waiting for a department are on Lightdash but not on the map, so both are given
+    const overviewCopy =
+        department === null && overview !== null
+            ? describeOrganizationOverview(overview)
+            : null;
     const tiles =
         department === null
-            ? getOrganizationTiles(totals)
+            ? getOrganizationTiles(overview)
             : getDepartmentTiles(department, totals);
     return (
         <Paper p="md" component="aside" aria-label="Details">
@@ -208,6 +204,19 @@ export const MapInspector: FC<Props> = ({
                         <Tile key={tile.label} {...tile} />
                     ))}
                 </SimpleGrid>
+                {overviewCopy !== null && (
+                    <Stack gap={4}>
+                        <Text fz="sm">{overviewCopy.placed}</Text>
+                        {overviewCopy.withoutAccount !== null && (
+                            <Text fz="sm">{overviewCopy.withoutAccount}</Text>
+                        )}
+                        {overviewCopy.caption !== null && (
+                            <Text fz="xs" c="dimmed">
+                                {overviewCopy.caption}
+                            </Text>
+                        )}
+                    </Stack>
+                )}
                 {department?.headcountBelowChildren && (
                     <Text fz="xs" c="dimmed">
                         Headcount is lower than the total of its sub-departments
