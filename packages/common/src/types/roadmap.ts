@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isoDateTimeWithOffsetStringSchema } from '../utils/isoDateTime';
 
 export const ROADMAP_DEFAULT_PAGE_SIZE = 100;
 
@@ -69,8 +70,8 @@ export const RoadmapItemSchema = z.object({
     description: z.string().nullable(),
     status: z.enum(RoadmapItemStatus),
     priority: z.enum(RoadmapItemPriority),
-    createdAt: z.string().datetime({ offset: true }),
-    updatedAt: z.string().datetime({ offset: true }),
+    createdAt: isoDateTimeWithOffsetStringSchema,
+    updatedAt: isoDateTimeWithOffsetStringSchema,
     issueUrl: githubIssueUrlSchema.nullable(),
     pullRequestUrl: githubPullRequestUrlSchema.nullable(),
     slackThreadUrls: slackThreadUrlsSchema,
@@ -185,7 +186,7 @@ export type RoadmapResponse = {
 export const RoadmapResponseSchema = z.object({
     status: z.literal('ok'),
     results: z.array(RoadmapRequestSchema),
-    expiresAt: z.string().datetime({ offset: true }).optional(),
+    expiresAt: isoDateTimeWithOffsetStringSchema.optional(),
     pagination: RoadmapPaginationSchema,
     facets: RoadmapFacetsSchema,
 });
@@ -268,10 +269,8 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> =
                     progress: z.number().min(0).max(100),
                     priority: z.enum(RoadmapItemPriority),
                     issueStatusCounts: RoadmapStatusCountsSchema,
-                    lastIssueUpdatedAt: z
-                        .string()
-                        .datetime({ offset: true })
-                        .nullable(),
+                    lastIssueUpdatedAt:
+                        isoDateTimeWithOffsetStringSchema.nullable(),
                 }),
                 ownRequestCount: z.number().int().min(0),
                 hasDirectNeed: z.boolean(),
@@ -280,12 +279,12 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> =
         ),
         otherRequestCount: z.number().int().min(0),
         pagination: RoadmapProjectPaginationSchema,
-        expiresAt: z.string().datetime({ offset: true }),
+        expiresAt: isoDateTimeWithOffsetStringSchema,
     });
 export const RoadmapProjectRequestsResponseSchema =
     RoadmapResponseSchema.extend({
         results: z.array(RoadmapRequestSchema.required({ projectId: true })),
-        expiresAt: z.string().datetime({ offset: true }),
+        expiresAt: isoDateTimeWithOffsetStringSchema,
     });
 export const RoadmapProjectRequestsResultsSchema: z.ZodType<RoadmapProjectRequestsResults> =
     RoadmapProjectRequestsResponseSchema.omit({
