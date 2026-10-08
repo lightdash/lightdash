@@ -1,3 +1,10 @@
+# [2.488.0](https://github.com/lightdash/lightdash/compare/2.487.1...2.488.0) (2026-10-08)
+
+
+### Features
+
+* **documents:** record Document moves and Space-cascaded deletes in activity and audit ([#30722](https://github.com/lightdash/lightdash/issues/30722)) ([1db4273](https://github.com/lightdash/lightdash/commit/1db4273f7c99f372d848529711822160a24e6391))
+
 ## [2.487.1](https://github.com/lightdash/lightdash/compare/2.487.0...2.487.1) (2026-10-08)
 
 
