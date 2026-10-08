@@ -6,11 +6,8 @@ export type ChartAsCodeContentType =
     | ContentAsCodeType.CHART
     | ContentAsCodeType.SQL_CHART;
 
-/**
- * The schema for one chart shape, with the shared `$defs` so its refs
- * resolve. Validating against a single shape keeps errors free of the
- * if/then/else wrapper error the whole-file schema adds.
- */
+// One chart shape plus the shared `$defs`, so validation errors skip the
+// if/then/else wrapper error the whole-file schema adds.
 export const getChartAsCodeBranchSchema = (
     contentType: ChartAsCodeContentType,
 ) => {

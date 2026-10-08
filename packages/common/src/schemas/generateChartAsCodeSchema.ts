@@ -520,10 +520,8 @@ const buildSqlChartRoot = (
     return { swaggerRoot, root };
 };
 
-/**
- * A file is a SQL chart when it says so, or, without a contentType, when it
- * carries `sql` and no `tableName`. Mirrors `isSqlChartContent`.
- */
+// An explicit contentType wins so a mislabelled file gets that shape's errors;
+// without one, fall back to the `isSqlChartContent` heuristic (sql, no tableName).
 const SQL_CHART_CONDITION: JsonObject = {
     anyOf: [
         {

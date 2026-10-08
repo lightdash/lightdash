@@ -88,6 +88,24 @@ describe('chartAsCodeSchema', () => {
         expect(paths).toEqual(['/sql']);
     });
 
+    test('an explicit contentType wins over the sql/tableName shape heuristic', () => {
+        const { tableName, ...chartWithSql } = {
+            ...validChart,
+            sql: 'select 1',
+        };
+        expect(validate(chartWithSql)).toBe(false);
+        const paths = errorPaths(validate.errors).filter((path) => path !== '');
+        expect(paths).toEqual(['/tableName']);
+        expect(validate.errors).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    keyword: 'additionalProperties',
+                    params: { additionalProperty: 'sql' },
+                }),
+            ]),
+        );
+    });
+
     test('rejects semantic layer fields on a SQL chart', () => {
         expect(validate({ ...validSqlChart, tableName: 'orders' })).toBe(false);
         expect(validate.errors).toEqual(
