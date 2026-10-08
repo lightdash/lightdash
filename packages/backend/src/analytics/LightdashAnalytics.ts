@@ -73,6 +73,7 @@ import {
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
     type SemanticQueryUsage,
+    type SqlApprovalToolName,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
@@ -3264,7 +3265,7 @@ export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string;
         toolCallId: string;
-        toolName: 'runSql' | 'runComposerQueries' | 'createContent';
+        toolName: SqlApprovalToolName;
         decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
         source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
         isAutoApproved: boolean;

@@ -5,6 +5,7 @@ import {
     assertUnreachable,
     Explore,
     getErrorMessage,
+    isSqlApprovalToolCall,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -131,7 +132,6 @@ import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import {
     buildSqlApprovalDecidedEvent,
-    isSqlApprovalToolCall,
     type TrackSqlApprovalTimeoutFn,
 } from '../tools/sqlApprovals';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';

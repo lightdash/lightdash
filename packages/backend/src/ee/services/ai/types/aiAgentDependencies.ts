@@ -56,6 +56,7 @@ import {
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
@@ -76,7 +77,6 @@ import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGener
 import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
-    SqlApprovalToolName,
     SqlAutoApprovalSource,
 } from '../tools/sqlApprovals';
 

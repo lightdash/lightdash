@@ -131,6 +131,7 @@ import {
     isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
+    isSqlApprovalToolCall,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -462,16 +463,16 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
     buildSqlApprovalDecidedEvent,
-    isSqlApprovalToolCall,
+    getRejectedOutput,
+    getSqlApprovalHeading,
+    isNativeSqlApprovalToolCall,
     toStoredSqlApprovalDecision,
-    type SqlApprovalToolName,
+    type NativeSqlApprovalToolName,
     type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
-import { SQL_CHART_REJECTED_RESULT } from '../ai/tools/sqlChartApproval';
 import {
     AiAgentArgs,
     AiAgentDependencies,
@@ -4377,8 +4378,7 @@ export class AiAgentService extends BaseService {
                 `SQL approval for ${toolCallId} was already recorded; retrying Slack resume if applicable.`,
             );
         }
-        // Only these tools suspend Slack runs on native approval.
-        if (toolName === 'runSql' || toolName === 'createContent') {
+        if (isNativeSqlApprovalToolCall(toolName, context.toolArgs)) {
             await this.resumeSlackSqlApproval(context.promptUuid);
         }
 
@@ -11468,32 +11468,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
                                 };
-                                if (toolCall.toolName === 'runSql') {
-                                    return [
-                                        {
-                                            ...base,
-                                            result: RUN_SQL_REJECTED_OUTPUT.result,
-                                            metadata:
-                                                RUN_SQL_REJECTED_OUTPUT.metadata,
-                                        },
-                                    ];
-                                }
                                 if (
-                                    isSqlApprovalToolCall(
+                                    !isNativeSqlApprovalToolCall(
                                         toolCall.toolName,
                                         toolCall.toolArgs,
-                                    ) &&
-                                    toolCall.toolName === 'createContent'
+                                    )
                                 ) {
-                                    return [
-                                        {
-                                            ...base,
-                                            result: SQL_CHART_REJECTED_RESULT,
-                                            metadata: { status: 'error' },
-                                        },
-                                    ];
+                                    return [];
                                 }
-                                return [];
+                                return [
+                                    {
+                                        ...base,
+                                        ...getRejectedOutput(toolCall.toolName),
+                                    },
+                                ];
                             },
                         ),
                     );
@@ -16968,14 +16956,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackPrompt: SlackPrompt;
         threadTs: string;
         toolCallId: string;
-        toolName: SqlApprovalToolName;
+        toolName: NativeSqlApprovalToolName;
         sql: string;
         agentName?: string;
     }): Promise<void> {
-        const heading =
-            input.toolName === 'createContent'
-                ? 'Awaiting approval to save SQL chart'
-                : 'Awaiting approval to run SQL';
+        const heading = getSqlApprovalHeading(input.toolName);
         await this.slackClient.postMessage({
             organizationUuid: input.slackPrompt.organizationUuid,
             channel: input.slackPrompt.slackChannelId,
