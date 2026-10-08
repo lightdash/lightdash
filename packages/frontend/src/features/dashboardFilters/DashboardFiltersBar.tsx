@@ -52,6 +52,8 @@ type Props = {
     onParameterReorder: (order: string[]) => void;
     isDateZoomDisabled: boolean;
     onCollapse: () => void;
+    /** Replaces the filters and the requirements button. Defaults to both. */
+    filterArea?: ReactNode;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -72,6 +74,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     onParameterReorder,
     isDateZoomDisabled,
     onCollapse,
+    filterArea,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -155,12 +158,16 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     }
                                 />
                             )}
-                            <DashboardFilters
-                                isEditMode={isEditMode}
-                                activeTabUuid={activeTabUuid}
-                            />
+                            {filterArea ?? (
+                                <>
+                                    <DashboardFilters
+                                        isEditMode={isEditMode}
+                                        activeTabUuid={activeTabUuid}
+                                    />
 
-                            {isEditMode && <FilterRequirementsButton />}
+                                    {isEditMode && <FilterRequirementsButton />}
+                                </>
+                            )}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>

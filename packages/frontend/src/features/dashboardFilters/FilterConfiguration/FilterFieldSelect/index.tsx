@@ -36,6 +36,8 @@ interface FilterFieldSelectProps {
     activeTabUuid: string | undefined;
     selectedField: DashboardFilterableField | undefined;
     onChange: (field: DashboardFilterableField) => void;
+    // Mounts with the list open; the caller gives the input focus
+    defaultOpened?: boolean;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -66,6 +68,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     activeTabUuid,
     selectedField,
     onChange,
+    defaultOpened = false,
     popoverProps,
 }) => {
     const getUiString = useUiStrings();
@@ -74,6 +77,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const combobox = useCombobox({
+        defaultOpened,
         onDropdownOpen: () => {
             combobox.updateSelectedOptionIndex('active');
             popoverProps?.onOpen?.();
@@ -262,7 +266,8 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 onOptionSubmit={handleOptionSubmit}
                 withinPortal={false}
             >
-                <Combobox.Target>
+                {/* Props given to the target are spread on the input */}
+                <Combobox.Target aria-expanded={isOpen}>
                     <InputBase
                         radius="md"
                         size="xs"
