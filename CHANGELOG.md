@@ -1,3 +1,10 @@
+## [2.473.1](https://github.com/lightdash/lightdash/compare/2.473.0...2.473.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **data-apps:** hide General settings page while its only setting is flagged off ([#30667](https://github.com/lightdash/lightdash/issues/30667)) ([f50cf6c](https://github.com/lightdash/lightdash/commit/f50cf6c3c99d51846f9f74e9a97c2202ad74b77b))
+
 # [2.473.0](https://github.com/lightdash/lightdash/compare/2.472.0...2.473.0) (2026-10-08)
 
 
