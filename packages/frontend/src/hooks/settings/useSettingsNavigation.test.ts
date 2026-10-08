@@ -34,6 +34,7 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
+    isDataAppGeneralSettingsEnabled: false,
     isDataAppsFlagLoading: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
@@ -137,7 +138,10 @@ describe('MCP settings navigation', () => {
 });
 
 describe('Data apps settings navigation', () => {
-    const dataAppsChildren = (rules: { action: string; subject: string }[]) =>
+    const dataAppsChildren = (
+        rules: { action: string; subject: string }[],
+        { generalEnabled = true }: { generalEnabled?: boolean } = {},
+    ) =>
         organizationNavigation({
             user: {
                 ability: new Ability(rules),
@@ -146,6 +150,7 @@ describe('Data apps settings navigation', () => {
                 id: 'data-apps',
                 enabled: true,
             } as SettingsContext['dataAppsFlag'],
+            isDataAppGeneralSettingsEnabled: generalEnabled,
         })
             ?.find((item) => item.label === 'Data apps')
             ?.children.map(({ label, to }) => ({ label, to }));
@@ -158,6 +163,21 @@ describe('Data apps settings navigation', () => {
             ]),
         ).toEqual([
             { label: 'General', to: '/generalSettings/dataApps/general' },
+            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
+            { label: 'Activity', to: '/generalSettings/dataApps/activity' },
+        ]);
+    });
+
+    it('hides General when its only setting is behind an off flag', () => {
+        expect(
+            dataAppsChildren(
+                [
+                    { action: 'manage', subject: 'Organization' },
+                    { action: 'manage', subject: 'OrganizationDesign' },
+                ],
+                { generalEnabled: false },
+            ),
+        ).toEqual([
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
             { label: 'Activity', to: '/generalSettings/dataApps/activity' },
         ]);

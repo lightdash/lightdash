@@ -96,6 +96,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        isDataAppGeneralSettingsEnabled,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -304,7 +305,10 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
-            if (ability?.can('manage', 'Organization')) {
+            if (
+                isDataAppGeneralSettingsEnabled &&
+                ability?.can('manage', 'Organization')
+            ) {
                 dataAppChildren.push({
                     label: 'General',
                     to: '/generalSettings/dataApps/general',
@@ -1260,6 +1264,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
+        isDataAppGeneralSettingsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,
