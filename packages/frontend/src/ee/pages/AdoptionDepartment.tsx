@@ -9,16 +9,16 @@ import {
     Table,
     Text,
     Title,
-    Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import TruncatedText from '../../components/common/TruncatedText';
 import useApp from '../../providers/App/useApp';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
 import { DepartmentMembersTable } from '../features/adoption/components/DepartmentMembersTable';
@@ -31,18 +31,28 @@ import {
 } from '../features/adoption/utils/adoptionNav';
 import {
     countWithoutAccount,
+    formatCoverage,
     formatTargetProgress,
     getActiveCaption,
     getCoverageCaption,
+    getCoverageNote,
+    getWeeklyComparison,
+    type Noun,
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
     sortByCoverage,
 } from '../features/adoption/utils/departmentRows';
+import { formatCount } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
     useOrgAdoptionSummary,
 } from '../hooks/useOrgDepartments';
+
+const VIEWS: Noun = { one: 'view', other: 'views' };
+const QUERIES: Noun = { one: 'query', other: 'queries' };
+const PROMPTS: Noun = { one: 'prompt', other: 'prompts' };
+const HEADCOUNT_NOTE_MAX_WIDTH = 280;
 
 const BackToAdoption: FC = () => (
     <Button component={Link} to={ADOPTION_PATH} variant="default">
@@ -88,14 +98,23 @@ const AdoptionDepartment: FC = () => {
             }),
         ) ?? false;
     const detail = useDepartmentDetail(departmentUuid);
-    // The drawer's parent picker needs every department
-    const summary = useOrgAdoptionSummary(
-        canManage && departmentUuid !== undefined,
-    );
+    // The weekly comparison needs the organization's numbers; the drawer's parent picker needs every department
+    const summary = useOrgAdoptionSummary(departmentUuid !== undefined);
     const [isEditing, setIsEditing] = useState(false);
     // While a delete is in flight the refetch returns 404; keep the last page until we leave
     const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
+    const weeks = useMemo(
+        () =>
+            detail.data
+                ? getWeeklyComparison(
+                      detail.data.weeklyActive,
+                      detail.data.department.metrics.memberCount,
+                      summary.data?.organization ?? null,
+                  )
+                : [],
+        [detail.data, summary.data],
+    );
 
     if (departmentUuid === undefined) {
         const { title, description } = getUnavailableCopy(404, undefined);
@@ -187,25 +206,25 @@ const AdoptionDepartment: FC = () => {
                         <Text fz="sm" c="dimmed">
                             Headcount
                         </Text>
-                        <Tooltip
-                            label={department.headcountNote}
-                            disabled={department.headcountNote === null}
-                            multiline
-                            maw={280}
-                        >
-                            <Text fz="sm">
-                                {department.effectiveHeadcount ?? 'Not set'}
-                            </Text>
-                        </Tooltip>
+                        <Text fz="sm">
+                            {department.effectiveHeadcount === null
+                                ? 'Not set'
+                                : formatCount(department.effectiveHeadcount)}
+                        </Text>
                         {withoutAccount > 0 && (
                             <Text fz="sm" c="dimmed">
-                                {`${withoutAccount} without an account`}
+                                {`${formatCount(withoutAccount)} without an account`}
                             </Text>
                         )}
                         {department.headcountNote !== null && (
-                            <Text fz="xs" c="dimmed">
+                            <TruncatedText
+                                maxWidth={HEADCOUNT_NOTE_MAX_WIDTH}
+                                fz="xs"
+                                c="dimmed"
+                                tooltipMaxWidth={HEADCOUNT_NOTE_MAX_WIDTH}
+                            >
                                 {department.headcountNote}
-                            </Text>
+                            </TruncatedText>
                         )}
                     </Group>
                     <Group gap="xs">
@@ -231,9 +250,10 @@ const AdoptionDepartment: FC = () => {
                 <SimpleGrid cols={{ base: 1, sm: 3 }}>
                     <StatTile
                         label="Coverage"
-                        value={formatShare(
+                        value={formatCoverage(
                             metrics.coveragePct,
                             metrics.memberCount,
+                            department.effectiveHeadcount,
                         )}
                         detail={getCoverageCaption(
                             department.effectiveHeadcount,
@@ -261,7 +281,7 @@ const AdoptionDepartment: FC = () => {
 
                 <Stack gap="xs">
                     <Title order={5}>Weekly active people</Title>
-                    <WeeklyActiveChart points={detail.data.weeklyActive} />
+                    <WeeklyActiveChart weeks={weeks} />
                 </Stack>
 
                 <Stack gap="xs">
@@ -269,17 +289,17 @@ const AdoptionDepartment: FC = () => {
                     <SimpleGrid cols={{ base: 1, md: 3 }}>
                         <TopContentList
                             title="Dashboards"
-                            unit="views"
+                            noun={VIEWS}
                             items={topContent.dashboards}
                         />
                         <TopContentList
                             title="Explores"
-                            unit="queries"
+                            noun={QUERIES}
                             items={topContent.explores}
                         />
                         <TopContentList
                             title="AI agents"
-                            unit="prompts"
+                            noun={PROMPTS}
                             items={topContent.aiAgents}
                         />
                     </SimpleGrid>
@@ -297,33 +317,50 @@ const AdoptionDepartment: FC = () => {
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {sortByCoverage(children).map((child) => (
-                                    <Table.Tr key={child.departmentUuid}>
-                                        <Table.Td>
-                                            <Anchor
-                                                component={Link}
-                                                to={getDepartmentPath(
-                                                    child.departmentUuid,
+                                {sortByCoverage(children).map((child) => {
+                                    const coverageNote = getCoverageNote(
+                                        child.effectiveHeadcount,
+                                        child.metrics.memberCount,
+                                    );
+                                    return (
+                                        <Table.Tr key={child.departmentUuid}>
+                                            <Table.Td>
+                                                <Anchor
+                                                    component={Link}
+                                                    to={getDepartmentPath(
+                                                        child.departmentUuid,
+                                                    )}
+                                                    fz="sm"
+                                                >
+                                                    {child.name}
+                                                </Anchor>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Text fz="sm">
+                                                    {formatCoverage(
+                                                        child.metrics
+                                                            .coveragePct,
+                                                        child.metrics
+                                                            .memberCount,
+                                                        child.effectiveHeadcount,
+                                                    )}
+                                                </Text>
+                                                {coverageNote !== null && (
+                                                    <Text fz="xs" c="dimmed">
+                                                        {coverageNote}
+                                                    </Text>
                                                 )}
-                                                fz="sm"
-                                            >
-                                                {child.name}
-                                            </Anchor>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            {formatShare(
-                                                child.metrics.coveragePct,
-                                                child.metrics.memberCount,
-                                            )}
-                                        </Table.Td>
-                                        <Table.Td>
-                                            {formatShare(
-                                                child.metrics.activePct,
-                                                child.metrics.activeCount30d,
-                                            )}
-                                        </Table.Td>
-                                    </Table.Tr>
-                                ))}
+                                            </Table.Td>
+                                            <Table.Td>
+                                                {formatShare(
+                                                    child.metrics.activePct,
+                                                    child.metrics
+                                                        .activeCount30d,
+                                                )}
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    );
+                                })}
                             </Table.Tbody>
                         </Table>
                     </Stack>

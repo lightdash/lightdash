@@ -13,6 +13,18 @@
     stroke-linecap: round;
 }
 
+/* The week so far, which is not over yet */
+.partialLine {
+    stroke-dasharray: 2 2;
+    stroke-linecap: butt;
+}
+
+.partialPoint {
+    fill: var(--mantine-color-body);
+    stroke: var(--mantine-color-dimmed);
+    stroke-width: 1.5;
+}
+
 .area {
     fill: var(--mantine-color-dimmed);
     opacity: 0.08;

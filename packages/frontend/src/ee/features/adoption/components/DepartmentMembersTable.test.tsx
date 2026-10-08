@@ -33,6 +33,31 @@ describe('DepartmentMembersTable', () => {
         expect(within(rows[2]).getByText('Direct')).toBeVisible();
         expect(within(rows[2]).getByText('12')).toBeVisible();
     });
+    it('offers every activity filter, with counts', () => {
+        renderWithProviders(<DepartmentMembersTable members={members} />);
+        const chipLabels = screen
+            .getAllByRole('radio')
+            .map((chip) =>
+                chip instanceof HTMLInputElement
+                    ? chip.labels?.[0]?.textContent
+                    : null,
+            );
+        expect(chipLabels).toEqual([
+            'All (3)',
+            'Active in 30 days (1)',
+            'Not active in 30 days (1)',
+            'No recorded activity (1)',
+        ]);
+        expect(screen.getByRole('radio', { name: 'All (3)' })).toBeChecked();
+    });
+    it('filters to people active in the last 30 days', async () => {
+        renderWithProviders(<DepartmentMembersTable members={members} />);
+        await userEvent.click(screen.getByText('Active in 30 days (1)'));
+        expect(bodyRows()).toHaveLength(1);
+        expect(
+            within(bodyRows()[0]).getByText('recent@example.com'),
+        ).toBeVisible();
+    });
     it('filters to people with no recorded activity', async () => {
         renderWithProviders(<DepartmentMembersTable members={members} />);
         await userEvent.click(screen.getByText('No recorded activity (1)'));
@@ -61,6 +86,38 @@ describe('DepartmentMembersTable', () => {
         );
         await userEvent.click(screen.getByText('No recorded activity (0)'));
         expect(screen.getByText('Nobody matches this filter')).toBeVisible();
+    });
+    it('groups thousands in the filter counts', () => {
+        renderWithProviders(
+            <DepartmentMembersTable
+                members={[
+                    ...Array.from({ length: 1200 }, (_, i) =>
+                        memberFixture(`p${String(i).padStart(4, '0')}`, null),
+                    ),
+                    memberFixture('busy', new Date().toISOString(), {
+                        isActive30d: true,
+                    }),
+                ]}
+            />,
+        );
+        expect(screen.getByText('All (1,201)')).toBeVisible();
+        expect(screen.getByText('No recorded activity (1,200)')).toBeVisible();
+    });
+    it('groups thousands in queries and dashboard views', () => {
+        renderWithProviders(
+            <DepartmentMembersTable
+                members={[
+                    memberFixture('busy', new Date().toISOString(), {
+                        isActive30d: true,
+                        queries30d: 1234,
+                        dashboardViews30d: 5678,
+                    }),
+                ]}
+            />,
+        );
+        const [row] = bodyRows();
+        expect(within(row).getByText('1,234')).toBeVisible();
+        expect(within(row).getByText('5,678')).toBeVisible();
     });
     it('says so when no one has an account', () => {
         renderWithProviders(<DepartmentMembersTable members={[]} />);

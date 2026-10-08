@@ -8,9 +8,14 @@ const points = (counts: number[]) =>
     }));
 
 describe('getSparklineLabel', () => {
-    it('states the start and current values', () => {
+    it('states the start and the week so far', () => {
         expect(getSparklineLabel(points([3, 5, 6, 8]))).toBe(
-            'Weekly active users over 4 weeks: 3 at the start, 8 now',
+            'Weekly active users over 4 weeks: 3 at the start, 8 this week so far',
+        );
+    });
+    it('groups thousands', () => {
+        expect(getSparklineLabel(points([1200, 1500]))).toBe(
+            'Weekly active users over 2 weeks: 1,200 at the start, 1,500 this week so far',
         );
     });
     it('says so when nobody was active', () => {
@@ -20,7 +25,7 @@ describe('getSparklineLabel', () => {
     });
     it('handles a trend that started at zero', () => {
         expect(getSparklineLabel(points([0, 0, 2]))).toBe(
-            'Weekly active users over 3 weeks: 0 at the start, 2 now',
+            'Weekly active users over 3 weeks: 0 at the start, 2 this week so far',
         );
     });
     it('handles no data', () => {

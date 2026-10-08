@@ -4,12 +4,20 @@ import {
     countMembersByFilter,
     countWithoutAccount,
     filterMembers,
+    formatCoverage,
     formatLastActive,
     formatMemberSource,
+    formatQuantity,
     formatTargetProgress,
+    formatTopContentUsage,
     getActiveCaption,
     getCoverageCaption,
+    getCoverageNote,
+    getWeekAxisLabels,
+    getWeekLabels,
     getWeeklyChartLabel,
+    getWeeklyComparison,
+    getWeekTooltipRows,
     sortMembers,
 } from './departmentDetail';
 
@@ -32,6 +40,11 @@ describe('filterMembers', () => {
             filterMembers(members, 'noRecordedActivity').map((m) => m.userUuid),
         ).toEqual(['never']);
     });
+    it('active in 30 days follows the server flag', () => {
+        expect(
+            filterMembers(members, 'active30d').map((m) => m.userUuid),
+        ).toEqual(['edge', 'recent']);
+    });
     it('inactive 30d means active once but not in the last 30 days', () => {
         expect(
             filterMembers(members, 'inactive30d').map((m) => m.userUuid),
@@ -51,9 +64,16 @@ describe('filterMembers', () => {
     it('counts each filter', () => {
         expect(countMembersByFilter(members)).toEqual({
             all: 5,
-            noRecordedActivity: 1,
+            active30d: 2,
             inactive30d: 2,
+            noRecordedActivity: 1,
         });
+    });
+    it('splits everyone into active, not active and no recorded activity', () => {
+        const counts = countMembersByFilter(members);
+        expect(
+            counts.active30d + counts.inactive30d + counts.noRecordedActivity,
+        ).toBe(counts.all);
     });
 });
 
@@ -175,6 +195,19 @@ describe('formatTargetProgress', () => {
             }).detail,
         ).toBe('8 to go');
     });
+    it('groups thousands', () => {
+        expect(
+            formatTargetProgress({
+                ...progress,
+                targetActiveUsers: 2400,
+                activeUsers: 1317,
+                remaining: 1083,
+            }),
+        ).toEqual({
+            value: '1,317 of 2,400',
+            detail: '1,083 to go · 13 weeks left',
+        });
+    });
     it('says the target is met whatever the date', () => {
         expect(
             formatTargetProgress({
@@ -187,15 +220,137 @@ describe('formatTargetProgress', () => {
     });
 });
 
+describe('getWeeklyComparison', () => {
+    const week = (weekStart: string, activeUsers: number) => ({
+        weekStart,
+        activeUsers,
+    });
+    const organization = {
+        memberCount: 2000,
+        weeklyActive: [
+            week('2026-09-21', 1000),
+            week('2026-09-28', 500),
+            week('2026-10-05', 250),
+        ],
+    };
+    const department = [
+        week('2026-09-21', 30),
+        week('2026-09-28', 40),
+        week('2026-10-05', 5),
+    ];
+
+    it("is the organization's weekly rate times this department's people on Lightdash", () => {
+        expect(getWeeklyComparison(department, 200, organization)).toEqual([
+            { weekStart: '2026-09-21', activeUsers: 30, atOrgRate: 100 },
+            { weekStart: '2026-09-28', activeUsers: 40, atOrgRate: 50 },
+            { weekStart: '2026-10-05', activeUsers: 5, atOrgRate: 25 },
+        ]);
+    });
+    it('compares rates, so a small department active at a higher rate plots above the line', () => {
+        // 1,951 on Lightdash with 811 active; 67 in the department with 57 active
+        const [point] = getWeeklyComparison([week('2026-10-05', 57)], 67, {
+            memberCount: 1951,
+            weeklyActive: [week('2026-10-05', 811)],
+        });
+        expect(point.atOrgRate).toBe(27.9);
+        expect(point.activeUsers).toBeGreaterThan(point.atOrgRate ?? 0);
+    });
+    it('rounds to one decimal place', () => {
+        expect(
+            getWeeklyComparison(department, 191, organization).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([95.5, 47.8, 23.9]);
+    });
+    it('matches weeks by their start date, not their position', () => {
+        const shifted = {
+            memberCount: 2000,
+            weeklyActive: [week('2026-09-28', 500), week('2026-10-05', 250)],
+        };
+        expect(
+            getWeeklyComparison(department, 200, shifted).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, 50, 25]);
+    });
+    it('has no comparison until the organization numbers are loaded', () => {
+        expect(
+            getWeeklyComparison(department, 200, null).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, null, null]);
+    });
+    it('is zero when nobody in the organization is on Lightdash', () => {
+        expect(
+            getWeeklyComparison([week('2026-10-05', 0)], 0, {
+                memberCount: 0,
+                weeklyActive: [week('2026-10-05', 0)],
+            }),
+        ).toEqual([{ weekStart: '2026-10-05', activeUsers: 0, atOrgRate: 0 }]);
+    });
+});
+
+describe('getWeekLabels', () => {
+    it('names each week by its Monday and the last one as the week so far', () => {
+        expect(
+            getWeekLabels([
+                { weekStart: '2026-07-20' },
+                { weekStart: '2026-09-28' },
+                { weekStart: '2026-10-05' },
+            ]),
+        ).toEqual(['20 Jul', '28 Sep', 'This week so far']);
+        expect(getWeekLabels([])).toEqual([]);
+    });
+    it('puts the week so far on two short lines for the axis', () => {
+        expect(
+            getWeekAxisLabels([
+                { weekStart: '2026-09-28' },
+                { weekStart: '2026-10-05' },
+            ]),
+        ).toEqual(['28 Sep', 'This week\nso far']);
+    });
+});
+
+describe('getWeekTooltipRows', () => {
+    const week = {
+        weekStart: '2026-10-05',
+        activeUsers: 1250,
+        atOrgRate: 27.9,
+    };
+    it('names the week and gives both counts', () => {
+        expect(getWeekTooltipRows(week, 'This week so far')).toEqual([
+            'This week so far',
+            'This department: 1,250',
+            "At the organization's rate: 27.9",
+        ]);
+    });
+    it('leaves the comparison out until it is loaded', () => {
+        expect(
+            getWeekTooltipRows({ ...week, atOrgRate: null }, '28 Sep'),
+        ).toEqual(['28 Sep', 'This department: 1,250']);
+    });
+});
+
 describe('getWeeklyChartLabel', () => {
-    it('describes start and end of both lines', () => {
-        const points = [
-            { weekStart: '2026-07-20', activeUsers: 1, orgAverage: 3 },
-            { weekStart: '2026-10-05', activeUsers: 2, orgAverage: 2 },
-        ];
+    const points = [
+        { weekStart: '2026-07-20', activeUsers: 1, atOrgRate: 3 },
+        { weekStart: '2026-10-05', activeUsers: 1250, atOrgRate: 2.5 },
+    ];
+    it('describes both lines, with the last week as the week so far', () => {
         expect(getWeeklyChartLabel(points)).toBe(
-            'Weekly active people over 2 weeks: this department had 1 at the start and 2 now, the average department had 3 at the start and 2 now',
+            "Weekly active people over 2 weeks: this department had 1 at the start and 1,250 this week so far, against 3 and 2.5 at the organization's rate",
         );
+    });
+    it('describes the department alone while there is no comparison', () => {
+        expect(
+            getWeeklyChartLabel(
+                points.map((point) => ({ ...point, atOrgRate: null })),
+            ),
+        ).toBe(
+            'Weekly active people over 2 weeks: this department had 1 at the start and 1,250 this week so far',
+        );
+    });
+    it('says when there is nothing to draw', () => {
         expect(getWeeklyChartLabel([])).toBe('No weekly activity data');
     });
 });
@@ -216,6 +371,9 @@ describe('getCoverageCaption', () => {
         expect(getCoverageCaption(40, 0)).toBe(
             '0 of 40 people have an account',
         );
+        expect(getCoverageCaption(2350, 221)).toBe(
+            '221 of 2,350 people have an account',
+        );
     });
     it('prompts without a headcount', () => {
         expect(getCoverageCaption(null, 3)).toBe(
@@ -223,9 +381,68 @@ describe('getCoverageCaption', () => {
         );
     });
     it('says so when accounts outnumber the headcount', () => {
-        expect(getCoverageCaption(3, 5)).toBe(
-            '5 accounts, more than the headcount of 3',
+        expect(getCoverageCaption(3, 5)).toBe('More accounts than headcount');
+    });
+});
+
+describe('formatCoverage', () => {
+    it('shows the share and the people on Lightdash up to 100%', () => {
+        expect(formatCoverage(49, 560, 1150)).toBe('49% (560)');
+        expect(formatCoverage(100, 8, 8)).toBe('100% (8)');
+        expect(formatCoverage(56, 1317, 2350)).toBe('56% (1,317)');
+    });
+    it('shows the counts behind a share above 100%', () => {
+        expect(formatCoverage(113, 9, 8)).toBe('113% (9 of 8)');
+        expect(formatCoverage(174, 191, 110)).toBe('174% (191 of 110)');
+        expect(formatCoverage(113, 2350, 2080)).toBe('113% (2,350 of 2,080)');
+    });
+    it('shows the counts when a rounded 100% hides one account too many', () => {
+        expect(formatCoverage(100, 1001, 1000)).toBe('100% (1,001 of 1,000)');
+    });
+    it('counts people without a headcount', () => {
+        expect(formatCoverage(null, 7, null)).toBe('7 people');
+    });
+    it('counts people against a headcount of zero, which has no percentage', () => {
+        expect(formatCoverage(null, 3, 0)).toBe('3 people');
+        expect(getCoverageNote(0, 3)).toBe('More accounts than headcount');
+    });
+});
+
+describe('getCoverageNote', () => {
+    it('explains a share above 100% and nothing else', () => {
+        expect(getCoverageNote(8, 9)).toBe('More accounts than headcount');
+        expect(getCoverageNote(8, 8)).toBeNull();
+        expect(getCoverageNote(null, 9)).toBeNull();
+    });
+});
+
+describe('formatQuantity', () => {
+    const queries = { one: 'query', other: 'queries' };
+    it('uses the singular for one', () => {
+        expect(formatQuantity(1, queries)).toBe('1 query');
+    });
+    it('uses the plural otherwise and groups thousands', () => {
+        expect(formatQuantity(0, queries)).toBe('0 queries');
+        expect(formatQuantity(37405, { one: 'view', other: 'views' })).toBe(
+            '37,405 views',
         );
+    });
+});
+
+describe('formatTopContentUsage', () => {
+    it('gives the count and the people behind it', () => {
+        expect(
+            formatTopContentUsage(
+                { id: 'd1', name: 'Jaffle', count: 37405, distinctPeople: 92 },
+                { one: 'view', other: 'views' },
+            ),
+        ).toBe('37,405 views · 92 people');
+        expect(
+            formatTopContentUsage(
+                { id: 'e1', name: 'orders', count: 1, distinctPeople: 1 },
+                { one: 'query', other: 'queries' },
+            ),
+        ).toBe('1 query · 1 person');
     });
 });
 
@@ -247,6 +464,11 @@ describe('getActiveCaption', () => {
     it('handles more accounts or activity than headcount', () => {
         expect(getActiveCaption(3, 5, 5)).toBe(
             '5 people active, more than the headcount of 3 · 5 of the 5 with an account',
+        );
+    });
+    it('groups thousands', () => {
+        expect(getActiveCaption(2350, 1126, 1221)).toBe(
+            '1,126 of 2,350 people were active · 1,126 of the 1,221 with an account',
         );
     });
 });

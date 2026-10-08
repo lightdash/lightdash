@@ -184,7 +184,7 @@ describe('typed strings render as text', () => {
         renderWithProviders(
             <TopContentList
                 title="Dashboards"
-                unit="views"
+                noun={{ one: 'view', other: 'views' }}
                 items={[
                     { id: 'd1', name: DASHBOARD, count: 3, distinctPeople: 2 },
                 ]}

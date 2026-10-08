@@ -104,6 +104,10 @@ describe('formatShare', () => {
         expect(formatShare(null, 1)).toBe('1 person');
         expect(formatShare(null, 0)).toBe('0 people');
     });
+    it('groups thousands in the count', () => {
+        expect(formatShare(56, 1317)).toBe('56% (1,317)');
+        expect(formatShare(null, 1951)).toBe('1,951 people');
+    });
 });
 
 describe('formatters', () => {

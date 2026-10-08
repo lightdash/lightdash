@@ -6,6 +6,7 @@ import {
     type RoleSplit,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+import { formatCount } from './format';
 
 // Levels shown in the table; deeper levels open on the department page
 const MAX_TABLE_DEPTH = 3;
@@ -67,9 +68,11 @@ export const buildDepartmentRows = (
 
 // A share that rounds to 0% but has people in it reads "<1%", never "0%"
 export const formatShare = (pct: number | null, count: number): string => {
-    if (pct === null) return `${count} ${count === 1 ? 'person' : 'people'}`;
+    if (pct === null) {
+        return `${formatCount(count)} ${count === 1 ? 'person' : 'people'}`;
+    }
     const label = pct === 0 && count > 0 ? '<1%' : `${pct}%`;
-    return `${label} (${count})`;
+    return `${label} (${formatCount(count)})`;
 };
 
 const plural = (count: number, singular: string): string =>

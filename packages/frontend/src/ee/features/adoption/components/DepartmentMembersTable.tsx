@@ -12,15 +12,22 @@ import {
     sortMembers,
     type MemberFilter,
 } from '../utils/departmentDetail';
+import { formatCount } from '../utils/format';
 
 const PAGE_SIZE = 50;
 
 const FILTER_LABELS: Record<MemberFilter, string> = {
     all: 'All',
-    noRecordedActivity: 'No recorded activity',
+    active30d: 'Active in 30 days',
     inactive30d: 'Not active in 30 days',
+    noRecordedActivity: 'No recorded activity',
 };
-const FILTERS: MemberFilter[] = ['all', 'noRecordedActivity', 'inactive30d'];
+const FILTERS: MemberFilter[] = [
+    'all',
+    'active30d',
+    'inactive30d',
+    'noRecordedActivity',
+];
 
 const isMemberFilter = (value: string): value is MemberFilter =>
     FILTERS.some((filter) => filter === value);
@@ -61,7 +68,7 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                 <Group gap="xs">
                     {FILTERS.map((value) => (
                         <Chip key={value} value={value} size="xs">
-                            {`${FILTER_LABELS[value]} (${counts[value]})`}
+                            {`${FILTER_LABELS[value]} (${formatCount(counts[value])})`}
                         </Chip>
                     ))}
                 </Group>
@@ -104,8 +111,12 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                             <Table.Td>
                                 {formatLastActive(member.lastActiveAt)}
                             </Table.Td>
-                            <Table.Td>{member.queries30d}</Table.Td>
-                            <Table.Td>{member.dashboardViews30d}</Table.Td>
+                            <Table.Td>
+                                {formatCount(member.queries30d)}
+                            </Table.Td>
+                            <Table.Td>
+                                {formatCount(member.dashboardViews30d)}
+                            </Table.Td>
                         </Table.Tr>
                     ))}
                 </Table.Tbody>
