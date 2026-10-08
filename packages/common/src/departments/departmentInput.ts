@@ -1,7 +1,8 @@
-// Characters that render as nothing or only reorder text, combining ones first so none reads as joined to a letter:
-// grapheme joiner, variation selectors, soft hyphen, zero-width and bidi controls, and tags
-const INVISIBLE_CHARACTERS =
-    /[\u034F\uFE00-\uFE0F\u00AD\u200B-\u200F\u2060\uFEFF\u202A-\u202E\u2066-\u2069\u{E0000}-\u{E007F}]/gu;
+// Every code point Unicode marks Default_Ignorable: the ones that render as nothing or only reorder or
+// join text (zero-width and bidi controls, soft hyphen, grapheme joiner, variation selectors, tags,
+// Hangul and Khmer fillers, Mongolian and musical format controls). NFKC never produces one, so
+// removing them first keeps the result idempotent and nothing can sit beside a look-alike name
+const INVISIBLE_CHARACTERS = /\p{Default_Ignorable_Code_Point}/gu;
 const MESSAGE_ECHO_LENGTH = 80;
 
 // The form a department name is compared and stored in: invisible characters removed before NFKC, so an
