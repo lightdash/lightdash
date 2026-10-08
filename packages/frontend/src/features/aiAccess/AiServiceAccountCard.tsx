@@ -33,8 +33,8 @@ import {
 } from './api';
 import {
     agentIdentitySentence,
-    identityLabels,
     identityWarehouseNames,
+    inlineIdentityLabel,
 } from './identityLabels';
 
 const AiServiceAccountSlotSummary = ({
@@ -146,7 +146,7 @@ const AiServiceAccountSettings = ({ projectUuid }: { projectUuid: string }) => {
         <Stack gap="sm">
             <Text size="sm">
                 {agentIdentitySentence(identityWarehouseNames.bigquery)}{' '}
-                {identityLabels[rule.source].label}.
+                {inlineIdentityLabel(rule.source)}.
             </Text>
             {rule.required && (
                 <Text size="sm">Required by your organisation.</Text>

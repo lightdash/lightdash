@@ -189,7 +189,7 @@ describe('AI service account card', () => {
         setup();
         expect(
             await screen.findByText(
-                'When AI agents query BigQuery, they run as Same credentials as the user.',
+                'When AI agents query BigQuery, they run as same credentials as the user.',
             ),
         ).toBeInTheDocument();
         expect(
