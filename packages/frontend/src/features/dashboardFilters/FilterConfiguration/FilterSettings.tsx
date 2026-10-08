@@ -43,6 +43,9 @@ interface FilterSettingsProps {
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
     onEditRequirementRules?: () => void;
+    // For a host that edits the label and the requirement elsewhere
+    hideLabel?: boolean;
+    hideRequiredCard?: boolean;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -55,6 +58,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     popoverProps,
     onChangeFilterRule,
     onEditRequirementRules,
+    hideLabel = false,
+    hideRequiredCard = false,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -162,7 +167,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     return (
         <Stack>
             <Stack gap="xs">
-                {isEditMode && (
+                {isEditMode && !hideLabel && (
                     <TextInput
                         label="Filter label"
                         mb="sm"
@@ -380,12 +385,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        <RequiredFilterCard
-                            filterRule={filterRule}
-                            onToggleRequired={handleToggleRequired}
-                            onChangeFilterRule={onChangeFilterRule}
-                            onEditRules={onEditRequirementRules}
-                        />
+                        {!hideRequiredCard && (
+                            <RequiredFilterCard
+                                filterRule={filterRule}
+                                onToggleRequired={handleToggleRequired}
+                                onChangeFilterRule={onChangeFilterRule}
+                                onEditRules={onEditRequirementRules}
+                            />
+                        )}
                     </>
                 )}
             </Stack>
