@@ -255,7 +255,9 @@ describe('Organisation agent identity settings', () => {
                 ),
             );
             expect(line).toHaveTextContent(
-                'Agents are refused on them until a project admin adds one.',
+                count === 1
+                    ? 'Agents are refused on it until a project admin adds one.'
+                    : 'Agents are refused on them until a project admin adds one.',
             );
             names
                 .slice(0, Math.min(count, 3))

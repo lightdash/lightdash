@@ -116,8 +116,10 @@ const AgentIdentityRule = ({
                             ))}
                         {rule.projectsMissingAiServiceAccount.length > 3 &&
                             ` and ${rule.projectsMissingAiServiceAccount.length - 3} more`}
-                        . Agents are refused on them until a project admin adds
-                        one.
+                        .{' '}
+                        {rule.projectsMissingAiServiceAccount.length === 1
+                            ? 'Agents are refused on it until a project admin adds one.'
+                            : 'Agents are refused on them until a project admin adds one.'}
                     </Text>
                 )}
             {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
