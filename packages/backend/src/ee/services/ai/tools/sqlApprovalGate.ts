@@ -91,6 +91,32 @@ export const createSqlApprovalGate = (
             });
         };
 
+        /** Records an agent or thread auto-approval; false when neither applies. */
+        const recordAutoApproval = async (
+            threadUuid: string,
+        ): Promise<boolean> => {
+            if (
+                !dependencies.autoApproveSql &&
+                !(await dependencies.isThreadSqlAutoApproved(threadUuid))
+            ) {
+                return false;
+            }
+            const recorded = await dependencies.recordSqlApproval({
+                toolCallId,
+                toolName,
+                decidedByUserUuid: dependencies.autoApproveSql
+                    ? dependencies.autoApproveSqlUserUuid
+                    : null,
+                source: dependencies.autoApproveSql
+                    ? 'auto_approve'
+                    : 'thread_auto_approve',
+            });
+            // A decision already recorded by the approval button means this
+            // execution resumes an earlier run.
+            if (!recorded) resume = true;
+            return true;
+        };
+
         /** Resolves once approved; throws SqlNotApprovedError otherwise. */
         const approveSql = async ({
             sql,
@@ -108,25 +134,7 @@ export const createSqlApprovalGate = (
             const prompt = await dependencies.getPrompt();
             const isSlack = isSlackPrompt(prompt);
 
-            if (
-                dependencies.autoApproveSql ||
-                (await dependencies.isThreadSqlAutoApproved(prompt.threadUuid))
-            ) {
-                const recorded = await dependencies.recordSqlApproval({
-                    toolCallId,
-                    toolName,
-                    decidedByUserUuid: dependencies.autoApproveSql
-                        ? dependencies.autoApproveSqlUserUuid
-                        : null,
-                    source: dependencies.autoApproveSql
-                        ? 'auto_approve'
-                        : 'thread_auto_approve',
-                });
-                // A decision already recorded by the approval button means
-                // this execution resumes an earlier run.
-                if (!recorded) resume = true;
-                return;
-            }
+            if (await recordAutoApproval(prompt.threadUuid)) return;
 
             if (await usesNativeApproval()) {
                 // The SDK only executes this call once the user approved it.
@@ -167,6 +175,12 @@ export const createSqlApprovalGate = (
             }
         };
 
+        /** A gated call whose SQL did not change: settles it without asking. */
+        const settleUnchangedSql = async (): Promise<void> => {
+            const prompt = await dependencies.getPrompt();
+            await recordAutoApproval(prompt.threadUuid);
+        };
+
         /** Stores the result of a resumed call; onStepFinish never sees it. */
         const persistIfResumed = async <T extends ToolOutput>(
             output: T,
@@ -189,8 +203,17 @@ export const createSqlApprovalGate = (
             return output;
         };
 
-        return { approveSql, renderState, persistIfResumed };
+        return {
+            approveSql,
+            settleUnchangedSql,
+            renderState,
+            persistIfResumed,
+        };
     };
 
     return { usesNativeApproval, forToolCall };
 };
+
+export type SqlApprovalCall = Awaited<
+    ReturnType<ReturnType<typeof createSqlApprovalGate>['forToolCall']>
+>;

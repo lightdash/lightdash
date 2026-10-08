@@ -146,6 +146,18 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 
 `readContent` with `type: "sql_chart"` and the slug returns the same body. A SQL chart found with `findContent` has `chartSource: "sql"`.
 
+## Editing
+
+1. Call `readContent` with `type: "sql_chart"` and the slug.
+2. Build the smallest JSON Patch, e.g. `[{ "op": "replace", "path": "/name", "value": "Orders per status" }]`.
+3. Call `editContent` with `type: "sql_chart"`, the slug, and the patch.
+
+- A patch that leaves `sql` untouched (name, description, limit, config, chart kind, space) saves straight away.
+- A patch that changes `sql` goes through the same approval as creating a SQL chart: the edit saves only once the user approves the new SQL. If they reject it or it times out, nothing changes.
+- `slug`, `connection`, `updatedAt`, and `downloadedAt` cannot be patched.
+- When you change `chartKind`, replace `config` too so that `config.type` matches, and keep `config` references in step with the columns the SQL returns.
+- If you rename a SQL chart, also update the `title` and `chartName` of dashboard tiles that reference its slug.
+
 ## Dashboards with SQL charts
 
 A dashboard tile can only reference a SQL chart that already exists:

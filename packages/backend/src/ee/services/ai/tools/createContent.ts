@@ -14,9 +14,10 @@ import type { CreateContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import type {
-    ExecuteStructuredToolResult,
-    ExecuteToolErrorResult,
+import {
+    toolFailure,
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -27,7 +28,7 @@ import {
     type ApproveSqlFn,
 } from './sqlApprovals';
 import {
-    getSqlChartApprovalHeading,
+    getSqlChartApproveSql,
     SQL_CHART_APPROVAL_COPY,
     SQL_CHART_DISABLED_RESULT,
     type SqlChartSaving,
@@ -50,12 +51,6 @@ type ExecuteCreateContentResult =
     | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
-
-const failure = (result: string): ExecuteToolErrorResult => ({
-    result,
-    metadata: { status: 'error' },
-    structuredContent: { error: result, refusal: null },
-});
 
 const resolveDocumentContent = async (
     content: unknown,
@@ -122,7 +117,7 @@ export const getCreateContent = ({
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
-        approveSqlFor: (chart: SqlChartAsCode) => ApproveSqlFn,
+        approveSql: ApproveSqlFn,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -133,16 +128,14 @@ export const getCreateContent = ({
                         artifacts,
                     ),
                 };
-            case 'sql_chart': {
-                const sqlChart = toolSqlChartAsCodeSchema.parse(
-                    args.content,
-                ) as SqlChartAsCode;
+            case 'sql_chart':
                 return {
                     type: 'sql_chart',
-                    content: sqlChart,
-                    approveSql: approveSqlFor(sqlChart),
+                    content: toolSqlChartAsCodeSchema.parse(
+                        args.content,
+                    ) as SqlChartAsCode,
+                    approveSql,
                 };
-            }
             default:
                 return args as Parameters<CreateContentFn>[0];
         }
@@ -167,14 +160,9 @@ export const getCreateContent = ({
                           needsApproval: true,
                       })
                     : null;
-            const approveSqlFor = (chart: SqlChartAsCode): ApproveSqlFn =>
-                sqlChartApproval
-                    ? () =>
-                          sqlChartApproval.approveSql({
-                              sql: chart.sql,
-                              heading: getSqlChartApprovalHeading(chart.name),
-                          })
-                    : approveClientSql;
+            const approveSql: ApproveSqlFn = sqlChartApproval
+                ? getSqlChartApproveSql(sqlChartApproval)
+                : approveClientSql;
 
             const run = async (): Promise<ExecuteCreateContentResult> => {
                 try {
@@ -186,10 +174,10 @@ export const getCreateContent = ({
                         type === 'sql_chart' &&
                         sqlChartSaving.mode === 'disabled'
                     ) {
-                        return failure(SQL_CHART_DISABLED_RESULT);
+                        return toolFailure(SQL_CHART_DISABLED_RESULT);
                     }
                     const result = await createContent(
-                        await getCreateArgs(args, approveSqlFor),
+                        await getCreateArgs(args, approveSql),
                     );
                     const created = toCreatedContent(
                         result,
@@ -222,7 +210,7 @@ export const getCreateContent = ({
                     };
                 } catch (error) {
                     if (error instanceof SqlNotApprovedError) {
-                        return failure(error.message);
+                        return toolFailure(error.message);
                     }
                     return toolErrorOutput(
                         error,

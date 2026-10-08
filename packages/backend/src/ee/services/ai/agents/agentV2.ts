@@ -134,6 +134,7 @@ import {
     buildSqlApprovalDecidedEvent,
     type TrackSqlApprovalTimeoutFn,
 } from '../tools/sqlApprovals';
+import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
@@ -2013,36 +2014,36 @@ export const getAgentTools = (
           })
         : null;
 
+    const sqlChartSaving: SqlChartSaving = args.canRunSql
+        ? {
+              mode: 'thread_approval',
+              approval: {
+                  getPrompt: dependencies.getPrompt,
+                  updateProgress: dependencies.updateProgress,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  trackSqlApprovalTimeout,
+                  storeToolResults: dependencies.storeToolResults,
+                  autoApproveSql: args.autoApproveSql ?? false,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              },
+          }
+        : { mode: 'disabled' };
     const editContent = getEditContent({
         editContent: dependencies.editContent,
         documentsEnabled,
         artifacts: dependencies.chartExportArtifacts,
+        sqlChartSaving,
     });
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
         documentsEnabled,
         artifacts: dependencies.chartExportArtifacts,
-        sqlChartSaving: args.canRunSql
-            ? {
-                  mode: 'thread_approval',
-                  approval: {
-                      getPrompt: dependencies.getPrompt,
-                      updateProgress: dependencies.updateProgress,
-                      updateSlackMessage: dependencies.updateSlackMessage,
-                      siteUrl: args.siteUrl,
-                      waitForSqlApproval: dependencies.waitForSqlApproval,
-                      recordSqlApproval: dependencies.recordSqlApproval,
-                      isThreadSqlAutoApproved:
-                          dependencies.isThreadSqlAutoApproved,
-                      trackSqlApprovalTimeout,
-                      storeToolResults: dependencies.storeToolResults,
-                      autoApproveSql: args.autoApproveSql ?? false,
-                      autoApproveSqlUserUuid:
-                          args.autoApproveSqlUserUuid ?? null,
-                      useSlackStreamCard: args.useSlackStreamCard,
-                  },
-              }
-            : { mode: 'disabled' },
+        sqlChartSaving,
     });
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,

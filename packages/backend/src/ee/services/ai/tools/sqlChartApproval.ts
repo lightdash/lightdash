@@ -1,8 +1,9 @@
 import {
+    type SqlApprovalCall,
     type SqlApprovalCopy,
     type SqlApprovalDependencies,
 } from './sqlApprovalGate';
-import { SQL_CHART_REJECTED_RESULT } from './sqlApprovals';
+import { SQL_CHART_REJECTED_RESULT, type ApproveSqlFn } from './sqlApprovals';
 
 // Never (no SQL mode), after the thread approves the SQL, or straight away
 // when the MCP client approves its own tool calls.
@@ -29,5 +30,16 @@ export const SQL_CHART_APPROVAL_COPY: SqlApprovalCopy = {
     previousTimeoutResult: SQL_CHART_PREVIOUS_TIMEOUT_RESULT,
 };
 
-export const getSqlChartApprovalHeading = (chartName: string) =>
+const getSqlChartApprovalHeading = (chartName: string) =>
     `Awaiting approval to save SQL chart "${chartName}"`;
+
+/** The approval step a content tool hands the content service. */
+export const getSqlChartApproveSql =
+    (call: SqlApprovalCall): ApproveSqlFn =>
+    ({ sql, chartName, sqlChanged }) =>
+        sqlChanged
+            ? call.approveSql({
+                  sql,
+                  heading: getSqlChartApprovalHeading(chartName),
+              })
+            : call.settleUnchangedSql();

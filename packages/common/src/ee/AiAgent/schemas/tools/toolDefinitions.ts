@@ -2119,7 +2119,7 @@ export const mcpEditContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description:
-        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit: replace the Markdown (keep unchanged charts by their <document-chart id> tag alone), patch one chart by id, or update metadata, including spaceSlug to save a personal Document into a Space. Stale versions are rejected; read again and retry.',
+        'Edit dashboards, charts, and SQL charts with RFC6902 patch. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. For Documents, use documentEdit: replace the Markdown (keep unchanged charts by their <document-chart id> tag alone), patch one chart by id, or update metadata, including spaceSlug to save a personal Document into a Space. Stale versions are rejected; read again and retry.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },

@@ -183,7 +183,7 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
         .string()
         .min(1)
         .describe('Exact content slug, as returned by read_content.'),
-    type: z.enum(['dashboard', 'chart', 'document']),
+    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
     patch: toolEditContentArgsSchema.shape.patch.optional(),
     documentEdit: mcpDocumentEditSchema
         .optional()

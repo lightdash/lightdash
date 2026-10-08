@@ -104,6 +104,12 @@ describe('isNativeSqlApprovalToolCall', () => {
         expect(
             isNativeSqlApprovalToolCall('createContent', { type: 'chart' }),
         ).toBe(false);
+        expect(
+            isNativeSqlApprovalToolCall('editContent', {
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
+            }),
+        ).toBe(true);
         expect(isNativeSqlApprovalToolCall('runComposerQueries', {})).toBe(
             false,
         );
