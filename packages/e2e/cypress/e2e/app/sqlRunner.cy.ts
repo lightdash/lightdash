@@ -36,22 +36,25 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').click();
 
         cy.get('#sql-runner-panel-results').within(() => {
-            cy.get('table thead th').should('have.length', 22);
-            cy.get('table thead th').eq(0).should('contain.text', 'order_id');
+            // The first column is the row index.
+            cy.get('table thead th').should('have.length', 23);
+            cy.get('table thead th').eq(0).should('contain.text', '#');
+            cy.get('table thead th').eq(1).should('contain.text', 'order_id');
             cy.get('table thead th')
-                .eq(1)
+                .eq(2)
                 .should('contain.text', 'customer_id');
-            cy.get('table thead th').eq(2).should('contain.text', 'order_date');
-            cy.get('table thead th').eq(3).should('contain.text', 'status');
+            cy.get('table thead th').eq(3).should('contain.text', 'order_date');
+            cy.get('table thead th').eq(4).should('contain.text', 'status');
             cy.get('table tbody tr')
                 .first()
                 .within(() => {
                     cy.get('td').eq(0).should('contain.text', '1');
                     cy.get('td').eq(1).should('contain.text', '1');
+                    cy.get('td').eq(2).should('contain.text', '1');
                     cy.get('td')
-                        .eq(2)
+                        .eq(3)
                         .should('contain.text', '2023-03-15T00:00:00.000Z');
-                    cy.get('td').eq(3).should('contain.text', 'returned');
+                    cy.get('td').eq(4).should('contain.text', 'returned');
                 });
         });
 

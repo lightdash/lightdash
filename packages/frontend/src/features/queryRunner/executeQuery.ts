@@ -83,6 +83,7 @@ export const executeSqlQuery = async (
         fileUrl,
         results,
         columns: Object.values(query.columns),
+        durationMs: query.metadata.performance.initialQueryExecutionMs,
     };
 };
 

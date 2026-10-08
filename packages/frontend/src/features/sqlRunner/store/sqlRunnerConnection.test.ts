@@ -40,6 +40,7 @@ const results = (rows: number) => ({
     fileUrl: `/results-${rows}`,
     results: Array.from({ length: rows }, (_, index) => ({ id: index })),
     columns: [{ reference: 'id' }],
+    durationMs: null,
 });
 
 const run = () =>

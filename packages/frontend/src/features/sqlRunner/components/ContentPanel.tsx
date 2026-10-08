@@ -415,6 +415,33 @@ export const ContentPanel: FC = () => {
         return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
     }, [health]);
 
+    const resultsSummary = useMemo(() => {
+        if (!queryResults) return '';
+        const parts = [
+            `${queryResults.results.length.toLocaleString()} rows${
+                showLimitText ? `, limited to ${defaultQueryLimit}` : ''
+            }`,
+        ];
+        if (queryResults.durationMs !== null) {
+            parts.push(
+                queryResults.durationMs < 1000
+                    ? `${Math.round(queryResults.durationMs)}ms`
+                    : `${(queryResults.durationMs / 1000).toFixed(1)}s`,
+            );
+        }
+        return parts.join(' · ');
+    }, [queryResults, showLimitText, defaultQueryLimit]);
+
+    const resultsColumnTypes = useMemo(
+        () =>
+            Object.fromEntries(
+                (queryResults?.columns ?? []).flatMap((column) =>
+                    column.type ? [[column.reference, column.type]] : [],
+                ),
+            ),
+        [queryResults],
+    );
+
     useEffect(() => {
         if (!limit) {
             dispatch(setSqlLimit(defaultQueryLimit));
@@ -894,11 +921,7 @@ export const ContentPanel: FC = () => {
                                     <Title order={6}>Results</Title>
                                     {queryResults?.results && (
                                         <Text fz="xs" c="dimmed">
-                                            {resultsRunner.getRows().length}{' '}
-                                            rows
-                                            {showLimitText
-                                                ? `, limited to ${defaultQueryLimit}`
-                                                : ''}
+                                            {resultsSummary}
                                         </Text>
                                     )}
                                 </Group>
@@ -930,6 +953,8 @@ export const ContentPanel: FC = () => {
                                                     {}
                                                 }
                                                 enableJsonViewer
+                                                density="compact"
+                                                columnTypes={resultsColumnTypes}
                                                 flexProps={{
                                                     mah: '100%',
                                                 }}
