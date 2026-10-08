@@ -1307,10 +1307,12 @@ export class AiAgentService extends BaseService {
     private async resolvePromptModelConfig({
         organizationUuid,
         projectUuid,
+        credentialUuid,
         modelConfig,
     }: {
         organizationUuid: string;
         projectUuid: string;
+        credentialUuid: string | null;
         modelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
         if (!modelConfig) return null;
@@ -1318,7 +1320,7 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid,
-                credentialUuid: null,
+                credentialUuid,
             });
         return resolveModelConfigForPrompt(catalogue, modelConfig);
     }
@@ -4666,6 +4668,7 @@ export class AiAgentService extends BaseService {
         const modelConfig = await this.resolvePromptModelConfig({
             organizationUuid,
             projectUuid: agent.projectUuid,
+            credentialUuid: agent.providerCredentialUuid,
             modelConfig:
                 body.modelConfig ??
                 agent.modelConfig ??
@@ -4886,6 +4889,7 @@ export class AiAgentService extends BaseService {
             modelConfig: await this.resolvePromptModelConfig({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
+                credentialUuid: agent.providerCredentialUuid,
                 modelConfig: body.modelConfig ?? null,
             }),
             hidden: body.hidden,
@@ -16214,6 +16218,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const modelConfig = await this.resolvePromptModelConfig({
             organizationUuid: user.organizationUuid,
             projectUuid: data.projectUuid,
+            credentialUuid: agent?.providerCredentialUuid ?? null,
             modelConfig:
                 data.modelConfig ?? agent?.modelConfig ?? orgDefaultModelConfig,
         });
