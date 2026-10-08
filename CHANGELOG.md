@@ -1,3 +1,10 @@
+# [2.480.0](https://github.com/lightdash/lightdash/compare/2.479.1...2.480.0) (2026-10-08)
+
+
+### Features
+
+* allow separate Data Apps LLM gateway URLs ([#30687](https://github.com/lightdash/lightdash/issues/30687)) ([8e64dc9](https://github.com/lightdash/lightdash/commit/8e64dc95aa4b74b26cb13ae5be5c30d667c73e36))
+
 ## [2.479.1](https://github.com/lightdash/lightdash/compare/2.479.0...2.479.1) (2026-10-08)
 
 
