@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
+    AiAccessRefusalReason,
     AiAccessRefusedError,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
@@ -1426,12 +1427,68 @@ export class AsyncQueryService extends ProjectService {
         return {};
     }
 
+    private async assertReferencedAgentResultsAccess(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+        ancestors = new Set<string>(),
+    ): Promise<void> {
+        if (ancestors.has(queryHistory.queryUuid)) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            );
+        }
+        const { references } = AsyncQueryService.getQuerySourceParameters(
+            queryHistory.requestParameters,
+        );
+        const execution = await this.queryHistoryModel.getDuckdbExecution(
+            queryHistory.queryUuid,
+        );
+        const sourceQueryUuids = new Set([
+            ...Object.values(references ?? {}),
+            ...Object.values(execution?.references ?? {}),
+        ]);
+        const nextAncestors = new Set(ancestors).add(queryHistory.queryUuid);
+        await Promise.all(
+            [...sourceQueryUuids].map(async (sourceQueryUuid) => {
+                const source = await this.queryHistoryModel.get(
+                    sourceQueryUuid,
+                    projectUuid,
+                    account,
+                );
+                if (
+                    source.requestParameters?.aiSignInCredentialUuid ||
+                    isAiAccessQueryContext(source.context)
+                ) {
+                    await this.aiAccessService.assertCanReadResults(
+                        account,
+                        projectUuid,
+                        source,
+                    );
+                }
+                await this.assertReferencedAgentResultsAccess(
+                    account,
+                    projectUuid,
+                    source,
+                    nextAncestors,
+                );
+            }),
+        );
+    }
+
     private async assertSavedChartQuerySourceAccess(
         account: Account,
         projectUuid: string,
         queryHistory: QueryHistory,
         checkedQueries = new Set<string>(),
     ): Promise<void> {
+        if (checkedQueries.size === 0) {
+            await this.assertReferencedAgentResultsAccess(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
         if (isJwtUser(account) || checkedQueries.has(queryHistory.queryUuid)) {
             return;
         }
@@ -8550,6 +8607,16 @@ export class AsyncQueryService extends ProjectService {
                     await this.projectModel.getSummary(projectUuid),
                     queryHistory,
                 );
+                if (
+                    queryHistory.requestParameters?.aiSignInCredentialUuid ||
+                    isAiAccessQueryContext(queryHistory.context)
+                ) {
+                    await this.aiAccessService.assertCanReadResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                }
             }),
         );
     }

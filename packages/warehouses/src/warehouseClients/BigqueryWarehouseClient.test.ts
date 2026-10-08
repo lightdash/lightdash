@@ -904,16 +904,25 @@ describe('BigQuery agent job options', () => {
     ];
     test.each(
         [false, true].flatMap((agentSession) =>
-            ['run', 'stream'].flatMap((method) =>
-                callerTags.map((tags) => ({ agentSession, method, tags })),
+            [false, true].flatMap((agentJobControls) =>
+                ['run', 'stream'].flatMap((method) =>
+                    callerTags.map((tags) => ({
+                        agentSession,
+                        agentJobControls,
+                        method,
+                        tags,
+                    })),
+                ),
             ),
         ),
     )(
-        '$method agentSession=$agentSession tags=$tags',
-        async ({ agentSession, method, tags }) => {
-            const warehouse = new BigqueryWarehouseClient(credentials, {
-                agentSession,
-            });
+        '$method agentSession=$agentSession agentJobControls=$agentJobControls tags=$tags',
+        async ({ agentSession, agentJobControls, method, tags }) => {
+            const clientOptions = { agentSession, agentJobControls };
+            const warehouse = new BigqueryWarehouseClient(
+                credentials,
+                clientOptions,
+            );
             const createQueryJob = vi.fn(
                 (_options: {
                     labels?: Record<string, string>;
@@ -930,7 +939,7 @@ describe('BigQuery agent job options', () => {
                 labels: Record<string, string> | undefined;
                 useQueryCache?: boolean;
             };
-            if (agentSession) {
+            if (agentJobControls) {
                 expect(options.useQueryCache).toBe(false);
                 expect(options.labels?.agent).toBe('true');
                 expect(
@@ -938,9 +947,22 @@ describe('BigQuery agent job options', () => {
                 ).toBeLessThanOrEqual(64);
             } else {
                 expect(options).not.toHaveProperty('useQueryCache');
-                expect(options.labels).toEqual(
-                    BigqueryWarehouseClient.sanitizeLabelsWithValues(tags),
-                );
+                expect(options).toStrictEqual({
+                    query: 'SELECT 1',
+                    params: undefined,
+                    useLegacySql: false,
+                    connectionProperties: undefined,
+                    maximumBytesBilled: credentials.maximumBytesBilled
+                        ? `${credentials.maximumBytesBilled}`
+                        : undefined,
+                    priority: credentials.priority,
+                    jobTimeoutMs:
+                        credentials.timeoutSeconds &&
+                        credentials.timeoutSeconds * 1000,
+                    labels: BigqueryWarehouseClient.sanitizeLabelsWithValues(
+                        tags,
+                    ),
+                });
             }
         },
     );

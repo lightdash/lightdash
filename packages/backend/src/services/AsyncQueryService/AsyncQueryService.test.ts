@@ -500,6 +500,7 @@ const getMockedAsyncQueryService = (
             create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: vi.fn(async () => undefined),
             getByQueryUuid: vi.fn(async () => undefined),
+            getDuckdbExecution: vi.fn(async () => null),
             recordAiSignInCredential: vi.fn(),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
@@ -1105,6 +1106,250 @@ describe('AsyncQueryService', () => {
             metricQuery: { exploreName: 'orders' },
         } as unknown as QueryHistory;
 
+        describe('compose SQL agent source lineage', () => {
+            const cases = [
+                {
+                    sourceKind: 'rotated slot',
+                    agentProduced: true,
+                    generation: 'generation-2',
+                    refused: true,
+                },
+                {
+                    sourceKind: 'unchanged slot',
+                    agentProduced: true,
+                    generation: 'generation-1',
+                    refused: false,
+                },
+                {
+                    sourceKind: 'non-agent source',
+                    agentProduced: false,
+                    generation: 'generation-2',
+                    refused: false,
+                },
+            ];
+
+            const buildLineageService = (
+                agentProduced: boolean,
+                generation: string,
+            ) => {
+                const source: QueryHistory = {
+                    ...referencedQueryHistory,
+                    requestParameters: {
+                        query: metricQueryMock,
+                        ...(agentProduced
+                            ? { aiSignInCredentialUuid: 'generation-1' }
+                            : {}),
+                    },
+                    context: agentProduced
+                        ? QueryExecutionContext.AI
+                        : QueryExecutionContext.EXPLORE,
+                };
+                const composed: QueryHistory = {
+                    ...source,
+                    queryUuid: 'composed-query',
+                    context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    requestParameters: {
+                        sql: 'SELECT one FROM orders',
+                        references: { orders: source.queryUuid },
+                    },
+                    fields: {},
+                    metricQuery: metricQueryMock,
+                    totalRowCount: 21,
+                    defaultPageSize: 10,
+                    resultsFileName: 'composed-results.jsonl',
+                };
+                const history = inMemoryDuckdbHistory({
+                    queryUuid: composed.queryUuid,
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async (uuid: string) =>
+                            uuid === source.queryUuid ? source : composed,
+                        ),
+                        getDuckdbExecution: vi.fn(async () => null),
+                    },
+                });
+                const aiAccessService = new AiAccessService({
+                    projectModel: {
+                        getSummary: vi.fn(async () => projectSummary),
+                        getWarehouseCredentialsForBinding: vi.fn(
+                            async () => aiServiceAccountPlanMock.credentials,
+                        ),
+                    },
+                    queryHistoryModel: history,
+                } as unknown as ConstructorParameters<
+                    typeof AiAccessService
+                >[0]);
+                vi.spyOn(aiAccessService, 'resolvePlan').mockResolvedValue({
+                    ...aiServiceAccountPlanMock,
+                    identityUuid: generation,
+                });
+                const guard = vi.spyOn(aiAccessService, 'assertCanReadResults');
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: composeFlags,
+                        queryHistoryModel: history,
+                        aiAccessService,
+                    } as never,
+                );
+                vi.spyOn(
+                    service,
+                    'runAsyncDuckdbQueryFromHistory',
+                ).mockResolvedValue(true);
+                const readPage = vi
+                    .spyOn(service, 'getResultsPageFromS3')
+                    .mockResolvedValue({ rows: [] } as never);
+                return { service, source, composed, history, guard, readPage };
+            };
+
+            test.each(cases)(
+                'compose submit checks $sourceKind',
+                async ({ agentProduced, generation, refused }) => {
+                    const { service, source, history, guard } =
+                        buildLineageService(agentProduced, generation);
+                    const submit = service.executeAsyncComposeSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                        sql: 'SELECT one FROM orders',
+                        references: { orders: source.queryUuid },
+                    });
+                    if (refused) {
+                        await expect(submit).rejects.toMatchObject({
+                            refusal: {
+                                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                            },
+                        });
+                        expect(history.create).not.toHaveBeenCalled();
+                    } else {
+                        await expect(submit).resolves.toMatchObject({
+                            queryUuid: 'composed-query',
+                        });
+                    }
+                    if (agentProduced)
+                        expect(guard).toHaveBeenCalledWith(
+                            sessionAccount,
+                            projectUuid,
+                            source,
+                        );
+                    else expect(guard).not.toHaveBeenCalled();
+                },
+            );
+
+            test.each(cases)(
+                'compose results fetch checks $sourceKind',
+                async ({ agentProduced, generation, refused }) => {
+                    const { service, source, guard, readPage } =
+                        buildLineageService(agentProduced, generation);
+                    const fetch = service.getAsyncQueryResults({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: 'composed-query',
+                        page: 2,
+                        pageSize: 10,
+                    });
+                    if (refused) {
+                        await expect(fetch).rejects.toMatchObject({
+                            refusal: {
+                                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                            },
+                        });
+                        expect(readPage).not.toHaveBeenCalled();
+                    } else {
+                        await expect(fetch).resolves.toMatchObject({
+                            status: QueryHistoryStatus.READY,
+                        });
+                        expect(readPage).toHaveBeenCalledOnce();
+                    }
+                    if (agentProduced)
+                        expect(guard).toHaveBeenCalledWith(
+                            sessionAccount,
+                            projectUuid,
+                            source,
+                        );
+                    else expect(guard).not.toHaveBeenCalled();
+                },
+            );
+
+            test.each(['parameters', 'execution'] as const)(
+                'compose fetch follows nested %s references to a rotated slot',
+                async (referenceKind) => {
+                    const { service, source, composed, history, readPage } =
+                        buildLineageService(true, 'generation-2');
+                    const intermediate: QueryHistory = {
+                        ...composed,
+                        queryUuid: 'intermediate-query',
+                        requestParameters:
+                            referenceKind === 'parameters'
+                                ? {
+                                      sql: 'SELECT one FROM orders',
+                                      references: { orders: source.queryUuid },
+                                  }
+                                : { sql: 'SELECT one FROM orders' },
+                    };
+                    composed.requestParameters = {
+                        sql: 'SELECT one FROM intermediate',
+                        references: { intermediate: intermediate.queryUuid },
+                    };
+                    history.get = vi.fn(async (uuid: string) => {
+                        if (uuid === source.queryUuid) return source;
+                        if (uuid === intermediate.queryUuid)
+                            return intermediate;
+                        return composed;
+                    });
+                    history.getDuckdbExecution = vi.fn(async (uuid: string) =>
+                        referenceKind === 'execution' &&
+                        uuid === intermediate.queryUuid
+                            ? ({
+                                  references: { orders: source.queryUuid },
+                                  engine: 'scopedToReferencedResults',
+                                  columns: { mode: 'supplied' },
+                                  guard: null,
+                                  storedCompiledSql: null,
+                                  referenceLabels: {},
+                                  invalidateCache: false,
+                                  cacheHit: false,
+                                  refusal: null,
+                              } satisfies DuckdbExecutionSpec)
+                            : null,
+                    );
+                    await expect(
+                        service.getAsyncQueryResults({
+                            account: sessionAccount,
+                            projectUuid,
+                            queryUuid: composed.queryUuid,
+                        }),
+                    ).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                    expect(readPage).not.toHaveBeenCalled();
+                },
+            );
+
+            test('compose fetch refuses cyclic source references', async () => {
+                const { service, source, composed, readPage } =
+                    buildLineageService(false, 'generation-2');
+                source.requestParameters = {
+                    sql: 'SELECT one FROM composed',
+                    references: { composed: composed.queryUuid },
+                };
+                await expect(
+                    service.getAsyncQueryResults({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: composed.queryUuid,
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    },
+                });
+                expect(readPage).not.toHaveBeenCalled();
+            });
+        });
+
         test('runs a compose SQL query over referenced results without a license', async () => {
             const createDuckdbWarehouseClient = vi.fn(
                 () => warehouseClientMock,
@@ -1178,6 +1423,7 @@ describe('AsyncQueryService', () => {
                 queryHistoryModel: {
                     create: vi.fn(),
                     get: vi.fn(async () => referencedQueryHistory),
+                    getDuckdbExecution: vi.fn(async () => null),
                 } as unknown as QueryHistoryModel,
             } as never);
 
@@ -10772,6 +11018,7 @@ describe('saved Document chart queries', () => {
                         get: vi.fn(async (uuid) =>
                             uuid === source.queryUuid ? source : derived,
                         ),
+                        getDuckdbExecution: vi.fn(async () => null),
                     } as unknown as QueryHistoryModel,
                 },
                 { get: getVersion, getVersion },
@@ -10824,6 +11071,7 @@ describe('saved Document chart queries', () => {
             {
                 queryHistoryModel: {
                     get: vi.fn().mockResolvedValue(source),
+                    getDuckdbExecution: vi.fn(async () => null),
                 } as unknown as QueryHistoryModel,
             },
             { get: getVersion, getVersion },

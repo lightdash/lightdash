@@ -436,15 +436,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     client: BigQuery;
 
+    private readonly agentJobControls: boolean;
+
     constructor(
         credentials: CreateBigqueryCredentials,
-        options?: { agentSession?: boolean },
+        options?: { agentSession?: boolean; agentJobControls?: boolean },
     ) {
         super(
             credentials,
             new BigquerySqlBuilder(credentials.startOfWeek),
             options,
         );
+        this.agentJobControls = options?.agentJobControls ?? false;
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
@@ -583,7 +586,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            ...(this.agentSession ? { useQueryCache: false } : {}),
+            ...(this.agentJobControls ? { useQueryCache: false } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
@@ -597,7 +600,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             jobTimeoutMs:
                 this.credentials.timeoutSeconds &&
                 this.credentials.timeoutSeconds * 1000,
-            labels: this.agentSession
+            labels: this.agentJobControls
                 ? {
                       agent: 'true',
                       ...Object.fromEntries(

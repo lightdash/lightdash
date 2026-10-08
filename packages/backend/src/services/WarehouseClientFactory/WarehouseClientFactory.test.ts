@@ -1793,6 +1793,43 @@ describe('AI service account factory scopes', () => {
         },
     };
 
+    test.each([null, markedPlan, slotPlan])(
+        'sets BigQuery agent job controls only for a resolved plan: %j',
+        async (aiPlan) => {
+            const {
+                factory,
+                projectModel,
+                credentialSource,
+                aiAccessService,
+                base,
+            } = buildFixture();
+            credentialSource.loadBase.mockResolvedValue({
+                ...base,
+                credentials: slotPlan.credentials,
+            });
+            credentialSource.finish.mockResolvedValue({
+                ...slotPlan.credentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            aiAccessService.resolvePlan.mockResolvedValue(aiPlan);
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async () => undefined,
+            );
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining(slotPlan.credentials),
+                expect.objectContaining({
+                    agentSession: true,
+                    agentJobControls: aiPlan !== null,
+                }),
+            );
+        },
+    );
+
     test('uses slot credentials before finishing and identifies their kind', async () => {
         const { factory, credentialSource, aiAccessService } = buildFixture();
         aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
