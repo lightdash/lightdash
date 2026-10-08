@@ -54,6 +54,7 @@ import {
     PreviewWarehouseSignInExpiredError,
     ProjectType,
     QueryExecutionContext,
+    QuerySurface,
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
@@ -175,7 +176,10 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import {
+    type AiAccessEvaluation,
+    type AiAccessService,
+} from '../AiAccessService/AiAccessService';
 import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -15928,6 +15932,7 @@ describe('AI principal credential routing', () => {
                     userId: string;
                     isRegisteredUser: boolean;
                     context: QueryExecutionContext;
+                    evaluation: AiAccessEvaluation;
                     binding: { kind: 'original' };
                 }) => Promise<{
                     warehouseCredentials: CreateWarehouseCredentials;
@@ -15939,6 +15944,7 @@ describe('AI principal credential routing', () => {
             userId: user.userUuid,
             isRegisteredUser: true,
             context: QueryExecutionContext.AI,
+            evaluation: { kind: 'query', surface: QuerySurface.APP },
             binding: { kind: 'original' },
         });
 

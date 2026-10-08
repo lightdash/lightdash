@@ -435,7 +435,11 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { AiAccessService } from '../AiAccessService/AiAccessService';
+import {
+    AiAccessService,
+    queryEvaluationFromContext,
+    type AiAccessEvaluation,
+} from '../AiAccessService/AiAccessService';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -2296,6 +2300,7 @@ export class ProjectService
         userId,
         isRegisteredUser,
         context,
+        evaluation,
         isServiceAccount = false,
         purpose = 'query',
     }: {
@@ -2304,6 +2309,7 @@ export class ProjectService
         userId: string;
         isRegisteredUser: boolean;
         context?: QueryExecutionContext;
+        evaluation: AiAccessEvaluation;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
     }): Promise<ResolvedWarehouseCredentials> {
@@ -3026,6 +3032,7 @@ export class ProjectService
                         isRegisteredUser: args.isRegisteredUser,
                         isServiceAccount: args.isServiceAccount,
                         context: args.context,
+                        evaluation: args.evaluation,
                     });
                 return {
                     warehouseCredentials,
@@ -3188,6 +3195,7 @@ export class ProjectService
         userId,
         isRegisteredUser,
         context,
+        evaluation,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
@@ -3195,6 +3203,7 @@ export class ProjectService
         userId: string;
         isRegisteredUser: boolean;
         context?: QueryExecutionContext;
+        evaluation: AiAccessEvaluation;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
     }): Promise<ResolvedWarehouseCredentials> {
@@ -7905,6 +7914,7 @@ export class ProjectService
                         userId: userUuid,
                         isRegisteredUser: true,
                         purpose: 'compile',
+                        evaluation: { kind: 'diagnostic' },
                     });
                 return credentials;
             },
@@ -12784,6 +12794,7 @@ export class ProjectService
         }
         const { warehouseCredentials: credentials } =
             await this.getWarehouseCredentialsWithConnection({
+                evaluation: queryEvaluationFromContext(context),
                 context,
                 projectUuid,
                 binding: { kind: 'connection', warehouseConnectionUuid: null },

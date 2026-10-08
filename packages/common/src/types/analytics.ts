@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { AI_AGENT_TAG } from './aiPrincipal';
 
 export type UserWithCount = {
@@ -173,9 +174,16 @@ export enum QueryExecutionContext {
     DESKTOP = 'desktop',
 }
 
+export type AiAccessQueryContext =
+    | QueryExecutionContext.DATA_APP_SAMPLE
+    | QueryExecutionContext.AI
+    | QueryExecutionContext.MCP_RUN_METRIC_QUERY
+    | QueryExecutionContext.MCP_RUN_SQL
+    | QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
-): boolean =>
+): context is AiAccessQueryContext =>
     context === QueryExecutionContext.DATA_APP_SAMPLE ||
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
@@ -190,3 +198,19 @@ export const withAgentMarkerTag = <
     isAiAccessQueryContext(tags.query_context)
         ? { ...tags, [AI_AGENT_TAG]: 'true' }
         : tags;
+
+export const querySurfaceFromContext = (
+    context: AiAccessQueryContext,
+): QuerySurface => {
+    switch (context) {
+        case QueryExecutionContext.MCP_RUN_METRIC_QUERY:
+        case QueryExecutionContext.MCP_RUN_SQL:
+        case QueryExecutionContext.MCP_SEARCH_FIELD_VALUES:
+            return QuerySurface.MCP;
+        case QueryExecutionContext.AI:
+        case QueryExecutionContext.DATA_APP_SAMPLE:
+            return QuerySurface.APP;
+        default:
+            return assertUnreachable(context, 'Unknown AI query context');
+    }
+};

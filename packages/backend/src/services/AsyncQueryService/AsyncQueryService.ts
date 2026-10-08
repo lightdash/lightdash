@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
+    AiAccessRefusedError,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -272,6 +273,7 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { queryEvaluationFromContext } from '../AiAccessService/AiAccessService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
@@ -4298,7 +4300,10 @@ export class AsyncQueryService extends ProjectService {
             // Pre-aggregate attempts rethrow so the caller can fall back to the
             // warehouse; keep the query history row non-terminal so polling
             // clients receive the retry result.
-            if (warehouseClientOverride || rethrowOnError) {
+            if (
+                (warehouseClientOverride || rethrowOnError) &&
+                !(e instanceof AiAccessRefusedError)
+            ) {
                 throw e;
             }
 
@@ -5894,6 +5899,7 @@ export class AsyncQueryService extends ProjectService {
                         : undefined,
             }),
             this.getWarehouseCredentialsWithConnection({
+                evaluation: queryEvaluationFromContext(context),
                 context,
                 projectUuid,
                 binding: {
@@ -6703,6 +6709,7 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            evaluation: queryEvaluationFromContext(context),
             context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -7044,6 +7051,7 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            evaluation: queryEvaluationFromContext(context),
             context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -7828,6 +7836,7 @@ export class AsyncQueryService extends ProjectService {
             projectParameters,
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
+                evaluation: queryEvaluationFromContext(context),
                 context,
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
@@ -8046,6 +8055,7 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            evaluation: queryEvaluationFromContext(context),
             projectUuid,
             binding: {
                 kind: 'query',
@@ -11749,6 +11759,7 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
+            evaluation: queryEvaluationFromContext(context),
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
