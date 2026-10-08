@@ -36,6 +36,7 @@ import {
     type FieldsByTile,
     type SqlColumnsByTile,
 } from './peers';
+import { TabTargets } from './TabTargets';
 import { useControlsSidebar } from './useControlsSidebar';
 import {
     toDashboardFilterableField,
@@ -481,6 +482,7 @@ export const FieldsAndTiles: FC = () => {
                     />
                 )}
             </Stack>
+            <TabTargets />
         </Stack>
     );
 };
