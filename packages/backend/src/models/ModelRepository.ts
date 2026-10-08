@@ -21,6 +21,7 @@ import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DepartmentModel } from './DepartmentModel';
 import { DeploySessionModel } from './DeploySessionModel';
 import { DirectAccessModel } from './DirectAccessModel';
 import { DocumentAccessModel } from './DocumentAccessModel';
@@ -129,6 +130,7 @@ export type ModelManifest = {
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     jiraAppInstallationsModel: JiraAppInstallationsModel;
     linearAppInstallationsModel: LinearAppInstallationsModel;
+    departmentModel: DepartmentModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
@@ -529,6 +531,13 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getDepartmentModel(): DepartmentModel {
+        return this.getModel(
+            'departmentModel',
+            () => new DepartmentModel({ database: this.database }),
         );
     }
 
