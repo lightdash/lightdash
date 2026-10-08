@@ -170,6 +170,47 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
         });
 
+        it('exports content with extensive dashboard version history within the page deadline', async () => {
+            // Every dashboard edit retains its tiles. The latest-version lookup
+            // must not rescan all versions once for each historical tile.
+            await db.raw(`
+                INSERT INTO dashboard_versions
+                    SELECT n, 1 FROM generate_series(10,8009) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT v, c FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                INSERT INTO dashboard_tile_sql_charts
+                    SELECT v, md5('sql-'||c)::uuid FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                INSERT INTO dashboard_tile_data_apps
+                    SELECT v, md5('app-'||c)::uuid FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                -- Most histories belong to other dashboards, as on a shared instance.
+                INSERT INTO dashboard_versions
+                    SELECT n, 10 + n % 990 FROM generate_series(10000,509999) n;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+                ANALYZE dashboard_tile_sql_charts;
+                ANALYZE dashboard_tile_data_apps;
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4020);
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 1`),
+                ).toMatchObject({ dashboard_references: 2 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 2`),
+                ).toMatchObject({ dashboard_references: 0 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 3`),
+                ).toMatchObject({ dashboard_references: 1 });
+            }
+        }, 20000);
+
         it('abandons a page waiting for a table lock and can retry afterward', async () => {
             const blocker = await db.transaction();
             try {
@@ -183,51 +224,103 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             expect(await read()).toHaveLength(4020);
         });
 
-        it('cancels a slow page on the server and releases its read lock for DDL', async () => {
-            await db.raw(`
+        const delayContentPage = async (seconds: 6 | 30) => {
+            await db.raw('ALTER TABLE saved_queries RENAME TO chart_source');
+            await db.raw(
+                `CREATE VIEW saved_queries AS
+                SELECT saved_query_id, saved_query_uuid, project_uuid, space_id,
+                    dashboard_uuid, created_at, deleted_at,
+                    name || (SELECT '' FROM pg_sleep(${seconds})) AS name
+                FROM chart_source`,
+            );
+        };
+
+        it('allows a content page longer than five seconds to complete', async () => {
+            await delayContentPage(6);
+            const iterator = new UsageDimensionsModel(db).getJsonLines(
+                organization,
+                'content',
+            );
+            try {
+                expect((await iterator.next()).done).toBe(false);
+            } finally {
+                await iterator.return(undefined);
+            }
+        }, 15000);
+
+        it.each([
+            {
+                dimension: 'agents' as const,
+                timeout: 5000,
+                table: 'agent_source',
+            },
+            {
+                dimension: 'content' as const,
+                timeout: 10000,
+                table: 'chart_source',
+            },
+        ])(
+            'cancels a slow $dimension page and releases its read lock for DDL',
+            async ({ dimension, timeout, table }) => {
+                if (dimension === 'content') {
+                    await delayContentPage(30);
+                } else {
+                    await db.raw(`
                 CREATE TABLE agent_source (ai_agent_uuid uuid, organization_uuid uuid, name text);
                 INSERT INTO agent_source VALUES(md5('agent')::uuid,'${org}','Agent');
                 CREATE VIEW ai_agent AS SELECT ai_agent_uuid, organization_uuid,
                     name || (SELECT '' FROM pg_sleep(30)) AS name FROM agent_source;
             `);
-            // The view deliberately holds a read lock while executing pg_sleep.
-            const iterator = new UsageDimensionsModel(db).getJsonLines(
-                organization,
-                'agents',
-            );
-            const pending = iterator.next().catch((error: unknown) => error);
-            // Wait until Postgres is executing this page before queueing DDL.
-            let active = false;
-            for (let attempt = 0; attempt < 100; attempt += 1) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await db.raw(
-                    `SELECT 1 FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state='active' AND query LIKE '%json_build_object%' AND wait_event='PgSleep'`,
-                );
-                if (result.rows.length > 0) {
-                    active = true;
-                    break;
                 }
-                // eslint-disable-next-line no-await-in-loop
-                await new Promise((resolve) => {
-                    setTimeout(resolve, 10);
-                });
-            }
-            expect(active).toBe(true);
-            const start = Date.now();
-            await db.transaction(async (trx) => {
-                await trx.raw("SET LOCAL statement_timeout = '7s'");
-                await trx.raw(
-                    'ALTER TABLE agent_source ADD COLUMN after_export integer',
+                // The view deliberately holds a read lock while executing pg_sleep.
+                const iterator = new UsageDimensionsModel(db).getJsonLines(
+                    organization,
+                    dimension,
                 );
-            });
-            expect(await pending).toMatchObject({ code: '57014' });
-            expect(Date.now() - start).toBeLessThan(7000);
-            const settings = await db.raw(
-                "SELECT current_setting('statement_timeout') AS timeout, current_setting('lock_timeout') AS lock_timeout",
-            );
-            expect(settings.rows).toEqual([
-                { timeout: '0', lock_timeout: '0' },
-            ]);
-        }, 15000);
+                const pending = iterator
+                    .next()
+                    .catch((error: unknown) => error);
+                // Wait until Postgres is executing this page before queueing DDL.
+                let active = false;
+                for (let attempt = 0; attempt < 100; attempt += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const result = await db.raw(
+                        `SELECT 1 FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state='active' AND query LIKE ? AND wait_event='PgSleep'`,
+                        [
+                            dimension === 'content'
+                                ? '%WITH inventory%'
+                                : '%json_build_object%',
+                        ],
+                    );
+                    if (result.rows.length > 0) {
+                        active = true;
+                        break;
+                    }
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 10);
+                    });
+                }
+                expect(active).toBe(true);
+                const start = Date.now();
+                await db.transaction(async (trx) => {
+                    await trx.raw("SET LOCAL statement_timeout = '12s'");
+                    await trx.raw(
+                        'ALTER TABLE ?? ADD COLUMN after_export integer',
+                        [table],
+                    );
+                });
+                expect(await pending).toMatchObject({ code: '57014' });
+                expect(Date.now() - start).toBeGreaterThan(timeout - 1000);
+                expect(Date.now() - start).toBeLessThan(timeout + 2000);
+                const settings = await db.raw(
+                    "SELECT current_setting('statement_timeout') AS timeout, current_setting('lock_timeout') AS lock_timeout",
+                );
+                expect(settings.rows).toEqual([
+                    { timeout: '0', lock_timeout: '0' },
+                ]);
+            },
+            20000,
+        );
     },
 );
