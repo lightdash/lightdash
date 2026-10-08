@@ -1,3 +1,10 @@
+## [2.488.1](https://github.com/lightdash/lightdash/compare/2.488.0...2.488.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* resolve org-level OneLogin SSO without a login hint on single-org instances ([#30723](https://github.com/lightdash/lightdash/issues/30723)) ([71f8478](https://github.com/lightdash/lightdash/commit/71f8478294159cf8ee400399ac5f14b7bb6c2c05)), closes [#30716](https://github.com/lightdash/lightdash/issues/30716)
+
 # [2.488.0](https://github.com/lightdash/lightdash/compare/2.487.1...2.488.0) (2026-10-08)
 
 
