@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAdoptionSnapshot } from './departmentMetrics';
 import {
     computeDepartmentOverlaps,
-    getSharedMembers,
+    getMembersInRegion,
 } from './departmentOverlaps';
 
 const department = (
@@ -100,6 +100,14 @@ const snapshot = buildAdoptionSnapshot({
 const peopleIn = (departmentUuid: string): string[] =>
     (snapshot.rolledMembers.get(departmentUuid) ?? []).map((m) => m.userUuid);
 
+// Each set's own department and the departments above and below it
+const relatedTo = (departmentUuid: string, tree: Department[]) =>
+    new Set([
+        departmentUuid,
+        ...getAncestorUuids(departmentUuid, getParentMap(tree)),
+        ...getDescendantUuids(departmentUuid, tree),
+    ]);
+
 describe('computeDepartmentOverlaps', () => {
     it('lists every department sharing people with this one, most people first, then by name', () => {
         expect(computeDepartmentOverlaps(snapshot, 'stores').overlaps).toEqual([
@@ -152,13 +160,8 @@ describe('computeDepartmentOverlaps', () => {
         });
     });
     it('never lists a department above or below the one asked about, for any department', () => {
-        const parentMap = getParentMap(departments);
         const listed = departments.flatMap(({ departmentUuid }) => {
-            const related = new Set([
-                departmentUuid,
-                ...getAncestorUuids(departmentUuid, parentMap),
-                ...getDescendantUuids(departmentUuid, departments),
-            ]);
+            const related = relatedTo(departmentUuid, departments);
             return computeDepartmentOverlaps(snapshot, departmentUuid)
                 .overlaps.filter((o) => related.has(o.departmentUuid))
                 .map((o) => `${departmentUuid} lists ${o.departmentUuid}`);
@@ -200,7 +203,7 @@ describe('computeDepartmentOverlaps', () => {
             ],
         });
     });
-    it('puts everyone in the sets in exactly one region, for every department', () => {
+    it('draws sets that are not above or below each other, with everyone in them in exactly one region, for every department', () => {
         const drawn = departments.flatMap(({ departmentUuid }) => {
             const { venn } = computeDepartmentOverlaps(
                 snapshot,
@@ -210,6 +213,16 @@ describe('computeDepartmentOverlaps', () => {
         });
         expect(drawn.length).toBeGreaterThan(3);
         drawn.forEach((venn) => {
+            // No set sits above or below another
+            const uuids = venn.sets.map((set) => set.departmentUuid);
+            uuids.forEach((uuid) => {
+                const related = relatedTo(uuid, departments);
+                expect(
+                    uuids.filter(
+                        (other) => other !== uuid && related.has(other),
+                    ),
+                ).toEqual([]);
+            });
             const union = new Set(
                 venn.sets.flatMap((set) => peopleIn(set.departmentUuid)),
             );
@@ -243,15 +256,127 @@ describe('computeDepartmentOverlaps', () => {
     });
 });
 
-describe('getSharedMembers', () => {
-    it('returns the people counted, rolled up, in the department and every other one given', () => {
-        const userUuids = (others: string[], departmentUuid = 'stores') =>
-            getSharedMembers(snapshot, departmentUuid, others).map(
-                (m) => m.userUuid,
-            );
+describe('the diagram sets', () => {
+    // ops ── stores
+    // finance
+    // marketing
+    // legal
+    const tree = [
+        department('ops', null, 'Operations'),
+        department('stores', 'ops', 'Stores'),
+        department('finance', null, 'Finance'),
+        department('marketing', null, 'Marketing'),
+        department('legal', null, 'Legal'),
+    ];
+    const nested = buildAdoptionSnapshot({
+        departments: tree,
+        membership: resolveDepartmentMembership(
+            [
+                person('p1', ['marketing'], ['stores']),
+                person('p2', ['marketing', 'stores']),
+                person('p3', ['marketing'], ['ops']),
+                person('p4', ['marketing', 'finance']),
+                person('p5', ['legal'], ['stores']),
+            ],
+            tree,
+        ),
+        // Active a day before the bounds' instant, so in the last 30 days
+        lastActiveAt: new Map([['p1', new Date('2026-10-07T09:30:00Z')]]),
+        windows: getActivityWindows(new Date('2026-10-08T09:30:00Z')),
+        weeklyActivity: [],
+        weekStarts: [],
+    });
+
+    it('takes the largest overlap, then the largest one neither above nor below it', () => {
+        const { overlaps, venn } = computeDepartmentOverlaps(
+            nested,
+            'marketing',
+        );
+        // The two largest overlaps are a parent and its child
+        expect(overlaps.map((o) => [o.name, o.people])).toEqual([
+            ['Operations', 3],
+            ['Stores', 2],
+            ['Finance', 1],
+        ]);
+        expect(venn).toEqual({
+            sets: [
+                { departmentUuid: 'marketing', name: 'Marketing' },
+                { departmentUuid: 'ops', name: 'Operations' },
+                { departmentUuid: 'finance', name: 'Finance' },
+            ],
+            regions: [
+                { sets: ['marketing'], people: 0, active30d: 0 },
+                { sets: ['ops'], people: 1, active30d: 0 },
+                { sets: ['finance'], people: 0, active30d: 0 },
+                { sets: ['marketing', 'ops'], people: 3, active30d: 1 },
+                { sets: ['marketing', 'finance'], people: 1, active30d: 0 },
+                { sets: ['ops', 'finance'], people: 0, active30d: 0 },
+                {
+                    sets: ['marketing', 'ops', 'finance'],
+                    people: 0,
+                    active30d: 0,
+                },
+            ],
+        });
+    });
+    it('draws two sets when every other overlap is above or below the largest', () => {
+        const { overlaps, venn } = computeDepartmentOverlaps(nested, 'legal');
+        expect(overlaps.map((o) => o.name)).toEqual(['Operations', 'Stores']);
+        expect(venn?.sets.map((set) => set.name)).toEqual([
+            'Legal',
+            'Operations',
+        ]);
+        expect(venn?.regions).toHaveLength(3);
+    });
+});
+
+describe('getMembersInRegion', () => {
+    const userUuids = (
+        withUuids: string[],
+        withoutUuids: string[] = [],
+        departmentUuid = 'stores',
+    ) =>
+        getMembersInRegion(
+            snapshot,
+            departmentUuid,
+            withUuids,
+            withoutUuids,
+        ).map((m) => m.userUuid);
+
+    it('returns the people in the department and in every department of with, rolled up', () => {
         expect(userUuids(['marketing'])).toEqual(['ann', 'gus']);
         expect(userUuids(['marketing', 'depots'])).toEqual([]);
-        expect(userUuids(['finance'], 'ops')).toEqual(['bob']);
-        expect(userUuids([])).toEqual(peopleIn('stores'));
+        expect(userUuids(['finance'], [], 'ops')).toEqual(['bob']);
+    });
+    it('leaves out the people in any department of without', () => {
+        // Stores only, against Marketing and Depots
+        expect(userUuids([], ['marketing', 'depots'])).toEqual(['dan', 'bob']);
+        // Stores and Depots, not Marketing
+        expect(userUuids(['depots'], ['marketing'])).toEqual(['cara']);
+    });
+    it('lists exactly the people of each region that holds the department, for every department', () => {
+        const checked = departments.flatMap(({ departmentUuid }) => {
+            const { venn } = computeDepartmentOverlaps(
+                snapshot,
+                departmentUuid,
+            );
+            if (venn === null) return [];
+            const others = venn.sets
+                .map((set) => set.departmentUuid)
+                .filter((uuid) => uuid !== departmentUuid);
+            return venn.regions
+                .filter((region) => region.sets.includes(departmentUuid))
+                .map((region) => ({
+                    people: region.people,
+                    listed: getMembersInRegion(
+                        snapshot,
+                        departmentUuid,
+                        others.filter((uuid) => region.sets.includes(uuid)),
+                        others.filter((uuid) => !region.sets.includes(uuid)),
+                    ).length,
+                }));
+        });
+        expect(checked.length).toBeGreaterThan(10);
+        checked.forEach(({ people, listed }) => expect(listed).toBe(people));
     });
 });

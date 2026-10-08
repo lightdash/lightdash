@@ -29,6 +29,7 @@ import {
 import { validate as isUuid } from 'uuid';
 import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
+    notAnActiveMemberMessage,
     type DepartmentModel,
     type DepartmentTreeLimits,
 } from '../../../models/DepartmentModel';
@@ -46,7 +47,7 @@ import {
 } from './departmentMetrics';
 import {
     computeDepartmentOverlaps,
-    getSharedMembers,
+    getMembersInRegion,
 } from './departmentOverlaps';
 
 export const TREND_WEEKS = 12;
@@ -68,8 +69,8 @@ const MAX_LIST_LENGTH = 5000;
 const TARGET_YEAR_MIN = 1900;
 const TARGET_YEAR_MAX = 2200;
 const MAX_OWNERS = 20;
-// The overlap diagram shows at most three sets, so at most two departments beside the one asked about
-const MAX_OVERLAP_WITH = 2;
+// The overlap diagram shows at most three sets, so with and without each list at most two departments
+const MAX_OVERLAP_DEPARTMENTS = 2;
 
 // Bounds that keep the tree walks, the responses and the map small enough to stay fast
 export const DEPARTMENT_TREE_LIMITS: DepartmentTreeLimits = {
@@ -247,24 +248,25 @@ const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
     return valid;
 };
 
-const toOverlapWith = (values: unknown, departmentUuid: string): string[] => {
-    if (!Array.isArray(values)) {
-        throw new ParameterError('Departments to compare with must be a list');
-    }
-    if (values.length > MAX_OVERLAP_WITH) {
+// A with or without list for overlaps; an empty list is the same as leaving it out
+const toOverlapList = (
+    listName: 'with' | 'without',
+    values: string[] | undefined,
+    departmentUuid: string,
+): string[] | null => {
+    if (values === undefined) return null;
+    const uuids = toUuidList(values, 'Department');
+    if (uuids.length > MAX_OVERLAP_DEPARTMENTS) {
         throw new ParameterError(
-            `Compare with at most ${MAX_OVERLAP_WITH} other departments`,
+            `"${listName}" can list at most ${MAX_OVERLAP_DEPARTMENTS} departments`,
         );
     }
-    const uuids = Array.from(
-        new Set(values.map((v: unknown) => toUuid(v, 'Department'))),
-    );
     if (uuids.includes(departmentUuid)) {
         throw new ParameterError(
-            `Department ${departmentUuid} cannot be compared with itself`,
+            `"${listName}" cannot list the department itself`,
         );
     }
-    return uuids;
+    return uuids.length === 0 ? null : Array.from(new Set(uuids));
 };
 
 export class DepartmentService extends BaseService {
@@ -469,17 +471,27 @@ export class DepartmentService extends BaseService {
         };
     }
 
+    // members: the people of the department in every with department and in no without department
     async getOverlaps(
         account: Account,
         rawDepartmentUuid: string,
         rawWithUuids?: string[],
+        rawWithoutUuids?: string[],
     ): Promise<DepartmentOverlaps> {
         const { organizationUuid } = await this.authorize(account, 'view');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
-        const withUuids =
-            rawWithUuids === undefined
-                ? null
-                : toOverlapWith(rawWithUuids, departmentUuid);
+        const withUuids = toOverlapList('with', rawWithUuids, departmentUuid);
+        const withoutUuids = toOverlapList(
+            'without',
+            rawWithoutUuids,
+            departmentUuid,
+        );
+        const inBoth = withUuids?.find((uuid) => withoutUuids?.includes(uuid));
+        if (inBoth !== undefined) {
+            throw new ParameterError(
+                `Department ${inBoth} cannot be in both "with" and "without"`,
+            );
+        }
         const { snapshot, windows } = await this.getSnapshot(organizationUuid);
         const all = snapshot.summary.departments;
         const department = all.find((d) => d.departmentUuid === departmentUuid);
@@ -487,7 +499,9 @@ export class DepartmentService extends BaseService {
             throw new NotFoundError(`Department ${departmentUuid} not found`);
         }
         const known = new Set(all.map((d) => d.departmentUuid));
-        const unknown = withUuids?.find((uuid) => !known.has(uuid));
+        const unknown = [...(withUuids ?? []), ...(withoutUuids ?? [])].find(
+            (uuid) => !known.has(uuid),
+        );
         if (unknown !== undefined) {
             throw new ParameterError(
                 `Department ${unknown} is not in this organization`,
@@ -497,13 +511,18 @@ export class DepartmentService extends BaseService {
             department: { departmentUuid, name: department.name },
             ...computeDepartmentOverlaps(snapshot, departmentUuid),
             members:
-                withUuids === null
+                withUuids === null && withoutUuids === null
                     ? null
                     : await this.loadMembers(
                           organizationUuid,
                           snapshot,
                           departmentUuid,
-                          getSharedMembers(snapshot, departmentUuid, withUuids),
+                          getMembersInRegion(
+                              snapshot,
+                              departmentUuid,
+                              withUuids ?? [],
+                              withoutUuids ?? [],
+                          ),
                           windows,
                       ),
         };
@@ -638,9 +657,7 @@ export class DepartmentService extends BaseService {
                 await this.resolveMembership(organizationUuid)
             ).find((m) => m.userUuid === userUuid);
             if (!person) {
-                throw new NotFoundError(
-                    `User ${userUuid} is not an active member of this organization`,
-                );
+                throw new NotFoundError(notAnActiveMemberMessage(userUuid));
             }
             if (
                 !person.placements.some(

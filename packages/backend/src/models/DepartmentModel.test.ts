@@ -18,7 +18,7 @@ import {
 } from '../database/entities/departments';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { DepartmentModel } from './DepartmentModel';
+import { DepartmentModel, notAnActiveMemberMessage } from './DepartmentModel';
 
 const departmentRow = (over: Record<string, unknown> = {}) => ({
     department_uuid: 'dep',
@@ -832,6 +832,10 @@ describe('DepartmentModel', () => {
                 new NotFoundError(
                     'User gone is not an active member of this organization',
                 ),
+            );
+            // The text the service also answers with when it finds no such member
+            expect(notAnActiveMemberMessage('gone')).toBe(
+                'User gone is not an active member of this organization',
             );
 
             const check = tracker.history.all.find((q) =>

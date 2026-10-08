@@ -7,13 +7,22 @@ import {
     type DepartmentOverlaps,
     type DepartmentRef,
     type DepartmentVennRegion,
+    type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { type AdoptionSnapshot } from './departmentMetrics';
 
-// The diagram shows the department and at most this many of its largest overlaps
-const VENN_OVERLAPS = 2;
-
 type RegionCount = { people: number; active30d: number };
+
+// The department itself and every department above or below it
+const branchOf = (
+    departmentUuid: string,
+    departments: DepartmentWithMetrics[],
+): Set<string> =>
+    new Set([
+        departmentUuid,
+        ...getAncestorUuids(departmentUuid, getParentMap(departments)),
+        ...getDescendantUuids(departmentUuid, departments),
+    ]);
 
 const userUuidsIn = (
     snapshot: AdoptionSnapshot,
@@ -88,6 +97,18 @@ const buildVenn = (
     };
 };
 
+// The largest overlap, then the largest one neither above nor below it, so no set holds another
+const pickVennOverlaps = (
+    overlaps: DepartmentOverlap[],
+    departments: DepartmentWithMetrics[],
+): DepartmentOverlap[] => {
+    const [largest] = overlaps;
+    if (largest === undefined) return [];
+    const related = branchOf(largest.departmentUuid, departments);
+    const next = overlaps.find((o) => !related.has(o.departmentUuid));
+    return next === undefined ? [largest] : [largest, next];
+};
+
 // Departments in other branches that people counted here also count in, rolled up
 export const computeDepartmentOverlaps = (
     snapshot: AdoptionSnapshot,
@@ -97,11 +118,7 @@ export const computeDepartmentOverlaps = (
     const own = userUuidsIn(snapshot, departmentUuid);
     if (own.size === 0) return { overlaps: [], venn: null };
     // Departments above and below always hold its people, so they are not overlaps
-    const related = new Set([
-        departmentUuid,
-        ...getAncestorUuids(departmentUuid, getParentMap(departments)),
-        ...getDescendantUuids(departmentUuid, departments),
-    ]);
+    const related = branchOf(departmentUuid, departments);
     const overlaps = departments
         .flatMap((other): DepartmentOverlap[] => {
             if (related.has(other.departmentUuid)) return [];
@@ -134,19 +151,23 @@ export const computeDepartmentOverlaps = (
         venn: buildVenn(
             snapshot,
             { departmentUuid, name },
-            overlaps.slice(0, VENN_OVERLAPS),
+            pickVennOverlaps(overlaps, departments),
         ),
     };
 };
 
-// People counted, rolled up, in the department and in every one of the others
-export const getSharedMembers = (
+// People counted, rolled up, in the department, in every department of with and in none of without
+export const getMembersInRegion = (
     snapshot: AdoptionSnapshot,
     departmentUuid: string,
-    otherUuids: string[],
+    withUuids: string[],
+    withoutUuids: string[],
 ): DepartmentMembership[] => {
-    const others = otherUuids.map((uuid) => userUuidsIn(snapshot, uuid));
+    const inAll = withUuids.map((uuid) => userUuidsIn(snapshot, uuid));
+    const inNone = withoutUuids.map((uuid) => userUuidsIn(snapshot, uuid));
     return (snapshot.rolledMembers.get(departmentUuid) ?? []).filter(
-        ({ userUuid }) => others.every((set) => set.has(userUuid)),
+        ({ userUuid }) =>
+            inAll.every((set) => set.has(userUuid)) &&
+            !inNone.some((set) => set.has(userUuid)),
     );
 };

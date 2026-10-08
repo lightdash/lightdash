@@ -10,6 +10,7 @@ import {
     type MemberAbility,
 } from '@lightdash/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { notAnActiveMemberMessage } from '../../../models/DepartmentModel';
 import {
     DepartmentService,
     validateDepartmentInput,
@@ -1579,6 +1580,16 @@ describe('DepartmentService.setPrimaryDepartment', () => {
         );
         expect(departmentModel.setPrimaryDepartment).not.toHaveBeenCalled();
     });
+    it('answers that 404 with the same text as the model does inside its lock', async () => {
+        const { service } = buildService({ flag: true, departments, rows: [] });
+        const refused = await service
+            .setPrimaryDepartment(manager(), USR, { departmentUuid: SALES })
+            .catch((e: unknown) => e);
+        expect(refused).toBeInstanceOf(NotFoundError);
+        expect((refused as NotFoundError).message).toBe(
+            notAnActiveMemberMessage(USR),
+        );
+    });
     it("clears it with null, leaving the member check to the model's lock", async () => {
         const { service, departmentModel } = buildService({ flag: true });
         await service.setPrimaryDepartment(manager(), USR, {
@@ -1766,31 +1777,77 @@ describe('DepartmentService.getOverlaps', () => {
             service.getOverlaps(buildAccount(abilityWith()), STORES),
         ).rejects.toThrow(ForbiddenError);
     });
-    it.each([
-        ['a malformed department', 'nope', undefined],
-        ['a malformed department to compare with', STORES, ['nope']],
+    it.each<[string, string, string[] | undefined, string[] | undefined]>([
+        ['a malformed department', 'nope', undefined, undefined],
+        ['a malformed department in with', STORES, ['nope'], undefined],
+        ['a malformed department in without', STORES, undefined, ['nope']],
+        ['with that is not a list', STORES, 'nope' as never, undefined],
         [
-            'more than two departments to compare with',
+            'more than two departments in with',
             STORES,
+            [OPS, MARKETING, FINANCE],
+            undefined,
+        ],
+        [
+            'more than two departments in without',
+            STORES,
+            undefined,
             [OPS, MARKETING, FINANCE],
         ],
         [
-            'the department itself to compare with',
+            'the department itself in with',
             STORES,
             [MARKETING, STORES.toUpperCase()],
+            undefined,
+        ],
+        ['the department itself in without', STORES, undefined, [STORES]],
+        [
+            'a department in both with and without',
+            STORES,
+            [MARKETING],
+            [DEPOTS, MARKETING.toUpperCase()],
         ],
     ])(
         'rejects %s before reading anything',
-        async (_label, uuid, withUuids) => {
+        async (_label, uuid, withUuids, withoutUuids) => {
             const { service, departmentModel, departmentAnalyticsModel } =
                 buildService({ flag: true, departments, rows });
             await expect(
-                service.getOverlaps(viewer(), uuid, withUuids),
+                service.getOverlaps(viewer(), uuid, withUuids, withoutUuids),
             ).rejects.toThrow(ParameterError);
             expect(departmentModel.listByOrganization).not.toHaveBeenCalled();
             expect(departmentAnalyticsModel.getActivity).not.toHaveBeenCalled();
         },
     );
+    it('names the list and the department in what it refuses', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(
+            service.getOverlaps(viewer(), STORES, undefined, [
+                OPS,
+                MARKETING,
+                FINANCE,
+            ]),
+        ).rejects.toThrow(
+            new ParameterError('"without" can list at most 2 departments'),
+        );
+        await expect(
+            service.getOverlaps(viewer(), STORES, [STORES]),
+        ).rejects.toThrow(
+            new ParameterError('"with" cannot list the department itself'),
+        );
+        await expect(
+            service.getOverlaps(viewer(), STORES, [MARKETING], [MARKETING]),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department ${MARKETING} cannot be in both "with" and "without"`,
+            ),
+        );
+        await expect(
+            service.getOverlaps(viewer(), STORES, undefined, ['nope']),
+        ).rejects.toThrow(
+            new ParameterError('Department must be a valid UUID: nope'),
+        );
+    });
     it('throws NotFoundError for a department that is not in the organization', async () => {
         const { service } = buildService({ flag: true, departments, rows });
         await expect(service.getOverlaps(viewer(), FOREIGN)).rejects.toThrow(
@@ -1810,9 +1867,74 @@ describe('DepartmentService.getOverlaps', () => {
                 `Department ${FOREIGN} is not in this organization`,
             ),
         );
+        await expect(
+            service.getOverlaps(viewer(), STORES, undefined, [FOREIGN]),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department ${FOREIGN} is not in this organization`,
+            ),
+        );
         expect(
             departmentAnalyticsModel.getMemberActivity,
         ).not.toHaveBeenCalled();
+    });
+    it('treats an empty list as absent, so empty with and without return no people', async () => {
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        expect(
+            (await service.getOverlaps(viewer(), STORES, [])).members,
+        ).toBeNull();
+        expect(
+            (await service.getOverlaps(viewer(), STORES, [], [])).members,
+        ).toBeNull();
+        expect(
+            departmentAnalyticsModel.getMemberActivity,
+        ).not.toHaveBeenCalled();
+        // An empty with beside a without still lists people
+        const storesOnly = await service.getOverlaps(
+            viewer(),
+            STORES,
+            [],
+            [MARKETING, DEPOTS],
+        );
+        expect(storesOnly.members?.map((m) => m.userUuid)).toEqual(['dan']);
+    });
+    it('lists exactly the people of every region of the diagram that holds the department', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        const { venn } = await service.getOverlaps(viewer(), STORES);
+        const others = [MARKETING, DEPOTS];
+        expect(venn?.sets.map((set) => set.departmentUuid)).toEqual([
+            STORES,
+            ...others,
+        ]);
+        const regions = venn?.regions.filter((region) =>
+            region.sets.includes(STORES),
+        );
+        expect(regions).toHaveLength(4);
+        const listed = await Promise.all(
+            (regions ?? []).map(async (region) => {
+                const { members } = await service.getOverlaps(
+                    viewer(),
+                    STORES,
+                    others.filter((uuid) => region.sets.includes(uuid)),
+                    others.filter((uuid) => !region.sets.includes(uuid)),
+                );
+                return {
+                    sets: region.sets,
+                    people: region.people,
+                    userUuids: members?.map((m) => m.userUuid).sort(),
+                };
+            }),
+        );
+        expect(listed).toEqual([
+            { sets: [STORES], people: 1, userUuids: ['dan'] },
+            { sets: [STORES, MARKETING], people: 2, userUuids: ['ann', 'gus'] },
+            { sets: [STORES, DEPOTS], people: 1, userUuids: ['cara'] },
+            { sets: [STORES, MARKETING, DEPOTS], people: 0, userUuids: [] },
+        ]);
     });
     it("lists other branches' departments from the cached snapshot, with the diagram and no people unless asked", async () => {
         const { service, departmentModel, departmentAnalyticsModel } =

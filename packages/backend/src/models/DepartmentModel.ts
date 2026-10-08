@@ -100,6 +100,10 @@ const MEMBERS_FROM_SQL = `FROM organization_memberships om
                 WHERE u.is_internal = false
                   AND ${ON_LIGHTDASH_SQL}`;
 
+// The 404 for someone who is not an active member; the service answers with the same text
+export const notAnActiveMemberMessage = (userUuid: string): string =>
+    `User ${userUuid} is not an active member of this organization`;
+
 const normalizeNote = (note: string | null): string | null => {
     const trimmed = note?.trim() ?? '';
     return trimmed.length > 0 ? trimmed : null;
@@ -592,9 +596,7 @@ export class DepartmentModel {
             [organizationUuid, userUuid],
         );
         if (result.rows.length === 0) {
-            throw new NotFoundError(
-                `User ${userUuid} is not an active member of this organization`,
-            );
+            throw new NotFoundError(notAnActiveMemberMessage(userUuid));
         }
     }
 
