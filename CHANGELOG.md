@@ -1,3 +1,10 @@
+## [2.486.1](https://github.com/lightdash/lightdash/compare/2.486.0...2.486.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** make the Deep Research run card readable in dark mode ([#30720](https://github.com/lightdash/lightdash/issues/30720)) ([ecb2648](https://github.com/lightdash/lightdash/commit/ecb2648dbc29d444975347a0c41052ebe7a96d37))
+
 # [2.486.0](https://github.com/lightdash/lightdash/compare/2.485.0...2.486.0) (2026-10-08)
 
 
