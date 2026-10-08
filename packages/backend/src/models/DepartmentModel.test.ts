@@ -349,6 +349,40 @@ describe('DepartmentModel', () => {
         ]);
     });
 
+    it('counts only active users who have completed sign-up', async () => {
+        tracker.on.any(/with org as/i).response({ rows: [] });
+        await model.getResolvedMemberRows('org');
+        const [query] = tracker.history.all;
+        expect(query.bindings).toEqual(['org']);
+        expect(query.sql).toMatch(
+            /WHERE u\.is_internal = false\s+AND u\.is_active = true\s+AND \(/,
+        );
+        // Signed up means a verified primary email, a password or a single sign-on identity
+        expect(query.sql).toMatch(
+            /e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)/,
+        );
+    });
+
+    it('still lets a deactivated or pending user be assigned, so the place is kept for them', async () => {
+        tracker.on
+            .select(OrganizationMembershipsTableName)
+            .response([{ user_uuid: 'pending' }]);
+        tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+        tracker.on.select(DepartmentLinkTableName).response([]);
+        tracker.on.select(DepartmentMemberTableName).response([]);
+        tracker.on.select(DepartmentOwnerTableName).response([]);
+        tracker.on.delete(DepartmentMemberTableName).response(1);
+        tracker.on.insert(DepartmentMemberTableName).response([]);
+        await model.setMembers('org', 'dep', ['pending']);
+        const check = tracker.history.select.find((q) =>
+            q.sql.includes(`from "${OrganizationMembershipsTableName}"`),
+        );
+        expect(check).toBeDefined();
+        expect(check?.sql).not.toContain('is_active');
+        expect(check?.sql).not.toContain('is_verified');
+        expect(tracker.history.insert).toHaveLength(1);
+    });
+
     it('maps resolved member rows and defaults missing group links to empty', async () => {
         tracker.on.any(/with org as/i).response({
             rows: [

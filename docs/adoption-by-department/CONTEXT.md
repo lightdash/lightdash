@@ -75,7 +75,7 @@ A flag raised when a department's own headcount is lower than the sum of its sub
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
-Has an account in the organization and is not an internal user. This includes invited people who have not logged in and deactivated users.
+Has an active account in the organization, has completed sign-up, and is not an internal user. Deactivated users and invited people who have not completed sign-up are not on Lightdash; they show up only as part of the headcount without an account.
 _Avoid_: licensed, provisioned, seated
 
 ### Measures

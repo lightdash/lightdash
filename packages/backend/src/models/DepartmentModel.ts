@@ -527,6 +527,7 @@ export class DepartmentModel {
         return this.getByUuid(organizationUuid, departmentUuid);
     }
 
+    // Only active users who finished sign-up count; pending is derived as in the organization members list
     async getResolvedMemberRows(
         organizationUuid: string,
     ): Promise<ResolvedMemberRow[]> {
@@ -553,6 +554,12 @@ export class DepartmentModel {
                 JOIN users u ON u.user_id = om.user_id
                 JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
                 WHERE u.is_internal = false
+                  AND u.is_active = true
+                  AND (
+                      e.is_verified = true
+                      OR EXISTS (SELECT 1 FROM password_logins pl WHERE pl.user_id = u.user_id)
+                      OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
+                  )
             ),
             explicit AS (
                 SELECT dm.user_uuid, MIN(dm.department_uuid::text) AS department_uuid

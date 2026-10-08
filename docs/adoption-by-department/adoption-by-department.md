@@ -47,6 +47,10 @@ The tree helpers (ancestors, descendants, cycle check, effective headcount, roll
 
 Internal users (`users.is_internal`) are excluded from resolution and cannot be members or owners.
 
+A person counts as on Lightdash only when their user is active (`users.is_active`) and they have completed sign-up. There is no column for a pending invite, so sign-up is derived the way the organization members list derives it (`UserModel.findIfUsersHaveAuthentication`): the person has a password, a single sign-on identity, or a verified primary email. `DepartmentModel.getResolvedMemberRows` leaves everyone else out, so they are not members, are not conflicts or unassigned, and fall into "no account" through the headcount.
+
+A deactivated or pending user can still be assigned to a department, and can be an owner. The assignment is stored and waits: the person starts counting in that department when they become active and complete sign-up.
+
 A parent's members are its own plus those of all its descendants. `metrics` on a department is the rolled-up figure; `directMetrics` counts only people who resolved to that department itself.
 
 ### Headcount
@@ -63,7 +67,7 @@ Computed on each request in `DepartmentService` and `departmentMetrics.ts` from 
 
 | Metric        | Definition                                                                                                                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Members       | People on Lightdash who resolve to the department or a descendant. Every non-internal organization member counts, including invited users who have never logged in and deactivated users                                  |
+| Members       | People on Lightdash who resolve to the department or a descendant. Internal users, users without a primary email, deactivated users and people who were invited but have not completed sign-up are excluded               |
 | Coverage      | Members divided by effective headcount, as a rounded percentage                                                                                                                                                           |
 | Active        | Members who ran a query themselves (`query_history`, interactive contexts only) or viewed a chart or dashboard (`analytics_chart_views`, `analytics_dashboard_views`) in the last 30 days, divided by effective headcount |
 | Role split    | Members by organization role. Member and viewer count as viewers, developer counts as editor                                                                                                                              |
@@ -140,7 +144,8 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 - `query_history` does not record whether a query came from a data app or a schedule that reused an interactive context, so such a run still counts as a query.
 - Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.
 - The per-person last-active read scans all history rather than a window.
-- Invited users who have never logged in, and deactivated users, count as "on Lightdash". Users without a primary email are left out of the member rows altogether.
+- Users without a primary email, deactivated users and invited people who have not completed sign-up are left out of the member rows altogether. With no headcount set they are not visible anywhere on the page.
+- A person provisioned without a password or single sign-on identity counts once their primary email is verified, even if they have not logged in.
 - The newest weekly bucket is the current, partial week, so it usually reads low.
 - The weekly trend counts chart and dashboard views, not queries, so people who only query are missing from it.
 - Queries are retained for a limited period set by the instance (`QUERY_HISTORY_RETENTION_DAYS`, 32 days by default). A retention below 30 days makes the 30-day active count, the per-person query count and top explores undercount.
