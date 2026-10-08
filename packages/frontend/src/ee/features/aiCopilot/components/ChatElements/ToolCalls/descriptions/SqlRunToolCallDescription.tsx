@@ -24,7 +24,7 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
     limit,
     approval,
 }) => {
-    const autoApprove = useSqlAutoApprove(approval?.threadUuid ?? '');
+    const autoApprove = useSqlAutoApprove(approval?.threadUuid ?? null);
     const [expanded, { open, close }] = useDisclosure(false);
     const limitLabel = limit ? `Row limit: ${limit}` : null;
     const review: SqlApprovalReview = approval

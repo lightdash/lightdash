@@ -52,7 +52,9 @@ export const SqlChartToolCallDescription: FC<Props> = ({
     // Whoever approves the SQL has to see it.
     const showSql = (canViewSql || approval !== null) && !!chart.sql;
     const verb = action === 'create' ? 'Save' : 'Update';
-    const autoApprove = useSqlAutoApprove(approval?.threadUuid ?? '');
+    const autoApprove = useSqlAutoApprove(
+        approval ? approval.threadUuid : null,
+    );
     const [reviewOpened, { open: openReview, close: closeReview }] =
         useDisclosure(false);
     const chartName = chart.name ?? slug;
