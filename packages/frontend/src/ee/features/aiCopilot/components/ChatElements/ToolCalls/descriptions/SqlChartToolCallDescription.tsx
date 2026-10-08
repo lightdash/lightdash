@@ -1,3 +1,4 @@
+import { SQL_CHART_KINDS, type SqlChartKind } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
 import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -13,7 +14,7 @@ import { ToolCallSqlBlock } from '../ToolCallSqlBlock';
 export type SqlChartToolArgs = {
     name?: string;
     spaceSlug?: string;
-    chartKind?: string;
+    chartKind?: SqlChartKind;
     sql?: string;
 };
 
@@ -21,17 +22,20 @@ type Props = {
     action: 'create' | 'edit';
     slug: string;
     chart: SqlChartToolArgs;
-    /** Present while the SQL chart waits for the user to approve its SQL. */
-    approval?: SqlApprovalTarget;
+    /** Set while the SQL chart waits for the user to approve its SQL. */
+    approval: SqlApprovalTarget | null;
 };
 
-const CHART_KIND_LABELS: Record<string, string> = {
+const CHART_KIND_LABELS: Record<SqlChartKind, string> = {
     vertical_bar: 'Bar chart',
     line: 'Line chart',
     pie: 'Pie chart',
     big_number: 'Big number',
     table: 'Table',
 };
+
+const isSqlChartKind = (value: string): value is SqlChartKind =>
+    (SQL_CHART_KINDS as readonly string[]).includes(value);
 
 export const SqlChartToolCallDescription: FC<Props> = ({
     action,
@@ -41,7 +45,7 @@ export const SqlChartToolCallDescription: FC<Props> = ({
 }) => {
     const canViewSql = useCanViewAiAgentSql();
     // Whoever approves the SQL has to see it.
-    const showSql = (canViewSql || approval !== undefined) && !!chart.sql;
+    const showSql = (canViewSql || approval !== null) && !!chart.sql;
     const verb = action === 'create' ? 'Save' : 'Update';
 
     return (
@@ -64,7 +68,9 @@ export const SqlChartToolCallDescription: FC<Props> = ({
                 ) : null}
                 {chart.chartKind ? (
                     <ToolCallChip>
-                        {CHART_KIND_LABELS[chart.chartKind] ?? chart.chartKind}
+                        {isSqlChartKind(chart.chartKind)
+                            ? CHART_KIND_LABELS[chart.chartKind]
+                            : chart.chartKind}
                     </ToolCallChip>
                 ) : null}
             </Group>

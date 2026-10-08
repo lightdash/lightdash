@@ -47,9 +47,6 @@ export type ComposerQueryNodeStatus =
     | { status: 'success' }
     | { status: 'error'; errorMessage: string | null };
 
-/** Approval target for the SQL nodes of a pipeline waiting on the user. */
-export type ComposerApprovalTarget = Omit<SqlApprovalTarget, 'toolCallId'>;
-
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
     nodeStatuses?: Record<string, ComposerQueryNodeStatus>;

@@ -53,13 +53,15 @@ const baseContentSchema = z.object({
     verification: z.unknown().optional(),
 });
 
-const SQL_CHART_KINDS = [
+export const SQL_CHART_KINDS = [
     'vertical_bar',
     'line',
     'pie',
     'big_number',
     'table',
 ] as const;
+
+export type SqlChartKind = (typeof SQL_CHART_KINDS)[number];
 
 export const toolSqlChartAsCodeSchema = baseContentSchema
     .omit({ verified: true, verification: true })

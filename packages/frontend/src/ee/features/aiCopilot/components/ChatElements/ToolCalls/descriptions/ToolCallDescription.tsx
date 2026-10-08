@@ -285,7 +285,7 @@ export const ToolCallDescription: FC<{
                         action="create"
                         slug={createContentToolArgs.content.slug}
                         chart={createContentToolArgs.content}
-                        approval={approval}
+                        approval={approval ?? null}
                     />
                 );
             }
