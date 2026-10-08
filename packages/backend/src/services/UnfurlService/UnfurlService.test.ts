@@ -9,6 +9,7 @@ import {
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
+    type Document,
 } from '@lightdash/common';
 import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -17,6 +18,7 @@ import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DocumentModel } from '../../models/DocumentModel';
 import { type DownloadFileModel } from '../../models/DownloadFileModel';
 import { type HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -25,6 +27,9 @@ import { type SavedSqlModel } from '../../models/SavedSqlModel';
 import { type ShareModel } from '../../models/ShareModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
+import { type UserModel } from '../../models/UserModel';
+import type { DocumentService } from '../DocumentService/DocumentService';
+import { User as SessionUserMock } from '../ShareService/ShareService.mock';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     expandViewportToDashboardGrid,
@@ -98,6 +103,9 @@ function createService(
         dashboardModel: Partial<DashboardModel>;
         projectModel: Partial<ProjectModel>;
         slackAuthenticationModel: Partial<SlackAuthenticationModel>;
+        documentModel: Partial<DocumentModel>;
+        documentService: Partial<DocumentService>;
+        userModel: Partial<UserModel>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
@@ -132,6 +140,11 @@ function createService(
         spacePermissionService: {} as unknown as SpacePermissionService,
         headlessBrowserLoginGrantModel:
             {} as unknown as HeadlessBrowserLoginGrantModel,
+        documentModel: (overrides.documentModel ??
+            {}) as unknown as DocumentModel,
+        documentService: (overrides.documentService ??
+            {}) as unknown as DocumentService,
+        userModel: (overrides.userModel ?? {}) as unknown as UserModel,
     });
 }
 
@@ -715,6 +728,39 @@ describe('UnfurlService', () => {
             expect(page.pdf).not.toHaveBeenCalled();
             expect(mockFileStorageClient.uploadPdf).not.toHaveBeenCalled();
         });
+
+        it('unfurls only the top of a long Document as the preview image', async () => {
+            const { service, page } = setup({ 'data-status': 'ready' });
+            page.locator().boundingBox.mockResolvedValue({
+                x: 0,
+                y: 40,
+                width: 800,
+                height: 5000,
+            });
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/preview.png',
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+                undefined,
+            );
+
+            await service.unfurlImage({
+                url: 'http://headless-browser:8080/minimal/projects/project-uuid/documents/document-uuid?versionUuid=version-uuid',
+                lightdashPage: LightdashPage.DOCUMENT,
+                imageId: 'slack-image-document',
+                authUserUuid: 'user-uuid',
+                context: ScreenshotContext.SLACK,
+                selectedTabs: null,
+            });
+
+            expect(page.screenshot).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    clip: { x: 0, y: 40, width: 800, height: 1024 },
+                }),
+            );
+            expect(page.pdf).not.toHaveBeenCalled();
+        });
     });
 
     describe('getPreviewSignedUrl', () => {
@@ -1023,6 +1069,182 @@ describe('UnfurlService', () => {
             );
 
             expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('parseUrl - documents', () => {
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const DOCUMENT_UUID = '33333333-4444-4555-8666-777777777777';
+        const LATEST_VERSION_UUID = '88888888-9999-4aaa-8bbb-cccccccccccc';
+        const document = {
+            documentUuid: DOCUMENT_UUID,
+            version: { versionUuid: LATEST_VERSION_UUID },
+        };
+        const expectedMinimalUrl = `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/documents/${DOCUMENT_UUID}?versionUuid=${LATEST_VERSION_UUID}`;
+
+        it('resolves a Document slug and pins its latest version', async () => {
+            const getBySlug = vi.fn().mockResolvedValue(document);
+            const service = createService({ documentModel: { getBySlug } });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/documents/payments-review/history`,
+            );
+
+            expect(getBySlug).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                'payments-review',
+            );
+            expect(result).toMatchObject({
+                isValid: true,
+                lightdashPage: LightdashPage.DOCUMENT,
+                projectUuid: PROJECT_UUID,
+                documentUuid: DOCUMENT_UUID,
+                minimalUrl: expectedMinimalUrl,
+            });
+        });
+
+        it('resolves a Document UUID without a slug lookup', async () => {
+            const get = vi.fn().mockResolvedValue(document);
+            const getBySlug = vi.fn();
+            const service = createService({
+                documentModel: { get, getBySlug },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/documents/${DOCUMENT_UUID}`,
+            );
+
+            expect(get).toHaveBeenCalledWith(PROJECT_UUID, DOCUMENT_UUID);
+            expect(getBySlug).not.toHaveBeenCalled();
+            expect(result.minimalUrl).toBe(expectedMinimalUrl);
+        });
+
+        it('returns an invalid result when the Document does not resolve', async () => {
+            const getBySlug = vi
+                .fn()
+                .mockRejectedValue(new NotFoundError('Document not found'));
+            const service = createService({ documentModel: { getBySlug } });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/documents/deleted-doc`,
+            );
+
+            expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('unfurlSlackUrls - documents', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const DOCUMENT_UUID = '33333333-4444-4555-8666-777777777777';
+        const DOCUMENT_URL = `https://app.lightdash.cloud/projects/${PROJECT_UUID}/documents/payments-review`;
+
+        const setup = (getByIdOrSlug: DocumentService['getByIdOrSlug']) => {
+            const document = {
+                documentUuid: DOCUMENT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                name: 'Payments review',
+                description: '',
+                version: { versionUuid: 'version-uuid' },
+            };
+            const installer = {
+                ...SessionUserMock,
+                userUuid: 'installer-uuid',
+                organizationUuid: ORGANIZATION_UUID,
+            };
+            const findSessionUserAndOrgByUuid = vi
+                .fn()
+                .mockResolvedValue(installer);
+            const service = createService({
+                headlessBrowser: { host: undefined },
+                documentModel: {
+                    get: vi.fn().mockResolvedValue(document),
+                    getBySlug: vi.fn().mockResolvedValue(document),
+                },
+                documentService: { getByIdOrSlug },
+                userModel: { findSessionUserAndOrgByUuid },
+                slackAuthenticationModel: {
+                    getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                    getOrganizationUuidFromTeamId: vi
+                        .fn()
+                        .mockResolvedValue(ORGANIZATION_UUID),
+                    getUserUuid: vi.fn().mockResolvedValue('installer-uuid'),
+                },
+            });
+            const unfurl = vi.fn().mockResolvedValue({ ok: true });
+            const message = {
+                event: {
+                    channel: 'C1',
+                    message_ts: '1.0',
+                    links: [{ url: DOCUMENT_URL, domain: 'lightdash.cloud' }],
+                },
+                client: { chat: { unfurl } },
+                context: { teamId: 'T1', botUserId: 'B1' },
+            };
+            return { service, unfurl, message, findSessionUserAndOrgByUuid };
+        };
+
+        const unfurlAndSettle = async (
+            service: UnfurlService,
+            message: unknown,
+        ) => {
+            await service.unfurlSlackUrls(
+                message as Parameters<UnfurlService['unfurlSlackUrls']>[0],
+            );
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+        };
+
+        it('unfurls a Document the Slack installer can view', async () => {
+            const getByIdOrSlug = vi
+                .fn<DocumentService['getByIdOrSlug']>()
+                .mockResolvedValue({} as Document);
+            const { service, unfurl, message, findSessionUserAndOrgByUuid } =
+                setup(getByIdOrSlug);
+
+            await unfurlAndSettle(service, message);
+
+            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                'installer-uuid',
+                ORGANIZATION_UUID,
+            );
+            expect(getByIdOrSlug).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    user: expect.objectContaining({
+                        userUuid: 'installer-uuid',
+                    }),
+                }),
+                PROJECT_UUID,
+                DOCUMENT_UUID,
+            );
+            expect(unfurl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    unfurls: {
+                        [DOCUMENT_URL]: expect.objectContaining({
+                            blocks: expect.arrayContaining([
+                                expect.objectContaining({
+                                    text: expect.objectContaining({
+                                        text: 'Payments review',
+                                    }),
+                                }),
+                            ]),
+                        }),
+                    },
+                }),
+            );
+        });
+
+        it('does not unfurl a Document the Slack installer cannot view', async () => {
+            const getByIdOrSlug = vi
+                .fn<DocumentService['getByIdOrSlug']>()
+                .mockRejectedValue(new NotFoundError('Document not found'));
+            const { service, unfurl, message } = setup(getByIdOrSlug);
+
+            await unfurlAndSettle(service, message);
+
+            expect(getByIdOrSlug).toHaveBeenCalled();
+            expect(unfurl).not.toHaveBeenCalled();
         });
     });
 
