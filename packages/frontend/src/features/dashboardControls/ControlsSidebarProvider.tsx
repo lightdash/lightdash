@@ -4,7 +4,11 @@ import {
     isMetric,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardParameterControl,
+    type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import {
     useCallback,
     useEffect,
@@ -37,6 +41,15 @@ type SidebarState = {
     snapshot: ControlsSidebarSnapshot;
 };
 
+type ControlState = {
+    controlId: string;
+    isNew: boolean;
+    snapshot: {
+        parameterControls: DashboardParameterControl[];
+        parameterValues: ParametersValuesMap;
+    };
+};
+
 export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     children,
 }) => {
@@ -52,7 +65,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (c) => c.filterableFieldsByTileUuid,
     );
 
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const setParameterControls = useDashboardContext(
+        (c) => c.setParameterControls,
+    );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const setParameter = useDashboardContext((c) => c.setParameter);
+
     const [state, setState] = useState<SidebarState | null>(null);
+    const [controlState, setControlState] = useState<ControlState | null>(null);
     // Lives here, never in the dashboard filters, until it gets a mapping
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
@@ -71,6 +92,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const close = useCallback(() => {
         setState(null);
+        setControlState(null);
         setPlaceholder(null);
         setActiveSection('fields');
         setHighlightedFieldId(null);
@@ -83,6 +105,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (filterId: string) => {
             if (state !== null && (state.isNew || state.filterId === filterId))
                 return;
+            if (controlState?.isNew) return;
+            setControlState(null);
             setPlaceholder(null);
             setActiveSection('fields');
             setHighlightedFieldId(null);
@@ -93,11 +117,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 snapshot: { dashboardFilters, haveFiltersChanged },
             });
         },
-        [state, dashboardFilters, haveFiltersChanged],
+        [state, controlState, dashboardFilters, haveFiltersChanged],
     );
 
     const openNew = useCallback(() => {
-        if (state !== null) return;
+        if (state !== null || controlState !== null) return;
         const rule: DashboardFilterRule = {
             id: uuidv4(),
             target: PLACEHOLDER_TARGET,
@@ -114,7 +138,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isNew: true,
             snapshot: { dashboardFilters, haveFiltersChanged },
         });
-    }, [state, dashboardFilters, haveFiltersChanged]);
+    }, [state, controlState, dashboardFilters, haveFiltersChanged]);
 
     const addFirstField = useCallback(
         (field: DashboardFilterableField) => {
@@ -271,12 +295,154 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         close();
     }, [state, setDashboardFilters, setHaveFiltersChanged, close]);
 
+    const editingControl = useMemo(
+        () =>
+            controlState === null
+                ? null
+                : (parameterControls.find(
+                      (control) => control.id === controlState.controlId,
+                  ) ?? null),
+        [controlState, parameterControls],
+    );
+
+    // Opening a control keeps the edits made to the filter open before it
+    const openControl = useCallback(
+        (controlId: string) => {
+            if (state?.isNew || controlState?.isNew) return;
+            if (controlState?.controlId === controlId) return;
+            setState(null);
+            setPlaceholder(null);
+            setActiveSection('fields');
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
+            setControlState({
+                controlId,
+                isNew: false,
+                snapshot: { parameterControls, parameterValues },
+            });
+        },
+        [state, controlState, parameterControls, parameterValues],
+    );
+
+    const addParameterControl = useCallback(
+        (parameterKey: string) => {
+            if (placeholder === null || controlState !== null) return;
+            const control: DashboardParameterControl = {
+                id: uuidv4(),
+                label: placeholder.label ?? '',
+                parameterKeys: [parameterKey],
+                tileTargets: {},
+            };
+            setParameterControls((controls) => [...controls, control]);
+            setState(null);
+            setPlaceholder(null);
+            setActiveSection('fields');
+            setControlState({
+                controlId: control.id,
+                isNew: true,
+                snapshot: { parameterControls, parameterValues },
+            });
+        },
+        [
+            placeholder,
+            controlState,
+            parameterControls,
+            parameterValues,
+            setParameterControls,
+        ],
+    );
+
+    const updateControl = useCallback(
+        (next: DashboardParameterControl) =>
+            setParameterControls((controls) =>
+                controls.map((control) =>
+                    control.id === next.id ? next : control,
+                ),
+            ),
+        [setParameterControls],
+    );
+
+    const setControlValue = useCallback(
+        (value: ParameterValue | null) =>
+            editingControl?.parameterKeys.forEach((key) =>
+                setParameter(key, value),
+            ),
+        [editingControl, setParameter],
+    );
+
+    const removeControlById = useCallback(
+        (controlId: string) =>
+            setParameterControls((controls) =>
+                controls.filter((control) => control.id !== controlId),
+            ),
+        [setParameterControls],
+    );
+
+    // Puts back the values the control's parameters had when it was opened
+    const restoreControlValues = useCallback(
+        (snapshot: ControlState['snapshot'], keys: string[]) =>
+            keys.forEach((key) =>
+                setParameter(key, snapshot.parameterValues[key] ?? null),
+            ),
+        [setParameter],
+    );
+
+    const removeControl = useCallback(() => {
+        if (controlState === null) return;
+        setParameterControls(
+            controlState.snapshot.parameterControls.filter(
+                (control) => control.id !== controlState.controlId,
+            ),
+        );
+        close();
+    }, [controlState, setParameterControls, close]);
+
     const cancel = useCallback(() => {
+        if (controlState !== null) {
+            const before = controlState.snapshot.parameterControls.find(
+                (control) => control.id === controlState.controlId,
+            );
+            restoreControlValues(controlState.snapshot, [
+                ...new Set([
+                    ...(editingControl?.parameterKeys ?? []),
+                    ...(before?.parameterKeys ?? []),
+                ]),
+            ]);
+            setParameterControls(controlState.snapshot.parameterControls);
+            close();
+            return;
+        }
         if (state === null) return;
         setDashboardFilters(state.snapshot.dashboardFilters);
         setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
         close();
-    }, [state, setDashboardFilters, setHaveFiltersChanged, close]);
+    }, [
+        state,
+        controlState,
+        editingControl,
+        restoreControlValues,
+        setParameterControls,
+        setDashboardFilters,
+        setHaveFiltersChanged,
+        close,
+    ]);
+
+    const isControlDirty = useMemo(() => {
+        if (controlState === null || editingControl === null) return false;
+        const before = controlState.snapshot.parameterControls.find(
+            (control) => control.id === controlState.controlId,
+        );
+        return (
+            !isEqual(before, editingControl) ||
+            editingControl.parameterKeys.some(
+                (key) =>
+                    !isEqual(
+                        parameterValues[key],
+                        controlState.snapshot.parameterValues[key],
+                    ),
+            )
+        );
+    }, [controlState, editingControl, parameterValues]);
 
     const isPlaceholder = state !== null && placeholder !== null;
 
@@ -315,7 +481,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isNew: state?.isNew ?? false,
             isPlaceholder,
             editingRule,
-            isSidebarOpen: state !== null,
+            isSidebarOpen: state !== null || controlState !== null,
+            editingControl,
+            isNewControl: controlState?.isNew ?? false,
+            openControl,
+            addParameterControl,
+            updateControl,
+            setControlValue,
+            removeControl,
+            removeControlById,
             activeSection,
             setActiveSection,
             open,
@@ -336,13 +510,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             cancel,
             apply,
             isDirty:
-                state !== null &&
-                (isPlaceholder ||
-                    isFilterRuleDirty(
-                        state.snapshot.dashboardFilters,
-                        dashboardFilters,
-                        state.filterId,
-                    )),
+                isControlDirty ||
+                (state !== null &&
+                    (isPlaceholder ||
+                        isFilterRuleDirty(
+                            state.snapshot.dashboardFilters,
+                            dashboardFilters,
+                            state.filterId,
+                        ))),
         }),
         [
             state,
@@ -364,6 +539,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             cancel,
             apply,
             dashboardFilters,
+            controlState,
+            editingControl,
+            isControlDirty,
+            openControl,
+            addParameterControl,
+            updateControl,
+            setControlValue,
+            removeControl,
+            removeControlById,
         ],
     );
 

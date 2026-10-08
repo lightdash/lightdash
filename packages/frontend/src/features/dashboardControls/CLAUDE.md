@@ -23,8 +23,9 @@ never called a filter. User-facing copy says *tile*, never *chart*.
   passes `ControlSidebar` as the left sidebar and toggles only `isSidebarOpen`,
   so the dashboard grid never remounts.
 - `ControlsBar` in edit mode renders `AddControl` ("Add") and `FilterPills`; in
-  view mode the shipped `DashboardFilters`. Parameters, date zoom and the
-  requirements button are the shipped components.
+  view mode the shipped `DashboardFilters`. `ParameterControlPills` follows in
+  both modes. Parameters, date zoom and the requirements button are the shipped
+  components.
 - `FilterPills`: click opens the control, the X removes it and is hidden while
   the sidebar is open.
 
@@ -96,3 +97,31 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
   `usePortalTargets` and render nothing for a placeholder.
+
+## Parameter controls
+
+- Saved with the dashboard as `parameterControls: DashboardParameterControl[]`:
+  `{ id, label, parameterKeys, tileTargets }`. Per tile: no entry means the
+  control sets every one of its parameters the tile uses, a key means only that
+  one, `false` switches the tile off (it runs on its chart value or the default).
+- Values are not on the control. They stay in the dashboard's parameters, one
+  per key; a control writes the same value to every key it holds.
+- A parameter in no control keeps the shipped input, and nothing is created
+  automatically. `ControlsBar` passes the shipped `Parameters` only the
+  definitions outside `getControlledParameterKeys`, so each shows once.
+- Chart tiles preview unsaved controls because the query request carries them.
+  SQL chart tiles follow the saved controls only.
+- `ParameterControlPills`: edit mode opens the control and offers the X; view
+  mode opens the shipped `ParameterInput` and sets every key. On a tab, a pill
+  shows when the control sets a tile there, is being edited, or no tile on the
+  tab has reported its parameters yet.
+- `ParameterOverlays` portals a "Set by" card into each tile on the active tab,
+  with the value the tile runs with and its source (`parameterSources.ts`).
+  `TabCounts` counts with `getControlTabCounts`. Pure helpers:
+  `parameterControls.ts`.
+- Additive edits in shipped files: `DashboardProvider` holds `parameterControls`,
+  `setParameterControls`, `resetParameterControls`,
+  `haveParameterControlsChanged` and `tileChartSavedParameters`;
+  `pages/Dashboard.tsx` loads, resets and sends the controls only when changed;
+  `useDashboardChartReadyQuery.ts` keys on the tile's narrowed values and sends
+  the controls with the query.

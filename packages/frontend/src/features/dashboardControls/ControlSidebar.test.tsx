@@ -34,6 +34,10 @@ vi.mock('./FieldsAndTiles', () => ({
     FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
 }));
 
+vi.mock('./ParameterSidebar', () => ({
+    ParameterSidebar: () => <div data-testid="parameter-sidebar" />,
+}));
+
 vi.mock('./FilterSettings', () => ({
     FilterSettings: ({ attemptedApply }: { attemptedApply: boolean }) => (
         <div
@@ -102,6 +106,14 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         cancel: vi.fn(),
         apply: vi.fn(),
         isDirty: true,
+        editingControl: null,
+        isNewControl: false,
+        openControl: vi.fn(),
+        addParameterControl: vi.fn(),
+        updateControl: vi.fn(),
+        setControlValue: vi.fn(),
+        removeControl: vi.fn(),
+        removeControlById: vi.fn(),
         ...overrides,
     };
     mockSidebar.current = value;
@@ -185,6 +197,22 @@ describe('ControlSidebar', () => {
         setSidebar({ editing: null, editingRule: null });
         renderWithProviders(<ControlSidebar />);
         expect(screen.queryByText('Apply')).not.toBeInTheDocument();
+    });
+
+    it('renders the parameter editor when a parameter control is edited', () => {
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            editingControl: {
+                id: 'control-1',
+                label: 'Region',
+                parameterKeys: ['region'],
+                tileTargets: {},
+            },
+        });
+        renderWithProviders(<ControlSidebar />);
+        expect(screen.getByTestId('parameter-sidebar')).toBeInTheDocument();
+        expect(screen.queryByText('Fields and tiles')).not.toBeInTheDocument();
     });
 
     it('blocks Apply on a placeholder until it has a field', () => {

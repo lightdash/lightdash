@@ -1,4 +1,5 @@
 import {
+    FilterType,
     getItemId,
     isDashboardFieldTarget,
     isDimension,
@@ -16,6 +17,11 @@ import { getFieldKind } from './fieldKinds';
 import { FieldPicker } from './FieldPicker';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
+import {
+    getFreeParameterKeys,
+    getParameterLabel,
+    type ParameterKind,
+} from './parameterControls';
 import {
     applyFieldToAll,
     applyFieldToUnfilteredTiles,
@@ -39,6 +45,12 @@ const getRuleFieldTarget = (
     );
 };
 
+const PARAMETER_KINDS: ParameterKind[] = [
+    FilterType.STRING,
+    FilterType.NUMBER,
+    FilterType.DATE,
+];
+
 // Every grain of a time dimension shares one key
 const getGrainKey = (field: DashboardFilterableField): string | null =>
     isDimension(field)
@@ -50,6 +62,7 @@ export const FieldsAndTiles: FC = () => {
         editingRule,
         isPlaceholder,
         addFirstField,
+        addParameterControl,
         clearFields,
         updateFilter,
         waitingFieldIds,
@@ -70,7 +83,31 @@ export const FieldsAndTiles: FC = () => {
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
+    );
     const [isAdding, setIsAdding] = useState(false);
+
+    // Parameters a tile uses that no control holds yet
+    const freeParameters = useMemo(() => {
+        const references = Object.values(tileParameterReferences);
+        return PARAMETER_KINDS.flatMap((parameterKind) =>
+            getFreeParameterKeys(
+                parameterKind,
+                parameterControls,
+                parameterDefinitions,
+                tileParameterReferences,
+            ),
+        ).map((key) => ({
+            key,
+            label: getParameterLabel(key, parameterDefinitions),
+            tileCount: references.filter((keys) => keys.includes(key)).length,
+        }));
+    }, [parameterControls, parameterDefinitions, tileParameterReferences]);
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
@@ -144,12 +181,14 @@ export const FieldsAndTiles: FC = () => {
         return (
             <Stack gap="xs">
                 <Text fz="xs" c="dimmed">
-                    Select a field to filter
+                    Select a field to filter or a parameter to control
                 </Text>
                 <FieldPicker
                     fields={fields}
                     getTileCount={getTileCount}
                     onPickField={addFirstField}
+                    parameters={freeParameters}
+                    onPickParameter={addParameterControl}
                 />
             </Stack>
         );

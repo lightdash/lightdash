@@ -148,3 +148,36 @@ describe('dashboard effective parameter values', () => {
         expect(result.current.missingRequiredParameters).toEqual([]);
     });
 });
+
+describe('dashboard parameter controls', () => {
+    const control = {
+        id: 'c1',
+        label: 'Reporting date',
+        parameterKeys: ['order_date'],
+        tileTargets: {},
+    };
+
+    it('starts with no controls and nothing to save', () => {
+        const { result } = renderParameters();
+        expect(result.current.parameterControls).toEqual([]);
+        expect(result.current.haveParameterControlsChanged).toBe(false);
+    });
+
+    it('loads saved controls without marking the dashboard changed', () => {
+        const { result } = renderParameters();
+        act(() => result.current.resetParameterControls([control]));
+        expect(result.current.parameterControls).toEqual([control]);
+        expect(result.current.haveParameterControlsChanged).toBe(false);
+    });
+
+    it('marks an edit as changed until the controls are reset to it', () => {
+        const { result } = renderParameters();
+        act(() => result.current.resetParameterControls([control]));
+        const edited = [{ ...control, tileTargets: { tile: false as const } }];
+        act(() => result.current.setParameterControls(edited));
+        expect(result.current.haveParameterControlsChanged).toBe(true);
+
+        act(() => result.current.resetParameterControls(edited));
+        expect(result.current.haveParameterControlsChanged).toBe(false);
+    });
+});

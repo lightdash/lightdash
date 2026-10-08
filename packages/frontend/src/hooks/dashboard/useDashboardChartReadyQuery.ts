@@ -1,6 +1,7 @@
 import {
     getAvailableParametersFromTables,
     getChartZoomableFields,
+    getDashboardValuesForTile,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
     hasReservedParameterReference,
@@ -82,6 +83,7 @@ export const useDashboardChartReadyQuery = (
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -251,12 +253,19 @@ export const useDashboardChartReadyQuery = (
     const chartParameterValues = useMemo(() => {
         if (!tileParameterReferences || !tileParameterReferences[tileUuid])
             return {};
+        // Parameter controls can leave a tile out, so the key follows the
+        // values this tile runs with
+        const tileValues = getDashboardValuesForTile({
+            dashboardValues: parameterValues,
+            parameterControls,
+            tileUuid,
+        });
         return Object.fromEntries(
-            Object.entries(parameterValues).filter(([key]) =>
+            Object.entries(tileValues).filter(([key]) =>
                 tileParameterReferences[tileUuid].includes(key),
             ),
         );
-    }, [parameterValues, tileParameterReferences, tileUuid]);
+    }, [parameterValues, parameterControls, tileParameterReferences, tileUuid]);
 
     // dateZoomApplied comes from the query response — the backend is the
     // single source of truth for whether zoom was actually applied.
@@ -344,6 +353,10 @@ export const useDashboardChartReadyQuery = (
                           dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
+                          // Unsaved controls, so edits preview on the tile
+                          ...(parameterControls.length > 0 && {
+                              parameterControls,
+                          }),
                           pivotResults: true,
                           ...(includeUnpublishedDraft && {
                               includeUnpublishedDraft: true,

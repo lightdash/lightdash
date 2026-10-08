@@ -5,6 +5,7 @@ import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterSettings } from './FilterSettings';
+import { ParameterSidebar } from './ParameterSidebar';
 import {
     getFilterFields,
     getTabCounts,
@@ -20,6 +21,7 @@ const LABEL_ERROR = 'Add a label so viewers know what this filters';
 export const ControlSidebar: FC = () => {
     const {
         editing,
+        editingControl,
         isNew,
         isPlaceholder,
         editingRule,
@@ -107,6 +109,7 @@ export const ControlSidebar: FC = () => {
         sqlColumnsByTile,
     ]);
 
+    if (editingControl !== null) return <ParameterSidebar />;
     if (editing === null || editingRule === null || reach === null) return null;
     const filterRule = editingRule;
 

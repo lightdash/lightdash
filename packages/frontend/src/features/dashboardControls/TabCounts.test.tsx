@@ -4,6 +4,7 @@ import {
     FieldType,
     FilterOperator,
     type DashboardFilterRule,
+    type DashboardParameterControl,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -77,11 +78,21 @@ const rule = (
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
         editingRule: rule(),
+        editingControl: null,
         isPlaceholder: false,
         activeFieldId: null,
         ...overrides,
     };
 };
+
+const control = (
+    tileTargets: DashboardParameterControl['tileTargets'] = {},
+): DashboardParameterControl => ({
+    id: 'parameter-control',
+    label: 'Period',
+    parameterKeys: ['start', 'end'],
+    tileTargets,
+});
 
 const badgeText = (tabUuid: string) =>
     mockContainers.current[tabUuid].textContent;
@@ -116,6 +127,12 @@ describe('TabCounts', () => {
                 'tile-both': [status, region],
                 'tile-status': [status],
                 'tile-region': [region],
+            },
+            parameterDefinitions: { start: { label: 'Start date' } },
+            tileParameterReferences: {
+                'tile-both': ['start', 'end'],
+                'tile-status': ['start'],
+                'tile-region': ['end'],
             },
         };
         setSidebar();
@@ -154,6 +171,44 @@ describe('TabCounts', () => {
         await userEvent.hover(screen.getByText('1 of 1'));
         expect(
             await screen.findByText('1 of 1 tiles on this tab use Region'),
+        ).toBeInTheDocument();
+    });
+
+    it('counts the tiles a parameter control sets out of every tile on each tab', async () => {
+        setSidebar({
+            editingRule: null,
+            editingControl: control({ 'tile-status': false }),
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('1 of 3');
+        expect(badgeText('tab-2')).toBe('1 of 1');
+        expect(badgeText('tab-empty')).toBe('');
+
+        await userEvent.hover(screen.getByText('1 of 3'));
+        expect(
+            await screen.findByText(
+                '1 of 3 tiles on this tab are set by this control',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('counts the active parameter alone for a parameter control', async () => {
+        setSidebar({
+            editingRule: null,
+            editingControl: control(),
+            activeFieldId: 'start',
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('2 of 3');
+        expect(badgeText('tab-2')).toBe('0 of 1');
+
+        await userEvent.hover(screen.getByText('2 of 3'));
+        expect(
+            await screen.findByText(
+                '2 of 3 tiles on this tab are set by Start date',
+            ),
         ).toBeInTheDocument();
     });
 

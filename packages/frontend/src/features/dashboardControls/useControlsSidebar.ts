@@ -1,6 +1,8 @@
 import {
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardParameterControl,
+    type ParameterValue,
 } from '@lightdash/common';
 import { createContext, useContext } from 'react';
 
@@ -50,6 +52,19 @@ export type ControlsSidebarContextValue = {
     /** Keeps the edits; saving stays with the dashboard's own Save. */
     apply: () => void;
     isDirty: boolean;
+    /** The parameter control being edited, or null. */
+    editingControl: DashboardParameterControl | null;
+    /** The edited parameter control was just created and is not applied yet. */
+    isNewControl: boolean;
+    openControl: (controlId: string) => void;
+    /** Turns the placeholder into a parameter control on the given parameter. */
+    addParameterControl: (parameterKey: string) => void;
+    updateControl: (next: DashboardParameterControl) => void;
+    /** Sets the value of every parameter of the edited control. */
+    setControlValue: (value: ParameterValue | null) => void;
+    /** Removes the edited control; its parameters keep their values. */
+    removeControl: () => void;
+    removeControlById: (controlId: string) => void;
 };
 
 export const ControlsSidebarContext =

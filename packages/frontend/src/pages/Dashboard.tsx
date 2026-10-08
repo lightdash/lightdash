@@ -196,6 +196,13 @@ const Dashboard: FC = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const resetParameterControls = useDashboardContext(
+        (c) => c.resetParameterControls,
+    );
+    const haveParameterControlsChanged = useDashboardContext(
+        (c) => c.haveParameterControlsChanged,
+    );
     const parametersHaveChanged = useDashboardContext(
         (c) => c.parametersHaveChanged,
     );
@@ -373,6 +380,7 @@ const Dashboard: FC = () => {
         setDashboardTiles(dashboard?.tiles ?? []);
         setDashboardTabs(dashboard?.tabs ?? []);
         setSavedParameters(dashboard?.parameters ?? {});
+        resetParameterControls(dashboard?.parameterControls ?? []);
     }, [
         isDashboardLoading,
         dashboard,
@@ -380,6 +388,7 @@ const Dashboard: FC = () => {
         setDashboardTiles,
         setDashboardTabs,
         setSavedParameters,
+        resetParameterControls,
     ]);
 
     useEffect(() => {
@@ -700,6 +709,7 @@ const Dashboard: FC = () => {
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard.tabs);
         setSavedParameters(dashboard.parameters ?? {});
+        resetParameterControls(dashboard.parameterControls ?? []);
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
@@ -743,6 +753,7 @@ const Dashboard: FC = () => {
         dashboardTabs,
         activeTab,
         setSavedParameters,
+        resetParameterControls,
         setPinnedParameters,
         setHavePinnedParametersChanged,
         setDateZoomGranularities,
@@ -806,6 +817,7 @@ const Dashboard: FC = () => {
         hasAddFilterDisabledChanged ||
         hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
+        haveParameterControlsChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
         haveDateZoomGranularitiesChanged ||
@@ -854,6 +866,8 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            // What was just saved is the saved state now
+            resetParameterControls(parameterControls);
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
@@ -885,6 +899,8 @@ const Dashboard: FC = () => {
         isSuccess,
         projectUrlIdentifier,
         reset,
+        resetParameterControls,
+        parameterControls,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
@@ -1310,6 +1326,8 @@ const Dashboard: FC = () => {
                     : undefined,
             }),
             parameters: dashboardParameters,
+            // Only sent when edited, so other saves keep the saved controls
+            ...(haveParameterControlsChanged ? { parameterControls } : {}),
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),

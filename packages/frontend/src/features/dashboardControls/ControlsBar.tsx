@@ -17,7 +17,7 @@ import {
     IconEyeOff,
     IconFilter,
 } from '@tabler/icons-react';
-import { type ComponentProps, type FC, type ReactNode } from 'react';
+import { useMemo, type ComponentProps, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -31,6 +31,8 @@ import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
+import { ParameterControlPills } from './ParameterControlPills';
+import { getControlledParameterKeys } from './parameterControls';
 import { useControlsSidebar } from './useControlsSidebar';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
@@ -40,7 +42,7 @@ export const ControlsBar: FC<Props> = ({
     activeTabUuid,
     hasTilesThatSupportFilters,
     hasDashboardTiles,
-    parameters,
+    parameters: allParameters,
     shadowedReservedNames,
     parameterValues,
     onParameterChange,
@@ -65,6 +67,19 @@ export const ControlsBar: FC<Props> = ({
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
     );
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    // A parameter held by a control is shown once, as the control
+    const parameters = useMemo(() => {
+        const controlled = new Set(
+            getControlledParameterKeys(parameterControls),
+        );
+        if (controlled.size === 0) return allParameters;
+        return Object.fromEntries(
+            Object.entries(allParameters).filter(
+                ([key]) => !controlled.has(key),
+            ),
+        );
+    }, [allParameters, parameterControls]);
     const hasFilters =
         allFilters.dimensions.length > 0 ||
         allFilters.metrics.length > 0 ||
@@ -149,6 +164,10 @@ export const ControlsBar: FC<Props> = ({
                                     activeTabUuid={activeTabUuid}
                                 />
                             )}
+                            <ParameterControlPills
+                                isEditMode={isEditMode}
+                                activeTabUuid={activeTabUuid}
+                            />
 
                             {isEditMode && !isSidebarOpen && (
                                 <FilterRequirementsButton />

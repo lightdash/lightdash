@@ -77,6 +77,7 @@ const rule = (
 });
 
 const addFirstField = vi.fn();
+const addParameterControl = vi.fn();
 const clearFields = vi.fn();
 const updateFilter = vi.fn();
 const setHighlightedFieldId = vi.fn();
@@ -92,6 +93,7 @@ const setSidebar = (
         editingRule,
         isPlaceholder: false,
         addFirstField,
+        addParameterControl,
         clearFields,
         updateFilter,
         highlightedFieldId: null,
@@ -127,6 +129,9 @@ describe('FieldsAndTiles', () => {
                 'tile-1': [status, region],
                 'tile-2': [status],
             },
+            parameterControls: [],
+            parameterDefinitions: {},
+            tileParameterReferences: {},
         };
     });
 
@@ -134,7 +139,11 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule(''), { isPlaceholder: true });
         renderWithProviders(<FieldsAndTiles />);
 
-        expect(screen.getByText('Select a field to filter')).toBeVisible();
+        expect(
+            screen.getByText(
+                'Select a field to filter or a parameter to control',
+            ),
+        ).toBeVisible();
         expect(
             screen.queryByText('Fields in this filter'),
         ).not.toBeInTheDocument();
@@ -149,6 +158,50 @@ describe('FieldsAndTiles', () => {
         await userEvent.click(options[1]);
         expect(addFirstField).toHaveBeenCalledTimes(1);
         expect(addFirstField).toHaveBeenCalledWith(status);
+    });
+
+    it('offers a placeholder the free parameters after the fields', async () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            parameterControls: [
+                {
+                    id: 'taken',
+                    label: 'Taken',
+                    parameterKeys: ['country'],
+                    tileTargets: {},
+                },
+            ],
+            parameterDefinitions: {
+                region: { label: 'Sales region' },
+                country: { label: 'Country' },
+                limit: { label: 'Row limit', type: 'number' },
+                unused: { label: 'Unused' },
+            },
+            tileParameterReferences: {
+                'tile-1': ['region', 'country', 'limit'],
+                'tile-2': ['region'],
+            },
+        };
+        setSidebar(rule(''), { isPlaceholder: true });
+        renderWithProviders(<FieldsAndTiles />);
+
+        await userEvent.click(
+            screen.getByPlaceholderText('Search fields and parameters'),
+        );
+        expect(screen.getByText('Fields')).toBeInTheDocument();
+        expect(screen.getByText('Parameters')).toBeInTheDocument();
+        const options = screen.getAllByRole('option', { hidden: true });
+        expect(options.map((option) => option.textContent)).toEqual([
+            'Orders Region1 tile',
+            'Orders Status2 tiles',
+            'Sales region2 tiles',
+            'Row limit1 tile',
+        ]);
+
+        await userEvent.click(options[2]);
+        expect(addParameterControl).toHaveBeenCalledTimes(1);
+        expect(addParameterControl).toHaveBeenCalledWith('region');
+        expect(addFirstField).not.toHaveBeenCalled();
     });
 
     it('lists the fields of a filter with their tile counts', () => {
@@ -281,6 +334,7 @@ describe('FieldsAndTiles', () => {
     describe('Add a field', () => {
         beforeEach(() => {
             mockDashboardContext.current = {
+                ...mockDashboardContext.current,
                 dashboardTiles: [
                     tile('tile-1'),
                     tile('tile-2'),
@@ -423,7 +477,9 @@ describe('FieldsAndTiles', () => {
             screen.queryByText('Fields in this filter'),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByText('Select a field to filter'),
+            screen.queryByText(
+                'Select a field to filter or a parameter to control',
+            ),
         ).not.toBeInTheDocument();
     });
 });

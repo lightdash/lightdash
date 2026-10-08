@@ -5,6 +5,9 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameterControl,
+    type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { useState, type FC, type PropsWithChildren } from 'react';
@@ -49,24 +52,51 @@ const statusField: DashboardFilterableField = {
     hidden: false,
 };
 
-const latest: { filters: DashboardFilters; changed: boolean } = {
+const savedControl: DashboardParameterControl = {
+    id: 'c1',
+    label: 'Reporting date',
+    parameterKeys: ['order_date'],
+    tileTargets: {},
+};
+const initialValues: ParametersValuesMap = { order_date: '2026-01-01' };
+
+const latest: {
+    filters: DashboardFilters;
+    changed: boolean;
+    controls: DashboardParameterControl[];
+    values: ParametersValuesMap;
+} = {
     filters: initialFilters,
     changed: false,
+    controls: [savedControl],
+    values: initialValues,
 };
 
 // Real state behind the mocked dashboard context so edits re-render
 const Wrapper: FC<PropsWithChildren> = ({ children }) => {
     const [dashboardFilters, setDashboardFilters] = useState(initialFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] = useState(false);
+    const [parameterControls, setParameterControls] = useState([savedControl]);
+    const [parameterValues, setParameterValues] = useState(initialValues);
     mockDashboardContext.current = {
         dashboardFilters,
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
         filterableFieldsByTileUuid: {},
+        parameterControls,
+        setParameterControls,
+        parameterValues,
+        setParameter: (key: string, value: ParameterValue | null) =>
+            setParameterValues((values) => {
+                const { [key]: _removed, ...rest } = values;
+                return value === null ? rest : { ...rest, [key]: value };
+            }),
     };
     latest.filters = dashboardFilters;
     latest.changed = haveFiltersChanged;
+    latest.controls = parameterControls;
+    latest.values = parameterValues;
     return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
 };
 
@@ -271,5 +301,92 @@ describe('ControlsSidebarProvider', () => {
         mockParams.current = { mode: 'view' };
         rerender();
         expect(result.current.editing).toBeNull();
+    });
+
+    describe('parameter controls', () => {
+        it('edits a control live and restores it and its value on cancel', () => {
+            const { result } = setup();
+            act(() => result.current.openControl('c1'));
+            expect(result.current.editingControl?.id).toBe('c1');
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isDirty).toBe(false);
+
+            act(() =>
+                result.current.updateControl({
+                    ...savedControl,
+                    label: 'Period',
+                    tileTargets: { t1: false },
+                }),
+            );
+            act(() => result.current.setControlValue('2026-06-01'));
+            expect(latest.controls[0].label).toBe('Period');
+            expect(latest.values.order_date).toBe('2026-06-01');
+            expect(result.current.isDirty).toBe(true);
+
+            act(() => result.current.cancel());
+            expect(latest.controls).toEqual([savedControl]);
+            expect(latest.values).toEqual(initialValues);
+            expect(result.current.isSidebarOpen).toBe(false);
+        });
+
+        it('keeps the edits on apply', () => {
+            const { result } = setup();
+            act(() => result.current.openControl('c1'));
+            act(() =>
+                result.current.updateControl({ ...savedControl, label: 'P' }),
+            );
+            act(() => result.current.apply());
+            expect(latest.controls[0].label).toBe('P');
+            expect(result.current.editingControl).toBeNull();
+        });
+
+        it('a parameter turns the placeholder into a new control that cancel discards', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addParameterControl('ship_date'));
+            expect(result.current.isPlaceholder).toBe(false);
+            expect(result.current.editing).toBeNull();
+            expect(result.current.isNewControl).toBe(true);
+            expect(result.current.editingControl?.parameterKeys).toEqual([
+                'ship_date',
+            ]);
+            expect(latest.controls).toHaveLength(2);
+            expect(latest.filters).toEqual(initialFilters);
+
+            act(() => result.current.cancel());
+            expect(latest.controls).toEqual([savedControl]);
+            expect(result.current.isSidebarOpen).toBe(false);
+        });
+
+        it('removing a control keeps the values of its parameters', () => {
+            const { result } = setup();
+            act(() => result.current.openControl('c1'));
+            act(() => result.current.removeControl());
+            expect(latest.controls).toEqual([]);
+            expect(latest.values).toEqual(initialValues);
+            expect(result.current.isSidebarOpen).toBe(false);
+        });
+
+        it('moving from a filter to a control keeps the filter edits', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.openControl('c1'));
+            expect(result.current.editing).toBeNull();
+            expect(result.current.editingControl?.id).toBe('c1');
+            expect(latest.filters.dimensions[0].values).toEqual(['9']);
+        });
+
+        it('ignores Add and other pills while a new control is being edited', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addParameterControl('ship_date'));
+            const id = result.current.editingControl?.id;
+            act(() => result.current.openNew());
+            act(() => result.current.open('a'));
+            act(() => result.current.openControl('c1'));
+            expect(result.current.editingControl?.id).toBe(id);
+            expect(result.current.editing).toBeNull();
+        });
     });
 });

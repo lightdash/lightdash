@@ -24,6 +24,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DateZoomConfig,
     type FilterableDimension,
@@ -330,6 +331,24 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // Saved parameters are the parameters that are saved on the server
     const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
         {},
+    );
+    // Parameter controls: the saved ones and the ones being edited
+    const [savedParameterControls, setSavedParameterControls] = useState<
+        DashboardParameterControl[]
+    >([]);
+    const [parameterControls, setParameterControls] = useState<
+        DashboardParameterControl[]
+    >([]);
+    const resetParameterControls = useCallback(
+        (saved: DashboardParameterControl[]) => {
+            setSavedParameterControls(saved);
+            setParameterControls(saved);
+        },
+        [],
+    );
+    const haveParameterControlsChanged = useMemo(
+        () => !isEqual(parameterControls, savedParameterControls),
+        [parameterControls, savedParameterControls],
     );
     // parameters that are currently applied to the dashboard
     const hasInvalidUrlParametersRef = useRef(false);
@@ -1958,6 +1977,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         addParameterReferences,
         tileParameterReferences,
         setTileChartSavedParameters,
+        tileChartSavedParameters,
+        parameterControls,
+        setParameterControls,
+        resetParameterControls,
+        haveParameterControlsChanged,
         missingRequiredParameters,
         pinnedParameters,
         setPinnedParameters,

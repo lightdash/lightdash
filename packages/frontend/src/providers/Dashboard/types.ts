@@ -6,6 +6,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DateGranularity,
     type DateZoomConfig,
@@ -158,6 +159,14 @@ export type DashboardContextType = {
         tileUuid: string,
         values: ParametersValuesMap,
     ) => void;
+    /** Each tile's chart-saved parameter values, keyed by tile uuid. */
+    tileChartSavedParameters: Record<string, ParametersValuesMap>;
+    /** The dashboard's parameter controls, including unsaved edits. */
+    parameterControls: DashboardParameterControl[];
+    setParameterControls: Dispatch<SetStateAction<DashboardParameterControl[]>>;
+    /** Replaces both the saved and the edited controls, as on load or save. */
+    resetParameterControls: (saved: DashboardParameterControl[]) => void;
+    haveParameterControlsChanged: boolean;
     parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     missingRequiredParameters: string[];

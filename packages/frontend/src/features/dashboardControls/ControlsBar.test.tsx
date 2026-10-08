@@ -31,7 +31,9 @@ vi.mock(
 );
 
 vi.mock('../parameters', () => ({
-    Parameters: () => <div data-testid="parameters" />,
+    Parameters: ({ parameters }: { parameters: Record<string, unknown> }) => (
+        <div data-testid="parameters">{Object.keys(parameters).join(',')}</div>
+    ),
 }));
 
 vi.mock('./useControlsSidebar', () => ({
@@ -43,6 +45,15 @@ vi.mock('./AddControl', () => ({
 }));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
+}));
+
+vi.mock('./ParameterControlPills', () => ({
+    ParameterControlPills: ({ isEditMode }: { isEditMode: boolean }) => (
+        <div
+            data-testid="parameter-control-pills"
+            data-edit-mode={isEditMode}
+        />
+    ),
 }));
 
 vi.mock('../dateZoom', () => ({
@@ -77,6 +88,7 @@ describe('ControlsBar', () => {
             isAddFilterDisabled: false,
             allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
             setIsDateZoomDisabled: vi.fn(),
+            parameterControls: [],
         };
     });
 
@@ -98,6 +110,10 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
+        expect(screen.getByTestId('parameter-control-pills')).toHaveAttribute(
+            'data-edit-mode',
+            'false',
+        );
     });
 
     it('renders Add, the pills and the Required button in edit mode', () => {
@@ -107,6 +123,10 @@ describe('ControlsBar', () => {
             screen.getByRole('button', { name: 'Required' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+        expect(screen.getByTestId('parameter-control-pills')).toHaveAttribute(
+            'data-edit-mode',
+            'true',
+        );
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
@@ -141,7 +161,41 @@ describe('ControlsBar', () => {
             />,
         );
 
-        expect(screen.getByTestId('parameters')).toBeInTheDocument();
+        expect(screen.getByTestId('parameters')).toHaveTextContent('region');
+    });
+
+    it('leaves the parameters held by a control out of the shipped parameters', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            parameterControls: [
+                {
+                    id: 'control',
+                    label: 'Region',
+                    parameterKeys: ['region', 'sales_region'],
+                    tileTargets: {},
+                },
+            ],
+        };
+        const { rerender } = renderWithProviders(
+            <ControlsBar
+                {...baseProps}
+                parameters={{
+                    region: { label: 'Region' },
+                    sales_region: { label: 'Sales region' },
+                    plan: { label: 'Plan' },
+                }}
+            />,
+        );
+
+        expect(screen.getByTestId('parameters').textContent).toBe('plan');
+
+        rerender(
+            <ControlsBar
+                {...baseProps}
+                parameters={{ region: { label: 'Region' } }}
+            />,
+        );
+        expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
     });
 
     it('collapses into a drawer trigger on compact viewports in view mode', () => {
