@@ -330,6 +330,23 @@ export class SavedSqlService
         }
     }
 
+    /** Same view check as getSqlChart, without loading the chart or tracking a view. */
+    async assertCanViewSqlChartBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<void> {
+        const savedChart = await this.savedSqlModel.getBySlug(
+            projectUuid,
+            slug,
+        );
+        await this.hasAccess(
+            'view',
+            { user, projectUuid },
+            { savedSqlUuid: savedChart.savedSqlUuid },
+        );
+    }
+
     async getSqlChart(
         user: SessionUser,
         projectUuid: string,

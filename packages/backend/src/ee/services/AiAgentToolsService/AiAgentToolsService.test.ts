@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     Account,
     CatalogType,
@@ -9,6 +10,7 @@ import {
     ForbiddenError,
     JobStatusType,
     NotFoundError,
+    PossibleAbilities,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -25,6 +27,7 @@ import {
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -101,6 +104,7 @@ const makeService = ({
     },
     dashboardService = {},
     savedChartService = {},
+    savedSqlService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
@@ -135,6 +139,7 @@ const makeService = ({
     spaceModel?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
+    savedSqlService?: Record<string, unknown> | SavedSqlService;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?: Record<string, unknown>;
@@ -213,6 +218,7 @@ const makeService = ({
         spaceModel,
         dashboardService,
         savedChartService,
+        savedSqlService,
         coderService,
         contentService,
         aiAgentContentValidation,
@@ -2348,6 +2354,53 @@ describe('AiAgentToolsService', () => {
             },
         } as unknown as SessionUser;
 
+        const sqlChartUuid = 'sql-chart-uuid';
+        const sqlChartSpaceUuid = 'allowed-space-uuid';
+
+        // Real SavedSqlService so chart-level CASL rules are evaluated.
+        const makeSavedSqlService = () => {
+            const sqlChartRow = {
+                savedSqlUuid: sqlChartUuid,
+                slug: 'orders-by-status',
+                project: { projectUuid },
+                space: { uuid: sqlChartSpaceUuid },
+            };
+            return new SavedSqlService({
+                savedSqlModel: {
+                    getBySlug: vi.fn().mockResolvedValue(sqlChartRow),
+                    getByUuid: vi.fn().mockResolvedValue(sqlChartRow),
+                },
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn(
+                        async (_userUuid: string, targets: unknown[]) =>
+                            targets.map((target) => ({
+                                target,
+                                context: {
+                                    organizationUuid,
+                                    projectUuid,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                },
+                            })),
+                    ),
+                },
+            } as unknown as ConstructorParameters<typeof SavedSqlService>[0]);
+        };
+
+        const userDeniedSqlChartView = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' },
+                { subject: 'CustomSql', action: 'manage' },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    inverted: true,
+                    conditions: { 'metadata.savedSqlUuid': sqlChartUuid },
+                },
+            ]),
+        } as unknown as SessionUser;
+
         const makeSqlChartService = ({
             upsertSqlChart = vi.fn().mockResolvedValue({
                 charts: [
@@ -2373,6 +2426,7 @@ describe('AiAgentToolsService', () => {
             );
             const service = makeService({
                 spaceModel,
+                savedSqlService: makeSavedSqlService(),
                 coderService: { upsertSqlChart, getSqlChartsForRead },
                 aiAgentContentValidation:
                     new AiAgentContentValidation() as unknown as Record<
@@ -2523,6 +2577,20 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 ['orders-by-status'],
             );
+        });
+
+        it('does not read a SQL chart the user may not view, even with space access', async () => {
+            const { service } = makeSqlChartService();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userDeniedSqlChartView }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(ForbiddenError);
         });
 
         it('does not read a SQL chart outside the scoped agent spaces', async () => {

@@ -92,6 +92,7 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -362,6 +363,7 @@ type AiAgentToolsServiceDependencies = {
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
@@ -428,6 +430,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly savedChartService: SavedChartService;
+
+    private readonly savedSqlService: SavedSqlService;
 
     private readonly savedChartModel: SavedChartModel;
 
@@ -537,6 +541,7 @@ export class AiAgentToolsService extends BaseService {
         dashboardService,
         dashboardModel,
         savedChartService,
+        savedSqlService,
         savedChartModel,
         coderService,
         contentService,
@@ -573,6 +578,7 @@ export class AiAgentToolsService extends BaseService {
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
+        this.savedSqlService = savedSqlService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
@@ -2246,6 +2252,11 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     sqlChart.spaceSlug,
                     notFound,
+                );
+                await this.savedSqlService.assertCanViewSqlChartBySlug(
+                    context.user,
+                    context.projectUuid,
+                    sqlChart.slug,
                 );
                 return {
                     type: 'sql_chart',
