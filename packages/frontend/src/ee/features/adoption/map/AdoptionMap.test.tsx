@@ -343,7 +343,9 @@ describe('AdoptionMap', () => {
         ).toHaveLength(0);
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
-            screen.getByText(/Dots are hidden above 5,000 people/),
+            screen.getByText(
+                'Dots are hidden above 5,000 people. Open a department to see its people',
+            ),
         ).toBeInTheDocument();
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
@@ -361,6 +363,11 @@ describe('AdoptionMap', () => {
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(5000);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
+        expect(
+            screen.getByText(
+                'Dots show how many people are active, not who they are. Open a department to see its people',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('says when small circles are not to scale', () => {

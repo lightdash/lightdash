@@ -75,13 +75,13 @@ A flag raised when a department's own headcount is lower than the sum of its sub
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
-Has an active account in the organization, has completed sign-up, and is not an internal user. Deactivated users and invited people who have not completed sign-up are not on Lightdash; they show up only as part of the headcount without an account.
+Has an active account in the organization, is not an internal user, and has a password, a single sign-on identity or a verified primary email. People provisioned through SCIM count from the moment they are provisioned, because SCIM verifies their email. Deactivated users and invited people who have not joined are not on Lightdash; they show up only as part of the headcount without an account.
 _Avoid_: licensed, provisioned, seated
 
 ### Measures
 
 **Active**:
-Ran a query themselves, or viewed a chart or dashboard, in this organization in the last 30 days. Scheduled, API, agent and MCP runs do not count.
+In this organization in the last 30 days, ran a query from a dashboard, explore, saved chart, SQL runner or metrics explorer, viewed underlying data, asked the AI agent, or used MCP; or viewed a chart or dashboard. API, CLI, scheduled deliveries and alerts as queries, syncs, auto-refreshed dashboards and embeds do not count. A scheduled delivery still writes a chart view under its owner, so it can make the owner active.
 _Avoid_: engaged, retained, MAU
 
 **Coverage**:
@@ -115,7 +115,7 @@ _Avoid_: popular content, favourites, what they use
 ### Views
 
 **Map**:
-The default index view: departments as nested circles with one dot per person, coloured by activity, role or last activity.
+The default index view: departments as nested circles with one dot per person, coloured by activity, role or last activity. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
 _Avoid_: bubble chart, treemap, org chart
 
 **List**:
