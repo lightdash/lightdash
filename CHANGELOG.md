@@ -1,3 +1,10 @@
+# [2.482.0](https://github.com/lightdash/lightdash/compare/2.481.2...2.482.0) (2026-10-08)
+
+
+### Features
+
+* **theme:** subtle semantic alerts with an icon chip in both colour schemes ([#30710](https://github.com/lightdash/lightdash/issues/30710)) ([6a6fdf8](https://github.com/lightdash/lightdash/commit/6a6fdf84d78e6503928e6bc7a6a13456518a5a04))
+
 ## [2.481.2](https://github.com/lightdash/lightdash/compare/2.481.1...2.481.2) (2026-10-08)
 
 
