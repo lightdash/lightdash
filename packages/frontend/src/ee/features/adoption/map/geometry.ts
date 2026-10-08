@@ -284,13 +284,11 @@ export const buildPackInput = (
         };
     };
 
-    const toDatum = (
+    const finishDatum = (
         department: DepartmentWithMetrics,
-        path: Set<string>,
+        childDepartmentCount: number,
+        childData: PackDatum[],
     ): PackDatum => {
-        const childDepartments = lookup(
-            children.get(department.departmentUuid),
-        ).filter((child) => !path.has(child.departmentUuid));
         const base = {
             id: department.departmentUuid,
             kind: 'department' as const,
@@ -298,9 +296,9 @@ export const buildPackInput = (
             name: department.name,
             hasHeadcount: department.effectiveHeadcount !== null,
             hasMembers: department.metrics.memberCount > 0,
-            childDepartmentCount: childDepartments.length,
+            childDepartmentCount,
         };
-        if (childDepartments.length === 0) {
+        if (childDepartmentCount === 0) {
             return {
                 ...base,
                 people: {
@@ -314,13 +312,58 @@ export const buildPackInput = (
         return {
             ...base,
             people: null,
-            children: [
-                ...childDepartments.map((child) =>
-                    toDatum(child, new Set([...path, child.departmentUuid])),
-                ),
-                ...(own ? [own] : []),
-            ],
+            children: [...childData, ...(own ? [own] : [])],
         };
+    };
+
+    type Frame = {
+        department: DepartmentWithMetrics;
+        childDepartments: DepartmentWithMetrics[];
+        next: number;
+        childData: PackDatum[];
+    };
+
+    // Depth first over an explicit stack, so a very deep tree cannot overflow the call stack.
+    // A department already on the path (a stored cycle) is left out of its descendants
+    const toDatum = (top: DepartmentWithMetrics): PackDatum => {
+        const path = new Set<string>();
+        const open = (department: DepartmentWithMetrics): Frame => {
+            path.add(department.departmentUuid);
+            return {
+                department,
+                childDepartments: lookup(
+                    children.get(department.departmentUuid),
+                ).filter((child) => !path.has(child.departmentUuid)),
+                next: 0,
+                childData: [],
+            };
+        };
+        const root = open(top);
+        const stack: Frame[] = [root];
+        while (stack.length > 1 || root.next < root.childDepartments.length) {
+            const frame = stack[stack.length - 1];
+            if (frame.next < frame.childDepartments.length) {
+                const child = frame.childDepartments[frame.next];
+                frame.next += 1;
+                stack.push(open(child));
+            } else {
+                // Never the root here: the loop stops once only a finished root is left
+                stack.pop();
+                path.delete(frame.department.departmentUuid);
+                stack[stack.length - 1].childData.push(
+                    finishDatum(
+                        frame.department,
+                        frame.childDepartments.length,
+                        frame.childData,
+                    ),
+                );
+            }
+        }
+        return finishDatum(
+            root.department,
+            root.childDepartments.length,
+            root.childData,
+        );
     };
 
     const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
@@ -336,9 +379,7 @@ export const buildPackInput = (
         childDepartmentCount: topLevel.length,
         people: null,
         children: [
-            ...topLevel.map((department) =>
-                toDatum(department, new Set([department.departmentUuid])),
-            ),
+            ...topLevel.map((department) => toDatum(department)),
             ...(focusOwn ? [focusOwn] : []),
         ],
     };
