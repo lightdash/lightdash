@@ -2986,7 +2986,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    // Single-item read for AI/MCP read_content: no export gate; private-space
+    // Slug-list read for AI/MCP read_content: no export gate; private-space
     // filtering still applies and access blocks are left out.
     async getSqlChartsForRead(
         user: SessionUser,

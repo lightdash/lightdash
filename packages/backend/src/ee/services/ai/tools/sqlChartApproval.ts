@@ -4,11 +4,8 @@ import {
 } from './sqlApprovalGate';
 import { SQL_CHART_REJECTED_RESULT } from './sqlApprovals';
 
-/**
- * How a content tool may save a SQL chart: never (no SQL mode), after the
- * thread approves its SQL (agent threads), or straight away when the MCP
- * client approves its own tool calls.
- */
+// Never (no SQL mode), after the thread approves the SQL, or straight away
+// when the MCP client approves its own tool calls.
 export type SqlChartSaving =
     | { mode: 'disabled' }
     | { mode: 'client_approved' }
