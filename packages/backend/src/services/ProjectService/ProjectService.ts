@@ -94,6 +94,7 @@ import {
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
+    getAiExecutionCredentialUuid,
     getAvailableParametersFromTables,
     getBigqueryKeyfileCredentials,
     getColumnTimezone,
@@ -2391,15 +2392,6 @@ export class ProjectService
                       }
                     : connectionRotationSource,
             );
-        } else if (
-            organizationWarehouseCredentialsUuid &&
-            !credentials.requireUserCredentials
-        ) {
-            credentials = await this.refreshCredentialsAndPersistRotation(
-                credentials,
-                userId,
-                { kind: 'organization', organizationWarehouseCredentialsUuid },
-            );
         }
 
         return {
@@ -2440,6 +2432,17 @@ export class ProjectService
                 ...credentials,
                 userWarehouseCredentialsUuid,
             };
+        }
+
+        if (
+            organizationWarehouseCredentialsUuid &&
+            !credentials.requireUserCredentials
+        ) {
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                { kind: 'organization', organizationWarehouseCredentialsUuid },
+            );
         }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
@@ -3256,7 +3259,7 @@ export class ProjectService
                       )
                   ).organizationWarehouseCredentialsUuid;
 
-        let credentials: CreateWarehouseCredentials =
+        const credentials: CreateWarehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
@@ -3283,23 +3286,6 @@ export class ProjectService
                 warehouseConnectionUuid: null,
                 connectionRoute: null,
             };
-        }
-
-        if (
-            organizationWarehouseCredentialsUuid &&
-            !credentials.requireUserCredentials
-        ) {
-            this.logger.debug(
-                `Refreshing warehouse credentials from organization credentials`,
-            );
-            credentials = await this.refreshCredentialsAndPersistRotation(
-                credentials,
-                userId,
-                {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid,
-                },
-            );
         }
 
         return {
@@ -3331,6 +3317,23 @@ export class ProjectService
         const { projectUuid, organizationWarehouseCredentialsUuid } = base;
         let { credentials } = base;
         let userWarehouseCredentialsUuid: string | undefined;
+
+        if (
+            organizationWarehouseCredentialsUuid &&
+            !credentials.requireUserCredentials
+        ) {
+            this.logger.debug(
+                `Refreshing warehouse credentials from organization credentials`,
+            );
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                {
+                    kind: 'organization',
+                    organizationWarehouseCredentialsUuid,
+                },
+            );
+        }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
             throw new ForbiddenError(
@@ -11365,7 +11368,7 @@ export class ProjectService
                     this.lightdashConfig.results.autocompleteEnabled &&
                     !!user.userUuid &&
                     !skipAiAccessCache &&
-                    aiPlan?.identity !== 'connected_person';
+                    getAiExecutionCredentialUuid(aiPlan ?? null) === null;
 
                 const userUuid = getCacheUserUuid(
                     warehouseCredentials,

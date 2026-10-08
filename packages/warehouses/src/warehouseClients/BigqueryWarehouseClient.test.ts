@@ -883,3 +883,65 @@ describe('BigqueryWarehouseClient key file credentials', () => {
         ).toThrow(WarehouseConnectionError);
     });
 });
+
+describe('BigQuery agent job options', () => {
+    const callerTags: (Record<string, string> | undefined)[] = [
+        undefined,
+        Object.fromEntries(
+            Array.from({ length: 80 }, (_, index) => [String(index), 'value']),
+        ),
+        { agent: 'false', ordinary: 'value' },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            agent: 'false',
+            AGENT: 'false',
+        },
+    ];
+    test.each(
+        [false, true].flatMap((agentSession) =>
+            ['run', 'stream'].flatMap((method) =>
+                callerTags.map((tags) => ({ agentSession, method, tags })),
+            ),
+        ),
+    )(
+        '$method agentSession=$agentSession tags=$tags',
+        async ({ agentSession, method, tags }) => {
+            const warehouse = new BigqueryWarehouseClient(credentials, {
+                agentSession,
+            });
+            const createQueryJob = vi.fn(
+                (_options: {
+                    labels?: Record<string, string>;
+                    useQueryCache?: boolean;
+                }) => createJobResponse,
+            );
+            warehouse.client.createQueryJob =
+                createQueryJob as unknown as BigQuery['createQueryJob'];
+            if (method === 'stream')
+                await warehouse.streamQuery('SELECT 1', vi.fn(), { tags });
+            else await warehouse.runQuery('SELECT 1', tags);
+            expect(createQueryJob).toHaveBeenCalledOnce();
+            const options = createQueryJob.mock.calls[0][0] as {
+                labels: Record<string, string> | undefined;
+                useQueryCache?: boolean;
+            };
+            if (agentSession) {
+                expect(options.useQueryCache).toBe(false);
+                expect(options.labels?.agent).toBe('true');
+                expect(
+                    Object.keys(options.labels ?? {}).length,
+                ).toBeLessThanOrEqual(64);
+            } else {
+                expect(options).not.toHaveProperty('useQueryCache');
+                expect(options.labels).toEqual(
+                    BigqueryWarehouseClient.sanitizeLabelsWithValues(tags),
+                );
+            }
+        },
+    );
+});

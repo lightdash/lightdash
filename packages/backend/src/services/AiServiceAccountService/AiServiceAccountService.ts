@@ -220,6 +220,7 @@ export class AiServiceAccountService extends BaseService {
                     {
                         kind: 'bypass',
                         mode: 'connection_test',
+                        agentSession: true,
                         projectUuid,
                         credentials,
                     },

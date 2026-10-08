@@ -19,6 +19,7 @@ export enum ConnectionSurface {
 export enum WarehouseCredentialKind {
     SHARED = 'shared',
     PERSONAL = 'personal',
+    AI_AGENT_SIGN_IN = 'ai_agent_sign_in',
     AI_SERVICE_ACCOUNT = 'ai_service_account',
     COMPILE = 'compile',
 }

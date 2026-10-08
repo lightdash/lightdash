@@ -2322,6 +2322,24 @@ describe('agent connection over MCP', () => {
         {
             access: {
                 requirementSource: 'organization',
+                identity: 'ai_service_account',
+                refusal: null,
+            },
+            status: 'not_required',
+        },
+        {
+            access: {
+                requirementSource: 'organization',
+                identity: 'ai_service_account',
+                refusal: new AiAccessRefusedError(
+                    AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                ).refusal,
+            },
+            status: 'unavailable',
+        },
+        {
+            access: {
+                requirementSource: 'organization',
                 identity: 'connected_person',
                 refusal: new AiAccessRefusedError(
                     AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,

@@ -48,6 +48,7 @@ import {
     formatRows,
     friendlyName,
     getAccountUserTimezone,
+    getAiExecutionCredentialUuid,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
@@ -994,7 +995,7 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
     }): Promise<PreAggregationRoutingDecision> {
         const bypassPreAggregates =
-            aiPlan?.identity === 'connected_person' ||
+            getAiExecutionCredentialUuid(aiPlan ?? null) !== null ||
             (await this.isAiAccessCacheBypassEnabled(account, context));
         if (forceWarehouse || bypassPreAggregates) {
             if (
@@ -3832,12 +3833,15 @@ export class AsyncQueryService extends ProjectService {
                 async (connection) => {
                     const { warehouseClient, warehouseCredentials, aiPlan } =
                         connection;
-                    if (aiPlan?.identity === 'connected_person') {
+                    const credentialUuid = getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    );
+                    if (credentialUuid !== null) {
                         await this.queryHistoryModel.recordAiSignInCredential(
                             queryUuid,
                             projectUuid,
                             userUuid,
-                            aiPlan.identityUuid,
+                            credentialUuid,
                         );
                     }
                     if (aiPlan) {
@@ -6069,7 +6073,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             reuseQueryUuid &&
-            aiPlan?.identity !== 'connected_person' &&
+            getAiExecutionCredentialUuid(aiPlan ?? null) === null &&
             !invalidateCache &&
             !documentQueryContext &&
             !(await this.isAiAccessCacheBypassEnabled(account, context))
@@ -6125,10 +6129,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -6785,10 +6786,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: 'warehouse',
@@ -7180,10 +7178,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -8007,10 +8002,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -8333,10 +8325,9 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
-                    aiPrincipalUuid:
-                        aiPlan?.identity === 'connected_person'
-                            ? aiPlan.identityUuid
-                            : null,
+                    aiPrincipalUuid: getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    ),
                     warehouseConnectionUuid,
                     connectionRoute,
                 },
@@ -8481,10 +8472,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11214,10 +11202,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11377,10 +11362,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11885,10 +11867,9 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
-                    aiPrincipalUuid:
-                        aiPlan?.identity === 'connected_person'
-                            ? aiPlan.identityUuid
-                            : null,
+                    aiPrincipalUuid: getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    ),
                     warehouseConnectionUuid,
                     connectionRoute,
                     routingTarget: routingDecision.target,

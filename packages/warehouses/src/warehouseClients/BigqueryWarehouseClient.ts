@@ -576,10 +576,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             timezone?: string;
         },
     ) {
+        const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(
+            options?.tags,
+        );
         return this.client.createQueryJob({
             query,
             params: options?.values,
             useLegacySql: false,
+            ...(this.agentSession ? { useQueryCache: false } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
@@ -593,9 +597,16 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             jobTimeoutMs:
                 this.credentials.timeoutSeconds &&
                 this.credentials.timeoutSeconds * 1000,
-            labels: BigqueryWarehouseClient.sanitizeLabelsWithValues(
-                options?.tags,
-            ),
+            labels: this.agentSession
+                ? {
+                      agent: 'true',
+                      ...Object.fromEntries(
+                          Object.entries(labels ?? {})
+                              .filter(([key]) => key !== 'agent')
+                              .slice(0, BigqueryWarehouseClient.MAX_LABELS - 1),
+                      ),
+                  }
+                : labels,
         });
     }
 

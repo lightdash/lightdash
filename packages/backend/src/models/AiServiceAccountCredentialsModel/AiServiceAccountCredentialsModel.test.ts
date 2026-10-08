@@ -77,6 +77,17 @@ describe('AI service account credential reads', () => {
             'encrypted_credentials',
         );
     });
+    it('reads execution secrets and generation from one row', async () => {
+        tracker.on.select('ai_service_account_credentials').responseOnce([row]);
+        const saved = await model.getSecrets('project', null, true);
+        expect(saved?.slot).toMatchObject({
+            uuid: 'slot',
+            identityUuid: 'generation',
+        });
+        expect(saved?.secrets).toEqual(secrets);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(decrypt).toHaveBeenCalledOnce();
+    });
     it('decrypts only through getSecrets', async () => {
         tracker.on.select('ai_service_account_credentials').responseOnce([row]);
         expect(await model.getSecrets('project', null)).toEqual(secrets);

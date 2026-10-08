@@ -91,6 +91,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import { type ConnectionSurface } from '../services/WarehouseClientFactory/ConnectionContext';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -370,6 +371,25 @@ type WarehouseConnectionChangedEvent = BaseTrack & {
         changedCredentials: boolean | null;
         changedDatabaseSettings: boolean | null;
     };
+};
+
+type QueryRefusedEvent = BaseTrack & {
+    event: 'query.refused';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string | null;
+        surface: ConnectionSurface;
+        warehouseType: WarehouseTypes;
+        reason: 'ai_service_account_missing' | 'ai_service_account_invalid';
+    };
+};
+
+type AgentIdentityServiceAccountEventProperties = {
+    organizationId: string;
+    projectId: string;
+    userId: string;
+    warehouseType: WarehouseTypes;
 };
 
 type AgentIdentityServiceAccountSavedEvent = BaseTrack & {
@@ -4713,6 +4733,7 @@ type AgentIdentityEvent =
     | AgentIdentityExpiredEvent;
 
 type TypedEvent =
+    | QueryRefusedEvent
     | AgentIdentityEvent
     | AgentIdentityServiceAccountSavedEvent
     | AgentIdentityServiceAccountTestedEvent

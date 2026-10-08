@@ -17,6 +17,7 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import {
+    BigqueryWarehouseClient,
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
     warehouseClientFromCredentials,
@@ -119,6 +120,7 @@ const plan: Extract<AiExecutionPlan, { identity: 'connected_person' }> = {
     credentials,
     assurances: [],
     audit: {
+        actorKind: 'person',
         personUuid: 'user-uuid',
         principalRef: 'principal',
         queryTags: {},
@@ -147,6 +149,7 @@ const buildFixture = (releaseSshTunnelOnScopeExit = true) => {
             vi.fn<ProjectModel['getWarehouseClientIdentityOptions']>(),
     };
     const aiAccessService = {
+        recordQueryRefusal: vi.fn<AiAccessService['recordQueryRefusal']>(),
         resolvePlan: vi
             .fn<AiAccessService['resolvePlan']>()
             .mockResolvedValue(null),
@@ -312,7 +315,7 @@ describe('WarehouseClientFactory', () => {
             aiPlan: plan,
             personal: false,
             purpose: 'query' as const,
-            kind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+            kind: WarehouseCredentialKind.AI_AGENT_SIGN_IN,
         },
         {
             aiPlan: markedPlan,
@@ -415,7 +418,7 @@ describe('WarehouseClientFactory', () => {
                             warehouseConnectionUuid: 'extra-uuid',
                             connectionRoute: ref.connectionRoute,
                             credentialKind:
-                                WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+                                WarehouseCredentialKind.AI_AGENT_SIGN_IN,
                         });
                         expect(disconnect).not.toHaveBeenCalled();
                         return 'result';
@@ -431,7 +434,15 @@ describe('WarehouseClientFactory', () => {
                 { aiPlan: plan, agentSession },
                 undefined,
                 'org-uuid',
-                { cacheEnabled: true, wrapConstructionErrors: false },
+                {
+                    cacheEnabled: true,
+                    wrapConstructionErrors: false,
+                    warehouseConnectionUuid: 'extra-uuid',
+                    refusalScope: {
+                        context: contextFor(queryContext),
+                        refused: false,
+                    },
+                },
             );
             expect(
                 projectModel.getWarehouseClientFromCredentials,
@@ -440,7 +451,15 @@ describe('WarehouseClientFactory', () => {
                 expect.objectContaining({ agentSession }),
             );
             expect(Object.keys(factory.warehouseClients)).toEqual([
-                `${agentSession ? 'agent:' : ''}project-uuid${JSON.stringify([plan.identityUuid])}`,
+                JSON.stringify([
+                    agentSession,
+                    'project-uuid',
+                    'extra-uuid',
+                    null,
+                    null,
+                    'connected_person',
+                    plan.identityUuid,
+                ]),
             ]);
             expect(disconnect).toHaveBeenCalledOnce();
         },
@@ -759,8 +778,24 @@ describe('WarehouseClientFactory', () => {
         expect(second).not.toBe(first);
         expect(again).toBe(first);
         expect(Object.keys(factory.warehouseClients)).toEqual([
-            `agent:project-uuid${JSON.stringify([plan.identityUuid])}`,
-            `agent:project-uuid${JSON.stringify(['ai-two'])}`,
+            JSON.stringify([
+                true,
+                'project-uuid',
+                null,
+                null,
+                null,
+                'connected_person',
+                plan.identityUuid,
+            ]),
+            JSON.stringify([
+                true,
+                'project-uuid',
+                null,
+                null,
+                null,
+                'connected_person',
+                'ai-two',
+            ]),
         ]);
 
         expect(
@@ -1009,7 +1044,7 @@ describe('WarehouseClientFactory', () => {
                         userWarehouseCredentialsUuid: undefined,
                     },
                     aiPlan,
-                    credentialKind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+                    credentialKind: WarehouseCredentialKind.AI_AGENT_SIGN_IN,
                     warehouseConnectionUuid: 'extra-uuid',
                     connectionRoute: extraBase.connectionRoute,
                 });
@@ -1023,6 +1058,8 @@ describe('WarehouseClientFactory', () => {
             warehouseConnectionUuid: 'extra-uuid',
             connection: credentials,
             context: QueryExecutionContext.AI,
+            purpose: 'execute',
+            surface: 'in_app_agent',
             userUuid: 'user-uuid',
             isRegisteredUser: true,
             isServiceAccount: false,
@@ -1195,7 +1232,17 @@ describe('WarehouseClientFactory', () => {
             async ({ warehouseClient }) => warehouseClient,
         );
         expect(bypass).not.toBe(cached);
-        expect(factory.warehouseClients).toEqual({ 'project-uuid': cached });
+        expect(factory.warehouseClients).toEqual({
+            [JSON.stringify([
+                false,
+                'project-uuid',
+                null,
+                null,
+                null,
+                null,
+                null,
+            ])]: cached,
+        });
         expect(
             projectModel.getWarehouseClientFromCredentials,
         ).toHaveBeenCalledTimes(2);
@@ -1553,7 +1600,19 @@ describe('WarehouseClientFactory', () => {
             },
         );
         expect(acquire).toHaveBeenCalledOnce();
-        expect(factory.warehouseClients['agent:project-uuid']).toBeDefined();
+        expect(
+            factory.warehouseClients[
+                JSON.stringify([
+                    true,
+                    'project-uuid',
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                ])
+            ],
+        ).toBeDefined();
         expect(
             projectModel.getWarehouseClientFromCredentials.mock.calls[1][1],
         ).toEqual(
@@ -1648,7 +1707,17 @@ describe('WarehouseClientFactory', () => {
         );
         expect(compiled).not.toBe(query);
         expect(compiledAgain).not.toBe(compiled);
-        expect(factory.warehouseClients).toEqual({ 'project-uuid': query });
+        expect(factory.warehouseClients).toEqual({
+            [JSON.stringify([
+                false,
+                'project-uuid',
+                null,
+                null,
+                null,
+                null,
+                null,
+            ])]: query,
+        });
         expect(
             projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
         ).not.toHaveProperty('maxOpenConnections');
@@ -1688,5 +1757,425 @@ describe('WarehouseClientFactory', () => {
         await expect(lease.release()).rejects.toThrow('release failed');
         await expect(lease.release()).rejects.toThrow('release failed');
         expect(disconnect).toHaveBeenCalledOnce();
+    });
+});
+
+describe('AI service account factory scopes', () => {
+    const slotPlan: Extract<
+        AiExecutionPlan,
+        { identity: 'ai_service_account' }
+    > = {
+        identity: 'ai_service_account',
+        identityUuid: 'generation-a',
+        credentialUuid: 'slot-row',
+        credentials: {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'warehouse-project',
+            dataset: 'dataset',
+            timeoutSeconds: 0,
+            priority: 'interactive',
+            retries: 0,
+            location: 'EU',
+            maximumBytesBilled: 0,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'saved-key',
+                client_email: 'agent@example.com',
+            },
+        },
+        assurances: [{ kind: 'result_cache_off' }],
+        audit: {
+            actorKind: 'person',
+            personUuid: 'user-uuid',
+            userUuid: 'user-uuid',
+            principalRef: 'slot-row',
+            queryTags: { agent: 'true' },
+        },
+    };
+
+    test('uses slot credentials before finishing and identifies their kind', async () => {
+        const { factory, credentialSource, aiAccessService } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        credentialSource.finish.mockRejectedValue(
+            new Error('must not refresh shared credentials'),
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async (connection) => {
+                expect(connection.warehouseCredentials).toEqual({
+                    ...slotPlan.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(connection.credentialKind).toBe(
+                    WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+                );
+                expect(connection.aiPlan).toBe(slotPlan);
+            },
+        );
+        expect(credentialSource.finish).not.toHaveBeenCalled();
+    });
+
+    test('separates ordinary, marked, agent sign-in, slot generations and connections even with equal credentials', async () => {
+        const { factory, projectModel } = buildFixture();
+        const identities = [
+            null,
+            {
+                ...markedPlan,
+                audit: {
+                    ...markedPlan.audit,
+                    personUuid: slotPlan.identityUuid,
+                },
+            },
+            { ...plan, identityUuid: slotPlan.identityUuid },
+            slotPlan,
+            { ...slotPlan, identityUuid: 'generation-b' },
+        ];
+        const clients = await Promise.all(
+            identities.map((aiPlan) => {
+                const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
+                    kind: 'resolved',
+                    projectUuid: 'project-uuid',
+                    credentials: slotPlan.credentials,
+                    aiPlan,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                };
+                return factory.withWarehouseClient(
+                    ref,
+                    contextFor(QueryExecutionContext.AI),
+                    async ({ warehouseClient }) => warehouseClient,
+                );
+            }),
+        );
+        expect(new Set(clients).size).toBe(5);
+        const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
+            kind: 'resolved',
+            projectUuid: 'project-uuid',
+            credentials: slotPlan.credentials,
+            aiPlan: slotPlan,
+            warehouseConnectionUuid: null,
+            connectionRoute: null,
+        };
+        const again = await factory.withWarehouseClient(
+            {
+                ...ref,
+                aiPlan: {
+                    ...slotPlan,
+                    audit: {
+                        ...slotPlan.audit,
+                        personUuid: 'other',
+                        userUuid: 'other',
+                    },
+                },
+            },
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(5);
+        expect(again.credentials).toEqual(clients[3].credentials);
+        await factory.withWarehouseClient(
+            { ...ref, warehouseConnectionUuid: 'extra' },
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(6);
+    });
+
+    test.each([
+        new Error('invalid_grant'),
+        new Error('Invalid JWT signature.'),
+        Object.assign(new Error('unauthenticated'), { code: 401 }),
+    ])(
+        'attributes runtime authentication errors once per scope: %s',
+        async (error) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi.fn().mockRejectedValue(error),
+                    streamQuery: vi.fn().mockRejectedValue(error),
+                }),
+            );
+            const context = contextFor(QueryExecutionContext.AI);
+            await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({ warehouseClient, deriveClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toMatchObject({
+                        refusal: {
+                            reason: 'ai_service_account_invalid',
+                            action: 'ask_admin',
+                            settingsUrl:
+                                '/generalSettings/warehouseCredentials',
+                            connectUrl: null,
+                        },
+                    });
+                    await expect(
+                        warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                            tags: {},
+                        }),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                    await expect(
+                        deriveClient(slotPlan.credentials).runQuery(
+                            'SELECT 1',
+                            {},
+                        ),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                },
+            );
+            expect(
+                aiAccessService.recordQueryRefusal,
+            ).toHaveBeenCalledExactlyOnceWith(
+                {
+                    organizationUuid: 'org-uuid',
+                    projectUuid: 'project-uuid',
+                    userUuid: 'user-uuid',
+                    surface: 'in_app_agent',
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                },
+                'ai_service_account_invalid',
+            );
+            expect(
+                JSON.stringify(aiAccessService.recordQueryRefusal.mock.calls),
+            ).not.toMatch(/saved-key|agent@example.com|keyfileContents|SELECT/);
+            await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({ warehouseClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                },
+            );
+            expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    test.each([
+        new Error('Permission denied on dataset'),
+        Object.assign(new Error('Access denied'), { code: 403 }),
+        new Error('ECONNRESET'),
+        new Error('Syntax error: unexpected token'),
+    ])(
+        'preserves non-authentication failures without refusal analytics: %s',
+        async (error) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi.fn().mockRejectedValue(error),
+                }),
+            );
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toBe(error);
+                },
+            );
+            expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+        },
+    );
+
+    test('attributes the real BigQuery client invalid_grant translation', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        const originalError = Object.assign(new Error('invalid_grant'), {
+            response: {
+                status: 400,
+                data: {
+                    error: 'invalid_grant',
+                    error_description: 'Invalid JWT Signature.',
+                },
+            },
+        });
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds, options) => {
+                if (creds.type !== WarehouseTypes.BIGQUERY)
+                    throw new Error('Expected BigQuery');
+                const client = new BigqueryWarehouseClient(creds, options);
+                client.client.createQueryJob = vi
+                    .fn()
+                    .mockRejectedValue(originalError);
+                return client;
+            },
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => {
+                await expect(
+                    warehouseClient.runQuery('SELECT 1', {}),
+                ).rejects.toMatchObject({
+                    refusal: { reason: 'ai_service_account_invalid' },
+                });
+            },
+        );
+        expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledOnce();
+    });
+
+    test('preserves real BigQuery SQL errors that mention an authentication phrase', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds, options) => {
+                if (creds.type !== WarehouseTypes.BIGQUERY)
+                    throw new Error('Expected BigQuery');
+                const client = new BigqueryWarehouseClient(creds, options);
+                client.client.createQueryJob = vi.fn().mockRejectedValue({
+                    errors: [
+                        {
+                            reason: 'invalidQuery',
+                            location: 'query',
+                            message:
+                                'Syntax error: Unexpected identifier invalid JWT signature at [1:3]',
+                        },
+                    ],
+                });
+                return client;
+            },
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => {
+                await expect(
+                    warehouseClient.runQuery('SELECT 1', {}),
+                ).rejects.toThrow(
+                    'Syntax error: Unexpected identifier invalid JWT signature',
+                );
+            },
+        );
+        expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+    });
+
+    test('attributes slot construction failures and never replays with ordinary credentials', async () => {
+        const { factory, aiAccessService, projectModel, credentialSource } =
+            buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            () => {
+                throw new Error('Invalid JWT signature.');
+            },
+        );
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async () => undefined,
+            ),
+        ).rejects.toMatchObject({
+            refusal: { reason: 'ai_service_account_invalid' },
+        });
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).not.toHaveBeenCalled();
+        expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledOnce();
+    });
+
+    test.each([false, true])(
+        'runtime refusal has a null analytics actor for serviceAccount=%s',
+        async (isServiceAccount) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi
+                        .fn()
+                        .mockRejectedValue(new Error('invalid_grant')),
+                }),
+            );
+            const context = connectionContextFromUser(
+                {
+                    userUuid: 'external',
+                    isServiceAccount,
+                    isRegisteredUser: false,
+                },
+                {
+                    organizationUuid: 'org-uuid',
+                    queryContext: QueryExecutionContext.AI,
+                },
+            );
+            await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({ warehouseClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                },
+            );
+            expect(
+                aiAccessService.recordQueryRefusal.mock.calls[0][0].userUuid,
+            ).toBeNull();
+        },
+    );
+});
+
+describe('factory cache tuple and agent probes', () => {
+    test('does not collide project and compute override boundaries', async () => {
+        const { factory, projectModel } = buildFixture();
+        const first = await factory.acquireUnscoped('project-a', credentials, {
+            snowflakeVirtualWarehouse: 'bc',
+        });
+        const second = await factory.acquireUnscoped(
+            'project-ab',
+            credentials,
+            { snowflakeVirtualWarehouse: 'c' },
+        );
+        expect(first.warehouseClient).not.toBe(second.warehouseClient);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        await first.sshTunnel.disconnect();
+        await second.sshTunnel.disconnect();
+    });
+
+    test('a slot probe sets agentSession without resolving a rule or caching the client', async () => {
+        const { factory, projectModel, aiAccessService } = buildFixture();
+        await factory.withWarehouseClient(
+            {
+                kind: 'bypass',
+                mode: 'connection_test',
+                projectUuid: 'project-uuid',
+                credentials,
+                agentSession: true,
+            },
+            contextFor(),
+            async () => undefined,
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            credentials,
+            expect.objectContaining({ agentSession: true }),
+        );
+        expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+        expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+        expect(factory.warehouseClients).toEqual({});
     });
 });

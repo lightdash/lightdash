@@ -2324,6 +2324,18 @@ export class McpService extends BaseService {
             };
         }
         if (
+            access.refusal === null &&
+            access.identity === 'ai_service_account'
+        ) {
+            return {
+                status: 'not_required' as const,
+                message:
+                    "Agents run as the project's AI service account. Nothing to connect.",
+                connectUrl: null,
+                expiresAt: null,
+            };
+        }
+        if (
             access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         ) {

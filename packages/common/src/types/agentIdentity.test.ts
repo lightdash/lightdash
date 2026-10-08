@@ -6,6 +6,11 @@ import {
     isAllowedAgentIdentitySource,
     supportsAiServiceAccount,
 } from './agentIdentity';
+import {
+    AiAgentMarkerLevel,
+    getAiExecutionCredentialUuid,
+    type AiExecutionPlan,
+} from './aiPrincipal';
 import { WarehouseTypes } from './projects';
 
 describe('service authentication methods', () => {
@@ -131,4 +136,65 @@ describe('organization identity rules', () => {
                 original;
         }
     });
+});
+
+describe('AI execution credential generation', () => {
+    const audit = {
+        actorKind: 'person' as const,
+        personUuid: 'actor',
+        principalRef: 'principal',
+        queryTags: {},
+        userUuid: 'actor',
+    };
+    const credentials = {
+        type: WarehouseTypes.POSTGRES as const,
+        host: 'localhost',
+        port: 5432,
+        user: 'user',
+        password: 'password',
+        dbname: 'database',
+        schema: 'public',
+    };
+    it.each([
+        [null, null],
+        [
+            {
+                identity: 'marked_person',
+                assurances: [
+                    {
+                        kind: 'agent_marker',
+                        level: AiAgentMarkerLevel.IDENTIFY_ONLY,
+                    },
+                ],
+                audit,
+            },
+            null,
+        ],
+        [
+            {
+                identity: 'connected_person',
+                identityUuid: 'sign-in-generation',
+                credentials,
+                assurances: [],
+                audit,
+            },
+            'sign-in-generation',
+        ],
+        [
+            {
+                identity: 'ai_service_account',
+                identityUuid: 'slot-generation',
+                credentialUuid: 'slot-row',
+                credentials,
+                assurances: [],
+                audit,
+            },
+            'slot-generation',
+        ],
+    ] satisfies [AiExecutionPlan | null, string | null][])(
+        'returns the generation for %j',
+        (plan, expected) => {
+            expect(getAiExecutionCredentialUuid(plan)).toBe(expected);
+        },
+    );
 });

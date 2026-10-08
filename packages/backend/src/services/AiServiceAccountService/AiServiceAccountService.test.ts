@@ -235,6 +235,7 @@ it.each([null, input])(
         expect(f.withWarehouseClient.mock.calls[0][0]).toEqual({
             kind: 'bypass',
             mode: 'connection_test',
+            agentSession: true,
             projectUuid: 'project',
             credentials: {
                 ...secrets,

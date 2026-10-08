@@ -147,12 +147,31 @@ export class AiServiceAccountCredentialsModel {
     async getSecrets(
         projectUuid: string,
         warehouseConnectionUuid: string | null,
-    ): Promise<AiServiceAccountSecrets | null> {
+        includeSlot: true,
+    ): Promise<{
+        slot: AiServiceAccountSlot;
+        secrets: AiServiceAccountSecrets;
+    } | null>;
+    async getSecrets(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<AiServiceAccountSecrets | null>;
+    async getSecrets(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        includeSlot = false,
+    ): Promise<
+        | AiServiceAccountSecrets
+        | { slot: AiServiceAccountSlot; secrets: AiServiceAccountSecrets }
+        | null
+    > {
         const row = await this.query(
             projectUuid,
             warehouseConnectionUuid,
         ).first();
-        return row ? this.decrypt(row) : null;
+        if (!row) return null;
+        const secrets = this.decrypt(row);
+        return includeSlot ? { slot: toSlot(row), secrets } : secrets;
     }
 
     async getReplaceableSecrets(

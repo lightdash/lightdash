@@ -134,6 +134,7 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import {
     aiExecutionPlanMock,
+    aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
@@ -3549,37 +3550,43 @@ describe('AsyncQueryService', () => {
         });
     });
 
-    test('an execution plan bypasses pre-aggregates and refuses pre-aggregate explores', async () => {
-        const service = getMockedAsyncQueryService(lightdashConfigMock);
-        vi.mocked(service.featureFlagModel.get).mockImplementation(
-            async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled: false,
-            }),
-        );
-        const getRoutingDecision = vi.fn();
-        Object.assign(service, {
-            preAggregateStrategy: { getRoutingDecision },
-        });
-        const args = {
-            account: sessionAccount,
-            metricQuery: metricQueryMock,
-            explore: validExplore,
-            context: QueryExecutionContext.AI,
-            forceWarehouse: false,
-            aiPlan: aiExecutionPlanMock,
-        };
-        await expect(
-            service['getPreAggregationRoutingDecision'](args),
-        ).resolves.toEqual({ target: 'warehouse' });
-        await expect(
-            service['getPreAggregationRoutingDecision']({
-                ...args,
-                explore: { ...validExplore, type: ExploreType.PRE_AGGREGATE },
-            }),
-        ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
-        expect(getRoutingDecision).not.toHaveBeenCalled();
-    });
+    test.each([aiExecutionPlanMock, aiServiceAccountPlanMock])(
+        'a $identity plan bypasses pre-aggregates and refuses pre-aggregate explores',
+        async (executionPlan) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            );
+            const getRoutingDecision = vi.fn();
+            Object.assign(service, {
+                preAggregateStrategy: { getRoutingDecision },
+            });
+            const args = {
+                account: sessionAccount,
+                metricQuery: metricQueryMock,
+                explore: validExplore,
+                context: QueryExecutionContext.AI,
+                forceWarehouse: false,
+                aiPlan: executionPlan,
+            };
+            await expect(
+                service['getPreAggregationRoutingDecision'](args),
+            ).resolves.toEqual({ target: 'warehouse' });
+            await expect(
+                service['getPreAggregationRoutingDecision']({
+                    ...args,
+                    explore: {
+                        ...validExplore,
+                        type: ExploreType.PRE_AGGREGATE,
+                    },
+                }),
+            ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+            expect(getRoutingDecision).not.toHaveBeenCalled();
+        },
+    );
 
     test.each([true, false])(
         'marked person follows the cache bypass flag: %s',
@@ -3608,75 +3615,82 @@ describe('AsyncQueryService', () => {
         },
     );
 
-    test('a switch flip bypasses the earlier marked-person cache and uses the agent credential key', async () => {
-        const service = getMockedAsyncQueryService(lightdashConfigMock);
-        const credentials = vi
-            .spyOn(service as AnyType, 'getWarehouseCredentialsWithConnection')
-            .mockResolvedValue({
+    test.each([aiExecutionPlanMock, aiServiceAccountPlanMock])(
+        'a switch flip bypasses the earlier marked-person cache and uses the $identity credential key',
+        async (executionPlan) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const credentials = vi
+                .spyOn(
+                    service as AnyType,
+                    'getWarehouseCredentialsWithConnection',
+                )
+                .mockResolvedValue({
+                    warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: {
+                        route: 'single',
+                        originalWarehouseConnectionUuid: null,
+                    },
+                    aiPlan: executionPlan,
+                });
+            vi.spyOn(
+                service,
+                'getExploreWithUserAccessControls',
+            ).mockResolvedValue({
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            });
+            vi.spyOn(
+                service as AnyType,
+                'prepareMetricQueryAsyncQueryArgs',
+            ).mockResolvedValue(createQueryComposerMock());
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+            const findCache = vi
+                .spyOn(service, 'findResultsCache')
+                .mockResolvedValue({
+                    cacheHit: false,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
+                });
+            credentials.mockResolvedValueOnce({
                 warehouseCredentials: warehouseCredentialsMock,
                 warehouseConnectionUuid: null,
                 connectionRoute: {
                     route: 'single',
                     originalWarehouseConnectionUuid: null,
                 },
-                aiPlan: aiExecutionPlanMock,
+                aiPlan: markedPersonPlanMock,
             });
-        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
-            {
-                explore: validExplore,
-                userAccessControls: {
-                    userAttributes: {},
-                    intrinsicUserAttributes: {},
-                },
-            },
-        );
-        vi.spyOn(
-            service as AnyType,
-            'prepareMetricQueryAsyncQueryArgs',
-        ).mockResolvedValue(createQueryComposerMock());
-        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
-            undefined,
-        );
-        const findCache = vi
-            .spyOn(service, 'findResultsCache')
-            .mockResolvedValue({
-                cacheHit: false,
-                updatedAt: undefined,
-                expiresAt: undefined,
+            const execution = {
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.AI,
+            };
+            await service.executeAsyncMetricQuery(execution);
+            expect(findCache).toHaveBeenCalledOnce();
+            const cacheKey = vi.spyOn(QueryHistoryModel, 'getCacheKey');
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.AI,
             });
-        credentials.mockResolvedValueOnce({
-            warehouseCredentials: warehouseCredentialsMock,
-            warehouseConnectionUuid: null,
-            connectionRoute: {
-                route: 'single',
-                originalWarehouseConnectionUuid: null,
-            },
-            aiPlan: markedPersonPlanMock,
-        });
-        const execution = {
-            account: sessionAccount,
-            projectUuid,
-            metricQuery: metricQueryMock,
-            context: QueryExecutionContext.AI,
-        };
-        await service.executeAsyncMetricQuery(execution);
-        expect(findCache).toHaveBeenCalledOnce();
-        const cacheKey = vi.spyOn(QueryHistoryModel, 'getCacheKey');
-        await service.executeAsyncMetricQuery({
-            account: sessionAccount,
-            projectUuid,
-            metricQuery: metricQueryMock,
-            context: QueryExecutionContext.AI,
-        });
-        expect(cacheKey).toHaveBeenCalledWith(
-            projectUuid,
-            expect.objectContaining({
-                aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
-            }),
-        );
-        expect(findCache).toHaveBeenCalledOnce();
-        cacheKey.mockRestore();
-    });
+            expect(cacheKey).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    aiPrincipalUuid: executionPlan.identityUuid,
+                }),
+            );
+            expect(findCache).toHaveBeenCalledOnce();
+            cacheKey.mockRestore();
+        },
+    );
 
     describe('executeAsyncMetricQuery', () => {
         test.each([
@@ -3749,6 +3763,7 @@ describe('AsyncQueryService', () => {
             'denied',
             'ordinary',
             'principal',
+            'slot',
         ] as const)(
             'presentation reuse keeps current authorization and compilation: %s',
             async (scenario) => {
@@ -3762,7 +3777,7 @@ describe('AsyncQueryService', () => {
                             intrinsicUserAttributes: {},
                         },
                     });
-                if (scenario === 'principal') {
+                if (scenario === 'principal' || scenario === 'slot') {
                     vi.spyOn(
                         service as AnyType,
                         'getWarehouseCredentialsWithConnection',
@@ -3773,7 +3788,10 @@ describe('AsyncQueryService', () => {
                             route: 'single',
                             originalWarehouseConnectionUuid: null,
                         },
-                        aiPlan: aiExecutionPlanMock,
+                        aiPlan:
+                            scenario === 'slot'
+                                ? aiServiceAccountPlanMock
+                                : aiExecutionPlanMock,
                     });
                 }
                 if (scenario === 'denied')
@@ -3850,15 +3868,22 @@ describe('AsyncQueryService', () => {
                 expect(execute).toHaveBeenCalledTimes(
                     scenario === 'reuse' ? 0 : 1,
                 );
-                if (scenario === 'principal') {
+                if (scenario === 'principal' || scenario === 'slot') {
                     expect(execute).toHaveBeenCalledWith(
                         expect.objectContaining({
-                            aiPrincipalUuid: aiExecutionPlanMock.identityUuid,
+                            aiPrincipalUuid:
+                                scenario === 'slot'
+                                    ? aiServiceAccountPlanMock.identityUuid
+                                    : aiExecutionPlanMock.identityUuid,
                         }),
                         expect.anything(),
                     );
                 }
-                if (scenario === 'ordinary' || scenario === 'principal')
+                if (
+                    scenario === 'ordinary' ||
+                    scenario === 'principal' ||
+                    scenario === 'slot'
+                )
                     expect(history).not.toHaveBeenCalled();
                 else
                     expect(history).toHaveBeenCalledWith({
@@ -6866,14 +6891,25 @@ describe('AsyncQueryService', () => {
             }),
             undefined,
             sessionAccount.organization.organizationUuid,
-            { cacheEnabled: true, wrapConstructionErrors: false },
+            expect.objectContaining({
+                cacheEnabled: true,
+                wrapConstructionErrors: false,
+            }),
         );
         expect(markErrored).not.toHaveBeenCalled();
     });
 
-    test.each([false, true])(
-        'logs before warehouse execution and fails closed on log failure: %s',
-        async (auditFails) => {
+    test.each(
+        [aiExecutionPlanMock, aiServiceAccountPlanMock].flatMap(
+            (executionPlan) =>
+                [false, true].map((auditFails) => ({
+                    executionPlan,
+                    auditFails,
+                })),
+        ),
+    )(
+        '$executionPlan.identity logs before warehouse execution and fails closed on log failure: $auditFails',
+        async ({ executionPlan, auditFails }) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const recordQuery = vi.fn();
             const auditError = new Error('log unavailable');
@@ -6893,7 +6929,7 @@ describe('AsyncQueryService', () => {
                     route: 'single',
                     originalWarehouseConnectionUuid: null,
                 },
-                aiPlan: aiExecutionPlanMock,
+                aiPlan: executionPlan,
             });
             const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
             vi.spyOn(
@@ -6936,7 +6972,7 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'audited-query',
                 projectUuid,
                 warehouseConnectionUuid: null,
-                plan: aiExecutionPlanMock,
+                plan: executionPlan,
                 context: QueryExecutionContext.AI,
             });
             expect(
@@ -6945,7 +6981,7 @@ describe('AsyncQueryService', () => {
                 'audited-query',
                 projectUuid,
                 sessionAccount.user.id,
-                aiExecutionPlanMock.identityUuid,
+                executionPlan.identityUuid,
             );
             if (auditFails) {
                 expect(execute).not.toHaveBeenCalled();
@@ -6959,8 +6995,7 @@ describe('AsyncQueryService', () => {
                     expect.objectContaining({
                         tags: expect.objectContaining({
                             user_uuid: sessionAccount.user.id,
-                            ai_principal:
-                                aiExecutionPlanMock.audit.principalRef,
+                            ...executionPlan.audit.queryTags,
                             agent: 'true',
                         }),
                     }),
@@ -7084,7 +7119,10 @@ describe('AsyncQueryService', () => {
                     { aiPlan: null, agentSession: false },
                     undefined,
                     sessionAccount.organization.organizationUuid,
-                    { cacheEnabled: true, wrapConstructionErrors: false },
+                    expect.objectContaining({
+                        cacheEnabled: true,
+                        wrapConstructionErrors: false,
+                    }),
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
@@ -12166,43 +12204,46 @@ describe('runDuckdbQuery', () => {
         );
     });
 
-    it('agent-derived results bypass an existing composed cache hit', async () => {
-        const { warehouseClient } = probingClient({
-            one: { type: DimensionType.NUMBER },
-        });
-        const {
-            run,
-            runWarehouseQuery,
-            pollForQueryCompletion,
-            findCachedResultsFile,
-            markDuckdbCacheHit,
-        } = buildService(cachedResults);
-        pollForQueryCompletion.mockResolvedValue({
-            ...legHistory(1),
-            requestParameters: {
-                query: metricQueryMock,
-                aiSignInCredentialUuid: 'agent-credential',
-            },
-        });
-        await run(
-            baseArgs({
-                context: QueryExecutionContext.AI,
-                engine: { kind: 'client', warehouseClient },
-                references: {
-                    kind: 'queries',
-                    references: { orders: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
+    it.each(['agent-credential', 'slot-generation'])(
+        'agent-derived results from %s bypass an existing composed cache hit',
+        async (credentialUuid) => {
+            const { warehouseClient } = probingClient({
+                one: { type: DimensionType.NUMBER },
+            });
+            const {
+                run,
+                runWarehouseQuery,
+                pollForQueryCompletion,
+                findCachedResultsFile,
+                markDuckdbCacheHit,
+            } = buildService(cachedResults);
+            pollForQueryCompletion.mockResolvedValue({
+                ...legHistory(1),
+                requestParameters: {
+                    query: metricQueryMock,
+                    aiSignInCredentialUuid: credentialUuid,
                 },
-            }),
-        );
-        expect(findCachedResultsFile).not.toHaveBeenCalled();
-        expect(markDuckdbCacheHit).not.toHaveBeenCalled();
-        expect(runWarehouseQuery).toHaveBeenCalledOnce();
-        expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
-            /\.duckdb-query-uuid$/,
-        );
-    });
+            });
+            await run(
+                baseArgs({
+                    context: QueryExecutionContext.AI,
+                    engine: { kind: 'client', warehouseClient },
+                    references: {
+                        kind: 'queries',
+                        references: { orders: 'leg-uuid' },
+                        guard: null,
+                        labelByTable: {},
+                    },
+                }),
+            );
+            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(markDuckdbCacheHit).not.toHaveBeenCalled();
+            expect(runWarehouseQuery).toHaveBeenCalledOnce();
+            expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
+                /\.duckdb-query-uuid$/,
+            );
+        },
+    );
 
     it('a run that finds nothing lands its results under the file-based key for the next one', async () => {
         const { streamQuery, warehouseClient } = probingClient({
