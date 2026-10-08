@@ -7,6 +7,7 @@ import {
     getDepthMap,
     getDescendantUuids,
     getParentMap,
+    getResidualHeadcount,
     rollUpByDepartment,
     wouldCreateCycle,
 } from './departmentTree';
@@ -112,16 +113,40 @@ describe('computeEffectiveHeadcounts', () => {
         });
         expect(result.get('ops')?.effectiveHeadcount).toBe(35);
     });
-    it('flags an own value smaller than the children sum and still uses it', () => {
+    it('flags an own value smaller than the children sum and counts their sum instead', () => {
         const result = computeEffectiveHeadcounts(
             withHeadcount({ ops: 30, stores: 40, depots: 20 }),
             NOBODY,
         );
         expect(result.get('ops')).toEqual({
-            effectiveHeadcount: 30,
+            effectiveHeadcount: 60,
             hasHeadcount: true,
             headcountBelowChildren: true,
         });
+    });
+    it('never goes below its sub-departments plus the people directly in it', () => {
+        // Ops rolls up 9 people on Lightdash: Stores' 4, Depots' 3 and 2 of its own
+        const people = new Map([
+            ['ops', 9],
+            ['stores', 4],
+            ['north', 0],
+            ['depots', 3],
+        ]);
+        const entered = computeEffectiveHeadcounts(
+            withHeadcount({ ops: 30, stores: 20, depots: 10 }),
+            people,
+        );
+        // Its 30 is all taken by Stores and Depots, so its own 2 people add to it
+        expect(entered.get('ops')).toEqual({
+            effectiveHeadcount: 32,
+            hasHeadcount: true,
+            headcountBelowChildren: false,
+        });
+        const summed = computeEffectiveHeadcounts(
+            withHeadcount({ stores: 20, depots: 10 }),
+            people,
+        );
+        expect(summed.get('ops')?.effectiveHeadcount).toBe(32);
     });
     it('never goes below the people on Lightdash, so a headcount only adds people without an account', () => {
         // Stores has 9 people on Lightdash for a headcount of 8; Ops rolls up 12 for a headcount of 10
@@ -176,6 +201,19 @@ describe('computeEffectiveHeadcounts', () => {
             hasHeadcount: true,
             headcountBelowChildren: false,
         });
+    });
+});
+
+describe('getResidualHeadcount', () => {
+    it('keeps what a department leaves over its sub-departments for the people directly in it', () => {
+        expect(getResidualHeadcount(40, 30, 4)).toBe(10);
+    });
+    it('never keeps fewer than the people directly in it', () => {
+        expect(getResidualHeadcount(30, 30, 2)).toBe(2);
+        expect(getResidualHeadcount(30, 35, 0)).toBe(0);
+    });
+    it('is the effective headcount for a department without sub-departments', () => {
+        expect(getResidualHeadcount(8, 0, 3)).toBe(8);
     });
 });
 
@@ -315,18 +353,28 @@ const recursiveEffectiveHeadcounts = (
     const visit = (uuid: string, path: Set<string>): Value => {
         const cached = result.get(uuid);
         if (cached) return cached;
-        const visited = (children.get(uuid) ?? [])
-            .filter((child) => !path.has(child))
-            .map((child) => visit(child, new Set([...path, child])));
+        const visitedUuids = (children.get(uuid) ?? []).filter(
+            (child) => !path.has(child),
+        );
+        const visited = visitedUuids.map((child) =>
+            visit(child, new Set([...path, child])),
+        );
         const sum =
             visited.length > 0
                 ? visited.reduce((a, b) => a + b.effectiveHeadcount, 0)
                 : null;
+        const gaps = visited.reduce(
+            (total, child, index) =>
+                total +
+                child.effectiveHeadcount -
+                (memberCounts.get(visitedUuids[index]) ?? 0),
+            0,
+        );
         const own = byUuid.get(uuid)?.headcount ?? null;
         const value = {
             effectiveHeadcount: Math.max(
                 own ?? sum ?? 0,
-                memberCounts.get(uuid) ?? 0,
+                (memberCounts.get(uuid) ?? 0) + gaps,
             ),
             hasHeadcount:
                 own !== null || visited.some((child) => child.hasHeadcount),

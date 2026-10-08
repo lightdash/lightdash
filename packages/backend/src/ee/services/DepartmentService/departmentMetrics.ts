@@ -1,6 +1,8 @@
 import {
     computeEffectiveHeadcounts,
+    getChildrenMap,
     getDirectMembersByDepartment,
+    getResidualHeadcount,
     OrganizationMemberRole,
     rollUpByDepartment,
     type AdoptionMetrics,
@@ -65,7 +67,7 @@ export const indexWeeklyActivity = (
     return weeksByUser;
 };
 
-// Never above 100 for a department, as its effective headcount is never below its members
+// Never above 100, as neither an effective nor a residual headcount is ever below the people it counts
 const pct = (num: number, headcount: number | null): number | null =>
     headcount === null || headcount <= 0
         ? null
@@ -153,6 +155,7 @@ export const buildAdoptionSnapshot = (
             [...rolledMembers].map(([uuid, members]) => [uuid, members.length]),
         ),
     );
+    const children = getChildrenMap(departments);
     const metricsFor = (
         members: DepartmentMembership[],
         headcount: number | null,
@@ -171,10 +174,18 @@ export const buildAdoptionSnapshot = (
             organization: metricsFor(membership, null),
             departments: departments.map((d) => {
                 const members = rolledMembers.get(d.departmentUuid) ?? [];
+                const direct = directMembers.get(d.departmentUuid) ?? [];
                 const effective = headcounts.get(d.departmentUuid);
                 const effectiveHeadcount =
                     effective?.effectiveHeadcount ??
                     Math.max(d.headcount ?? 0, members.length);
+                const childrenEffectiveHeadcount = (
+                    children.get(d.departmentUuid) ?? []
+                ).reduce(
+                    (sum, uuid) =>
+                        sum + (headcounts.get(uuid)?.effectiveHeadcount ?? 0),
+                    0,
+                );
                 return {
                     ...d,
                     effectiveHeadcount,
@@ -183,10 +194,14 @@ export const buildAdoptionSnapshot = (
                     headcountBelowChildren:
                         effective?.headcountBelowChildren ?? false,
                     metrics: metricsFor(members, effectiveHeadcount),
-                    // The headcount belongs to the department as a whole, so its own people carry counts only
+                    // Its own people, over the headcount it keeps for them beside its sub-departments
                     directMetrics: metricsFor(
-                        directMembers.get(d.departmentUuid) ?? [],
-                        null,
+                        direct,
+                        getResidualHeadcount(
+                            effectiveHeadcount,
+                            childrenEffectiveHeadcount,
+                            direct.length,
+                        ),
                     ),
                 };
             }),

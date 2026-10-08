@@ -30,6 +30,7 @@ import {
     shouldLoadPeople,
     shouldShowNames,
 } from './mapView';
+import { deepOrganization, flatOrganization } from './organizationFixtures';
 
 const NOW = new Date('2026-10-07T12:00:00Z');
 const RECENT = '2026-10-01T12:00:00Z';
@@ -151,18 +152,56 @@ describe('getLegendCounts', () => {
         d('Depots', 'Ops', 10, 2, 1),
     ];
 
-    it("reads the panel's numbers when colouring by activity, including headcount the map draws no dots for", () => {
+    it("reads the panel's numbers when colouring by activity, and the dots drawn match them", () => {
         const circles = layout(null, parent);
         const breakdown = getOrganizationBreakdown(parent);
         const counts = getLegendCounts(breakdown, circles, 'active', null, NOW);
         expect(counts.get('active')).toBe(breakdown.active);
         expect(counts.get('idle')).toBe(breakdown.onLightdashNotActive);
         expect(counts.get('noAccount')).toBe(31);
-        // The dots leave out the 10 directly in Ops less the 2 on Lightdash
+        // Stores 15, Depots 8, and the 10 Ops keeps for its own people less the 2 on Lightdash
         expect(
             countDotKinds(circles, 'active', null, NOW).get('noAccount'),
-        ).toBe(15 + 8);
+        ).toBe(15 + 8 + 8);
     });
+    it.each([
+        ['6,000-headcount', deepOrganization],
+        ['enterprise-shaped', flatOrganization],
+    ])(
+        'matches the dots drawn, kind by kind, at every level of the %s organization',
+        (_, departments) => {
+            const byId = new Map(
+                departments.map((each) => [each.departmentUuid, each]),
+            );
+            [null, ...departments.map((each) => each.departmentUuid)].forEach(
+                (focus) => {
+                    const focused = focus === null ? null : byId.get(focus);
+                    const circles = layout(focus, departments);
+                    const legend = getLegendCounts(
+                        focused
+                            ? getDepartmentBreakdown(focused)
+                            : getOrganizationBreakdown(departments),
+                        circles,
+                        'active',
+                        null,
+                        NOW,
+                    );
+                    const dots = countDotKinds(circles, 'active', null, NOW);
+                    expect({
+                        focus,
+                        counts: LEGEND_KINDS.active.map(
+                            (kind) => legend.get(kind) ?? 0,
+                        ),
+                    }).toEqual({
+                        focus,
+                        counts: LEGEND_KINDS.active.map(
+                            (kind) => dots.get(kind) ?? 0,
+                        ),
+                    });
+                },
+            );
+        },
+    );
     it('reads the same as the dots wherever the headcount is all in sub-departments', () => {
         const circles = layout(null);
         const counts = getLegendCounts(
@@ -344,19 +383,34 @@ describe('describeCircles', () => {
                 'Governance, 9 of 9 on Lightdash, 9 active in the last 30 days',
             );
         });
-        it('counts the people directly in a department on their own, with no headcount, as the headcount is for the whole department', () => {
+        it('counts the people directly in a department over the headcount it keeps for them', () => {
+            // Data's 191 less its sub-departments' 110 leaves 81, fewer than its 84 people, so it keeps 84
             [describeView('Data'), describeView(null)].forEach((info) => {
                 expect(info.get('own:Data')?.stats).toEqual({
                     people: 84,
                     members: 84,
                     active: 0,
-                    headcount: null,
+                    headcount: 84,
                     isDirect: true,
                 });
                 expect(info.get('own:Data')?.description).toBe(
-                    'Directly in Data, 84 on Lightdash, 0 active in the last 30 days',
+                    'Directly in Data, 84 of 84 on Lightdash, 0 active in the last 30 days',
                 );
             });
+        });
+        it('describes headcount kept for the people directly in a department when nobody is in it yet', () => {
+            const ops = [
+                d('Ops', null, 40, 6, 0, 0),
+                d('Stores', 'Ops', 20, 4, 0),
+                d('Depots', 'Ops', 10, 2, 0),
+            ];
+            const info = describeCircles(
+                layout('Ops', ops),
+                new Map(ops.map((each) => [each.departmentUuid, each])),
+            );
+            expect(info.get('own:Ops')?.description).toBe(
+                'Directly in Ops, 10 people, nobody on Lightdash yet',
+            );
         });
         it('says there is no headcount when the department has none', () => {
             expect(

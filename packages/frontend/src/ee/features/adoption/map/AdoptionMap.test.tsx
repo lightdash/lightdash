@@ -16,7 +16,7 @@ import {
 } from '../utils/adoptionFixtures';
 import { AdoptionMap } from './AdoptionMap';
 import { estimateTextWidth } from './mapLayout';
-import { deepOrganization } from './organizationFixtures';
+import { deepOrganization, flatOrganization } from './organizationFixtures';
 
 // Only the network hook is replaced; the layout and geometry are the real ones
 const useDepartmentDetail = vi.fn();
@@ -400,15 +400,49 @@ describe('AdoptionMap', () => {
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(inView);
-        // The legend counts every top-level headcount, including what is entered above sub-departments
+        // Every top-level effective headcount is drawn, so the legend counts the same people
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
-        ).toBe(5582);
-        expect(inView).toBeLessThan(5582);
+        ).toBe(inView);
+        expect(inView).toBe(5587);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
         expect(screen.queryByText(/^Dots show/)).toBeNull();
         expect(screen.queryByText(/Open a department to see/)).toBeNull();
     });
+
+    it.each([
+        ['6,000-headcount', deepOrganization],
+        ['enterprise-shaped', flatOrganization],
+    ])(
+        'counts in the legend exactly the dots drawn of each kind across the %s organization',
+        (_, departments) => {
+            const { container } = renderMap(departments);
+            const drawn = (kind: string) =>
+                container.querySelectorAll(
+                    `svg[role="img"] [data-dot="${kind}"]`,
+                ).length;
+            expect(legendCounts()).toEqual([
+                { label: 'Active in 30 days', count: drawn('active') },
+                { label: 'Not active in 30 days', count: drawn('idle') },
+                { label: 'No account', count: drawn('noAccount') },
+            ]);
+            // And the panel beside the map gives the same three numbers
+            const [active, idle, noAccount] = legendCounts().map((entry) =>
+                entry.count.toLocaleString('en-US'),
+            );
+            expect(
+                within(screen.getByRole('complementary', { name: 'Details' }))
+                    .getAllByText(
+                        /^(Active|On Lightdash, not active|No account) [\d,]+$/,
+                    )
+                    .map((node) => node.textContent),
+            ).toEqual([
+                `Active ${active}`,
+                `On Lightdash, not active ${idle}`,
+                `No account ${noAccount}`,
+            ]);
+        },
+    );
 
     it('says when small circles are not to scale', () => {
         renderMap([d('Huge', null, 4000, 10, 5), d('Tiny', null, 1, 1, 1)]);
@@ -515,8 +549,8 @@ describe('AdoptionMap', () => {
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('img', {
-                    // Its 40 less the 8 directly in it, none of them on Lightdash, so not drawn
-                    name: /^Map of Operations: 3 sub-departments, 32 people/,
+                    // Its 40, the 8 it keeps beyond its sub-departments included, though nobody is in it yet
+                    name: /^Map of Operations: 3 sub-departments, 40 people/,
                 }),
             ).toBeInTheDocument();
             expect(
@@ -782,8 +816,14 @@ describe('AdoptionMap', () => {
             ...(within(details()).getByText(label).nextElementSibling
                 ?.children ?? []),
         ];
+        // Each row as its name and its last column; the bar between them has no text
         const listed = (label: 'Departments' | 'Sub-departments') =>
-            rowsUnder(label).map((row) => row.textContent);
+            rowsUnder(label).map((row) =>
+                [...row.children]
+                    .map((cell) => cell.textContent)
+                    .filter(Boolean)
+                    .join(' | '),
+            );
         const row = (name: string) =>
             within(details())
                 .getAllByRole('button')
@@ -838,7 +878,10 @@ describe('AdoptionMap', () => {
         it('lists the departments lowest coverage first, each with its own bar over its headcount', () => {
             renderMap();
             // Ops 9 of 30, Finance 3 of 8
-            expect(listed('Departments')).toEqual(['Ops30%', 'Finance38%']);
+            expect(listed('Departments')).toEqual([
+                'Ops | 30%',
+                'Finance | 38%',
+            ]);
             const [active, notActive] = barShares(row('Finance'));
             expect(active).toBeCloseTo(25);
             expect(notActive).toBeCloseTo(12.5);
@@ -889,8 +932,8 @@ describe('AdoptionMap', () => {
             ]);
             // Stores and Depots both 30%: the larger first
             expect(listed('Sub-departments')).toEqual([
-                'Stores30%',
-                'Depots30%',
+                'Stores | 30%',
+                'Depots | 30%',
             ]);
             await userEvent.click(within(details()).getByText('Stores'));
             expect(
@@ -905,8 +948,8 @@ describe('AdoptionMap', () => {
             expect(within(details()).queryByText('Sub-departments')).toBeNull();
         });
 
-        it('lists the people directly in a department last, over themselves, with nothing to open', async () => {
-            // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, 4 of them on Lightdash and 1 active
+        it('lists the people directly in a department last, over the headcount it keeps for them, with nothing to open', async () => {
+            // Ops is 40: Stores 20, Depots 10, and the 10 it keeps for the 4 directly in it, 1 of them active
             const { container } = renderMap([
                 d('Ops', null, 40, 13, 3, {
                     directMetrics: metricsFixture(4, null, {
@@ -919,10 +962,10 @@ describe('AdoptionMap', () => {
             await userEvent.click(
                 screen.getByRole('button', { name: /^Ops,/ }),
             );
-            // Stores and Depots draw their headcount, the people directly in Ops only those on Lightdash
+            // Every person in Ops's 40 has a dot, the 6 it keeps without an account included
             expect(
                 container.querySelectorAll('svg[role="img"] [data-dot]'),
-            ).toHaveLength(20 + 10 + 4);
+            ).toHaveLength(20 + 10 + 10);
             const direct = container.querySelector(
                 '[data-kind="direct"][data-circle="own:Ops"]',
             );
@@ -934,24 +977,34 @@ describe('AdoptionMap', () => {
                         'svg[role="img"] [data-label="own:Ops"]',
                     ),
                 ].map((node) => node.textContent),
-            ).toEqual(['Directly in Ops', '4 on Lightdash · 1 active']);
+            ).toEqual(['Directly in Ops', '4 of 10 on Lightdash · 1 active']);
             expect(listed('Sub-departments')).toEqual([
-                'Stores30%',
-                'Depots30%',
-                'Directly in Ops · 4',
+                'Stores | 30%',
+                'Depots | 30%',
+                'Directly in Ops · 4 | 40%',
             ]);
             const directRow = rowsUnder('Sub-departments').at(-1);
             expect(directRow?.tagName).not.toBe('BUTTON');
             expect(within(details()).getByTitle('Directly in Ops · 4')).toBe(
                 directRow?.firstElementChild,
             );
-            expect(barShares(directRow)).toEqual([25, 75]);
-            // The department's own bar still counts its whole headcount
+            expect(barShares(directRow)).toEqual([10, 30]);
+            // The department's own bar, the legend under the map and the rings drawn all count its 27
             expect(panelLegend()).toEqual([
                 'Active 3',
                 'On Lightdash, not active 10',
                 'No account 27',
             ]);
+            expect(legendCounts()).toEqual([
+                { label: 'Active in 30 days', count: 3 },
+                { label: 'Not active in 30 days', count: 10 },
+                { label: 'No account', count: 27 },
+            ]);
+            expect(
+                container.querySelectorAll(
+                    'svg[role="img"] [data-dot="noAccount"]',
+                ),
+            ).toHaveLength(27);
         });
 
         it('leaves out the people directly in a department without sub-departments, as they are the department', async () => {
@@ -966,29 +1019,50 @@ describe('AdoptionMap', () => {
         it('asks for a headcount where a department has none and no sub-departments, and sorts it with the zeros', async () => {
             renderMap(seededOrganization());
             expect(listed('Departments')).toEqual([
-                'Supply chain0%',
-                'Marketing0%',
-                'Finance0%',
-                'ProductAdd headcount',
-                'Operations3%',
-                'Data11%',
+                'Supply chain | 0%',
+                'Marketing | 0%',
+                'Finance | 0%',
+                'Product | Add headcount',
+                'Operations | 3%',
+                'Data | 11%',
             ]);
             // Its one person is on Lightdash and active, so the bar is full
             expect(barShares(row('Product'))).toEqual([100, 0]);
             await userEvent.click(
                 screen.getByRole('button', { name: /^Operations,/ }),
             );
+            // Operations keeps 8 beyond its sub-departments, with nobody in it yet
             expect(listed('Sub-departments')).toEqual([
-                'Stores0%',
-                'Depots0%',
-                'NorthAdd headcount',
+                'Stores | 0%',
+                'Depots | 0%',
+                'North | Add headcount',
+                'Directly in Operations · 0 | 0%',
             ]);
         });
 
-        it('shows the same numbers as the legend under the map where a headcount is below its sub-departments', async () => {
-            // Stores has more accounts than headcount, so it counts 25; Ops' own 30 is below the 35 of Stores and Depots
+        it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
+            renderMap(seededOrganization(), { canManage: false });
+            expect(listed('Departments')).toContain('Product | No headcount');
+            expect(within(details()).queryByText('Add headcount')).toBeNull();
+        });
+
+        it('says nobody is counted yet where a department has a headcount of 0 and nobody on Lightdash', () => {
+            renderMap([d('Legal', null, 0, 0, 0), d('Finance', null, 8, 3, 2)]);
+            expect(listed('Departments')).toEqual([
+                'Legal | Nobody yet',
+                'Finance | 38%',
+            ]);
+            // An empty track
+            expect(barShares(row('Legal'))).toEqual([0, 0]);
+        });
+
+        it('counts a headcount below its sub-departments as their total, so the panel, the legend and the dots agree', async () => {
+            // Stores has more accounts than headcount, so it counts 25; Ops' own 30 is below the 35 of Stores
+            // and Depots, so the server counts 35
             const lopsided = [
                 d('Ops', null, 30, 25, 0, {
+                    effectiveHeadcount: 35,
+                    headcountBelowChildren: true,
                     directMetrics: metricsFixture(0, null),
                 }),
                 d('Stores', 'Ops', 20, 25, 0),
@@ -1001,14 +1075,14 @@ describe('AdoptionMap', () => {
             expect(panelLegend()).toEqual([
                 'Active 0',
                 'On Lightdash, not active 25',
-                'No account 5',
+                'No account 10',
             ]);
             expect(legendCounts()).toEqual([
                 { label: 'Active in 30 days', count: 0 },
                 { label: 'Not active in 30 days', count: 25 },
-                { label: 'No account', count: 5 },
+                { label: 'No account', count: 10 },
             ]);
-            // The rings still draw Depots' 10: the legend reads the numbers, not the dots
+            // Depots' 10
             expect(
                 container.querySelectorAll(
                     'svg[role="img"] [data-dot="noAccount"]',
@@ -1037,12 +1111,12 @@ describe('AdoptionMap', () => {
                 legendCounts().find((entry) => entry.label === 'No account')
                     ?.count,
             ).toBe(32);
-            // Stores 14, Depots 7 and Finance 5 are drawn; the 6 in Ops' own headcount without an account are not
+            // Stores 14, Depots 7, Finance 5, and the 6 Ops keeps for its own people without an account
             expect(
                 container.querySelectorAll(
                     'svg[role="img"] [data-dot="noAccount"]',
                 ),
-            ).toHaveLength(26);
+            ).toHaveLength(32);
         });
 
         it('never shows coverage above 100%, in the rows or for the department opened', async () => {
@@ -1055,7 +1129,10 @@ describe('AdoptionMap', () => {
                 }),
             });
             renderMap([over, d('Finance', null, 8, 3, 2)]);
-            expect(listed('Departments')).toEqual(['Finance38%', 'Data100%']);
+            expect(listed('Departments')).toEqual([
+                'Finance | 38%',
+                'Data | 100%',
+            ]);
             await userEvent.click(
                 screen.getByRole('button', { name: /^Data,/ }),
             );
@@ -1095,7 +1172,7 @@ describe('AdoptionMap', () => {
             ]);
             expect(
                 within(details()).queryByText(
-                    /Ada Owner|Finance team|group|viewer|editor|admin|target|to go|Headcount is lower|^On Lightdash$|of 8/i,
+                    /Ada Owner|Finance team|group|viewer|editor|admin|target|to go|headcount entered is below|^On Lightdash$|of 8/i,
                 ),
             ).toBeNull();
             expect(

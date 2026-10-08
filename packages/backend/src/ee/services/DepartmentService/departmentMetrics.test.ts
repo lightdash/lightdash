@@ -219,21 +219,71 @@ describe('buildAdoptionSnapshot', () => {
         snapshot.summary.departments.map((d) => [d.departmentUuid, d]),
     );
 
-    it('rolls members and headcount up to the parent', () => {
+    it('rolls members and headcount up to the parent, with its own people on top of its sub-departments', () => {
         const ops = byUuid.get('ops');
-        expect(ops?.effectiveHeadcount).toBe(40);
+        // Stores 10 and Depots 30, and the 1 person directly in Ops
+        expect(ops?.effectiveHeadcount).toBe(41);
         expect(ops?.hasHeadcount).toBe(true);
         expect(ops?.headcountBelowChildren).toBe(false);
         expect(ops?.metrics.memberCount).toBe(3);
         expect(ops?.metrics.activeCount30d).toBe(2);
-        expect(ops?.metrics.coveragePct).toBe(8);
+        expect(ops?.metrics.coveragePct).toBe(7);
         expect(ops?.directMetrics.memberCount).toBe(1);
     });
-    it("counts a department's own people without percentages, as its headcount is for the whole department", () => {
+    it("gives a department's own people percentages of the headcount it keeps for them", () => {
         const ops = byUuid.get('ops');
         expect(ops?.directMetrics.activeCount30d).toBe(1);
-        expect(ops?.directMetrics.coveragePct).toBeNull();
-        expect(ops?.directMetrics.activePct).toBeNull();
+        // Ops keeps 1 beside its sub-departments' 40, for its 1 person
+        expect(ops?.directMetrics.coveragePct).toBe(100);
+        expect(ops?.directMetrics.activePct).toBe(100);
+        // Without sub-departments it keeps its whole headcount
+        expect(byUuid.get('stores')?.directMetrics).toMatchObject({
+            memberCount: 2,
+            coveragePct: 20,
+            activePct: 10,
+        });
+    });
+    it('keeps what a parent headcount leaves over its sub-departments for the people directly in it', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 50),
+                department('a', 'parent', 20),
+                department('b', 'parent', 10),
+            ],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, 'parent'),
+                member('p2', OrganizationMemberRole.VIEWER, 'parent'),
+                member('a1', OrganizationMemberRole.VIEWER, 'a'),
+            ],
+            activeUserUuids: new Set(['p1']),
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent?.effectiveHeadcount).toBe(50);
+        // 50 less 30 leaves 20 for its 2 people, 1 of them active
+        expect(parent?.directMetrics).toMatchObject({
+            memberCount: 2,
+            coveragePct: 10,
+            activePct: 5,
+        });
+    });
+    it('gives no percentages to the people directly in a department that keeps no headcount for them', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 30),
+                department('a', 'parent', 20),
+                department('b', 'parent', 10),
+            ],
+            membership: [member('a1', OrganizationMemberRole.VIEWER, 'a')],
+            activeUserUuids: new Set(),
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent?.directMetrics).toMatchObject({
+            memberCount: 0,
+            coveragePct: null,
+            activePct: null,
+        });
     });
     it('never puts the headcount below the people on Lightdash, so coverage and activity never pass 100%', () => {
         // Three people on Lightdash, all active, in a department whose headcount says two
@@ -253,7 +303,7 @@ describe('buildAdoptionSnapshot', () => {
         expect(only.metrics.coveragePct).toBe(100);
         expect(only.metrics.activePct).toBe(100);
     });
-    it('keeps a parent headcount that is below its children as the denominator', () => {
+    it('counts a parent headcount below its sub-departments as their total, and flags it', () => {
         const low = buildAdoptionSnapshot({
             departments: [
                 department('parent', null, 5),
@@ -271,9 +321,10 @@ describe('buildAdoptionSnapshot', () => {
         const parent = low.summary.departments.find(
             (d) => d.departmentUuid === 'parent',
         );
-        expect(parent?.effectiveHeadcount).toBe(5);
+        expect(parent?.headcount).toBe(5);
+        expect(parent?.effectiveHeadcount).toBe(20);
         expect(parent?.headcountBelowChildren).toBe(true);
-        expect(parent?.metrics.coveragePct).toBe(40);
+        expect(parent?.metrics.coveragePct).toBe(10);
     });
     it('counts its people on Lightdash as the headcount of a department with none anywhere in its subtree', () => {
         const none = buildAdoptionSnapshot({

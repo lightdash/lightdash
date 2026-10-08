@@ -151,7 +151,7 @@ describe('DepartmentsTable', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByLabelText(
-                'Headcount is lower than the total of its sub-departments',
+                'The headcount entered is below the total of its sub-departments, so that total counts instead',
             ),
         ).toBeInTheDocument();
     });
@@ -389,7 +389,7 @@ describe('DepartmentsTable', () => {
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();
         const warning = screen.getByRole('img', {
-            name: 'Headcount is lower than the total of its sub-departments',
+            name: 'The headcount entered is below the total of its sub-departments, so that total counts instead',
         });
         expect(warning).toHaveAttribute('tabindex', '0');
         await userEvent.tab();

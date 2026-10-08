@@ -5,7 +5,7 @@ import { dept, metricsFixture } from './adoptionFixtures';
 import {
     getCoverageRows,
     getDepartmentBreakdown,
-    getDirectBreakdown,
+    getDirectRow,
     getOrganizationBreakdown,
     getPeopleBreakdown,
 } from './peopleBreakdown';
@@ -57,13 +57,34 @@ describe('getDepartmentBreakdown', () => {
     });
 });
 
-describe('getDirectBreakdown', () => {
-    it('counts the people directly in a department over themselves, with nobody missing an account', () => {
-        expect(getDirectBreakdown(d('Ops', null, 40, 13, 3, 4, 1))).toEqual({
-            active: 1,
-            onLightdashNotActive: 3,
-            noAccount: 0,
+describe('getDirectRow', () => {
+    const stores = d('Stores', 'Ops', 20, 6, 2);
+    const depots = d('Depots', 'Ops', 10, 3, 0);
+
+    it('counts the people directly in a department over what it keeps for them beside its sub-departments', () => {
+        // Ops's 40 leaves 10 over Stores and Depots, for its 4 people, 1 of them active
+        expect(
+            getDirectRow(d('Ops', null, 40, 13, 3, 4, 1), [stores, depots]),
+        ).toEqual({
+            memberCount: 4,
+            breakdown: { active: 1, onLightdashNotActive: 3, noAccount: 6 },
+            coveragePct: 40,
         });
+    });
+    it('keeps at least the people directly in a department', () => {
+        expect(
+            getDirectRow(d('Ops', null, 30, 11, 2, 2, 0), [stores, depots]),
+        ).toEqual({
+            memberCount: 2,
+            breakdown: { active: 0, onLightdashNotActive: 2, noAccount: 0 },
+            coveragePct: 100,
+        });
+    });
+    it('gives no row without sub-departments, or where nothing is kept for the people directly in it', () => {
+        expect(getDirectRow(d('Finance', null, 8, 3, 2), [])).toBeNull();
+        expect(
+            getDirectRow(d('Ops', null, 30, 9, 2, 0, 0), [stores, depots]),
+        ).toBeNull();
     });
 });
 
@@ -100,14 +121,14 @@ describe('getOrganizationBreakdown', () => {
         expect(breakdown).toEqual({
             active: 1076,
             onLightdashNotActive: 687,
-            noAccount: 3819,
+            noAccount: 3824,
         });
-        // 1,763 placed of 5,582 headcount
+        // 1,763 placed of 5,587 effective headcount
         expect(
             breakdown.active +
                 breakdown.onLightdashNotActive +
                 breakdown.noAccount,
-        ).toBe(5582);
+        ).toBe(5587);
     });
     it('is all zeros without departments', () => {
         expect(getOrganizationBreakdown([])).toEqual({
@@ -173,13 +194,11 @@ describe('getCoverageRows', () => {
             ),
             departments,
         );
-        expect(
-            rows.map((row) => [row.department.name, row.coveragePct]),
-        ).toEqual([
-            ['Product', null],
-            ['Data', 11],
+        expect(rows.map((row) => [row.department.name, row.reading])).toEqual([
+            ['Product', { kind: 'noHeadcount' }],
+            ['Data', { kind: 'coverage', pct: 11 }],
             // A parent without a headcount counts its people, so it reads 100%
-            ['Hub', 100],
+            ['Hub', { kind: 'coverage', pct: 100 }],
         ]);
     });
     it("gives each row its department's breakdown and rounded coverage", () => {
@@ -192,14 +211,26 @@ describe('getCoverageRows', () => {
             onLightdashNotActive: 72,
             noAccount: 233,
         });
-        expect(row.coveragePct).toBe(45);
+        expect(row.reading).toEqual({ kind: 'coverage', pct: 45 });
     });
-    it('reads 0% for nobody counted at all', () => {
-        const [row] = getCoverageRows(
-            [d('Empty', null, 0, 0, 0)],
-            [d('Empty', null, 0, 0, 0)],
+    it('says nobody is counted where the effective headcount is 0, and still asks a department without one for a headcount', () => {
+        const departments = [
+            d('Empty', null, 0, 0, 0),
+            d('Hub', null, 0, 0, 0),
+            d('Team', 'Hub', 0, 0, 0),
+            d('Unsized', null, null, 0, 0),
+        ];
+        const rows = getCoverageRows(
+            departments.filter(
+                (department) => department.parentDepartmentUuid === null,
+            ),
+            departments,
         );
-        expect(row.coveragePct).toBe(0);
+        expect(
+            Object.fromEntries(
+                rows.map((row) => [row.department.name, row.reading.kind]),
+            ),
+        ).toEqual({ Empty: 'nobody', Hub: 'nobody', Unsized: 'noHeadcount' });
     });
     it('orders the top level of the 6,000-headcount organization lowest coverage first', () => {
         const topLevel = deepOrganization.filter(
@@ -208,14 +239,15 @@ describe('getCoverageRows', () => {
         expect(
             getCoverageRows(topLevel, deepOrganization).map((row) => [
                 row.department.name,
-                row.coveragePct,
+                row.reading.kind === 'coverage' ? row.reading.pct : null,
             ]),
         ).toEqual([
             ['Legal & Compliance', 0],
             ['Operations', 9],
             ['Commercial', 44],
             ['Finance', 45],
-            ['People', 51],
+            // 61 of the 125 its sub-departments add up to, above its own 120
+            ['People', 49],
             ['Product & Engineering', 59],
             ['Executive Office', 67],
             ['Data & Analytics', 96],

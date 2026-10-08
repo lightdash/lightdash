@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     getChildrenMap,
+    getResidualHeadcount,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMember,
@@ -52,7 +53,8 @@ export type DotSegment = { kind: DotKind; count: number };
 
 export type PeopleBucket = {
     metrics: AdoptionMetrics;
-    // What the people are counted against: null without a headcount, and for the people directly in a department
+    // What the people are counted against: null without a headcount; for the people directly in a department,
+    // the headcount it keeps for them beside its sub-departments
     headcount: number | null;
 };
 
@@ -66,7 +68,7 @@ export type PackDatum = {
     hasHeadcount: boolean;
     hasMembers: boolean;
     childDepartmentCount: number;
-    // What the area stands for: the effective headcount, or for the people directly in a department, those on Lightdash
+    // What the area stands for: the effective headcount, or for the people directly in a department, the residual
     size: number;
     people: PeopleBucket | null;
     children: PackDatum[];
@@ -272,23 +274,28 @@ export const buildPackInput = (
             return department ? [department] : [];
         });
 
-    // The people on Lightdash directly in a department beside its sub-departments, and no one else, as the
-    // department's headcount is for the department as a whole
+    // The people directly in a department beside its sub-departments, over the headcount the department keeps
+    // for them, so its circles together hold its whole effective headcount
     const directBucket = (
         department: DepartmentWithMetrics,
+        childData: PackDatum[],
     ): PackDatum | null => {
-        const people = department.directMetrics.memberCount;
-        if (people <= 0) return null;
+        const residual = getResidualHeadcount(
+            department.effectiveHeadcount,
+            childData.reduce((sum, child) => sum + child.size, 0),
+            department.directMetrics.memberCount,
+        );
+        if (residual <= 0) return null;
         return {
             id: `own:${department.departmentUuid}`,
             kind: 'direct',
             departmentUuid: department.departmentUuid,
             name: `Directly in ${department.name}`,
             hasHeadcount: department.hasHeadcount,
-            hasMembers: true,
+            hasMembers: department.directMetrics.memberCount > 0,
             childDepartmentCount: 0,
-            size: people,
-            people: { metrics: department.directMetrics, headcount: null },
+            size: residual,
+            people: { metrics: department.directMetrics, headcount: residual },
             children: [],
         };
     };
@@ -343,7 +350,7 @@ export const buildPackInput = (
                 children: [],
             };
         }
-        const direct = directBucket(department);
+        const direct = directBucket(department, childData);
         return {
             ...base,
             people: null,
@@ -403,16 +410,14 @@ export const buildPackInput = (
 
     const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
     const topLevel = lookup(children.get(focus?.departmentUuid ?? null));
+    const topLevelData = topLevel.map((department) => toDatum(department));
     const focusOwn =
         focus === null
             ? null
             : topLevel.length === 0
               ? loneBucket(focus)
-              : directBucket(focus);
-    const rootChildren = [
-        ...topLevel.map((department) => toDatum(department)),
-        ...(focusOwn ? [focusOwn] : []),
-    ];
+              : directBucket(focus, topLevelData);
+    const rootChildren = [...topLevelData, ...(focusOwn ? [focusOwn] : [])];
     return {
         id: 'root',
         kind: 'root',

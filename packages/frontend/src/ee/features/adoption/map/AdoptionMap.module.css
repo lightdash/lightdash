@@ -101,20 +101,13 @@
     border-radius: 3px;
 }
 
-/* Every row sits on one grid, so the bars line up whatever the last column holds; the bars give up
-   width before the names do when a row asks for a headcount */
-.rows {
-    display: grid;
-    grid-template-columns: minmax(8rem, 1fr) minmax(3rem, 6rem) auto;
-    column-gap: var(--mantine-spacing-sm);
-}
-
+/* Fixed columns, so the bars are the same width in every list whatever the last column says */
 .row {
     display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(0, 1fr) 6rem 3rem;
-    grid-template-columns: subgrid;
+    grid-template-columns: minmax(0, 1fr) 4rem 6rem;
+    column-gap: var(--mantine-spacing-sm);
     align-items: center;
+    width: 100%;
     padding: var(--mantine-spacing-xs) 0;
     border: 0;
     border-bottom: 1px solid var(--mantine-color-default-border);
@@ -125,7 +118,6 @@
     cursor: pointer;
 }
 
-/* The highlight reaches a little past the text on both sides */
 .row:hover {
     background: var(--mantine-color-default-hover);
     box-shadow:

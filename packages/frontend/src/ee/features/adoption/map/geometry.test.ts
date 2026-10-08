@@ -155,7 +155,7 @@ describe('getDotRadius', () => {
 });
 
 describe('buildPackInput', () => {
-    it('nests sub-departments and gives a parent a circle of the people on Lightdash directly in it', () => {
+    it('nests sub-departments and gives a parent a circle of the people directly in it, over the headcount it keeps for them', () => {
         const root = buildPackInput(tree, null);
         expect(root.children.map((c) => c.id)).toEqual([
             'Ops',
@@ -169,14 +169,43 @@ describe('buildPackInput', () => {
             'Depots',
             'own:Ops',
         ]);
-        // Its 3 people on Lightdash and no one else, as Ops's headcount is for all of Ops
+        // What Ops's 100 leaves over Stores and Depots, for its 3 people on Lightdash and 37 without an account
         expect(ops.children[2]).toMatchObject({
             kind: 'direct',
             name: 'Directly in Ops',
-            size: 3,
+            size: 40,
+            hasMembers: true,
         });
-        expect(ops.children[2].people?.headcount).toBeNull();
+        expect(ops.children[2].people?.headcount).toBe(40);
         expect(ops.children[2].people?.metrics.memberCount).toBe(3);
+    });
+    it('draws the headcount a parent keeps beyond its sub-departments even with nobody directly in it', () => {
+        const root = buildPackInput(
+            [
+                d('Ops', null, 40, 6, 0),
+                d('Stores', 'Ops', 20, 4),
+                d('Depots', 'Ops', 10, 2),
+            ],
+            'Ops',
+        );
+        expect(root.children.find((c) => c.kind === 'direct')).toMatchObject({
+            size: 10,
+            hasMembers: false,
+            people: { headcount: 10 },
+        });
+        // Every person in Ops's headcount has a dot
+        expect(countPeople(layoutPack(root))).toBe(40);
+    });
+    it('draws no circle for the people directly in a parent that keeps no headcount and has nobody of its own', () => {
+        const root = buildPackInput(
+            [
+                d('Ops', null, 30, 6, 0),
+                d('Stores', 'Ops', 20, 4),
+                d('Depots', 'Ops', 10, 2),
+            ],
+            'Ops',
+        );
+        expect(root.children.map((c) => c.id)).toEqual(['Stores', 'Depots']);
     });
     it('marks departments without headcount or without members', () => {
         const root = buildPackInput(tree, null);
@@ -290,8 +319,8 @@ describe('layoutPack', () => {
 describe('dot budget', () => {
     it('counts headcount, or members when they outnumber it', () => {
         const circles = layoutPack(buildPackInput(tree, null));
-        // Stores 40 + Depots 20 + the 3 directly in Ops + Finance 5 + Legal 2
-        expect(countPeople(circles)).toBe(70);
+        // Stores 40 + Depots 20 + the 40 Ops keeps for its own people + Finance 5 + Legal 2
+        expect(countPeople(circles)).toBe(107);
     });
     it('renders dots in SVG up to the limit and not beyond', () => {
         expect(shouldRenderDots(SVG_DOT_LIMIT)).toBe(true);
@@ -428,8 +457,9 @@ describe('edge cases', () => {
         );
         const parent = root.children[0];
         const direct = parent.children.find((c) => c.kind === 'direct');
+        // Nothing is left over A and B, so it keeps its 2 people
         expect(direct?.size).toBe(2);
-        expect(direct?.people?.headcount).toBeNull();
+        expect(direct?.people?.headcount).toBe(2);
         const circles = layoutPack(root);
         // children's 40 plus the two people directly in Parent
         expect(countPeople(circles)).toBe(42);

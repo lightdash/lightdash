@@ -39,12 +39,12 @@ import styles from './DepartmentsTable.module.css';
 const INDENT_PX = 24;
 const EXPANDER_WIDTH = 22;
 const EXPLANATION_MAX_WIDTH = 280;
-// Narrower tables leave out the role split, which the map inspector also shows
+// Narrower tables leave out the role split, which the map's Role colouring also counts
 const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
 // Hover, keyboard focus and touch, as the headcount note used to be visible text
 const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
 const BELOW_CHILDREN_WARNING =
-    'Headcount is lower than the total of its sub-departments';
+    'The headcount entered is below the total of its sub-departments, so that total counts instead';
 
 // Every cell keeps to one line: text that does not fit ends in an ellipsis and shows in full on hover
 const CellText: FC<

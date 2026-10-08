@@ -1,5 +1,6 @@
 import {
     getChildrenMap,
+    getResidualHeadcount,
     type AdoptionMetrics,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
@@ -29,15 +30,6 @@ export const getDepartmentBreakdown = (
 ): PeopleBreakdown =>
     getPeopleBreakdown(department.metrics, department.effectiveHeadcount);
 
-// The people directly in a department are counted over themselves, as its headcount is for the whole department
-export const getDirectBreakdown = (
-    department: DepartmentWithMetrics,
-): PeopleBreakdown =>
-    getPeopleBreakdown(
-        department.directMetrics,
-        department.directMetrics.memberCount,
-    );
-
 // Everyone placed in a department: the top-level departments added up. The summary's organization
 // numbers are not used, as they count everyone on Lightdash, placed or not
 export const getOrganizationBreakdown = (
@@ -63,15 +55,44 @@ export const getOrganizationBreakdown = (
     );
 };
 
+const getShare = (part: number, whole: number): number =>
+    whole > 0 ? part / whole : 0;
+
+// What a row gives in its last column: its coverage, a request for a headcount, or that nobody is counted
+export type CoverageReading =
+    | { kind: 'coverage'; pct: number }
+    | { kind: 'noHeadcount' }
+    | { kind: 'nobody' };
+
 export type CoverageRow = {
     department: DepartmentWithMetrics;
     breakdown: PeopleBreakdown;
-    // On Lightdash as a share of the effective headcount, rounded; null asks for a headcount instead
-    coveragePct: number | null;
+    reading: CoverageReading;
 };
 
-// Lowest coverage first, nobody counted reading 0, then the largest department. One with no headcount and
-// no sub-departments would read 100% from its own people, so it asks for a headcount and sorts as 0
+// With no headcount and no sub-departments a department would read 100% from its own people, so it asks for
+// a headcount instead; with an effective headcount of 0 nobody is counted at all
+const getReading = (
+    department: DepartmentWithMetrics,
+    hasChildren: boolean,
+): CoverageReading => {
+    if (!department.hasHeadcount && !hasChildren)
+        return { kind: 'noHeadcount' };
+    if (department.effectiveHeadcount <= 0) return { kind: 'nobody' };
+    return {
+        kind: 'coverage',
+        pct: Math.round(
+            100 *
+                getShare(
+                    department.metrics.memberCount,
+                    department.effectiveHeadcount,
+                ),
+        ),
+    };
+};
+
+// Lowest coverage first, where asking for a headcount and nobody counted both read 0, then the largest
+// department, then the name
 export const getCoverageRows = (
     rowDepartments: DepartmentWithMetrics[],
     departments: DepartmentWithMetrics[],
@@ -79,22 +100,22 @@ export const getCoverageRows = (
     const children = getChildrenMap(departments);
     return rowDepartments
         .map((department) => {
-            const { effectiveHeadcount, metrics } = department;
-            const isAskingForHeadcount =
-                !department.hasHeadcount &&
-                !children.has(department.departmentUuid);
-            const coverage =
-                isAskingForHeadcount || effectiveHeadcount <= 0
-                    ? 0
-                    : metrics.memberCount / effectiveHeadcount;
+            const reading = getReading(
+                department,
+                children.has(department.departmentUuid),
+            );
             return {
-                coverage,
+                coverage:
+                    reading.kind === 'coverage'
+                        ? getShare(
+                              department.metrics.memberCount,
+                              department.effectiveHeadcount,
+                          )
+                        : 0,
                 row: {
                     department,
                     breakdown: getDepartmentBreakdown(department),
-                    coveragePct: isAskingForHeadcount
-                        ? null
-                        : Math.round(coverage * 100),
+                    reading,
                 },
             };
         })
@@ -106,4 +127,33 @@ export const getCoverageRows = (
                 a.row.department.name.localeCompare(b.row.department.name),
         )
         .map(({ row }) => row);
+};
+
+export type DirectRow = {
+    memberCount: number;
+    breakdown: PeopleBreakdown;
+    coveragePct: number;
+};
+
+// The people directly in a department beside its sub-departments, over the headcount it keeps for them; none
+// without sub-departments, where its people are the department, or where it keeps no headcount for them
+export const getDirectRow = (
+    department: DepartmentWithMetrics,
+    children: DepartmentWithMetrics[],
+): DirectRow | null => {
+    if (children.length === 0) return null;
+    const { directMetrics } = department;
+    const residual = getResidualHeadcount(
+        department.effectiveHeadcount,
+        children.reduce((sum, child) => sum + child.effectiveHeadcount, 0),
+        directMetrics.memberCount,
+    );
+    if (residual <= 0) return null;
+    return {
+        memberCount: directMetrics.memberCount,
+        breakdown: getPeopleBreakdown(directMetrics, residual),
+        coveragePct: Math.round(
+            100 * getShare(directMetrics.memberCount, residual),
+        ),
+    };
 };

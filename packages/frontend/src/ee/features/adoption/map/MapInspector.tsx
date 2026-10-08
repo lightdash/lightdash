@@ -19,7 +19,8 @@ import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
 import { formatCount } from '../utils/format';
 import {
-    getDirectBreakdown,
+    getDirectRow,
+    type CoverageReading,
     type CoverageRow,
     type PeopleBreakdown,
 } from '../utils/peopleBreakdown';
@@ -75,6 +76,42 @@ const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
     </Progress.Root>
 );
 
+// A row's last column: its coverage, or a word where there is no share to give
+const RowEnd: FC<{
+    reading: CoverageReading;
+    memberCount: number;
+    canManage: boolean;
+}> = ({ reading, memberCount, canManage }) => {
+    if (reading.kind === 'coverage') {
+        return (
+            <Text
+                component="span"
+                fz="sm"
+                fw={600}
+                ta="right"
+                className={`${styles.rowEnd} ${styles.count}`}
+            >
+                {formatPct(reading.pct, memberCount)}
+            </Text>
+        );
+    }
+    return (
+        <Text
+            component="span"
+            fz="xs"
+            c="dimmed"
+            ta="right"
+            className={styles.rowEnd}
+        >
+            {reading.kind === 'nobody'
+                ? 'Nobody yet'
+                : canManage
+                  ? 'Add headcount'
+                  : 'No headcount'}
+        </Text>
+    );
+};
+
 const BreakdownLegend: FC<{ breakdown: PeopleBreakdown }> = ({ breakdown }) => (
     <ul className={styles.legend}>
         {LEGEND.map(({ part, label }) => (
@@ -101,17 +138,14 @@ export const MapInspector: FC<Props> = ({
 }) => {
     const subtitle =
         department === null ? 'All departments' : (parentName ?? 'Department');
-    // The people directly in a department beside its sub-departments, counted on their own as on the map
+    // The people directly in a department beside its sub-departments, as the map draws them
     const direct =
-        department !== null &&
-        rows.length > 0 &&
-        department.directMetrics.memberCount > 0
-            ? {
-                  name: `Directly in ${department.name}`,
-                  count: ` · ${formatCount(department.directMetrics.memberCount)}`,
-                  breakdown: getDirectBreakdown(department),
-              }
-            : null;
+        department === null
+            ? null
+            : getDirectRow(
+                  department,
+                  rows.map((row) => row.department),
+              );
     return (
         <Paper p="md" component="aside" aria-label="Details">
             <Stack gap="lg" h="100%">
@@ -180,7 +214,7 @@ export const MapInspector: FC<Props> = ({
                                 ? 'Departments'
                                 : 'Sub-departments'}
                         </Text>
-                        <Box className={styles.rows}>
+                        <Box>
                             {rows.map((row) => (
                                 <button
                                     key={row.department.departmentUuid}
@@ -204,58 +238,47 @@ export const MapInspector: FC<Props> = ({
                                         breakdown={row.breakdown}
                                         size="md"
                                     />
-                                    {row.coveragePct === null ? (
-                                        <Text
-                                            component="span"
-                                            fz="xs"
-                                            c="dimmed"
-                                            ta="right"
-                                            className={styles.rowEnd}
-                                        >
-                                            Add headcount
-                                        </Text>
-                                    ) : (
-                                        <Text
-                                            component="span"
-                                            fz="sm"
-                                            fw={600}
-                                            ta="right"
-                                            className={`${styles.rowEnd} ${styles.count}`}
-                                        >
-                                            {formatPct(
-                                                row.coveragePct,
-                                                row.department.metrics
-                                                    .memberCount,
-                                            )}
-                                        </Text>
-                                    )}
+                                    <RowEnd
+                                        reading={row.reading}
+                                        memberCount={
+                                            row.department.metrics.memberCount
+                                        }
+                                        canManage={canManage}
+                                    />
                                 </button>
                             ))}
                             {/* Nothing to open: the department is already open, so the row is plain */}
-                            {direct !== null && (
+                            {department !== null && direct !== null && (
                                 <div
                                     className={`${styles.row} ${styles.directRow}`}
                                 >
                                     <span
                                         className={styles.directLabel}
-                                        title={`${direct.name}${direct.count}`}
+                                        title={`Directly in ${department.name} · ${formatCount(direct.memberCount)}`}
                                     >
                                         <Text component="span" fz="sm" truncate>
-                                            {direct.name}
+                                            {`Directly in ${department.name}`}
                                         </Text>
                                         <Text
                                             component="span"
                                             fz="sm"
                                             className={styles.directCount}
                                         >
-                                            {direct.count}
+                                            {` · ${formatCount(direct.memberCount)}`}
                                         </Text>
                                     </span>
                                     <BreakdownBar
                                         breakdown={direct.breakdown}
                                         size="md"
                                     />
-                                    <span />
+                                    <RowEnd
+                                        reading={{
+                                            kind: 'coverage',
+                                            pct: direct.coveragePct,
+                                        }}
+                                        memberCount={direct.memberCount}
+                                        canManage={canManage}
+                                    />
                                 </div>
                             )}
                         </Box>

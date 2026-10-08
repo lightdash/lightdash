@@ -180,7 +180,8 @@ const AdoptionDepartment: FC = () => {
             <Stack gap="lg">
                 {department.headcountBelowChildren && (
                     <Text fz="sm" c="yellow">
-                        Headcount is lower than the total of its sub-departments
+                        The headcount entered is below the total of its
+                        sub-departments, so that total counts instead
                     </Text>
                 )}
 

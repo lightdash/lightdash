@@ -141,8 +141,8 @@ export const countDotKinds = (
     return counts;
 };
 
-// What the legend counts: the same people as the panel beside the map. Coloured by activity it reads
-// the panel's numbers; otherwise the people on Lightdash are counted as drawn and the rest from the panel
+// What the legend counts: the panel's numbers, which the dots drawn match. Coloured by activity it reads them
+// as they are; otherwise the people on Lightdash are counted as drawn and the rest from the panel
 export const getLegendCounts = (
     breakdown: PeopleBreakdown,
     circles: PackedCircle[],
@@ -157,7 +157,6 @@ export const getLegendCounts = (
                   ['idle', breakdown.onLightdashNotActive],
               ])
             : countDotKinds(circles, colourBy, membersByDepartment, now);
-    // Dots leave out headcount entered on a department beyond its sub-departments, so this is the panel's too
     counts.set('noAccount', breakdown.noAccount);
     return counts;
 };
@@ -210,7 +209,7 @@ export type CircleStats = {
     people: number;
     members: number;
     active: number;
-    // Null without a headcount, and for the people directly in a department, who are counted on their own
+    // Null without a headcount; for the people directly in a department, the headcount it keeps for them
     headcount: number | null;
     isDirect: boolean;
 };
@@ -221,13 +220,13 @@ const getCircleStats = (
     circle: PackedCircle,
     byUuid: Map<string, DepartmentWithMetrics>,
 ): CircleStats | null => {
-    // The people directly in a department are counted on their own, as its headcount is for the whole department
+    // The people directly in a department are counted over the headcount it keeps for them
     if (circle.kind === 'direct' && circle.people !== null) {
         return {
             people: countBucketPeople(circle.people),
             members: circle.people.metrics.memberCount,
             active: circle.people.metrics.activeCount30d,
-            headcount: null,
+            headcount: circle.people.headcount,
             isDirect: true,
         };
     }
@@ -248,15 +247,16 @@ const getCircleStats = (
     };
 };
 
-// The people directly in a department, counted on their own with no headcount
-export const formatDirectPeople = (members: number, active: number): string =>
-    `${formatCount(members)} on Lightdash · ${active === members ? 'all active' : `${formatCount(active)} active`}`;
+// The people directly in a department, over the headcount it keeps for them
+export const formatDirectPeople = (
+    members: number,
+    headcount: number,
+    active: number,
+): string =>
+    `${formatCount(members)} of ${formatCount(headcount)} on Lightdash · ${members > 0 && active === members ? 'all active' : `${formatCount(active)} active`}`;
 
 const describeStats = (stats: CircleStats): string[] => {
     const active = `${formatCount(stats.active)} active in the last 30 days`;
-    if (stats.isDirect) {
-        return [`${formatCount(stats.members)} on Lightdash`, active];
-    }
     if (stats.headcount === null) {
         return stats.members === 0
             ? ['nobody on Lightdash yet', 'no headcount set']
