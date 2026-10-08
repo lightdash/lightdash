@@ -68,6 +68,7 @@ type CreateAiDeepResearchRun = {
 export type AiDeepResearchRunContextRow = Pick<
     DbAiDeepResearchRun,
     | 'ai_deep_research_run_uuid'
+    | 'prompt_uuid'
     | 'prompt'
     | 'status'
     | 'created_at'
@@ -638,6 +639,7 @@ export class AiDeepResearchRunModel {
         )
             .select(
                 'ai_deep_research_run_uuid',
+                'prompt_uuid',
                 'prompt',
                 'status',
                 'created_at',

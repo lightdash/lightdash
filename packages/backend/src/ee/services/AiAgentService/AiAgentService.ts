@@ -568,6 +568,7 @@ import {
 } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiCreditService } from '../AiCreditService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
+import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
@@ -14915,9 +14916,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ),
                 }),
             ]);
+        const researchDocuments = await findAiDeepResearchRunDocuments(
+            this.aiAgentModel,
+            threadDeepResearchRuns,
+        );
         const deepResearchContextRuns =
             AiAgentService.selectDeepResearchContextRuns(
-                threadDeepResearchRuns,
+                threadDeepResearchRuns.map((run) => ({
+                    ...run,
+                    has_report:
+                        run.has_report ||
+                        researchDocuments.has(run.ai_deep_research_run_uuid),
+                })),
             );
         const latestDeepResearchProgress =
             await this.aiDeepResearchRunModel.findLatestProgressByRunUuids(
