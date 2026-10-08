@@ -1,3 +1,15 @@
+# [2.490.0](https://github.com/lightdash/lightdash/compare/2.489.0...2.490.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai-agent:** list only edited content under the Steps taken edited group ([#30634](https://github.com/lightdash/lightdash/issues/30634)) ([d4c9805](https://github.com/lightdash/lightdash/commit/d4c980580db17e126f767958439b5d53f257f85e))
+
+
+### Features
+
+* **ai-agent:** run agents pinned to a retired model on its replacement and warn in settings ([#30637](https://github.com/lightdash/lightdash/issues/30637)) ([391bc9e](https://github.com/lightdash/lightdash/commit/391bc9e86af7591dbf95fc08d27638418ab43fdd))
+
 # [2.489.0](https://github.com/lightdash/lightdash/compare/2.488.1...2.489.0) (2026-10-08)
 
 
