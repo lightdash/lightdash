@@ -1,16 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-    type DepartmentMembership,
-    type MembershipResolution,
+    type MembershipPlacement,
     type ResolvedMemberRow,
 } from '../types/departments';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
-import {
-    getAncestorUuids,
-    getParentMap,
-    rollUpByDepartment,
-    type DepartmentTreeNode,
-} from './departmentTree';
+import { rollUpByDepartment } from './departmentTree';
 import {
     getDirectMembersByDepartment,
     resolveDepartmentMembership,
@@ -19,12 +13,17 @@ import {
 // ops ─┬─ stores ── north
 //      └─ depots
 // finance
+// sales ── enterprise
+// marketing
 const departments = [
     { departmentUuid: 'ops', parentDepartmentUuid: null },
     { departmentUuid: 'stores', parentDepartmentUuid: 'ops' },
     { departmentUuid: 'north', parentDepartmentUuid: 'stores' },
     { departmentUuid: 'depots', parentDepartmentUuid: 'ops' },
     { departmentUuid: 'finance', parentDepartmentUuid: null },
+    { departmentUuid: 'sales', parentDepartmentUuid: null },
+    { departmentUuid: 'enterprise', parentDepartmentUuid: 'sales' },
+    { departmentUuid: 'marketing', parentDepartmentUuid: null },
 ];
 
 const link = (
@@ -32,8 +31,23 @@ const link = (
     groupName = `${departmentUuid} group`,
 ) => ({
     departmentUuid,
-    groupUuid: `g-${departmentUuid}`,
+    groupUuid: `g-${groupName}`,
     groupName,
+});
+
+const explicit = (departmentUuid: string): MembershipPlacement => ({
+    departmentUuid,
+    source: 'explicit',
+    sourceGroupName: null,
+});
+
+const viaGroup = (
+    departmentUuid: string,
+    groupName = `${departmentUuid} group`,
+): MembershipPlacement => ({
+    departmentUuid,
+    source: 'group',
+    sourceGroupName: groupName,
 });
 
 const row = (over: Partial<ResolvedMemberRow>): ResolvedMemberRow => ({
@@ -42,74 +56,164 @@ const row = (over: Partial<ResolvedMemberRow>): ResolvedMemberRow => ({
     firstName: 'A',
     lastName: 'B',
     role: OrganizationMemberRole.VIEWER,
-    explicitDepartmentUuid: null,
+    explicitDepartmentUuids: [],
     groupLinks: [],
+    primaryDepartmentUuid: null,
     ...over,
 });
 
-const resolve = (over: Partial<ResolvedMemberRow>) =>
-    resolveDepartmentMembership([row(over)], departments)[0].resolution;
+const resolve = (over: Partial<ResolvedMemberRow>) => {
+    const [member] = resolveDepartmentMembership([row(over)], departments);
+    return {
+        kind: member.kind,
+        placements: member.placements,
+        primaryDepartmentUuid: member.primaryDepartmentUuid,
+        countedDepartmentUuids: member.countedDepartmentUuids,
+    };
+};
+
+const userUuidsIn = (
+    direct: Map<string, { userUuid: string }[]>,
+    departmentUuid: string,
+) => direct.get(departmentUuid)?.map((m) => m.userUuid);
 
 describe('resolveDepartmentMembership', () => {
-    it('explicit assignment wins over groups and is not a conflict', () => {
-        expect(
-            resolve({
-                explicitDepartmentUuid: 'finance',
-                groupLinks: [link('stores'), link('depots')],
-            }),
-        ).toEqual({
-            kind: 'assigned',
-            departmentUuid: 'finance',
-            source: 'explicit',
-            sourceGroupName: null,
+    it('no departments is unassigned and counts nowhere', () => {
+        expect(resolve({})).toEqual({
+            kind: 'unassigned',
+            placements: [],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: [],
         });
     });
-    it('a single group department assigns by group and names the group', () => {
+    it('a single group department is assigned and names the group', () => {
         expect(
             resolve({ groupLinks: [link('depots', 'Depot staff')] }),
         ).toEqual({
             kind: 'assigned',
-            departmentUuid: 'depots',
-            source: 'group',
-            sourceGroupName: 'Depot staff',
+            placements: [viaGroup('depots', 'Depot staff')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['depots'],
         });
     });
-    it('the same department through two groups is still assigned', () => {
-        const resolution = resolve({
-            groupLinks: [link('depots', 'B team'), link('depots', 'A team')],
-        });
-        expect(resolution).toMatchObject({
-            kind: 'assigned',
-            departmentUuid: 'depots',
-            sourceGroupName: 'A team',
-        });
+    it('the same department through two groups is one placement named after the first group by name', () => {
+        expect(
+            resolve({
+                groupLinks: [
+                    link('depots', 'B team'),
+                    link('depots', 'A team'),
+                ],
+            }).placements,
+        ).toEqual([viaGroup('depots', 'A team')]);
     });
     it('a child beats its parent', () => {
         expect(
-            resolve({ groupLinks: [link('ops'), link('stores')] }),
-        ).toMatchObject({ kind: 'assigned', departmentUuid: 'stores' });
+            resolve({ groupLinks: [link('ops'), link('stores')] }).placements,
+        ).toEqual([viaGroup('stores')]);
     });
     it('a grandchild beats both ancestors', () => {
         expect(
             resolve({
                 groupLinks: [link('ops'), link('stores'), link('north')],
-            }),
-        ).toMatchObject({ kind: 'assigned', departmentUuid: 'north' });
+            }).placements,
+        ).toEqual([viaGroup('north')]);
     });
-    it('two departments in different branches conflict', () => {
+    it('groups in two branches make the person shared and counted in both', () => {
         expect(
             resolve({ groupLinks: [link('stores'), link('depots')] }),
-        ).toEqual({ kind: 'conflict', departmentUuids: ['depots', 'stores'] });
+        ).toEqual({
+            kind: 'shared',
+            placements: [viaGroup('depots'), viaGroup('stores')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['depots', 'stores'],
+        });
     });
-    it('an ancestor is dropped before the conflict is reported', () => {
+    it('an ancestor is dropped before the kind is decided', () => {
         expect(
             resolve({
                 groupLinks: [link('ops'), link('north'), link('finance')],
             }),
-        ).toEqual({ kind: 'conflict', departmentUuids: ['finance', 'north'] });
+        ).toMatchObject({
+            kind: 'shared',
+            placements: [viaGroup('finance'), viaGroup('north')],
+        });
     });
-    it('no departments is unassigned', () => {
-        expect(resolve({})).toEqual({ kind: 'unassigned' });
+    it('explicit in two unrelated departments is shared', () => {
+        expect(
+            resolve({ explicitDepartmentUuids: ['marketing', 'finance'] }),
+        ).toEqual({
+            kind: 'shared',
+            placements: [explicit('finance'), explicit('marketing')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['finance', 'marketing'],
+        });
+    });
+    it('explicit in a parent and a group in its child collapses to the child', () => {
+        expect(
+            resolve({
+                explicitDepartmentUuids: ['ops'],
+                groupLinks: [link('stores', 'Store staff')],
+            }),
+        ).toEqual({
+            kind: 'assigned',
+            placements: [viaGroup('stores', 'Store staff')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['stores'],
+        });
+    });
+    it('explicit and a group in the same department is one explicit placement', () => {
+        expect(
+            resolve({
+                explicitDepartmentUuids: ['depots'],
+                groupLinks: [link('depots')],
+            }),
+        ).toEqual({
+            kind: 'assigned',
+            placements: [explicit('depots')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['depots'],
+        });
+    });
+    it('a primary that is a placement is the only department counted', () => {
+        expect(
+            resolve({
+                explicitDepartmentUuids: ['marketing'],
+                groupLinks: [link('sales', 'sales-all')],
+                primaryDepartmentUuid: 'marketing',
+            }),
+        ).toEqual({
+            kind: 'shared',
+            placements: [explicit('marketing'), viaGroup('sales', 'sales-all')],
+            primaryDepartmentUuid: 'marketing',
+            countedDepartmentUuids: ['marketing'],
+        });
+    });
+    it('a primary pointing at a non-placement is ignored', () => {
+        expect(
+            resolve({
+                groupLinks: [link('stores'), link('depots')],
+                primaryDepartmentUuid: 'finance',
+            }),
+        ).toEqual({
+            kind: 'shared',
+            placements: [viaGroup('depots'), viaGroup('stores')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['depots', 'stores'],
+        });
+    });
+    it('a primary on a department dropped as an ancestor is ignored', () => {
+        expect(
+            resolve({
+                explicitDepartmentUuids: ['ops'],
+                groupLinks: [link('stores'), link('finance')],
+                primaryDepartmentUuid: 'ops',
+            }),
+        ).toEqual({
+            kind: 'shared',
+            placements: [viaGroup('finance'), viaGroup('stores')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['finance', 'stores'],
+        });
     });
     it('passes identity fields through', () => {
         const [member] = resolveDepartmentMembership(
@@ -119,40 +223,169 @@ describe('resolveDepartmentMembership', () => {
         expect(member).toMatchObject({
             userUuid: 'x',
             email: 'x@y.z',
+            firstName: 'A',
+            lastName: 'B',
             role: OrganizationMemberRole.VIEWER,
+        });
+    });
+    it('completes on a 5,000-deep chain and keeps the deepest placement', () => {
+        const chain = Array.from({ length: 5000 }, (_, i) => ({
+            departmentUuid: `d${i}`,
+            parentDepartmentUuid: i === 0 ? null : `d${i - 1}`,
+        }));
+        const [member] = resolveDepartmentMembership(
+            [
+                row({
+                    explicitDepartmentUuids: ['d0'],
+                    groupLinks: [link('d2500'), link('d4999')],
+                    primaryDepartmentUuid: 'd0',
+                }),
+            ],
+            chain,
+        );
+        expect(member).toMatchObject({
+            kind: 'assigned',
+            placements: [viaGroup('d4999')],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['d4999'],
         });
     });
 });
 
-describe('roll-up of resolved members', () => {
-    it('counts a user in parent and child groups once, in the child, and once in the parent roll-up', () => {
+describe('counting resolved members', () => {
+    it('a person in sales-all and sales-enterprise is placed in Enterprise Sales only and counts once in the Sales roll-up', () => {
         const membership = resolveDepartmentMembership(
             [
                 row({
-                    userUuid: 'both',
-                    groupLinks: [link('ops'), link('stores')],
-                }),
-                row({ userUuid: 'top', groupLinks: [link('ops')] }),
-                row({
-                    userUuid: 'clash',
-                    groupLinks: [link('stores'), link('finance')],
+                    userUuid: 'p',
+                    groupLinks: [
+                        link('sales', 'sales-all'),
+                        link('enterprise', 'sales-enterprise'),
+                    ],
                 }),
             ],
             departments,
         );
+        expect(membership[0]).toMatchObject({
+            kind: 'assigned',
+            placements: [viaGroup('enterprise', 'sales-enterprise')],
+            countedDepartmentUuids: ['enterprise'],
+        });
         const direct = getDirectMembersByDepartment(membership);
-        expect(direct.get('stores')?.map((m) => m.userUuid)).toEqual(['both']);
-        expect(direct.get('ops')?.map((m) => m.userUuid)).toEqual(['top']);
-
-        const rolled = rollUpByDepartment(departments, direct);
+        expect(direct.has('sales')).toBe(false);
+        expect(userUuidsIn(direct, 'enterprise')).toEqual(['p']);
         expect(
-            rolled
-                .get('ops')
-                ?.map((m) => m.userUuid)
-                .sort(),
-        ).toEqual(['both', 'top']);
-        // A conflicted user is counted nowhere
-        expect(rolled.get('finance')).toEqual([]);
+            userUuidsIn(rollUpByDepartment(departments, direct), 'sales'),
+        ).toEqual(['p']);
+    });
+    it('a person explicitly in Marketing and via a group in Sales is shared, counts in both and once in the organization', () => {
+        const membership = resolveDepartmentMembership(
+            [
+                row({
+                    userUuid: 'both',
+                    explicitDepartmentUuids: ['marketing'],
+                    groupLinks: [link('sales', 'sales-all')],
+                }),
+                row({ userUuid: 'm', explicitDepartmentUuids: ['marketing'] }),
+                row({
+                    userUuid: 's',
+                    groupLinks: [link('sales', 'sales-all')],
+                }),
+                row({ userUuid: 'none' }),
+            ],
+            departments,
+        );
+        expect(membership[0]).toMatchObject({
+            kind: 'shared',
+            countedDepartmentUuids: ['marketing', 'sales'],
+        });
+        const direct = getDirectMembersByDepartment(membership);
+        expect(userUuidsIn(direct, 'marketing')).toEqual(['both', 'm']);
+        expect(userUuidsIn(direct, 'sales')).toEqual(['both', 's']);
+        // The organization counts the union of counted people
+        const counted = new Set(
+            [...direct.values()].flat().map((m) => m.userUuid),
+        );
+        expect([...counted].sort()).toEqual(['both', 'm', 's']);
+    });
+    it('clearing the primary, or losing its department, restores counting in every placement', () => {
+        const placedIn = {
+            explicitDepartmentUuids: ['marketing', 'finance'],
+            groupLinks: [link('sales', 'sales-all')],
+        };
+        expect(
+            resolve({ ...placedIn, primaryDepartmentUuid: 'marketing' })
+                .countedDepartmentUuids,
+        ).toEqual(['marketing']);
+        expect(
+            resolve({ ...placedIn, primaryDepartmentUuid: null })
+                .countedDepartmentUuids,
+        ).toEqual(['finance', 'marketing', 'sales']);
+        // Marketing deleted: its explicit row is gone even if a stale primary is not
+        expect(
+            resolve({
+                ...placedIn,
+                explicitDepartmentUuids: ['finance'],
+                primaryDepartmentUuid: 'marketing',
+            }),
+        ).toMatchObject({
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: ['finance', 'sales'],
+        });
+    });
+    it('a person linked to every department counts only in the most specific department of each branch', () => {
+        expect(
+            resolve({
+                explicitDepartmentUuids: ['ops', 'marketing'],
+                groupLinks: departments.map((d) => link(d.departmentUuid)),
+            }).countedDepartmentUuids,
+        ).toEqual(['depots', 'enterprise', 'finance', 'marketing', 'north']);
+    });
+    it('a shared person is listed once in each department they count in', () => {
+        const direct = getDirectMembersByDepartment(
+            resolveDepartmentMembership(
+                [
+                    row({
+                        userUuid: 'p',
+                        explicitDepartmentUuids: ['depots', 'finance'],
+                        groupLinks: [
+                            link('depots', 'A team'),
+                            link('depots', 'B team'),
+                            link('finance'),
+                        ],
+                    }),
+                ],
+                departments,
+            ),
+        );
+        expect(
+            [...direct.entries()].map(([uuid, members]) => [
+                uuid,
+                members.map((m) => m.userUuid),
+            ]),
+        ).toEqual([
+            ['depots', ['p']],
+            ['finance', ['p']],
+        ]);
+    });
+    it('a person with a primary is listed only in the primary', () => {
+        const direct = getDirectMembersByDepartment(
+            resolveDepartmentMembership(
+                [
+                    row({
+                        userUuid: 'p',
+                        groupLinks: [link('stores'), link('finance')],
+                        primaryDepartmentUuid: 'finance',
+                    }),
+                ],
+                departments,
+            ),
+        );
+        expect(userUuidsIn(direct, 'finance')).toEqual(['p']);
+        expect(direct.has('stores')).toBe(false);
+        expect(
+            userUuidsIn(rollUpByDepartment(departments, direct), 'ops'),
+        ).toEqual([]);
     });
 });
 
@@ -209,220 +442,5 @@ describe('resolution on very deep and very wide trees', () => {
             kind: 'assigned',
             departmentUuid: 'c0042',
         });
-    });
-});
-
-// The pairwise version the one-pass collapse replaced, kept to prove they give the same answers
-const pairwiseResolveOne = (
-    member: ResolvedMemberRow,
-    ancestorsOf: (departmentUuid: string) => Set<string>,
-): MembershipResolution => {
-    if (member.explicitDepartmentUuid !== null) {
-        return {
-            kind: 'assigned',
-            departmentUuid: member.explicitDepartmentUuid,
-            source: 'explicit',
-            sourceGroupName: null,
-        };
-    }
-    const candidates = Array.from(
-        new Set(member.groupLinks.map((l) => l.departmentUuid)),
-    ).sort();
-    const mostSpecific =
-        candidates.length < 2
-            ? candidates
-            : candidates.filter(
-                  (c) =>
-                      !candidates.some(
-                          (other) => other !== c && ancestorsOf(other).has(c),
-                      ),
-              );
-    if (mostSpecific.length === 1) {
-        const [departmentUuid] = mostSpecific;
-        const [firstGroupName] = member.groupLinks
-            .filter((l) => l.departmentUuid === departmentUuid)
-            .map((l) => l.groupName)
-            .sort();
-        return {
-            kind: 'assigned',
-            departmentUuid,
-            source: 'group',
-            sourceGroupName: firstGroupName ?? null,
-        };
-    }
-    if (mostSpecific.length > 1) {
-        return { kind: 'conflict', departmentUuids: mostSpecific };
-    }
-    return { kind: 'unassigned' };
-};
-
-const pairwiseResolveDepartmentMembership = (
-    rows: ResolvedMemberRow[],
-    nodes: DepartmentTreeNode[],
-): DepartmentMembership[] => {
-    const parentMap = getParentMap(nodes);
-    const ancestorSets = new Map<string, Set<string>>();
-    const ancestorsOf = (departmentUuid: string): Set<string> => {
-        const known = ancestorSets.get(departmentUuid);
-        if (known) return known;
-        const ancestors = new Set(getAncestorUuids(departmentUuid, parentMap));
-        ancestorSets.set(departmentUuid, ancestors);
-        return ancestors;
-    };
-    return rows.map((member) => ({
-        userUuid: member.userUuid,
-        email: member.email,
-        firstName: member.firstName,
-        lastName: member.lastName,
-        role: member.role,
-        resolution: pairwiseResolveOne(member, ancestorsOf),
-    }));
-};
-
-describe('one-pass collapse matches the pairwise one', () => {
-    // Small seeded generator, so a failure always reproduces
-    const random = (seed: number) => {
-        // Spread small seeds out, or the first draws would all be near zero
-        let state = (seed * 7919 + 104729) % 2147483647;
-        return () => {
-            // Park-Miller: the product stays below 2^53, so every step is exact
-            state = (state * 48271) % 2147483647;
-            return state / 2147483647;
-        };
-    };
-    const randomCase = (seed: number) => {
-        const next = random(seed);
-        const pick = <T>(items: T[]): T =>
-            items[Math.floor(next() * items.length)];
-        const size = 1 + Math.floor(next() * 25);
-        const uuids = Array.from({ length: size }, (_, i) => `n${i}`);
-        // Parents at random: top level, missing, or any department, which makes cycles and self-parents
-        const pickParent = (): string | null => {
-            const roll = next();
-            if (roll < 0.25) return null;
-            if (roll < 0.3) return 'gone';
-            return pick(uuids);
-        };
-        const tree: DepartmentTreeNode[] = uuids.map((departmentUuid) => ({
-            departmentUuid,
-            parentDepartmentUuid: pickParent(),
-        }));
-        // Links may name a department outside the tree, or one department through two groups
-        const targets = [...uuids, 'gone'];
-        const rows = Array.from(
-            { length: 1 + Math.floor(next() * 8) },
-            (_, i) =>
-                row({
-                    userUuid: `u${i}`,
-                    explicitDepartmentUuid:
-                        next() < 0.15 ? pick(targets) : null,
-                    groupLinks: Array.from(
-                        { length: Math.floor(next() * 7) },
-                        () => {
-                            const departmentUuid = pick(targets);
-                            return {
-                                departmentUuid,
-                                groupUuid: `g-${departmentUuid}`,
-                                groupName: pick(['A', 'B', 'C']),
-                            };
-                        },
-                    ),
-                }),
-        );
-        return { tree, rows };
-    };
-    const SEEDS = Array.from({ length: 400 }, (_, seed) => seed + 1);
-
-    it.each(SEEDS)('resolves random case %i the same way', (seed) => {
-        const { tree, rows } = randomCase(seed);
-        expect(resolveDepartmentMembership(rows, tree)).toEqual(
-            pairwiseResolveDepartmentMembership(rows, tree),
-        );
-    });
-
-    it('draws self-parents, longer cycles, conflicts and dropped ancestors among the cases', () => {
-        const seen = { selfParent: 0, cycle: 0, conflict: 0, dropped: 0 };
-        SEEDS.forEach((seed) => {
-            const { tree, rows } = randomCase(seed);
-            const parentMap = getParentMap(tree);
-            if (tree.some((n) => n.parentDepartmentUuid === n.departmentUuid)) {
-                seen.selfParent += 1;
-            }
-            // A walk that comes back to where it started after two or more steps
-            const isInLongerCycle = (start: string) => {
-                let current = parentMap.get(start) ?? null;
-                for (let step = 1; step <= tree.length; step += 1) {
-                    if (current === null) return false;
-                    if (current === start) return step > 1;
-                    current = parentMap.get(current) ?? null;
-                }
-                return false;
-            };
-            if (tree.some((n) => isInLongerCycle(n.departmentUuid))) {
-                seen.cycle += 1;
-            }
-            resolveDepartmentMembership(rows, tree).forEach(
-                ({ resolution }, i) => {
-                    if (rows[i].explicitDepartmentUuid !== null) return;
-                    const candidates = new Set(
-                        rows[i].groupLinks.map((l) => l.departmentUuid),
-                    ).size;
-                    const kept =
-                        resolution.kind === 'conflict'
-                            ? resolution.departmentUuids.length
-                            : Number(resolution.kind === 'assigned');
-                    if (resolution.kind === 'conflict') seen.conflict += 1;
-                    if (kept < candidates) seen.dropped += 1;
-                },
-            );
-        });
-        expect(seen.selfParent).toBeGreaterThan(0);
-        expect(seen.cycle).toBeGreaterThan(0);
-        expect(seen.conflict).toBeGreaterThan(0);
-        expect(seen.dropped).toBeGreaterThan(0);
-    });
-});
-
-describe('resolution when one person is in very many linked groups', () => {
-    it('resolves 300 people each in all 999 sub-departments of one root in under 200 ms', () => {
-        const subDepartments = Array.from(
-            { length: 999 },
-            (_, i) => `s${String(i).padStart(3, '0')}`,
-        );
-        const flat = [
-            { departmentUuid: 'root', parentDepartmentUuid: null },
-            ...subDepartments.map((departmentUuid) => ({
-                departmentUuid,
-                parentDepartmentUuid: 'root',
-            })),
-        ];
-        // One group per sub-department, and everyone in every group
-        const rows = Array.from({ length: 300 }, (_, i) =>
-            row({
-                userUuid: `u${i}`,
-                groupLinks: subDepartments.map((departmentUuid) =>
-                    link(departmentUuid),
-                ),
-            }),
-        );
-
-        // The fastest of five runs, so a busy machine does not fail it
-        const fastest = Math.min(
-            ...Array.from({ length: 5 }, () => {
-                const started = performance.now();
-                resolveDepartmentMembership(rows, flat);
-                return performance.now() - started;
-            }),
-        );
-        const resolved = resolveDepartmentMembership(rows, flat);
-
-        expect(fastest).toBeLessThan(200);
-        expect(resolved).toHaveLength(300);
-        resolved.forEach((member) =>
-            expect(member.resolution).toEqual({
-                kind: 'conflict',
-                departmentUuids: subDepartments,
-            }),
-        );
     });
 });

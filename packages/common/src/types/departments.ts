@@ -45,6 +45,7 @@ export type UpdateDepartment = {
 export type SetDepartmentGroups = { groupUuids: string[] };
 export type SetDepartmentMembers = { userUuids: string[] };
 export type SetDepartmentOwners = { owners: DepartmentOwnerInput[] };
+export type SetPrimaryDepartment = { departmentUuid: string | null };
 
 export type RoleSplit = {
     viewers: number;
@@ -86,18 +87,16 @@ export type DepartmentWithMetrics = Department & {
 export type OrganizationAdoptionSummary = {
     organization: AdoptionMetrics;
     departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
-    attention: { conflictCount: number; unassignedCount: number };
+    attention: { unassignedCount: number; sharedCount: number }; // shared = 2+ placements, no primary
 };
 
-export type MembershipResolution =
-    | {
-          kind: 'assigned';
-          departmentUuid: string;
-          source: 'explicit' | 'group';
-          sourceGroupName: string | null; // set when source is group
-      }
-    | { kind: 'conflict'; departmentUuids: string[] }
-    | { kind: 'unassigned' };
+export type MembershipPlacement = {
+    departmentUuid: string;
+    source: 'explicit' | 'group';
+    sourceGroupName: string | null; // set when source is group
+};
+
+export type MembershipKind = 'unassigned' | 'assigned' | 'shared';
 
 export type DepartmentMembership = {
     userUuid: string;
@@ -105,7 +104,10 @@ export type DepartmentMembership = {
     firstName: string;
     lastName: string;
     role: OrganizationMemberRole;
-    resolution: MembershipResolution;
+    kind: MembershipKind;
+    placements: MembershipPlacement[]; // most specific per branch, sorted by department uuid
+    primaryDepartmentUuid: string | null; // null when unset or not one of the placements
+    countedDepartmentUuids: string[]; // the primary alone, else every placement
 };
 
 export type DepartmentGroupLink = {
@@ -121,8 +123,9 @@ export type ResolvedMemberRow = {
     firstName: string;
     lastName: string;
     role: OrganizationMemberRole;
-    explicitDepartmentUuid: string | null;
+    explicitDepartmentUuids: string[];
     groupLinks: DepartmentGroupLink[];
+    primaryDepartmentUuid: string | null;
 };
 
 export type ApiOrganizationAdoptionSummaryResponse = {
@@ -181,6 +184,8 @@ export type DepartmentMember = {
     activity: ActivityBucket; // same bounds as activitySplit
     queries30d: number;
     dashboardViews30d: number;
+    sharedWith: DepartmentRef[]; // the person's other placements
+    primaryDepartmentUuid: string | null;
 };
 
 export type DepartmentDetail = {
@@ -196,4 +201,24 @@ export type DepartmentDetail = {
 export type ApiDepartmentDetailResponse = {
     status: 'ok';
     results: DepartmentDetail;
+};
+
+export type DepartmentOverlap = {
+    departmentUuid: string;
+    name: string;
+    people: number;
+    active30d: number;
+};
+
+export type DepartmentVennRegion = {
+    sets: string[]; // department uuids, 1 to 3
+    people: number;
+    active30d: number;
+};
+
+export type DepartmentOverlaps = {
+    department: DepartmentRef;
+    overlaps: DepartmentOverlap[];
+    venn: { sets: DepartmentRef[]; regions: DepartmentVennRegion[] } | null;
+    members: DepartmentMember[] | null;
 };

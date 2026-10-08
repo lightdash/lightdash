@@ -1,6 +1,7 @@
 import {
     type DepartmentMembership,
-    type MembershipResolution,
+    type MembershipKind,
+    type MembershipPlacement,
     type ResolvedMemberRow,
 } from '../types/departments';
 import {
@@ -9,52 +10,54 @@ import {
     type DepartmentTreeNode,
 } from './departmentTree';
 
-const resolveOne = (
+const getPlacements = (
     row: ResolvedMemberRow,
     ancestorsOf: (departmentUuid: string) => Set<string>,
-): MembershipResolution => {
-    if (row.explicitDepartmentUuid !== null) {
-        return {
-            kind: 'assigned',
-            departmentUuid: row.explicitDepartmentUuid,
-            source: 'explicit',
-            sourceGroupName: null,
-        };
-    }
-    const candidates = Array.from(
-        new Set(row.groupLinks.map((l) => l.departmentUuid)),
-    ).sort();
-    // Most specific wins: drop any candidate that is an ancestor of another.
-    // One walk up from each candidate marks the candidates it passes, so the cost grows linearly
-    const candidateSet = new Set(candidates);
-    const coveredBy = new Map<string, string>();
-    if (candidates.length > 1) {
-        candidates.forEach((other) =>
-            ancestorsOf(other).forEach((ancestor) => {
-                if (ancestor !== other && candidateSet.has(ancestor)) {
-                    coveredBy.set(ancestor, other);
-                }
-            }),
-        );
-    }
-    const mostSpecific = candidates.filter((c) => !coveredBy.has(c));
-    if (mostSpecific.length === 1) {
-        const [departmentUuid] = mostSpecific;
-        const [firstGroupName] = row.groupLinks
-            .filter((l) => l.departmentUuid === departmentUuid)
-            .map((l) => l.groupName)
-            .sort();
-        return {
-            kind: 'assigned',
-            departmentUuid,
-            source: 'group',
-            sourceGroupName: firstGroupName ?? null,
-        };
-    }
-    if (mostSpecific.length > 1) {
-        return { kind: 'conflict', departmentUuids: mostSpecific };
-    }
-    return { kind: 'unassigned' };
+): MembershipPlacement[] => {
+    const explicitUuids = new Set(row.explicitDepartmentUuids);
+    const firstGroupNames = new Map<string, string>();
+    row.groupLinks.forEach(({ departmentUuid, groupName }) => {
+        const current = firstGroupNames.get(departmentUuid);
+        if (current === undefined || groupName < current) {
+            firstGroupNames.set(departmentUuid, groupName);
+        }
+    });
+    const linkedUuids = [
+        ...new Set([...explicitUuids, ...firstGroupNames.keys()]),
+    ];
+    // Most specific wins: drop any department that is an ancestor of another.
+    // A lone department is never its own ancestor, so it needs no walk
+    const mostSpecific =
+        linkedUuids.length < 2
+            ? linkedUuids
+            : linkedUuids.filter(
+                  (uuid) =>
+                      !linkedUuids.some(
+                          (other) =>
+                              other !== uuid && ancestorsOf(other).has(uuid),
+                      ),
+              );
+    return mostSpecific.sort().map(
+        (departmentUuid): MembershipPlacement =>
+            explicitUuids.has(departmentUuid)
+                ? {
+                      departmentUuid,
+                      source: 'explicit',
+                      sourceGroupName: null,
+                  }
+                : {
+                      departmentUuid,
+                      source: 'group',
+                      sourceGroupName:
+                          firstGroupNames.get(departmentUuid) ?? null,
+                  },
+    );
+};
+
+const getKind = (placementCount: number): MembershipKind => {
+    if (placementCount === 0) return 'unassigned';
+    if (placementCount === 1) return 'assigned';
+    return 'shared';
 };
 
 export const resolveDepartmentMembership = (
@@ -71,14 +74,30 @@ export const resolveDepartmentMembership = (
         ancestorSets.set(departmentUuid, ancestors);
         return ancestors;
     };
-    return rows.map((row) => ({
-        userUuid: row.userUuid,
-        email: row.email,
-        firstName: row.firstName,
-        lastName: row.lastName,
-        role: row.role,
-        resolution: resolveOne(row, ancestorsOf),
-    }));
+    return rows.map((row) => {
+        const placements = getPlacements(row, ancestorsOf);
+        const placedUuids = placements.map((p) => p.departmentUuid);
+        // A primary that is not one of the placements is ignored
+        const primaryDepartmentUuid =
+            row.primaryDepartmentUuid !== null &&
+            placedUuids.includes(row.primaryDepartmentUuid)
+                ? row.primaryDepartmentUuid
+                : null;
+        return {
+            userUuid: row.userUuid,
+            email: row.email,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            role: row.role,
+            kind: getKind(placements.length),
+            placements,
+            primaryDepartmentUuid,
+            countedDepartmentUuids:
+                primaryDepartmentUuid === null
+                    ? placedUuids
+                    : [primaryDepartmentUuid],
+        };
+    });
 };
 
 export const getDirectMembersByDepartment = (
@@ -86,12 +105,11 @@ export const getDirectMembersByDepartment = (
 ): Map<string, DepartmentMembership[]> => {
     const direct = new Map<string, DepartmentMembership[]>();
     membership.forEach((member) => {
-        if (member.resolution.kind === 'assigned') {
-            const { departmentUuid } = member.resolution;
+        member.countedDepartmentUuids.forEach((departmentUuid) => {
             const members = direct.get(departmentUuid);
             if (members) members.push(member);
             else direct.set(departmentUuid, [member]);
-        }
+        });
     });
     return direct;
 };
