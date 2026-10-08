@@ -49,7 +49,6 @@ import {
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
-import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
 
 export type LiveActivityToolGroup = {
@@ -72,13 +71,6 @@ type Props = {
     toolCalls?: AiAgentToolCall[];
     mcpServers?: AiMcpServer[];
     /**
-     * Pending interactive content (e.g. SqlApprovalCard awaiting user
-     * decision). When present, the card auto-expands and renders this in the
-     * body at the top — used so SQL approval lives inside the bento instead
-     * of as a separate floating card.
-     */
-    pendingContent?: React.ReactNode;
-    /**
      * In-flight status events emitted across the stream (e.g. "Starting
      * sandbox", "Cloning project", "Committing changes" for editDbtProject).
      * Each carries the tool it belongs to so the inline row can be scoped to
@@ -88,8 +80,8 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
-    /** Composer runs whose SQL nodes await a decision; approval renders inline. */
-    composerApproval?: ComposerApprovalTarget & {
+    /** runSql / composer calls awaiting a decision; approval renders inline under the SQL. */
+    approval?: ComposerApprovalTarget & {
         pendingToolCallIds: string[];
     };
 };
@@ -271,8 +263,9 @@ export const ReasoningHistoryRow: FC<{
 const LatestRow: FC<{
     group: LiveActivityToolGroup;
     isLive: boolean;
+    awaitingApproval: boolean;
     mcpServers?: AiMcpServer[];
-}> = ({ group, isLive, mcpServers }) => {
+}> = ({ group, isLive, awaitingApproval, mcpServers }) => {
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
     const linkedMcpServer =
         group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -371,16 +364,23 @@ const LatestRow: FC<{
                     {group.calls.length}
                 </Box>
             )}
-            {showPreview && chipLabel && (
-                <Text
-                    size="xs"
-                    c="dimmed"
-                    lineClamp={1}
-                    className={styles.latestPreview}
-                    key={`preview-${chipLabel}`}
-                >
-                    {chipLabel}
+            {awaitingApproval ? (
+                <Text size="xs" className={styles.awaitingApproval}>
+                    awaiting approval
                 </Text>
+            ) : (
+                showPreview &&
+                chipLabel && (
+                    <Text
+                        size="xs"
+                        c="dimmed"
+                        lineClamp={1}
+                        className={styles.latestPreview}
+                        key={`preview-${chipLabel}`}
+                    >
+                        {chipLabel}
+                    </Text>
+                )
             )}
         </Group>
     );
@@ -518,11 +518,10 @@ const getDiscoverFieldsTraceFromCall = (
 const renderInlineLiveStepProgress = (params: {
     latest: LiveActivityToolGroup | null;
     isLive: boolean;
-    hasPending: boolean;
     stepProgressMessages: StepProgressMessage[];
 }): React.ReactNode => {
-    const { latest, isLive, hasPending, stepProgressMessages } = params;
-    if (!isLive || !latest || hasPending) return null;
+    const { latest, isLive, stepProgressMessages } = params;
+    if (!isLive || !latest) return null;
     if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
 
     const currentMessage = stepProgressMessages
@@ -648,10 +647,9 @@ const getComposerNodeStatuses = (
 const renderInlineLiveTrace = (params: {
     latest: LiveActivityToolGroup | null;
     isLive: boolean;
-    hasPending: boolean;
 }): React.ReactNode => {
-    const { latest, isLive, hasPending } = params;
-    if (!isLive || !latest || hasPending) return null;
+    const { latest, isLive } = params;
+    if (!isLive || !latest) return null;
     if (latest.toolName !== 'discoverFields') return null;
     const trace = latest.calls
         .map((tc) => getDiscoverFieldsTraceFromCall(tc))
@@ -670,16 +668,15 @@ export const LiveActivityCard: FC<Props> = ({
     toolResults,
     toolCalls,
     mcpServers,
-    pendingContent,
     stepProgressMessages = [],
-    composerApproval,
+    approval,
 }) => {
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
-    const hasComposerApproval =
-        (composerApproval?.pendingToolCallIds.length ?? 0) > 0;
-    // Composer waiting on approval stays "live" so the pipeline is reachable.
-    const isActive = isLive || hasComposerApproval;
+    const pendingApprovalIds = approval?.pendingToolCallIds ?? [];
+    const hasPendingApproval = pendingApprovalIds.length > 0;
+    // A call waiting on approval keeps the card "live" so its SQL is reachable.
+    const isActive = isLive || hasPendingApproval;
 
     // runSql expands by default; composer only while active (the artifact panel
     // shows the pipeline once done). A user toggle wins until expandKey changes.
@@ -698,20 +695,17 @@ export const LiveActivityCard: FC<Props> = ({
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
 
-    if (toolGroups.length === 0 && !pendingContent) return null;
+    if (toolGroups.length === 0) return null;
 
-    const hasPending = pendingContent != null;
-    // When there's a pending approval, the conceptual *latest* action is the
-    // SQL waiting on the user — not the last completed tool. We surface a
-    // dedicated "Running SQL query" header and push all completed tools into
-    // the history. After streaming the header is a *summary title* rather
-    // than the latest row, so every tool group (including the last) belongs
-    // in the expandable body so its description (e.g. SQL) stays reachable.
-    const showSummaryHeader = !isActive && toolGroups.length > 0;
-    const latest =
-        hasPending || showSummaryHeader || toolGroups.length === 0
-            ? null
-            : toolGroups[toolGroups.length - 1];
+    // After streaming the header is a *summary title* rather than the latest
+    // row, so every tool group (including the last) belongs in the expandable
+    // body so its description (e.g. SQL) stays reachable.
+    const showSummaryHeader = !isActive;
+    const latest = showSummaryHeader ? null : toolGroups[toolGroups.length - 1];
+    const latestAwaitingApproval =
+        latest?.calls.some((call) =>
+            pendingApprovalIds.includes(call.toolCallId),
+        ) ?? false;
     const totalCalls = toolGroups.reduce(
         (sum, group) => sum + group.calls.length,
         0,
@@ -719,15 +713,14 @@ export const LiveActivityCard: FC<Props> = ({
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
     const hasHistory = olderCount > 0;
-    // Auto-expand whenever there's pending interactive content so the user
-    // sees it immediately, without needing to click the chevron.
-    const expanded = hasPending || (userExpanded ?? defaultExpanded);
+    // Auto-expand while approval is pending so the user sees it immediately.
+    const expanded =
+        latestAwaitingApproval || (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
         latest?.toolName === 'runComposerQueries';
-    const showBody =
-        expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
+    const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -740,9 +733,7 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded(!expanded)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={
-                    !hasHistory && !hasPending && !latestNeedsExpandedBody
-                }
+                disabled={!hasHistory && !latestNeedsExpandedBody}
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -779,39 +770,10 @@ export const LiveActivityCard: FC<Props> = ({
                         ) : latest ? (
                             <LatestRow
                                 group={latest}
-                                isLive={isLive}
+                                isLive={isActive}
+                                awaitingApproval={latestAwaitingApproval}
                                 mcpServers={mcpServers}
                             />
-                        ) : hasPending ? (
-                            <Group
-                                gap={8}
-                                align="center"
-                                wrap="nowrap"
-                                className={styles.latestRow}
-                            >
-                                <MantineIcon
-                                    icon={getToolIcon('runSql')}
-                                    size={13}
-                                    stroke={1.6}
-                                    className={styles.latestIcon}
-                                    data-live="true"
-                                />
-                                <Text
-                                    size="xs"
-                                    className={styles.latestLabel}
-                                    data-live="true"
-                                    data-tour-status="true"
-                                >
-                                    Running SQL query
-                                </Text>
-                                <Text
-                                    size="xs"
-                                    c="dimmed"
-                                    className={styles.latestPreview}
-                                >
-                                    awaiting approval
-                                </Text>
-                            </Group>
                         ) : null}
                     </Box>
                     {olderCount > 0 && (
@@ -819,7 +781,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || hasPending || latestNeedsExpandedBody) && (
+                    {(hasHistory || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
@@ -831,15 +793,13 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                 </Group>
             </UnstyledButton>
-            {renderInlineLiveTrace({ latest, isLive, hasPending })}
+            {renderInlineLiveTrace({ latest, isLive })}
             {renderInlineLiveStepProgress({
                 latest,
                 isLive,
-                hasPending,
                 stepProgressMessages,
             })}
             {isLive &&
-                !hasPending &&
                 latest?.toolName === 'editDbtProject' &&
                 (() => {
                     // Live grouped step rows for the writeback tool: parse the
@@ -862,11 +822,8 @@ export const LiveActivityCard: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={6} className={styles.history}>
-                    {hasPending && (
-                        <Box className={styles.pending}>{pendingContent}</Box>
-                    )}
                     {(() => {
-                        if (!latest || hasPending) return null;
+                        if (!latest) return null;
                         const latestBuiltInToolName = isToolName(
                             latest.toolName,
                         )
@@ -903,9 +860,7 @@ export const LiveActivityCard: FC<Props> = ({
                                 // card animates an empty box open/closed.
                                 if (hasNoDescription && !trace) return null;
                                 const awaitingApproval =
-                                    composerApproval?.pendingToolCallIds.includes(
-                                        tc.toolCallId,
-                                    ) ?? false;
+                                    pendingApprovalIds.includes(tc.toolCallId);
                                 return (
                                     <Box
                                         key={tc.toolCallId}
@@ -929,11 +884,10 @@ export const LiveActivityCard: FC<Props> = ({
                                                           )
                                                         : undefined
                                                 }
-                                                composerApproval={
-                                                    awaitingApproval &&
-                                                    composerApproval
+                                                approval={
+                                                    awaitingApproval && approval
                                                         ? {
-                                                              ...composerApproval,
+                                                              ...approval,
                                                               toolCallId:
                                                                   tc.toolCallId,
                                                           }

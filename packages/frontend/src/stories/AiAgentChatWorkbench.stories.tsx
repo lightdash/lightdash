@@ -266,7 +266,7 @@ const ComposerPipelineScenario = () => (
                 <LiveActivityCard
                     toolGroups={composerActivity}
                     isLive
-                    composerApproval={composerApproval}
+                    approval={composerApproval}
                 />
             </Section>
             <Section

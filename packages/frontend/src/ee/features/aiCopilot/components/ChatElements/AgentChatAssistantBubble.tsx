@@ -2,7 +2,6 @@ import {
     FeatureFlags,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
-    type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
@@ -105,7 +104,6 @@ import {
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
-import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
 import {
     getComposerQueryNodes,
     isWarehouseSqlNode,
@@ -125,38 +123,30 @@ type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
 };
 type TextSegment = { kind: 'text'; text: string; idx: number };
-type SqlApprovalSegment = {
-    kind: 'sqlApproval';
-    toolCallId: string;
-    sql: string;
-    limit?: number;
-};
-type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
+type StreamSegment = TextSegment | ToolGroup;
 
-// Only pipelines with warehouse SQL nodes gate on human approval.
-const hasComposerSqlNodes = (toolArgs: unknown): boolean =>
-    getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode);
+// runSql always gates on approval; composer only when it has warehouse SQL nodes.
+const requiresSqlApproval = (toolName: string, toolArgs: unknown): boolean =>
+    toolName === 'runSql' ||
+    (toolName === 'runComposerQueries' &&
+        getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode));
 
 // Complete args, no result, no decision: the tool is waiting on the user.
-const getPendingComposerApprovalIds = (
+const getPendingApprovalIds = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
 ): string[] =>
     parts.flatMap((part) =>
         part.type !== 'text' &&
-        part.toolName === 'runComposerQueries' &&
         !part.toolResult &&
         part.isArgsPartial !== true &&
         !decidedToolCallIds.includes(part.toolCallId) &&
-        hasComposerSqlNodes(part.toolArgs)
+        requiresSqlApproval(part.toolName, part.toolArgs)
             ? [part.toolCallId]
             : [],
     );
 
-const segmentStreamParts = (
-    parts: StreamPart[],
-    decidedToolCallIds: string[],
-): StreamSegment[] => {
+const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
     const segments: StreamSegment[] = [];
     parts.forEach((part, idx) => {
         if (part.type === 'text') {
@@ -164,19 +154,6 @@ const segmentStreamParts = (
             return;
         }
         if (isHiddenToolName(part.toolName)) {
-            return;
-        }
-        if (
-            part.toolName === 'runSql' &&
-            !decidedToolCallIds.includes(part.toolCallId)
-        ) {
-            const args = part.toolArgs as { sql: string; limit?: number };
-            segments.push({
-                kind: 'sqlApproval',
-                toolCallId: part.toolCallId,
-                sql: args.sql,
-                limit: args.limit,
-            });
             return;
         }
         const call: ToolCallSummary = {
@@ -208,28 +185,19 @@ const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
 ): ToolCallActivityGroup[] => groupToolCallSummaries(calls);
 
-const getPendingPersistedApprovals = (
+const getPendingPersistedApprovalIds = (
     message: AiAgentMessageAssistant,
-): { sqlToolCalls: AiAgentToolCall[]; composerToolCallIds: string[] } => {
+): string[] => {
     const resolvedToolCallIds = new Set(
         message.toolResults.map((result) => result.toolCallId),
     );
-    const unresolved = message.toolCalls.filter(
-        (toolCall) => !resolvedToolCallIds.has(toolCall.toolCallId),
-    );
-
-    return {
-        sqlToolCalls: unresolved.filter(
-            (toolCall) => toolCall.toolName === 'runSql',
-        ),
-        composerToolCallIds: unresolved
-            .filter(
-                (toolCall) =>
-                    toolCall.toolName === 'runComposerQueries' &&
-                    hasComposerSqlNodes(toolCall.toolArgs),
-            )
-            .map((toolCall) => toolCall.toolCallId),
-    };
+    return message.toolCalls
+        .filter(
+            (toolCall) =>
+                !resolvedToolCallIds.has(toolCall.toolCallId) &&
+                requiresSqlApproval(toolCall.toolName, toolCall.toolArgs),
+        )
+        .map((toolCall) => toolCall.toolCallId);
 };
 
 const getToolOutputStatus = (toolOutput: unknown) => {
@@ -657,10 +625,7 @@ const AssistantBubbleContent: FC<{
                         isPending);
                 const segments =
                     shouldUseStreamParts && streamingState
-                        ? segmentStreamParts(
-                              streamingState.parts,
-                              streamingState.decidedToolCallIds,
-                          )
+                        ? segmentStreamParts(streamingState.parts)
                         : [];
 
                 if (segments.length > 0) {
@@ -680,12 +645,8 @@ const AssistantBubbleContent: FC<{
                             keyId: s.keyId,
                             display: s.display,
                         }));
-                    const sqlApprovals = segments.filter(
-                        (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>
-                            s.kind === 'sqlApproval',
-                    );
-                    const pendingComposerApprovalIds = streamingState
-                        ? getPendingComposerApprovalIds(
+                    const pendingApprovalIds = streamingState
+                        ? getPendingApprovalIds(
                               streamingState.parts,
                               streamingState.decidedToolCallIds,
                           )
@@ -747,24 +708,6 @@ const AssistantBubbleContent: FC<{
                             {latestTextSeg.text}
                         </AiMarkdown>
                     ) : null;
-                    const pendingApprovalContent =
-                        sqlApprovals.length > 0 ? (
-                            <Stack gap={6}>
-                                {sqlApprovals.map((seg) => (
-                                    <SqlApprovalCard
-                                        key={seg.toolCallId}
-                                        projectUuid={projectUuid}
-                                        agentUuid={agentUuid}
-                                        threadUuid={message.threadUuid}
-                                        toolCallId={seg.toolCallId}
-                                        toolArgs={{
-                                            sql: seg.sql,
-                                            limit: seg.limit,
-                                        }}
-                                    />
-                                ))}
-                            </Stack>
-                        ) : null;
                     return (
                         <Stack
                             gap={4}
@@ -797,25 +740,22 @@ const AssistantBubbleContent: FC<{
                                     />
                                 ) : null;
                             })()}
-                            {(liveToolGroups.length > 0 ||
-                                pendingApprovalContent) && (
+                            {liveToolGroups.length > 0 && (
                                 <LiveActivityCard
                                     toolGroups={liveToolGroups}
                                     isLive={isStreaming}
                                     toolResults={message.toolResults}
                                     toolCalls={message.toolCalls}
                                     mcpServers={mcpServers}
-                                    pendingContent={pendingApprovalContent}
                                     stepProgressMessages={
                                         streamingState?.stepProgressMessages ??
                                         []
                                     }
-                                    composerApproval={{
+                                    approval={{
                                         projectUuid,
                                         agentUuid,
                                         threadUuid: message.threadUuid,
-                                        pendingToolCallIds:
-                                            pendingComposerApprovalIds,
+                                        pendingToolCallIds: pendingApprovalIds,
                                     }}
                                 />
                             )}
@@ -860,34 +800,12 @@ const AssistantBubbleContent: FC<{
                 );
                 const persistedToolGroups: LiveActivityToolGroup[] =
                     groupPersistedToolCalls(renderableToolCalls);
-                const persistedApprovals =
-                    getPendingPersistedApprovals(message);
-                const persistedComposerApproval = {
+                const persistedApproval = {
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
-                    pendingToolCallIds: persistedApprovals.composerToolCallIds,
+                    pendingToolCallIds: getPendingPersistedApprovalIds(message),
                 };
-                const pendingApprovalContent =
-                    persistedApprovals.sqlToolCalls.length > 0 ? (
-                        <Stack gap={6}>
-                            {persistedApprovals.sqlToolCalls.map((toolCall) => (
-                                <SqlApprovalCard
-                                    key={toolCall.toolCallId}
-                                    projectUuid={projectUuid}
-                                    agentUuid={agentUuid}
-                                    threadUuid={message.threadUuid}
-                                    toolCallId={toolCall.toolCallId}
-                                    toolArgs={
-                                        toolCall.toolArgs as {
-                                            sql: string;
-                                            limit?: number;
-                                        }
-                                    }
-                                />
-                            ))}
-                        </Stack>
-                    ) : null;
                 return (
                     <>
                         {persistedToolGroups.length > 0 && (
@@ -897,21 +815,9 @@ const AssistantBubbleContent: FC<{
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
                                 mcpServers={mcpServers}
-                                pendingContent={pendingApprovalContent}
-                                composerApproval={persistedComposerApproval}
+                                approval={persistedApproval}
                             />
                         )}
-                        {persistedToolGroups.length === 0 &&
-                            pendingApprovalContent && (
-                                <LiveActivityCard
-                                    toolGroups={[]}
-                                    isLive={isStreaming || isPending}
-                                    toolResults={message.toolResults}
-                                    toolCalls={message.toolCalls}
-                                    mcpServers={mcpServers}
-                                    pendingContent={pendingApprovalContent}
-                                />
-                            )}
                         {message.reasoning && message.reasoning.length > 0 && (
                             <ReasoningHistoryRow
                                 texts={toReasoningTexts(

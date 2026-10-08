@@ -30,11 +30,6 @@
 /* Header + body sit above the shimmer pseudo-element. */
 .header,
 .history,
-.pending {
-    position: relative;
-    z-index: 1;
-}
-
 @keyframes bentoShimmer {
     0% {
         background-position: -25% 0;
@@ -250,6 +245,14 @@
     animation: previewSlide 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.awaitingApproval {
+    flex: 1;
+    min-width: 0;
+    letter-spacing: -0.005em;
+    color: var(--mantine-color-orange-7);
+    font-weight: 500;
+}
+
 @keyframes previewSlide {
     from {
         opacity: 0;
@@ -393,11 +396,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.pending {
-    margin-left: -18px;
-    animation: pendingPop 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .latestDescription {
