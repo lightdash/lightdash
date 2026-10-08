@@ -504,6 +504,11 @@ export const lightdashConfigMock: LightdashConfig = {
     appRuntime: {
         enabled: false,
         dataAppCodingAgent: 'claude',
+        dataAppGatewayBaseUrls: {
+            anthropic: null,
+            bedrock: null,
+            openai: null,
+        },
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,

@@ -2,7 +2,9 @@ import {
     APP_VERSION_CANCELLED_BY_USER,
     type AppGeneratePipelineJobPayload,
     type AppVersionStatus,
+    type ByoAiProvider,
 } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { SandboxCommandError } from '../SandboxRuntime';
 import { AppGenerateService } from './AppGenerateService';
@@ -31,7 +33,7 @@ const PAYLOAD: AppGeneratePipelineJobPayload = {
     claudeEffort: 'low',
 };
 
-function buildService() {
+function buildService(codingAgent: 'claude' | 'codex' = 'claude') {
     const version = {
         status: 'pending' as AppVersionStatus,
         error: null as string | null,
@@ -64,23 +66,44 @@ function buildService() {
     const copilot = {
         defaultProvider: 'anthropic',
         providers: {
-            anthropic: { apiKey: PROVIDER_SECRET },
+            anthropic: {
+                apiKey: PROVIDER_SECRET,
+                baseUrl: 'https://mesh.example/anthropic',
+            },
+            openai: {
+                apiKey: PROVIDER_SECRET,
+                modelName: 'gpt-5.6-terra',
+                baseUrl: 'https://mesh.example/openai/v1',
+            },
+            bedrock: {
+                apiKey: PROVIDER_SECRET,
+                region: 'us-east-1',
+                baseUrl: 'https://mesh.example/bedrock',
+            },
         },
         lightdashManagedProviders: [],
-        byoProviders: [],
+        byoProviders: [] as ByoAiProvider[],
+    };
+    const config = {
+        appRuntime: {
+            ...lightdashConfigMock.appRuntime,
+            dataAppCodingAgent: codingAgent,
+            dataAppGatewayBaseUrls: {
+                anthropic: null as string | null,
+                openai: null as string | null,
+                bedrock: null as string | null,
+            },
+            gcpCloudRun: { sandboxSecret: GATEWAY_SECRET },
+        },
     };
     const analytics = { track: vi.fn() };
     const service = new AppGenerateService({
-        lightdashConfig: {
-            appRuntime: {
-                dataAppCodingAgent: 'claude',
-                gcpCloudRun: { sandboxSecret: GATEWAY_SECRET },
-            },
-        },
+        lightdashConfig: config,
         appModel,
         analytics,
         orgAiCopilotConfigResolver: {
             getClaudeCodeConfig: vi.fn().mockResolvedValue(copilot),
+            getCodexConfig: vi.fn().mockResolvedValue(copilot),
         },
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
@@ -112,6 +135,8 @@ function buildService() {
         logger,
     });
     return {
+        config,
+        copilot,
         service,
         sandbox,
         version,
@@ -183,4 +208,63 @@ describe('data app pipeline setup failures', () => {
         expect(ctx.analytics.track).not.toHaveBeenCalled();
         expect(ctx.suspendSandbox).toHaveBeenCalledOnce();
     });
+});
+
+describe('data app gateway routing', () => {
+    test.each([
+        ['claude', 'anthropic', 'ANTHROPIC_BASE_URL'],
+        ['claude', 'bedrock', 'ANTHROPIC_BEDROCK_BASE_URL'],
+        ['codex', 'openai', 'OPENAI_BASE_URL'],
+        ['codex', 'bedrock', 'BEDROCK_BASE_URL'],
+    ] as const)(
+        '%s on %s uses the sandbox URL for its environment and egress only',
+        async (agent, provider, envKey) => {
+            const { service, config, copilot } = buildService(agent);
+            copilot.defaultProvider = provider;
+            const sharedUrl = copilot.providers[provider].baseUrl;
+            config.appRuntime.dataAppGatewayBaseUrls[provider] =
+                'https://private.example/gateway';
+
+            const resolved = await service['getCodingAgentConfig']('org-1');
+            expect(service['getCodingAgentEnv'](resolved)[envKey]).toBe(
+                'https://private.example/gateway',
+            );
+            expect(service['buildSandboxSpec'](resolved).egress.allow).toEqual([
+                'private.example',
+            ]);
+            expect(copilot.providers[provider].baseUrl).toBe(sharedUrl);
+
+            config.appRuntime.dataAppGatewayBaseUrls[provider] = null;
+            const fallback = await service['getCodingAgentConfig']('org-1');
+            expect(service['getCodingAgentEnv'](fallback)[envKey]).toBe(
+                sharedUrl,
+            );
+            expect(service['buildSandboxSpec'](fallback).egress.allow).toEqual([
+                'mesh.example',
+            ]);
+        },
+    );
+
+    test.each([
+        ['claude', 'anthropic', 'ANTHROPIC_BASE_URL'],
+        ['codex', 'openai', 'OPENAI_BASE_URL'],
+    ] as const)(
+        '%s keeps organization-owned %s credentials on their resolved endpoint',
+        async (agent, provider, envKey) => {
+            const { service, config, copilot } = buildService(agent);
+            copilot.defaultProvider = provider;
+            copilot.byoProviders = [provider];
+            copilot.providers[provider].baseUrl = 'https://org.example/gateway';
+            config.appRuntime.dataAppGatewayBaseUrls[provider] =
+                'https://private.example/gateway';
+
+            const resolved = await service['getCodingAgentConfig']('org-1');
+            expect(service['getCodingAgentEnv'](resolved)[envKey]).toBe(
+                'https://org.example/gateway',
+            );
+            expect(service['buildSandboxSpec'](resolved).egress.allow).toEqual([
+                'org.example',
+            ]);
+        },
+    );
 });
