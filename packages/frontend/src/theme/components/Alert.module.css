@@ -14,9 +14,9 @@
 .body {
     min-height: rem(28px);
     justify-content: center;
-    /* The title row is 28px to meet the chip, so a small gap keeps the
-       message close to the title text. */
-    gap: rem(4px);
+    /* The title row is 28px to meet the chip, which already leaves 4px
+       below the title text, so no extra gap is needed. */
+    gap: 0;
 }
 
 .title {
@@ -36,6 +36,7 @@
     color: var(--mantine-color-dimmed);
 }
 
-.root[data-variant='filled'] .message {
+.root[data-variant='filled'] .message,
+.root[data-variant='outline'] .message {
     color: var(--mantine-color-text);
 }
