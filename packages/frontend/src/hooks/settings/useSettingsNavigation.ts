@@ -32,6 +32,7 @@ import {
     IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
+    IconBuildingCommunity,
     IconRoad,
     IconRobotFace,
     IconSend,
@@ -51,6 +52,10 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import {
+    ADOPTION_NAV_KEYWORDS,
+    ADOPTION_PATH,
+} from '../../ee/features/adoption/utils/adoptionNav';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -82,6 +87,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isOrganizationAdoptionEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -738,6 +744,24 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (
+            isOrganizationAdoptionEnabled &&
+            ability?.can(
+                'view',
+                subject('OrganizationAdoption', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Adoption',
+                to: ADOPTION_PATH,
+                icon: IconBuildingCommunity,
+                keywords: ADOPTION_NAV_KEYWORDS,
+                children: [],
+            });
+        }
+
         const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
@@ -1249,6 +1273,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isOrganizationAdoptionEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
