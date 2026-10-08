@@ -17,12 +17,13 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
-import { formatOwners, sortByCoverage } from '../utils/departmentRows';
+import { formatOwners } from '../utils/departmentRows';
 import styles from './AdoptionMap.module.css';
 import {
     formatCount,
     formatMemberActivity,
     formatPct,
+    sortForInspector,
     type ViewTotals,
 } from './mapView';
 
@@ -228,7 +229,7 @@ export const MapInspector: FC<Props> = ({
                                 : 'Sub-departments, lowest coverage first'}
                         </Text>
                         <Box className={styles.rows}>
-                            {sortByCoverage(subDepartments).map((child) => (
+                            {sortForInspector(subDepartments).map((child) => (
                                 <button
                                     key={child.departmentUuid}
                                     type="button"

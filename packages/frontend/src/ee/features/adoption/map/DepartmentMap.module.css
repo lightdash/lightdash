@@ -2,7 +2,8 @@
     display: block;
     overflow: hidden;
     cursor: grab;
-    touch-action: none;
+    /* One finger scrolls the page; two fingers move and zoom the map */
+    touch-action: pan-y;
     user-select: none;
 }
 
@@ -37,7 +38,7 @@
     );
 }
 
-.circle:hover {
+.circle[data-opens]:hover {
     stroke: var(--mantine-color-ldGray-5);
 }
 
@@ -67,9 +68,8 @@
 }
 
 /* People who sit in a department itself, beside its sub-departments */
-.circle[data-kind='own'] {
+.circle:not([data-opens]) {
     cursor: inherit;
-    pointer-events: none;
 }
 
 .circle[data-kind='own'][data-nested] {

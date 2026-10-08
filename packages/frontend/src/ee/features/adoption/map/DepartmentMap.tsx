@@ -9,6 +9,7 @@ import {
     type ZoomTransform,
 } from 'd3-zoom';
 import {
+    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -16,26 +17,35 @@ import {
     useState,
     type FC,
     type MouseEvent,
+    type PointerEvent,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import styles from './DepartmentMap.module.css';
 import { truncateLabel, type PackedCircle } from './geometry';
-import { getLabelLines, placeLabels, type LabelLine } from './mapLayout';
+import {
+    getDrillTargets,
+    getLabelLines,
+    placeLabels,
+    TEXT_FONTS,
+    type CircleLabel,
+    type TextMeasurer,
+    type TextRole,
+} from './mapLayout';
 import { OUTLINED_DOT_KINDS } from './mapStyles';
 import { type CircleInfo, type MapDot } from './mapView';
+import { isZoomGesture } from './zoomGesture';
 
 const MAX_ZOOM = 12;
 const ZOOM_STEP = 1.6;
-// Text keeps these sizes on screen at every zoom level
-const NAME_FONT_PX = 13;
-const DETAIL_FONT_PX = 11;
+// A press that travels further than this is a drag, not a selection
+const CLICK_SLOP_PX = 5;
 const PERSON_FONT_PX = 10;
 const HALO_PX = 3.5;
 const NO_ACCOUNT_SCALE = 0.72;
 // Fed to the shared truncation rule: about ten characters
 const FIRST_NAME_RADIUS = 36;
 
-const LINE_CLASSES: Record<LabelLine['role'], string> = {
+const LINE_CLASSES: Record<TextRole, string> = {
     name: styles.labelName,
     detail: styles.labelDetail,
     nested: styles.labelNested,
@@ -58,6 +68,7 @@ type Props = {
     dots: MapDot[];
     showNames: boolean;
     ariaLabel: string;
+    measureText: TextMeasurer;
     // Changes when a different part of the organization is drawn, which resets the zoom
     layoutKey: string;
     highlightedUuid: string | null;
@@ -69,6 +80,138 @@ type Props = {
 const getMemberName = (member: NonNullable<MapDot['member']>): string =>
     `${member.firstName} ${member.lastName}`.trim() || member.email;
 
+// The layers below take no zoom transform, so panning and zooming never re-render them
+
+const CirclesLayer = memo<{
+    circles: PackedCircle[];
+    info: Map<string, CircleInfo>;
+    highlightedUuid: string | null;
+}>(({ circles, info, highlightedUuid }) => {
+    const targets = useMemo(() => getDrillTargets(circles), [circles]);
+    return (
+        <>
+            {circles.map((circle) => (
+                <circle
+                    key={circle.id}
+                    className={styles.circle}
+                    data-kind={circle.kind}
+                    data-department={
+                        circle.kind === 'department'
+                            ? (circle.departmentUuid ?? undefined)
+                            : undefined
+                    }
+                    data-opens={targets.get(circle.id) ?? undefined}
+                    data-nested={circle.depth > 1 || undefined}
+                    data-empty={!circle.hasMembers || undefined}
+                    data-no-headcount={!circle.hasHeadcount || undefined}
+                    data-highlighted={
+                        (circle.kind === 'department' &&
+                            circle.departmentUuid === highlightedUuid) ||
+                        undefined
+                    }
+                    cx={circle.x}
+                    cy={circle.y}
+                    r={circle.r}
+                >
+                    <title>
+                        {info.get(circle.id)?.description ?? circle.name}
+                    </title>
+                </circle>
+            ))}
+        </>
+    );
+});
+CirclesLayer.displayName = 'CirclesLayer';
+
+const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
+    ({ dots, selectedUserUuid }) => (
+        <>
+            {dots.map((dot) => {
+                const isOutlined = OUTLINED_DOT_KINDS.has(dot.kind);
+                const strokeWidth = isOutlined
+                    ? Math.min(1.6, dot.r * 0.45)
+                    : 0;
+                const radius =
+                    dot.kind === 'noAccount'
+                        ? dot.r * NO_ACCOUNT_SCALE
+                        : dot.r - strokeWidth / 2;
+                return (
+                    <circle
+                        key={dot.key}
+                        data-dot={dot.kind}
+                        data-user={dot.member?.userUuid}
+                        data-selected={
+                            (dot.member !== null &&
+                                dot.member.userUuid === selectedUserUuid) ||
+                            undefined
+                        }
+                        cx={dot.x}
+                        cy={dot.y}
+                        r={radius}
+                        strokeWidth={isOutlined ? strokeWidth : undefined}
+                    >
+                        {dot.member && (
+                            <title>{getMemberName(dot.member)}</title>
+                        )}
+                    </circle>
+                );
+            })}
+        </>
+    ),
+);
+DotsLayer.displayName = 'DotsLayer';
+
+// Text keeps its size on screen, so these layers follow the zoom level but not panning
+
+const LabelsLayer = memo<{ labels: CircleLabel[]; zoomLevel: number }>(
+    ({ labels, zoomLevel }) => (
+        <>
+            {labels.flatMap((label) =>
+                getLabelLines(label, zoomLevel).map((line) => (
+                    <text
+                        key={`${label.id}:${line.role}`}
+                        className={`${styles.label} ${LINE_CLASSES[line.role]}`}
+                        x={line.x}
+                        y={line.y}
+                        textAnchor={line.anchor}
+                        fontSize={TEXT_FONTS[line.role].size / zoomLevel}
+                        strokeWidth={HALO_PX / zoomLevel}
+                    >
+                        {line.text}
+                    </text>
+                )),
+            )}
+        </>
+    ),
+);
+LabelsLayer.displayName = 'LabelsLayer';
+
+const NamesLayer = memo<{ dots: MapDot[]; zoomLevel: number }>(
+    ({ dots, zoomLevel }) => (
+        <>
+            {dots.map((dot) =>
+                dot.member === null ? null : (
+                    <text
+                        key={dot.key}
+                        className={`${styles.label} ${styles.personName}`}
+                        textAnchor="middle"
+                        x={dot.x}
+                        y={dot.y + dot.r + (PERSON_FONT_PX + 1) / zoomLevel}
+                        fontSize={PERSON_FONT_PX / zoomLevel}
+                        strokeWidth={HALO_PX / zoomLevel}
+                    >
+                        {truncateLabel(
+                            dot.member.firstName || dot.member.email,
+                            FIRST_NAME_RADIUS,
+                        )}
+                    </text>
+                ),
+            )}
+        </>
+    ),
+);
+NamesLayer.displayName = 'NamesLayer';
+
 export const DepartmentMap: FC<Props> = ({
     width,
     height,
@@ -77,6 +220,7 @@ export const DepartmentMap: FC<Props> = ({
     dots,
     showNames,
     ariaLabel,
+    measureText,
     layoutKey,
     highlightedUuid,
     selectedUserUuid,
@@ -85,6 +229,7 @@ export const DepartmentMap: FC<Props> = ({
 }) => {
     const svgRef = useRef<SVGSVGElement | null>(null);
     const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+    const pressRef = useRef<{ x: number; y: number } | null>(null);
     const [view, setView] = useState<View>({
         transform: zoomIdentity,
         isAnimated: false,
@@ -103,6 +248,8 @@ export const DepartmentMap: FC<Props> = ({
                 [width, height],
             ])
             .scaleExtent([1, MAX_ZOOM])
+            .clickDistance(CLICK_SLOP_PX)
+            .filter(isZoomGesture)
             .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) =>
                 setView({
                     transform: event.transform,
@@ -119,7 +266,7 @@ export const DepartmentMap: FC<Props> = ({
         };
     }, [width, height]);
 
-    const fit = useCallback(() => {
+    const resetView = useCallback(() => {
         const svg = svgRef.current;
         if (svg && zoomRef.current) {
             zoomRef.current.transform(selectZoomTarget(svg), zoomIdentity);
@@ -132,26 +279,40 @@ export const DepartmentMap: FC<Props> = ({
         }
     }, []);
 
-    // A different part of the organization, or a resized area, starts from the fitted view
+    // The layout already fills the panel, so the starting view is the unzoomed one.
+    // A different part of the organization, or a real change of size, returns to it.
     useEffect(() => {
-        fit();
-    }, [fit, layoutKey, width, height]);
+        resetView();
+    }, [resetView, layoutKey, width, height]);
 
     const { k } = view.transform;
     const labels = useMemo(
-        () => placeLabels(circles, info, k, { width, height }),
-        [circles, info, k, width, height],
+        () => placeLabels(circles, info, k, { width, height }, measureText),
+        [circles, info, k, width, height, measureText],
     );
 
+    const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
+        pressRef.current = { x: event.clientX, y: event.clientY };
+    };
+    // A drag that moved the map ends in a click too; that one is not a selection
+    const isDragEnd = (event: MouseEvent<SVGGElement>): boolean => {
+        const press = pressRef.current;
+        pressRef.current = null;
+        return (
+            press !== null &&
+            Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+                CLICK_SLOP_PX
+        );
+    };
     const handleCircleClick = (event: MouseEvent<SVGGElement>) => {
         const { target } = event;
-        if (!(target instanceof SVGElement)) return;
-        const { department } = target.dataset;
-        if (department) onDepartmentClick(department);
+        if (isDragEnd(event) || !(target instanceof SVGElement)) return;
+        const { opens } = target.dataset;
+        if (opens) onDepartmentClick(opens);
     };
     const handleDotClick = (event: MouseEvent<SVGGElement>) => {
         const { target } = event;
-        if (!(target instanceof SVGElement)) return;
+        if (isDragEnd(event) || !(target instanceof SVGElement)) return;
         const { user } = target.dataset;
         if (user) onPersonClick(user);
     };
@@ -165,6 +326,7 @@ export const DepartmentMap: FC<Props> = ({
                 height={height}
                 role="img"
                 aria-label={ariaLabel}
+                onPointerDown={handlePointerDown}
             >
                 <g
                     className={styles.viewport}
@@ -172,114 +334,20 @@ export const DepartmentMap: FC<Props> = ({
                     transform={view.transform.toString()}
                 >
                     <g onClick={handleCircleClick}>
-                        {circles.map((circle) => (
-                            <circle
-                                key={circle.id}
-                                className={styles.circle}
-                                data-kind={circle.kind}
-                                data-department={
-                                    circle.kind === 'department'
-                                        ? (circle.departmentUuid ?? undefined)
-                                        : undefined
-                                }
-                                data-nested={circle.depth > 1 || undefined}
-                                data-empty={!circle.hasMembers || undefined}
-                                data-no-headcount={
-                                    !circle.hasHeadcount || undefined
-                                }
-                                data-highlighted={
-                                    (circle.kind === 'department' &&
-                                        circle.departmentUuid ===
-                                            highlightedUuid) ||
-                                    undefined
-                                }
-                                cx={circle.x}
-                                cy={circle.y}
-                                r={circle.r}
-                            >
-                                <title>
-                                    {info.get(circle.id)?.description ??
-                                        circle.name}
-                                </title>
-                            </circle>
-                        ))}
+                        <CirclesLayer
+                            circles={circles}
+                            info={info}
+                            highlightedUuid={highlightedUuid}
+                        />
                     </g>
                     <g className={styles.dots} onClick={handleDotClick}>
-                        {dots.map((dot) => {
-                            const isOutlined = OUTLINED_DOT_KINDS.has(dot.kind);
-                            const strokeWidth = isOutlined
-                                ? Math.min(1.6, dot.r * 0.45)
-                                : 0;
-                            const radius =
-                                dot.kind === 'noAccount'
-                                    ? dot.r * NO_ACCOUNT_SCALE
-                                    : dot.r - strokeWidth / 2;
-                            return (
-                                <circle
-                                    key={dot.key}
-                                    data-dot={dot.kind}
-                                    data-user={dot.member?.userUuid}
-                                    data-selected={
-                                        (dot.member !== null &&
-                                            dot.member.userUuid ===
-                                                selectedUserUuid) ||
-                                        undefined
-                                    }
-                                    cx={dot.x}
-                                    cy={dot.y}
-                                    r={radius}
-                                    strokeWidth={
-                                        isOutlined ? strokeWidth : undefined
-                                    }
-                                >
-                                    {dot.member && (
-                                        <title>
-                                            {getMemberName(dot.member)}
-                                        </title>
-                                    )}
-                                </circle>
-                            );
-                        })}
+                        <DotsLayer
+                            dots={dots}
+                            selectedUserUuid={selectedUserUuid}
+                        />
                     </g>
-                    {labels.flatMap((label) =>
-                        getLabelLines(label, k).map((line) => (
-                            <text
-                                key={`${label.id}:${line.role}`}
-                                className={`${styles.label} ${LINE_CLASSES[line.role]}`}
-                                x={line.x}
-                                y={line.y}
-                                textAnchor={line.anchor}
-                                fontSize={
-                                    (line.role === 'name'
-                                        ? NAME_FONT_PX
-                                        : DETAIL_FONT_PX) / k
-                                }
-                                strokeWidth={HALO_PX / k}
-                            >
-                                {line.text}
-                            </text>
-                        )),
-                    )}
-                    {showNames &&
-                        dots.map((dot) =>
-                            dot.member === null ? null : (
-                                <text
-                                    key={dot.key}
-                                    className={`${styles.label} ${styles.personName}`}
-                                    textAnchor="middle"
-                                    x={dot.x}
-                                    y={dot.y + dot.r + (PERSON_FONT_PX + 1) / k}
-                                    fontSize={PERSON_FONT_PX / k}
-                                    strokeWidth={HALO_PX / k}
-                                >
-                                    {truncateLabel(
-                                        dot.member.firstName ||
-                                            dot.member.email,
-                                        FIRST_NAME_RADIUS,
-                                    )}
-                                </text>
-                            ),
-                        )}
+                    <LabelsLayer labels={labels} zoomLevel={k} />
+                    {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
                 </g>
             </svg>
             <Group gap={4} className={styles.controls}>
@@ -301,8 +369,8 @@ export const DepartmentMap: FC<Props> = ({
                         <MantineIcon icon={IconMinus} />
                     </ActionIcon>
                 </Tooltip>
-                <Button variant="default" size="compact-sm" onClick={fit}>
-                    Fit
+                <Button variant="default" size="compact-sm" onClick={resetView}>
+                    Reset view
                 </Button>
             </Group>
         </>

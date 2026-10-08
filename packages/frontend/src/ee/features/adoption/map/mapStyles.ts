@@ -2,7 +2,7 @@ import { type ColourBy, type DotKind } from './geometry';
 
 export const DOT_LABELS: Record<DotKind, string> = {
     active: 'Active in 30 days',
-    idle: 'On Lightdash, idle',
+    idle: 'Not active in 30 days',
     lapsed: 'Active in 12 weeks',
     inactive: 'No activity in 12 weeks',
     admin: 'Admin',

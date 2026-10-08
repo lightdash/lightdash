@@ -330,3 +330,21 @@ export const nameLoneBucket = (
     focusName !== null && circles.length === 1 && circles[0].kind === 'own'
         ? [{ ...circles[0], name: focusName }]
         : circles;
+
+// Lowest coverage first; among equals the biggest department leads, and those without a headcount go last
+export const sortForInspector = (
+    departments: DepartmentWithMetrics[],
+): DepartmentWithMetrics[] =>
+    [...departments].sort((a, b) => {
+        const left = a.metrics.coveragePct;
+        const right = b.metrics.coveragePct;
+        if (left === null || right === null) {
+            if (left === right) return a.name.localeCompare(b.name);
+            return left === null ? 1 : -1;
+        }
+        return (
+            left - right ||
+            (b.effectiveHeadcount ?? 0) - (a.effectiveHeadcount ?? 0) ||
+            a.name.localeCompare(b.name)
+        );
+    });

@@ -22,6 +22,7 @@ import {
     NAME_LABEL_LIMIT,
     nameLoneBucket,
     shouldShowNames,
+    sortForInspector,
 } from './mapView';
 
 const NOW = new Date('2026-10-07T12:00:00Z');
@@ -321,5 +322,45 @@ describe('formatMemberActivity', () => {
         expect(formatMemberActivity('2026-01-05T08:00:00Z', NOW)).toMatch(
             /^Last active \d{1,2} Jan 2026$/,
         );
+    });
+});
+
+describe('sortForInspector', () => {
+    const c = (name: string, headcount: number | null, members: number) =>
+        dept(name, null, null, {
+            headcount,
+            effectiveHeadcount: headcount,
+            metrics: metricsFixture(
+                members,
+                headcount === null
+                    ? null
+                    : Math.round((100 * members) / headcount),
+            ),
+        });
+    it('puts the biggest untouched department first and departments without a headcount last', () => {
+        expect(
+            sortForInspector([
+                c('Product', null, 3),
+                c('Data', 9, 1),
+                c('Finance', 32, 0),
+                c('Supply chain', 80, 0),
+                c('Marketing', 40, 0),
+                c('Legal', null, 0),
+            ]).map((each) => each.name),
+        ).toEqual([
+            'Supply chain',
+            'Marketing',
+            'Finance',
+            'Data',
+            'Legal',
+            'Product',
+        ]);
+    });
+    it('falls back to the name when coverage and headcount are equal', () => {
+        expect(
+            sortForInspector([c('Beta', 10, 0), c('Alpha', 10, 0)]).map(
+                (each) => each.name,
+            ),
+        ).toEqual(['Alpha', 'Beta']);
     });
 });

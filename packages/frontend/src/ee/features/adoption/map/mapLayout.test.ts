@@ -1,13 +1,27 @@
+import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { dept, metricsFixture } from '../utils/adoptionFixtures';
-import { buildPackInput, layoutPack, type PackedCircle } from './geometry';
 import {
+    dept,
+    metricsFixture,
+    seededOrganization,
+} from '../utils/adoptionFixtures';
+import {
+    buildPackInput,
+    MIN_CIRCLE_RADIUS,
+    type PackedCircle,
+} from './geometry';
+import {
+    boxTouchesCircle,
+    estimateTextWidth,
+    fitToArea,
     getCaptionVariants,
+    getDrillTargets,
     getLabelLines,
-    getPackSize,
-    LABEL_BAND,
+    layoutMap,
     placeLabels,
-    positionCircles,
+    type Area,
+    type Box,
+    type CircleLabel,
 } from './mapLayout';
 import { describeCircles } from './mapView';
 
@@ -27,49 +41,152 @@ const d = (
         }),
     });
 
-const tree = [
-    { ...d('Ops', null, 300, 90, 40), directMetrics: metricsFixture(0, null) },
-    d('Stores', 'Ops', 200, 60, 40),
-    d('Depots', 'Ops', 100, 30, 0),
-    d('Finance', null, 80, 30, 20),
-    d('Customer Operations', null, 60, 41, 33),
-    d('Data', null, 9, 9, 9),
-];
-const byUuid = new Map(tree.map((each) => [each.departmentUuid, each]));
+const PANEL: Area = { width: 760, height: 560 };
 
-const positioned = (width = 900, height = 560): PackedCircle[] => {
-    const size = getPackSize(width, height);
-    return positionCircles(
-        layoutPack(buildPackInput(tree, null), size),
-        width,
-        height,
-        size,
+const build = (
+    departments: DepartmentWithMetrics[],
+    area: Area = PANEL,
+    focus: string | null = null,
+    zoom: number = 1,
+) => {
+    const byUuid = new Map(
+        departments.map((each) => [each.departmentUuid, each]),
     );
+    const describe = (circles: PackedCircle[]) =>
+        describeCircles(circles, byUuid);
+    const circles = layoutMap({
+        input: buildPackInput(departments, focus),
+        area,
+        focusName: focus,
+        describe,
+        measure: estimateTextWidth,
+    });
+    const labels = placeLabels(
+        circles,
+        describe(circles),
+        zoom,
+        area,
+        estimateTextWidth,
+    );
+    const find = (id: string) => {
+        const circle = circles.find((each) => each.id === id);
+        if (!circle) throw new Error(`No circle ${id}`);
+        return circle;
+    };
+    return { circles, labels, find };
 };
 
-describe('getPackSize', () => {
-    it('fits the shorter side and leaves room for labels under the circles', () => {
-        expect(getPackSize(900, 560)).toBe(560 - LABEL_BAND);
-        expect(getPackSize(400, 560)).toBe(400);
-    });
-    it('never collapses below a usable size', () => {
-        expect(getPackSize(0, 0)).toBe(240);
-    });
-});
+const contains = (outer: PackedCircle, inner: PackedCircle): boolean =>
+    outer.depth < inner.depth &&
+    Math.hypot(outer.x - inner.x, outer.y - inner.y) + inner.r <= outer.r + 0.5;
 
-describe('positionCircles', () => {
-    const circles = positioned();
+const boxesIntersect = (a: Box, b: Box): boolean =>
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height;
+
+// The rule every placement must meet: a label touches no other label, and no circle
+// except the ones that contain its own circle
+const expectCleanLabels = (
+    circles: PackedCircle[],
+    labels: CircleLabel[],
+    area: Area,
+    zoom: number = 1,
+) => {
+    labels.forEach((label, index) => {
+        const own = circles.find((circle) => circle.id === label.id);
+        expect(own).toBeDefined();
+        if (!own) return;
+        circles
+            .filter((circle) => !contains(circle, own))
+            .forEach((circle) => {
+                expect(boxTouchesCircle(label.box, circle, zoom, 0)).toBe(
+                    false,
+                );
+            });
+        labels.slice(index + 1).forEach((other) => {
+            expect(boxesIntersect(label.box, other.box)).toBe(false);
+        });
+        expect(label.box.x).toBeGreaterThanOrEqual(0);
+        expect(label.box.y).toBeGreaterThanOrEqual(0);
+        expect(label.box.x + label.box.width).toBeLessThanOrEqual(
+            area.width * zoom,
+        );
+        expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+            area.height * zoom,
+        );
+    });
+};
+
+const share = (circles: PackedCircle[], area: Area) => {
     const tops = circles.filter((circle) => circle.depth === 1);
+    const left = Math.min(...tops.map((circle) => circle.x - circle.r));
+    const right = Math.max(...tops.map((circle) => circle.x + circle.r));
+    const top = Math.min(...tops.map((circle) => circle.y - circle.r));
+    const bottom = Math.max(...tops.map((circle) => circle.y + circle.r));
+    return {
+        width: (right - left) / area.width,
+        height: (bottom - top) / area.height,
+    };
+};
 
-    it('keeps every circle inside the drawing area', () => {
+const lopsided = [d('Huge', null, 4000, 10, 5), d('Tiny', null, 1, 1, 1)];
+const crowd = Array.from({ length: 40 }, (_, index) =>
+    d(`Department number ${index}`, null, 4 + index * 7, 3, 2),
+);
+
+describe('fitToArea', () => {
+    it('fills the panel with the seeded organization', () => {
+        const { circles } = build(seededOrganization());
+        const filled = share(circles, PANEL);
+        expect(filled.width).toBeGreaterThan(0.85);
+        expect(filled.height).toBeGreaterThan(0.85);
+    });
+    it('gives a wide panel a wide arrangement', () => {
+        const wide = { width: 1100, height: 560 };
+        const filled = share(build(seededOrganization(), wide).circles, wide);
+        expect(filled.width).toBeGreaterThan(0.85);
+        expect(filled.height).toBeGreaterThan(0.85);
+    });
+    it('lets a single department fill the height', () => {
+        const { circles } = build([d('Only', null, 12, 4, 1)]);
+        expect(circles).toHaveLength(1);
+        expect(share(circles, PANEL).height).toBeGreaterThan(0.85);
+    });
+    it.each([
+        ['the seeded organization', seededOrganization(), PANEL],
+        ['one huge and one tiny department', lopsided, PANEL],
+        ['forty departments', crowd, PANEL],
+        ['a narrow panel', seededOrganization(), { width: 420, height: 560 }],
+    ])(
+        'draws every circle of %s at the minimum radius or more',
+        (_, tree, area) => {
+            const circles = fitToArea(buildPackInput(tree, null), area);
+            expect(circles.length).toBeGreaterThan(0);
+            circles.forEach((circle) => {
+                expect(circle.r).toBeGreaterThanOrEqual(
+                    MIN_CIRCLE_RADIUS - 1e-6,
+                );
+            });
+        },
+    );
+    it('flags a circle that had to be enlarged to reach the minimum', () => {
+        const circles = fitToArea(buildPackInput(lopsided, null), PANEL);
+        const tiny = circles.find((circle) => circle.id === 'Tiny');
+        const huge = circles.find((circle) => circle.id === 'Huge');
+        expect(tiny?.isAreaHonest).toBe(false);
+        expect(huge?.isAreaHonest).toBe(true);
+    });
+    it('keeps every circle inside the panel, top-level circles apart and sub-departments inside their parent', () => {
+        const { circles, find } = build(seededOrganization());
         circles.forEach((circle) => {
             expect(circle.x - circle.r).toBeGreaterThanOrEqual(0);
-            expect(circle.x + circle.r).toBeLessThanOrEqual(900);
+            expect(circle.x + circle.r).toBeLessThanOrEqual(PANEL.width);
             expect(circle.y - circle.r).toBeGreaterThanOrEqual(0);
-            expect(circle.y + circle.r).toBeLessThanOrEqual(560 - LABEL_BAND);
+            expect(circle.y + circle.r).toBeLessThanOrEqual(PANEL.height);
         });
-    });
-    it('keeps top-level circles apart', () => {
+        const tops = circles.filter((circle) => circle.depth === 1);
         tops.forEach((a, index) =>
             tops.slice(index + 1).forEach((b) => {
                 expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(
@@ -77,23 +194,37 @@ describe('positionCircles', () => {
                 );
             }),
         );
+        ['Stores', 'Depots', 'North'].forEach((id) =>
+            expect(contains(find('Operations'), find(id))).toBe(true),
+        );
+        ['Procurement', 'Logistics'].forEach((id) =>
+            expect(contains(find('Supply chain'), find(id))).toBe(true),
+        );
     });
-    it('keeps sub-departments inside their parent', () => {
-        const ops = circles.find((circle) => circle.id === 'Ops');
-        const stores = circles.find((circle) => circle.id === 'Stores');
-        expect(ops && stores).toBeTruthy();
-        if (!ops || !stores) return;
-        expect(
-            Math.hypot(ops.x - stores.x, ops.y - stores.y) + stores.r,
-        ).toBeLessThanOrEqual(ops.r);
+    it('keeps areas in proportion to headcount', () => {
+        const { find } = build(seededOrganization());
+        expect(find('Finance').r / find('Marketing').r).toBeCloseTo(
+            Math.sqrt(32 / 40),
+            6,
+        );
     });
-    it('keeps relative areas, so the picture stays to scale', () => {
-        const size = getPackSize(900, 560);
-        const raw = layoutPack(buildPackInput(tree, null), size);
-        const ratio = (list: PackedCircle[]) =>
-            (list.find((circle) => circle.id === 'Finance')?.r ?? 0) /
-            (list.find((circle) => circle.id === 'Ops')?.r ?? 1);
-        expect(ratio(circles)).toBeCloseTo(ratio(raw), 6);
+    it('draws nothing for an empty tree', () => {
+        expect(fitToArea(buildPackInput([], null), PANEL)).toEqual([]);
+    });
+});
+
+describe('getDrillTargets', () => {
+    it('opens the top-level department from anywhere inside its circle', () => {
+        const targets = getDrillTargets(build(seededOrganization()).circles);
+        expect(targets.get('Operations')).toBe('Operations');
+        expect(targets.get('Stores')).toBe('Operations');
+        expect(targets.get('own:Operations')).toBe('Operations');
+        expect(targets.get('Logistics')).toBe('Supply chain');
+        expect(targets.get('Finance')).toBe('Finance');
+    });
+    it('opens nothing from the lone circle of a department without sub-departments', () => {
+        const { circles } = build(seededOrganization(), PANEL, 'Finance');
+        expect([...getDrillTargets(circles).values()]).toEqual([null]);
     });
 });
 
@@ -154,202 +285,128 @@ describe('getCaptionVariants', () => {
     });
 });
 
-const AREA = { width: 900, height: 560 };
-
-describe('placeLabels', () => {
-    const circles = positioned();
-    const info = describeCircles(circles, byUuid);
-    const labels = placeLabels(circles, info, 1, AREA);
+describe('placeLabels on the seeded organization', () => {
+    const { circles, labels } = build(seededOrganization());
     const find = (id: string) => labels.find((label) => label.id === id);
+    const topLevel = [
+        'Operations',
+        'Supply chain',
+        'Marketing',
+        'Finance',
+        'Data',
+        'Product',
+    ];
 
-    it('puts the name and one line of numbers under each top-level circle', () => {
-        const ops = find('Ops');
-        const circle = circles.find((each) => each.id === 'Ops');
-        expect(ops?.placement).toBe('below');
-        expect(ops?.name).toBe('Ops');
-        expect(ops?.detail).toBe('90 of 300 on Lightdash · 40 active');
-        expect(ops?.y).toBeCloseTo((circle?.y ?? 0) + (circle?.r ?? 0), 6);
-    });
-    it('labels sub-departments above their circle with a people count', () => {
-        expect(find('Stores')?.placement).toBe('above');
-        expect(find('Stores')?.name).toBe('Stores · 200');
-        expect(find('Stores')?.detail).toBeNull();
-    });
-    it('never lets two labels overlap', () => {
-        const boxes = labels.map((label) => label.box);
-        boxes.forEach((a, index) =>
-            boxes.slice(index + 1).forEach((b) => {
-                const apart =
-                    a.x + a.width <= b.x ||
-                    b.x + b.width <= a.x ||
-                    a.y + a.height <= b.y ||
-                    b.y + b.height <= a.y;
-                expect(apart).toBe(true);
-            }),
-        );
-    });
-    it('shortens or drops labels on a crowded map instead of overlapping', () => {
-        const crowd = Array.from({ length: 40 }, (_, index) =>
-            d(`Department number ${index}`, null, 10, 5, 2),
-        );
-        const size = getPackSize(500, 400);
-        const crowded = positionCircles(
-            layoutPack(buildPackInput(crowd, null), size),
-            500,
-            400,
-            size,
-        );
-        const placed = placeLabels(
-            crowded,
-            describeCircles(
-                crowded,
-                new Map(crowd.map((each) => [each.departmentUuid, each])),
-            ),
-            1,
-            { width: 500, height: 400 },
-        );
-        expect(placed.length).toBeLessThan(crowded.length);
-        // No label lands on top of another department's small circle
-        placed.forEach((label) =>
-            crowded
-                .filter((circle) => circle.id !== label.id)
-                .forEach((circle) => {
-                    const covers =
-                        label.box.x < circle.x + circle.r * 0.6 &&
-                        circle.x - circle.r * 0.6 <
-                            label.box.x + label.box.width &&
-                        label.box.y < circle.y + circle.r * 0.6 &&
-                        circle.y - circle.r * 0.6 <
-                            label.box.y + label.box.height;
-                    expect(covers).toBe(false);
-                }),
-        );
-        placed.forEach((label) => {
-            expect(label.box.x).toBeGreaterThanOrEqual(0);
-            expect(label.box.x + label.box.width).toBeLessThanOrEqual(500);
-            expect(label.box.y + label.box.height).toBeLessThanOrEqual(400);
+    it('gives every top-level department its full name and a line of numbers', () => {
+        topLevel.forEach((id) => {
+            expect(find(id)?.name).toBe(id);
+            expect(find(id)?.detail).not.toBeNull();
         });
-        placed.forEach((a, index) =>
-            placed.slice(index + 1).forEach((b) => {
-                const apart =
-                    a.box.x + a.box.width <= b.box.x ||
-                    b.box.x + b.box.width <= a.box.x ||
-                    a.box.y + a.box.height <= b.box.y ||
-                    b.box.y + b.box.height <= a.box.y;
-                expect(apart).toBe(true);
-            }),
-        );
+        expect(find('Product')?.detail).toMatch(/no headcount/i);
+        expect(find('Finance')?.detail).toMatch(/^32/);
     });
-    it('gives labels more room as the map is zoomed in', () => {
-        const zoomed = placeLabels(circles, info, 4, AREA);
-        const before = find('Customer Operations')?.name.length ?? 0;
-        const after =
-            zoomed.find((label) => label.id === 'Customer Operations')?.name
-                .length ?? 0;
-        expect(after).toBeGreaterThanOrEqual(before);
-        expect(after).toBe('Customer Operations'.length);
+    it('touches no other label and no circle the label does not belong to', () => {
+        expectCleanLabels(circles, labels, PANEL);
     });
-    it('moves a label beside its circle when there is no room underneath', () => {
-        const lopsided = [
-            d('Retail', null, 3000, 400, 180),
-            d('Product', null, 14, 14, 11),
-            d('Finance', null, 32, 3, 1),
-            d('Marketing', null, 40, 12, 8),
-            d('Supply', null, 80, 0, 0),
-        ];
-        const size = getPackSize(780, 560);
-        const packed = positionCircles(
-            layoutPack(buildPackInput(lopsided, null), size),
-            780,
-            560,
-            size,
+    it('keeps sub-department labels off the dots, including their own', () => {
+        const stores = find('Stores');
+        expect(stores).toBeDefined();
+        const dotted = circles.filter((circle) => circle.people !== null);
+        expect(dotted.length).toBeGreaterThan(5);
+        dotted.forEach((circle) => {
+            if (stores) {
+                expect(boxTouchesCircle(stores.box, circle, 1, 0)).toBe(false);
+            }
+        });
+    });
+    it('does not shorten a name that has room', () => {
+        expect(find('Procurement')?.name).toBe('Procurement · 30');
+        expect(find('Logistics')?.name).toBe('Logistics · 50');
+        labels.forEach((label) => expect(label.name).not.toContain('…'));
+    });
+    it('leaves the people directly in a department unlabelled', () => {
+        expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(
+            true,
         );
-        const placed = placeLabels(
-            packed,
-            describeCircles(
-                packed,
-                new Map(lopsided.map((each) => [each.departmentUuid, each])),
-            ),
-            1,
-            { width: 780, height: 560 },
-        );
-        expect(placed.find((label) => label.id === 'Retail')?.placement).toBe(
-            'below',
-        );
+        expect(find('own:Operations')).toBeUndefined();
+    });
+    it('stays clean in a wide panel, a narrow one and inside a department', () => {
+        [
+            { width: 1100, height: 560 },
+            { width: 420, height: 560 },
+        ].forEach((area) => {
+            const narrow = build(seededOrganization(), area);
+            expectCleanLabels(narrow.circles, narrow.labels, area);
+        });
+        const inside = build(seededOrganization(), PANEL, 'Operations');
+        expectCleanLabels(inside.circles, inside.labels, PANEL);
         expect(
-            placed.some(
-                (label) =>
-                    label.placement === 'right' || label.placement === 'left',
-            ),
-        ).toBe(true);
+            inside.labels.find((label) => label.id === 'Stores')?.detail,
+        ).not.toBeNull();
+    });
+    it('stays clean when zoomed in', () => {
+        const zoomed = build(seededOrganization(), PANEL, null, 3);
+        expectCleanLabels(zoomed.circles, zoomed.labels, PANEL, 3);
+        expect(zoomed.labels.length).toBeGreaterThanOrEqual(labels.length);
+    });
+});
+
+describe('placeLabels on a crowded map', () => {
+    const { circles, labels } = build(crowd);
+    it('leaves labels out rather than overlapping anything', () => {
+        expectCleanLabels(circles, labels, PANEL);
+        expect(labels.length).toBeGreaterThan(10);
+        expect(labels.length).toBeLessThanOrEqual(circles.length);
+    });
+    it('labels one huge department and the tiny one beside it', () => {
+        const pair = build(lopsided);
+        expectCleanLabels(pair.circles, pair.labels, PANEL);
+        expect(pair.labels.map((label) => label.id).sort()).toEqual([
+            'Huge',
+            'Tiny',
+        ]);
     });
 });
 
 describe('getLabelLines', () => {
-    const base = {
+    const base: CircleLabel = {
         id: 'x',
-        x: 100,
-        y: 200,
+        placement: 'below',
+        isNested: false,
         name: 'Finance',
-        box: { x: 0, y: 0, width: 0, height: 0 },
+        detail: '32 · nobody yet',
+        box: { x: 100, y: 200, width: 96, height: 30 },
     };
-    it('hangs two centred lines under the circle', () => {
-        expect(
-            getLabelLines(
-                { ...base, placement: 'below', detail: '3 of 32' },
-                1,
-            ),
-        ).toEqual([
-            { role: 'name', text: 'Finance', x: 100, y: 216, anchor: 'middle' },
-            {
-                role: 'detail',
-                text: '3 of 32',
-                x: 100,
-                y: 231,
-                anchor: 'middle',
-            },
-        ]);
+    it('centres two lines in the footprint under a circle', () => {
+        const [name, detail] = getLabelLines(base, 1);
+        expect(name).toMatchObject({
+            role: 'name',
+            text: 'Finance',
+            x: 148,
+            anchor: 'middle',
+        });
+        expect(detail).toMatchObject({ role: 'detail', x: 148 });
+        expect(name.y).toBeGreaterThan(200);
+        expect(detail.y).toBeGreaterThan(name.y);
+        expect(detail.y).toBeLessThanOrEqual(230);
     });
     it('reads away from the circle when placed beside it', () => {
-        const [right] = getLabelLines(
-            { ...base, placement: 'right', detail: null },
-            1,
-        );
-        const [left] = getLabelLines(
-            { ...base, placement: 'left', detail: null },
-            1,
-        );
-        expect(right.anchor).toBe('start');
-        expect(right.x).toBeGreaterThan(100);
-        expect(left.anchor).toBe('end');
-        expect(left.x).toBeLessThan(100);
+        const [right] = getLabelLines({ ...base, placement: 'right' }, 1);
+        const [left] = getLabelLines({ ...base, placement: 'left' }, 1);
+        expect(right).toMatchObject({ anchor: 'start', x: 100 });
+        expect(left).toMatchObject({ anchor: 'end', x: 196 });
     });
-    it('keeps the same distance on screen when zoomed in', () => {
-        const [name] = getLabelLines(
-            { ...base, placement: 'below', detail: null },
-            4,
-        );
-        expect(name.y).toBe(204);
+    it('converts the screen footprint back to map coordinates when zoomed', () => {
+        const [name] = getLabelLines(base, 4);
+        expect(name.x).toBe(37);
+        expect(name.y).toBeCloseTo(getLabelLines(base, 1)[0].y / 4, 6);
     });
-    it('draws a sub-department label as one line above its circle', () => {
+    it('draws a sub-department label as one line', () => {
         expect(
             getLabelLines(
-                {
-                    ...base,
-                    placement: 'above',
-                    name: 'Stores · 200',
-                    detail: null,
-                },
+                { ...base, isNested: true, name: 'Stores · 22', detail: null },
                 1,
             ),
-        ).toEqual([
-            {
-                role: 'nested',
-                text: 'Stores · 200',
-                x: 100,
-                y: 194,
-                anchor: 'middle',
-            },
-        ]);
+        ).toHaveLength(1);
     });
 });

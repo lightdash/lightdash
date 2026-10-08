@@ -13,6 +13,7 @@ type Props = {
     hasDepartmentWithoutHeadcount: boolean;
     hasEnlargedCircle: boolean;
     areDotsHidden: boolean;
+    haveNamesFailed: boolean;
     dotLimit: number;
 };
 
@@ -50,6 +51,7 @@ export const MapLegend: FC<Props> = ({
     hasDepartmentWithoutHeadcount,
     hasEnlargedCircle,
     areDotsHidden,
+    haveNamesFailed,
     dotLimit,
 }) => (
     <Stack gap={6} className={styles.footer}>
@@ -78,19 +80,24 @@ export const MapLegend: FC<Props> = ({
         </ul>
         {areDotsHidden && (
             <Text fz="xs" c="dimmed">
-                People are not drawn as dots above {formatCount(dotLimit)}{' '}
-                people. Select a department to see its people
+                Dots are hidden above {formatCount(dotLimit)} people, so select
+                a department to see its people
             </Text>
         )}
         {hasEnlargedCircle && (
             <Text fz="xs" c="dimmed">
-                The smallest circles are drawn larger than their headcount so
-                you can select them, so they are not to scale
+                The smallest circles are enlarged so you can select them, which
+                means they are not to scale
+            </Text>
+        )}
+        {haveNamesFailed && (
+            <Text fz="xs" c="dimmed">
+                Names could not be loaded
             </Text>
         )}
         <Text fz="xs" c="dimmed">
-            Circles are departments sized by headcount. Scroll to zoom, drag to
-            move, select a department to open it
+            Hold Ctrl or ⌘ and scroll to zoom, drag to move, select a department
+            to open it
         </Text>
     </Stack>
 );

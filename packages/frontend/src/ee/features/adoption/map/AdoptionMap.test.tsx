@@ -8,8 +8,14 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    memberFixture,
+    metricsFixture,
+    seededOrganization,
+} from '../utils/adoptionFixtures';
 import { AdoptionMap } from './AdoptionMap';
+import { estimateTextWidth } from './mapLayout';
 
 // Only the network hook is replaced; the layout and geometry are the real ones
 const useDepartmentDetail = vi.fn();
@@ -70,6 +76,7 @@ const renderMap = (
                 summary={summary(departments)}
                 canManage={canManage}
                 onEdit={onEdit}
+                measureText={estimateTextWidth}
             />
         </MemoryRouter>,
     );
@@ -177,7 +184,7 @@ describe('AdoptionMap', () => {
         renderMap();
         expect(legendCounts()).toEqual([
             { label: 'Active in 30 days', count: 6 },
-            { label: 'On Lightdash, idle', count: 6 },
+            { label: 'Not active in 30 days', count: 6 },
             { label: 'No account', count: 26 },
         ]);
         await userEvent.click(screen.getByRole('radio', { name: 'Role' }));
@@ -279,7 +286,7 @@ describe('AdoptionMap', () => {
         expect(screen.queryByText(/Directly in/)).toBeNull();
         expect(legendCounts()).toEqual([
             { label: 'Active in 30 days', count: 1 },
-            { label: 'On Lightdash, idle', count: 1 },
+            { label: 'Not active in 30 days', count: 1 },
             { label: 'No account', count: 6 },
         ]);
         await userEvent.click(
@@ -326,7 +333,7 @@ describe('AdoptionMap', () => {
         ).toHaveLength(0);
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
-            screen.getByText(/People are not drawn as dots above 5,000 people/),
+            screen.getByText(/Dots are hidden above 5,000 people/),
         ).toBeInTheDocument();
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
@@ -343,7 +350,7 @@ describe('AdoptionMap', () => {
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(5000);
-        expect(screen.queryByText(/People are not drawn as dots/)).toBeNull();
+        expect(screen.queryByText(/Dots are hidden/)).toBeNull();
     });
 
     it('says when small circles are not to scale', () => {
@@ -436,8 +443,233 @@ describe('AdoptionMap', () => {
 
     it('offers zoom controls', () => {
         renderMap();
-        ['Zoom in', 'Zoom out', 'Fit'].forEach((name) =>
+        ['Zoom in', 'Zoom out', 'Reset view'].forEach((name) =>
             expect(screen.getByRole('button', { name })).toBeInTheDocument(),
         );
+    });
+
+    describe('opening a department', () => {
+        const expectOperationsOpen = () => {
+            expect(
+                screen.getByText('Operations', { selector: '[aria-current]' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('img', {
+                    name: /^Map of Operations: 3 sub-departments, 40 people/,
+                }),
+            ).toBeInTheDocument();
+            expect(
+                departmentControls()
+                    .map((control) => control.textContent?.replace(/,.*/, ''))
+                    .sort(),
+            ).toEqual(['Depots', 'North', 'Stores']);
+            // The cards now compare the sub-departments of Operations
+            expect(
+                screen.getByText('Stores: 0 of 22 active'),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/^Supply chain:/)).toBeNull();
+        };
+
+        it('starts on the whole organization', () => {
+            renderMap(seededOrganization());
+            expect(
+                screen.getByText('Supply chain: 0 of 80 active'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText('All departments', {
+                    selector: '[aria-current]',
+                }),
+            ).toBeInTheDocument();
+        });
+
+        it('opens from a click on the department circle', () => {
+            const { container } = renderMap(seededOrganization());
+            const circle = container.querySelector(
+                '[data-department="Operations"]',
+            );
+            expect(circle).not.toBeNull();
+            if (circle) fireEvent.click(circle);
+            expectOperationsOpen();
+        });
+
+        it('opens from its accessible button', async () => {
+            renderMap(seededOrganization());
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            );
+            expectOperationsOpen();
+        });
+
+        it('opens the top-level department from a click on anything inside its circle', () => {
+            const { container } = renderMap(seededOrganization());
+            const nested = container.querySelector(
+                '[data-department="Stores"]',
+            );
+            expect(nested).toHaveAttribute('data-opens', 'Operations');
+            if (nested) fireEvent.click(nested);
+            expectOperationsOpen();
+        });
+
+        it('does not open a department at the end of a drag', () => {
+            const { container } = renderMap(seededOrganization());
+            const svg = container.querySelector('svg[role="img"]');
+            const circle = container.querySelector(
+                '[data-department="Operations"]',
+            );
+            expect(svg && circle).toBeTruthy();
+            if (!svg || !circle) return;
+            const press = () =>
+                fireEvent(
+                    svg,
+                    new MouseEvent('pointerdown', {
+                        bubbles: true,
+                        clientX: 10,
+                        clientY: 10,
+                    }),
+                );
+            press();
+            fireEvent.click(circle, { clientX: 90, clientY: 10 });
+            expect(
+                screen.queryByRole('heading', { name: 'Operations' }),
+            ).toBeNull();
+            // The same press without travel is a selection
+            press();
+            fireEvent.click(circle, { clientX: 12, clientY: 11 });
+            expectOperationsOpen();
+        });
+    });
+
+    describe('keyboard', () => {
+        it('moves focus to the breadcrumb after opening a department', async () => {
+            renderMap(seededOrganization());
+            screen.getByRole('button', { name: /^Operations,/ }).focus();
+            await userEvent.keyboard('{Enter}');
+            expect(document.activeElement).toHaveTextContent('Operations');
+            expect(document.activeElement).toHaveAttribute(
+                'aria-current',
+                'location',
+            );
+        });
+
+        it('goes up one level on Escape and keeps focus on the map', async () => {
+            renderMap(seededOrganization());
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Stores,/ }),
+            );
+            expect(document.activeElement).toHaveTextContent('Stores');
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toBeInTheDocument();
+            expect(document.activeElement).toHaveTextContent('Operations');
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'All departments' }),
+            ).toBeInTheDocument();
+            expect(document.activeElement).toHaveTextContent('All departments');
+            // Nothing above the organization
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'All departments' }),
+            ).toBeInTheDocument();
+        });
+    });
+
+    it('leaves a plain wheel to the page and zooms with Ctrl held', () => {
+        const { container } = renderMap(seededOrganization());
+        const svg = container.querySelector('svg[role="img"]');
+        const viewport = () =>
+            container
+                .querySelector('svg[role="img"] > g')
+                ?.getAttribute('transform');
+        expect(svg).not.toBeNull();
+        if (!svg) return;
+        const fitted = viewport();
+        const plain = new WheelEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaY: -120,
+        });
+        fireEvent(svg, plain);
+        expect(viewport()).toBe(fitted);
+        expect(plain.defaultPrevented).toBe(false);
+
+        const held = new WheelEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaY: -120,
+            ctrlKey: true,
+        });
+        fireEvent(svg, held);
+        expect(viewport()).not.toBe(fitted);
+        expect(held.defaultPrevented).toBe(true);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
+        expect(viewport()).toBe(fitted);
+    });
+
+    it('lists departments lowest coverage first, the biggest first among equals', () => {
+        renderMap(seededOrganization());
+        const rows = within(
+            screen.getByRole('complementary', { name: 'Details' }),
+        ).getAllByRole('button');
+        expect(rows.map((row) => row.textContent?.replace(/\d.*/, ''))).toEqual(
+            [
+                'Supply chain',
+                'Marketing',
+                'Finance',
+                'Operations',
+                'Data',
+                'Product',
+            ],
+        );
+    });
+
+    it('says when names could not be loaded, and nothing while they load', async () => {
+        useDepartmentDetail.mockImplementation((uuid: string | undefined) =>
+            uuid === 'Finance'
+                ? { data: undefined, isError: true }
+                : { data: undefined, isError: false, isInitialLoading: true },
+        );
+        renderMap();
+        expect(screen.queryByText('Names could not be loaded')).toBeNull();
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        expect(screen.queryByText('Names could not be loaded')).toBeNull();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'All departments' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Finance,/ }),
+        );
+        expect(
+            screen.getByText('Names could not be loaded'),
+        ).toBeInTheDocument();
+        // Dots still come from the summary counts
+        expect(
+            legendCounts().reduce((sum, entry) => sum + entry.count, 0),
+        ).toBe(8);
+    });
+
+    it('does not ask for names when the view is too large to draw people', async () => {
+        renderMap([d('Everyone', null, 5001, 10, 5), d('Few', null, 4, 2, 1)]);
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Everyone,/ }),
+        );
+        expect(
+            screen.getByRole('heading', { name: 'Everyone' }),
+        ).toBeInTheDocument();
+        expect(useDepartmentDetail).toHaveBeenLastCalledWith(undefined);
+        expect(screen.queryByText('Names could not be loaded')).toBeNull();
+    });
+
+    it('labels the color control in American English', () => {
+        renderMap();
+        expect(screen.getByText('Color by')).toBeInTheDocument();
     });
 });

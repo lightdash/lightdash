@@ -110,3 +110,8 @@
     font: inherit;
     text-align: left;
 }
+
+/* Receives focus after the map changes level, so the outline belongs to the keyboard only */
+.crumb:focus:not(:focus-visible) {
+    outline: none;
+}
