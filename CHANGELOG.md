@@ -1,3 +1,10 @@
+# [2.485.0](https://github.com/lightdash/lightdash/compare/2.484.0...2.485.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** publish Deep Research reports as Documents ([#30718](https://github.com/lightdash/lightdash/issues/30718)) ([a9e75a5](https://github.com/lightdash/lightdash/commit/a9e75a51467b56cd76025032f5e3725e2f73fdc0)), closes [#30719](https://github.com/lightdash/lightdash/issues/30719) [#30717](https://github.com/lightdash/lightdash/issues/30717)
+
 # [2.484.0](https://github.com/lightdash/lightdash/compare/2.483.0...2.484.0) (2026-10-08)
 
 
