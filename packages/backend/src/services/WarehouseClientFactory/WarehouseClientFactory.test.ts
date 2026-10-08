@@ -135,7 +135,10 @@ const markedPlan: Extract<AiExecutionPlan, { identity: 'marked_person' }> = {
     audit: { ...plan.audit, userUuid: 'user-uuid' },
 };
 
-const buildFixture = (releaseSshTunnelOnScopeExit = true) => {
+const buildFixture = (
+    releaseSshTunnelOnScopeExit = true,
+    resolveDbtCloudPreviewCredentials = true,
+) => {
     const projectModel = {
         getWarehouseClientFromCredentials: vi.fn<
             ProjectModel['getWarehouseClientFromCredentials']
@@ -189,6 +192,7 @@ const buildFixture = (releaseSshTunnelOnScopeExit = true) => {
             warehouseClient: {
                 ...lightdashConfigMock.warehouseClient,
                 releaseSshTunnelOnScopeExit,
+                resolveDbtCloudPreviewCredentials,
             },
         },
         projectModel: projectModel as unknown as ProjectModel,
@@ -1130,6 +1134,29 @@ describe('WarehouseClientFactory', () => {
         expect(credentialSource.finish).not.toHaveBeenCalled();
     });
 
+    test('rejects webhook bypass before construction when resolution is enabled', async () => {
+        const { factory, projectModel, credentialSource } = buildFixture();
+        const callback = vi.fn();
+        await expect(
+            factory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'dbt_cloud_preview_webhook',
+                    projectUuid: 'project-uuid',
+                    credentials,
+                },
+                contextFor(),
+                callback,
+            ),
+        ).rejects.toThrow(UnexpectedServerError);
+        expect(callback).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).not.toHaveBeenCalled();
+        expect(SshTunnel).not.toHaveBeenCalled();
+        expect(credentialSource.loadBase).not.toHaveBeenCalled();
+    });
+
     test.each([
         compileRef(),
         {
@@ -1166,7 +1193,7 @@ describe('WarehouseClientFactory', () => {
         '$kind refs skip credential resolution and AI planning',
         async (ref) => {
             const { factory, credentialSource, aiAccessService, logger } =
-                buildFixture();
+                buildFixture(true, false);
             await factory.withWarehouseClient(
                 ref,
                 contextFor(QueryExecutionContext.AI),
@@ -1199,7 +1226,7 @@ describe('WarehouseClientFactory', () => {
     ] as const)(
         '%s bypass calls build fresh clients without populating the cache',
         async (mode) => {
-            const { factory, projectModel } = buildFixture();
+            const { factory, projectModel } = buildFixture(true, false);
             const ref = {
                 kind: 'bypass',
                 mode,

@@ -16595,22 +16595,40 @@ export class ProjectService
         const disableTimestampConversion =
             project.warehouseConnection.type === 'snowflake' &&
             project.warehouseConnection.disableTimestampConversion === true;
+        const compileContext = connectionContextFromUser(
+            { userUuid: user.userUuid, isRegisteredUser: true },
+            {
+                organizationUuid: project.organizationUuid,
+                queryContext: null,
+                purpose: 'compile',
+            },
+        );
+        const warehouseRef: WarehouseClientRef = this.lightdashConfig
+            .warehouseClient.resolveDbtCloudPreviewCredentials
+            ? {
+                  kind: 'compile',
+                  projectUuid,
+                  credentials: (
+                      await this.warehouseClientFactory.resolveWarehouseCredentials(
+                          {
+                              kind: 'binding',
+                              projectUuid,
+                              binding: { kind: 'original' },
+                          },
+                          compileContext,
+                      )
+                  ).warehouseCredentials,
+              }
+            : {
+                  kind: 'bypass',
+                  mode: 'dbt_cloud_preview_webhook',
+                  projectUuid,
+                  credentials: project.warehouseConnection,
+              };
         const { convertedExplores, exploreErrors } =
             await this.warehouseClientFactory.withWarehouseClient(
-                {
-                    kind: 'bypass',
-                    mode: 'dbt_cloud_preview_webhook',
-                    projectUuid,
-                    credentials: project.warehouseConnection,
-                },
-                connectionContextFromUser(
-                    { userUuid: user.userUuid, isRegisteredUser: true },
-                    {
-                        organizationUuid: project.organizationUuid,
-                        queryContext: null,
-                        purpose: 'compile',
-                    },
-                ),
+                warehouseRef,
+                compileContext,
                 async ({ warehouseClient }) => {
                     const [dbtModelNode, validationErrors] =
                         DbtBaseProjectAdapter._validateDbtModel(

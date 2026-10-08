@@ -186,6 +186,8 @@ export class WarehouseClientFactory {
 
     private readonly releaseSshTunnelOnScopeExit: boolean;
 
+    private readonly resolveDbtCloudPreviewCredentials: boolean;
+
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
         this.projectModel = deps.projectModel;
@@ -196,6 +198,14 @@ export class WarehouseClientFactory {
         this.releaseSshTunnelOnScopeExit =
             deps.lightdashConfig?.warehouseClient
                 ?.releaseSshTunnelOnScopeExit ?? true;
+        this.resolveDbtCloudPreviewCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveDbtCloudPreviewCredentials ?? true;
+        if (!this.resolveDbtCloudPreviewCredentials) {
+            this.logger.warn(
+                'dbt Cloud preview credential resolution is disabled; using stored credentials without refresh',
+            );
+        }
         if (!this.releaseSshTunnelOnScopeExit) {
             this.logger.warn('Scoped SSH tunnel release is disabled');
         }
@@ -373,6 +383,14 @@ export class WarehouseClientFactory {
                 warehouseCredentials = ref.credentials;
                 break;
             case 'bypass':
+                if (
+                    ref.mode === 'dbt_cloud_preview_webhook' &&
+                    this.resolveDbtCloudPreviewCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'dbt Cloud preview credential bypass requires credential resolution to be disabled',
+                    );
+                }
                 this.logger.debug(
                     `Warehouse client credential bypass: ${ref.mode}`,
                 );

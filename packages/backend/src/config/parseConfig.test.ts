@@ -726,6 +726,43 @@ describe('compile credential resolution', () => {
     });
 });
 
+describe('dbt Cloud preview credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(expected);
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when compile resolution and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(true);
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();

@@ -9849,11 +9849,27 @@ describe('ProjectService', () => {
     });
 
     describe('dbt Cloud webhook scoped client', () => {
-        it.each([false, true])(
-            'releases before saving or after validation failure: %s',
-            async (fails) => {
-                const configured = getMockedProjectService(lightdashConfigMock);
+        it.each([
+            { fails: false, enabled: true },
+            { fails: true, enabled: true },
+            { fails: false, enabled: false },
+            { fails: true, enabled: false },
+        ])(
+            'releases before saving or after validation failure: $fails, resolution: $enabled',
+            async ({ fails, enabled }) => {
+                const configured = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    warehouseClient: {
+                        ...lightdashConfigMock.warehouseClient,
+                        resolveDbtCloudPreviewCredentials: enabled,
+                    },
+                });
                 const { credentials } = warehouseClientMock;
+                if (enabled) {
+                    projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                        credentials,
+                    );
+                }
                 projectModel.getWithSensitiveFields.mockResolvedValueOnce({
                     ...projectWithSensitiveFields,
                     warehouseConnection: credentials,
@@ -9923,8 +9939,12 @@ describe('ProjectService', () => {
                     }
                     expect(scope).toHaveBeenCalledWith(
                         {
-                            kind: 'bypass',
-                            mode: 'dbt_cloud_preview_webhook',
+                            ...(enabled
+                                ? { kind: 'compile' }
+                                : {
+                                      kind: 'bypass',
+                                      mode: 'dbt_cloud_preview_webhook',
+                                  }),
                             projectUuid: 'projectUuid',
                             credentials,
                         },
