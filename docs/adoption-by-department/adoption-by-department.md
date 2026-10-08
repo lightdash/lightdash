@@ -154,4 +154,6 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 - Dashboards in a trashed space can appear in top content. Only the dashboard's own `deleted_at` is checked.
 - Top content names are visible to anyone with the view scope, whatever their access to the space.
 - The map hides person dots above 5,000 people in view and drops labels on very crowded maps.
+- The map loads a department's people only when 150 or fewer are in view. Above that, dots are coloured from the department counts, carry no names and cannot be selected.
+- The placement modal and the drawer's resolved-member list draw 50 people at a time, and the drawer's pickers offer 50 options at a time; search reaches the rest. The department detail response itself still returns every member, and opening the drawer from the index still loads the organization's whole membership list.
 - Safari trackpad pinch does not zoom the map.

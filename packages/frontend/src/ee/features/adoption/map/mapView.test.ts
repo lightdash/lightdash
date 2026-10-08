@@ -21,6 +21,7 @@ import {
     groupMembersByDepartment,
     NAME_LABEL_LIMIT,
     nameLoneBucket,
+    shouldLoadPeople,
     shouldShowNames,
     sortForInspector,
 } from './mapView';
@@ -184,6 +185,10 @@ describe('dot and name thresholds', () => {
         expect(shouldShowNames(150, true)).toBe(true);
         expect(shouldShowNames(151, true)).toBe(false);
         expect(shouldShowNames(20, false)).toBe(false);
+    });
+    it('loads people only where their names can be drawn', () => {
+        expect(shouldLoadPeople(150)).toBe(true);
+        expect(shouldLoadPeople(151)).toBe(false);
     });
     it('keeps the dot limit at 5,000', () => {
         expect(SVG_DOT_LIMIT).toBe(5000);

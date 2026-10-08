@@ -1,8 +1,13 @@
+import {
+    OrganizationMemberRole,
+    type DepartmentMembership,
+} from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept } from '../utils/adoptionFixtures';
+import { dept, memberFixture } from '../utils/adoptionFixtures';
 import { DepartmentForm } from './DepartmentDrawer';
 
 const create = vi.fn();
@@ -12,6 +17,8 @@ const setGroups = vi.fn();
 const setMembers = vi.fn();
 const remove = vi.fn();
 let removing = false;
+const membershipEnabled = vi.fn();
+let membership: DepartmentMembership[] = [];
 
 const mutation = (mutateAsync: ReturnType<typeof vi.fn>) => ({
     mutateAsync,
@@ -25,7 +32,10 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
     useSetDepartmentOwners: () => mutation(setOwners),
     useSetDepartmentGroups: () => mutation(setGroups),
     useSetDepartmentMembers: () => mutation(setMembers),
-    useDepartmentMembership: () => ({ data: [] }),
+    useDepartmentMembership: (enabled: boolean) => {
+        membershipEnabled(enabled);
+        return { data: membership };
+    },
 }));
 const person = (userUuid: string, firstName: string) => ({
     userUuid,
@@ -33,7 +43,7 @@ const person = (userUuid: string, firstName: string) => ({
     lastName: 'Test',
     email: `${userUuid}@example.com`,
 });
-const users = [person('u1', 'Ann'), person('u2', 'Bob')];
+let users = [person('u1', 'Ann'), person('u2', 'Bob')];
 const groups = [
     { uuid: 'g1', name: 'Analysts' },
     { uuid: 'g2', name: 'Buyers' },
@@ -74,6 +84,7 @@ const renderEdit = (department: ReturnType<typeof dept>, onClose = vi.fn()) =>
         <DepartmentForm
             department={department}
             departments={departments}
+            members={null}
             onClose={onClose}
         />,
     );
@@ -90,6 +101,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={null}
                 departments={departments}
+                members={null}
                 onClose={vi.fn()}
             />,
         );
@@ -106,6 +118,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={null}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -130,6 +143,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={vi.fn()}
             />,
         );
@@ -149,6 +163,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -166,6 +181,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -190,6 +206,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -205,6 +222,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={null}
                 departments={departments}
+                members={null}
                 onClose={vi.fn()}
             />,
         );
@@ -226,6 +244,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -250,6 +269,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[0]}
                 departments={departments}
+                members={null}
                 onClose={onClose}
             />,
         );
@@ -314,6 +334,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={departments[2]}
                 departments={departments}
+                members={null}
                 onClose={vi.fn()}
             />,
         );
@@ -331,6 +352,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={{ ...departments[0], headcount: 99 }}
                 departments={departments}
+                members={null}
                 onClose={vi.fn()}
             />,
         );
@@ -357,6 +379,7 @@ describe('DepartmentForm', () => {
             <DepartmentForm
                 department={null}
                 departments={departments}
+                members={null}
                 onClose={onClose}
                 onCreated={onCreated}
             />,
@@ -487,6 +510,103 @@ describe('DepartmentForm', () => {
                 headcountNote: null,
                 targetDate: null,
             },
+        });
+    });
+
+    describe('at scale', () => {
+        beforeEach(() => {
+            membershipEnabled.mockReset();
+            membership = [];
+        });
+
+        it('uses the people the department page already loaded instead of fetching everyone', () => {
+            const loaded = Array.from({ length: 60 }, (_, index) =>
+                memberFixture(`m${index}`, null, {
+                    firstName: `Member${index}`,
+                    isDirect: index !== 0,
+                    departmentName: index === 0 ? 'Stores' : 'Ops',
+                }),
+            );
+            renderWithProviders(
+                <DepartmentForm
+                    department={departments[0]}
+                    departments={departments}
+                    members={loaded}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(membershipEnabled).toHaveBeenCalledWith(false);
+            expect(membershipEnabled).not.toHaveBeenCalledWith(true);
+            expect(
+                screen.getByText('60 people in this department'),
+            ).toBeInTheDocument();
+            expect(screen.getByText('Member0 L')).toBeInTheDocument();
+            expect(screen.getByText('Via Stores')).toBeInTheDocument();
+            expect(screen.getByText('Member49 L')).toBeInTheDocument();
+            expect(screen.queryByText('Member50 L')).not.toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Showing 50 of 60, everyone is listed under People on this page',
+                ),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        });
+
+        it('shows the first 50 resolved people with a link to the department page for the rest', () => {
+            membership = Array.from({ length: 60 }, (_, index) => ({
+                ...person(`m${index}`, `Member${index}`),
+                role: OrganizationMemberRole.VIEWER,
+                resolution: {
+                    kind: 'assigned' as const,
+                    departmentUuid: 'Ops',
+                    source: 'explicit' as const,
+                    sourceGroupName: null,
+                },
+            }));
+            renderWithProviders(
+                <MemoryRouter>
+                    <DepartmentForm
+                        department={departments[0]}
+                        departments={departments}
+                        members={null}
+                        onClose={vi.fn()}
+                    />
+                </MemoryRouter>,
+            );
+            expect(membershipEnabled).toHaveBeenCalledWith(true);
+            expect(screen.getByText('Member49 Test')).toBeInTheDocument();
+            expect(screen.queryByText('Member50 Test')).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('link', {
+                    name: 'Showing 50 of 60, see everyone on the department page',
+                }),
+            ).toHaveAttribute('href', '/generalSettings/adoption/Ops');
+        });
+
+        it('offers 50 people at a time in the pickers and finds the rest by search', async () => {
+            const few = users;
+            users = Array.from({ length: 60 }, (_, index) =>
+                person(`p${index}`, `Person${String(index).padStart(2, '0')}`),
+            );
+            try {
+                renderEdit(departments[0]);
+                const picker = screen.getByRole('combobox', {
+                    name: /Assigned people/,
+                });
+                await userEvent.click(picker);
+                expect(await screen.findAllByRole('option')).toHaveLength(50);
+                expect(
+                    screen.queryByRole('option', { name: 'Person59 Test' }),
+                ).not.toBeInTheDocument();
+                await userEvent.type(picker, 'Person59');
+                expect(
+                    await screen.findByRole('option', {
+                        name: 'Person59 Test',
+                    }),
+                ).toBeInTheDocument();
+            } finally {
+                users = few;
+            }
         });
     });
 });

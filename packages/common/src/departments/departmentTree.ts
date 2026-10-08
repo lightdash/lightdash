@@ -28,7 +28,9 @@ export const getChildrenMap = (
             n.parentDepartmentUuid !== null && known.has(n.parentDepartmentUuid)
                 ? n.parentDepartmentUuid
                 : null;
-        children.set(key, [...(children.get(key) ?? []), n.departmentUuid]);
+        const siblings = children.get(key);
+        if (siblings) siblings.push(n.departmentUuid);
+        else children.set(key, [n.departmentUuid]);
     });
     return children;
 };
@@ -48,16 +50,16 @@ export const getAncestorUuids = (
     return ancestors;
 };
 
-export const getDescendantUuids = (
+// Breadth first, each department once even if the stored tree holds a cycle
+const collectDescendants = (
     departmentUuid: string,
-    nodes: DepartmentTreeNode[],
+    children: Map<string | null, string[]>,
 ): string[] => {
-    const children = getChildrenMap(nodes);
     const seen = new Set<string>([departmentUuid]);
     const queue = [...(children.get(departmentUuid) ?? [])];
     const descendants: string[] = [];
-    while (queue.length > 0) {
-        const next = queue.shift() as string;
+    for (let i = 0; i < queue.length; i += 1) {
+        const next = queue[i];
         if (!seen.has(next)) {
             seen.add(next);
             descendants.push(next);
@@ -66,6 +68,11 @@ export const getDescendantUuids = (
     }
     return descendants;
 };
+
+export const getDescendantUuids = (
+    departmentUuid: string,
+    nodes: DepartmentTreeNode[],
+): string[] => collectDescendants(departmentUuid, getChildrenMap(nodes));
 
 export const wouldCreateCycle = (
     nodes: DepartmentTreeNode[],
@@ -114,13 +121,16 @@ export const computeEffectiveHeadcounts = (
 export const rollUpByDepartment = <T>(
     nodes: DepartmentTreeNode[],
     direct: Map<string, T[]>,
-): Map<string, T[]> =>
-    new Map(
+): Map<string, T[]> => {
+    // Built once for the whole tree, not once per department
+    const children = getChildrenMap(nodes);
+    return new Map(
         nodes.map((n) => [
             n.departmentUuid,
             [
                 n.departmentUuid,
-                ...getDescendantUuids(n.departmentUuid, nodes),
+                ...collectDescendants(n.departmentUuid, children),
             ].flatMap((uuid) => direct.get(uuid) ?? []),
         ]),
     );
+};

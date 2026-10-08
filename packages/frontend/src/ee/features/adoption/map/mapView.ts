@@ -61,14 +61,15 @@ export type MembersByDepartment = Map<string, DepartmentMember[]>;
 
 export const groupMembersByDepartment = (
     members: DepartmentMember[],
-): MembersByDepartment =>
-    members.reduce<MembersByDepartment>((groups, member) => {
-        groups.set(member.departmentUuid, [
-            ...(groups.get(member.departmentUuid) ?? []),
-            member,
-        ]);
-        return groups;
-    }, new Map());
+): MembersByDepartment => {
+    const groups: MembersByDepartment = new Map();
+    members.forEach((member) => {
+        const group = groups.get(member.departmentUuid);
+        if (group) group.push(member);
+        else groups.set(member.departmentUuid, [member]);
+    });
+    return groups;
+};
 
 type CircleDots = { kinds: DotKind[]; members: DepartmentMember[] };
 
@@ -169,6 +170,10 @@ export const buildDots = (
         member: members[index] ?? null,
     }));
 };
+
+// People are only fetched where their names can be drawn; larger views are coloured from the summary counts
+export const shouldLoadPeople = (totalPeople: number): boolean =>
+    totalPeople <= NAME_LABEL_LIMIT;
 
 export const shouldShowNames = (
     totalPeople: number,

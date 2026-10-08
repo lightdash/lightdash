@@ -3,6 +3,7 @@ import {
     getDescendantUuids,
     getParentMap,
     type CreateDepartment,
+    type DepartmentMember,
     type DepartmentMembership,
     type DepartmentOwnerInput,
     type UpdateDepartment,
@@ -19,7 +20,10 @@ export type NamedDepartment = {
 };
 
 export type ResolvedMemberLine = {
-    member: DepartmentMembership;
+    member: Pick<
+        DepartmentMembership,
+        'userUuid' | 'firstName' | 'lastName' | 'email'
+    >;
     via: string | null;
 };
 
@@ -90,6 +94,15 @@ export const getResolvedMembers = (
             : [];
     });
 };
+
+// The department page already holds its people, so the drawer need not load everyone again
+export const getResolvedMembersFromDetail = (
+    members: DepartmentMember[],
+): ResolvedMemberLine[] =>
+    members.map((member) => ({
+        member,
+        via: member.isDirect ? null : member.departmentName,
+    }));
 
 const pad = (value: number, length: number): string =>
     String(value).padStart(length, '0');
