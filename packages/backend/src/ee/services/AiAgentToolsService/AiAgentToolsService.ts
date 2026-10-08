@@ -4859,11 +4859,15 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         const space = await this.resolveDocumentSpace(context, spaceSlug);
-        await this.documentService.moveToSpace(context.account, {
-            projectUuid: context.projectUuid,
-            itemUuid: document.documentUuid,
-            targetSpaceUuid: space.uuid,
-        });
+        await this.documentService.moveToSpace(
+            context.account,
+            {
+                projectUuid: context.projectUuid,
+                itemUuid: document.documentUuid,
+                targetSpaceUuid: space.uuid,
+            },
+            { change: AiAgentToolsService.documentChange(context) },
+        );
         return this.documentService.get(
             context.account,
             context.projectUuid,

@@ -124,6 +124,19 @@ type SpaceCodeQueryRow = Omit<SpaceCodeModel, 'projectMemberAccessRole'> & {
     projectMemberAccessRole: string | null;
 };
 
+export type CascadedDocument = {
+    documentUuid: string;
+    projectUuid: string;
+};
+
+type DocumentUuidRow = { document_uuid: string; project_uuid: string };
+
+const toCascadedDocuments = (rows: DocumentUuidRow[]): CascadedDocument[] =>
+    rows.map((row) => ({
+        documentUuid: row.document_uuid,
+        projectUuid: row.project_uuid,
+    }));
+
 export class SpaceModel {
     private database: Knex;
 
@@ -2218,8 +2231,12 @@ export class SpaceModel {
             .delete();
     }
 
-    async softDelete(spaceUuid: string, userUuid: string): Promise<void> {
-        await this.database.transaction(async (trx) => {
+    /** Returns the Documents deleted along with the Space. */
+    async softDelete(
+        spaceUuid: string,
+        userUuid: string,
+    ): Promise<CascadedDocument[]> {
+        return this.database.transaction(async (trx) => {
             const deletedAt = new Date();
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
@@ -2230,21 +2247,24 @@ export class SpaceModel {
                 })
                 .returning('space_id');
             if (!space) {
-                return;
+                return [];
             }
-            await trx('documents')
+            const documents: DocumentUuidRow[] = await trx('documents')
                 .where('space_id', space.space_id)
                 .whereNull('deleted_at')
                 .update({
                     deleted_at: deletedAt,
                     deleted_by_user_uuid: userUuid,
                     deleted_with_space: true,
-                });
+                })
+                .returning(['document_uuid', 'project_uuid']);
+            return toCascadedDocuments(documents);
         });
     }
 
-    async restore(spaceUuid: string): Promise<void> {
-        await this.database.transaction(async (trx) => {
+    /** Returns the Documents restored along with the Space. */
+    async restore(spaceUuid: string): Promise<CascadedDocument[]> {
+        return this.database.transaction(async (trx) => {
             const deletedSpace = await trx(SpaceTableName)
                 .select(
                     'space_id',
@@ -2280,7 +2300,7 @@ export class SpaceModel {
                     deleted_by_user_uuid: null,
                 })
                 .where('space_uuid', spaceUuid);
-            await trx('documents')
+            const documents: DocumentUuidRow[] = await trx('documents')
                 .where('space_id', deletedSpace.space_id)
                 .where('deleted_with_space', true)
                 .where('deleted_at', deletedSpace.deleted_at)
@@ -2292,7 +2312,9 @@ export class SpaceModel {
                     deleted_at: null,
                     deleted_by_user_uuid: null,
                     deleted_with_space: false,
-                });
+                })
+                .returning(['document_uuid', 'project_uuid']);
+            return toCascadedDocuments(documents);
         });
     }
 

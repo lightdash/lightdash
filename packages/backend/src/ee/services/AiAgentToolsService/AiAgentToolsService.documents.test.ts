@@ -977,11 +977,15 @@ describe('MCP Document runtime', () => {
                     spaceSlug: 'Reports',
                 }),
             ).resolves.toMatchObject({ content: { spaceSlug: 'reports' } });
-            expect(documentService.moveToSpace).toHaveBeenCalledWith(account, {
-                projectUuid,
-                itemUuid: personal.documentUuid,
-                targetSpaceUuid: spaceUuid,
-            });
+            expect(documentService.moveToSpace).toHaveBeenCalledWith(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: personal.documentUuid,
+                    targetSpaceUuid: spaceUuid,
+                },
+                { change: { source: 'mcp' } },
+            );
             expect(documentService.updateMetadata).not.toHaveBeenCalled();
         });
 
