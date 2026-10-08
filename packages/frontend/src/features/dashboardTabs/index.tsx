@@ -68,7 +68,11 @@ import {
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
-import { getDashboardTabPath, getDashboardUrlIdentifier } from './tabUrl';
+import {
+    getDashboardModePath,
+    getDashboardTabPath,
+    getDashboardUrlIdentifier,
+} from './tabUrl';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
 import { useGridStyles } from './useGridStyles';
 
@@ -821,7 +825,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
+                getDashboardModePath({
+                    projectUrlIdentifier,
+                    dashboardUrlIdentifier: dashboardIdentifier,
+                    isEditMode: true,
+                }),
                 { replace: true },
             );
 

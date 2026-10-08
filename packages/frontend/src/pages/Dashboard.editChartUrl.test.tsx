@@ -20,6 +20,7 @@ import { renderWithProviders } from '../testing/testUtils';
 
 const PROJECT_UUID = 'project-uuid';
 const DASHBOARD_UUID = 'dashboard-uuid';
+const DASHBOARD_SLUG = 'payments';
 
 const editChart = mockSavedChartResponse();
 
@@ -163,7 +164,27 @@ vi.mock('../providers/Dashboard/useDashboardTileStatusContext', () => {
 });
 
 vi.mock('../components/common/Dashboard/DashboardHeader', () => ({
-    default: () => null,
+    default: ({
+        onEditClicked,
+        onSaveDashboard,
+        onCancel,
+    }: {
+        onEditClicked: () => void;
+        onSaveDashboard: () => void;
+        onCancel: () => void;
+    }) => (
+        <>
+            <button type="button" onClick={onEditClicked}>
+                Header edit dashboard
+            </button>
+            <button type="button" onClick={onSaveDashboard}>
+                Header save dashboard
+            </button>
+            <button type="button" onClick={onCancel}>
+                Header cancel edit
+            </button>
+        </>
+    ),
 }));
 
 vi.mock('../features/dashboardTabs', async () => {
@@ -325,7 +346,10 @@ const UrlProbe = () => {
     );
 };
 
-const renderDashboard = (search: string) => {
+const renderDashboard = (
+    search: string,
+    dashboardUuidOrSlug: string = DASHBOARD_UUID,
+) => {
     const router = createMemoryRouter(
         [
             {
@@ -344,7 +368,7 @@ const renderDashboard = (search: string) => {
         ],
         {
             initialEntries: [
-                `/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}${search}`,
+                `/projects/${PROJECT_UUID}/dashboards/${dashboardUuidOrSlug}${search}`,
             ],
         },
     );
@@ -663,5 +687,71 @@ describe('Dashboard in-dashboard chart editor url', () => {
             expect(urlParams().get('editChart')).toBe('chart-uuid'),
         );
         expect(screen.queryByTestId('store-limit')).toBeNull();
+    });
+});
+
+describe('Dashboard mode changes keep the url identifier', () => {
+    const resolveSaves = () =>
+        vi.mocked(lightdashApi).mockImplementation((async ({ method }) => {
+            if (method === 'PATCH') {
+                return {
+                    uuid: DASHBOARD_UUID,
+                    slug: DASHBOARD_SLUG,
+                    tiles: [],
+                    tabs: [],
+                };
+            }
+            return new Promise(() => {});
+        }) as typeof lightdashApi);
+
+    const expectPathname = (pathname: string) =>
+        waitFor(() =>
+            expect(screen.getByTestId('url')).toHaveAttribute(
+                'data-pathname',
+                pathname,
+            ),
+        );
+
+    beforeEach(() => {
+        state.chartEditorEnabled = false;
+        state.haveTilesChanged = false;
+        state.verified = false;
+        sessionStorage.clear();
+        vi.mocked(lightdashApi).mockClear();
+        resolveSaves();
+    });
+
+    describe.each([
+        { openedBy: 'uuid', dashboardUuidOrSlug: DASHBOARD_UUID },
+        { openedBy: 'slug', dashboardUuidOrSlug: DASHBOARD_SLUG },
+    ])('opened by $openedBy', ({ dashboardUuidOrSlug }) => {
+        const dashboardPath = `/projects/${PROJECT_UUID}/dashboards/${dashboardUuidOrSlug}`;
+
+        it('enters edit mode on the same identifier', async () => {
+            renderDashboard('/view', dashboardUuidOrSlug);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Header edit dashboard' }),
+            );
+            await expectPathname(`${dashboardPath}/edit`);
+        });
+
+        it('returns to view mode on the same identifier after saving', async () => {
+            renderDashboard('/edit', dashboardUuidOrSlug);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Header save dashboard' }),
+            );
+            await expectPathname(`${dashboardPath}/view`);
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PATCH' }),
+            );
+        });
+
+        it('returns to view mode on the same identifier after cancelling', async () => {
+            renderDashboard('/edit', dashboardUuidOrSlug);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Header cancel edit' }),
+            );
+            await expectPathname(`${dashboardPath}/view`);
+        });
     });
 });
