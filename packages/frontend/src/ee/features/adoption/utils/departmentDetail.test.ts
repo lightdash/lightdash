@@ -7,7 +7,6 @@ import {
     formatCoverage,
     formatLastActive,
     formatMemberSource,
-    formatQuantity,
     formatTargetProgress,
     formatTopContentUsage,
     getActiveCaption,
@@ -312,22 +311,44 @@ describe('getWeekLabels', () => {
 });
 
 describe('getWeekTooltipRows', () => {
-    const week = {
-        weekStart: '2026-10-05',
-        activeUsers: 1250,
-        atOrgRate: 27.9,
-    };
-    it('names the week and gives both counts', () => {
-        expect(getWeekTooltipRows(week, 'This week so far')).toEqual([
+    const department = (value: number | null) => ({
+        seriesName: 'This department',
+        value,
+    });
+    const atOrgRate = (value: number | null) => ({
+        seriesName: "At the organization's rate",
+        value,
+    });
+    it('names the week and gives the count of each line shown', () => {
+        // The week so far is the second department series; the first has no point there
+        expect(
+            getWeekTooltipRows('This week so far', [
+                department(null),
+                department(1250),
+                atOrgRate(27.9),
+            ]),
+        ).toEqual([
             'This week so far',
             'This department: 1,250',
             "At the organization's rate: 27.9",
         ]);
     });
+    it('leaves out a line hidden through the legend', () => {
+        expect(
+            getWeekTooltipRows('28 Sep', [department(1250), department(1250)]),
+        ).toEqual(['28 Sep', 'This department: 1,250']);
+        expect(getWeekTooltipRows('28 Sep', [atOrgRate(27.9)])).toEqual([
+            '28 Sep',
+            "At the organization's rate: 27.9",
+        ]);
+    });
     it('leaves the comparison out until it is loaded', () => {
         expect(
-            getWeekTooltipRows({ ...week, atOrgRate: null }, '28 Sep'),
+            getWeekTooltipRows('28 Sep', [department(1250), atOrgRate(null)]),
         ).toEqual(['28 Sep', 'This department: 1,250']);
+    });
+    it('shows nothing when every line is hidden', () => {
+        expect(getWeekTooltipRows('28 Sep', [])).toEqual([]);
     });
 });
 
@@ -413,19 +434,6 @@ describe('getCoverageNote', () => {
         expect(getCoverageNote(8, 9)).toBe('More accounts than headcount');
         expect(getCoverageNote(8, 8)).toBeNull();
         expect(getCoverageNote(null, 9)).toBeNull();
-    });
-});
-
-describe('formatQuantity', () => {
-    const queries = { one: 'query', other: 'queries' };
-    it('uses the singular for one', () => {
-        expect(formatQuantity(1, queries)).toBe('1 query');
-    });
-    it('uses the plural otherwise and groups thousands', () => {
-        expect(formatQuantity(0, queries)).toBe('0 queries');
-        expect(formatQuantity(37405, { one: 'view', other: 'views' })).toBe(
-            '37,405 views',
-        );
     });
 });
 

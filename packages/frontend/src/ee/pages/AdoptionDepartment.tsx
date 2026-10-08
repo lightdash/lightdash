@@ -37,13 +37,12 @@ import {
     getCoverageCaption,
     getCoverageNote,
     getWeeklyComparison,
-    type Noun,
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
     sortByCoverage,
 } from '../features/adoption/utils/departmentRows';
-import { formatCount } from '../features/adoption/utils/format';
+import { formatCount, type Noun } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
     useOrgAdoptionSummary,

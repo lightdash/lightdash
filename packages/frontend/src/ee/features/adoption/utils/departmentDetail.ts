@@ -7,7 +7,7 @@ import {
     type WeeklyActivePoint,
 } from '@lightdash/common';
 import { formatShare } from './departmentRows';
-import { formatCount } from './format';
+import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
 
 export type MemberFilter =
     | 'all'
@@ -15,14 +15,7 @@ export type MemberFilter =
     | 'inactive30d'
     | 'noRecordedActivity';
 
-// The words for one and for any other count, for example "query" and "queries"
-export type Noun = { one: string; other: string };
-
-const PEOPLE: Noun = { one: 'person', other: 'people' };
 const WEEKS: Noun = { one: 'week', other: 'weeks' };
-
-export const formatQuantity = (count: number, noun: Noun): string =>
-    `${formatCount(count)} ${count === 1 ? noun.one : noun.other}`;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
@@ -212,14 +205,26 @@ export const getWeekAxisLabels = (
 export const THIS_DEPARTMENT = 'This department';
 export const AT_ORG_RATE = "At the organization's rate";
 
+// One series at the hovered week, as the chart's tooltip receives it
+export type TooltipPoint = { seriesName: string; value: number | null };
+
+// Only the lines still shown are listed, as the legend can hide either one
 export const getWeekTooltipRows = (
-    week: WeeklyComparisonPoint,
     label: string,
+    points: TooltipPoint[],
 ): string[] => {
-    const department = `${THIS_DEPARTMENT}: ${formatCount(week.activeUsers)}`;
-    return week.atOrgRate === null
-        ? [label, department]
-        : [label, department, `${AT_ORG_RATE}: ${formatCount(week.atOrgRate)}`];
+    // The week so far is a second series under the same name, so the first count given wins
+    const counts = new Map<string, number>();
+    points.forEach(({ seriesName, value }) => {
+        if (value !== null && !counts.has(seriesName)) {
+            counts.set(seriesName, value);
+        }
+    });
+    const rows = [THIS_DEPARTMENT, AT_ORG_RATE].flatMap((name) => {
+        const count = counts.get(name);
+        return count === undefined ? [] : [`${name}: ${formatCount(count)}`];
+    });
+    return rows.length > 0 ? [label, ...rows] : [];
 };
 
 // Text alternative for the weekly chart, built from the points it draws

@@ -2,7 +2,8 @@ import { type DepartmentTopContentItem } from '@lightdash/common';
 import { Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import TruncatedText from '../../../../components/common/TruncatedText';
-import { formatTopContentUsage, type Noun } from '../utils/departmentDetail';
+import { formatTopContentUsage } from '../utils/departmentDetail';
+import { type Noun } from '../utils/format';
 
 type Props = {
     title: string;

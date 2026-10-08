@@ -1,5 +1,8 @@
 import { screen } from '@testing-library/react';
-import { type EChartsOption } from 'echarts';
+import {
+    type DefaultLabelFormatterCallbackParams,
+    type EChartsOption,
+} from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { type WeeklyComparisonPoint } from '../utils/departmentDetail';
@@ -42,6 +45,34 @@ const seriesNamed = (name: string) => {
 const renderChart = (points: WeeklyComparisonPoint[]) => {
     chart.option = null;
     renderWithProviders(<WeeklyActiveChart weeks={points} />);
+};
+
+// What ECharts hands the tooltip for one series at the hovered week
+const hovered = (
+    seriesName: string,
+    dataIndex: number,
+    value: number | null,
+): DefaultLabelFormatterCallbackParams => ({
+    componentType: 'series',
+    componentSubType: 'line',
+    componentIndex: 0,
+    seriesName,
+    name: '',
+    dataIndex,
+    data: value,
+    value,
+    $vars: [],
+});
+
+const showTooltip = (params: DefaultLabelFormatterCallbackParams[]) => {
+    const tooltip = chart.option?.tooltip;
+    const formatter =
+        tooltip === undefined || Array.isArray(tooltip)
+            ? undefined
+            : tooltip.formatter;
+    if (typeof formatter !== 'function')
+        throw new Error('No tooltip formatter');
+    return formatter(params, '', () => {});
 };
 
 describe('WeeklyActiveChart', () => {
@@ -113,6 +144,25 @@ describe('WeeklyActiveChart', () => {
         const [complete, partial] = seriesNamed(DEPARTMENT);
         expect(complete.data).toEqual([null]);
         expect(partial.data).toMatchObject([{ value: 3, symbol: 'circle' }]);
+    });
+
+    it('lists in the tooltip only the lines the legend still shows', () => {
+        renderChart(weeks([5, 6, 7], [4.5, 5, 5.5]));
+        expect(
+            showTooltip([
+                hovered(DEPARTMENT, 1, 6),
+                hovered(DEPARTMENT, 1, 6),
+                hovered(AT_ORG_RATE, 1, 5),
+            ]),
+        ).toBe(`27 Jul<br/>${DEPARTMENT}: 6<br/>${AT_ORG_RATE}: 5`);
+        // A line hidden through the legend is left out of what ECharts hands over
+        expect(
+            showTooltip([hovered(DEPARTMENT, 1, 6), hovered(DEPARTMENT, 1, 6)]),
+        ).toBe(`27 Jul<br/>${DEPARTMENT}: 6`);
+        expect(showTooltip([hovered(AT_ORG_RATE, 2, 5.5)])).toBe(
+            `This week so far<br/>${AT_ORG_RATE}: 5.5`,
+        );
+        expect(showTooltip([])).toBe('');
     });
 
     it('describes both lines in words', () => {

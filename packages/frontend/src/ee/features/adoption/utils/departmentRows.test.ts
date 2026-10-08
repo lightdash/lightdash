@@ -121,6 +121,16 @@ describe('formatters', () => {
             }),
         ).toBe('5 viewers, 2 interactive, 1 editor');
     });
+    it('groups thousands in the role split', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 1317,
+                interactiveViewers: 1200,
+                editors: 1,
+                admins: 2,
+            }),
+        ).toBe('1,317 viewers, 1,200 interactive, 1 editor, 2 admins');
+    });
     it('shows the first owner and counts the rest', () => {
         expect(formatOwners([])).toBe('–');
         expect(formatOwners([{ type: 'user', uuid: 'u', name: 'Ada L' }])).toBe(

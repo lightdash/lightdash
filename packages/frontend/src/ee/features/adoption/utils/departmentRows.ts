@@ -6,7 +6,7 @@ import {
     type RoleSplit,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
-import { formatCount } from './format';
+import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
 
 // Levels shown in the table; deeper levels open on the department page
 const MAX_TABLE_DEPTH = 3;
@@ -68,24 +68,23 @@ export const buildDepartmentRows = (
 
 // A share that rounds to 0% but has people in it reads "<1%", never "0%"
 export const formatShare = (pct: number | null, count: number): string => {
-    if (pct === null) {
-        return `${formatCount(count)} ${count === 1 ? 'person' : 'people'}`;
-    }
+    if (pct === null) return formatQuantity(count, PEOPLE);
     const label = pct === 0 && count > 0 ? '<1%' : `${pct}%`;
     return `${label} (${formatCount(count)})`;
 };
 
-const plural = (count: number, singular: string): string =>
-    `${count} ${singular}${count === 1 ? '' : 's'}`;
+const VIEWERS: Noun = { one: 'viewer', other: 'viewers' };
+const EDITORS: Noun = { one: 'editor', other: 'editors' };
+const ADMINS: Noun = { one: 'admin', other: 'admins' };
 
 export const formatRoleSplit = (split: RoleSplit): string => {
     const parts = [
-        split.viewers > 0 ? plural(split.viewers, 'viewer') : null,
+        split.viewers > 0 ? formatQuantity(split.viewers, VIEWERS) : null,
         split.interactiveViewers > 0
-            ? `${split.interactiveViewers} interactive`
+            ? `${formatCount(split.interactiveViewers)} interactive`
             : null,
-        split.editors > 0 ? plural(split.editors, 'editor') : null,
-        split.admins > 0 ? plural(split.admins, 'admin') : null,
+        split.editors > 0 ? formatQuantity(split.editors, EDITORS) : null,
+        split.admins > 0 ? formatQuantity(split.admins, ADMINS) : null,
     ].filter((part): part is string => part !== null);
     return parts.length > 0 ? parts.join(', ') : 'No one yet';
 };

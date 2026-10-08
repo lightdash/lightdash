@@ -12,6 +12,7 @@ import {
     getWeeklyChartLabel,
     getWeekTooltipRows,
     THIS_DEPARTMENT,
+    type TooltipPoint,
     type WeeklyComparisonPoint,
 } from '../utils/departmentDetail';
 
@@ -33,10 +34,14 @@ const hollowPoint = (value: number, color: string): LineData[number] => ({
     itemStyle: { color: HOLLOW_FILL, borderColor: color, borderWidth: 2 },
 });
 
-const getDataIndex = (
+// ECharts leaves out the series hidden through the legend, so these are the lines shown
+const toTooltipPoints = (
     params: TooltipComponentFormatterCallbackParams,
-): number | undefined =>
-    (Array.isArray(params) ? params[0] : params)?.dataIndex;
+): TooltipPoint[] =>
+    (Array.isArray(params) ? params : [params]).map((point) => ({
+        seriesName: point.seriesName ?? '',
+        value: typeof point.value === 'number' ? point.value : null,
+    }));
 
 const buildOption = (weeks: WeeklyComparisonPoint[]): EChartsOption => {
     const last = weeks.length - 1;
@@ -102,13 +107,14 @@ const buildOption = (weeks: WeeklyComparisonPoint[]): EChartsOption => {
         },
         tooltip: {
             trigger: 'axis',
-            // Built from the weeks, as the week so far is split across two series
             formatter: (params) => {
-                const index = getDataIndex(params);
+                const index = (Array.isArray(params) ? params[0] : params)
+                    ?.dataIndex;
                 if (index === undefined || index > last) return '';
-                return getWeekTooltipRows(weeks[index], labels[index]).join(
-                    '<br/>',
-                );
+                return getWeekTooltipRows(
+                    labels[index],
+                    toTooltipPoints(params),
+                ).join('<br/>');
             },
         },
         xAxis: {
