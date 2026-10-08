@@ -9,6 +9,10 @@ import {
     type DocumentChartAttributes,
 } from './documentChartNode';
 import {
+    DOCUMENT_SAVED_CHART_NODE,
+    type DocumentSavedChartAttributes,
+} from './documentSavedChartNode';
+import {
     DOCUMENT_UNSUPPORTED_NODE,
     type DocumentUnsupportedAttributes,
 } from './documentUnsupportedNode';
@@ -37,6 +41,10 @@ const blockToContent = (
             isSaved: true,
         };
         return [{ type: DOCUMENT_CHART_NODE, attrs }];
+    }
+    if (block.type === 'savedChart') {
+        const attrs: DocumentSavedChartAttributes = { block };
+        return [{ type: DOCUMENT_SAVED_CHART_NODE, attrs }];
     }
     const attrs: DocumentUnsupportedAttributes = { block };
     return [{ type: DOCUMENT_UNSUPPORTED_NODE, attrs }];

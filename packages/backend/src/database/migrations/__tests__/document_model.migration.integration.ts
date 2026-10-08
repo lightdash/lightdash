@@ -49,7 +49,7 @@ const KNOWN_CHART = {
 };
 const FUTURE_KIND_CHART = { source: 'image', image: { url: 'logo.png' } };
 const FUTURE_VERSION_CHART = { ...KNOWN_CHART, version: 99 };
-const FUTURE_BLOCK_TAG = '<saved-chart slug="monthly-revenue">';
+const FUTURE_BLOCK_TAG = '<data-app-embed slug="monthly-revenue">';
 /** Stored content as a newer release could write it. */
 const FUTURE_DOCUMENT_CONTENT = {
     markdown: [

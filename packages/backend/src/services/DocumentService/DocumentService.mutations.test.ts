@@ -338,6 +338,7 @@ describe('DocumentService mutation analytics', () => {
             customChartCount: 0,
             mergeChartCount: 1,
             sqlChartCount: 0,
+            savedChartLinkCount: 0,
             markdownLength: toContent([markdown, semantic, merge]).markdown
                 .length,
         });
@@ -1605,5 +1606,165 @@ describe('DocumentService SQL charts', () => {
                 { ...createInput, content: toContent([named]) },
             ),
         ).rejects.toThrow('no connection named "missing"');
+    });
+});
+
+describe('DocumentService saved chart links', () => {
+    const chartUuid = 'a5632229-9bb1-4e73-9c57-553f0b5915f8';
+    const linkedChart = {
+        kind: 'chart',
+        uuid: chartUuid,
+        slugs: ['old-revenue', 'monthly-revenue'],
+        spaceUuid,
+        dashboardUuid: null,
+        isDeleted: false,
+    };
+    const withLink = (tag: string): DocumentContent => ({
+        markdown: `# Findings\n\n${tag}`,
+        charts: {},
+    });
+    const setupLinks = (found: unknown[], access?: unknown[]) => {
+        const result = setup();
+        Object.assign(result.documentModel, {
+            findSavedChartsForLinks: vi
+                .fn()
+                .mockImplementation(async (_project, kind: string) =>
+                    found.filter(
+                        (candidate) =>
+                            (candidate as { kind: string }).kind === kind,
+                    ),
+                ),
+        });
+        Object.assign(result.spacePermissionService, {
+            resolveAccessBatch: vi
+                .fn()
+                .mockResolvedValue(access ?? [{ context: result.context }]),
+        });
+        return result;
+    };
+    const create = (service: DocumentService, content: DocumentContent) =>
+        service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content,
+        });
+
+    test.each([
+        ['current slug', 'monthly-revenue'],
+        ['renamed slug', 'old-revenue'],
+    ])('stores a link made by %s under the chart uuid', async (_, slug) => {
+        const { service, documentModel } = setupLinks([linkedChart]);
+        await create(
+            service,
+            withLink(`<saved-chart slug="${slug}" title="Live">`),
+        );
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: withLink(
+                    `<saved-chart uuid="${chartUuid}" title="Live">`,
+                ),
+            }),
+        );
+    });
+
+    test.each([
+        [
+            'no chart',
+            [],
+            `<saved-chart slug="monthly-revenue"> doesn't match a chart in this project`,
+        ],
+        [
+            'a deleted chart',
+            [{ ...linkedChart, isDeleted: true }],
+            `<saved-chart slug="monthly-revenue"> doesn't match a chart in this project`,
+        ],
+        [
+            'a dashboard chart',
+            [{ ...linkedChart, spaceUuid: null, dashboardUuid: 'dashboard' }],
+            `<saved-chart slug="monthly-revenue"> is a chart saved in a dashboard, which can't be linked`,
+        ],
+    ])('rejects a link to %s', async (_, found, message) => {
+        const { service, documentModel } = setupLinks(found);
+        await expect(
+            create(service, withLink('<saved-chart slug="monthly-revenue">')),
+        ).rejects.toThrow(new ParameterError(message));
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('rejects a link to a chart the author cannot view', async () => {
+        const { service, documentModel } = setupLinks(
+            [linkedChart],
+            [{ context: null }],
+        );
+        await expect(
+            create(service, withLink('<saved-chart slug="monthly-revenue">')),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                `You don't have access to the chart in <saved-chart slug="monthly-revenue">`,
+            ),
+        );
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('keeps a link the Document already had without checking access', async () => {
+        const linked = withLink(`<saved-chart uuid="${chartUuid}">`);
+        const { service, documentModel, spacePermissionService } = setupLinks(
+            [linkedChart],
+            [{ context: null }],
+        );
+        documentModel.get.mockResolvedValue({
+            ...document,
+            version: { ...document.version, content: linked },
+        });
+        await service.updateContent(makeAccount(), projectUuid, documentUuid, {
+            baseVersionUuid,
+            content: {
+                ...linked,
+                markdown: linked.markdown.replace('Findings', 'Results'),
+            },
+        });
+        expect(documentModel.updateContent).toHaveBeenCalled();
+        expect(
+            (
+                spacePermissionService as unknown as {
+                    resolveAccessBatch: ReturnType<typeof vi.fn>;
+                }
+            ).resolveAccessBatch,
+        ).not.toHaveBeenCalled();
+    });
+});
+
+describe('DocumentService saved chart links to deleted charts', () => {
+    test('a Document whose linked chart was deleted stays editable', async () => {
+        const linked: DocumentContent = {
+            markdown:
+                '# Findings\n\n<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8">',
+            charts: {},
+        };
+        const { service, documentModel } = setup();
+        Object.assign(documentModel, {
+            findSavedChartsForLinks: vi.fn().mockResolvedValue([]),
+        });
+        documentModel.get.mockResolvedValue({
+            ...document,
+            version: { ...document.version, content: linked },
+        });
+        await service.updateContent(makeAccount(), projectUuid, documentUuid, {
+            baseVersionUuid,
+            content: {
+                ...linked,
+                markdown: linked.markdown.replace('Findings', 'Results'),
+            },
+        });
+        expect(documentModel.updateContent).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            expect.objectContaining({
+                content: {
+                    ...linked,
+                    markdown: linked.markdown.replace('Findings', 'Results'),
+                },
+            }),
+            userUuid,
+        );
     });
 });

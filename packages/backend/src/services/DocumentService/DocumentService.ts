@@ -8,10 +8,14 @@ import {
     DOCUMENT_SCHEMA_VERSION,
     FeatureFlags,
     ForbiddenError,
+    formatDocumentTag,
     getContentAsCodePathFromLtreePath,
     getDataAppVizChartConfigErrors,
+    getDocumentSavedChartLinks,
     getLtreePathFromContentAsCodePath,
+    getSavedChartTagName,
     mapDocumentCharts,
+    mapDocumentSavedChartLinks,
     matchDocumentChartKeys,
     NotFoundError,
     ParameterError,
@@ -27,8 +31,10 @@ import {
     type DocumentAsCodeList,
     type DocumentChartContent,
     type DocumentContent,
+    type DocumentLinkingChart,
     type DocumentList,
     type DocumentQueryReference,
+    type DocumentSavedChartKind,
     type DocumentSummary,
     type DocumentVersionList,
     type DuplicateDocumentRequest,
@@ -55,6 +61,7 @@ import type { ContentVerificationModel } from '../../models/ContentVerificationM
 import type {
     DocumentContentUpdate,
     DocumentModel,
+    SavedChartForLink,
 } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -373,12 +380,17 @@ export class DocumentService extends BaseService {
                 `Document writes require schema version ${DOCUMENT_SCHEMA_VERSION}`,
             );
         }
-        const content = await this.resolveSqlConnections(
+        const content = await this.resolveSavedChartLinks(
+            account,
             projectUuid,
-            await this.resolveCustomCharts(
+            await this.resolveSqlConnections(
                 projectUuid,
-                parseDocumentContent(input.schemaVersion, input.content),
+                await this.resolveCustomCharts(
+                    projectUuid,
+                    parseDocumentContent(input.schemaVersion, input.content),
+                ),
             ),
+            copiedFrom,
         );
         await this.validateCharts(account, projectUuid, content, undefined, {
             copiedSqlCharts:
@@ -531,15 +543,22 @@ export class DocumentService extends BaseService {
             document.version.content,
             DocumentService.toStoredChart,
         );
-        const content = await this.resolveSqlConnections(
+        const content = await this.resolveSavedChartLinks(
+            account,
             projectUuid,
-            await this.resolveCustomCharts(
+            await this.resolveSqlConnections(
                 projectUuid,
-                parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content, {
+                await this.resolveCustomCharts(
+                    projectUuid,
+                    parseDocumentContent(
+                        DOCUMENT_SCHEMA_VERSION,
+                        input.content,
+                        { previous },
+                    ),
                     previous,
-                }),
-                previous,
+                ),
             ),
+            previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
         const updated = {
@@ -587,6 +606,7 @@ export class DocumentService extends BaseService {
                 .length,
             sqlChartCount: charts.filter(({ source }) => source === 'sql')
                 .length,
+            savedChartLinkCount: getDocumentSavedChartLinks(content).length,
             markdownLength: content.markdown.length,
         };
     }
@@ -1042,6 +1062,178 @@ export class DocumentService extends BaseService {
     }
 
     /**
+     * Resolve each link to a saved chart to its uuid. Links new in this write
+     * must point at a chart of this project, outside a dashboard, that the
+     * author can view; links already in `previous` are kept as they are, even
+     * when their chart has been deleted since.
+     */
+    private async resolveSavedChartLinks(
+        account: RegisteredAccount,
+        projectUuid: string,
+        content: DocumentContent,
+        previous?: DocumentContent,
+    ): Promise<DocumentContent> {
+        const links = getDocumentSavedChartLinks(content);
+        if (links.length === 0) {
+            return content;
+        }
+        const previousLinks = new Set(
+            previous
+                ? getDocumentSavedChartLinks(previous).map(
+                      (link) => `${link.kind}:${link.attributes.uuid}`,
+                  )
+                : [],
+        );
+        const findCharts = (kind: DocumentSavedChartKind) => {
+            const ofKind = links.filter((link) => link.kind === kind);
+            return this.dependencies.documentModel.findSavedChartsForLinks(
+                projectUuid,
+                kind,
+                {
+                    uuids: ofKind.flatMap(({ attributes }) =>
+                        attributes.uuid ? [attributes.uuid] : [],
+                    ),
+                    slugs: ofKind.flatMap(({ attributes }) =>
+                        attributes.slug ? [attributes.slug] : [],
+                    ),
+                },
+            );
+        };
+        const charts = (
+            await Promise.all([findCharts('chart'), findCharts('sqlChart')])
+        ).flat();
+        const findChart = ({
+            kind,
+            attributes,
+        }: (typeof links)[number]): SavedChartForLink | undefined =>
+            charts.find(
+                (chart) =>
+                    chart.kind === kind &&
+                    (attributes.uuid
+                        ? chart.uuid === attributes.uuid
+                        : chart.slugs.includes(attributes.slug)),
+            );
+        const wasLinked = (link: (typeof links)[number], uuid?: string) =>
+            uuid !== undefined && previousLinks.has(`${link.kind}:${uuid}`);
+        const newCharts = links.flatMap((link) => {
+            const chart = findChart(link);
+            // A chart deleted since it was linked keeps its tag, so the Document stays editable
+            if (wasLinked(link, link.attributes.uuid ?? chart?.uuid)) {
+                return [];
+            }
+            const tag = formatDocumentTag({
+                name: getSavedChartTagName(link.kind),
+                attributes: link.attributes,
+            });
+            if (!chart || chart.isDeleted) {
+                throw new ParameterError(
+                    `${tag} doesn't match a chart in this project`,
+                );
+            }
+            if (chart.dashboardUuid !== null || chart.spaceUuid === null) {
+                throw new ParameterError(
+                    `${tag} is a chart saved in a dashboard, which can't be linked`,
+                );
+            }
+            return [{ ...chart, spaceUuid: chart.spaceUuid, tag }];
+        });
+        await this.assertCanViewLinkedCharts(account, newCharts);
+        return mapDocumentSavedChartLinks(content, (link) => {
+            const { slug, uuid, ...attributes } = link.attributes;
+            return { uuid: findChart(link)?.uuid ?? uuid, ...attributes };
+        });
+    }
+
+    private async assertCanViewLinkedCharts(
+        account: RegisteredAccount,
+        charts: Array<SavedChartForLink & { spaceUuid: string; tag: string }>,
+    ): Promise<void> {
+        if (charts.length === 0) {
+            return;
+        }
+        const results =
+            await this.dependencies.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                charts.map(
+                    (chart): AccessTarget =>
+                        chart.kind === 'chart'
+                            ? {
+                                  type: 'chart',
+                                  chartUuid: chart.uuid,
+                                  dashboardUuid: null,
+                                  spaceUuid: chart.spaceUuid,
+                              }
+                            : {
+                                  type: 'sqlChart',
+                                  savedSqlUuid: chart.uuid,
+                                  spaceUuid: chart.spaceUuid,
+                              },
+                ),
+            );
+        const ability = this.createAuditedAbility(account);
+        const denied = charts.find(
+            (chart, index) =>
+                !results[index]?.context ||
+                ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...results[index].context,
+                        metadata:
+                            chart.kind === 'chart'
+                                ? { savedChartUuid: chart.uuid }
+                                : { savedSqlUuid: chart.uuid },
+                    }),
+                ),
+        );
+        if (denied) {
+            throw new ForbiddenError(
+                `You don't have access to the chart in ${denied.tag}`,
+            );
+        }
+    }
+
+    /** As code, links name their chart by slug; a chart deleted since keeps its uuid. */
+    private async withSavedChartSlugs(
+        projectUuid: string,
+        content: DocumentContent,
+    ): Promise<DocumentContent> {
+        const links = getDocumentSavedChartLinks(content);
+        if (links.length === 0) {
+            return content;
+        }
+        const uuidsOf = (kind: DocumentSavedChartKind) =>
+            links.flatMap((link) =>
+                link.kind === kind && link.attributes.uuid
+                    ? [link.attributes.uuid]
+                    : [],
+            );
+        const charts = (
+            await Promise.all(
+                (['chart', 'sqlChart'] as const).map((kind) =>
+                    this.dependencies.documentModel.findSavedChartsForLinks(
+                        projectUuid,
+                        kind,
+                        { uuids: uuidsOf(kind), slugs: [] },
+                    ),
+                ),
+            )
+        ).flat();
+        return mapDocumentSavedChartLinks(content, (link) => {
+            const chart = charts.find(
+                (candidate) =>
+                    candidate.kind === link.kind &&
+                    candidate.uuid === link.attributes.uuid,
+            );
+            const slug = chart?.slugs[chart.slugs.length - 1];
+            if (slug === undefined) {
+                return link.attributes;
+            }
+            const { uuid, ...attributes } = link.attributes;
+            return { slug, ...attributes };
+        });
+    }
+
+    /**
      * SQL charts are stored with their connection's uuid. A connection name,
      * as in content as code, wins over a uuid.
      */
@@ -1445,6 +1637,32 @@ export class DocumentService extends BaseService {
             items: items.slice(0, limit),
             nextOffset: items.length > limit ? offset + limit : null,
         };
+    }
+
+    /** The Documents you can view whose current version links this saved chart. */
+    async listDocumentsLinkingChart(
+        account: RegisteredAccount,
+        projectUuid: string,
+        kind: DocumentSavedChartKind,
+        chartUuid: string,
+    ): Promise<DocumentLinkingChart[]> {
+        await this.assertProjectAccess(account, projectUuid);
+        const documents =
+            await this.dependencies.documentModel.findDocumentsLinkingChart(
+                projectUuid,
+                kind,
+                chartUuid,
+            );
+        const viewable = new Set(
+            await this.filterViewableUuids(
+                account,
+                [projectUuid],
+                documents.map(({ documentUuid }) => documentUuid),
+            ),
+        );
+        return documents.filter(({ documentUuid }) =>
+            viewable.has(documentUuid),
+        );
     }
 
     async filterViewableUuids(
@@ -1953,10 +2171,13 @@ export class DocumentService extends BaseService {
             description: document.description,
             spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             schemaVersion: document.version.schemaVersion,
-            ...(await this.withReadableNames(
+            ...(await this.withSavedChartSlugs(
                 document.projectUuid,
-                document.version.content,
-                { portable: true },
+                await this.withReadableNames(
+                    document.projectUuid,
+                    document.version.content,
+                    { portable: true },
+                ),
             )),
         };
     }

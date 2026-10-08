@@ -1,4 +1,5 @@
 import { isEqual } from 'lodash';
+import { validate as isUuid } from 'uuid';
 import type { DocumentChartContent, DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
 import { ChartType } from '../types/savedCharts';
@@ -20,6 +21,20 @@ export type DocumentBlock =
     | { type: 'tag'; tag: DocumentTag; line?: string };
 
 export const DOCUMENT_CHART_TAG = 'document-chart';
+/** Links to a saved chart; the Document shows its latest version. */
+export const SAVED_CHART_TAG = 'saved-chart';
+/** Links to a saved SQL chart; the Document shows its latest version. */
+export const SAVED_SQL_CHART_TAG = 'saved-sql-chart';
+
+export type DocumentSavedChartKind = 'chart' | 'sqlChart';
+
+const SAVED_CHART_TAG_KINDS: Record<string, DocumentSavedChartKind> = {
+    [SAVED_CHART_TAG]: 'chart',
+    [SAVED_SQL_CHART_TAG]: 'sqlChart',
+};
+
+export const getSavedChartTagName = (kind: DocumentSavedChartKind): string =>
+    kind === 'chart' ? SAVED_CHART_TAG : SAVED_SQL_CHART_TAG;
 
 /**
  * Lightdash block tag names contain a hyphen, which no HTML element does, so
@@ -142,7 +157,17 @@ export type DocumentChartBlock =
     | { type: 'markdown'; markdown: string }
     | { type: 'chart'; id: string; chart: DocumentChartContent }
     | { type: 'unsupportedChart'; id: string; raw: unknown }
-    | { type: 'unsupportedTag'; line: string };
+    | { type: 'unsupportedTag'; line: string }
+    /**
+     * A link to a saved chart. Stored links carry `uuid`; input and content
+     * as code may carry `slug` instead. Other attributes, such as `title`,
+     * are kept as written.
+     */
+    | {
+          type: 'savedChart';
+          kind: DocumentSavedChartKind;
+          attributes: Record<string, string>;
+      };
 
 /**
  * The Document in reading order. Chart tags must reference an entry in
@@ -156,6 +181,30 @@ export const getDocumentChartBlocks = (
     return parseDocumentBlocks(content.markdown, isDocumentBlockTagName).map(
         (block): DocumentChartBlock => {
             if (block.type === 'markdown') return block;
+            const savedChartKind = Object.hasOwn(
+                SAVED_CHART_TAG_KINDS,
+                block.tag.name,
+            )
+                ? SAVED_CHART_TAG_KINDS[block.tag.name]
+                : undefined;
+            if (savedChartKind) {
+                const { uuid, slug } = block.tag.attributes;
+                if (!uuid === !slug) {
+                    throw new ParameterError(
+                        `Every <${block.tag.name}> tag needs either a uuid or a slug`,
+                    );
+                }
+                if (uuid && !isUuid(uuid)) {
+                    throw new ParameterError(
+                        `<${block.tag.name} uuid="${uuid}"> isn't a valid uuid`,
+                    );
+                }
+                return {
+                    type: 'savedChart',
+                    kind: savedChartKind,
+                    attributes: block.tag.attributes,
+                };
+            }
             if (block.tag.name !== DOCUMENT_CHART_TAG) {
                 return {
                     type: 'unsupportedTag',
@@ -202,6 +251,14 @@ const toMarkdownBlock = (block: DocumentChartBlock): DocumentBlock => {
             return {
                 type: 'tag',
                 tag: { name: DOCUMENT_CHART_TAG, attributes: { id: block.id } },
+            };
+        case 'savedChart':
+            return {
+                type: 'tag',
+                tag: {
+                    name: getSavedChartTagName(block.kind),
+                    attributes: block.attributes,
+                },
             };
         default:
             return assertUnreachable(block, 'Unknown Document block');
@@ -307,7 +364,12 @@ export const getDocumentSummaryMarkdown = (content: DocumentContent): string =>
     joinDocumentBlocks(
         getDocumentChartBlocks(content).map((block): DocumentBlock => {
             if (block.type === 'markdown') return block;
-            if (block.type === 'unsupportedTag') return toMarkdownBlock(block);
+            if (
+                block.type === 'unsupportedTag' ||
+                block.type === 'savedChart'
+            ) {
+                return toMarkdownBlock(block);
+            }
             if (block.type === 'unsupportedChart') {
                 return {
                     type: 'tag',
@@ -381,3 +443,26 @@ export const matchDocumentChartKeys = (
         }),
     );
 };
+
+/** The saved charts a Document links to, in reading order. */
+export const getDocumentSavedChartLinks = (
+    content: DocumentContent,
+): Array<Extract<DocumentChartBlock, { type: 'savedChart' }>> =>
+    getDocumentChartBlocks(content).flatMap((block) =>
+        block.type === 'savedChart' ? [block] : [],
+    );
+
+/** Rewrite each link's attributes, e.g. a slug to the uuid it resolves to. */
+export const mapDocumentSavedChartLinks = (
+    content: DocumentContent,
+    map: (
+        link: Extract<DocumentChartBlock, { type: 'savedChart' }>,
+    ) => Record<string, string>,
+): DocumentContent =>
+    fromDocumentChartBlocks(
+        getDocumentChartBlocks(content).map((block) =>
+            block.type === 'savedChart'
+                ? { ...block, attributes: map(block) }
+                : block,
+        ),
+    );

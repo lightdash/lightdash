@@ -255,7 +255,7 @@ describe('withContext', () => {
 
 describe('content from a newer release', () => {
     const image = { source: 'image', image: { url: 'logo.png' } };
-    const block = '<saved-chart slug="monthly-revenue">';
+    const block = '<data-app-embed slug="monthly-revenue">';
     const before = {
         markdown: [tag('c1'), tag('c2'), 'Text'].join('\n\n'),
         charts: { c1: chart('Orders') },
@@ -315,5 +315,28 @@ describe('SQL charts', () => {
                 changedParts: ['SQL', 'Row limit'],
             }),
         ]);
+    });
+});
+
+describe('saved chart links', () => {
+    it('shows an added and a removed link as text', () => {
+        const kept =
+            '<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8">';
+        const removed =
+            '<saved-sql-chart uuid="4b993aca-ca6f-455b-a6aa-19c26e65c502">';
+        const added =
+            '<saved-chart uuid="1d80c2dc-db93-4ce1-a435-c67c75c8aa10" title="Live">';
+        const diff = diffDocumentVersions(
+            { markdown: ['Text', kept, removed].join('\n\n'), charts: {} },
+            { markdown: ['Text', kept, added].join('\n\n'), charts: {} },
+        );
+        expect(diff.text).toEqual(
+            expect.arrayContaining([
+                { type: 'unchanged', text: kept },
+                { type: 'removed', text: removed },
+                { type: 'added', text: added },
+            ]),
+        );
+        expect(diff.charts).toEqual([]);
     });
 });

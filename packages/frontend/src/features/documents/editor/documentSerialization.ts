@@ -1,10 +1,19 @@
-import { getDocumentChartTag, type DocumentContent } from '@lightdash/common';
+import {
+    formatDocumentTag,
+    getDocumentChartTag,
+    getSavedChartTagName,
+    type DocumentContent,
+} from '@lightdash/common';
 import { type Editor } from '@tiptap/core';
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
     DOCUMENT_CHART_NODE,
     type DocumentChartAttributes,
 } from './documentChartNode';
+import {
+    DOCUMENT_SAVED_CHART_NODE,
+    type DocumentSavedChartAttributes,
+} from './documentSavedChartNode';
 import {
     DOCUMENT_UNSUPPORTED_NODE,
     type DocumentUnsupportedAttributes,
@@ -36,6 +45,19 @@ export const getDocumentContent = (editor: Editor): DocumentContent => {
         run = [];
     };
     editor.state.doc.forEach((node) => {
+        if (node.type.name === DOCUMENT_SAVED_CHART_NODE) {
+            flush();
+            const { block } = node.attrs as DocumentSavedChartAttributes;
+            if (block) {
+                parts.push(
+                    formatDocumentTag({
+                        name: getSavedChartTagName(block.kind),
+                        attributes: block.attributes,
+                    }),
+                );
+            }
+            return;
+        }
         if (node.type.name === DOCUMENT_UNSUPPORTED_NODE) {
             flush();
             const { block } = node.attrs as DocumentUnsupportedAttributes;
