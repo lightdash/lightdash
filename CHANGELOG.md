@@ -1,3 +1,10 @@
+# [2.477.0](https://github.com/lightdash/lightdash/compare/2.476.0...2.477.0) (2026-10-08)
+
+
+### Features
+
+* **ai-agent:** dashboard reads tell the agent each tile's explore so filters target tiles without reading every chart ([#30641](https://github.com/lightdash/lightdash/issues/30641)) ([a8d507f](https://github.com/lightdash/lightdash/commit/a8d507f27beb17876b5b392148a2a512214b91b7))
+
 # [2.476.0](https://github.com/lightdash/lightdash/compare/2.475.2...2.476.0) (2026-10-08)
 
 
