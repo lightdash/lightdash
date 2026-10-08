@@ -848,6 +848,16 @@ export class OrganizationSsoService extends BaseService {
      * one org has the provider enabled — the dedicated-instance case. With zero
      * or several, the org cannot be inferred and the caller falls back to the
      * hint-based flow.
+     *
+     * SECURITY: no permission check, like the other login-route lookups here
+     * ({@link findEnabledMethodForEmail}, {@link getConfigForOrganization}):
+     * it runs before any user or org context exists. The decrypted config is
+     * only ever used to build the passport strategy server-side and must not
+     * be returned to clients or called from authenticated code paths — those
+     * go through the `createAuditedAbility`-guarded methods above. Choosing an
+     * org here only decides which IdP the browser is sent to; the callback
+     * still enforces {@link isEmailDomainAllowedForOrgSso} on the asserted
+     * email.
      */
     async findSoleEnabledMethodForProvider<P extends OrganizationSsoProvider>(
         provider: P,
