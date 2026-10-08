@@ -165,8 +165,8 @@ export const RichContent: Story = {
     ),
 };
 
-/** `filled` is the firmer step of the same scale; `outline` and `default`
- *  are Mantine's own. */
+/** `filled` and `outline` are further steps of the same scale; `default` is
+ *  Mantine's own. */
 export const OtherVariants: Story = {
     render: () => (
         <>
@@ -204,8 +204,29 @@ export const OtherVariants: Story = {
                 We could not charge the card on file.
             </Alert>
             <Title order={6}>outline</Title>
-            <Alert variant="outline" color="green" title="Deploy succeeded">
+            <Alert
+                variant="outline"
+                color="gray"
+                title="Heads up"
+                icon={<MantineIcon icon={IconInfoCircle} />}
+            >
+                A calm, monochrome alert that never shouts.
+            </Alert>
+            <Alert
+                variant="outline"
+                color="green"
+                title="Deploy succeeded"
+                icon={<MantineIcon icon={IconCircleCheck} />}
+            >
                 Your changes are live on production.
+            </Alert>
+            <Alert
+                variant="outline"
+                color="red"
+                title="Payment failed"
+                icon={<MantineIcon icon={IconAlertCircle} />}
+            >
+                We could not charge the card on file.
             </Alert>
             <Title order={6}>default</Title>
             <Alert variant="default" title="Heads up">
