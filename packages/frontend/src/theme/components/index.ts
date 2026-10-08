@@ -96,24 +96,34 @@ const isNeutral = (color: unknown) => color === undefined || color === 'gray';
 
 /**
  * Alerts are a two-step scale rather than tint versus solid block: `light`
- * is a borderless pale wash, `filled` a firmer tint with a hairline. Both keep the
+ * is a pale wash with an ink hairline, `filled` a firmer tint. Both keep the
  * semantic colour on the title and icon; dark tints the deep shade over the
  * surface so neither becomes a block.
  */
 type AlertTone = 'light' | 'filled';
 
+/** The same hairline the icon chip wears, so light alerts and their chip
+ *  share one edge. */
+const ALERT_INK_HAIRLINE =
+    '1px solid color-mix(in srgb, var(--alert-color) 8%, transparent)';
+
 const ALERT_TONES: Record<
     AlertTone,
-    { fill: number; border: number; darkFill: number; darkBorder: number }
+    { fill: number; darkFill: number; border: (color: string) => string }
 > = {
-    light: { fill: 45, border: 0, darkFill: 8, darkBorder: 0 },
-    filled: { fill: 100, border: 40, darkFill: 22, darkBorder: 40 },
+    light: { fill: 45, darkFill: 8, border: () => ALERT_INK_HAIRLINE },
+    filled: {
+        fill: 100,
+        darkFill: 22,
+        border: (color) =>
+            `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) 40%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) 40%, transparent))`,
+    },
 };
 
 const NEUTRAL_ALERT_VARS: Record<AlertTone, Record<string, string>> = {
     light: {
         '--alert-bg': 'var(--mantine-color-ldGray-1)',
-        '--alert-bd': '1px solid transparent',
+        '--alert-bd': ALERT_INK_HAIRLINE,
         '--alert-color': 'var(--mantine-color-text)',
     },
     filled: {
@@ -124,10 +134,10 @@ const NEUTRAL_ALERT_VARS: Record<AlertTone, Record<string, string>> = {
 };
 
 const semanticAlertVars = (tone: AlertTone, color: string) => {
-    const { fill, border, darkFill, darkBorder } = ALERT_TONES[tone];
+    const { fill, darkFill, border } = ALERT_TONES[tone];
     return {
         '--alert-bg': `light-dark(color-mix(in srgb, var(--mantine-color-${color}-0) ${fill}%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-color-${color}-9) ${darkFill}%, transparent))`,
-        '--alert-bd': `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) ${border}%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) ${darkBorder}%, transparent))`,
+        '--alert-bd': border(color),
         '--alert-color': `light-dark(var(--mantine-color-${color}-8), var(--mantine-color-${color}-4))`,
     };
 };
