@@ -2,6 +2,8 @@ import {
     getDocumentChartBlocks,
     type DocumentChartContent,
     type DocumentContent,
+    type DocumentExploreChartContent,
+    type DocumentSqlChart,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 
@@ -155,44 +157,38 @@ export const withContext = (lines: DocumentLineChange[]): DisplayedLine[] => {
     return shown;
 };
 
-const CHART_PARTS: Array<[string, (content: DocumentChartContent) => unknown]> =
+const CHART_PARTS: Array<
+    [string, (content: DocumentExploreChartContent) => unknown]
+> = [
+    ['Title', ({ chart }) => chart.name],
+    ['Description', ({ chart }) => chart.description ?? ''],
+    ['Explore', ({ chart }) => chart.tableName],
+    ['Chart type', ({ chart }) => chart.chartConfig.type],
+    ['Dimensions', ({ chart }) => chart.metricQuery.dimensions],
+    ['Metrics', ({ chart }) => chart.metricQuery.metrics],
+    ['Filters', ({ chart }) => chart.metricQuery.filters],
+    ['Sorts', ({ chart }) => chart.metricQuery.sorts],
+    ['Row limit', ({ chart }) => chart.metricQuery.limit],
+    ['Table calculations', ({ chart }) => chart.metricQuery.tableCalculations],
     [
-        ['Title', ({ chart }) => chart.name],
-        ['Description', ({ chart }) => chart.description ?? ''],
-        ['Explore', ({ chart }) => chart.tableName],
-        ['Chart type', ({ chart }) => chart.chartConfig.type],
-        ['Dimensions', ({ chart }) => chart.metricQuery.dimensions],
-        ['Metrics', ({ chart }) => chart.metricQuery.metrics],
-        ['Filters', ({ chart }) => chart.metricQuery.filters],
-        ['Sorts', ({ chart }) => chart.metricQuery.sorts],
-        ['Row limit', ({ chart }) => chart.metricQuery.limit],
-        [
-            'Table calculations',
-            ({ chart }) => chart.metricQuery.tableCalculations,
+        'Custom fields',
+        ({ chart }) => [
+            chart.metricQuery.additionalMetrics ?? [],
+            chart.metricQuery.customDimensions ?? [],
         ],
-        [
-            'Custom fields',
-            ({ chart }) => [
-                chart.metricQuery.additionalMetrics ?? [],
-                chart.metricQuery.customDimensions ?? [],
-            ],
-        ],
-        ['Visualization', ({ chart }) => chart.chartConfig],
-        [
-            'Table settings',
-            ({ chart }) => [chart.tableConfig, chart.pivotConfig],
-        ],
-        ['Parameters', ({ chart }) => chart.parameters ?? {}],
-        [
-            'Merge',
-            (content) =>
-                content.source === 'merge' ? content.chart.merge : null,
-        ],
-    ];
+    ],
+    ['Visualization', ({ chart }) => chart.chartConfig],
+    ['Table settings', ({ chart }) => [chart.tableConfig, chart.pivotConfig]],
+    ['Parameters', ({ chart }) => chart.parameters ?? {}],
+    [
+        'Merge',
+        (content) => (content.source === 'merge' ? content.chart.merge : null),
+    ],
+];
 
-const getKnownChangedParts = (
-    before: DocumentChartContent,
-    after: DocumentChartContent,
+const getExploreChangedParts = (
+    before: DocumentExploreChartContent,
+    after: DocumentExploreChartContent,
 ): string[] => {
     const parts = CHART_PARTS.filter(
         ([, read]) => !isEqual(read(before), read(after)),
@@ -209,6 +205,31 @@ const getKnownChangedParts = (
     return named.length > 0 || isEqual(before, after)
         ? named
         : ['Query settings'];
+};
+
+const SQL_CHART_PARTS: Array<[string, (chart: DocumentSqlChart) => unknown]> = [
+    ['Title', (chart) => chart.name],
+    ['Description', (chart) => chart.description ?? ''],
+    ['SQL', (chart) => chart.sql],
+    ['Chart type', (chart) => chart.chartKind],
+    ['Row limit', (chart) => chart.limit],
+    ['Connection', (chart) => chart.warehouseConnectionUuid ?? null],
+    ['Visualization', (chart) => chart.config],
+];
+
+const getKnownChangedParts = (
+    before: DocumentChartContent,
+    after: DocumentChartContent,
+): string[] => {
+    if (before.source === 'sql' || after.source === 'sql') {
+        if (before.source !== 'sql' || after.source !== 'sql') {
+            return ['Query source'];
+        }
+        return SQL_CHART_PARTS.filter(
+            ([, read]) => !isEqual(read(before.chart), read(after.chart)),
+        ).map(([label]) => label);
+    }
+    return getExploreChangedParts(before, after);
 };
 
 const getChangedParts = (before: PlacedChart, after: PlacedChart): string[] => {

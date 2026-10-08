@@ -142,6 +142,7 @@ import {
     type CompiledMetric,
     type CustomDimension,
     type DocumentQueryReference,
+    type DocumentSqlChart,
     type DuckdbSourceQuery,
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
@@ -5769,6 +5770,27 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    // Callers MUST authorize the account for this query first.
+    private async executeAsyncQueryWithoutPermissionCheck(
+        args: ExecuteAsyncQueryArgs & { organizationUuid: string },
+        requestParameters: ExecuteAsyncQueryRequestParams,
+    ): Promise<ExecuteAsyncQueryReturn> {
+        assertIsAccountWithOrg(args.account);
+        const projectSummary = await this.projectModel.getSummary(
+            args.projectUuid,
+        );
+        return this.executePreparedAsyncQuery(
+            {
+                ...args,
+                isPreviewProject:
+                    projectSummary.type === ProjectType.PREVIEW ||
+                    projectSummary.provisioningSource === 'playground',
+            },
+            requestParameters,
+            args.organizationUuid,
+        );
+    }
+
     // execute
     async executeAsyncDocumentChartQuery({
         account,
@@ -5778,15 +5800,30 @@ export class AsyncQueryService extends ProjectService {
         account: RegisteredAccount;
         projectUuid: string;
         reference: DocumentQueryReference;
-    }): Promise<ApiExecuteAsyncMetricQueryResults> {
-        const documentQueryContext = await DocumentQueryContext.authorize({
-            documentService: this.getDocumentService(),
+    }): Promise<
+        ApiExecuteAsyncMetricQueryResults | ApiExecuteAsyncSqlQueryResults
+    > {
+        const content = await this.getDocumentService().getChart(
             account,
             projectUuid,
             reference,
+        );
+        if (content.source === 'sql') {
+            return this.executeAsyncDocumentSqlChartQuery({
+                account,
+                projectUuid,
+                reference,
+                chart: content.chart,
+            });
+        }
+        const documentQueryContext = DocumentQueryContext.fromChart({
+            account,
+            projectUuid,
+            reference,
+            content,
             sourceRowCap: this.lightdashConfig.query.maxLimit,
         });
-        const { chart } = documentQueryContext.content;
+        const { chart } = content;
         if (documentQueryContext.mergeQuery) {
             const outcome = await this.executeAsyncMergeQuery({
                 account,
@@ -5815,6 +5852,80 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             documentQueryContext,
         });
+    }
+
+    /**
+     * Runs a SQL chart stored in a Document. Viewing the Document authorizes
+     * it, as viewing a saved SQL chart does: only the stored SQL runs, so no
+     * SQL Runner access is needed.
+     */
+    private async executeAsyncDocumentSqlChartQuery({
+        account,
+        projectUuid,
+        reference,
+        chart,
+    }: {
+        account: RegisteredAccount;
+        projectUuid: string;
+        reference: DocumentQueryReference;
+        chart: DocumentSqlChart;
+    }): Promise<ApiExecuteAsyncSqlQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const context = QueryExecutionContext.CHART;
+        const {
+            warehouseCredentials,
+            warehouseConnectionUuid,
+            connectionRoute,
+            aiPlan,
+            queryTags,
+            metricQuery,
+            queryComposer,
+            originalColumns,
+            parameterReferences,
+            usedParameters,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            account,
+            context,
+            projectUuid,
+            organizationUuid,
+            sql: chart.sql,
+            config: chart.config,
+            limit: chart.limit,
+            parameters: await this.combineParameters(projectUuid),
+            requestedConnectionUuid: chart.warehouseConnectionUuid ?? null,
+        });
+        const { queryUuid, cacheMetadata } =
+            await this.executeAsyncQueryWithoutPermissionCheck(
+                {
+                    account,
+                    projectUuid,
+                    organizationUuid,
+                    queryTags,
+                    context,
+                    queryComposer,
+                    originalColumns,
+                    warehouseCredentials,
+                    aiPrincipalUuid:
+                        aiPlan?.identity === 'connected_person'
+                            ? aiPlan.identityUuid
+                            : null,
+                    warehouseConnectionUuid,
+                    connectionRoute,
+                },
+                {
+                    query: metricQuery,
+                    invalidateCache: false,
+                    documentSource: reference,
+                },
+            );
+        return {
+            queryUuid,
+            cacheMetadata,
+            parameterReferences,
+            usedParametersValues: usedParameters,
+            resolvedTimezone: null,
+        };
     }
 
     async executeAsyncMetricQuery(

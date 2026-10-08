@@ -82,6 +82,7 @@ const artifacts = (prepared = preparedChart) => ({
     list: vi.fn(),
     prepare: vi.fn(),
     prepareVersion: vi.fn().mockResolvedValue(prepared),
+    prepareSqlVersion: vi.fn().mockResolvedValue(null),
 });
 const options: ToolExecutionOptions<Record<string, unknown>> = {
     toolCallId: 'call',
@@ -428,6 +429,51 @@ describe('AI Agent Document authoring', () => {
         });
         expect(content.charts['artifact-2'].chart.chartConfig).toEqual({
             type: ChartType.BIG_NUMBER,
+        });
+    });
+
+    test('places a SQL result from the conversation as a SQL table', async () => {
+        const createContent = vi.fn().mockResolvedValue(document);
+        const access = artifacts();
+        access.prepareSqlVersion.mockResolvedValue({
+            title: 'SQL query results',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+        });
+        const tool = getCreateContent({
+            createContent,
+            documentsEnabled: true,
+            artifacts: access,
+        });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        await tool.execute(
+            {
+                type: 'document',
+                content: {
+                    ...input,
+                    markdown: `<query-result version="${artifactVersionUuid}" title="Orders by status">`,
+                },
+            },
+            options,
+        );
+        expect(access.prepareVersion).not.toHaveBeenCalled();
+        const [[{ content }]] = createContent.mock.calls;
+        expect(content.charts['artifact-1']).toEqual({
+            source: 'sql',
+            chart: {
+                name: 'Orders by status',
+                sql: 'select status, count(*) as orders from orders group by 1',
+                limit: 500,
+                chartKind: 'table',
+                config: {
+                    type: 'table',
+                    metadata: { version: 1 },
+                    columns: {},
+                    display: {},
+                },
+            },
         });
     });
 

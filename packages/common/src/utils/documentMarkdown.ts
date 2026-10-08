@@ -288,7 +288,11 @@ export const getDocumentChartList = (
         block.type === 'chart' ? [{ id: block.id, chart: block.chart }] : [],
     );
 
-const getChartTypeLabel = ({ chart }: DocumentChartContent): string => {
+const getChartTypeLabel = (content: DocumentChartContent): string => {
+    if (content.source === 'sql') {
+        return content.chart.chartKind;
+    }
+    const { chart } = content;
     if (chart.chartConfig.type !== ChartType.CARTESIAN) {
         return chart.chartConfig.type;
     }
@@ -313,17 +317,21 @@ export const getDocumentSummaryMarkdown = (content: DocumentContent): string =>
                     },
                 };
             }
-            const { chart, source } = block.chart;
+            const placed = block.chart;
             return {
                 type: 'tag',
                 tag: {
                     name: DOCUMENT_CHART_TAG,
                     attributes: {
                         id: block.id,
-                        title: chart.name,
-                        type: getChartTypeLabel(block.chart),
-                        explore: chart.tableName,
-                        ...(source === 'merge' ? { source } : {}),
+                        title: placed.chart.name,
+                        type: getChartTypeLabel(placed),
+                        ...(placed.source === 'sql'
+                            ? { source: placed.source }
+                            : { explore: placed.chart.tableName }),
+                        ...(placed.source === 'merge'
+                            ? { source: placed.source }
+                            : {}),
                     },
                 },
             };

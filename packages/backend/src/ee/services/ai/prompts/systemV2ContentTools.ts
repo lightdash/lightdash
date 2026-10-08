@@ -33,15 +33,15 @@ export const getDocumentToolsSection = (
 - After creating a personal Document, say it is personal and can be saved to a Space later. When the user asks to save it to a Space, use editContent with documentEdit: { type: "metadata", spaceSlug }, resolving the Space the same way. Only personal Documents can be saved this way.
 - Write the Document as Markdown. Use H1 for sections in the table of contents, H2/H3 for subsections. Place each chart as its own block (a line containing only the tag, with blank lines around it):
   - <artifact-chart version="VERSION_UUID"> places a chart from this conversation. VERSION_UUID is the artifact versionUuid returned by generateVisualization. Prefer this: the chart is copied as drawn, so you never retype its query or chartConfig.
-  - <query-result version="VERSION_UUID" display="table"> places a runQuery answer as a table, or display="big_number" as a single number.
+  - <query-result version="VERSION_UUID" display="table"> places a runQuery answer as a table, or display="big_number" as a single number. On a runSql result it places the SQL as a SQL table (display table only).
   - <document-chart id="KEY"> places a chart defined in charts[KEY] as full chart-as-code, or keeps an existing chart (c1, c2, …) when editing.
   - <artifact-chart> and <query-result> accept optional title="…" and description="…" overrides. Pass charts: {} when every chart comes from an artifact or query result.
 - For a new chart that is not in the conversation yet, run it with generateVisualization first, then place it with <artifact-chart>. Write a full chart in charts only when that is not possible (for example a merge of two queries).
 - Full charts are { source: "semantic" | "merge", chart: { name, tableName, metricQuery, chartConfig, ... } }. Reuse chart-as-code guidance for full query and visualization definitions. Merge charts include a durable merge definition. Never store result rows or temporary query UUIDs. ${
     customCharts
-        ? `SQL and Composer charts are unsupported; explain this limitation instead of silently changing the chart.
+        ? `Composer charts are unsupported; explain this limitation instead of silently changing the chart. SQL charts are { source: "sql", chart: { name, sql, limit, chartKind, config, connection? } } as in SQL chart as code; adding or changing one needs SQL Runner access.
 - A chart can use a custom chart type. Run the query with that chart type and place the result with <artifact-chart>; use one only when an installed custom chart type fits the data (findCustomChartTypes). Custom charts cannot be merge charts.`
-        : 'SQL, Composer, and custom charts are unsupported; explain this limitation instead of silently changing the chart.'
+        : 'Composer and custom charts are unsupported; explain this limitation instead of silently changing the chart. SQL charts are { source: "sql", chart: { name, sql, limit, chartKind, config, connection? } } as in SQL chart as code; adding or changing one needs SQL Runner access.'
 }
 - For chart-as-code queries, use filters: {} when there are no filters (not null or arrays). A Document merge has exactly two sources: { id: "a", kind: "chart" } reuses chart.metricQuery, and { id: "b", kind: "query", metricQuery: ... } contains the second query. Set chart.merge to { primarySourceId: "a", sources: [...], joinKey: [{ name: "status", fieldIdBySourceId: { a: "orders_status", b: "orders_status" } }], joinType: "full", tableCalculations: [] }, replacing the example join fields with the actual dimension IDs. Source IDs are local merge aliases, not Document chart ids.
 - Read an existing Document with readContent, type document, and its slug. Charts come back as short tags; add chartId to read one chart in full.

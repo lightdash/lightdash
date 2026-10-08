@@ -12260,7 +12260,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }): NonNullable<AiAgentDependencies['chartExportArtifacts']> {
         const access: Omit<
             NonNullable<AiAgentDependencies['chartExportArtifacts']>,
-            'prepareVersion'
+            'prepareVersion' | 'prepareSqlVersion'
         > = {
             list: async () => {
                 const artifacts =
@@ -12346,19 +12346,50 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
             },
         };
+        const findArtifactUuid = async (versionUuid: string) => {
+            const artifactUuid =
+                await this.aiAgentModel.findArtifactUuidByVersionUuid(
+                    versionUuid,
+                );
+            if (artifactUuid === undefined) {
+                throw new NotFoundError(
+                    `No chart with versionUuid ${versionUuid} in this conversation`,
+                );
+            }
+            return artifactUuid;
+        };
         return {
             ...access,
-            prepareVersion: async (versionUuid) => {
-                const artifactUuid =
-                    await this.aiAgentModel.findArtifactUuidByVersionUuid(
-                        versionUuid,
-                    );
-                if (artifactUuid === undefined) {
-                    throw new NotFoundError(
-                        `No chart with versionUuid ${versionUuid} in this conversation`,
+            prepareVersion: async (versionUuid) =>
+                access.prepare({
+                    artifactUuid: await findArtifactUuid(versionUuid),
+                    versionUuid,
+                }),
+            prepareSqlVersion: async (versionUuid) => {
+                const artifact = await this.getArtifact(
+                    user,
+                    projectUuid,
+                    agentUuid,
+                    await findArtifactUuid(versionUuid),
+                    versionUuid,
+                );
+                if (artifact.threadUuid !== threadUuid) {
+                    throw new ForbiddenError(
+                        'Only results in the current conversation can be placed here.',
                     );
                 }
-                return access.prepare({ artifactUuid, versionUuid });
+                await this.assertEmbedThreadInSpace(
+                    artifact.threadUuid,
+                    runtimeOptions,
+                );
+                const config = artifact.chartConfig;
+                return config && 'source' in config && config.source === 'sql'
+                    ? {
+                          title: artifact.title,
+                          sql: config.sql,
+                          limit: config.limit,
+                      }
+                    : null;
             },
         };
     }

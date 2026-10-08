@@ -154,11 +154,10 @@ const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
 
 type DataAppVizBinding = { appUuid: string; version: number };
 
-const getDataAppVizUuid = ({
-    chart,
-}: DocumentChartContent): string | undefined =>
-    chart.chartConfig.type === ChartType.DATA_APP_VIZ
-        ? chart.chartConfig.config?.dataAppVizUuid
+const getDataAppVizUuid = (content: DocumentChartContent): string | undefined =>
+    content.source !== 'sql' &&
+    content.chart.chartConfig.type === ChartType.DATA_APP_VIZ
+        ? content.chart.chartConfig.config?.dataAppVizUuid
         : undefined;
 
 /**
@@ -170,6 +169,9 @@ const bindDataAppVizs = (
     bindings: ReadonlyMap<string, DataAppVizBinding>,
 ): DocumentContent =>
     mapDocumentCharts(content, (chartContent) => {
+        if (chartContent.source === 'sql') {
+            return chartContent;
+        }
         const { chart } = chartContent;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||

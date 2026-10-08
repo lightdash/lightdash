@@ -408,6 +408,7 @@ describe('deterministic chart-as-code', () => {
                 .mockResolvedValue([{ ...reference, title: 'Revenue' }]),
             prepare: vi.fn().mockResolvedValue(prepare()),
             prepareVersion: vi.fn(),
+            prepareSqlVersion: vi.fn().mockResolvedValue(null),
         };
         const ctx = new AgentContext([]);
         const tool = getExportChartAsCode(ctx, artifacts);
@@ -457,6 +458,7 @@ describe('deterministic chart-as-code', () => {
             list: vi.fn(),
             prepare: vi.fn(),
             prepareVersion: vi.fn(),
+            prepareSqlVersion: vi.fn().mockResolvedValue(null),
         };
         const tool = getExportChartAsCode(ctx, artifacts);
         const options = {
@@ -489,6 +491,7 @@ describe('deterministic chart-as-code', () => {
             list: vi.fn(),
             prepare: vi.fn().mockRejectedValue(new Error('Access denied')),
             prepareVersion: vi.fn(),
+            prepareSqlVersion: vi.fn().mockResolvedValue(null),
         });
         const output = await tool.execute!(
             {
