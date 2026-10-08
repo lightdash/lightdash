@@ -71,6 +71,17 @@ export const DEPARTMENT_TREE_LIMITS: DepartmentTreeLimits = {
     maxDepth: 10,
 };
 
+// The organization snapshot is reused this long; any write through this service drops it sooner
+const SNAPSHOT_TTL_MS = 60_000;
+const SNAPSHOT_CACHE_LIMIT = 500;
+
+type LoadedSnapshot = { snapshot: AdoptionSnapshot; windows: ActivityWindows };
+
+type CachedSnapshot = {
+    loaded: Promise<LoadedSnapshot>;
+    expiresAt: number;
+};
+
 const daysBefore = (now: Date, days: number): Date => {
     const since = new Date(now);
     since.setUTCDate(since.getUTCDate() - days);
@@ -247,6 +258,9 @@ export class DepartmentService extends BaseService {
 
     protected readonly departmentAnalyticsModel: DepartmentAnalyticsModel;
 
+    // Per process: another backend process keeps its own copy until it expires
+    private readonly snapshots = new Map<string, CachedSnapshot>();
+
     constructor({
         featureFlagService,
         departmentModel,
@@ -307,12 +321,42 @@ export class DepartmentService extends BaseService {
         });
     }
 
+    // Requests that arrive together share one load, since the pending load is what is kept
+    protected getSnapshot(organizationUuid: string): Promise<LoadedSnapshot> {
+        const now = Date.now();
+        const cached = this.snapshots.get(organizationUuid);
+        if (cached && cached.expiresAt > now) return cached.loaded;
+        this.snapshots.delete(organizationUuid);
+        const windows = getActivityWindows(new Date(now));
+        const loaded = this.loadSnapshot(organizationUuid, windows).then(
+            (snapshot) => ({ snapshot, windows }),
+        );
+        const entry: CachedSnapshot = {
+            loaded,
+            expiresAt: now + SNAPSHOT_TTL_MS,
+        };
+        this.snapshots.set(organizationUuid, entry);
+        // A failed load is not kept, so the next request tries again
+        void loaded.catch(() => {
+            if (this.snapshots.get(organizationUuid) === entry) {
+                this.snapshots.delete(organizationUuid);
+            }
+        });
+        // A Map keeps insertion order, so its first key is the oldest entry
+        if (this.snapshots.size > SNAPSHOT_CACHE_LIMIT) {
+            const [oldest] = this.snapshots.keys();
+            this.snapshots.delete(oldest);
+        }
+        return loaded;
+    }
+
+    protected invalidateSnapshot(organizationUuid: string): void {
+        this.snapshots.delete(organizationUuid);
+    }
+
     async getSummary(account: Account): Promise<OrganizationAdoptionSummary> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        const snapshot = await this.loadSnapshot(
-            organizationUuid,
-            getActivityWindows(),
-        );
+        const { snapshot } = await this.getSnapshot(organizationUuid);
         return snapshot.summary;
     }
 
@@ -352,9 +396,8 @@ export class DepartmentService extends BaseService {
     ): Promise<DepartmentDetail> {
         const { organizationUuid } = await this.authorize(account, 'view');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
-        // The count and the member list share these bounds, so they agree on who is active
-        const windows = getActivityWindows();
-        const snapshot = await this.loadSnapshot(organizationUuid, windows);
+        // The count and the member list share the snapshot's bounds, so they agree on who is active
+        const { snapshot, windows } = await this.getSnapshot(organizationUuid);
         const all = snapshot.summary.departments;
         const department = all.find((d) => d.departmentUuid === departmentUuid);
         // Same error whether it is missing or belongs to another organization
@@ -409,12 +452,16 @@ export class DepartmentService extends BaseService {
             'manage',
         );
         validateDepartmentInput(data);
-        return this.departmentModel.create(
-            organizationUuid,
-            normalizeCreate(data),
-            userUuid,
-            DEPARTMENT_TREE_LIMITS,
-        );
+        try {
+            return await this.departmentModel.create(
+                organizationUuid,
+                normalizeCreate(data),
+                userUuid,
+                DEPARTMENT_TREE_LIMITS,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async update(
@@ -428,19 +475,27 @@ export class DepartmentService extends BaseService {
         );
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         validateDepartmentInput(data);
-        return this.departmentModel.update(
-            organizationUuid,
-            departmentUuid,
-            normalizeUpdate(data),
-            userUuid,
-            DEPARTMENT_TREE_LIMITS,
-        );
+        try {
+            return await this.departmentModel.update(
+                organizationUuid,
+                departmentUuid,
+                normalizeUpdate(data),
+                userUuid,
+                DEPARTMENT_TREE_LIMITS,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async delete(account: Account, rawDepartmentUuid: string): Promise<void> {
         const { organizationUuid } = await this.authorize(account, 'manage');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
-        await this.departmentModel.delete(organizationUuid, departmentUuid);
+        try {
+            await this.departmentModel.delete(organizationUuid, departmentUuid);
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setGroups(
@@ -451,11 +506,15 @@ export class DepartmentService extends BaseService {
         const { organizationUuid } = await this.authorize(account, 'manage');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         const groupUuids = toUuidList(rawGroupUuids, 'Group');
-        return this.departmentModel.setGroupLinks(
-            organizationUuid,
-            departmentUuid,
-            groupUuids,
-        );
+        try {
+            return await this.departmentModel.setGroupLinks(
+                organizationUuid,
+                departmentUuid,
+                groupUuids,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setMembers(
@@ -466,11 +525,15 @@ export class DepartmentService extends BaseService {
         const { organizationUuid } = await this.authorize(account, 'manage');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         const userUuids = toUuidList(rawUserUuids, 'User');
-        return this.departmentModel.setMembers(
-            organizationUuid,
-            departmentUuid,
-            userUuids,
-        );
+        try {
+            return await this.departmentModel.setMembers(
+                organizationUuid,
+                departmentUuid,
+                userUuids,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setOwners(
@@ -481,10 +544,14 @@ export class DepartmentService extends BaseService {
         const { organizationUuid } = await this.authorize(account, 'manage');
         const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         const owners = toOwners(rawOwners);
-        return this.departmentModel.setOwners(
-            organizationUuid,
-            departmentUuid,
-            owners,
-        );
+        try {
+            return await this.departmentModel.setOwners(
+                organizationUuid,
+                departmentUuid,
+                owners,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 }

@@ -77,7 +77,9 @@ A department has an ordered list of owners, each a user or a group. The first is
 
 ## Metrics
 
-Computed on each request in `DepartmentService` and `departmentMetrics.ts` from existing tables. There are no events and no scheduled jobs.
+Computed in `DepartmentService` and `departmentMetrics.ts` from existing tables. There are no events and no scheduled jobs.
+
+The organization snapshot behind the summary and the department page (departments, resolved membership, activity counts and weekly buckets) is cached in memory for 60 seconds per organization, for at most 500 organizations per backend process, dropping the oldest first. Requests that arrive together share one load, and a failed load is not kept. The department page reuses the cached snapshot and reads its own people with the snapshot's time windows, so its count and its member list still agree. Any write through `DepartmentService` drops that organization's snapshot in the process that handled it. Other backend processes keep their copy until it expires, so behind a load balancer the figures can be up to a minute old after a change, and changes made elsewhere (someone joining a linked group, new activity) show within a minute.
 
 | Metric        | Definition                                                                                                                                                                                                                                           |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -165,7 +167,8 @@ The sidebar entry and the routes are added only when the instance has a valid en
 - The one-assignment-per-person rule is application code with no constraint behind it. It holds because every write goes through `DepartmentModel` under the per-organization lock; a row written to `department_members` by any other path would not be checked.
 - A scheduled chart or dashboard run still writes a chart view (and possibly a dashboard view) under its owner, and those rows carry nothing that tells a scheduled run from a person. The weekly trend is built from views only, so a weekly schedule makes its owner show as active every week, and it can keep them active in the 30-day count too.
 - `query_history` does not record whether a query came from a data app or a schedule that reused an interactive context, so such a run still counts as a query.
-- Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.
+- When the cached snapshot has expired, the next read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.
+- The snapshot cache lives in each backend process, so a write handled by one process does not clear another process's copy; figures can stay up to 60 seconds old there.
 - Users without a primary email, deactivated users and invited people who have not completed sign-up are left out of the member rows altogether. With no headcount set they are not visible anywhere on the page.
 - The newest weekly bucket is the current, partial week, so it usually reads low.
 - The weekly trend counts chart and dashboard views, not queries, so people who only query are missing from it.

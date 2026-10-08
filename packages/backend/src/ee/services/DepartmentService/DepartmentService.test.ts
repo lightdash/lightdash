@@ -8,7 +8,7 @@ import {
     type CreateDepartment,
     type MemberAbility,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     DepartmentService,
     getActivityWindows,
@@ -223,6 +223,153 @@ describe('DepartmentService gating', () => {
         expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, DEP, [
             { type: 'group', uuid: GRP },
         ]);
+    });
+});
+
+describe('DepartmentService snapshot cache', () => {
+    const viewer = () => buildAccount(abilityWith(['view', ORG]));
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+    const viewerOf = (organizationUuid: string): Account =>
+        ({
+            ...buildAccount(abilityWith(['view', organizationUuid])),
+            organization: {
+                organizationUuid,
+                name: organizationUuid,
+                createdAt: new Date(),
+            },
+        }) as Account;
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('reuses the organization snapshot for the summary and the department page', async () => {
+        const { service, departmentModel, departmentAnalyticsModel } =
+            buildService({
+                flag: true,
+                departments: [departmentFixture(DEP, null, 5)],
+            });
+        await service.getSummary(viewer());
+        await service.getSummary(viewer());
+        const detail = await service.getDetail(viewer(), DEP);
+
+        expect(detail.department.departmentUuid).toBe(DEP);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+        expect(departmentModel.getResolvedMemberRows).toHaveBeenCalledTimes(1);
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(1);
+        // The page reads its people with the cached snapshot's own bounds
+        const windows = departmentAnalyticsModel.getActivity.mock.calls[0][2];
+        expect(
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],
+        ).toBe(windows.activeSince);
+    });
+    it('shares one load between requests that arrive together', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await Promise.all([
+            service.getSummary(viewer()),
+            service.getSummary(viewer()),
+            service.getSummary(viewer()),
+        ]);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+    });
+    it('loads again once the snapshot is 60 seconds old', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.getSummary(viewer());
+        vi.setSystemTime(new Date('2026-10-08T12:00:59.999Z'));
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+        vi.setSystemTime(new Date('2026-10-08T12:01:00.000Z'));
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it.each([
+        [
+            'create',
+            (s: DepartmentService, a: Account) => s.create(a, newDepartment),
+        ],
+        [
+            'update',
+            (s: DepartmentService, a: Account) =>
+                s.update(a, DEP, { name: 'x' }),
+        ],
+        ['delete', (s: DepartmentService, a: Account) => s.delete(a, DEP)],
+        [
+            'setGroups',
+            (s: DepartmentService, a: Account) => s.setGroups(a, DEP, [GRP]),
+        ],
+        [
+            'setMembers',
+            (s: DepartmentService, a: Account) => s.setMembers(a, DEP, [USR]),
+        ],
+        [
+            'setOwners',
+            (s: DepartmentService, a: Account) =>
+                s.setOwners(a, DEP, [{ type: 'user', uuid: USR }]),
+        ],
+    ])('drops the snapshot after %s', async (_name, write) => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.getSummary(viewer());
+        await write(service, manager());
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it('drops the snapshot after a write that fails, too', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        departmentModel.create.mockRejectedValueOnce(
+            new ParameterError(
+                'An organization can have at most 1,000 departments',
+            ),
+        );
+        await service.getSummary(viewer());
+        await expect(service.create(manager(), newDepartment)).rejects.toThrow(
+            ParameterError,
+        );
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it('does not keep a load that failed', async () => {
+        const { service, departmentAnalyticsModel, departmentModel } =
+            buildService({ flag: true });
+        departmentAnalyticsModel.getActivity.mockRejectedValueOnce(
+            new Error('connection lost'),
+        );
+        departmentModel.getResolvedMemberRows.mockResolvedValue([
+            {
+                userUuid: 'u1',
+                email: 'u1@example.com',
+                firstName: 'U',
+                lastName: 'One',
+                role: OrganizationMemberRole.MEMBER,
+                explicitDepartmentUuid: null,
+                groupLinks: [],
+            },
+        ]);
+        await expect(service.getSummary(viewer())).rejects.toThrow(
+            'connection lost',
+        );
+        await service.getSummary(viewer());
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(2);
+    });
+    it('keeps organizations apart, and at most 500 of them, dropping the oldest', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const organizations = Array.from({ length: 501 }, (_, i) => `org-${i}`);
+        await organizations.reduce(
+            (previous, organizationUuid) =>
+                previous.then(async () => {
+                    await service.getSummary(viewerOf(organizationUuid));
+                }),
+            Promise.resolve(),
+        );
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(501);
+        await service.getSummary(viewerOf('org-1'));
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(501);
+        await service.getSummary(viewerOf('org-0'));
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(502);
+        expect(departmentModel.listByOrganization).toHaveBeenLastCalledWith(
+            'org-0',
+        );
     });
 });
 
