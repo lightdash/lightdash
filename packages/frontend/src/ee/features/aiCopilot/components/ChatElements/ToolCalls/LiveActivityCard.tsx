@@ -89,7 +89,7 @@ type Props = {
      */
     stepProgressMessages?: StepProgressMessage[];
     /** Composer runs whose SQL nodes await a decision; approval renders inline. */
-    composerApproval?: ComposerApprovalTarget & {
+    sqlApproval?: ComposerApprovalTarget & {
         pendingToolCallIds: string[];
     };
 };
@@ -672,20 +672,19 @@ export const LiveActivityCard: FC<Props> = ({
     mcpServers,
     pendingContent,
     stepProgressMessages = [],
-    composerApproval,
+    sqlApproval,
 }) => {
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
-    const hasComposerApproval =
-        (composerApproval?.pendingToolCallIds.length ?? 0) > 0;
+    const hasSqlApproval = (sqlApproval?.pendingToolCallIds.length ?? 0) > 0;
     // Composer waiting on approval stays "live" so the pipeline is reachable.
-    const isActive = isLive || hasComposerApproval;
+    const isActive = isLive || hasSqlApproval;
 
     // runSql expands by default; composer only while active (the artifact panel
     // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
         latestGroup?.toolName === 'runSql' ||
-        hasComposerApproval ||
+        hasSqlApproval ||
         (isActive && latestGroup?.toolName === 'runComposerQueries');
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
@@ -904,7 +903,7 @@ export const LiveActivityCard: FC<Props> = ({
                                 // card animates an empty box open/closed.
                                 if (hasNoDescription && !trace) return null;
                                 const awaitingApproval =
-                                    composerApproval?.pendingToolCallIds.includes(
+                                    sqlApproval?.pendingToolCallIds.includes(
                                         tc.toolCallId,
                                     ) ?? false;
                                 return (
@@ -930,11 +929,11 @@ export const LiveActivityCard: FC<Props> = ({
                                                           )
                                                         : undefined
                                                 }
-                                                composerApproval={
+                                                sqlApproval={
                                                     awaitingApproval &&
-                                                    composerApproval
+                                                    sqlApproval
                                                         ? {
-                                                              ...composerApproval,
+                                                              ...sqlApproval,
                                                               toolCallId:
                                                                   tc.toolCallId,
                                                           }

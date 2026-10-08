@@ -100,13 +100,13 @@ export const ToolCallDescription: FC<{
      * Approval target while the call's SQL awaits a decision: a composer
      * pipeline's SQL nodes, or a SQL chart about to be saved.
      */
-    composerApproval?: SqlApprovalTarget;
+    sqlApproval?: SqlApprovalTarget;
 }> = ({
     toolName,
     toolCall,
     toolResult,
     composerNodeStatuses,
-    composerApproval,
+    sqlApproval,
 }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
@@ -252,7 +252,7 @@ export const ToolCallDescription: FC<{
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
                     nodeStatuses={composerNodeStatuses}
-                    approval={composerApproval}
+                    approval={sqlApproval}
                 />
             );
         case 'readContent':
@@ -293,7 +293,7 @@ export const ToolCallDescription: FC<{
                         action="create"
                         slug={createContentToolArgs.content.slug}
                         chart={createContentToolArgs.content}
-                        approval={composerApproval}
+                        approval={sqlApproval}
                     />
                 );
             }

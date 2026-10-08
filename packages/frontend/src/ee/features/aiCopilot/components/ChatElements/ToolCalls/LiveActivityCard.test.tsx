@@ -197,7 +197,7 @@ describe('LiveActivityCard composer approval', () => {
                 <LiveActivityCard
                     isLive={false}
                     toolGroups={sqlPipeline}
-                    composerApproval={{
+                    sqlApproval={{
                         projectUuid: 'project',
                         agentUuid: 'agent',
                         threadUuid: 'thread',

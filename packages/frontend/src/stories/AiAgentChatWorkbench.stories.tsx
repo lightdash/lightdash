@@ -249,7 +249,7 @@ const composerProgress = (
         progressStatus,
     }));
 
-const composerApproval = {
+const sqlApproval = {
     projectUuid,
     agentUuid: 'agent-uuid',
     threadUuid: 'thread-uuid',
@@ -266,7 +266,7 @@ const ComposerPipelineScenario = () => (
                 <LiveActivityCard
                     toolGroups={composerActivity}
                     isLive
-                    composerApproval={composerApproval}
+                    sqlApproval={sqlApproval}
                 />
             </Section>
             <Section
@@ -360,8 +360,8 @@ const SqlChartApprovalScenario = () => (
                 <LiveActivityCard
                     toolGroups={sqlChartActivity}
                     isLive
-                    composerApproval={{
-                        ...composerApproval,
+                    sqlApproval={{
+                        ...sqlApproval,
                         pendingToolCallIds: ['sql-chart-call'],
                     }}
                 />

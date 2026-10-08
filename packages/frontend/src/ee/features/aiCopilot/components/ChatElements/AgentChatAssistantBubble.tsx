@@ -144,7 +144,7 @@ const needsInlineSqlApproval = (toolName: string, toolArgs: unknown) =>
     (toolName === 'createContent' && isSqlChartContentArgs(toolArgs));
 
 // Complete args, no result, no decision: the tool is waiting on the user.
-const getPendingComposerApprovalIds = (
+const getPendingSqlApprovalIds = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
 ): string[] =>
@@ -687,8 +687,8 @@ const AssistantBubbleContent: FC<{
                         (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>
                             s.kind === 'sqlApproval',
                     );
-                    const pendingComposerApprovalIds = streamingState
-                        ? getPendingComposerApprovalIds(
+                    const pendingSqlApprovalIds = streamingState
+                        ? getPendingSqlApprovalIds(
                               streamingState.parts,
                               streamingState.decidedToolCallIds,
                           )
@@ -813,12 +813,12 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.stepProgressMessages ??
                                         []
                                     }
-                                    composerApproval={{
+                                    sqlApproval={{
                                         projectUuid,
                                         agentUuid,
                                         threadUuid: message.threadUuid,
                                         pendingToolCallIds:
-                                            pendingComposerApprovalIds,
+                                            pendingSqlApprovalIds,
                                     }}
                                 />
                             )}
@@ -865,7 +865,7 @@ const AssistantBubbleContent: FC<{
                     groupPersistedToolCalls(renderableToolCalls);
                 const persistedApprovals =
                     getPendingPersistedApprovals(message);
-                const persistedComposerApproval = {
+                const persistedSqlApproval = {
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
@@ -901,7 +901,7 @@ const AssistantBubbleContent: FC<{
                                 toolCalls={message.toolCalls}
                                 mcpServers={mcpServers}
                                 pendingContent={pendingApprovalContent}
-                                composerApproval={persistedComposerApproval}
+                                sqlApproval={persistedSqlApproval}
                             />
                         )}
                         {persistedToolGroups.length === 0 &&
