@@ -1,0 +1,82 @@
+import { formatSql } from '@lightdash/common';
+import { Box, Group, Stack, Text } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
+import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
+import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import { SqlApprovalActions, type SqlApprovalTarget } from '../SqlApprovalCard';
+import { ToolCallChip } from '../ToolCallChip';
+import styles from './ComposerQueriesToolCallDescription.module.css';
+
+export type SqlChartToolArgs = {
+    name?: string;
+    spaceSlug?: string;
+    chartKind?: string;
+    sql?: string;
+};
+
+type Props = {
+    action: 'create' | 'edit';
+    slug: string;
+    chart: SqlChartToolArgs;
+    /** Present while the SQL chart waits for the user to approve its SQL. */
+    approval?: SqlApprovalTarget;
+};
+
+const CHART_KIND_LABELS: Record<string, string> = {
+    vertical_bar: 'Bar chart',
+    line: 'Line chart',
+    pie: 'Pie chart',
+    big_number: 'Big number',
+    table: 'Table',
+};
+
+export const SqlChartToolCallDescription: FC<Props> = ({
+    action,
+    slug,
+    chart,
+    approval,
+}) => {
+    const canViewSql = useCanViewAiAgentSql();
+    // Whoever approves the SQL has to see it.
+    const showSql = (canViewSql || approval !== undefined) && !!chart.sql;
+    const formattedSql = useMemo(
+        () => (showSql && chart.sql ? formatSql(chart.sql) : null),
+        [showSql, chart.sql],
+    );
+    const verb = action === 'create' ? 'Save' : 'Update';
+
+    return (
+        <Stack gap={6} w="100%">
+            <Group gap={6} wrap="wrap" align="center">
+                <MantineIcon icon={IconChartBar} size={13} stroke={1.6} />
+                <Text size="xs" c="dimmed">
+                    {approval
+                        ? `${verb} SQL chart`
+                        : `${action === 'create' ? 'Created' : 'Edited'} SQL chart`}
+                </Text>
+                <ToolCallChip>{chart.name ?? slug}</ToolCallChip>
+                {chart.spaceSlug ? (
+                    <>
+                        <Text size="xs" c="dimmed">
+                            in
+                        </Text>
+                        <ToolCallChip>{chart.spaceSlug}</ToolCallChip>
+                    </>
+                ) : null}
+                {chart.chartKind ? (
+                    <ToolCallChip>
+                        {CHART_KIND_LABELS[chart.chartKind] ?? chart.chartKind}
+                    </ToolCallChip>
+                ) : null}
+            </Group>
+            {formattedSql ? (
+                <Box className={styles.code}>
+                    <CodeBlock code={formattedSql} language="sql" />
+                </Box>
+            ) : null}
+            {approval ? <SqlApprovalActions {...approval} /> : null}
+        </Stack>
+    );
+};

@@ -61,6 +61,8 @@
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
     "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
     "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
+    "generate:sql-chart-as-code-schema": "tsx src/schemas/generateSqlChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/sql-chart-as-code-1.0.json",
+    "check:sql-chart-as-code-schema": "tsx src/schemas/generateSqlChartAsCodeSchema.ts --check",
     "generate:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts && pnpm run formatter --write src/schemas/json/mcp-tools-1.0.json",
     "benchmark:data-app-references": "tsx scripts/benchmarkDataAppReferences.ts",
     "check:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts --check",

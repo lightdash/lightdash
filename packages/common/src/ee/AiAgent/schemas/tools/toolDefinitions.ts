@@ -2099,7 +2099,7 @@ export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
-    description: `Create a dashboard, chart, or Document. Documents use schema version 2: Markdown with <document-chart> tags plus the semantic/merge chart-as-code charts they reference. Returns the persisted Document with charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with edit_content. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
+    description: `Create a dashboard, chart, SQL chart, or Document. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. Documents use schema version 2: Markdown with <document-chart> tags plus the semantic/merge chart-as-code charts they reference. Returns the persisted Document with charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with edit_content. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
@@ -2109,7 +2109,7 @@ export const mcpReadContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description:
-        'Read a dashboard, chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full.',
+        'Read a dashboard, chart, SQL chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },

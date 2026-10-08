@@ -309,6 +309,76 @@ const ComposerPipelineScenario = () => (
     </Provider>
 );
 
+const sqlChartCall: ToolCallSummary = {
+    toolCallId: 'sql-chart-call',
+    toolName: 'createContent',
+    toolArgs: {
+        type: 'sql_chart',
+        content: {
+            name: 'Average payment by order status',
+            description: null,
+            slug: 'average-payment-by-order-status',
+            spaceSlug: 'sales',
+            sql: 'SELECT o.status AS order_status, AVG(p.amount) AS average_payment_amount FROM jaffle.payments AS p JOIN jaffle.orders AS o ON o.order_id = p.order_id GROUP BY o.status',
+            limit: 500,
+            chartKind: ChartKind.VERTICAL_BAR,
+            version: 1,
+            config: {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+                fieldConfig: {
+                    x: { reference: 'order_status', type: 'category' },
+                    y: [
+                        {
+                            reference: 'average_payment_amount',
+                            aggregation: 'any',
+                        },
+                    ],
+                    groupBy: [],
+                },
+                display: {},
+            },
+        },
+    },
+};
+
+const sqlChartActivity: LiveActivityToolGroup[] = [
+    {
+        keyId: 'sql-chart',
+        toolName: 'createContent',
+        calls: [sqlChartCall],
+    },
+];
+
+const SqlChartApprovalScenario = () => (
+    <Provider store={store}>
+        <StorySurface>
+            <Section
+                title="SQL chart · awaiting approval"
+                description="Saving a SQL chart waits on the user; the card shows the SQL, chart name, space and chart kind. Buttons post to a fake API here."
+            >
+                <LiveActivityCard
+                    toolGroups={sqlChartActivity}
+                    isLive
+                    composerApproval={{
+                        ...composerApproval,
+                        pendingToolCallIds: ['sql-chart-call'],
+                    }}
+                />
+            </Section>
+            <Section
+                title="SQL chart · saved"
+                description="Once approved and saved, the row keeps the chart summary without actions."
+            >
+                <LiveActivityCard
+                    toolGroups={sqlChartActivity}
+                    isLive={false}
+                />
+            </Section>
+        </StorySurface>
+    </Provider>
+);
+
 const suggestions: AgentSuggestion[] = [
     {
         kind: 'prompt',
@@ -1413,6 +1483,10 @@ export const ApprovalAndFailure: Story = {
 
 export const ComposerPipeline: Story = {
     render: () => <ComposerPipelineScenario />,
+};
+
+export const SqlChartApproval: Story = {
+    render: () => <SqlChartApprovalScenario />,
 };
 
 export const TwoTurnChatThread: Story = {

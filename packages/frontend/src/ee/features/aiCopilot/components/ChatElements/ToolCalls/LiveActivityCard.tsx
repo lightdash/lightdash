@@ -685,6 +685,7 @@ export const LiveActivityCard: FC<Props> = ({
     // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
         latestGroup?.toolName === 'runSql' ||
+        hasComposerApproval ||
         (isActive && latestGroup?.toolName === 'runComposerQueries');
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''

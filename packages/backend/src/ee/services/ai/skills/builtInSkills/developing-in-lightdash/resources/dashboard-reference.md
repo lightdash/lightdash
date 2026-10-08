@@ -58,7 +58,7 @@ Display a chart from your project:
 
 ### SQL Chart Tile
 
-Display a SQL-based chart:
+Display a SQL chart. The SQL chart must exist before the dashboard references it: create it first, then use its persisted slug as `chartSlug`. See `sql-chart-reference` for the SQL chart body, the approval step, and the full workflow.
 
 ```json
 {
@@ -66,8 +66,9 @@ Display a SQL-based chart:
         {
             "h": 6,
             "properties": {
+                "chartName": "Custom SQL chart",
                 "chartSlug": "custom-sql-chart",
-                "savedSqlUuid": "abc123-def456"
+                "title": "Custom SQL chart"
             },
             "type": "sql_chart",
             "w": 12,

@@ -48,6 +48,7 @@ import {
     SlackPrompt,
     SourceQuery,
     SourceQuerySubmission,
+    SqlChartAsCode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -74,6 +75,7 @@ import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
 import type {
+    ApproveSqlFn,
     SqlApprovalToolName,
     SqlAutoApprovalSource,
 } from '../tools/sqlApprovals';
@@ -365,6 +367,11 @@ export type ReadContentFn = (
           href: string;
       }
     | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
+          href: string;
+      }
+    | {
           type: 'data_app';
           content: DataAppRead;
           href: string;
@@ -415,10 +422,24 @@ type CreateContentArgs =
     | {
           type: 'chart';
           content: ChartAsCode;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
       };
 
+type CreateSqlChartArgs = {
+    type: 'sql_chart';
+    content: SqlChartAsCode;
+    // Runs after validation and permission checks, before anything is saved.
+    approveSql: ApproveSqlFn;
+};
+
 export type CreateContentFn = (
-    args: CreateContentArgs | { type: 'document'; content: McpDocumentAsCode },
+    args:
+        | Exclude<CreateContentArgs, { type: 'sql_chart' }>
+        | CreateSqlChartArgs
+        | { type: 'document'; content: McpDocumentAsCode },
 ) => Promise<
     | DocumentContentResult
     | {
@@ -430,6 +451,12 @@ export type CreateContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           uuid: string;
           href: string;
       }

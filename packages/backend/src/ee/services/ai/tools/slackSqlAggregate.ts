@@ -16,6 +16,8 @@ export type SectionState =
           sql: string;
           toolCallId: string;
           threadUuid: string;
+          // Defaults to the runSql wording.
+          heading?: string;
           // Native AI-SDK approval cards carry a `:native` action suffix so the
           // button handler enqueues a resume job (vs the legacy blocking poll).
           native?: boolean;
@@ -77,7 +79,9 @@ export const renderBlocks = (
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: ':lock: *Awaiting approval to run SQL*',
+                    text: `:lock: *${
+                        state.heading ?? 'Awaiting approval to run SQL'
+                    }*`,
                 },
             },
             {

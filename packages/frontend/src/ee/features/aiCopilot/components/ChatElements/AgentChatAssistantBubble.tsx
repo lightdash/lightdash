@@ -137,6 +137,17 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 const hasComposerSqlNodes = (toolArgs: unknown): boolean =>
     getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode);
 
+const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
+    typeof toolArgs === 'object' &&
+    toolArgs !== null &&
+    'type' in toolArgs &&
+    toolArgs.type === 'sql_chart';
+
+// Tool calls whose SQL waits on the user inside the activity card.
+const needsInlineSqlApproval = (toolName: string, toolArgs: unknown) =>
+    (toolName === 'runComposerQueries' && hasComposerSqlNodes(toolArgs)) ||
+    (toolName === 'createContent' && isSqlChartContentArgs(toolArgs));
+
 // Complete args, no result, no decision: the tool is waiting on the user.
 const getPendingComposerApprovalIds = (
     parts: StreamPart[],
@@ -144,11 +155,10 @@ const getPendingComposerApprovalIds = (
 ): string[] =>
     parts.flatMap((part) =>
         part.type !== 'text' &&
-        part.toolName === 'runComposerQueries' &&
         !part.toolResult &&
         part.isArgsPartial !== true &&
         !decidedToolCallIds.includes(part.toolCallId) &&
-        hasComposerSqlNodes(part.toolArgs)
+        needsInlineSqlApproval(part.toolName, part.toolArgs)
             ? [part.toolCallId]
             : [],
     );
@@ -223,10 +233,8 @@ const getPendingPersistedApprovals = (
             (toolCall) => toolCall.toolName === 'runSql',
         ),
         composerToolCallIds: unresolved
-            .filter(
-                (toolCall) =>
-                    toolCall.toolName === 'runComposerQueries' &&
-                    hasComposerSqlNodes(toolCall.toolArgs),
+            .filter((toolCall) =>
+                needsInlineSqlApproval(toolCall.toolName, toolCall.toolArgs),
             )
             .map((toolCall) => toolCall.toolCallId),
     };

@@ -1039,18 +1039,17 @@ export class ProjectCoderController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return codeSuccess(
-            await this.services
-                .getCoderService()
-                .upsertSqlChart(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    slug,
-                    { ...sqlChart, description: sqlChart.description ?? null },
-                    sqlChart.skipSpaceCreate,
-                    sqlChart.publicSpaceCreate,
-                    sqlChart.force,
-                    sqlChart.spaceNames,
-                ),
+            await this.services.getCoderService().upsertSqlChart(
+                toSessionUser(req.account),
+                projectUuid,
+                slug,
+                { ...sqlChart, description: sqlChart.description ?? null },
+                {
+                    skipSpaceCreate: sqlChart.skipSpaceCreate,
+                    publicSpaceCreate: sqlChart.publicSpaceCreate,
+                    spaceNames: sqlChart.spaceNames,
+                },
+            ),
         );
     }
 

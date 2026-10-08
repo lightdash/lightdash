@@ -20,7 +20,44 @@ export type SqlApprovalToolName = SqlApprovalDecidedProperties['toolName'];
 export const isSqlApprovalToolName = (
     toolName: string,
 ): toolName is SqlApprovalToolName =>
-    toolName === 'runSql' || toolName === 'runComposerQueries';
+    toolName === 'runSql' ||
+    toolName === 'runComposerQueries' ||
+    toolName === 'createContent';
+
+const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
+    typeof toolArgs === 'object' &&
+    toolArgs !== null &&
+    'type' in toolArgs &&
+    toolArgs.type === 'sql_chart';
+
+/** Content tools only gate on approval when they save a SQL chart. */
+export const isSqlApprovalToolCall = (
+    toolName: string,
+    toolArgs: unknown,
+): toolName is SqlApprovalToolName => {
+    if (!isSqlApprovalToolName(toolName)) return false;
+    return toolName === 'createContent'
+        ? isSqlChartContentArgs(toolArgs)
+        : true;
+};
+
+/** The SQL a pending approval asks the user to accept. */
+export const getSqlApprovalSql = (toolArgs: unknown): string => {
+    if (typeof toolArgs !== 'object' || toolArgs === null) return '';
+    if ('sql' in toolArgs && typeof toolArgs.sql === 'string') {
+        return toolArgs.sql;
+    }
+    if (
+        'content' in toolArgs &&
+        typeof toolArgs.content === 'object' &&
+        toolArgs.content !== null &&
+        'sql' in toolArgs.content &&
+        typeof toolArgs.content.sql === 'string'
+    ) {
+        return toolArgs.content.sql;
+    }
+    return '';
+};
 
 /** `approved_always` is stored as `approved`; `timed_out` is tracked but never stored. */
 export type SqlApprovalDecisionKind = SqlApprovalDecidedProperties['decision'];
@@ -93,3 +130,23 @@ export const buildSqlApprovalDecidedEvent = (
         isThreadAutoApproval: record.source === 'thread_auto_approve',
     },
 });
+
+export type SqlApprovalOutcome = 'approved' | 'rejected' | 'timeout';
+
+/** Thrown when the user declined, or never answered, a SQL approval. */
+export class SqlNotApprovedError extends Error {
+    readonly outcome: Exclude<SqlApprovalOutcome, 'approved'>;
+
+    constructor(
+        outcome: Exclude<SqlApprovalOutcome, 'approved'>,
+        // Shown to the model as the tool result.
+        message: string,
+    ) {
+        super(message);
+        this.name = 'SqlNotApprovedError';
+        this.outcome = outcome;
+    }
+}
+
+/** Resolves once the SQL is approved; throws SqlNotApprovedError otherwise. */
+export type ApproveSqlFn = () => Promise<void>;

@@ -131,6 +131,7 @@ import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import {
     buildSqlApprovalDecidedEvent,
+    isSqlApprovalToolCall,
     type TrackSqlApprovalTimeoutFn,
 } from '../tools/sqlApprovals';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
@@ -2007,6 +2008,27 @@ export const getAgentTools = (
         createContent: dependencies.createContent,
         documentsEnabled,
         artifacts: dependencies.chartExportArtifacts,
+        sqlChartSaving: args.canRunSql
+            ? {
+                  mode: 'thread_approval',
+                  approval: {
+                      getPrompt: dependencies.getPrompt,
+                      updateProgress: dependencies.updateProgress,
+                      updateSlackMessage: dependencies.updateSlackMessage,
+                      siteUrl: args.siteUrl,
+                      waitForSqlApproval: dependencies.waitForSqlApproval,
+                      recordSqlApproval: dependencies.recordSqlApproval,
+                      isThreadSqlAutoApproved:
+                          dependencies.isThreadSqlAutoApproved,
+                      trackSqlApprovalTimeout,
+                      storeToolResults: dependencies.storeToolResults,
+                      autoApproveSql: args.autoApproveSql ?? false,
+                      autoApproveSqlUserUuid:
+                          args.autoApproveSqlUserUuid ?? null,
+                      useSlackStreamCard: args.useSlackStreamCard,
+                  },
+              }
+            : { mode: 'disabled' },
     });
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,
@@ -3239,7 +3261,10 @@ export const generateAgentResponse = async ({
         const isAwaitingSqlApproval = result.finalStep.content?.some(
             (part) =>
                 part.type === 'tool-approval-request' &&
-                part.toolCall.toolName === 'runSql' &&
+                isSqlApprovalToolCall(
+                    part.toolCall.toolName,
+                    part.toolCall.input,
+                ) &&
                 !part.isAutomatic,
         );
         if (

@@ -424,6 +424,8 @@ Each path segment must be the slug of an existing (or to-be-created) space at th
 | `custom` | Legacy Vega-Lite custom chart | [Custom Viz](./resources/custom-viz-reference.md) |
 | `data_app_viz` | Chart rendered by a custom chart type | [Custom Chart Types](#working-with-custom-chart-types-enterprise) |
 
+A SQL chart (`contentType: sql_chart`) is saved from raw warehouse SQL instead of an explore. See [SQL Chart Reference](./resources/sql-chart-reference.md).
+
 ## Dashboards
 
 Dashboards arrange charts and content in a grid layout. See [Dashboard Reference](./resources/dashboard-reference.md) for YAML structure, tile types, tabs, and filters.
@@ -475,6 +477,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Sankey Chart Reference](./resources/sankey-chart-reference.md)
 - [Custom Viz Reference](./resources/custom-viz-reference.md) - Legacy Vega-Lite `custom` charts
 - [Period over Period Reference](./resources/period-over-period-reference.md) - PoP comparisons (YoY, MoM, etc.)
+- [SQL Chart Reference](./resources/sql-chart-reference.md) - Charts saved from raw warehouse SQL
 
 ### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md)
