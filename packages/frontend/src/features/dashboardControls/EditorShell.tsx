@@ -56,7 +56,7 @@ export const EditorShell: FC<Props> = ({
     aboveTabs,
     children,
 }) => (
-    <Box className={classes.root}>
+    <Box className={classes.root} data-controls-editor>
         <Group justify="space-between" wrap="nowrap" px="md" pt="md">
             <Stack gap={2} align="flex-start">
                 <Title order={5} className={classes.title}>

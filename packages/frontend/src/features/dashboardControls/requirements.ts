@@ -1,42 +1,35 @@
 import {
-    isValuelessDashboardFilterRule,
+    getFilterRuleWithDefaultValue,
+    type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterType,
 } from '@lightdash/common';
+import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 
 export const isRuleRequired = (rule: DashboardFilterRule): boolean =>
     !!rule.required || !!rule.requiredGroupId;
 
-const isLockedOnEveryTab = (
+// What the shipped popover does to every edit: a value switches the default
+// on, and a required filter with no value is off
+const withShippedDisabledState = (
     rule: DashboardFilterRule,
-    tabUuids: string[],
-): boolean => {
-    const locked = rule.lockedTabUuids ?? [];
-    if (locked.length === 0) return false;
-    if (tabUuids.length === 0) return true;
-    return tabUuids.every((uuid) => locked.includes(uuid));
+): DashboardFilterRule => {
+    const hasValue = !!hasFilterValueSet(rule);
+    return {
+        ...rule,
+        disabled:
+            (!!rule.disabled && !hasValue) ||
+            (isRuleRequired(rule) && !hasValue),
+    };
 };
 
-/** Why a filter cannot be required; null when it can. */
-export const getRequiredIneligibilityReason = (
+/** The shipped Apply guard: no viewer can satisfy this filter. */
+export const isLockedRequiredMissingValue = (
     rule: DashboardFilterRule,
-    tabUuids: string[],
-): string | null => {
-    if (isLockedOnEveryTab(rule, tabUuids)) {
-        return 'it is locked on every tab';
-    }
-    if (!isRuleRequired(rule) && !isValuelessDashboardFilterRule(rule)) {
-        return 'it has a default value';
-    }
-    return null;
-};
-
-export const setRuleRequired = (
-    rule: DashboardFilterRule,
-): DashboardFilterRule => ({
-    ...rule,
-    required: true,
-    requiredGroupId: undefined,
-});
+): boolean =>
+    !!rule.lockedTabUuids?.length &&
+    !!rule.required &&
+    !hasFilterValueSet(rule);
 
 const asGroupMember = (
     rule: DashboardFilterRule,
@@ -57,25 +50,32 @@ const withoutRequirement = (
     requiredGroupId: undefined,
 });
 
-const dissolveLoneGroups = (
-    rules: DashboardFilterRule[],
-): DashboardFilterRule[] =>
-    rules.map((rule) => {
-        if (!rule.requiredGroupId) return rule;
-        const members = rules.filter(
-            (other) => other.requiredGroupId === rule.requiredGroupId,
-        );
-        return members.length > 1 ? rule : setRuleRequired(rule);
-    });
+/**
+ * Back in the rule it was saved in, else required on its own. A value the
+ * filter has stays as a temporary one.
+ */
+export const setRuleRequired = (
+    rule: DashboardFilterRule,
+    savedRule: DashboardFilterRule | null,
+): DashboardFilterRule =>
+    withShippedDisabledState(
+        savedRule?.requiredGroupId
+            ? asGroupMember(rule, savedRule.requiredGroupId)
+            : { ...rule, required: true, requiredGroupId: undefined },
+    );
 
-/** Removes the requirement; the rest of its group stays required. */
-export const clearRequired = (
-    rules: DashboardFilterRule[],
-    filterId: string,
-): DashboardFilterRule[] =>
-    dissolveLoneGroups(
-        rules.map((rule) =>
-            rule.id === filterId ? withoutRequirement(rule) : rule,
+/** Out of its rule, and without the temporary value it may have had. */
+export const clearRuleRequired = (
+    rule: DashboardFilterRule,
+    filterType: FilterType,
+    field: DashboardFilterableField | null,
+): DashboardFilterRule =>
+    withShippedDisabledState(
+        getFilterRuleWithDefaultValue(
+            filterType,
+            field ?? undefined,
+            withoutRequirement(rule),
+            null,
         ),
     );
 
@@ -101,16 +101,18 @@ export const addAlternative = (
     const groupId =
         rules.find((rule) => rule.id === filterId)?.requiredGroupId ??
         newGroupId;
-    return dissolveLoneGroups(
-        rules.map((rule) =>
-            rule.id === filterId || rule.id === alternativeId
-                ? asGroupMember(rule, groupId)
-                : rule,
-        ),
+    return rules.map((rule) =>
+        rule.id === filterId || rule.id === alternativeId
+            ? asGroupMember(rule, groupId)
+            : rule,
     );
 };
 
+/** Takes one filter out; the rest of its rule stays as it is. */
 export const removeAlternative = (
     rules: DashboardFilterRule[],
     alternativeId: string,
-): DashboardFilterRule[] => clearRequired(rules, alternativeId);
+): DashboardFilterRule[] =>
+    rules.map((rule) =>
+        rule.id === alternativeId ? withoutRequirement(rule) : rule,
+    );

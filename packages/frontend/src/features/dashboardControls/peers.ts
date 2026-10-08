@@ -3,6 +3,9 @@ import {
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
+    matchFieldByType,
+    matchFieldByTypeAndName,
+    matchFieldExact,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -49,11 +52,13 @@ export const doesTileOfferField = (
     fieldsByTile?.[tile.uuid]?.some((field) => getItemId(field) === fieldId) ??
     false;
 
+// A data app tile takes the filter as a whole, with no field to choose
 export const isTileFilterable = (
     tile: DashboardTile,
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
 ): boolean =>
+    isDashboardDataAppTileType(tile) ||
     fieldsByTile?.[tile.uuid] !== undefined ||
     isSqlTile(tile, sqlColumnsByTile);
 
@@ -81,6 +86,42 @@ export const getTileField = (
         return tileConfig;
     if (isSqlTile(tile, sqlColumnsByTile)) return null;
     return getDefaultTileField(rule, tile, fieldsByTile);
+};
+
+// The field a tile is on. A data app tile that is on is on no particular field
+const getFieldIdOnTile = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): string | null =>
+    isDashboardDataAppTileType(tile)
+        ? null
+        : (getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
+          null);
+
+// Mirrors the shipped invalid state: the tile is mapped to a field or column
+// it does not offer. Null while the tile's fields are not known
+export const getMissingTileFieldId = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): string | null => {
+    if (isDashboardDataAppTileType(tile)) return null;
+    const { relation, tileConfig } = getFilterTileRelation(rule, tile.uuid);
+    if (relation !== 'mapped' || !isDashboardFieldTarget(tileConfig))
+        return null;
+    const { fieldId } = tileConfig;
+    if (isSqlTile(tile, sqlColumnsByTile)) {
+        return sqlColumnsByTile[tile.uuid].some(
+            (column) => column.reference === fieldId,
+        )
+            ? null
+            : fieldId;
+    }
+    if (fieldsByTile?.[tile.uuid] === undefined) return null;
+    return doesTileOfferField(tile, fieldId, fieldsByTile) ? null : fieldId;
 };
 
 export const isTileChanged = (
@@ -123,8 +164,8 @@ export const getFieldCount = (
     ).length,
     applied: tiles.filter(
         (tile) =>
-            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)
-                ?.fieldId === fieldId,
+            getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+            fieldId,
     ).length,
 });
 
@@ -203,8 +244,7 @@ export const removeFieldFromAll = (
 ): DashboardFilterRule =>
     tiles
         .filter(
-            (tile) =>
-                getTileField(rule, tile, fieldsByTile)?.fieldId === fieldId,
+            (tile) => getFieldIdOnTile(rule, tile, fieldsByTile) === fieldId,
         )
         .reduce(
             (next, tile) => setTileField(next, tile, null, fieldsByTile),
@@ -241,6 +281,15 @@ export const removeField = (
     );
     return tiles.reduce((next, tile) => {
         const effective = getTileField(rule, tile, fieldsByTile);
+        // A data app tile stays on or off, whatever the first field is
+        if (isDashboardDataAppTileType(tile)) {
+            return setTileField(
+                next,
+                tile,
+                effective === null ? null : promoted,
+                fieldsByTile,
+            );
+        }
         if (effective?.fieldId === fieldId) {
             return setTileField(next, tile, null, fieldsByTile);
         }
@@ -294,14 +343,140 @@ export const getTabCountsForField = (
                     total: tabTiles.length,
                     applied: tabTiles.filter(
                         (tile) =>
-                            getTileField(
+                            getFieldIdOnTile(
                                 rule,
                                 tile,
                                 fieldsByTile,
                                 sqlColumnsByTile,
-                            )?.fieldId === fieldId,
+                            ) === fieldId,
                     ).length,
                 },
             ];
         }),
     );
+
+// The shipped order for a tile switched on with no field chosen: the filter's
+// first field, else the same type and name, else the same type
+const getBestMatch = (
+    fields: DashboardFilterableField[],
+    targetField: DashboardFilterableField | undefined,
+): DashboardFilterableField | undefined =>
+    targetField === undefined
+        ? undefined
+        : (fields.find(matchFieldExact(targetField)) ??
+          fields.find(matchFieldByTypeAndName(targetField)) ??
+          fields.find(matchFieldByType(targetField)));
+
+const findField = (
+    fieldId: string,
+    fieldsByTile: FieldsByTile,
+): DashboardFilterableField | undefined =>
+    Object.values(fieldsByTile ?? {})
+        .flat()
+        .find((field) => getItemId(field) === fieldId);
+
+// What switching a whole tab on gives a tile: a data app tile follows the
+// rule, a SQL chart tile is left alone (its column is chosen per tile), and
+// any other tile gets one of the filter's own fields that it offers
+const getSwitchOnField = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile,
+): DashboardFieldTarget | null => {
+    if (isDashboardDataAppTileType(tile)) return rule.target;
+    if (isSqlTile(tile, sqlColumnsByTile)) return null;
+    const ownFieldIds = getFilterFields(rule);
+    const offered = (fieldsByTile?.[tile.uuid] ?? [])
+        .filter((field) => ownFieldIds.includes(getItemId(field)))
+        .sort(
+            (first, second) =>
+                ownFieldIds.indexOf(getItemId(first)) -
+                ownFieldIds.indexOf(getItemId(second)),
+        );
+    const field =
+        getBestMatch(offered, findField(rule.target.fieldId, fieldsByTile)) ??
+        offered[0];
+    return field === undefined
+        ? null
+        : { fieldId: getItemId(field), tableName: field.table };
+};
+
+// all: every tile the filter can reach on the tab is filtered. The reach is
+// the tiles it is on, plus the ones the switch could turn on, plus SQL chart
+// tiles with a column of its kind
+export type TabTargetState = {
+    checked: 'all' | 'some' | 'none';
+    // False: switching on would change nothing
+    canSwitchOn: boolean;
+};
+
+export const getTabTargetState = (
+    rule: DashboardFilterRule,
+    tabUuid: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): TabTargetState => {
+    const tabTiles = tiles.filter((tile) => tile.tabUuid === tabUuid);
+    const filtered = tabTiles.filter(
+        (tile) =>
+            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !== null,
+    );
+    const unfiltered = tabTiles.filter((tile) => !filtered.includes(tile));
+    const switchable = unfiltered.filter(
+        (tile) =>
+            getSwitchOnField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
+            null,
+    );
+    const isAnyLeft =
+        switchable.length > 0 ||
+        unfiltered.some((tile) => isSqlTile(tile, sqlColumnsByTile));
+    return {
+        checked: filtered.length === 0 ? 'none' : isAnyLeft ? 'some' : 'all',
+        canSwitchOn: switchable.length > 0,
+    };
+};
+
+// On: every tile on the tab that is not filtered gets its switch-on field,
+// and the filtered ones keep theirs. Off: every tile on the tab is left out
+export const setTabTargets = (
+    rule: DashboardFilterRule,
+    tabUuid: string,
+    on: boolean,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): DashboardFilterRule =>
+    tiles
+        .filter((tile) => tile.tabUuid === tabUuid)
+        .reduce((next, tile) => {
+            if (!on)
+                return setTileField(
+                    next,
+                    tile,
+                    null,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                );
+            if (
+                getTileField(next, tile, fieldsByTile, sqlColumnsByTile) !==
+                null
+            )
+                return next;
+            const field = getSwitchOnField(
+                next,
+                tile,
+                fieldsByTile,
+                sqlColumnsByTile,
+            );
+            return field === null
+                ? next
+                : setTileField(
+                      next,
+                      tile,
+                      field,
+                      fieldsByTile,
+                      sqlColumnsByTile,
+                  );
+        }, rule);

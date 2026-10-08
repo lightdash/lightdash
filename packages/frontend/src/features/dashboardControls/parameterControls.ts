@@ -104,6 +104,42 @@ export const addControlKey = (
         ? control
         : { ...control, parameterKeys: [...control.parameterKeys, key] };
 
+// Adds a parameter picked on one tile and narrows that tile to it. A tile
+// with no entry follows every parameter of the control, so any other tile
+// that references the new key is pinned to what the control set on it before:
+// its one parameter, or nothing. A tile on several parameters of the control
+// cannot be pinned and takes the new one too
+export const addControlKeyFromTile = (
+    control: DashboardParameterControl,
+    key: string,
+    tileUuid: string,
+    tileParameterReferences: TileReferences,
+): DashboardParameterControl => {
+    if (control.parameterKeys.includes(key)) {
+        return setControlTileTarget(control, tileUuid, key);
+    }
+    const pinned = Object.entries(tileParameterReferences).flatMap(
+        ([otherUuid, references]): [string, string | false][] => {
+            if (otherUuid === tileUuid || !references.includes(key)) return [];
+            if (getControlTileTarget(control, otherUuid) !== null) return [];
+            const keysBefore = control.parameterKeys.filter((candidate) =>
+                references.includes(candidate),
+            );
+            if (keysBefore.length > 1) return [];
+            return [[otherUuid, keysBefore[0] ?? false]];
+        },
+    );
+    return {
+        ...control,
+        parameterKeys: [...control.parameterKeys, key],
+        tileTargets: {
+            ...control.tileTargets,
+            ...Object.fromEntries(pinned),
+            [tileUuid]: key,
+        },
+    };
+};
+
 // Tiles narrowed to the removed key go back to no entry
 export const removeControlKey = (
     control: DashboardParameterControl,
@@ -231,6 +267,48 @@ export const getFreeParameterKeys = (
             getParameterKind(definition) === kind
         );
     });
+};
+
+const PARAMETER_KINDS: ParameterKind[] = [
+    FilterType.STRING,
+    FilterType.NUMBER,
+    FilterType.DATE,
+];
+
+// Every parameter a new control could start from, kind by kind
+export const getAllFreeParameterKeys = (
+    controls: DashboardParameterControl[],
+    definitions: ParameterDefinitions,
+    tileParameterReferences: TileReferences,
+): string[] =>
+    PARAMETER_KINDS.flatMap((kind) =>
+        getFreeParameterKeys(
+            kind,
+            controls,
+            definitions,
+            tileParameterReferences,
+        ),
+    );
+
+// Free parameters of the control's kind, which is its first parameter's
+export const getControlFreeParameterKeys = (
+    control: DashboardParameterControl,
+    controls: DashboardParameterControl[],
+    definitions: ParameterDefinitions,
+    tileParameterReferences: TileReferences,
+): string[] => {
+    const [firstKey] = control.parameterKeys;
+    const definition =
+        firstKey === undefined ? undefined : definitions[firstKey];
+    // The control being edited may not be in the saved list yet
+    return definition === undefined
+        ? []
+        : getFreeParameterKeys(
+              getParameterKind(definition),
+              [...controls, control],
+              definitions,
+              tileParameterReferences,
+          );
 };
 
 // The control shows the value of its first parameter

@@ -79,9 +79,11 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue> = {}) => {
         open: vi.fn(),
         openNew: vi.fn(),
         addFirstField: vi.fn(),
-        clearFields: vi.fn(),
+        addFirstSqlColumn: vi.fn(),
+        addFirstFieldOnTile: vi.fn(),
         highlightedFieldId: null,
         setHighlightedFieldId: vi.fn(),
+        clearHighlightedField: vi.fn(),
         hoveredFieldId: null,
         setHoveredFieldId: vi.fn(),
         activeFieldId: null,
@@ -98,6 +100,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue> = {}) => {
         isNewControl: false,
         openControl: vi.fn(),
         addParameterControl: vi.fn(),
+        addParameterControlOnTile: vi.fn(),
         updateControl: vi.fn(),
         setControlValue: vi.fn(),
         removeControl: vi.fn(),
@@ -180,7 +183,7 @@ describe('ParameterSidebar', () => {
         ).toBeInTheDocument();
     });
 
-    it('asks a new control for a label and suggests one', () => {
+    it('titles an unlabelled control with its parameter and suggests the name', () => {
         const control = makeControl({ label: '' });
         const { close, updateControl } = setSidebar({
             editingControl: control,
@@ -190,14 +193,12 @@ describe('ParameterSidebar', () => {
         renderWithProviders(<ParameterSidebar />);
 
         expect(
-            screen.getByRole('heading', { name: 'New parameter control' }),
+            screen.getByRole('heading', { name: 'Sales region' }),
         ).toBeInTheDocument();
         expect(
             screen.getByText('1 parameter · sets 2 of 3 tiles'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByText('Add a label to keep this control'),
-        ).toBeInTheDocument();
+        expect(screen.queryByText(/Add a label/)).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Discard control' }),
         ).toBeInTheDocument();
@@ -205,15 +206,14 @@ describe('ParameterSidebar', () => {
             screen.queryByRole('button', { name: 'More actions' }),
         ).not.toBeInTheDocument();
 
-        const input = screen.getByPlaceholderText('What viewers will see');
-        expect(
-            screen.queryByText('Add a label so viewers know what this sets'),
-        ).not.toBeInTheDocument();
+        const input = screen.getByLabelText('Control label');
+        expect(input).not.toBeRequired();
+        expect(input).toHaveFocus();
+        // The name the control takes when the label is left empty
+        expect(input).toHaveAttribute('placeholder', 'Sales region');
         fireEvent.keyDown(input, { key: 'Enter' });
         expect(close).not.toHaveBeenCalled();
-        expect(
-            screen.getByText('Add a label so viewers know what this sets'),
-        ).toBeInTheDocument();
+        expect(screen.queryByText(/Add a label/)).not.toBeInTheDocument();
 
         // The chip comes before the parameter row of the same name
         fireEvent.click(
@@ -241,8 +241,7 @@ describe('ParameterSidebar', () => {
             vi.useRealTimers();
         });
 
-        const labelInput = () =>
-            screen.getByPlaceholderText('What viewers will see');
+        const labelInput = () => screen.getByLabelText('Control label');
         const typeLabel = (value: string) =>
             fireEvent.change(labelInput(), { target: { value } });
 
@@ -282,9 +281,6 @@ describe('ParameterSidebar', () => {
             renderWithProviders(<ParameterSidebar />);
 
             await userEvent.type(labelInput(), 'Area');
-            expect(
-                screen.queryByText('Add a label to keep this control'),
-            ).not.toBeInTheDocument();
             await userEvent.click(screen.getByRole('button', { name: 'Done' }));
 
             expect(updateControl).toHaveBeenLastCalledWith({
@@ -297,7 +293,7 @@ describe('ParameterSidebar', () => {
             ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
         });
 
-        it('sends the typed label before Enter closes, once', () => {
+        it('sends the typed label on Enter, once, and stays open', () => {
             vi.useFakeTimers();
             const control = makeControl({ label: '' });
             const { updateControl, close } = setSidebar({
@@ -313,10 +309,7 @@ describe('ParameterSidebar', () => {
                 ...control,
                 label: 'Area',
             });
-            expect(close).toHaveBeenCalledTimes(1);
-            expect(
-                vi.mocked(updateControl).mock.invocationCallOrder[0],
-            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
+            expect(close).not.toHaveBeenCalled();
             act(() => {
                 vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
             });
@@ -375,6 +368,67 @@ describe('ParameterSidebar', () => {
         expect(setHoveredFieldId).toHaveBeenCalledWith('region');
         fireEvent.click(row);
         expect(setHighlightedFieldId).toHaveBeenCalledWith('region');
+        expect(
+            screen.queryByRole('button', { name: 'Show all tiles' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('unclicks a parameter from its row or its "Show all tiles" button', () => {
+        const { setHighlightedFieldId, clearHighlightedField } = setSidebar({
+            highlightedFieldId: 'region',
+        });
+        renderWithProviders(<ParameterSidebar />);
+
+        const row = screen.getByRole('button', { name: 'Sales region' });
+        expect(row).toHaveAttribute('aria-pressed', 'true');
+        fireEvent.click(row);
+        expect(clearHighlightedField).toHaveBeenCalledTimes(1);
+        expect(setHighlightedFieldId).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Show all tiles' }));
+        expect(clearHighlightedField).toHaveBeenCalledTimes(2);
+        // The button is about to leave: focus goes to the row
+        expect(row).toHaveFocus();
+    });
+
+    it('puts "Add a parameter" away on Escape and when focus leaves it', async () => {
+        setSidebar();
+        renderWithProviders(<ParameterSidebar />);
+        const add = screen.getByRole('button', { name: 'Add a parameter' });
+        const search = () => screen.queryByPlaceholderText('Search parameters');
+
+        await userEvent.click(add);
+        expect(search()).toHaveFocus();
+        await userEvent.keyboard('{Escape}');
+        expect(search()).not.toBeInTheDocument();
+        expect(add).toHaveFocus();
+
+        await userEvent.click(add);
+        await userEvent.click(screen.getByLabelText('Control label'));
+        expect(search()).not.toBeInTheDocument();
+    });
+
+    it('keeps a typed search on the first Escape and picks the first match on Enter', async () => {
+        const control = makeControl();
+        const { updateControl } = setSidebar({ editingControl: control });
+        renderWithProviders(<ParameterSidebar />);
+        const add = screen.getByRole('button', { name: 'Add a parameter' });
+        const search = () => screen.queryByPlaceholderText('Search parameters');
+
+        await userEvent.click(add);
+        await userEvent.keyboard('zz{Escape}');
+        expect(search()).toHaveValue('zz');
+        await userEvent.keyboard('{Escape}');
+        expect(search()).not.toBeInTheDocument();
+
+        await userEvent.click(add);
+        await userEvent.keyboard('ar{Enter}');
+        expect(updateControl).toHaveBeenCalledWith({
+            ...control,
+            parameterKeys: ['region', 'area'],
+        });
+        expect(search()).not.toBeInTheDocument();
+        expect(add).toHaveFocus();
     });
 
     it('adds a free parameter of the same kind with the control value', async () => {

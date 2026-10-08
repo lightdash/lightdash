@@ -1,6 +1,9 @@
 import { shallowEqual } from '@mantine/hooks';
 
-export type TileHighlight = 'mapped' | 'available' | 'reached';
+// mapped: on the control (and on the active field, when there is one).
+// other: on the control through another field than the active one.
+// available: reachable, but not on the control
+export type TileHighlight = 'mapped' | 'other' | 'available';
 
 // For memoised per-tile components: props are equal when each one is the same
 // value, or an array with the same items

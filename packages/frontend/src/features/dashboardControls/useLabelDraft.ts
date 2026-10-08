@@ -1,5 +1,5 @@
 import { useDebouncedCallback } from '@mantine/hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export const LABEL_COMMIT_DELAY = 300;
 
@@ -28,4 +28,32 @@ export const useLabelDraft = (
             onCommit(next);
         },
     };
+};
+
+// The editor's label input, for the places that hand focus to it
+const LABEL_SELECTOR = '[data-controls-label]';
+export const focusLabelInput = () =>
+    document.querySelector<HTMLInputElement>(LABEL_SELECTOR)?.focus();
+
+// The sidebar fades in from `display: none`, where focus cannot land, so the
+// editor keeps handing focus to its label for a few frames after it mounts.
+// It stops as soon as the label has it, or the author moved into the editor
+export const useFocusLabelOnMount = () => {
+    useEffect(() => {
+        let frame = 0;
+        let tries = 0;
+        const attempt = () => {
+            const input =
+                document.querySelector<HTMLInputElement>(LABEL_SELECTOR);
+            if (input === null) return;
+            if (document.activeElement?.closest('[data-controls-editor]'))
+                return;
+            input.focus();
+            if (document.activeElement === input || tries >= 20) return;
+            tries += 1;
+            frame = requestAnimationFrame(attempt);
+        };
+        frame = requestAnimationFrame(attempt);
+        return () => cancelAnimationFrame(frame);
+    }, []);
 };

@@ -30,10 +30,11 @@ import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/Fil
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import { AddControl } from './AddControl';
+import addClasses from './AddControl.module.css';
 import { FilterPills } from './FilterPills';
 import { ParameterControlPills } from './ParameterControlPills';
 import { getControlledParameterKeys } from './parameterControls';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
 
@@ -59,9 +60,12 @@ export const ControlsBar: FC<Props> = ({
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
     const getUiString = useUiStrings();
-    const { isSidebarOpen } = useControlsSidebar();
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
+    );
+    const setIsAddFilterDisabled = useDashboardContext(
+        (c) => c.setIsAddFilterDisabled,
     );
     const allFilters = useDashboardContext((c) => c.allFilters);
     const setIsDateZoomDisabled = useDashboardContext(
@@ -153,7 +157,39 @@ export const ControlsBar: FC<Props> = ({
                             )}
                             {isEditMode ? (
                                 <>
-                                    <AddControl />
+                                    <Group gap={0} wrap="nowrap">
+                                        <AddControl />
+                                        <Divider orientation="vertical" />
+                                        <Tooltip
+                                            label={
+                                                isAddFilterDisabled
+                                                    ? 'Hidden from viewers. Click to show.'
+                                                    : 'Visible to viewers. Click to hide.'
+                                            }
+                                        >
+                                            <Button
+                                                aria-label="Toggle filter visibility for viewers"
+                                                size="xs"
+                                                variant="default"
+                                                className={
+                                                    addClasses.viewerToggle
+                                                }
+                                                onClick={() =>
+                                                    setIsAddFilterDisabled(
+                                                        !isAddFilterDisabled,
+                                                    )
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={
+                                                        isAddFilterDisabled
+                                                            ? IconEyeOff
+                                                            : IconEye
+                                                    }
+                                                />
+                                            </Button>
+                                        </Tooltip>
+                                    </Group>
                                     <FilterPills
                                         activeTabUuid={activeTabUuid}
                                     />
@@ -167,6 +203,10 @@ export const ControlsBar: FC<Props> = ({
                             <ParameterControlPills
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
+                                missingRequiredParameters={
+                                    missingRequiredParameters
+                                }
+                                shadowedReservedNames={shadowedReservedNames}
                             />
 
                             {isEditMode && !isSidebarOpen && (

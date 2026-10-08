@@ -7,7 +7,7 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -249,17 +249,20 @@ describe('LinkPrompts', () => {
         expect(updateFilter).not.toHaveBeenCalled();
     });
 
-    it('swallows mouse down and click on the veil', async () => {
-        const onPointer = vi.fn();
-        renderWithProviders(
-            <div onMouseDown={onPointer} onClick={onPointer}>
-                <LinkPrompts />
-            </div>,
-        );
+    it('marks the veil for the grid and lets a mouse down reach the document', () => {
+        const onMouseDown = vi.fn();
+        document.addEventListener('mousedown', onMouseDown);
+        renderWithProviders(<LinkPrompts />);
+        const veil = container(added.uuid).firstElementChild!;
 
-        await userEvent.click(container(added.uuid).firstElementChild!);
+        // The grid's draggableCancel selector
+        expect(veil).toHaveClass('non-draggable');
+        expect(veil).toHaveAttribute('data-controls-overlay');
 
-        expect(onPointer).not.toHaveBeenCalled();
+        fireEvent.mouseDown(veil);
+        document.removeEventListener('mousedown', onMouseDown);
+
+        expect(onMouseDown).toHaveBeenCalledTimes(1);
     });
 
     it('shows nothing for a dismissed pair', () => {

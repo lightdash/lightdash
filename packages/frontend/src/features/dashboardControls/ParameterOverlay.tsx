@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { LazySelect } from './LazySelect';
 import {
+    addControlKeyFromTile,
+    getControlFreeParameterKeys,
     getControlKeysOnTile,
     getControlKeysSetOnTile,
     getControlTileTarget,
@@ -20,14 +22,22 @@ import {
 } from './parameterSources';
 import classes from './TileOverlay.module.css';
 import { areTilePropsEqual, type TileHighlight } from './tileProps';
-import { getTileSelector, stopPropagation, WAVE_BUCKETS } from './tileSelector';
+import {
+    getTileSelector,
+    LOCKED_TILE_CLASS,
+    WAVE_BUCKETS,
+} from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 
-// Select values that are not parameter keys
+// The select value that is not a parameter key
 const ALL = '__all__';
-const OFF = '__off__';
+const NO_KEYS: string[] = [];
+const OWN_GROUP = 'In this control';
+const OTHER_GROUP = 'Other parameters on this tile';
+// Past this many entries the dropdown is searchable
+const SEARCH_THRESHOLD = 8;
 
 const SOURCE_LABELS: Record<TileParameterSource['source'], string> = {
     dashboard: 'this control',
@@ -46,18 +56,22 @@ const describeSource = ({ value, source }: TileParameterSource): string =>
 type OverlayProps = {
     tileUuid: string;
     selectLabel: string;
-    // The control's parameters this tile uses; none means only the veil
+    // The control's parameters this tile uses
     keys: string[];
-    selectValue: string;
+    // Parameters in no control that the tile uses and the control could take.
+    // No keys and no candidates means only the veil
+    candidates: string[];
+    // Null: the control sets nothing on the tile
+    selectValue: string | null;
     isSet: boolean;
     // One line per parameter the card reports on
     sourceLines: string[];
     parameterDefinitions: ParameterDefinitions;
     highlight: TileHighlight | null;
-    // The clicked parameter, on the tiles it highlights
+    // The clicked parameter, on the tiles set through it
     scrollFieldId: string | null;
     wave: number;
-    onSelect: (tileUuid: string, value: string) => void;
+    onSelect: (tileUuid: string, value: string | null) => void;
 };
 
 const ParameterOverlay = memo<OverlayProps>(
@@ -65,6 +79,7 @@ const ParameterOverlay = memo<OverlayProps>(
         tileUuid,
         selectLabel,
         keys,
+        candidates,
         selectValue,
         isSet,
         sourceLines,
@@ -81,29 +96,40 @@ const ParameterOverlay = memo<OverlayProps>(
             scrollFieldId !== null,
         );
 
-        if (keys.length === 0) {
+        if (keys.length === 0 && candidates.length === 0) {
             return (
                 <div
-                    className={`${classes.overlay} ${classes.unfilterable}`}
+                    className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
+                    data-controls-overlay
                     data-wave={wave}
                     title="This control cannot reach this tile"
-                    onMouseDown={stopPropagation}
-                    onTouchStart={stopPropagation}
-                    onClick={stopPropagation}
                 />
             );
         }
 
+        const toOption = (key: string) => ({
+            value: key,
+            label: getParameterLabel(key, parameterDefinitions),
+        });
+        const data = [
+            ...(keys.length > 1
+                ? [{ value: ALL, label: 'All its parameters' }]
+                : []),
+            ...keys.map(toOption),
+        ];
+        const groups = [
+            { label: OWN_GROUP, items: data },
+            { label: OTHER_GROUP, items: candidates.map(toOption) },
+        ];
+
         return (
             <div
                 ref={overlayRef}
-                className={classes.overlay}
+                className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
+                data-controls-overlay
                 title="Tiles are locked while a control is edited"
                 data-highlighted={highlight ?? undefined}
                 data-wave={wave}
-                onMouseDown={stopPropagation}
-                onTouchStart={stopPropagation}
-                onClick={stopPropagation}
             >
                 <Box className={classes.ring} aria-hidden />
                 <Paper
@@ -112,9 +138,10 @@ const ParameterOverlay = memo<OverlayProps>(
                     radius="md"
                     className={classes.card}
                     title=""
+                    data-keeps-field
                 >
                     <Box
-                        key={selectValue}
+                        key={selectValue ?? 'off'}
                         className={classes.confirm}
                         aria-hidden
                     />
@@ -125,26 +152,17 @@ const ParameterOverlay = memo<OverlayProps>(
                         <LazySelect
                             aria-label={selectLabel}
                             leftSection={null}
+                            placeholder="Select a parameter"
+                            clearLabel="Switch this tile off"
+                            renderOptionIcon={null}
                             value={selectValue}
                             onChange={(value) => onSelect(tileUuid, value)}
-                            data={[
-                                ...(keys.length === 1
-                                    ? []
-                                    : [
-                                          {
-                                              value: ALL,
-                                              label: 'All its parameters',
-                                          },
-                                      ]),
-                                ...keys.map((key) => ({
-                                    value: key,
-                                    label: getParameterLabel(
-                                        key,
-                                        parameterDefinitions,
-                                    ),
-                                })),
-                                { value: OFF, label: 'Not set' },
-                            ]}
+                            groups={groups}
+                            searchable={
+                                candidates.length > 0 ||
+                                data.length > SEARCH_THRESHOLD
+                            }
+                            nothingFoundMessage="No parameters match"
                         />
                         {sourceLines.map((line, index) => (
                             <Text key={`${index}:${line}`} fz="xs" c="dimmed">
@@ -195,23 +213,87 @@ export const ParameterOverlays: FC = () => {
         tileUuids,
         getTileSelector,
         editingControl !== null,
+        true,
     );
 
     // One stable handler for every card: it reads the control as it is when called
-    const handleSelect = useCallbackRef((tileUuid: string, value: string) => {
-        const tile = tiles.find((candidate) => candidate.uuid === tileUuid);
-        if (editingControl === null || tile === undefined) return;
-        const isSingle =
-            getControlKeysOnTile(editingControl, tile, tileParameterReferences)
-                .length === 1;
-        const target: ControlTileTarget =
-            value === OFF ? false : value === ALL || isSingle ? null : value;
-        updateControl(setControlTileTarget(editingControl, tileUuid, target));
-    });
+    // A cleared select (null) switches the tile off
+    const handleSelect = useCallbackRef(
+        (tileUuid: string, value: string | null) => {
+            const tile = tiles.find((candidate) => candidate.uuid === tileUuid);
+            if (editingControl === null || tile === undefined) return;
+            // A parameter the control does not hold yet: it joins the control
+            // on this tile only
+            if (
+                value !== null &&
+                value !== ALL &&
+                !editingControl.parameterKeys.includes(value)
+            ) {
+                updateControl(
+                    addControlKeyFromTile(
+                        editingControl,
+                        value,
+                        tileUuid,
+                        tileParameterReferences,
+                    ),
+                );
+                return;
+            }
+            const isSingle =
+                getControlKeysOnTile(
+                    editingControl,
+                    tile,
+                    tileParameterReferences,
+                ).length === 1;
+            const target: ControlTileTarget =
+                value === null
+                    ? false
+                    : value === ALL || isSingle
+                      ? null
+                      : value;
+            updateControl(
+                setControlTileTarget(editingControl, tileUuid, target),
+            );
+        },
+    );
+
+    const freeKeys =
+        editingControl === null
+            ? NO_KEYS
+            : getControlFreeParameterKeys(
+                  editingControl,
+                  parameterControls,
+                  parameterDefinitions,
+                  tileParameterReferences,
+              );
+    // Keyed on the free parameters, not the controls: an edit that keeps
+    // them, or a hover, hands every tile the list it already had
+    const freeKey = freeKeys.join('\n');
+    const isEditing = editingControl !== null;
+    const candidatesByTile = useMemo(() => {
+        // No work per tile unless a parameter control is being edited
+        if (!isEditing) return {};
+        const free = new Set(freeKey === '' ? [] : freeKey.split('\n'));
+        return Object.fromEntries(
+            tiles.map((tile): [string, string[]] => [
+                tile.uuid,
+                [...new Set(tileParameterReferences[tile.uuid] ?? [])].filter(
+                    (key) => free.has(key),
+                ),
+            ]),
+        );
+    }, [isEditing, freeKey, tiles, tileParameterReferences]);
 
     if (editingControl === null) return null;
 
-    const selectLabel = `${editingControl.label || 'New parameter control'} on this tile`;
+    // An unlabelled control goes by its first parameter's name
+    const [firstKey] = editingControl.parameterKeys;
+    const controlName =
+        editingControl.label.trim() ||
+        (firstKey === undefined
+            ? 'Parameter control'
+            : getParameterLabel(firstKey, parameterDefinitions));
+    const selectLabel = `${controlName} on this tile`;
 
     return (
         <>
@@ -228,28 +310,22 @@ export const ParameterOverlays: FC = () => {
                     tile,
                     tileParameterReferences,
                 );
-                const isMapped =
-                    activeFieldId !== null && setKeys.includes(activeFieldId);
-                // The tile uses the active parameter but this control does not set it there
-                const isAvailable =
-                    activeFieldId !== null &&
-                    !isMapped &&
-                    keys.includes(activeFieldId);
-                // With no active parameter, every tile the control sets is marked
+                // Solid blue: set. Dashed blue: set, but not through the active
+                // parameter. Dashed grey: not set, but could be
+                const candidates = candidatesByTile[tile.uuid] ?? NO_KEYS;
                 const highlight: TileHighlight | null =
-                    keys.length === 0
+                    keys.length === 0 && candidates.length === 0
                         ? null
-                        : isMapped
-                          ? 'mapped'
-                          : isAvailable
-                            ? 'available'
-                            : activeFieldId === null && setKeys.length > 0
-                              ? 'reached'
-                              : null;
+                        : setKeys.length === 0
+                          ? 'available'
+                          : activeFieldId === null ||
+                              setKeys.includes(activeFieldId)
+                            ? 'mapped'
+                            : 'other';
                 const target = getControlTileTarget(editingControl, tile.uuid);
                 const selectValue =
-                    target === false
-                        ? OFF
+                    target === false || keys.length === 0
+                        ? null
                         : target === null
                           ? keys.length === 1
                               ? keys[0]
@@ -257,7 +333,7 @@ export const ParameterOverlays: FC = () => {
                           : // Narrowed to a parameter this tile does not use
                             keys.includes(target)
                             ? target
-                            : OFF;
+                            : null;
                 // The parameters the card reports on: the one the tile is narrowed to, else all it uses
                 const shownKeys = setKeys.length > 0 ? setKeys : keys;
                 const sourceLines = shownKeys.map(
@@ -278,13 +354,18 @@ export const ParameterOverlays: FC = () => {
                         tileUuid={tile.uuid}
                         selectLabel={selectLabel}
                         keys={keys}
+                        candidates={candidates}
                         selectValue={selectValue}
                         isSet={setKeys.length > 0}
                         sourceLines={sourceLines}
                         parameterDefinitions={parameterDefinitions}
                         highlight={highlight}
+                        // Only a tile set through the clicked parameter, while
+                        // it is the active one
                         scrollFieldId={
-                            highlight === 'mapped' || highlight === 'available'
+                            highlight === 'mapped' &&
+                            activeFieldId !== null &&
+                            activeFieldId === highlightedFieldId
                                 ? highlightedFieldId
                                 : null
                         }

@@ -9,7 +9,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import { IconDots, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -18,6 +18,34 @@ import { type FieldCount } from './peers';
 
 const pluralizeTiles = (count: number): string =>
     count === 1 ? 'tile' : 'tiles';
+
+const SHOW_ALL_TILES = 'Show all tiles';
+
+// The way out of a clicked row; render it right after the row's name button.
+// It leaves the page once clicked, so focus is handed back to that button
+export const ShowAllTilesButton: FC<{ onClick: () => void }> = ({
+    onClick,
+}) => (
+    <Tooltip label={SHOW_ALL_TILES}>
+        <ActionIcon
+            className={classes.rowUnpin}
+            size="sm"
+            variant="subtle"
+            color="gray"
+            mt="xs"
+            mr="xs"
+            flex="0 0 auto"
+            aria-label={SHOW_ALL_TILES}
+            onClick={(event) => {
+                const rowButton = event.currentTarget.previousElementSibling;
+                if (rowButton instanceof HTMLElement) rowButton.focus();
+                onClick();
+            }}
+        >
+            <MantineIcon icon={IconX} />
+        </ActionIcon>
+    </Tooltip>
+);
 
 type Props = {
     field: DashboardFilterableField | null;
@@ -28,11 +56,13 @@ type Props = {
     // On no tile yet
     isWaiting: boolean;
     onToggleHighlight: () => void;
+    onClearHighlight: () => void;
     onHoverChange: (isHovered: boolean) => void;
     onAll: () => void;
     onNone: () => void;
-    // null when the row cannot be removed
-    onRemove: (() => void) | null;
+    onRemove: () => void;
+    // Why the row cannot be removed, or null when it can
+    removeDisabledReason: string | null;
 };
 
 export const FieldRow: FC<Props> = ({
@@ -43,13 +73,16 @@ export const FieldRow: FC<Props> = ({
     isHighlighted,
     isWaiting,
     onToggleHighlight,
+    onClearHighlight,
     onHoverChange,
     onAll,
     onNone,
     onRemove,
+    removeDisabledReason,
 }) => {
     const showAll = count.applied < count.possible;
     const showNone = count.applied > 0;
+    const canRemove = removeDisabledReason === null;
 
     return (
         <Stack
@@ -60,26 +93,32 @@ export const FieldRow: FC<Props> = ({
             }
             gap={0}
             data-waiting={isWaiting || undefined}
+            data-keeps-field
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
-            <UnstyledButton
-                className={classes.rowMain}
-                data-highlighted={isHighlighted || undefined}
-                aria-pressed={isHighlighted}
-                onClick={onToggleHighlight}
-                onFocus={() => onHoverChange(true)}
-                onBlur={() => onHoverChange(false)}
-            >
-                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
-                    {field !== null && (
-                        <FieldIcon item={field} size={14} aria-hidden />
-                    )}
-                    <Text fz="sm" fw={600} truncate>
-                        {label}
-                    </Text>
-                </Group>
-            </UnstyledButton>
+            <Group gap={0} wrap="nowrap" align="flex-start">
+                <UnstyledButton
+                    className={classes.rowMain}
+                    data-highlighted={isHighlighted || undefined}
+                    aria-pressed={isHighlighted}
+                    onClick={onToggleHighlight}
+                    onFocus={() => onHoverChange(true)}
+                    onBlur={() => onHoverChange(false)}
+                >
+                    <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
+                        {field !== null && (
+                            <FieldIcon item={field} size={14} aria-hidden />
+                        )}
+                        <Text fz="sm" fw={600} truncate>
+                            {label}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+                {isHighlighted && (
+                    <ShowAllTilesButton onClick={onClearHighlight} />
+                )}
+            </Group>
             <Group
                 className={classes.rowActions}
                 gap="xs"
@@ -108,34 +147,49 @@ export const FieldRow: FC<Props> = ({
                             Apply to all {count.possible}
                         </Button>
                     )}
-                    {(showNone || onRemove !== null) && (
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <Tooltip label="More">
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        color="gray"
-                                        aria-label={`More actions for ${label}`}
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {showNone && (
-                                    <Menu.Item onClick={onNone}>
-                                        Clear from tiles
-                                    </Menu.Item>
-                                )}
-                                {onRemove !== null && (
-                                    <Menu.Item onClick={onRemove}>
-                                        Remove field
-                                    </Menu.Item>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    )}
+                    <Menu position="bottom-end">
+                        <Menu.Target>
+                            <Tooltip label="More">
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label={`More actions for ${label}`}
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {showNone && (
+                                <Menu.Item onClick={onNone}>
+                                    Clear from tiles
+                                </Menu.Item>
+                            )}
+                            {/* Not `disabled`: the arrow keys still reach
+                                    it, so the reason can be read */}
+                            <Tooltip
+                                label={removeDisabledReason}
+                                disabled={canRemove}
+                                events={{
+                                    hover: true,
+                                    focus: true,
+                                    touch: true,
+                                }}
+                            >
+                                <Menu.Item
+                                    closeMenuOnClick={canRemove}
+                                    aria-disabled={!canRemove || undefined}
+                                    c={canRemove ? undefined : 'dimmed'}
+                                    onClick={() => {
+                                        if (canRemove) onRemove();
+                                    }}
+                                >
+                                    Remove field
+                                </Menu.Item>
+                            </Tooltip>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Group>
             </Group>
         </Stack>

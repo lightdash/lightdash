@@ -14,37 +14,71 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
-import { useId, useRef, useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { ParameterInput } from '../parameters/components/ParameterInput';
 import { EditorShell } from './EditorShell';
+import { ShowAllTilesButton } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
 import {
     addControlKey,
     getControlCount,
     getControlTabCounts,
     getControlValue,
-    getFreeParameterKeys,
+    getControlFreeParameterKeys,
     getKeyCount,
-    getParameterKind,
     getParameterLabel,
     removeControlKey,
 } from './parameterControls';
+import { useCollapsibleSearch } from './useCollapsibleSearch';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
 } from './useControlsSidebar';
-import { useLabelDraft } from './useLabelDraft';
+import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 
-const LABEL_ERROR = 'Add a label so viewers know what this sets';
+type AddParameterSelectProps = {
+    options: { value: string; label: string }[];
+    onPick: (key: string) => void;
+    onDismiss: (byKeyboard: boolean) => void;
+};
+
+// Mounted while "Add a parameter" is open, so each opening starts fresh
+const AddParameterSelect: FC<AddParameterSelectProps> = ({
+    options,
+    onPick,
+    onDismiss,
+}) => {
+    const collapsible = useCollapsibleSearch(onDismiss);
+    return (
+        <Select
+            className={classes.addFieldSelect}
+            size="sm"
+            searchable
+            clearable={false}
+            {...collapsible}
+            // Enter picks the first match
+            selectFirstOptionOnChange
+            placeholder="Search parameters"
+            aria-label="Search parameters"
+            nothingFoundMessage="No parameters match"
+            comboboxProps={{ withinPortal: true }}
+            data={options}
+            value={null}
+            onChange={(key) => {
+                if (key !== null) onPick(key);
+            }}
+        />
+    );
+};
 
 type ParameterEditorProps = {
     control: DashboardParameterControl;
 };
 
-// Mounted with the control id as key, so the label draft and the armed and
-// error states never carry over to another control
+// Mounted with the control id as key, so the label draft and the armed state
+// never carry over to another control, and the label takes focus each time
 const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
     const {
         isNewControl,
@@ -55,6 +89,7 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
         setActiveSection,
         highlightedFieldId,
         setHighlightedFieldId,
+        clearHighlightedField,
         hoveredFieldId,
         setHoveredFieldId,
         discard,
@@ -63,10 +98,7 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
     } = useControlsSidebar();
     const [removeArmed, setRemoveArmed] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
-    const [labelError, setLabelError] = useState(false);
-    const [labelTouched, setLabelTouched] = useState(false);
-    const labelInputRef = useRef<HTMLInputElement>(null);
-    const labelErrorId = useId();
+    const addButtonRef = useRef<HTMLButtonElement>(null);
     const parameterControls = useDashboardContext((c) => c.parameterControls);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const setParameter = useDashboardContext((c) => c.setParameter);
@@ -79,8 +111,9 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    useFocusLabelOnMount();
     const label = useLabelDraft(control.label, (next) =>
-        updateControl({ ...control, label: next }),
+        updateControl({ ...control, label: next.trim() ? next : '' }),
     );
 
     const tiles = dashboardTiles ?? [];
@@ -106,23 +139,20 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
     const firstDefinition =
         firstKey === undefined ? undefined : parameterDefinitions[firstKey];
     const value = getControlValue(control, parameterValues) ?? null;
-    const freeKeys =
-        firstDefinition === undefined
-            ? []
-            : getFreeParameterKeys(
-                  getParameterKind(firstDefinition),
-                  parameterControls,
-                  parameterDefinitions,
-                  tileParameterReferences,
-              );
+    const freeKeys = getControlFreeParameterKeys(
+        control,
+        parameterControls,
+        parameterDefinitions,
+        tileParameterReferences,
+    );
     const hasFreeKeys = freeKeys.length > 0;
     const hasLabel = label.draft.trim() !== '';
-    const needsLabel = isNewControl && !hasLabel;
     const discardLabel = isNewControl
         ? 'Discard control'
         : isDirty
           ? 'Discard changes'
           : null;
+    // Left empty, the control takes its first parameter's name
     const suggestion =
         firstKey === undefined
             ? null
@@ -139,11 +169,7 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
 
     return (
         <EditorShell
-            title={
-                isNewControl
-                    ? 'New parameter control'
-                    : label.draft || 'Parameter control'
-            }
+            title={hasLabel ? label.draft : (suggestion ?? 'Parameter control')}
             subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${applied} of ${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'}${tabReach}`}
             menu={
                 isNewControl ? null : (
@@ -181,44 +207,24 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
                 if (next === 'fields' || next === 'settings')
                     setActiveSection(next);
             }}
-            footerStatus={
-                needsLabel ? 'Add a label to keep this control' : null
-            }
+            footerStatus={null}
             aboveTabs={
                 <>
                     <TextInput
-                        ref={labelInputRef}
                         label="Control label"
-                        withAsterisk
-                        required
-                        aria-required
-                        aria-describedby={labelError ? labelErrorId : undefined}
-                        error={labelError ? LABEL_ERROR : undefined}
-                        errorProps={{ id: labelErrorId }}
-                        placeholder="What viewers will see"
+                        placeholder={suggestion ?? 'What viewers will see'}
+                        autoFocus
+                        data-controls-label
                         value={label.draft}
-                        onChange={(event) => {
-                            if (event.currentTarget.value.trim() !== '') {
-                                setLabelError(false);
-                            }
-                            setLabelTouched(true);
-                            label.type(event.currentTarget.value);
-                        }}
-                        onBlur={() => {
-                            // Synchronous, so a click on Done closes with the label
-                            label.flush();
-                            if (labelTouched && !hasLabel) setLabelError(true);
-                        }}
+                        onChange={(event) =>
+                            label.type(event.currentTarget.value)
+                        }
+                        // Synchronous, so a click on Done closes with the label
+                        onBlur={label.flush}
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
                             label.flush();
-                            if (!needsLabel) {
-                                close();
-                                return;
-                            }
-                            setLabelError(true);
-                            labelInputRef.current?.focus();
                         }}
                     />
                     {isNewControl && !hasLabel && suggestion !== null && (
@@ -230,10 +236,7 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
                                 size="compact-xs"
                                 variant="default"
                                 radius="xl"
-                                onClick={() => {
-                                    setLabelError(false);
-                                    label.set(suggestion);
-                                }}
+                                onClick={() => label.set(suggestion)}
                             >
                                 {suggestion}
                             </Button>
@@ -274,32 +277,48 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
                                             : classes.row
                                     }
                                     gap={0}
+                                    data-keeps-field
                                     onMouseEnter={() => setHovered(key, true)}
                                     onMouseLeave={() => setHovered(key, false)}
                                 >
-                                    <UnstyledButton
-                                        className={classes.rowMain}
-                                        data-highlighted={
-                                            isHighlighted || undefined
-                                        }
-                                        aria-pressed={isHighlighted}
-                                        onClick={() =>
-                                            setHighlightedFieldId(
-                                                isHighlighted ? null : key,
-                                            )
-                                        }
-                                        onFocus={() => setHovered(key, true)}
-                                        onBlur={() => setHovered(key, false)}
+                                    <Group
+                                        gap={0}
+                                        wrap="nowrap"
+                                        align="flex-start"
                                     >
-                                        <Text
-                                            fz="sm"
-                                            fw={600}
-                                            truncate
-                                            className={classes.rowLabel}
+                                        <UnstyledButton
+                                            className={classes.rowMain}
+                                            data-highlighted={
+                                                isHighlighted || undefined
+                                            }
+                                            aria-pressed={isHighlighted}
+                                            onClick={() => {
+                                                if (isHighlighted)
+                                                    clearHighlightedField();
+                                                else setHighlightedFieldId(key);
+                                            }}
+                                            onFocus={() =>
+                                                setHovered(key, true)
+                                            }
+                                            onBlur={() =>
+                                                setHovered(key, false)
+                                            }
                                         >
-                                            {label}
-                                        </Text>
-                                    </UnstyledButton>
+                                            <Text
+                                                fz="sm"
+                                                fw={600}
+                                                truncate
+                                                className={classes.rowLabel}
+                                            >
+                                                {label}
+                                            </Text>
+                                        </UnstyledButton>
+                                        {isHighlighted && (
+                                            <ShowAllTilesButton
+                                                onClick={clearHighlightedField}
+                                            />
+                                        )}
+                                    </Group>
                                     <Group
                                         className={classes.rowActions}
                                         gap="xs"
@@ -359,6 +378,7 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
                             disabled={hasFreeKeys}
                         >
                             <Button
+                                ref={addButtonRef}
                                 variant="light"
                                 size="xs"
                                 leftSection={<MantineIcon icon={IconPlus} />}
@@ -374,31 +394,25 @@ const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
                             </Button>
                         </Tooltip>
                         {isAdding && hasFreeKeys && (
-                            <Select
-                                className={classes.addFieldSelect}
-                                size="sm"
-                                searchable
-                                clearable={false}
-                                autoFocus
-                                defaultDropdownOpened
-                                placeholder="Search parameters"
-                                aria-label="Search parameters"
-                                nothingFoundMessage="No parameters match"
-                                comboboxProps={{ withinPortal: true }}
-                                data={freeKeys.map((key) => ({
+                            <AddParameterSelect
+                                options={freeKeys.map((key) => ({
                                     value: key,
                                     label: getParameterLabel(
                                         key,
                                         parameterDefinitions,
                                     ),
                                 }))}
-                                value={null}
-                                onChange={(key) => {
-                                    if (key === null) return;
+                                onPick={(key) => {
                                     updateControl(addControlKey(control, key));
                                     // The new parameter follows the control's value
                                     setParameter(key, value);
                                     setIsAdding(false);
+                                    addButtonRef.current?.focus();
+                                }}
+                                onDismiss={(byKeyboard) => {
+                                    setIsAdding(false);
+                                    if (byKeyboard)
+                                        addButtonRef.current?.focus();
                                 }}
                             />
                         )}

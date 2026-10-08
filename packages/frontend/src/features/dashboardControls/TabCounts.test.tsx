@@ -262,6 +262,42 @@ describe('TabCounts', () => {
         ).toBeInTheDocument();
     });
 
+    it('counts a data app tile while it is on', () => {
+        const withApp = () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    tile('tile-region', 'tab-2'),
+                    tile('tile-app', 'tab-2', DashboardTileTypes.DATA_APP),
+                ],
+            };
+        };
+        withApp();
+        const { unmount } = renderWithProviders(<TabCounts />);
+        expect(badgeText('tab-2')).toBe('1 of 2');
+        unmount();
+
+        setSidebar({
+            editingRule: rule({ tileTargets: { 'tile-app': false } }),
+        });
+        renderWithProviders(<TabCounts />);
+        expect(badgeText('tab-2')).toBe('0 of 2');
+    });
+
+    it('never counts a data app tile as a tile on the active field', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [
+                tile('tile-status', 'tab-1'),
+                tile('tile-app', 'tab-1', DashboardTileTypes.DATA_APP),
+            ],
+        };
+        setSidebar({ activeFieldId: 'orders_status' });
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('1 of 2');
+    });
+
     it('renders nothing for a placeholder', () => {
         setSidebar({
             editingRule: rule({ target: { fieldId: '', tableName: '' } }),

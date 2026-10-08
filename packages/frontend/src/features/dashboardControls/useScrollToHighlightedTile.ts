@@ -1,10 +1,7 @@
 import { useEffect, type RefObject } from 'react';
 
-// A tile the control merely reaches is not a scroll target
-const HIGHLIGHTED_OVERLAY = [
-    "[data-tile-uuid] [data-highlighted='mapped']",
-    "[data-tile-uuid] [data-highlighted='available']",
-].join(', ');
+// While a field is clicked, the mapped tiles are the ones on that field
+const HIGHLIGHTED_OVERLAY = "[data-tile-uuid] [data-highlighted='mapped']";
 
 // At least half of the tile is on screen
 const isInViewport = (element: Element): boolean => {
@@ -14,8 +11,10 @@ const isInViewport = (element: Element): boolean => {
     return rect.height > 0 && visible / rect.height >= 0.5;
 };
 
-// When a row is clicked, the first highlighted tile scrolls into view if
-// none of them is visible. Hover never scrolls.
+// When a row is clicked, the first tile on its field scrolls into view if none
+// of them is visible. Hover never scrolls, and neither do the marks tiles carry
+// while no row is clicked: the list passes the clicked field only then, and
+// only to the tiles on it. A field on no tile scrolls nothing.
 export const useScrollToHighlightedTile = (
     ref: RefObject<HTMLElement | null>,
     highlightedFieldId: string | null,

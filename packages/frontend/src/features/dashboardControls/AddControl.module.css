@@ -1,0 +1,14 @@
+/* The shipped "Add filter" shape: a dashed pill with the viewer toggle attached.
+   Doubled so they outrank the theme's border on a default button */
+.add.add {
+    border-style: dashed;
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.viewerToggle.viewerToggle {
+    border-style: dashed;
+    border-left-width: 0;
+    border-radius: 0 100px 100px 0;
+}

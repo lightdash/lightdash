@@ -1,36 +1,46 @@
+import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import {
-    FilterOperator,
-    getConditionalRuleLabelFromItem,
-    isFilterLockedOnTab,
+    getDashboardFilterField,
+    type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
-import { IconLock, IconLockOpen, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import {
+    DraggableItem,
+    DroppableArea,
+} from '../../components/common/DndHelpers';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useDndSensors } from '../../hooks/useDndSensors';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
-import { getTabsForFilterRule } from '../dashboardFilters/FilterConfiguration/utils';
-import classes from './FilterPills.module.css';
-import { replaceFilterRule, toggleFilterLockOnTab } from './sidebarState';
-import { useControlsSidebar } from './useControlsSidebar';
+import InvalidFilter from '../dashboardFilters/InvalidFilter';
+import LockedFilter from '../dashboardFilters/LockedFilter';
+import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
+import { FilterPill } from './FilterPill';
+import {
+    getFilterPillPlacement,
+    moveFilterRule,
+    type FilterPillGroup,
+} from './pillState';
+import { isPlaceholderRule } from './sidebarState';
+import { TemporaryFilterPills } from './TemporaryFilterPills';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = {
     activeTabUuid: string | undefined;
 };
 
-// Operators that take no value, mirroring getFilterRuleWithDefaultValue
-const UNARY_OPERATORS = new Set<FilterOperator>([
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
-    FilterOperator.IN_PERIOD_TO_DATE,
-]);
+const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
 export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
-    const { editing, isSidebarOpen, isNew, open, removeFilterById } =
-        useControlsSidebar();
+    const editingFilterId = useControlsSidebarSelector(
+        (c) => c.editing?.filterId ?? null,
+    );
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const removeFilterById = useControlsSidebarSelector(
+        (c) => c.removeFilterById,
+    );
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
@@ -44,9 +54,18 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    // While fields load nothing resolves, which is not the same as invalid
+    const areFieldsLoading = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
+    );
+    const isHiddenFieldRule = useIsLockedDashboardFilterRule();
+    const dragSensors = useDndSensors();
 
     const sortedTabUuids = useMemo(
         () =>
@@ -55,187 +74,113 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 .map((tab) => tab.uuid),
         [dashboardTabs],
     );
-    const tabsEnabled = dashboardTabs.length > 1;
     const hasTabs = dashboardTabs.length > 0;
     // Dashboards without tabs lock on the dashboard uuid
     const lockKey = hasTabs ? activeTabUuid : dashboardUuid;
 
-    const toggleLock = (filter: DashboardFilterRule, key: string) => {
+    const handleDragEnd = (group: FilterPillGroup, event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!active || !over || active.id === over.id) return;
         setDashboardFilters((filters) =>
-            replaceFilterRule(
-                filters,
-                toggleFilterLockOnTab(filter, key, hasTabs),
-            ),
+            moveFilterRule(filters, group, String(active.id), String(over.id)),
         );
         setHaveFiltersChanged(true);
     };
 
-    const pills = [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-        .map((filter: DashboardFilterRule) => {
-            const appliesToTabs = getTabsForFilterRule(
-                filter,
-                dashboardTiles,
-                sortedTabUuids,
-                filterableFieldsByTileUuid,
-            );
-            return {
-                filter,
-                isOrphaned: appliesToTabs.length === 0,
-                isSelected: editing?.filterId === filter.id,
-                isOnActiveTab:
-                    !activeTabUuid || appliesToTabs.includes(activeTabUuid),
-            };
-        })
-        .filter(
-            (pill) => pill.isOnActiveTab || pill.isOrphaned || pill.isSelected,
+    const renderPill = (
+        filter: DashboardFilterRule,
+        group: FilterPillGroup,
+    ) => {
+        const isSelected = editingFilterId === filter.id;
+        const placement = getFilterPillPlacement(filter, {
+            dashboardTiles,
+            sortedTabUuids,
+            filterableFieldsByTileUuid,
+            activeTabUuid,
+        });
+        if (!placement.isOnActiveTab && !placement.isOnNoTab && !isSelected) {
+            return null;
+        }
+        const field = getDashboardFilterField<DashboardFilterableField>(
+            group === 'metrics'
+                ? allFilterableMetricsMap
+                : allFilterableFieldsMap,
+            filter,
+            filterableFieldsByTileUuid,
         );
+        const isUnresolved =
+            !field &&
+            !filter.target.isSqlColumn &&
+            !isPlaceholderRule(filter) &&
+            !areFieldsLoading;
+        if (isUnresolved) {
+            // The shipped pills for a deleted or hidden field: no editor
+            const Unresolved = isHiddenFieldRule(filter)
+                ? LockedFilter
+                : InvalidFilter;
+            return (
+                <Unresolved
+                    isEditMode={!isSidebarOpen}
+                    filterRule={filter}
+                    onRemove={() => removeFilterById(filter.id)}
+                />
+            );
+        }
+        return (
+            <FilterPill
+                filter={filter}
+                field={field}
+                isOrphaned={placement.isOrphaned}
+                orphanedTooltip={getUiString(placement.orphanedTooltipKey)}
+                isSelected={isSelected}
+                isDraft={isNew && isSelected && !filter.label}
+                isSidebarOpen={isSidebarOpen}
+                lockKey={lockKey}
+                hasTabs={hasTabs}
+                dashboardUuid={dashboardUuid}
+            />
+        );
+    };
 
     return (
         <>
-            {pills.map(({ filter, isOrphaned, isSelected }) => {
-                const field = allFilterableFieldsMap[filter.target.fieldId];
-                const labels = field
-                    ? getConditionalRuleLabelFromItem(
-                          filter,
-                          field,
-                          getUiString,
-                      )
-                    : null;
-                const isDraft = isNew && isSelected && !filter.label;
-                const name = isDraft
-                    ? 'New filter'
-                    : filter.label || labels?.field || 'Filter';
-                const hasNoDefault = filter.disabled === true;
-                const needsValue =
-                    !hasNoDefault &&
-                    !UNARY_OPERATORS.has(filter.operator) &&
-                    (filter.values === undefined || filter.values.length === 0);
-                const isLocked =
-                    !!lockKey && isFilterLockedOnTab(filter, lockKey, hasTabs);
-                const lockLabel = `${isLocked ? 'Unlock' : 'Lock'} filter${hasTabs ? ' on this tab' : ''}`;
+            {GROUPS.map((group) => {
+                const orderedKeys = dashboardFilters[group].map(
+                    (rule) => rule.id,
+                );
                 return (
-                    <Tooltip
-                        key={filter.id}
-                        disabled={!isOrphaned}
-                        label={getUiString(
-                            tabsEnabled
-                                ? 'filters.notAppliedToAnyTabs'
-                                : 'filters.notAppliedToAnyTiles',
-                        )}
+                    <DndContext
+                        key={group}
+                        sensors={dragSensors}
+                        onDragEnd={(event) => handleDragEnd(group, event)}
                     >
-                        <Box className={classes.pill}>
-                            <Button
-                                size="xs"
-                                variant="default"
-                                aria-pressed={isSelected}
-                                classNames={{ label: pillClasses.label }}
-                                className={[
-                                    pillClasses.button,
-                                    isOrphaned
-                                        ? pillClasses.inactiveFilter
-                                        : '',
-                                    isSelected ? classes.selectedPill : '',
-                                    isDraft ? classes.draftPill : '',
-                                ].join(' ')}
-                                rightSection={
-                                    !isSidebarOpen && (
-                                        <Group gap={2} wrap="nowrap">
-                                            {lockKey && (
-                                                <Box
-                                                    component="span"
-                                                    className={
-                                                        isLocked
-                                                            ? pillClasses.lockSlotActive
-                                                            : pillClasses.lockSlot
-                                                    }
-                                                >
-                                                    <Tooltip
-                                                        fz="xs"
-                                                        label={lockLabel}
-                                                    >
-                                                        <ActionIcon
-                                                            size="xs"
-                                                            radius="xl"
-                                                            aria-label={
-                                                                lockLabel
-                                                            }
-                                                            aria-pressed={
-                                                                isLocked
-                                                            }
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                toggleLock(
-                                                                    filter,
-                                                                    lockKey,
-                                                                );
-                                                            }}
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    isLocked
-                                                                        ? IconLock
-                                                                        : IconLockOpen
-                                                                }
-                                                                size="sm"
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                </Box>
-                                            )}
-                                            <Tooltip
-                                                fz="xs"
-                                                label="Remove filter"
-                                            >
-                                                <ActionIcon
-                                                    size="xs"
-                                                    radius="xl"
-                                                    aria-label="Remove filter"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removeFilterById(
-                                                            filter.id,
-                                                        );
-                                                    }}
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconX}
-                                                        size="sm"
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        </Group>
-                                    )
-                                }
-                                onClick={() => open(filter.id)}
-                            >
-                                <Text fz="inherit" span>
-                                    <Text fw={600} span>
-                                        {name}
-                                    </Text>{' '}
-                                    {labels === null || hasNoDefault ? (
-                                        <Text span c="dimmed">
-                                            {'\u00b7 no default'}
-                                        </Text>
-                                    ) : needsValue ? (
-                                        <Text span c="dimmed">
-                                            {'\u00b7 value needed'}
-                                        </Text>
-                                    ) : (
-                                        <>
-                                            <Text span c="dimmed">
-                                                {labels.operator}
-                                            </Text>{' '}
-                                            <Text fw={700} span>
-                                                {labels.value}
-                                            </Text>
-                                        </>
-                                    )}
-                                </Text>
-                            </Button>
-                        </Box>
-                    </Tooltip>
+                        {dashboardFilters[group].map((filter) => {
+                            const pill = renderPill(filter, group);
+                            return (
+                                pill && (
+                                    <DroppableArea
+                                        key={filter.id}
+                                        id={filter.id}
+                                        orderedKeys={orderedKeys}
+                                    >
+                                        <DraggableItem
+                                            id={filter.id}
+                                            disabled={isSidebarOpen}
+                                        >
+                                            {pill}
+                                        </DraggableItem>
+                                    </DroppableArea>
+                                )
+                            );
+                        })}
+                        <DragOverlay />
+                    </DndContext>
                 );
             })}
+            <TemporaryFilterPills
+                activeTabUuid={activeTabUuid}
+                sortedTabUuids={sortedTabUuids}
+            />
         </>
     );
 };

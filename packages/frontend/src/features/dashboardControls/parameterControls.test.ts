@@ -8,8 +8,10 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     addControlKey,
+    addControlKeyFromTile,
     getControlCount,
     getControlKeysOnTile,
+    getControlFreeParameterKeys,
     getControlKeysSetOnTile,
     getControlledParameterKeys,
     getControlTabCounts,
@@ -329,5 +331,96 @@ describe('getControlValue', () => {
                 { region: 'EU' },
             ),
         ).toBeUndefined();
+    });
+});
+
+describe('getControlFreeParameterKeys', () => {
+    const allRefs = { ...refs, d: ['amount', 'since'] };
+    it("lists the free parameters of the kind of the control's first parameter", () => {
+        expect(
+            getControlFreeParameterKeys(control, [], definitions, allRefs),
+        ).toEqual(['other']);
+        expect(
+            getControlFreeParameterKeys(
+                { ...control, parameterKeys: ['amount'] },
+                [control],
+                definitions,
+                allRefs,
+            ),
+        ).toEqual([]);
+    });
+    it('lists nothing for a control with no known parameter', () => {
+        expect(
+            getControlFreeParameterKeys(
+                { ...control, parameterKeys: [] },
+                [],
+                definitions,
+                allRefs,
+            ),
+        ).toEqual([]);
+    });
+});
+
+describe('addControlKeyFromTile', () => {
+    // a uses both parameters of the control, b one, c none; all use "other"
+    const withOther = {
+        a: ['country', 'region', 'other'],
+        b: ['country', 'other'],
+        c: ['other'],
+        d: ['other'],
+        e: ['country'],
+    };
+    const setOn = (next: DashboardParameterControl, uuid: string) =>
+        getControlKeysSetOnTile(next, tile(uuid, 't1'), withOther);
+
+    it('adds the key and narrows the tile to it', () => {
+        const next = addControlKeyFromTile(control, 'other', 'd', {
+            d: ['other'],
+        });
+        expect(next.parameterKeys).toEqual(['region', 'country', 'other']);
+        expect(next.tileTargets).toEqual({ d: 'other' });
+    });
+
+    it('pins the other tiles that use the key to what set them before', () => {
+        const next = addControlKeyFromTile(control, 'other', 'd', withOther);
+        expect(next.tileTargets).toEqual({
+            // One parameter of the control: narrowed to it
+            b: 'country',
+            // None: switched off
+            c: false,
+            d: 'other',
+        });
+        expect(setOn(next, 'b')).toEqual(setOn(control, 'b'));
+        expect(setOn(next, 'c')).toEqual(setOn(control, 'c'));
+        expect(setOn(next, 'e')).toEqual(setOn(control, 'e'));
+        expect(setOn(next, 'd')).toEqual(['other']);
+    });
+
+    it('cannot pin a tile on several parameters of the control, which takes the new one too', () => {
+        const next = addControlKeyFromTile(control, 'other', 'd', withOther);
+        expect(next.tileTargets.a).toBeUndefined();
+        expect(setOn(next, 'a')).toEqual(['region', 'country', 'other']);
+    });
+
+    it('keeps the entries the other tiles already had', () => {
+        const next = addControlKeyFromTile(
+            withTargets({ a: 'region', b: false, c: 'gone' }),
+            'other',
+            'd',
+            withOther,
+        );
+        expect(next.tileTargets).toEqual({
+            a: 'region',
+            b: false,
+            // A target the control no longer holds counted as no entry
+            c: false,
+            d: 'other',
+        });
+    });
+
+    it('only narrows the tile when the control already holds the key', () => {
+        expect(
+            addControlKeyFromTile(control, 'country', 'a', withOther),
+        ).toEqual(withTargets({ a: 'country' }));
     });
 });

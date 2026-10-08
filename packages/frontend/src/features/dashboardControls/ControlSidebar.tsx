@@ -1,6 +1,6 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
-import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { getFieldDisplayLabel } from './fieldGrains';
@@ -15,17 +15,16 @@ import {
 } from './peers';
 import { isDefaultValueIncomplete } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { useLabelDraft } from './useLabelDraft';
+import { useFilterRuleField } from './useFilterRuleField';
+import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
-
-const LABEL_ERROR = 'Add a label so viewers know what this filters';
 
 type FilterEditorProps = {
     rule: DashboardFilterRule;
 };
 
-// Mounted with the filter id as key, so the label draft and the armed and
-// error states never carry over to another control
+// Mounted with the filter id as key, so the label draft and the armed state
+// never carry over to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
@@ -38,14 +37,11 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const discard = useControlsSidebarSelector((c) => c.discard);
     const close = useControlsSidebarSelector((c) => c.close);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
+    useFocusLabelOnMount();
     const label = useLabelDraft(filterRule.label ?? '', (next) =>
-        updateFilter({ ...filterRule, label: next || undefined }),
+        updateFilter({ ...filterRule, label: next.trim() ? next : undefined }),
     );
     const [removeArmed, setRemoveArmed] = useState(false);
-    const [labelError, setLabelError] = useState(false);
-    const [labelTouched, setLabelTouched] = useState(false);
-    const labelInputRef = useRef<HTMLInputElement>(null);
-    const labelErrorId = useId();
     const handleRemoveClick = useCallback(() => {
         if (removeArmed) {
             setRemoveArmed(false);
@@ -59,10 +55,6 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             {removeArmed ? 'Click again to remove' : 'Remove filter'}
         </Menu.Item>
     );
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
-
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
@@ -117,27 +109,28 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     // No props, so one element: typing a label does not re-render the list
     const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
 
-    const field = allFilterableFieldsMap[filterRule.target.fieldId] ?? null;
+    // A dimension or a metric, as the shipped bar resolves it
+    const field = useFilterRuleField(filterRule);
     const fieldLabel = field
         ? getFieldDisplayLabel(field, allFilterableFields ?? [])
         : null;
     const hasLabel = label.draft.trim() !== '';
-    const title = isNew
-        ? isPlaceholder
-            ? 'New control'
-            : 'New filter'
-        : label.draft || 'Filter';
-    const needsLabel = isNew && !hasLabel;
+    // What the bar shows for a filter with no label: its field's name, or
+    // the column's for a SQL column filter
+    const fallbackName =
+        field?.label ??
+        (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
+    const title = isPlaceholder
+        ? 'New control'
+        : hasLabel
+          ? label.draft
+          : (fallbackName ?? 'Filter');
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
-        ? isNew
-            ? 'Add a field to keep this control'
-            : 'Add a field to keep these changes'
-        : needsLabel
-          ? 'Add a label to keep this control'
-          : isDefaultValueIncomplete(filterRule)
-            ? 'No default value chosen, so the default stays off'
-            : null;
+        ? 'Add a field to keep this control'
+        : isDefaultValueIncomplete(filterRule)
+          ? 'No default value chosen, so the default stays off'
+          : null;
     const discardLabel = isNew
         ? 'Discard control'
         : isDirty
@@ -152,10 +145,6 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         ? 'No mapping yet'
         : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
     const showSettings = activeSection === 'settings' && !isPlaceholder;
-    const showLabelError = () => {
-        setLabelError(true);
-        labelInputRef.current?.focus();
-    };
 
     return (
         <EditorShell
@@ -188,34 +177,21 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             aboveTabs={
                 <>
                     <TextInput
-                        ref={labelInputRef}
                         label={isPlaceholder ? 'Label' : 'Filter label'}
-                        withAsterisk
-                        required
-                        aria-required
-                        aria-describedby={labelError ? labelErrorId : undefined}
-                        error={labelError ? LABEL_ERROR : undefined}
-                        errorProps={{ id: labelErrorId }}
-                        placeholder="What viewers will see"
+                        // Left empty, the filter goes by its field's name
+                        placeholder={fallbackName ?? 'What viewers will see'}
+                        autoFocus
+                        data-controls-label
                         value={label.draft}
-                        onChange={(event) => {
-                            if (event.currentTarget.value.trim() !== '') {
-                                setLabelError(false);
-                            }
-                            setLabelTouched(true);
-                            label.type(event.currentTarget.value);
-                        }}
-                        onBlur={() => {
-                            // Synchronous, so a click on Done closes with the label
-                            label.flush();
-                            if (labelTouched && !hasLabel) setLabelError(true);
-                        }}
+                        onChange={(event) =>
+                            label.type(event.currentTarget.value)
+                        }
+                        // Synchronous, so a click on Done closes with the label
+                        onBlur={label.flush}
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
                             label.flush();
-                            if (needsLabel) showLabelError();
-                            else if (!isPlaceholder) close();
                         }}
                     />
                     {isNew && !hasLabel && fieldLabel !== null && (
@@ -227,10 +203,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                                 size="compact-xs"
                                 variant="default"
                                 radius="xl"
-                                onClick={() => {
-                                    setLabelError(false);
-                                    label.set(fieldLabel);
-                                }}
+                                onClick={() => label.set(fieldLabel)}
                             >
                                 {fieldLabel}
                             </Button>

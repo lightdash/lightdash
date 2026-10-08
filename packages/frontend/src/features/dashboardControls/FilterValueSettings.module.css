@@ -1,0 +1,5 @@
+/* Right-aligns the single or multiple values button inside the operator */
+.valueCountSection[data-position='right'] {
+    justify-content: flex-end;
+    padding-inline-end: var(--mantine-spacing-xs);
+}

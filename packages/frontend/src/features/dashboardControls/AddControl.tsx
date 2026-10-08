@@ -1,21 +1,36 @@
 import { Button } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import classes from './AddControl.module.css';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 
 export const AddControl: FC = () => {
-    const { isSidebarOpen, openNew } = useControlsSidebar();
+    const getUiString = useUiStrings();
+    const openNew = useControlsSidebarSelector((c) => c.openNew);
+    // Same conditions as the shipped "Add filter": no picker before its fields
+    const isDisabled = useDashboardContext(
+        (c) => c.allFilterableFields === undefined,
+    );
+    const hasSqlColumns = useDashboardTileStatusContext(
+        (c) => Object.keys(c.sqlChartTilesMetadata).length > 0,
+    );
+    const isLoading = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
+    );
     return (
         <Button
             size="xs"
-            variant="light"
+            variant="default"
+            radius={100}
+            className={classes.add}
             aria-label="Add filter or parameter"
-            leftSection={<MantineIcon icon={IconPlus} />}
-            disabled={isSidebarOpen}
+            disabled={isDisabled && !hasSqlColumns}
+            loading={isLoading}
             onClick={openNew}
         >
-            Add
+            {getUiString('filters.addFilter')}
         </Button>
     );
 };

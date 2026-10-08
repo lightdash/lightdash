@@ -1,8 +1,11 @@
 import {
     isFilterLockedOnTab,
+    type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterType,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Checkbox,
     Group,
@@ -16,20 +19,24 @@ import { IconChevronDown } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
-import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
+import {
+    getDashboardFilterRuleLabel,
+    getRequirementIneligibilityReason,
+} from '../dashboardFilters/FilterRequirements/utils';
 import classes from './FilterSettings.module.css';
 import {
     addAlternative,
-    clearRequired,
+    clearRuleRequired,
     getAlternativeIds,
-    getRequiredIneligibilityReason,
+    isLockedRequiredMissingValue,
     isRuleRequired,
     removeAlternative,
     setRuleRequired,
 } from './requirements';
-import { toggleFilterLockOnTab } from './sidebarState';
+import { findFilterRule, toggleFilterLockOnTab } from './sidebarState';
 
 type RowKey = 'lock' | 'required';
 
@@ -85,11 +92,23 @@ const QuestionRow: FC<RowProps> = ({
 
 type Props = {
     rule: DashboardFilterRule;
+    filterType: FilterType;
+    field: DashboardFilterableField | null;
     onChange: (next: DashboardFilterRule) => void;
+    /** Opens the bar's "Filter rules"; null when it cannot be reached. */
+    onEditRules: (() => void) | null;
 };
 
-export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
+export const ViewerControls: FC<Props> = ({
+    rule,
+    filterType,
+    field,
+    onChange,
+    onEditRules,
+}) => {
+    const getUiString = useUiStrings();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const setDashboardFilters = useDashboardContext(
@@ -124,18 +143,26 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
         dashboardTabs.length > 1 &&
         (isPerTab || (isLockedSomewhere && !isLockedEverywhere));
 
+    const lockedEverywhereRule = lockKeys
+        .filter((key) => !isLocked(key))
+        .reduce((next, key) => toggleFilterLockOnTab(next, key, hasTabs), rule);
     const setLockedEverywhere = (locked: boolean) =>
         onChange(
             locked
-                ? lockKeys
-                      .filter((key) => !isLocked(key))
-                      .reduce(
-                          (next, key) =>
-                              toggleFilterLockOnTab(next, key, hasTabs),
-                          rule,
-                      )
+                ? lockedEverywhereRule
                 : { ...rule, lockedTabUuids: undefined },
         );
+    // Unlocking is always allowed; locking is not when no viewer could then
+    // satisfy the filter
+    const lockedRequiredMessage = getUiString(
+        'filters.config.applyLockedRequiredTooltip',
+    );
+    const isLockEverywhereBlocked =
+        !isLockedEverywhere &&
+        isLockedRequiredMissingValue(lockedEverywhereRule);
+    const isLockBlocked = (key: string) =>
+        !isLocked(key) &&
+        isLockedRequiredMissingValue(toggleFilterLockOnTab(rule, key, hasTabs));
 
     const everyTab = hasTabs ? ' on every tab' : '';
     const lockSummary = isLockedEverywhere
@@ -144,13 +171,9 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
           ? `Locked on ${lockedCount} of ${lockKeys.length} tabs`
           : `Viewers can change it${everyTab}`;
 
-    // Required
+    // Required: rules are over dimensions and metrics, as in the shipped card
     const savedRules = useMemo(
-        () => [
-            ...dashboardFilters.dimensions,
-            ...dashboardFilters.metrics,
-            ...dashboardFilters.tableCalculations,
-        ],
+        () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
         [dashboardFilters],
     );
     // The rule being edited may be ahead of, or missing from, the saved filters
@@ -165,7 +188,13 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
     );
     const isRequired = isRuleRequired(rule);
     const alternativeIds = getAlternativeIds(allRules, rule.id);
-    const requiredReason = getRequiredIneligibilityReason(rule, tabUuids);
+    // The rule as the dashboard was last saved, as the shipped popover reads it
+    const savedRule = savedFilters
+        ? findFilterRule(savedFilters, rule.id)
+        : null;
+    const requiredRule = setRuleRequired(rule, savedRule);
+    const isRequiredBlocked =
+        !isRequired && isLockedRequiredMissingValue(requiredRule);
 
     // This rule goes through onChange; the other filters are written directly
     const writeRules = (next: DashboardFilterRule[]) => {
@@ -178,9 +207,9 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
             const swap = (rules: DashboardFilterRule[]) =>
                 rules.map((r) => others.get(r.id) ?? r);
             setDashboardFilters((filters) => ({
+                ...filters,
                 dimensions: swap(filters.dimensions),
                 metrics: swap(filters.metrics),
-                tableCalculations: swap(filters.tableCalculations),
             }));
             setHaveFiltersChanged(true);
         }
@@ -195,16 +224,10 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
         ? alternativeLabels.length > 0
             ? `Required, or ${alternativeLabels.join(' or ')}`
             : 'Required'
-        : requiredReason === null
-          ? 'Not required'
-          : `Cannot be required while ${requiredReason}`;
+        : 'Not required';
     const requiredSub = isRequired
         ? 'Viewers must set this filter to load the dashboard.'
-        : requiredReason === null
-          ? 'Viewers would have to set it before the tiles load'
-          : requiredReason === 'it has a default value'
-            ? 'Remove the default value to require it'
-            : 'Unlock it on a tab to require it';
+        : 'Viewers would have to set it before the tiles load';
 
     return (
         <Stack gap={0}>
@@ -214,34 +237,51 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
                 isChanged={isLockedSomewhere}
                 {...rowProps('lock')}
             >
-                <Switch
-                    size="xs"
-                    label={hasTabs ? 'Lock on every tab' : 'Lock'}
-                    description="Viewers see the value but cannot change it"
-                    checked={isLockedEverywhere}
-                    disabled={lockKeys.length === 0}
-                    onChange={(e) =>
-                        setLockedEverywhere(e.currentTarget.checked)
-                    }
-                />
+                <Tooltip
+                    label={lockedRequiredMessage}
+                    disabled={!isLockEverywhereBlocked}
+                >
+                    <Box w="max-content">
+                        <Switch
+                            size="xs"
+                            label={hasTabs ? 'Lock on every tab' : 'Lock'}
+                            description="Viewers see the value but cannot change it"
+                            checked={isLockedEverywhere}
+                            disabled={
+                                lockKeys.length === 0 || isLockEverywhereBlocked
+                            }
+                            onChange={(e) =>
+                                setLockedEverywhere(e.currentTarget.checked)
+                            }
+                        />
+                    </Box>
+                </Tooltip>
                 {showPerTab && (
                     <Stack gap="xs" role="group" aria-label="Lock per tab">
                         {dashboardTabs.map((tab) => (
-                            <Switch
+                            <Tooltip
                                 key={tab.uuid}
-                                size="xs"
-                                label={tab.name}
-                                checked={isLocked(tab.uuid)}
-                                onChange={() =>
-                                    onChange(
-                                        toggleFilterLockOnTab(
-                                            rule,
-                                            tab.uuid,
-                                            hasTabs,
-                                        ),
-                                    )
-                                }
-                            />
+                                label={lockedRequiredMessage}
+                                disabled={!isLockBlocked(tab.uuid)}
+                            >
+                                <Box w="max-content">
+                                    <Switch
+                                        size="xs"
+                                        label={tab.name}
+                                        checked={isLocked(tab.uuid)}
+                                        disabled={isLockBlocked(tab.uuid)}
+                                        onChange={() =>
+                                            onChange(
+                                                toggleFilterLockOnTab(
+                                                    rule,
+                                                    tab.uuid,
+                                                    hasTabs,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </Box>
+                            </Tooltip>
                         ))}
                     </Stack>
                 )}
@@ -271,24 +311,41 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
                 {...rowProps('required')}
             >
                 <Tooltip
-                    label={`Cannot be required while ${requiredReason}`}
-                    disabled={isRequired || requiredReason === null}
+                    label={lockedRequiredMessage}
+                    disabled={!isRequiredBlocked}
                 >
-                    <Switch
-                        size="xs"
-                        label="Required"
-                        description={requiredSub}
-                        checked={isRequired}
-                        disabled={!isRequired && requiredReason !== null}
-                        onChange={(e) =>
-                            writeRules(
-                                e.currentTarget.checked
-                                    ? [setRuleRequired(rule)]
-                                    : clearRequired(allRules, rule.id),
-                            )
-                        }
-                    />
+                    <Box w="max-content">
+                        <Switch
+                            size="xs"
+                            label="Required"
+                            description={requiredSub}
+                            checked={isRequired}
+                            disabled={isRequiredBlocked}
+                            onChange={(e) =>
+                                onChange(
+                                    e.currentTarget.checked
+                                        ? requiredRule
+                                        : clearRuleRequired(
+                                              rule,
+                                              filterType,
+                                              field,
+                                          ),
+                                )
+                            }
+                        />
+                    </Box>
                 </Tooltip>
+                {alternativeIds.length > 0 && onEditRules !== null && (
+                    <Group gap="xs">
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            onClick={onEditRules}
+                        >
+                            Edit rule →
+                        </Button>
+                    </Group>
+                )}
                 {isRequired && allRules.length > 1 && (
                     <Stack gap="xs">
                         <Text size="xs" fw={500}>
@@ -302,12 +359,7 @@ export const ViewerControls: FC<Props> = ({ rule, onChange }) => {
                                 );
                                 const reason = isAlternative
                                     ? null
-                                    : isRuleRequired(other)
-                                      ? 'Already required'
-                                      : getRequiredIneligibilityReason(
-                                            other,
-                                            tabUuids,
-                                        );
+                                    : getRequirementIneligibilityReason(other);
                                 return (
                                     <Checkbox
                                         key={other.id}

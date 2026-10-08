@@ -143,6 +143,10 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
         clearAllParameters: vi.fn(),
         resetDashboardFilters: vi.fn(),
         refreshDashboardVersion: vi.fn(),
+        parameterControls: [],
+        setParameterControls: vi.fn(),
+        resetParameterControls: vi.fn(),
+        haveParameterControlsChanged: false,
     };
     return {
         default: <T,>(selector: (context: typeof dashboardContext) => T) =>

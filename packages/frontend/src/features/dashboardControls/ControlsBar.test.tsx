@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -37,7 +37,9 @@ vi.mock('../parameters', () => ({
 }));
 
 vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: typeof mockSidebar.current) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 
 vi.mock('./AddControl', () => ({
@@ -48,10 +50,20 @@ vi.mock('./FilterPills', () => ({
 }));
 
 vi.mock('./ParameterControlPills', () => ({
-    ParameterControlPills: ({ isEditMode }: { isEditMode: boolean }) => (
+    ParameterControlPills: ({
+        isEditMode,
+        missingRequiredParameters,
+        shadowedReservedNames,
+    }: {
+        isEditMode: boolean;
+        missingRequiredParameters: string[];
+        shadowedReservedNames: string[];
+    }) => (
         <div
             data-testid="parameter-control-pills"
             data-edit-mode={isEditMode}
+            data-missing={missingRequiredParameters.join(',')}
+            data-shadowed={shadowedReservedNames.join(',')}
         />
     ),
 }));
@@ -81,13 +93,21 @@ const baseProps: ComponentProps<typeof ControlsBar> = {
 };
 
 describe('ControlsBar', () => {
+    const setIsAddFilterDisabled = vi.fn();
+    const visibilityToggle = () =>
+        screen.getByRole('button', {
+            name: 'Toggle filter visibility for viewers',
+        });
+
     beforeEach(() => {
+        setIsAddFilterDisabled.mockClear();
         mockCompact.current = false;
         mockSidebar.current = { isSidebarOpen: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
             allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
             setIsDateZoomDisabled: vi.fn(),
+            setIsAddFilterDisabled,
             parameterControls: [],
         };
     });
@@ -149,6 +169,65 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+    });
+
+    it('has no "Add filter" visibility toggle in view mode', () => {
+        renderWithProviders(<ControlsBar {...baseProps} />);
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Toggle filter visibility for viewers',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides "Add filter" from viewers with the eye next to Add', async () => {
+        renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+
+        expect(
+            visibilityToggle().querySelector('.tabler-icon-eye'),
+        ).not.toBeNull();
+        fireEvent.mouseEnter(visibilityToggle());
+        expect(
+            await screen.findByText('Visible to viewers. Click to hide.'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(visibilityToggle());
+        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+    });
+
+    it('shows "Add filter" to viewers again, also while the sidebar is open', async () => {
+        mockSidebar.current = { isSidebarOpen: true };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            isAddFilterDisabled: true,
+        };
+        renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+
+        expect(
+            visibilityToggle().querySelector('.tabler-icon-eye-off'),
+        ).not.toBeNull();
+        fireEvent.mouseEnter(visibilityToggle());
+        expect(
+            await screen.findByText('Hidden from viewers. Click to show.'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(visibilityToggle());
+        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(false);
+    });
+
+    it('hands the parameter pill states to the control pills', () => {
+        renderWithProviders(
+            <ControlsBar
+                {...baseProps}
+                missingRequiredParameters={['region']}
+                shadowedReservedNames={['start']}
+            />,
+        );
+
+        const pills = screen.getByTestId('parameter-control-pills');
+        expect(pills).toHaveAttribute('data-missing', 'region');
+        expect(pills).toHaveAttribute('data-shadowed', 'start');
     });
 
     it('renders the shipped parameters only when the tab has parameters', () => {

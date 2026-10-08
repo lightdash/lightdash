@@ -3,6 +3,7 @@ import {
     type DashboardFilterRule,
     type DashboardParameterControl,
     type ParameterValue,
+    type ResultColumn,
 } from '@lightdash/common';
 import {
     createContext,
@@ -29,14 +30,26 @@ export type ControlsSidebarContextValue = {
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
     /**
-     * Removes every field of the edited filter, turning it back into a
-     * placeholder that keeps its label and settings. It cannot be kept
-     * that way: closing restores the filter.
+     * Turns the placeholder into a filter control on a SQL column, on every
+     * SQL chart tile that has it. `availableTileColumns` is keyed by tile.
      */
-    clearFields: () => void;
+    addFirstSqlColumn: (
+        column: ResultColumn,
+        availableTileColumns: Record<string, ResultColumn[]>,
+    ) => void;
+    /**
+     * Like `addFirstField`, started from a tile: the filter is on that tile
+     * only, and every other tile it would reach is left out.
+     */
+    addFirstFieldOnTile: (
+        field: DashboardFilterableField,
+        tileUuid: string,
+    ) => void;
     /** Field whose tiles are outlined after a click on its row. */
     highlightedFieldId: string | null;
     setHighlightedFieldId: (fieldId: string | null) => void;
+    /** Unclicks the field and drops its hover, so every tile shows again. */
+    clearHighlightedField: () => void;
     hoveredFieldId: string | null;
     setHoveredFieldId: (fieldId: string | null) => void;
     /** The hovered field wins over the clicked one. */
@@ -56,7 +69,8 @@ export type ControlsSidebarContextValue = {
     discard: () => void;
     /**
      * Closes and keeps the edits; saving stays with the dashboard's own Save.
-     * A control with no field, or a new one with no label, is discarded.
+     * A control with no field is discarded; a parameter control left with no
+     * label takes its first parameter's name.
      */
     close: () => void;
     isDirty: boolean;
@@ -67,6 +81,12 @@ export type ControlsSidebarContextValue = {
     openControl: (controlId: string) => void;
     /** Turns the placeholder into a parameter control on the given parameter. */
     addParameterControl: (parameterKey: string) => void;
+    /**
+     * Like `addParameterControl`, started from a tile: every other tile that
+     * uses the parameter is switched off. A tile that has not reported its
+     * parameters yet is unknown here and stays on.
+     */
+    addParameterControlOnTile: (parameterKey: string, tileUuid: string) => void;
     updateControl: (next: DashboardParameterControl) => void;
     /** Sets the value of every parameter of the edited control. */
     setControlValue: (value: ParameterValue | null) => void;

@@ -12,7 +12,11 @@ import { getFieldDisplayLabel } from './fieldGrains';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
-import { getTileSelector, stopPropagation, WAVE_BUCKETS } from './tileSelector';
+import {
+    getTileSelector,
+    LOCKED_TILE_CLASS,
+    WAVE_BUCKETS,
+} from './tileSelector';
 import { useControlsSidebar } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 
@@ -120,7 +124,12 @@ export const LinkPrompts: FC = () => {
         () => prompts.map(({ tile }) => tile.uuid),
         [prompts],
     );
-    const targets = usePortalTargets(tileUuids, getTileSelector, isEnabled);
+    const targets = usePortalTargets(
+        tileUuids,
+        getTileSelector,
+        isEnabled,
+        true,
+    );
     const label = (fieldId: string) => {
         const field = fieldsMap[fieldId];
         return field
@@ -137,11 +146,9 @@ export const LinkPrompts: FC = () => {
                 if (!element) return null;
                 return createPortal(
                     <div
-                        className={classes.overlay}
+                        className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
+                        data-controls-overlay
                         data-wave={index % WAVE_BUCKETS}
-                        onMouseDown={stopPropagation}
-                        onTouchStart={stopPropagation}
-                        onClick={stopPropagation}
                     >
                         <Paper
                             shadow="lg"

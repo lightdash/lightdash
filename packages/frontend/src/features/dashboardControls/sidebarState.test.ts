@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    canKeepFilterRule,
     findFilterRule,
     isDefaultValueIncomplete,
     isFilterRuleDirty,
@@ -82,6 +83,18 @@ describe('sidebarState', () => {
             isDefaultValueIncomplete({
                 ...rule('a', []),
                 operator: FilterOperator.NULL,
+            }),
+        ).toBe(false);
+    });
+
+    it('a filter is kept once it has a field, with or without a label', () => {
+        expect(canKeepFilterRule(rule('a', []))).toBe(true);
+        expect(canKeepFilterRule({ ...rule('a', []), label: 'A' })).toBe(true);
+        expect(
+            canKeepFilterRule({
+                ...rule('a', []),
+                label: 'A',
+                target: PLACEHOLDER_TARGET,
             }),
         ).toBe(false);
     });

@@ -31,7 +31,7 @@
 
 .rowMain {
     display: block;
-    width: 100%;
+    flex: 1;
     min-width: 0;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
     border-radius: var(--mantine-radius-sm);
@@ -65,7 +65,8 @@
     animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
 }
 
-.rowActions button {
+.rowActions button,
+.rowUnpin {
     position: relative;
     z-index: 1;
 }

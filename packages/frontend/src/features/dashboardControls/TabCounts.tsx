@@ -43,7 +43,12 @@ export const TabCounts: FC = () => {
     const isEnabled =
         ((editingRule !== null && !isPlaceholder) || editingControl !== null) &&
         dashboardTabs.length > 0;
-    const targets = usePortalTargets(tabUuids, getTabSelector, isEnabled);
+    const targets = usePortalTargets(
+        tabUuids,
+        getTabSelector,
+        isEnabled,
+        false,
+    );
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
@@ -124,8 +129,9 @@ export const TabCounts: FC = () => {
                     >
                         <Badge
                             size="xs"
-                            variant="light"
-                            color={isReached ? 'blue' : 'gray'}
+                            // Grey either way: a tab it reaches is filled, the rest recede
+                            variant={isReached ? 'light' : 'transparent'}
+                            color="gray"
                             data-reached={isReached}
                             className={classes.count}
                         >

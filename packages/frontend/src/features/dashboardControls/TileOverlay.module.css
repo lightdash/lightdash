@@ -17,67 +17,69 @@
 }
 
 /* The veil, strong enough that the card is what the eye lands on. It has the
-   tile card's corner so the ring traces it */
+   tile card's corner so the ring traces it, and its inset line paints out the
+   tile's own dashed edit border */
 .overlay::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: var(--mantine-radius-xs);
-    background-color: color-mix(
-        in srgb,
-        var(--mantine-color-body) 75%,
-        transparent
-    );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-body);
+    background-color: color-mix(in srgb, var(--ld-color-page) 82%, transparent);
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
-/* Reached by the control: the tile's dashed edit border becomes a solid
-   hairline in the same blue. Only its opacity changes */
+/* Holds the two blue layers, which fade on their own. Blue on a tile always
+   means the control filters or sets it. Only opacity changes */
 .ring {
     position: absolute;
     inset: 0;
-    border-radius: var(--mantine-radius-xs);
-    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
-    opacity: 0;
     pointer-events: none;
-    transition: opacity var(--controls-duration-state) var(--controls-ease);
-    animation: ringEnter var(--controls-duration-state) var(--controls-ease);
 }
 
-/* On the active field: a soft glow joins the hairline, on its own layer */
+.ring::before,
 .ring::after {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: inherit;
-    box-shadow: 0 0 10px 0
-        color-mix(in srgb, var(--mantine-color-blue-5) 14%, transparent);
+    border-radius: var(--mantine-radius-xs);
     opacity: 0;
     transition: opacity var(--controls-duration-state) var(--controls-ease);
+    animation: ringEnter var(--controls-duration-state) var(--controls-ease);
 }
 
-.overlay[data-highlighted='reached'] > .ring,
-.overlay[data-highlighted='mapped'] > .ring,
-.overlay[data-highlighted='mapped'] > .ring::after {
-    opacity: 1;
-}
-
-/* Could take the field: the dashed edit border at full strength over a faint
-   free-slot wash */
-.overlay[data-highlighted='available']::before {
-    box-shadow: inset 0 0 0 1px var(--mantine-color-body);
-}
-
-.overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 1px dashed var(--mantine-color-blue-5);
-    border-radius: var(--mantine-radius-xs);
+/* Filtered or set, and on the active field when there is one: a filled slot.
+   A solid hairline in the edit border's blue over a faint blue wash */
+.ring::before {
     background-color: light-dark(
         color-mix(in srgb, var(--mantine-color-blue-light) 35%, transparent),
         color-mix(in srgb, var(--mantine-color-blue-light) 50%, transparent)
     );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+}
+
+.overlay[data-highlighted='mapped'] > .ring::before {
+    opacity: 1;
+}
+
+/* Filtered or set, but not through the active field: the same blue, dashed,
+   with no fill */
+.ring::after {
+    border: 1px dashed var(--mantine-color-blue-5);
+}
+
+.overlay[data-highlighted='other'] > .ring::after {
+    opacity: 1;
+}
+
+/* Not filtered or set, but could be: an empty slot. A neutral dashed outline
+   with no fill */
+.overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px dashed var(--mantine-color-ldGray-4);
+    border-radius: var(--mantine-radius-xs);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--controls-duration-state) var(--controls-ease);
@@ -88,11 +90,7 @@
 }
 
 .unfilterable::before {
-    background-color: color-mix(
-        in srgb,
-        var(--mantine-color-body) 90%,
-        transparent
-    );
+    background-color: color-mix(in srgb, var(--ld-color-page) 94%, transparent);
 }
 
 /* A veiled tile cannot be dragged, resized or hovered */
@@ -156,7 +154,7 @@
     }
 }
 
-/* No end value: the hairline fades in to whatever its state asks for */
+/* No end value: a blue layer fades in to whatever its state asks for */
 @keyframes ringEnter {
     from {
         opacity: 0;
@@ -185,13 +183,14 @@
 
 @media (prefers-reduced-motion: reduce) {
     .overlay::before,
-    .ring,
+    .ring::before,
+    .ring::after,
     .card,
     .confirm {
         animation: none;
     }
 
-    .ring,
+    .ring::before,
     .ring::after,
     .overlay::after {
         transition: none;
