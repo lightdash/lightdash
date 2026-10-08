@@ -141,6 +141,9 @@ packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
 pnpmfileChecksum: sha256-o1QtWIlgEjjL8bDSRr9nQwG/oM2WttnwQNHJevp/IMg=
 
+patchedDependencies:
+  scim-patch@0.9.3: 4de2501c306a9217656f6499387bbb2bed68a5037a46446d6340e93ac0cf4e92
+
 importers:
 
   .:
@@ -656,7 +659,7 @@ importers:
         version: 1.0.0
       scim-patch:
         specifier: 0.9.3
-        version: 0.9.3
+        version: 0.9.3(patch_hash=4de2501c306a9217656f6499387bbb2bed68a5037a46446d6340e93ac0cf4e92)
       scim2-parse-filter:
         specifier: 0.2.10
         version: 0.2.10
@@ -32380,7 +32383,7 @@ snapshots:
 
   scheduler@0.28.0: {}
 
-  scim-patch@0.9.3:
+  scim-patch@0.9.3(patch_hash=4de2501c306a9217656f6499387bbb2bed68a5037a46446d6340e93ac0cf4e92):
     dependencies:
       '@types/node': 26.5.1
       fast-deep-equal: 3.1.3
