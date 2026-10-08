@@ -163,7 +163,7 @@ const getClients = (url: string): Client[] => {
             id: 'other',
             name: 'Other clients',
             icon: <MantineIcon icon={IconPlugConnected} size="md" />,
-            docsUrl: LIGHTDASH_MCP_DOCS,
+            docsUrl: `${LIGHTDASH_MCP_DOCS}#manual-setup`,
             steps: [
                 {
                     text: 'Add a remote MCP server and choose Streamable HTTP as the transport.',
