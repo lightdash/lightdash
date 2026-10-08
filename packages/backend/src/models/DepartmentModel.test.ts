@@ -49,6 +49,9 @@ const LOCK_TIMEOUT = /lock_timeout/;
 const SELECT_PRIMARY_DEPARTMENT = new RegExp(
     `^select "department_uuid" from "${DepartmentTableName}" where`,
 );
+// Who counts as a member, the same text in the membership read and the primary check
+const MEMBERS =
+    /FROM organization_memberships om\s+JOIN org ON org\.organization_id = om\.organization_id\s+JOIN users u ON u\.user_id = om\.user_id\s+JOIN emails e ON e\.user_id = u\.user_id AND e\.is_primary = true\s+WHERE u\.is_internal = false\s+AND u\.is_active = true\s+AND \(\s+e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)\s+\)/;
 const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
 
 describe('DepartmentModel', () => {
@@ -741,8 +744,9 @@ describe('DepartmentModel', () => {
                 /is_active = true/.test(q.sql),
             );
             expect(memberCheck?.sql).toMatch(
-                /JOIN organizations o ON o\.organization_id = om\.organization_id[\s\S]*WHERE o\.organization_uuid = \$1\s+AND u\.user_uuid = \$2/,
+                /WITH org AS \(\s+SELECT organization_id FROM organizations WHERE organization_uuid = \$1\s+\)/,
             );
+            expect(memberCheck?.sql).toMatch(/AND u\.user_uuid = \$2\s*$/);
             expect(memberCheck?.bindings).toEqual(['org', 'u1']);
             const departmentCheck = tracker.history.select.find((q) =>
                 SELECT_PRIMARY_DEPARTMENT.test(q.sql),
@@ -830,17 +834,27 @@ describe('DepartmentModel', () => {
             const check = tracker.history.all.find((q) =>
                 ON_LIGHTDASH.test(q.sql),
             );
-            // The same people the membership read counts: not internal, active and signed up
-            expect(check?.sql).toMatch(
-                /u\.is_internal = false\s+AND u\.is_active = true\s+AND \(\s+e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)/,
-            );
-            expect(check?.sql).toContain('e.is_primary = true');
+            // The same people the membership read counts: in the organization, not internal, active and signed up
+            expect(check?.sql).toMatch(MEMBERS);
             expect(check?.bindings).toEqual(['org', 'gone']);
             expect(tracker.history.select).toHaveLength(0);
             expect(tracker.history.insert).toHaveLength(0);
             expect(tracker.history.delete).toHaveLength(0);
             const [transaction] = tracker.history.transactions;
             expect(transaction.state).toBe('rolled back');
+        });
+
+        it('defines a member with the same text as the membership read', async () => {
+            tracker.on.any(/with org as/i).response({ rows: [] });
+            await model.getResolvedMemberRows('org');
+            await model
+                .setPrimaryDepartment('org', 'u1', null)
+                .catch(() => undefined);
+            const [read, check] = tracker.history.all
+                .filter((q) => !LOCK_TIMEOUT.test(q.sql) && !LOCK.test(q.sql))
+                .map((q) => q.sql.match(MEMBERS)?.[0]);
+            expect(read).toEqual(expect.any(String));
+            expect(check).toBe(read);
         });
 
         it('refuses a department that is not in the organization and writes nothing', async () => {
@@ -984,9 +998,8 @@ describe('DepartmentModel', () => {
             tracker.on
                 .select(/^select "groups"."group_uuid"/)
                 .response([{ group_uuid: 'g1' }]);
-            // Quoted, so the raw active-member check falls through to its own handler below
             tracker.on
-                .select(`from "${OrganizationMembershipsTableName}"`)
+                .select(OrganizationMembershipsTableName)
                 .response([{ user_uuid: 'u1' }]);
             tracker.on.select(/from "department_/).response([]);
             tracker.on.insert(/.*/).response([{ department_uuid: 'dep' }]);

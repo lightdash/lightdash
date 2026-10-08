@@ -178,6 +178,16 @@ const createGroup = async (
     return group.group_uuid;
 };
 
+// Reads come back in no set order, so a person's row is found by their uuid
+const findPerson = <T extends { userUuid: string }>(
+    items: T[],
+    person: Person,
+): T => {
+    const found = items.find((item) => item.userUuid === person.userUuid);
+    if (!found) throw new Error(`No row for ${person.userUuid}`);
+    return found;
+};
+
 const addDashboardView = (dashboardUuid: string, person: Person, at: Date) =>
     db.raw(
         'INSERT INTO analytics_dashboard_views (dashboard_uuid, user_uuid, timestamp) VALUES (?, ?, ?)',
@@ -550,13 +560,20 @@ describe('DepartmentModel on the real schema', () => {
         expect(
             await db('department_members').where('user_uuid', ann.userUuid),
         ).toHaveLength(2);
-        const [row] = await departments.getResolvedMemberRows(
+        const rows = await departments.getResolvedMemberRows(
             organization.organizationUuid,
         );
-        expect(row.explicitDepartmentUuids).toEqual([first, second].sort());
-        const [membership] = resolveDepartmentMembership(
-            [row],
-            await departments.listByOrganization(organization.organizationUuid),
+        expect(findPerson(rows, ann).explicitDepartmentUuids).toEqual(
+            [first, second].sort(),
+        );
+        const membership = findPerson(
+            resolveDepartmentMembership(
+                rows,
+                await departments.listByOrganization(
+                    organization.organizationUuid,
+                ),
+            ),
+            ann,
         );
         expect(membership.kind).toBe('shared');
         expect(membership.placements.map((p) => p.source)).toEqual([
@@ -566,8 +583,11 @@ describe('DepartmentModel on the real schema', () => {
 
         // Emptying one department's list leaves the person in the other
         await departments.setMembers(organization.organizationUuid, first, []);
-        const [after] = await departments.getResolvedMemberRows(
-            organization.organizationUuid,
+        const after = findPerson(
+            await departments.getResolvedMemberRows(
+                organization.organizationUuid,
+            ),
+            ann,
         );
         expect(after.explicitDepartmentUuids).toEqual([second]);
     });
@@ -587,13 +607,16 @@ describe('DepartmentModel on the real schema', () => {
             const rows = await departments.getResolvedMemberRows(
                 organization.organizationUuid,
             );
-            const [membership] = resolveDepartmentMembership(
+            const membership = resolveDepartmentMembership(
                 rows,
                 await departments.listByOrganization(
                     organization.organizationUuid,
                 ),
             );
-            return { row: rows[0], membership };
+            return {
+                row: findPerson(rows, ann),
+                membership: findPerson(membership, ann),
+            };
         };
         const storedPrimaries = () =>
             db('department_primary_memberships')

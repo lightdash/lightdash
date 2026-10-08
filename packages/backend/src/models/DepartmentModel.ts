@@ -91,6 +91,15 @@ const ON_LIGHTDASH_SQL = `u.is_active = true
                       OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
                   )`;
 
+// Who counts as a member: in the organization selected as org, not internal and on Lightdash. The FROM
+// and WHERE of a member query, used as is; callers add the select list and may add AND conditions
+const MEMBERS_FROM_SQL = `FROM organization_memberships om
+                JOIN org ON org.organization_id = om.organization_id
+                JOIN users u ON u.user_id = om.user_id
+                JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
+                WHERE u.is_internal = false
+                  AND ${ON_LIGHTDASH_SQL}`;
+
 const normalizeNote = (note: string | null): string | null => {
     const trimmed = note?.trim() ?? '';
     return trimmed.length > 0 ? trimmed : null;
@@ -565,7 +574,7 @@ export class DepartmentModel {
         }
     }
 
-    // The same people the membership read returns: in the organization, not internal and on Lightdash
+    // The membership read's definition of a member, so a primary is set only for someone it returns
     private static async assertActiveMember(
         organizationUuid: string,
         userUuid: string,
@@ -573,15 +582,12 @@ export class DepartmentModel {
     ): Promise<void> {
         const result = await db.raw<{ rows: { user_uuid: string }[] }>(
             `
+            WITH org AS (
+                SELECT organization_id FROM organizations WHERE organization_uuid = ?
+            )
             SELECT u.user_uuid
-            FROM organization_memberships om
-            JOIN organizations o ON o.organization_id = om.organization_id
-            JOIN users u ON u.user_id = om.user_id
-            JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
-            WHERE o.organization_uuid = ?
+            ${MEMBERS_FROM_SQL}
               AND u.user_uuid = ?
-              AND u.is_internal = false
-              AND ${ON_LIGHTDASH_SQL}
             `,
             [organizationUuid, userUuid],
         );
@@ -784,12 +790,7 @@ export class DepartmentModel {
             ),
             org_users AS (
                 SELECT u.user_id, u.user_uuid, u.first_name, u.last_name, om.role, e.email
-                FROM organization_memberships om
-                JOIN org ON org.organization_id = om.organization_id
-                JOIN users u ON u.user_id = om.user_id
-                JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
-                WHERE u.is_internal = false
-                  AND ${ON_LIGHTDASH_SQL}
+                ${MEMBERS_FROM_SQL}
             ),
             explicit AS (
                 SELECT dm.user_uuid,
