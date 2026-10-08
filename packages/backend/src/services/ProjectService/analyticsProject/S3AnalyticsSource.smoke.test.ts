@@ -9,7 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { randomUUID } from 'crypto';
-import { mkdtemp, readFile, rm, rmdir } from 'fs/promises';
+import fs, { mkdtemp, readFile, rm, rmdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
@@ -51,6 +51,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 path.join(tmpdir(), 'ld-analytics-auth-'),
             );
             const fixture = path.join(directory, 'fixture.parquet');
+            const replacement = path.join(directory, 'replacement.parquet');
             const historicalFixture = path.join(
                 directory,
                 'historical.parquet',
@@ -65,6 +66,9 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                     );
                     await db.run(
                         `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2025-09-07' AS event_ts) TO '${historicalFixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
+                    );
+                    await db.run(
+                        `COPY (SELECT 99::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts) TO '${replacement}' (FORMAT PARQUET)`,
                     );
                 } finally {
                     db.closeSync();
@@ -115,6 +119,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                     'query_events',
                 ]);
                 expect(resolved.tables[0].urls).toHaveLength(2);
+                expect(resolved.fileBuffers?.size).toBe(2);
                 // Nested CTEs/unions must retain both streams and old partitions.
                 expect(
                     (
@@ -252,6 +257,56 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ total: '84' }]);
+                // Cache staging is optional: disk failure retains exact remote reads.
+                const failedWrite = vi
+                    .spyOn(fs, 'writeFile')
+                    .mockRejectedValueOnce(new Error('ENOSPC'));
+                try {
+                    expect(
+                        (
+                            await reader.runQuery(
+                                'SELECT sum(tokens) AS total FROM query_events',
+                            )
+                        ).rows,
+                    ).toEqual([{ total: '84' }]);
+                } finally {
+                    failedWrite.mockRestore();
+                }
+                // Listing versions invalidate replacements; deleted objects leave the manifest.
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: storage.bucket,
+                        Key: keys[0],
+                        Body: await readFile(replacement),
+                    }),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '141' }]);
+                expect(
+                    (
+                        await otherReader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '42' }]);
+                await client.send(
+                    new DeleteObjectCommand({
+                        Bucket: storage.bucket,
+                        Key: keys[0],
+                    }),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '42' }]);
             } finally {
                 if (created) {
                     await Promise.all(
@@ -270,6 +325,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 }
                 client.destroy();
                 await rm(fixture, { force: true });
+                await rm(replacement, { force: true });
                 await rm(historicalFixture, { force: true });
                 await rmdir(directory);
             }
