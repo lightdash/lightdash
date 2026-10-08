@@ -712,6 +712,12 @@ describe('getActivityWindows', () => {
     });
 });
 
+// Every member of a run of characters, in one string
+const charactersFrom = (from: number, to: number): string =>
+    String.fromCodePoint(
+        ...Array.from({ length: to - from + 1 }, (_, i) => from + i),
+    );
+
 describe('validateDepartmentInput', () => {
     it.each([
         ['empty name', { name: '   ' }, 'Department name is required'],
@@ -766,6 +772,45 @@ describe('validateDepartmentInput', () => {
             'a name of zero-width characters only',
             { name: '\u200B\u2060\uFEFF' },
             'Department name is required',
+        ],
+        [
+            'a name of bidi controls only',
+            {
+                name: `\u200E\u200F${charactersFrom(0x202a, 0x202e)}${charactersFrom(0x2066, 0x2069)}`,
+            },
+            'Department name is required',
+        ],
+        [
+            'a name of a soft hyphen only',
+            { name: '\u00AD' },
+            'Department name is required',
+        ],
+        [
+            'a name of a combining grapheme joiner only',
+            { name: '\u034F' },
+            'Department name is required',
+        ],
+        [
+            'a name of variation selectors only',
+            { name: charactersFrom(0xfe00, 0xfe0f) },
+            'Department name is required',
+        ],
+        [
+            'a name of tag characters only',
+            { name: charactersFrom(0xe0000, 0xe007f) },
+            'Department name is required',
+        ],
+        ['U+0080 in the name', { name: 'Fin\u0080ance' }, 'NAMECONTROL'],
+        [
+            'a next-line character (U+0085) in the name',
+            { name: 'Fin\u0085ance' },
+            'NAMECONTROL',
+        ],
+        ['U+009F in the name', { name: 'Fin\u009Fance' }, 'NAMECONTROL'],
+        [
+            'a next-line character (U+0085) in the note',
+            { headcountNote: 'a\u0085b' },
+            'NOTECONTROL',
         ],
         [
             'a name over 255 characters once normalised',
