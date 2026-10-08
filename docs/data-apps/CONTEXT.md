@@ -127,8 +127,9 @@ agent's transcript)
 
 **Clear agent context**:
 To start a fresh thread on a data app. The coding agent forgets the current
-thread and starts from the app's current source; the app, its versions, and
-its sandbox are unchanged. Blocked while a build is in progress.
+thread, its sandbox is discarded, and the next prompt runs in a fresh one
+built from the latest ready version; the app and its versions are unchanged.
+Blocked while a build is in progress.
 _Avoid_: clear chat, reset, new chat
 
 **History**:
@@ -202,8 +203,8 @@ _Avoid_: integration, data source, proxy (unqualified)
 
 **Sandbox**:
 The isolated environment where the coding agent writes and builds an app's
-source. Per app and ephemeral: a duplicate gets a fresh one on its first
-prompt.
+source. Per app and ephemeral: a duplicate, or an app whose agent context was
+cleared, gets a fresh one on its next prompt.
 _Avoid_: container, VM, workspace, environment
 
 **Preview**:
