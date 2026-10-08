@@ -1,3 +1,10 @@
+# [2.495.0](https://github.com/lightdash/lightdash/compare/2.494.0...2.495.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** move Fast mode into the model selector and composer menu ([#30729](https://github.com/lightdash/lightdash/issues/30729)) ([29566a8](https://github.com/lightdash/lightdash/commit/29566a805cf22cd026ae550cd797ef35fb9cfac6))
+
 # [2.494.0](https://github.com/lightdash/lightdash/compare/2.493.0...2.494.0) (2026-10-08)
 
 
