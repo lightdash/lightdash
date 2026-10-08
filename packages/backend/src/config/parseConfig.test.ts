@@ -2747,6 +2747,56 @@ describe('APPS_CODING_AGENT', () => {
     });
 });
 
+describe('Data Apps gateway URLs', () => {
+    test('normalizes sandbox URLs without changing the shared provider URLs', () => {
+        process.env.ANTHROPIC_API_KEY = 'test-key';
+        process.env.ANTHROPIC_BASE_URL = 'https://mesh.example/anthropic';
+        process.env.BEDROCK_API_KEY = 'test-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL = 'https://mesh.example/bedrock';
+        process.env.OPENAI_API_KEY = 'test-key';
+        process.env.OPENAI_BASE_URL = 'https://mesh.example/openai/v1';
+        process.env.DATA_APPS_ANTHROPIC_BASE_URL =
+            ' https://private.example/anthropic/v1/ ';
+        process.env.DATA_APPS_BEDROCK_BASE_URL =
+            ' https://private.example/bedrock/ ';
+        process.env.DATA_APPS_OPENAI_BASE_URL =
+            ' https://private.example/openai/v1/ ';
+
+        const config = parseConfig();
+        expect(config.appRuntime.dataAppGatewayBaseUrls).toEqual({
+            anthropic: 'https://private.example/anthropic',
+            bedrock: 'https://private.example/bedrock',
+            openai: 'https://private.example/openai/v1',
+        });
+        expect(config.ai.copilot.providers.anthropic?.baseUrl).toBe(
+            process.env.ANTHROPIC_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.bedrock?.baseUrl).toBe(
+            process.env.BEDROCK_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.openai?.baseUrl).toBe(
+            process.env.OPENAI_BASE_URL,
+        );
+    });
+
+    test.each([
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'gateway.internal'],
+        ['DATA_APPS_BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://user:secret@gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://gateway.internal?token=secret'],
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'https://gateway.internal#fragment'],
+    ])(
+        'rejects invalid %s even without provider credentials',
+        (name, value) => {
+            process.env[name] = value;
+            expect(() => parseConfig()).toThrow(
+                `environment variable "${name}"`,
+            );
+        },
+    );
+});
+
 describe('ai copilot key management config', () => {
     it('declares no Lightdash-managed providers by default, on or off Lightdash Cloud', () => {
         delete process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS;

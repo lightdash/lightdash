@@ -1427,7 +1427,7 @@ export class AppGenerateService extends BaseService {
                     organizationUuid,
                 );
             return {
-                ...codex,
+                ...this.withDataAppGatewayOverrides(codex),
                 promptCacheTtl: null,
                 compactLongSessions: false,
             };
@@ -1436,7 +1436,41 @@ export class AppGenerateService extends BaseService {
             await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
                 organizationUuid,
             );
-        return { ...claude, promptCacheTtl: '1h', compactLongSessions: true };
+        return {
+            ...this.withDataAppGatewayOverrides(claude),
+            promptCacheTtl: '1h',
+            compactLongSessions: true,
+        };
+    }
+
+    private withDataAppGatewayOverrides(
+        copilot: ResolvedCopilotConfig,
+    ): ResolvedCopilotConfig {
+        const urls = this.lightdashConfig.appRuntime.dataAppGatewayBaseUrls;
+        // Instance routing must not redirect organization-owned credentials.
+        if (
+            !urls ||
+            !Object.values(urls).some(Boolean) ||
+            copilot.byoProviders.length > 0
+        ) {
+            return copilot;
+        }
+        const { anthropic, bedrock, openai } = copilot.providers;
+        return {
+            ...copilot,
+            providers: {
+                ...copilot.providers,
+                ...(anthropic && urls.anthropic
+                    ? { anthropic: { ...anthropic, baseUrl: urls.anthropic } }
+                    : {}),
+                ...(bedrock && urls.bedrock
+                    ? { bedrock: { ...bedrock, baseUrl: urls.bedrock } }
+                    : {}),
+                ...(openai && urls.openai
+                    ? { openai: { ...openai, baseUrl: urls.openai } }
+                    : {}),
+            },
+        };
     }
 
     private getCodingAgentEnv(
