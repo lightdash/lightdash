@@ -60,6 +60,8 @@ type Deps = {
 
 const MAX_INT4 = 2147483647;
 const NAME_MAX_LENGTH = 255;
+// A longer raw name is refused before normalising, which can make a name many times longer
+const NAME_MAX_RAW_LENGTH = NAME_MAX_LENGTH * 4;
 const MAX_LIST_LENGTH = 5000;
 const TARGET_YEAR_MIN = 1900;
 const TARGET_YEAR_MAX = 2200;
@@ -139,6 +141,11 @@ const toUuidList = (values: unknown, label: string): string[] => {
 
 export const validateDepartmentInput = (data: UpdateDepartment): void => {
     if (data.name !== undefined) {
+        if (data.name.length > NAME_MAX_RAW_LENGTH) {
+            throw new ParameterError(
+                `Department name must be ${NAME_MAX_LENGTH} characters or fewer`,
+            );
+        }
         // Checked before normalising, which would quietly turn a tab or line break into a space
         if (hasControlCharacter(data.name)) {
             throw new ParameterError(

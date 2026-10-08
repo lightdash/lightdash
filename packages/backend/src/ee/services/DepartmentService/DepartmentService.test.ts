@@ -580,6 +580,14 @@ describe('DepartmentService input validation', () => {
                     Array(5001).fill({ type: 'user', uuid: USR }),
                 ),
         ],
+        [
+            'a 1 MB name on create',
+            (s: DepartmentService, a: Account) =>
+                s.create(a, {
+                    ...newDepartment,
+                    name: 'x'.repeat(1024 * 1024),
+                }),
+        ],
     ])('rejects %s before any model call', async (_name, call) => {
         const { service, departmentModel } = buildService({ flag: true });
         await expect(call(service, manager())).rejects.toThrow(ParameterError);
@@ -817,6 +825,16 @@ describe('validateDepartmentInput', () => {
             { name: '\uFDFA'.repeat(20) },
             'Department name must be 255 characters or fewer',
         ],
+        [
+            'a 1 MB name, on its raw length',
+            { name: '\uFDFA'.repeat(1024 * 1024) },
+            'Department name must be 255 characters or fewer',
+        ],
+        [
+            'a raw name of 1,021 characters, even one that would normalise short',
+            { name: `A${' '.repeat(1019)}B` },
+            'Department name must be 255 characters or fewer',
+        ],
         ['year 0000', { targetDate: '0000-01-01' }, 'YEARMSG: 0000-01-01'],
         ['year 1899', { targetDate: '1899-12-31' }, 'YEARMSG: 1899-12-31'],
         ['year 2201', { targetDate: '2201-01-01' }, 'YEARMSG: 2201-01-01'],
@@ -874,6 +892,27 @@ describe('validateDepartmentInput', () => {
         expect(() =>
             validateDepartmentInput({ name: 'Ｆｉｎ\u200Bａｎｃｅ' }),
         ).not.toThrow();
+        // 1,020 raw characters is the most normalising is tried on
+        expect(() =>
+            validateDepartmentInput({ name: `A${' '.repeat(1018)}B` }),
+        ).not.toThrow();
+    });
+    it('refuses a 1 MB name without normalising it', () => {
+        const normalize = vi.spyOn(String.prototype, 'normalize');
+        try {
+            expect(() =>
+                validateDepartmentInput({
+                    name: '\uFDFA'.repeat(1024 * 1024),
+                }),
+            ).toThrow(
+                new ParameterError(
+                    'Department name must be 255 characters or fewer',
+                ),
+            );
+            expect(normalize).not.toHaveBeenCalled();
+        } finally {
+            normalize.mockRestore();
+        }
     });
 });
 
