@@ -1,3 +1,11 @@
+# [2.491.0](https://github.com/lightdash/lightdash/compare/2.490.0...2.491.0) (2026-10-08)
+
+
+### Features
+
+* **ai-agent:** thread follow-ups follow the agent's current model and the picker offers Agent default ([#30638](https://github.com/lightdash/lightdash/issues/30638)) ([6a2193e](https://github.com/lightdash/lightdash/commit/6a2193e089d9f6e5cfd3d64423cfdcf3d0e8c003))
+* **ai:** redesign the agent's reference documents panel ([#30734](https://github.com/lightdash/lightdash/issues/30734)) ([bb8b2c3](https://github.com/lightdash/lightdash/commit/bb8b2c3453e2debb263bfee3c4e690192b2c9452))
+
 # [2.490.0](https://github.com/lightdash/lightdash/compare/2.489.0...2.490.0) (2026-10-08)
 
 
