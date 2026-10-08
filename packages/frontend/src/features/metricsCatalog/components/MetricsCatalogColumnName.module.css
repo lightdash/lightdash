@@ -107,3 +107,9 @@
         font-size: 16px;
     }
 }
+
+@media (width >= $mantine-breakpoint-sm) and (pointer: fine) {
+    .iconHeader:not([data-has-remove]) {
+        display: none;
+    }
+}

@@ -34,3 +34,10 @@
 .root:disabled {
     box-shadow: none;
 }
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .root[data-touch-target] {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

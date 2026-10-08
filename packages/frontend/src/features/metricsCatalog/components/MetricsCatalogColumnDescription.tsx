@@ -133,7 +133,7 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({
                             {metricLabel}
                         </Text>
                         <CloseButton
-                            size={44}
+                            mod="touch-dismiss"
                             aria-label={getUiString('metrics.closeDescription')}
                             onClick={() => setIsOpen(false)}
                         />
