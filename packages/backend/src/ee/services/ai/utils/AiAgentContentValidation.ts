@@ -4,7 +4,6 @@ import {
     dashboardAsCodeSchema,
     getChartAsCodeBranchSchema,
     ParameterError,
-    sqlChartAsCodeSchema,
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
@@ -217,7 +216,9 @@ export class AiAgentContentValidation {
                 getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
             ),
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
-            sql_chart: this.ajv.compile(sqlChartAsCodeSchema),
+            sql_chart: this.ajv.compile(
+                getChartAsCodeBranchSchema(ContentAsCodeType.SQL_CHART),
+            ),
         };
 
         return this.validators;

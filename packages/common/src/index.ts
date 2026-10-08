@@ -105,7 +105,6 @@ export * from './types/document';
 export * from './utils/document';
 export * from './utils/documentMarkdown';
 export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
-export { default as sqlChartAsCodeSchema } from './schemas/json/sql-chart-as-code-1.0.json';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectContextSchema } from './schemas/json/lightdash-project-context-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
