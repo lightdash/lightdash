@@ -2,10 +2,16 @@ import type { AiModelOption } from '@lightdash/common';
 import {
     filterDeprecatedModelsForPicker,
     getModelGroupLabel,
+    getSupersedingModel,
     matchesModelConfig,
+    resolveModelForNewChat,
 } from './utils';
 
-const model = (name: string, deprecated = false): AiModelOption => ({
+const model = (
+    name: string,
+    deprecated = false,
+    supersededBy: string | null = null,
+): AiModelOption => ({
     name,
     modelId: `${name}-model-id`,
     displayName: name,
@@ -14,10 +20,11 @@ const model = (name: string, deprecated = false): AiModelOption => ({
     default: false,
     supportsReasoning: true,
     deprecated,
+    supersededBy,
 });
 
 const current = model('current');
-const deprecated = model('deprecated', true);
+const deprecated = model('deprecated', true, 'current');
 
 describe('filterDeprecatedModelsForPicker', () => {
     it('hides deprecated models from new selections', () => {
@@ -58,6 +65,39 @@ describe('getModelGroupLabel', () => {
         expect(getModelGroupLabel(current)).toBe('OpenAI');
         expect(getModelGroupLabel({ ...current, provider: 'google' })).toBe(
             'Google Gemini',
+        );
+    });
+});
+
+describe('getSupersedingModel', () => {
+    it('returns the replacement of a retired model when it is offered', () => {
+        expect(getSupersedingModel([current, deprecated], deprecated)).toBe(
+            current,
+        );
+    });
+
+    it('returns nothing for a current model or when the replacement is not offered', () => {
+        expect(getSupersedingModel([current, deprecated], current)).toBeNull();
+        expect(getSupersedingModel([deprecated], deprecated)).toBeNull();
+        expect(
+            getSupersedingModel(
+                [{ ...current, provider: 'anthropic' }, deprecated],
+                deprecated,
+            ),
+        ).toBeNull();
+    });
+});
+
+describe('resolveModelForNewChat', () => {
+    it('starts a new chat on the replacement of a retired model', () => {
+        expect(resolveModelForNewChat([current, deprecated], deprecated)).toBe(
+            current,
+        );
+    });
+
+    it('keeps a retired model without an offered replacement', () => {
+        expect(resolveModelForNewChat([deprecated], deprecated)).toBe(
+            deprecated,
         );
     });
 });

@@ -246,7 +246,7 @@ export type CreateSlackPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
     prompt: string;
-    modelConfig?: AiAgentModelConfig;
+    modelConfig: AiAgentModelConfig | null;
     slackUserId: string;
     slackChannelId: string;
     promptSlackTs: string;
@@ -521,7 +521,7 @@ export type CreateWebAppPrompt = {
     createdByUserUuid: string;
     prompt: string;
     context?: AiPromptContextInput;
-    modelConfig?: AiAgentModelConfig;
+    modelConfig: AiAgentModelConfig | null;
     /** Inject as a hidden turn (agent responds, UI hides the user bubble). */
     hidden?: boolean;
     /** Viewer id from the embed token; omitted outside embedded chats. */

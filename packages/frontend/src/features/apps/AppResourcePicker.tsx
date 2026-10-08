@@ -219,6 +219,7 @@ const toModelOption = (
     default: opt.isDefault === true,
     supportsReasoning: false,
     deprecated: false,
+    supersededBy: null,
 });
 
 /**

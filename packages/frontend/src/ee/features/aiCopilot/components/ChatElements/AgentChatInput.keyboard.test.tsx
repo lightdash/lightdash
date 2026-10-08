@@ -75,6 +75,7 @@ const models: AiModelOption[] = ['First', 'Second'].map((name) => ({
     default: name === 'First',
     supportsReasoning: false,
     deprecated: false,
+    supersededBy: null,
 }));
 
 const renderInput = (withModels = false) => {

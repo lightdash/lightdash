@@ -425,14 +425,13 @@ import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    filterModelsForOrg,
-    getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    getOrgModelOptions,
     MODEL_PRESETS,
-    presetToModelOption,
     resolveKeyManagement,
+    resolveModelConfigForPrompt,
 } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
@@ -1313,6 +1312,29 @@ export class AiAgentService extends BaseService {
             modelName: modelConfig?.modelName ?? null,
             reasoningEnabled: modelConfig?.reasoning ?? null,
         };
+    }
+
+    // Runs once per prompt so the recorded model is the one that actually
+    // serves it; a pinned deprecated preset is swapped for its replacement.
+    private async resolvePromptModelConfig({
+        organizationUuid,
+        projectUuid,
+        credentialUuid,
+        modelConfig,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        credentialUuid: string | null;
+        modelConfig: AiAgentModelConfig | null;
+    }): Promise<AiAgentModelConfig | null> {
+        if (!modelConfig) return null;
+        const { catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
+                organizationUuid,
+                projectUuid,
+                credentialUuid,
+            });
+        return resolveModelConfigForPrompt(catalogue, modelConfig);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -3805,22 +3827,13 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const [copilotConfig, orgModelOverrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfig({
+        const { copilotConfig, catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 credentialUuid: agent.providerCredentialUuid,
-            }),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
-        const defaultModel = getDefaultModel(copilotConfig);
-
-        return filterModelsForOrg(
-            getAvailableModels(copilotConfig),
-            orgModelOverrides,
-        ).map((preset) => presetToModelOption(preset, defaultModel));
+            });
+        return getOrgModelOptions(catalogue, getDefaultModel(copilotConfig));
     }
 
     async listAgentThreads(
@@ -4664,11 +4677,16 @@ export class AiAgentService extends BaseService {
                 : await this.aiOrganizationSettingsService.getDefaultModelConfig(
                       organizationUuid,
                   );
-        const modelConfig =
-            body.modelConfig ??
-            agent.modelConfig ??
-            organizationDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            credentialUuid: agent.providerCredentialUuid,
+            modelConfig:
+                body.modelConfig ??
+                agent.modelConfig ??
+                organizationDefaultModelConfig ??
+                null,
+        });
 
         if (body.prompt) {
             const promptUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -4880,7 +4898,12 @@ export class AiAgentService extends BaseService {
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
             context,
-            modelConfig: body.modelConfig,
+            modelConfig: await this.resolvePromptModelConfig({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                credentialUuid: agent.providerCredentialUuid,
+                modelConfig: body.modelConfig ?? null,
+            }),
             hidden: body.hidden,
             externalUserId: runtimeOptions?.externalUserId ?? null,
         });
@@ -4981,6 +5004,7 @@ export class AiAgentService extends BaseService {
                 app.name,
                 body.appUuid,
             )}`,
+            modelConfig: null,
             context: [
                 {
                     type: 'data_app_restore',
@@ -16215,11 +16239,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 : await this.aiOrganizationSettingsService.getDefaultModelConfig(
                       user.organizationUuid,
                   );
-        const modelConfig =
-            data.modelConfig ??
-            agent?.modelConfig ??
-            orgDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid: user.organizationUuid,
+            projectUuid: data.projectUuid,
+            credentialUuid: agent?.providerCredentialUuid ?? null,
+            modelConfig:
+                data.modelConfig ?? agent?.modelConfig ?? orgDefaultModelConfig,
+        });
 
         if (!threadUuid) {
             createdThread = true;

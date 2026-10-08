@@ -15,6 +15,7 @@ const BEDROCK_MODELS = [
         default: false,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 

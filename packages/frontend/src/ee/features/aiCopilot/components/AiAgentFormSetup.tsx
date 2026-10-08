@@ -53,7 +53,10 @@ import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import { getModelKey } from '../../../../components/common/ModelSelector/utils';
+import {
+    renderModelSelectOption,
+    toModelSelectItem,
+} from '../../../../components/common/ModelSelector/modelSelectOption';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
@@ -77,6 +80,7 @@ import classes from './AiAgentFormSetup.module.css';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { AiAgentSkillsSection } from './AiAgentSkillsSection';
+import { DeprecatedModelNotice } from './DeprecatedModelNotice';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
@@ -285,6 +289,7 @@ export const AiAgentFormSetup = ({
         useDisclosure(false);
     const {
         fallbackModelLabel: organizationDefaultModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
@@ -658,10 +663,10 @@ export const AiAgentFormSetup = ({
                                 }
                                 placeholder={organizationDefaultModelLabel}
                                 clearable
-                                data={visibleModelOptions.map((model) => ({
-                                    value: getModelKey(model),
-                                    label: model.displayName,
-                                }))}
+                                data={visibleModelOptions.map(
+                                    toModelSelectItem,
+                                )}
+                                renderOption={renderModelSelectOption}
                                 onChange={(modelKey) => {
                                     const model = getModelOptionByKey(
                                         modelOptions,
@@ -683,6 +688,21 @@ export const AiAgentFormSetup = ({
                                     );
                                 }}
                             />
+
+                            {selectedModel?.deprecated && (
+                                <DeprecatedModelNotice
+                                    model={selectedModel}
+                                    replacement={modelReplacement}
+                                    disabled={isSavingAgent ?? false}
+                                    onSwitch={(modelConfig) => {
+                                        form.setFieldValue(
+                                            'modelConfig',
+                                            modelConfig,
+                                        );
+                                        onSubmit();
+                                    }}
+                                />
+                            )}
 
                             {showReasoningDefault && (
                                 <Switch
