@@ -28,6 +28,10 @@ import {
     down as downPrimaryMemberships,
     up as upPrimaryMemberships,
 } from '../20261008150000_create_department_primary_memberships';
+import {
+    down as downGroupLinks,
+    up as upGroupLinks,
+} from '../20261008160000_allow_group_links_to_several_departments';
 
 const TABLES = [
     'organization_departments',
@@ -275,7 +279,8 @@ const windowsAt = (now: Date): ActivityWindows => ({
 describe('the departments migrations', () => {
     test('reverse newest first and reapply on the real schema', async () => {
         await db.transaction(async (trx) => {
-            // The primaries reference departments, so they go first and come back last
+            await downGroupLinks(trx);
+            // The primaries reference departments, so they go before them and come back after
             await downPrimaryMemberships(trx);
             expect(
                 await trx.schema.hasTable('department_primary_memberships'),
@@ -287,6 +292,7 @@ describe('the departments migrations', () => {
             expect(afterDown).toEqual(TABLES.map(() => false));
             await upDepartments(trx);
             await upPrimaryMemberships(trx);
+            await upGroupLinks(trx);
             const afterUp = await Promise.all(
                 TABLES.map((table) => trx.schema.hasTable(table)),
             );
@@ -337,6 +343,53 @@ describe('the departments migrations', () => {
                 'PRIMARY KEY (organization_uuid, user_uuid)',
             ].sort(),
         );
+    });
+
+    test('keys a group link by the group and the department, so a group can be in several', async () => {
+        const constraints = await db.raw<{ rows: { definition: string }[] }>(
+            `SELECT pg_get_constraintdef(con.oid) AS definition
+             FROM pg_constraint con
+             JOIN pg_class rel ON rel.oid = con.conrelid
+             WHERE rel.relname = 'department_links' AND con.contype = 'p'`,
+        );
+        expect(constraints.rows).toEqual([
+            {
+                definition:
+                    'PRIMARY KEY (link_type, link_uuid, department_uuid)',
+            },
+        ]);
+    });
+
+    test('steps back to one department per group, keeping the link with the lowest department uuid', async () => {
+        const organization = await createOrganization('Links down');
+        const team = await createGroup(organization, 'Two departments', []);
+        const linked = await Promise.all([
+            create(organization, 'First'),
+            create(organization, 'Second'),
+        ]);
+        await Promise.all(
+            linked.map((departmentUuid) =>
+                departments.setGroupLinks(
+                    organization.organizationUuid,
+                    departmentUuid,
+                    [team],
+                ),
+            ),
+        );
+        const linksOf = (knex: Knex) =>
+            knex('department_links')
+                .where('link_uuid', team)
+                .orderBy('department_uuid')
+                .pluck('department_uuid');
+        const rollBack = new Error('roll back');
+        await expect(
+            db.transaction(async (trx) => {
+                await downGroupLinks(trx);
+                expect(await linksOf(trx)).toEqual([[...linked].sort()[0]]);
+                throw rollBack;
+            }),
+        ).rejects.toBe(rollBack);
+        expect(await linksOf(db)).toEqual([...linked].sort());
     });
 
     test('refuses a negative headcount and cascades an organization delete', async () => {
@@ -460,6 +513,66 @@ describe('DepartmentModel on the real schema', () => {
         // Deactivated, not signed up and internal users are not on Lightdash
         [gone, invited, robot].forEach((person) =>
             expect(resolved.has(person.userUuid)).toBe(false),
+        );
+    });
+
+    test('links a group to several departments, keeping it in the first when it is linked to a second', async () => {
+        const organization = await createOrganization('Group in two');
+        const ann = await createPerson(organization, 'Ann');
+        const team = await createGroup(organization, 'Field team', [ann]);
+        const sales = await create(organization, 'Sales');
+        const support = await create(organization, 'Support');
+        const link = (departmentUuid: string, groupUuids: string[]) =>
+            departments.setGroupLinks(
+                organization.organizationUuid,
+                departmentUuid,
+                groupUuids,
+            );
+        const linkedGroups = async () =>
+            new Map(
+                (
+                    await departments.listByOrganization(
+                        organization.organizationUuid,
+                    )
+                ).map((d) => [
+                    d.departmentUuid,
+                    d.linkedGroups.map((g) => g.groupUuid),
+                ]),
+            );
+
+        await link(sales, [team]);
+        await link(support, [team]);
+        // Saving the same list again changes nothing
+        await link(support, [team]);
+        expect(await linkedGroups()).toEqual(
+            new Map([
+                [sales, [team]],
+                [support, [team]],
+            ]),
+        );
+        const membership = findPerson(
+            resolveDepartmentMembership(
+                await departments.getResolvedMemberRows(
+                    organization.organizationUuid,
+                ),
+                await departments.listByOrganization(
+                    organization.organizationUuid,
+                ),
+            ),
+            ann,
+        );
+        expect(membership).toMatchObject({
+            kind: 'shared',
+            countedDepartmentUuids: [sales, support].sort(),
+        });
+
+        // Unlinking it from one department leaves it in the other
+        await link(sales, []);
+        expect(await linkedGroups()).toEqual(
+            new Map([
+                [sales, []],
+                [support, [team]],
+            ]),
         );
     });
 

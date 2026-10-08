@@ -451,7 +451,7 @@ describe('DepartmentModel', () => {
         });
     });
 
-    it('replaces group links, taking each group from any other department', async () => {
+    it("replaces only this department's group links, leaving each group linked to its other departments", async () => {
         tracker.on
             .select(/^select .* from "groups"/)
             .responseOnce([{ group_uuid: 'g1' }]);
@@ -464,8 +464,11 @@ describe('DepartmentModel', () => {
 
         await model.setGroupLinks('org', 'dep', ['g1', 'g1']);
 
-        expect(tracker.history.delete).toHaveLength(2);
-        expect(tracker.history.delete[0].bindings).toEqual(['group', 'g1']);
+        expect(tracker.history.delete).toHaveLength(1);
+        expect(tracker.history.delete[0].sql).toBe(
+            `delete from "${DepartmentLinkTableName}" where "department_uuid" = $1 and "link_type" = $2`,
+        );
+        expect(tracker.history.delete[0].bindings).toEqual(['dep', 'group']);
         expect(tracker.history.insert).toHaveLength(1);
         expect(tracker.history.insert[0].bindings).toEqual([
             'dep',

@@ -611,11 +611,7 @@ export class DepartmentModel {
                 trx,
             );
             await this.getRow(organizationUuid, departmentUuid, trx);
-            // A group maps to one department, so take it from any other
-            await trx(DepartmentLinkTableName)
-                .where('link_type', 'group')
-                .whereIn('link_uuid', unique)
-                .delete();
+            // Only this department's list; a group stays linked to its other departments
             await trx(DepartmentLinkTableName)
                 .where({ department_uuid: departmentUuid, link_type: 'group' })
                 .delete();
