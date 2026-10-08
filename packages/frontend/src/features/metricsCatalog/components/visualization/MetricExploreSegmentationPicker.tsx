@@ -135,23 +135,9 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     py="xs"
                     px="sm"
                     color="blue"
-                    style={{
-                        border: '1px dashed var(--mantine-color-blue-4)',
-                    }}
-                    styles={{
-                        icon: {
-                            marginRight: 2,
-                        },
-                    }}
-                    icon={
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            color="blue.7"
-                            size={16}
-                        />
-                    }
+                    icon={<MantineIcon icon={IconInfoCircle} />}
                 >
-                    <Text size="xs" c="blue.7" span>
+                    <Text size="xs" span>
                         Only the first {MAX_SEGMENT_DIMENSION_UNIQUE_VALUES}{' '}
                         series are displayed to maintain a clear and readable
                         chart.

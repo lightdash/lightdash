@@ -412,7 +412,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                 {allAiOnOrgKeys && (
                     <Callout
                         variant="success"
-                        icon={<MantineIcon icon={IconKey} size="lg" />}
+                        icon={<MantineIcon icon={IconKey} />}
                         title={`AI agents run on your organization's API ${
                             setKeyCount > 1 ? 'keys' : 'key'
                         }`}

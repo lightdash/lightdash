@@ -87,7 +87,7 @@ const DeepResearchThreadRun = ({
                 <Stack gap="sm">
                     <DeepResearchRunHeading statusLabel="Updates unavailable" />
                     <Alert
-                        color="yellow"
+                        color="orange"
                         title="Couldn’t load the latest activity"
                     >
                         Your research is still saved. Check your connection,
