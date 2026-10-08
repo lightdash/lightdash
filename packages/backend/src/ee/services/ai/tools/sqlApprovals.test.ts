@@ -1,8 +1,7 @@
 import { LightdashAnalytics } from '../../../../analytics/LightdashAnalytics';
 import {
     buildSqlApprovalDecidedEvent,
-    getSqlApprovalSql,
-    isSqlApprovalToolCall,
+    isNativeSqlApprovalToolCall,
 } from './sqlApprovals';
 
 const baseDecision = {
@@ -94,31 +93,19 @@ describe('buildSqlApprovalDecidedEvent', () => {
     });
 });
 
-describe('isSqlApprovalToolCall', () => {
-    it('gates raw SQL tools and SQL chart saves only', () => {
-        expect(isSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(true);
-        expect(isSqlApprovalToolCall('runComposerQueries', {})).toBe(true);
-        expect(
-            isSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
-        ).toBe(true);
-        expect(isSqlApprovalToolCall('createContent', { type: 'chart' })).toBe(
-            false,
+describe('isNativeSqlApprovalToolCall', () => {
+    it('covers the tools whose Slack runs suspend on approval', () => {
+        expect(isNativeSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(
+            true,
         );
         expect(
-            isSqlApprovalToolCall('readContent', { type: 'sql_chart' }),
-        ).toBe(false);
-    });
-});
-
-describe('getSqlApprovalSql', () => {
-    it('reads the SQL from runSql and SQL chart arguments', () => {
-        expect(getSqlApprovalSql({ sql: 'select 1' })).toBe('select 1');
+            isNativeSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
+        ).toBe(true);
         expect(
-            getSqlApprovalSql({
-                type: 'sql_chart',
-                content: { sql: 'select 2' },
-            }),
-        ).toBe('select 2');
-        expect(getSqlApprovalSql(null)).toBe('');
+            isNativeSqlApprovalToolCall('createContent', { type: 'chart' }),
+        ).toBe(false);
+        expect(isNativeSqlApprovalToolCall('runComposerQueries', {})).toBe(
+            false,
+        );
     });
 });

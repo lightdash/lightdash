@@ -78,6 +78,7 @@ import {
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
+    getSqlApprovalSql,
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
@@ -260,11 +261,10 @@ import {
 } from '../database/entities/aiEvals';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import {
-    getSqlApprovalSql,
-    isSqlApprovalToolCall,
-    isSqlApprovalToolName,
+    isNativeSqlApprovalToolCall,
+    NATIVE_SQL_APPROVAL_TOOL_NAMES,
+    type NativeSqlApprovalToolName,
     type SqlApprovalDecision,
-    type SqlApprovalToolName,
 } from '../services/ai/tools/sqlApprovals';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
@@ -8660,12 +8660,11 @@ export class AiAgentModel {
         }));
     }
 
-    // A SQL-approval tool call the agent suspended on awaiting approval: it
-    // has no result (never executed) and no recorded decision yet. Used to
-    // detect a suspended run and to post the approval card.
+    // A suspended SQL-approval call: no result and no recorded decision yet.
+    // Used to detect a suspended run and to post the approval card.
     async getPendingSqlApprovalForPrompt(promptUuid: string): Promise<{
         toolCallId: string;
-        toolName: SqlApprovalToolName;
+        toolName: NativeSqlApprovalToolName;
         sql: string;
     } | null> {
         const rows = await this.database(AiAgentToolCallTableName)
@@ -8680,10 +8679,10 @@ export class AiAgentModel {
                 `${AiSqlApprovalTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
-            .whereIn(`${AiAgentToolCallTableName}.tool_name`, [
-                'runSql',
-                'createContent',
-            ])
+            .whereIn(
+                `${AiAgentToolCallTableName}.tool_name`,
+                NATIVE_SQL_APPROVAL_TOOL_NAMES,
+            )
             .whereNull(
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
             )
@@ -8700,17 +8699,16 @@ export class AiAgentModel {
                 `${AiAgentToolCallTableName}.tool_args`,
             );
 
-        const row = rows.find((candidate) =>
-            isSqlApprovalToolCall(candidate.tool_name, candidate.tool_args),
-        );
-        if (!row || !isSqlApprovalToolName(row.tool_name)) {
-            return null;
+        for (const row of rows) {
+            if (isNativeSqlApprovalToolCall(row.tool_name, row.tool_args)) {
+                return {
+                    toolCallId: row.tool_call_id,
+                    toolName: row.tool_name,
+                    sql: getSqlApprovalSql(row.tool_args),
+                };
+            }
         }
-        return {
-            toolCallId: row.tool_call_id,
-            toolName: row.tool_name,
-            sql: getSqlApprovalSql(row.tool_args),
-        };
+        return null;
     }
 
     async getToolCallsForPrompt(

@@ -8,6 +8,7 @@ import {
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
+    isSqlChartContentArgs,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
@@ -136,12 +137,6 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 // Only pipelines with warehouse SQL nodes gate on human approval.
 const hasComposerSqlNodes = (toolArgs: unknown): boolean =>
     getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode);
-
-const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
-    typeof toolArgs === 'object' &&
-    toolArgs !== null &&
-    'type' in toolArgs &&
-    toolArgs.type === 'sql_chart';
 
 // Tool calls whose SQL waits on the user inside the activity card.
 const needsInlineSqlApproval = (toolName: string, toolArgs: unknown) =>

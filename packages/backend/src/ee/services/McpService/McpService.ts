@@ -2134,7 +2134,6 @@ export class McpService extends BaseService {
 
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
-                    // MCP clients approve their own tool calls.
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {

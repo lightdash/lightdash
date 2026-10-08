@@ -1,6 +1,7 @@
 import {
     createContentToolDefinition,
     documentAsCodeSchema,
+    getSqlApprovalSql,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
@@ -20,9 +21,15 @@ import type {
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { SqlNotApprovedError, type ApproveSqlFn } from './sqlApprovals';
+import { createSqlApprovalGate } from './sqlApprovalGate';
 import {
-    createSqlChartApprovalGate,
+    approveClientSql,
+    SqlNotApprovedError,
+    type ApproveSqlFn,
+} from './sqlApprovals';
+import {
+    getSqlChartApprovalHeading,
+    SQL_CHART_APPROVAL_COPY,
     SQL_CHART_DISABLED_RESULT,
     type SqlChartSaving,
 } from './sqlChartApproval';
@@ -107,9 +114,10 @@ export const getCreateContent = ({
 }: Dependencies) => {
     const approvalGate =
         sqlChartSaving.mode === 'thread_approval'
-            ? createSqlChartApprovalGate(
+            ? createSqlApprovalGate(
                   sqlChartSaving.approval,
                   'createContent',
+                  SQL_CHART_APPROVAL_COPY,
               )
             : null;
 
@@ -129,8 +137,6 @@ export const getCreateContent = ({
             case 'sql_chart':
                 return {
                     type: 'sql_chart',
-                    // The body is fully validated against the SQL chart
-                    // schema by the content service.
                     content: toolSqlChartAsCodeSchema.parse(
                         args.content,
                     ) as SqlChartAsCode,
@@ -156,12 +162,17 @@ export const getCreateContent = ({
             const { type, content } = args;
             const sqlChartApproval =
                 type === 'sql_chart' && approvalGate
-                    ? approvalGate.forToolCall({
-                          toolCallId,
-                          sql: (content as { sql?: string }).sql ?? '',
-                          chartName: content.name,
+                    ? await approvalGate.forToolCall(toolCallId, {
+                          needsApproval: true,
                       })
                     : null;
+            const approveSql: ApproveSqlFn = sqlChartApproval
+                ? () =>
+                      sqlChartApproval.approveSql({
+                          sql: getSqlApprovalSql(args),
+                          heading: getSqlChartApprovalHeading(content.name),
+                      })
+                : approveClientSql;
 
             const run = async (): Promise<ExecuteCreateContentResult> => {
                 try {
@@ -176,10 +187,7 @@ export const getCreateContent = ({
                         return failure(SQL_CHART_DISABLED_RESULT);
                     }
                     const result = await createContent(
-                        await getCreateArgs(
-                            args,
-                            sqlChartApproval?.approveSql ?? (async () => {}),
-                        ),
+                        await getCreateArgs(args, approveSql),
                     );
                     const created = toCreatedContent(
                         result,
@@ -222,27 +230,9 @@ export const getCreateContent = ({
             };
 
             const output = await run();
-            // A resumed approval was requested in an earlier run, so
-            // onStepFinish will not persist this result.
-            if (
-                sqlChartApproval?.isResume() &&
-                sqlChartSaving.mode === 'thread_approval'
-            ) {
-                const { getPrompt, storeToolResults } = sqlChartSaving.approval;
-                const prompt = await getPrompt();
-                await storeToolResults([
-                    {
-                        promptUuid: prompt.promptUuid,
-                        toolCallId,
-                        toolName: 'createContent',
-                        result: output.result,
-                        metadata: output.metadata,
-                    },
-                ]).catch(() => {
-                    // Best-effort; the model already has the result.
-                });
-            }
-            return output;
+            return sqlChartApproval
+                ? sqlChartApproval.persistIfResumed(output)
+                : output;
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });

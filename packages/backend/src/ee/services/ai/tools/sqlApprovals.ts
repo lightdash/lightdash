@@ -1,4 +1,9 @@
 import {
+    assertUnreachable,
+    isSqlApprovalToolCall,
+    type SqlApprovalToolName,
+} from '@lightdash/common';
+import {
     LightdashAnalytics,
     type AiAgentSqlApprovalDecidedEvent,
 } from '../../../../analytics/LightdashAnalytics';
@@ -15,48 +20,60 @@ export type SqlApprovalDecision = AiSqlApprovalDecision | 'timeout';
 type SqlApprovalDecidedProperties =
     AiAgentSqlApprovalDecidedEvent['properties'];
 
-export type SqlApprovalToolName = SqlApprovalDecidedProperties['toolName'];
+// Tools whose Slack runs suspend on the AI SDK's native approval.
+export const NATIVE_SQL_APPROVAL_TOOL_NAMES = [
+    'runSql',
+    'createContent',
+] as const satisfies readonly SqlApprovalToolName[];
 
-export const isSqlApprovalToolName = (
-    toolName: string,
-): toolName is SqlApprovalToolName =>
-    toolName === 'runSql' ||
-    toolName === 'runComposerQueries' ||
-    toolName === 'createContent';
+export type NativeSqlApprovalToolName =
+    (typeof NATIVE_SQL_APPROVAL_TOOL_NAMES)[number];
 
-const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
-    typeof toolArgs === 'object' &&
-    toolArgs !== null &&
-    'type' in toolArgs &&
-    toolArgs.type === 'sql_chart';
-
-/** Content tools only gate on approval when they save a SQL chart. */
-export const isSqlApprovalToolCall = (
+export const isNativeSqlApprovalToolCall = (
     toolName: string,
     toolArgs: unknown,
-): toolName is SqlApprovalToolName => {
-    if (!isSqlApprovalToolName(toolName)) return false;
-    return toolName === 'createContent'
-        ? isSqlChartContentArgs(toolArgs)
-        : true;
+): toolName is NativeSqlApprovalToolName =>
+    isSqlApprovalToolCall(toolName, toolArgs) &&
+    (NATIVE_SQL_APPROVAL_TOOL_NAMES as readonly string[]).includes(toolName);
+
+export const RUN_SQL_REJECTED_RESULT =
+    'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.';
+
+export const SQL_CHART_REJECTED_RESULT =
+    'User rejected the SQL for this SQL chart, so nothing was saved. Do not retry the same SQL; ask the user what they would like instead.';
+
+/** The result stored for a natively gated call the user rejected. */
+export const getRejectedOutput = (
+    toolName: NativeSqlApprovalToolName,
+): { result: string; metadata: { status: 'rejected' | 'error' } } => {
+    switch (toolName) {
+        case 'runSql':
+            return {
+                result: RUN_SQL_REJECTED_RESULT,
+                metadata: { status: 'rejected' },
+            };
+        case 'createContent':
+            return {
+                result: SQL_CHART_REJECTED_RESULT,
+                metadata: { status: 'error' },
+            };
+        default:
+            return assertUnreachable(toolName, 'Unknown SQL approval tool');
+    }
 };
 
-/** The SQL a pending approval asks the user to accept. */
-export const getSqlApprovalSql = (toolArgs: unknown): string => {
-    if (typeof toolArgs !== 'object' || toolArgs === null) return '';
-    if ('sql' in toolArgs && typeof toolArgs.sql === 'string') {
-        return toolArgs.sql;
+/** Heading of the Slack approval card. */
+export const getSqlApprovalHeading = (
+    toolName: NativeSqlApprovalToolName,
+): string => {
+    switch (toolName) {
+        case 'runSql':
+            return 'Awaiting approval to run SQL';
+        case 'createContent':
+            return 'Awaiting approval to save SQL chart';
+        default:
+            return assertUnreachable(toolName, 'Unknown SQL approval tool');
     }
-    if (
-        'content' in toolArgs &&
-        typeof toolArgs.content === 'object' &&
-        toolArgs.content !== null &&
-        'sql' in toolArgs.content &&
-        typeof toolArgs.content.sql === 'string'
-    ) {
-        return toolArgs.content.sql;
-    }
-    return '';
 };
 
 /** `approved_always` is stored as `approved`; `timed_out` is tracked but never stored. */
@@ -150,3 +167,6 @@ export class SqlNotApprovedError extends Error {
 
 /** Resolves once the SQL is approved; throws SqlNotApprovedError otherwise. */
 export type ApproveSqlFn = () => Promise<void>;
+
+/** Nothing to wait on: the caller already approved the SQL. */
+export const approveClientSql: ApproveSqlFn = async () => {};

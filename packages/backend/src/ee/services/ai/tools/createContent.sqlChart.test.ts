@@ -5,10 +5,10 @@ import {
 } from '@lightdash/common';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
+import { SQL_CHART_REJECTED_RESULT } from './sqlApprovals';
 import {
     SQL_CHART_DISABLED_RESULT,
     SQL_CHART_PREVIOUS_TIMEOUT_RESULT,
-    SQL_CHART_REJECTED_RESULT,
     SQL_CHART_TIMEOUT_RESULT,
     type SqlChartSaving,
 } from './sqlChartApproval';

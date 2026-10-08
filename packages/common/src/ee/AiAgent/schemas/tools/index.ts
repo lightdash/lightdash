@@ -39,6 +39,7 @@ export * from './toolListKnowledgeDocumentsArgs';
 export * from './toolReadAttachmentsArgs';
 export * from './toolReadPinnedThreadArgs';
 export * from './toolCreateContentArgs';
+export * from './sqlApprovalToolCalls';
 export * from './mcpDocumentContent';
 export * from './toolCreateScheduledDeliveryArgs';
 export * from './toolUpdateUserNameArgs';
