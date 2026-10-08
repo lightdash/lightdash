@@ -1,4 +1,3 @@
-import { AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
@@ -274,21 +273,6 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.insert).toHaveLength(0);
     });
 
-    it('checkpoints raw report markdown while the run is still active', async () => {
-        tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
-
-        const updated = await model.checkpointReport(RUN_UUID, reportMarkdown);
-
-        expect(updated).toBe(true);
-        expect(tracker.history.update[0].sql).toContain(
-            '"result_markdown" = $1',
-        );
-        expect(tracker.history.update[0].sql).toContain('"status" = $');
-        expect(tracker.history.update[0].sql).toContain(
-            '"cancellation_requested_at" is null',
-        );
-    });
-
     it('atomically accumulates each reported token class and records incomplete usage', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
 
@@ -377,7 +361,7 @@ describe('AiDeepResearchRunModel', () => {
     });
 
     it.each(['completed', 'partially_completed'] as const)(
-        'persists the 30-day report expiry when a run is %s',
+        'keeps the report out of the run when it is %s',
         async (status) => {
             mockEmptyTerminalMetrics();
             tracker.on
@@ -403,15 +387,12 @@ describe('AiDeepResearchRunModel', () => {
 
             expect(updated).toBe(true);
             const [update] = tracker.history.update;
-            expect(update.sql).toContain(`"report_expires_at" = now() + ($`);
-            expect(update.sql).toContain('"report_expired_at" = $');
+            expect(update.sql).not.toContain('"result_markdown"');
+            expect(update.sql).not.toContain('"report_expires_at"');
+            expect(update.sql).toContain('"findings_count" = $');
+            expect(update.bindings).not.toContain(reportMarkdown);
             expect(update.bindings).toEqual(
-                expect.arrayContaining([
-                    status,
-                    reportMarkdown,
-                    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
-                    RUN_UUID,
-                ]),
+                expect.arrayContaining([status, RUN_UUID]),
             );
         },
     );
