@@ -1,4 +1,4 @@
-import { AiCreditsPausedError } from '@lightdash/common';
+import { AiCreditsPausedError, MissingConfigError } from '@lightdash/common';
 import { APICallError, RetryError } from 'ai';
 import { get, isPlainObject } from 'lodash';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
@@ -116,6 +116,10 @@ export const getKnownUserFacingErrorMessage = (
 ): string | undefined => {
     // Already worded for the person who was refused.
     if (error instanceof AiCreditsPausedError) return error.message;
+
+    // Config resolution fails closed with admin-actionable messages (broken
+    // or flag-disabled credential pins); pass them through verbatim.
+    if (error instanceof MissingConfigError) return error.message;
 
     if (error instanceof AiAgentStepCapReachedError) {
         return STEP_CAP_REACHED_MESSAGE;

@@ -14,5 +14,9 @@
     {
         "column": "user_warehouse_credentials.expires_at",
         "reason": "Existing credential queries join only projects and credential preference tables, which have no expires_at column, and select qualified credential columns."
+    },
+    {
+        "column": "ai_agent.ai_organization_provider_credential_uuid",
+        "reason": "FK deliberately named after the referenced ai_organization_provider_credential primary key, matching the existing project_ai_settings pin column. The previous release never selects this column and has no query joining ai_agent with the credential tables, so no existing query becomes ambiguous during a rolling deploy."
     }
 ]

@@ -106,6 +106,7 @@ const buildService = ({
     skillsEnabled = true,
     boundSkills = [],
     skillsByName = {},
+    pinnedCredentialUuid = null,
 }: {
     existing?: (typeof agentRow & { threadRetentionHours?: number | null })[];
     evaluations?: (typeof existingEvaluation)[];
@@ -113,6 +114,7 @@ const buildService = ({
     retentionCeiling?: number | null;
     skillsEnabled?: boolean;
     boundSkills?: { uuid: string; name: string }[];
+    pinnedCredentialUuid?: string | null;
     skillsByName?: Record<
         string,
         { uuid: string; name: string; deletedAt: Date | null }
@@ -121,6 +123,7 @@ const buildService = ({
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
         findAgentEvalsForCode: vi.fn(async () => evaluations),
+        findProviderCredentialUuid: vi.fn(async () => pinnedCredentialUuid),
         updateAgent: vi.fn(async () => undefined),
         createAgent: vi.fn(async () => ({ uuid: 'created-agent-uuid' })),
         createEval: vi.fn(async () => undefined),
@@ -136,6 +139,11 @@ const buildService = ({
         isEnabled: vi.fn(async () => skillsEnabled),
         setAgentSkills: vi.fn(async () => ({ skills: [], builtInSkills: [] })),
     };
+    const aiOrganizationSettingsService = {
+        isThreadRetentionEnabled: vi.fn(async () => retentionEnabled),
+        getThreadRetentionCeiling: vi.fn(async () => retentionCeiling),
+        validateAgentProviderCredential: vi.fn(async () => undefined),
+    };
     const service = new AiAgentCoderService({
         aiAgentModel: aiAgentModel as never,
         aiAgentSkillModel: aiAgentSkillModel as never,
@@ -147,13 +155,16 @@ const buildService = ({
             })),
         } as never,
         lightdashConfig: lightdashConfigMock,
-        aiOrganizationSettingsService: {
-            isThreadRetentionEnabled: vi.fn(async () => retentionEnabled),
-            getThreadRetentionCeiling: vi.fn(async () => retentionCeiling),
-        } as never,
+        aiOrganizationSettingsService: aiOrganizationSettingsService as never,
     });
 
-    return { service, aiAgentModel, aiAgentSkillModel, aiAgentSkillService };
+    return {
+        service,
+        aiAgentModel,
+        aiAgentSkillModel,
+        aiAgentSkillService,
+        aiOrganizationSettingsService,
+    };
 };
 
 describe('AiAgentCoderService', () => {
@@ -715,6 +726,53 @@ describe('AiAgentCoderService', () => {
             ]);
             expect(result.created).toEqual(['fine']);
             expect(aiAgentModel.createAgent).toHaveBeenCalledTimes(1);
+        });
+
+        // A broken pin (flag off, unreadable credential) must not block
+        // as-code updates that leave the model alone.
+        it('skips pin validation when the uploaded model is unchanged', async () => {
+            const { service, aiAgentModel, aiOrganizationSettingsService } =
+                buildService({ pinnedCredentialUuid: 'cred-1' });
+            aiOrganizationSettingsService.validateAgentProviderCredential.mockRejectedValue(
+                new Error('should not be called'),
+            );
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, name: 'Renamed agent' },
+            ]);
+            expect(result.updated).toEqual(['revenue-agent']);
+            expect(
+                aiOrganizationSettingsService.validateAgentProviderCredential,
+            ).not.toHaveBeenCalled();
+            expect(aiAgentModel.updateAgent).toHaveBeenCalledTimes(1);
+        });
+
+        // The pin itself is not managed as code, but an uploaded model the
+        // pinned credential cannot serve must fail that agent's upsert rather
+        // than persist and break the agent at its next prompt.
+        it('fails an update whose model the pinned credential cannot serve', async () => {
+            const { service, aiAgentModel, aiOrganizationSettingsService } =
+                buildService({ pinnedCredentialUuid: 'cred-1' });
+            aiOrganizationSettingsService.validateAgentProviderCredential.mockRejectedValueOnce(
+                new Error(
+                    'The model "claude-opus-4-8" is not in the allowed models of the credential "Tokyo"',
+                ),
+            );
+            const result = await service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    modelConfig: {
+                        modelName: 'claude-opus-4-8',
+                        modelProvider: 'bedrock',
+                    },
+                },
+            ]);
+            expect(result.failed).toEqual([
+                {
+                    slug: 'revenue-agent',
+                    message: expect.stringContaining('allowed models'),
+                },
+            ]);
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
         });
 
         it('reports a binding the caller may not make without dropping the agent', async () => {

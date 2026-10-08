@@ -12,6 +12,9 @@ describeContentAsCodeSchemaContract({
         'integrations',
         'organizationUuid',
         'projectUuid',
+        // Credential pins reference org-specific credential uuids, which do
+        // not port across organizations or instances.
+        'providerCredentialUuid',
         'spaceAccess',
         'userAccess',
         'uuid',

@@ -249,7 +249,10 @@ type Dependencies = {
         | 'upsertMemoryReviewItem'
         | 'upsertMemoryReviewItemInTransaction'
     >;
-    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
+    aiAgentModel: Pick<
+        AiAgentModel,
+        'getAgent' | 'findThreadOwnership' | 'findProviderCredentialUuid'
+    >;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
     projectModel: Pick<
         ProjectModel,
@@ -720,6 +723,11 @@ export class AiAgentMemoryService extends BaseService {
     }: Parameters<AiAgentMemoryPromotionAuthoringCall>[0]): Promise<MemoryProjectContextAuthoringResult> {
         const { copilotConfig, model } = await resolveReviewJudgeModel({
             organizationUuid: memory.organization_uuid,
+            // Memories distill the agent's own threads, so a pinned agent's
+            // promotion authoring stays on its pinned credential.
+            credentialUuid: await this.aiAgentModel.findProviderCredentialUuid(
+                memory.agent_uuid,
+            ),
             orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
             instanceCopilotConfig: this.lightdashConfig.ai.copilot,
         });
@@ -2030,7 +2038,12 @@ export class AiAgentMemoryService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid: args.thread.organizationUuid,
                 projectUuid: args.thread.projectUuid,
-                credentialUuid: null,
+                // Distillation re-reads the agent's own transcript, so it must
+                // stay on that agent's pinned credential.
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        args.thread.agentUuid,
+                    ),
             });
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;

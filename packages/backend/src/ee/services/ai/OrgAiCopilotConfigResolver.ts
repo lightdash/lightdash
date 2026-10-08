@@ -365,7 +365,37 @@ export class OrgAiCopilotConfigResolver {
                       ...(legacyKeys ?? {}),
                       bedrock: resolution.credential.config,
                   };
+
+        // An agent pin must never be silently discarded: with the org flag
+        // off, falling through to the instance provider would process the
+        // pinned agent's content out of region. Pin writes are rejected while
+        // the flag is off, so this only fires when the flag was turned off
+        // after the pin was saved — degrade to "unavailable", never reroute.
+        if (credentialUuid && resolution.status === 'ok') {
+            if (await this.isCustomProvidersEnabled(organizationUuid)) {
+                return keys;
+            }
+            if (onUnreadable === 'fail-closed') {
+                throw new MissingConfigError(
+                    'This agent is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin; AI features are unavailable for this agent until then.',
+                );
+            }
+            return this.withCustomProvidersIfEnabled(
+                organizationUuid,
+                legacyKeys,
+            );
+        }
         return this.withCustomProvidersIfEnabled(organizationUuid, keys);
+    }
+
+    private async isCustomProvidersEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.OrgAiCustomProviders,
+        });
+        return enabled;
     }
 
     // Stored org provider config (keys, base URLs) only takes effect while
@@ -375,11 +405,9 @@ export class OrgAiCopilotConfigResolver {
         keys: AiOrgProviderApiKeys | null,
     ): Promise<AiOrgProviderApiKeys | null> {
         if (!keys) return null;
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.OrgAiCustomProviders,
-        });
-        return enabled ? keys : null;
+        return (await this.isCustomProvidersEnabled(organizationUuid))
+            ? keys
+            : null;
     }
 
     async getCopilotConfig({

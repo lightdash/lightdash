@@ -35,6 +35,7 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
     const aiAgentModel = {
         getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
         getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
+        findProviderCredentialUuid: vi.fn().mockResolvedValue(null),
         searchArtifactsBySimilarity: vi
             .fn()
             .mockResolvedValue([baseline, expanded]),

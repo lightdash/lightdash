@@ -557,6 +557,38 @@ export class AiAgentCoderService extends BaseService {
                     );
 
                 if (!isUnchanged) {
+                    // The credential pin is not managed as code, but the model
+                    // is; refuse a model the pinned credential cannot serve
+                    // rather than leaving the agent broken at its next prompt.
+                    // Only when the model changes: a broken pin must not block
+                    // unrelated as-code updates to the agent.
+                    const modelConfigChanged = !isEqual(
+                        agent.modelConfig ?? null,
+                        existing.modelConfig ?? null,
+                    );
+                    const pinnedCredentialUuid = modelConfigChanged
+                        ? await this.aiAgentModel.findProviderCredentialUuid(
+                              existing.uuid,
+                          )
+                        : null;
+                    if (pinnedCredentialUuid) {
+                        try {
+                            await this.aiOrganizationSettingsService.validateAgentProviderCredential(
+                                organizationUuid,
+                                pinnedCredentialUuid,
+                                agent.modelConfig,
+                            );
+                        } catch (error) {
+                            changes.failed = [
+                                ...(changes.failed ?? []),
+                                {
+                                    slug: agent.slug,
+                                    message: `AI agent '${agent.slug}': ${getErrorMessage(error)}`,
+                                },
+                            ];
+                            return;
+                        }
+                    }
                     await this.aiAgentModel.updateAgent({
                         agentUuid: existing.uuid,
                         organizationUuid,
