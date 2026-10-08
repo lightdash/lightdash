@@ -1,12 +1,12 @@
 /** Where the Data apps settings group lands: a page this user can reach. */
 export const getDataAppsSettingsLanding = ({
-    canManageOrganization,
+    canOpenGeneral,
     canManageThemes,
 }: {
-    canManageOrganization: boolean;
+    canOpenGeneral: boolean;
     canManageThemes: boolean;
 }): string | null => {
-    if (canManageOrganization) return '/generalSettings/dataApps/general';
+    if (canOpenGeneral) return '/generalSettings/dataApps/general';
     if (canManageThemes) return '/generalSettings/dataApps/themes';
     return null;
 };

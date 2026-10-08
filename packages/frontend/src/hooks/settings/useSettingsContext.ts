@@ -79,6 +79,14 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
+    // Data apps > General currently holds a single setting (automatic
+    // thumbnails), so the whole page is gated on that flag. When another
+    // setting lands there, drop this gate and keep the flag on the card only.
+    const dataAppAutomaticThumbnailsFlagQuery = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppAutomaticThumbnails,
+    );
+    const isDataAppGeneralSettingsEnabled =
+        dataAppAutomaticThumbnailsFlagQuery.data?.enabled ?? false;
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -245,9 +253,11 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        isDataAppGeneralSettingsEnabled,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
-            dataAppAnalysisFlagQuery.isInitialLoading,
+            dataAppAnalysisFlagQuery.isInitialLoading ||
+            dataAppAutomaticThumbnailsFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,
