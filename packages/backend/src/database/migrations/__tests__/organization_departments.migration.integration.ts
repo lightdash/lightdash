@@ -20,13 +20,21 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { down, up } from '../20261008120000_create_organization_departments';
+import {
+    down as downDepartments,
+    up as upDepartments,
+} from '../20261008120000_create_organization_departments';
+import {
+    down as downPrimaryMemberships,
+    up as upPrimaryMemberships,
+} from '../20261008150000_create_department_primary_memberships';
 
 const TABLES = [
     'organization_departments',
     'department_links',
     'department_members',
     'department_owners',
+    'department_primary_memberships',
 ];
 const LIMITS: DepartmentTreeLimits = { maxDepartments: 1000, maxDepth: 10 };
 const DAY = 24 * 60 * 60 * 1000;
@@ -254,19 +262,25 @@ const windowsAt = (now: Date): ActivityWindows => ({
     lastActiveSince: new Date(now.getTime() - 90 * DAY),
 });
 
-describe('the departments migration', () => {
-    test('reverses and reapplies on the real schema', async () => {
+describe('the departments migrations', () => {
+    test('reverse newest first and reapply on the real schema', async () => {
         await db.transaction(async (trx) => {
-            await down(trx);
+            // The primaries reference departments, so they go first and come back last
+            await downPrimaryMemberships(trx);
+            expect(
+                await trx.schema.hasTable('department_primary_memberships'),
+            ).toBe(false);
+            await downDepartments(trx);
             const afterDown = await Promise.all(
                 TABLES.map((table) => trx.schema.hasTable(table)),
             );
-            expect(afterDown).toEqual([false, false, false, false]);
-            await up(trx);
+            expect(afterDown).toEqual(TABLES.map(() => false));
+            await upDepartments(trx);
+            await upPrimaryMemberships(trx);
             const afterUp = await Promise.all(
                 TABLES.map((table) => trx.schema.hasTable(table)),
             );
-            expect(afterUp).toEqual([true, true, true, true]);
+            expect(afterUp).toEqual(TABLES.map(() => true));
         });
         const index = await db.raw<{ rows: { indexdef: string }[] }>(
             `SELECT indexdef FROM pg_indexes
@@ -294,7 +308,25 @@ describe('the departments migration', () => {
              WHERE con.contype = 'p' AND rel.relname = ANY(?)`,
             [TABLES],
         );
-        expect(primaryKeys.rows[0].count).toBe('4');
+        expect(primaryKeys.rows[0].count).toBe(String(TABLES.length));
+    });
+
+    test('keys a primary by organization and person, and cascades it from the organization, the person and the department', async () => {
+        const constraints = await db.raw<{ rows: { definition: string }[] }>(
+            `SELECT pg_get_constraintdef(con.oid) AS definition
+             FROM pg_constraint con
+             JOIN pg_class rel ON rel.oid = con.conrelid
+             WHERE rel.relname = 'department_primary_memberships'
+               AND con.contype IN ('p', 'f')`,
+        );
+        expect(constraints.rows.map((c) => c.definition).sort()).toEqual(
+            [
+                'FOREIGN KEY (department_uuid) REFERENCES organization_departments(department_uuid) ON DELETE CASCADE',
+                'FOREIGN KEY (organization_uuid) REFERENCES organizations(organization_uuid) ON DELETE CASCADE',
+                'FOREIGN KEY (user_uuid) REFERENCES users(user_uuid) ON DELETE CASCADE',
+                'PRIMARY KEY (organization_uuid, user_uuid)',
+            ].sort(),
+        );
     });
 
     test('refuses a negative headcount and cascades an organization delete', async () => {
@@ -320,7 +352,7 @@ describe('the departments migration', () => {
 });
 
 describe('DepartmentModel on the real schema', () => {
-    test('resolves membership: explicit first, then the most specific linked group, else a conflict', async () => {
+    test('places people in every linked department, keeping the most specific of a branch', async () => {
         const organization = await createOrganization('Membership');
         const ann = await createPerson(organization, 'Ann');
         const bob = await createPerson(organization, 'Bob');
@@ -375,26 +407,46 @@ describe('DepartmentModel on the real schema', () => {
                 await departments.listByOrganization(
                     organization.organizationUuid,
                 ),
-            ).map((m) => [m.userUuid, m.resolution]),
+            ).map((m) => [m.userUuid, m]),
         );
         // A child department beats its parent
         expect(resolved.get(ann.userUuid)).toMatchObject({
             kind: 'assigned',
-            departmentUuid: stores,
-            source: 'group',
-            sourceGroupName: 'Store staff',
+            placements: [
+                {
+                    departmentUuid: stores,
+                    source: 'group',
+                    sourceGroupName: 'Store staff',
+                },
+            ],
+            countedDepartmentUuids: [stores],
         });
-        expect(resolved.get(bob.userUuid)).toEqual({
-            kind: 'conflict',
-            departmentUuids: [finance, stores].sort(),
+        expect(resolved.get(bob.userUuid)).toMatchObject({
+            kind: 'shared',
+            countedDepartmentUuids: [finance, stores].sort(),
         });
-        // An explicit assignment wins over groups
+        // An explicit assignment adds a placement beside the groups
         expect(resolved.get(cara.userUuid)).toMatchObject({
-            kind: 'assigned',
-            departmentUuid: finance,
-            source: 'explicit',
+            kind: 'shared',
+            placements: [
+                {
+                    departmentUuid: finance,
+                    source: 'explicit',
+                    sourceGroupName: null,
+                },
+                {
+                    departmentUuid: ops,
+                    source: 'group',
+                    sourceGroupName: 'Ops staff',
+                },
+            ].sort((a, b) => (a.departmentUuid < b.departmentUuid ? -1 : 1)),
+            primaryDepartmentUuid: null,
         });
-        expect(resolved.get(dan.userUuid)).toEqual({ kind: 'unassigned' });
+        expect(resolved.get(dan.userUuid)).toMatchObject({
+            kind: 'unassigned',
+            placements: [],
+            countedDepartmentUuids: [],
+        });
         // Deactivated, not signed up and internal users are not on Lightdash
         [gone, invited, robot].forEach((person) =>
             expect(resolved.has(person.userUuid)).toBe(false),
@@ -482,7 +534,7 @@ describe('DepartmentModel on the real schema', () => {
         );
     });
 
-    test('keeps one explicit assignment per person when two departments assign them at once', async () => {
+    test('keeps a person in every department that assigns them, even two at once', async () => {
         const organization = await createOrganization('Assign race');
         const ann = await createPerson(organization, 'Ann');
         const first = await create(organization, 'First');
@@ -497,7 +549,157 @@ describe('DepartmentModel on the real schema', () => {
         ]);
         expect(
             await db('department_members').where('user_uuid', ann.userUuid),
-        ).toHaveLength(1);
+        ).toHaveLength(2);
+        const [row] = await departments.getResolvedMemberRows(
+            organization.organizationUuid,
+        );
+        expect(row.explicitDepartmentUuids).toEqual([first, second].sort());
+        const [membership] = resolveDepartmentMembership(
+            [row],
+            await departments.listByOrganization(organization.organizationUuid),
+        );
+        expect(membership.kind).toBe('shared');
+        expect(membership.placements.map((p) => p.source)).toEqual([
+            'explicit',
+            'explicit',
+        ]);
+
+        // Emptying one department's list leaves the person in the other
+        await departments.setMembers(organization.organizationUuid, first, []);
+        const [after] = await departments.getResolvedMemberRows(
+            organization.organizationUuid,
+        );
+        expect(after.explicitDepartmentUuids).toEqual([second]);
+    });
+
+    test('stores the department a person counts in, and drops it with that department', async () => {
+        const organization = await createOrganization('Primary');
+        const ann = await createPerson(organization, 'Ann');
+        const first = await create(organization, 'First');
+        const second = await create(organization, 'Second');
+        await departments.setMembers(organization.organizationUuid, first, [
+            ann.userUuid,
+        ]);
+        await departments.setMembers(organization.organizationUuid, second, [
+            ann.userUuid,
+        ]);
+        const resolveAnn = async () => {
+            const rows = await departments.getResolvedMemberRows(
+                organization.organizationUuid,
+            );
+            const [membership] = resolveDepartmentMembership(
+                rows,
+                await departments.listByOrganization(
+                    organization.organizationUuid,
+                ),
+            );
+            return { row: rows[0], membership };
+        };
+        const storedPrimaries = () =>
+            db('department_primary_memberships')
+                .where('user_uuid', ann.userUuid)
+                .select('organization_uuid', 'department_uuid');
+
+        await departments.setPrimaryDepartment(
+            organization.organizationUuid,
+            ann.userUuid,
+            first,
+        );
+        const counted = await resolveAnn();
+        expect(counted.row.primaryDepartmentUuid).toBe(first);
+        expect(counted.membership).toMatchObject({
+            kind: 'shared',
+            primaryDepartmentUuid: first,
+            countedDepartmentUuids: [first],
+        });
+
+        // Setting another replaces it; null clears it
+        await departments.setPrimaryDepartment(
+            organization.organizationUuid,
+            ann.userUuid,
+            second,
+        );
+        expect(await storedPrimaries()).toEqual([
+            {
+                organization_uuid: organization.organizationUuid,
+                department_uuid: second,
+            },
+        ]);
+        await departments.setPrimaryDepartment(
+            organization.organizationUuid,
+            ann.userUuid,
+            null,
+        );
+        expect(await storedPrimaries()).toEqual([]);
+        expect((await resolveAnn()).membership.countedDepartmentUuids).toEqual(
+            [first, second].sort(),
+        );
+
+        // Deleting the primary department deletes the primary with it
+        await departments.setPrimaryDepartment(
+            organization.organizationUuid,
+            ann.userUuid,
+            first,
+        );
+        await departments.delete(organization.organizationUuid, first);
+        expect(await storedPrimaries()).toEqual([]);
+        const { row, membership } = await resolveAnn();
+        expect(row.primaryDepartmentUuid).toBeNull();
+        expect(membership).toMatchObject({
+            kind: 'assigned',
+            countedDepartmentUuids: [second],
+        });
+    });
+
+    test('sets a primary only for an active member, and only to a department of the organization', async () => {
+        const organization = await createOrganization('Primary checks');
+        const other = await createOrganization('Primary checks elsewhere');
+        const ann = await createPerson(organization, 'Ann');
+        const invited = await createPerson(organization, 'Invited', {
+            signedUp: false,
+        });
+        const gone = await createPerson(organization, 'Gone', {
+            isActive: false,
+        });
+        const robot = await createPerson(organization, 'Robot', {
+            isInternal: true,
+        });
+        const outsider = await createPerson(other, 'Outsider');
+        const team = await create(organization, 'Team');
+        const theirTeam = await create(other, 'Their team');
+
+        await Promise.all(
+            [invited, gone, robot, outsider].map((person) =>
+                expect(
+                    departments.setPrimaryDepartment(
+                        organization.organizationUuid,
+                        person.userUuid,
+                        team,
+                    ),
+                ).rejects.toThrow(
+                    new NotFoundError(
+                        `User ${person.userUuid} is not an active member of this organization`,
+                    ),
+                ),
+            ),
+        );
+        await expect(
+            departments.setPrimaryDepartment(
+                organization.organizationUuid,
+                ann.userUuid,
+                theirTeam,
+            ),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department ${theirTeam} is not in this organization`,
+            ),
+        );
+        expect(
+            await db('department_primary_memberships').whereIn(
+                'organization_uuid',
+                [organization.organizationUuid, other.organizationUuid],
+            ),
+        ).toEqual([]);
     });
 
     test('refuses a name that differs only by case, in the same organization only', async () => {

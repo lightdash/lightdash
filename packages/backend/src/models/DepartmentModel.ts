@@ -25,6 +25,7 @@ import {
     DepartmentLinkTableName,
     DepartmentMemberTableName,
     DepartmentOwnerTableName,
+    DepartmentPrimaryMembershipTableName,
     DepartmentTableName,
 } from '../database/entities/departments';
 import { GroupTableName } from '../database/entities/groups';
@@ -564,6 +565,33 @@ export class DepartmentModel {
         }
     }
 
+    // The same people the membership read returns: in the organization, not internal and on Lightdash
+    private static async assertActiveMember(
+        organizationUuid: string,
+        userUuid: string,
+        db: Knex,
+    ): Promise<void> {
+        const result = await db.raw<{ rows: { user_uuid: string }[] }>(
+            `
+            SELECT u.user_uuid
+            FROM organization_memberships om
+            JOIN organizations o ON o.organization_id = om.organization_id
+            JOIN users u ON u.user_id = om.user_id
+            JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
+            WHERE o.organization_uuid = ?
+              AND u.user_uuid = ?
+              AND u.is_internal = false
+              AND ${ON_LIGHTDASH_SQL}
+            `,
+            [organizationUuid, userUuid],
+        );
+        if (result.rows.length === 0) {
+            throw new NotFoundError(
+                `User ${userUuid} is not an active member of this organization`,
+            );
+        }
+    }
+
     async setGroupLinks(
         organizationUuid: string,
         departmentUuid: string,
@@ -619,14 +647,7 @@ export class DepartmentModel {
                 new Set(listed.map((m) => m.user_uuid)),
                 trx,
             );
-            // One explicit assignment per user per org
-            const orgDepartments = trx(DepartmentTableName)
-                .select('department_uuid')
-                .where('organization_uuid', organizationUuid);
-            await trx(DepartmentMemberTableName)
-                .whereIn('department_uuid', orgDepartments)
-                .whereIn('user_uuid', unique)
-                .delete();
+            // Only this department's list; the people keep their other departments
             await trx(DepartmentMemberTableName)
                 .where('department_uuid', departmentUuid)
                 .delete();
@@ -697,6 +718,49 @@ export class DepartmentModel {
         return this.getByUuid(organizationUuid, departmentUuid);
     }
 
+    // null clears it, so a person in several departments counts in each of them again
+    async setPrimaryDepartment(
+        organizationUuid: string,
+        userUuid: string,
+        departmentUuid: string | null,
+    ): Promise<void> {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertActiveMember(
+                organizationUuid,
+                userUuid,
+                trx,
+            );
+            if (departmentUuid === null) {
+                await trx(DepartmentPrimaryMembershipTableName)
+                    .where({
+                        organization_uuid: organizationUuid,
+                        user_uuid: userUuid,
+                    })
+                    .delete();
+                return;
+            }
+            const department = await trx(DepartmentTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    department_uuid: departmentUuid,
+                })
+                .first('department_uuid');
+            if (!department) {
+                throw new ParameterError(
+                    `Department ${departmentUuid} is not in this organization`,
+                );
+            }
+            await trx(DepartmentPrimaryMembershipTableName)
+                .insert({
+                    organization_uuid: organizationUuid,
+                    user_uuid: userUuid,
+                    department_uuid: departmentUuid,
+                })
+                .onConflict(['organization_uuid', 'user_uuid'])
+                .merge(['department_uuid']);
+        });
+    }
+
     // Only active users who finished sign-up count; pending is derived as in the organization members list
     async getResolvedMemberRows(
         organizationUuid: string,
@@ -708,8 +772,9 @@ export class DepartmentModel {
                 first_name: string;
                 last_name: string;
                 role: OrganizationMemberRole;
-                explicit_department_uuid: string | null;
+                explicit_department_uuids: string[] | null;
                 group_links: DepartmentGroupLink[] | null;
+                primary_department_uuid: string | null;
             }>;
         }>(
             `
@@ -727,7 +792,8 @@ export class DepartmentModel {
                   AND ${ON_LIGHTDASH_SQL}
             ),
             explicit AS (
-                SELECT dm.user_uuid, MIN(dm.department_uuid::text) AS department_uuid
+                SELECT dm.user_uuid,
+                       array_agg(dm.department_uuid ORDER BY dm.department_uuid) AS department_uuids
                 FROM department_members dm
                 JOIN organization_departments d ON d.department_uuid = dm.department_uuid
                 JOIN org ON org.organization_uuid = d.organization_uuid
@@ -747,13 +813,20 @@ export class DepartmentModel {
                 JOIN organization_departments d ON d.department_uuid = dl.department_uuid
                 JOIN org ON org.organization_uuid = d.organization_uuid
                 GROUP BY ou.user_uuid
+            ),
+            primaries AS (
+                SELECT pm.user_uuid, pm.department_uuid
+                FROM department_primary_memberships pm
+                JOIN org ON org.organization_uuid = pm.organization_uuid
             )
             SELECT ou.user_uuid, ou.email, ou.first_name, ou.last_name, ou.role,
-                   ex.department_uuid AS explicit_department_uuid,
-                   vg.group_links
+                   ex.department_uuids AS explicit_department_uuids,
+                   vg.group_links,
+                   pr.department_uuid AS primary_department_uuid
             FROM org_users ou
             LEFT JOIN explicit ex ON ex.user_uuid = ou.user_uuid
             LEFT JOIN via_groups vg ON vg.user_uuid = ou.user_uuid
+            LEFT JOIN primaries pr ON pr.user_uuid = ou.user_uuid
             `,
             [organizationUuid],
         );
@@ -763,8 +836,9 @@ export class DepartmentModel {
             firstName: r.first_name,
             lastName: r.last_name,
             role: r.role,
-            explicitDepartmentUuid: r.explicit_department_uuid,
+            explicitDepartmentUuids: r.explicit_department_uuids ?? [],
             groupLinks: r.group_links ?? [],
+            primaryDepartmentUuid: r.primary_department_uuid,
         }));
     }
 }
