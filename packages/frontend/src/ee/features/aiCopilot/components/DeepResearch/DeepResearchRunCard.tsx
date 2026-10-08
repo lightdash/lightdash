@@ -1,3 +1,4 @@
+import { getDocumentUrl } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -38,6 +39,7 @@ import {
     useCancelDeepResearchMutation,
     useTrackDeepResearchReportEngagement,
 } from '../../hooks/useDeepResearch';
+import { AiDocumentCardButton } from '../ChatElements/AiDocumentCardButton';
 import styles from './DeepResearchRunCard.module.css';
 
 const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -203,8 +205,28 @@ export const DeepResearchRunCard = ({
         }
     }, [announcedStatus, run.status]);
 
-    const hasReport = !!run.resultMarkdown;
-    const isReportExpired = run.isReportExpired;
+    const hasDocument = run.document !== null;
+    const hasReport = !hasDocument && !!run.resultMarkdown;
+    // A published Document outlives the run's report retention.
+    const isReportExpired = !hasDocument && run.isReportExpired;
+    const trackReportOpened = () => {
+        if (
+            run.status === 'completed' ||
+            run.status === 'partially_completed' ||
+            run.status === 'failed' ||
+            run.status === 'cancelled'
+        ) {
+            trackReportEngagement('opened', {
+                aiDeepResearchRunUuid: run.uuid,
+                projectUuid: run.projectUuid,
+                agentUuid: run.agentUuid,
+                aiThreadUuid: run.threadUuid,
+                status: run.status,
+                completedAt: run.completedAt,
+                updatedAt: run.updatedAt,
+            });
+        }
+    };
     const isTerminal = isDeepResearchRunTerminal(run.status);
     const elapsedMs = useElapsedMs(run, isTerminal);
     const isActionRequired = !!run.actionRequired;
@@ -419,6 +441,25 @@ export const DeepResearchRunCard = ({
                     </Paper>
                 )}
 
+                {run.document && (
+                    <AiDocumentCardButton
+                        projectUuid={run.projectUuid}
+                        agentUuid={run.agentUuid}
+                        threadUuid={run.threadUuid}
+                        messageUuid={run.promptUuid}
+                        document={{
+                            uuid: run.document.documentUuid,
+                            name: run.document.name,
+                            href: getDocumentUrl(
+                                run.projectUuid,
+                                run.document.documentUuid,
+                                run.document.slug,
+                            ),
+                        }}
+                        onOpen={trackReportOpened}
+                    />
+                )}
+
                 {hasReport && (
                     <Paper className={styles.answer} p="lg" radius="sm">
                         <Stack gap="md">
@@ -451,24 +492,7 @@ export const DeepResearchRunCard = ({
                                 // Anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="research-report-open"
                                 data-tour-hint="Open the full report"
-                                onClick={() => {
-                                    if (
-                                        run.status === 'completed' ||
-                                        run.status === 'partially_completed' ||
-                                        run.status === 'failed' ||
-                                        run.status === 'cancelled'
-                                    ) {
-                                        trackReportEngagement('opened', {
-                                            aiDeepResearchRunUuid: run.uuid,
-                                            projectUuid: run.projectUuid,
-                                            agentUuid: run.agentUuid,
-                                            aiThreadUuid: run.threadUuid,
-                                            status: run.status,
-                                            completedAt: run.completedAt,
-                                            updatedAt: run.updatedAt,
-                                        });
-                                    }
-                                }}
+                                onClick={trackReportOpened}
                             >
                                 View full report
                             </Button>

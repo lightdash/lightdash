@@ -8544,6 +8544,30 @@ export class AiAgentModel {
         });
     }
 
+    async findToolResultsByToolCallIds(
+        promptUuids: string[],
+        toolCallIds: string[],
+    ): Promise<
+        Array<{
+            promptUuid: string;
+            toolCallId: string;
+            toolName: string;
+            metadata: object | null;
+        }>
+    > {
+        if (promptUuids.length === 0 || toolCallIds.length === 0) return [];
+        const rows = await this.database(AiAgentToolResultTableName)
+            .select('ai_prompt_uuid', 'tool_call_id', 'tool_name', 'metadata')
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .whereIn('tool_call_id', toolCallIds);
+        return rows.map((row) => ({
+            promptUuid: row.ai_prompt_uuid,
+            toolCallId: row.tool_call_id,
+            toolName: row.tool_name,
+            metadata: row.metadata ?? null,
+        }));
+    }
+
     async getToolCallsAndResultsForPrompt(
         promptUuid: string,
         options: { includeSubagentToolCalls?: boolean } = {},

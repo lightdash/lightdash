@@ -305,6 +305,7 @@ const buildService = (
             errorMessage: null,
         }),
         getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
+        findToolResultsByToolCallIds: vi.fn().mockResolvedValue([]),
         ...overrides.aiAgentModel,
     };
     const aiAgentService = {
@@ -1193,6 +1194,85 @@ describe('AiDeepResearchService', () => {
             expect(runs).toHaveLength(1);
             expect(runs[0].aiThreadUuid).toBe('thread-1');
             expect(runs[0].prompt).toBe('Investigate revenue');
+        });
+
+        it('returns the Document each run published its report to', async () => {
+            const { service, aiAgentModel } = buildService({
+                model: {
+                    findByThreadScoped: vi
+                        .fn()
+                        .mockResolvedValue([
+                            runRow(),
+                            runRow({ ai_deep_research_run_uuid: 'run-2' }),
+                        ]),
+                },
+                aiAgentModel: {
+                    findToolResultsByToolCallIds: vi.fn().mockResolvedValue([
+                        {
+                            promptUuid: 'prompt-1',
+                            toolCallId: 'deep-research-run-1-document',
+                            toolName: 'createContent',
+                            metadata: {
+                                status: 'success',
+                                uuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+                                name: 'Revenue investigation',
+                                slug: 'revenue-investigation',
+                                href: '/projects/project-1/documents/revenue-investigation',
+                            },
+                        },
+                    ]),
+                },
+            });
+
+            const runs = await service.listRunsForThread(
+                userWithProjectAccess(),
+                'project-1',
+                'thread-1',
+            );
+
+            expect(
+                aiAgentModel.findToolResultsByToolCallIds,
+            ).toHaveBeenCalledWith(
+                ['prompt-1'],
+                [
+                    'deep-research-run-1-document',
+                    'deep-research-run-2-document',
+                ],
+            );
+            expect(runs.map((run) => run.document)).toEqual([
+                {
+                    documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+                    name: 'Revenue investigation',
+                    slug: 'revenue-investigation',
+                },
+                null,
+            ]);
+        });
+
+        it('ignores a Document reference that did not publish successfully', async () => {
+            const { service } = buildService({
+                model: {
+                    findByThreadScoped: vi.fn().mockResolvedValue([runRow()]),
+                },
+                aiAgentModel: {
+                    findToolResultsByToolCallIds: vi.fn().mockResolvedValue([
+                        {
+                            promptUuid: 'prompt-1',
+                            toolCallId: 'deep-research-run-1-document',
+                            toolName: 'createContent',
+                            metadata: { status: 'error' },
+                        },
+                    ]),
+                },
+            });
+
+            const [run] = await service.listRunsForThread(
+                userWithProjectAccess(),
+                'project-1',
+                'thread-1',
+            );
+
+            expect(run.document).toBeNull();
         });
 
         it('revalidates current agent and thread access before listing runs', async () => {

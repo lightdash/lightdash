@@ -1,10 +1,13 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
+import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
+import { store } from '../../store';
+import { selectPreview } from '../../store/aiArtifactSlice';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
 
 const cancelRun = vi.fn();
@@ -19,7 +22,17 @@ vi.mock('../../hooks/useDeepResearch', () => ({
 }));
 
 const renderRunCard = (card: ReactElement) =>
-    renderWithProviders(<MemoryRouter>{card}</MemoryRouter>);
+    renderWithProviders(
+        <Provider store={store}>
+            <MemoryRouter>{card}</MemoryRouter>
+        </Provider>,
+    );
+
+const publishedDocument = {
+    documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+    name: 'Enterprise retention in Q2',
+    slug: 'enterprise-retention-in-q2',
+};
 
 describe('DeepResearchRunCard', () => {
     beforeEach(() => {
@@ -275,6 +288,67 @@ describe('DeepResearchRunCard', () => {
             completedAt: deepResearchRunFixture.completedAt,
             updatedAt: deepResearchRunFixture.updatedAt,
         });
+    });
+
+    it('shows the published Document instead of the legacy report', async () => {
+        const user = userEvent.setup();
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    document: publishedDocument,
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        const card = screen.getByRole('link', {
+            name: /Enterprise retention in Q2/,
+        });
+        expect(card).toHaveAttribute(
+            'href',
+            '/projects/project-1/documents/enterprise-retention-in-q2',
+        );
+        expect(screen.queryByText('View full report')).not.toBeInTheDocument();
+        expect(screen.queryByText('Research summary')).not.toBeInTheDocument();
+
+        await user.click(card);
+
+        expect(selectPreview(store.getState())).toEqual({
+            type: 'document',
+            documentUuidOrSlug: publishedDocument.documentUuid,
+            messageUuid: deepResearchRunFixture.promptUuid,
+            threadUuid: deepResearchRunFixture.threadUuid,
+            projectUuid: deepResearchRunFixture.projectUuid,
+            agentUuid: deepResearchRunFixture.agentUuid,
+        });
+        expect(trackReportEngagement).toHaveBeenCalledWith(
+            'opened',
+            expect.objectContaining({
+                aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
+            }),
+        );
+    });
+
+    it('keeps a published Document available after report retention ends', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    resultMarkdown: null,
+                    isReportExpired: true,
+                    document: publishedDocument,
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(
+            screen.queryByText('This report is no longer available.'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /Enterprise retention in Q2/ }),
+        ).toBeInTheDocument();
     });
 
     it('renders the research summary as Markdown', () => {

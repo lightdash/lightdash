@@ -159,6 +159,7 @@ export const adaptDeepResearchRun = ({
         projectUuid: run.projectUuid,
         agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
+        promptUuid: run.promptUuid,
         question: registration.question,
         status: run.status,
         terminalReason: run.terminalReason,
@@ -181,6 +182,7 @@ export const adaptDeepResearchRun = ({
         reportExpiresAt: run.reportExpiresAt,
         reportExpiredAt: run.reportExpiredAt,
         isReportExpired: run.isReportExpired,
+        document: run.document,
         errorMessage: run.errorMessage,
     };
 };

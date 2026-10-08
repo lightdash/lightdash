@@ -45,6 +45,7 @@ import {
     type AiDeepResearchProgress,
     type AiDeepResearchReportAdjustment,
     type AiDeepResearchRun,
+    type AiDeepResearchRunDocument,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
     type AiDeepResearchWarehouseChart,
@@ -78,7 +79,10 @@ import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { canStartDeepResearch } from '../AiAgentService/dataAppThreadPolicy';
-import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
+import {
+    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
+    getAiDeepResearchDocumentToolCallId,
+} from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     isDeepResearchEvidenceQueryTool,
@@ -312,6 +316,7 @@ type Dependencies = {
     aiAgentModel: Pick<
         AiAgentModel,
         | 'findThreadOwnership'
+        | 'findToolResultsByToolCallIds'
         | 'findWebAppPrompt'
         | 'getToolCallsAndResultsForPrompt'
     >;
@@ -395,7 +400,34 @@ const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
     return null;
 };
 
-const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
+const parseRunDocument = (
+    metadata: object | null,
+): AiDeepResearchRunDocument | null => {
+    if (
+        !metadata ||
+        !('status' in metadata) ||
+        !('uuid' in metadata) ||
+        !('name' in metadata) ||
+        !('slug' in metadata) ||
+        metadata.status !== 'success' ||
+        typeof metadata.uuid !== 'string' ||
+        !isValidUuid(metadata.uuid) ||
+        typeof metadata.name !== 'string' ||
+        typeof metadata.slug !== 'string'
+    ) {
+        return null;
+    }
+    return {
+        documentUuid: metadata.uuid,
+        name: metadata.name,
+        slug: metadata.slug,
+    };
+};
+
+const toRun = (
+    row: DbAiDeepResearchRun,
+    document: AiDeepResearchRunDocument | null,
+): AiDeepResearchRun => {
     const reportExpiresAt = getReportExpiresAt(row);
     const isReportExpired =
         row.report_expired_at !== null ||
@@ -419,6 +451,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
         reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
         isReportExpired,
+        document,
         budget: getAiDeepResearchRunBudget(row.budget_snapshot),
         executionContextSnapshot: row.execution_context_snapshot,
         metrics: {
@@ -937,7 +970,11 @@ export class AiDeepResearchService extends BaseService {
             await this.dispatchPendingLifecycleAnalytics(
                 existingRun.ai_deep_research_run_uuid,
             );
-            return toRun(existingRun);
+            const documents = await this.findRunDocuments([existingRun]);
+            return toRun(
+                existingRun,
+                documents.get(existingRun.ai_deep_research_run_uuid) ?? null,
+            );
         }
 
         const existingToolCalls =
@@ -999,7 +1036,7 @@ export class AiDeepResearchService extends BaseService {
                 await this.dispatchPendingLifecycleAnalytics(
                     concurrentRun.ai_deep_research_run_uuid,
                 );
-                return toRun(concurrentRun);
+                return toRun(concurrentRun, null);
             }
             if (error instanceof AiDeepResearchActiveRunError) {
                 throw new ConflictError(
@@ -1034,7 +1071,7 @@ export class AiDeepResearchService extends BaseService {
         await this.dispatchPendingLifecycleAnalytics(
             run.ai_deep_research_run_uuid,
         );
-        return toRun(run);
+        return toRun(run, null);
     }
 
     async getRun(
@@ -1042,13 +1079,13 @@ export class AiDeepResearchService extends BaseService {
         projectUuid: string,
         aiDeepResearchRunUuid: string,
     ): Promise<AiDeepResearchRun> {
-        return toRun(
-            await this.findCreatorOwnedRun(
-                user,
-                projectUuid,
-                aiDeepResearchRunUuid,
-            ),
+        const run = await this.findCreatorOwnedRun(
+            user,
+            projectUuid,
+            aiDeepResearchRunUuid,
         );
+        const documents = await this.findRunDocuments([run]);
+        return toRun(run, documents.get(run.ai_deep_research_run_uuid) ?? null);
     }
 
     async listRunsForThread(
@@ -1084,7 +1121,36 @@ export class AiDeepResearchService extends BaseService {
             projectUuid,
             createdByUserUuid: user.userUuid,
         });
-        return runs.map(toRun);
+        const documents = await this.findRunDocuments(runs);
+        return runs.map((run) =>
+            toRun(run, documents.get(run.ai_deep_research_run_uuid) ?? null),
+        );
+    }
+
+    private async findRunDocuments(
+        runs: DbAiDeepResearchRun[],
+    ): Promise<Map<string, AiDeepResearchRunDocument>> {
+        const runUuidByToolCallId = new Map(
+            runs.map((run) => [
+                getAiDeepResearchDocumentToolCallId(
+                    run.ai_deep_research_run_uuid,
+                ),
+                run.ai_deep_research_run_uuid,
+            ]),
+        );
+        const results = await this.aiAgentModel.findToolResultsByToolCallIds(
+            [...new Set(runs.map((run) => run.prompt_uuid))],
+            [...runUuidByToolCallId.keys()],
+        );
+        return new Map(
+            results.flatMap((result) => {
+                const runUuid = runUuidByToolCallId.get(result.toolCallId);
+                const document = parseRunDocument(result.metadata);
+                return runUuid && document
+                    ? [[runUuid, document] as const]
+                    : [];
+            }),
+        );
     }
 
     async cleanExpiredReports(batchSize: number) {
@@ -1273,10 +1339,13 @@ export class AiDeepResearchService extends BaseService {
         }
         await this.dispatchPendingLifecycleAnalytics(aiDeepResearchRunUuid);
         return {
-            ...toRun({
-                ...run,
-                result_markdown: null,
-            }),
+            ...toRun(
+                {
+                    ...run,
+                    result_markdown: null,
+                },
+                null,
+            ),
             executionContextSnapshot: null,
         };
     }
