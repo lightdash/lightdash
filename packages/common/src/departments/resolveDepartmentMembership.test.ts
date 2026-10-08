@@ -146,3 +146,59 @@ describe('roll-up of resolved members', () => {
         expect(rolled.get('finance')).toEqual([]);
     });
 });
+
+describe('resolution on very deep and very wide trees', () => {
+    const SIZE = 5000;
+    const chain = Array.from({ length: SIZE }, (_, i) => ({
+        departmentUuid: `d${String(i).padStart(4, '0')}`,
+        parentDepartmentUuid:
+            i === 0 ? null : `d${String(i - 1).padStart(4, '0')}`,
+    }));
+    const wide = [
+        { departmentUuid: 'root', parentDepartmentUuid: null },
+        ...Array.from({ length: SIZE }, (_, i) => ({
+            departmentUuid: `c${String(i).padStart(4, '0')}`,
+            parentDepartmentUuid: 'root',
+        })),
+    ];
+
+    it('picks the deepest department on a 5,000-deep chain for every person', () => {
+        const rows = Array.from({ length: SIZE }, (_, i) =>
+            row({
+                userUuid: `u${i}`,
+                groupLinks: [link('d0000'), link('d4999'), link('d2500')],
+            }),
+        );
+        const resolved = resolveDepartmentMembership(rows, chain);
+        expect(resolved).toHaveLength(SIZE);
+        resolved.forEach((member) =>
+            expect(member.resolution).toMatchObject({
+                kind: 'assigned',
+                departmentUuid: 'd4999',
+            }),
+        );
+    });
+
+    it('reports a conflict between siblings on a 5,000-wide level', () => {
+        const [conflict, single] = resolveDepartmentMembership(
+            [
+                row({
+                    groupLinks: [link('c4999'), link('c0001'), link('root')],
+                }),
+                row({
+                    userUuid: 'u2',
+                    groupLinks: [link('root'), link('c0042')],
+                }),
+            ],
+            wide,
+        );
+        expect(conflict.resolution).toEqual({
+            kind: 'conflict',
+            departmentUuids: ['c0001', 'c4999'],
+        });
+        expect(single.resolution).toMatchObject({
+            kind: 'assigned',
+            departmentUuid: 'c0042',
+        });
+    });
+});

@@ -63,7 +63,8 @@ const collectDescendants = (
         if (!seen.has(next)) {
             seen.add(next);
             descendants.push(next);
-            queue.push(...(children.get(next) ?? []));
+            // One push per child: spreading a very wide level into push() can overflow the stack
+            (children.get(next) ?? []).forEach((child) => queue.push(child));
         }
     }
     return descendants;
@@ -83,38 +84,141 @@ export const wouldCreateCycle = (
     (newParentUuid === departmentUuid ||
         getDescendantUuids(departmentUuid, nodes).includes(newParentUuid));
 
+// Every department's ancestor count, equal to getAncestorUuids(...).length, in one pass
+export const getDepthMap = (
+    nodes: DepartmentTreeNode[],
+): Map<string, number> => {
+    const parentMap = getParentMap(nodes);
+    const depths = new Map<string, number>();
+    parentMap.forEach((_, start) => {
+        if (depths.has(start)) return;
+        // Walk up until the top, a department already measured, or one already on this walk
+        const path: string[] = [];
+        const indexOnPath = new Map<string, number>();
+        let current: string | null = start;
+        while (
+            current !== null &&
+            parentMap.has(current) &&
+            !depths.has(current) &&
+            !indexOnPath.has(current)
+        ) {
+            indexOnPath.set(current, path.length);
+            path.push(current);
+            current = parentMap.get(current) ?? null;
+        }
+        const cycleStart =
+            current === null ? undefined : indexOnPath.get(current);
+        if (cycleStart !== undefined) {
+            // Inside a stored cycle the walk goes round once, so every member counts the others
+            const cycleDepth = path.length - cycleStart - 1;
+            path.forEach((uuid, i) =>
+                depths.set(
+                    uuid,
+                    i >= cycleStart ? cycleDepth : cycleDepth + cycleStart - i,
+                ),
+            );
+            return;
+        }
+        // A parent outside the set counts as one ancestor with none of its own
+        const base = current === null ? -1 : (depths.get(current) ?? 0);
+        path.forEach((uuid, i) => depths.set(uuid, base + path.length - i));
+    });
+    return depths;
+};
+
+// Levels in a department's branch, itself included, so 1 when it has no sub-departments
+export const getBranchHeight = (
+    departmentUuid: string,
+    nodes: DepartmentTreeNode[],
+): number => {
+    const children = getChildrenMap(nodes);
+    const seen = new Set<string>([departmentUuid]);
+    let level = [departmentUuid];
+    let height = 0;
+    while (level.length > 0) {
+        height += 1;
+        const next: string[] = [];
+        level.forEach((uuid) =>
+            (children.get(uuid) ?? []).forEach((child) => {
+                if (!seen.has(child)) {
+                    seen.add(child);
+                    next.push(child);
+                }
+            }),
+        );
+        level = next;
+    }
+    return height;
+};
+
+type HeadcountFrame = {
+    uuid: string;
+    children: string[];
+    next: number;
+    childValues: number[];
+};
+
 export const computeEffectiveHeadcounts = (
     nodes: DepartmentHeadcountNode[],
 ): Map<string, EffectiveHeadcount> => {
     const children = getChildrenMap(nodes);
     const byUuid = new Map(nodes.map((n) => [n.departmentUuid, n]));
     const result = new Map<string, EffectiveHeadcount>();
-
-    const visit = (uuid: string, path: Set<string>): EffectiveHeadcount => {
-        const cached = result.get(uuid);
-        if (cached) return cached;
-        const childValues = (children.get(uuid) ?? [])
-            .filter((child) => !path.has(child))
-            .map(
-                (child) =>
-                    visit(child, new Set([...path, child])).effectiveHeadcount,
-            )
-            .filter((value): value is number => value !== null);
-        const childrenSum =
-            childValues.length > 0
-                ? childValues.reduce((sum, value) => sum + value, 0)
-                : null;
-        const own = byUuid.get(uuid)?.headcount ?? null;
-        const value: EffectiveHeadcount = {
-            effectiveHeadcount: own ?? childrenSum,
-            headcountBelowChildren:
-                own !== null && childrenSum !== null && own < childrenSum,
+    // Post-order over an explicit stack; a child already on the path (a stored cycle) is skipped
+    const onPath = new Set<string>();
+    const open = (uuid: string): HeadcountFrame => {
+        onPath.add(uuid);
+        return {
+            uuid,
+            children: children.get(uuid) ?? [],
+            next: 0,
+            childValues: [],
         };
-        result.set(uuid, value);
-        return value;
     };
 
-    nodes.forEach((n) => visit(n.departmentUuid, new Set([n.departmentUuid])));
+    nodes.forEach((root) => {
+        if (result.has(root.departmentUuid)) return;
+        const stack: HeadcountFrame[] = [open(root.departmentUuid)];
+        while (stack.length > 0) {
+            const frame = stack[stack.length - 1];
+            if (frame.next < frame.children.length) {
+                const child = frame.children[frame.next];
+                frame.next += 1;
+                const known = onPath.has(child) ? null : result.get(child);
+                if (known === undefined) {
+                    stack.push(open(child));
+                } else if (
+                    known !== null &&
+                    known.effectiveHeadcount !== null
+                ) {
+                    frame.childValues.push(known.effectiveHeadcount);
+                }
+            } else {
+                stack.pop();
+                onPath.delete(frame.uuid);
+                const childrenSum =
+                    frame.childValues.length > 0
+                        ? frame.childValues.reduce(
+                              (sum, value) => sum + value,
+                              0,
+                          )
+                        : null;
+                const own = byUuid.get(frame.uuid)?.headcount ?? null;
+                const value: EffectiveHeadcount = {
+                    effectiveHeadcount: own ?? childrenSum,
+                    headcountBelowChildren:
+                        own !== null &&
+                        childrenSum !== null &&
+                        own < childrenSum,
+                };
+                result.set(frame.uuid, value);
+                const parent = stack[stack.length - 1];
+                if (parent !== undefined && value.effectiveHeadcount !== null) {
+                    parent.childValues.push(value.effectiveHeadcount);
+                }
+            }
+        }
+    });
     return result;
 };
 
@@ -124,13 +228,53 @@ export const rollUpByDepartment = <T>(
 ): Map<string, T[]> => {
     // Built once for the whole tree, not once per department
     const children = getChildrenMap(nodes);
-    return new Map(
-        nodes.map((n) => [
+    const rolled = new Map<string, T[]>();
+    const isUnique =
+        new Set(nodes.map((n) => n.departmentUuid)).size === nodes.length;
+    if (isUnique) {
+        // Breadth first from the top. A department's descendants come in this order in its own
+        // breadth-first walk too, so each list is its own people, then each descendant's, in order
+        const parentOf = new Map<string, string | null>();
+        const order: string[] = [];
+        const queue = [...(children.get(null) ?? [])];
+        queue.forEach((uuid) => parentOf.set(uuid, null));
+        for (let i = 0; i < queue.length; i += 1) {
+            const uuid = queue[i];
+            order.push(uuid);
+            (children.get(uuid) ?? []).forEach((child) => {
+                parentOf.set(child, uuid);
+                queue.push(child);
+            });
+        }
+        order.forEach((uuid) =>
+            rolled.set(uuid, [...(direct.get(uuid) ?? [])]),
+        );
+        order.forEach((uuid) => {
+            const own = direct.get(uuid) ?? [];
+            if (own.length === 0) return;
+            let ancestor = parentOf.get(uuid) ?? null;
+            while (ancestor !== null) {
+                const list = rolled.get(ancestor);
+                if (list) own.forEach((item) => list.push(item));
+                ancestor = parentOf.get(ancestor) ?? null;
+            }
+        });
+    }
+    // Departments not reachable from the top sit in a stored cycle; walk each one on its own
+    nodes.forEach((n) => {
+        if (rolled.has(n.departmentUuid)) return;
+        rolled.set(
             n.departmentUuid,
             [
                 n.departmentUuid,
                 ...collectDescendants(n.departmentUuid, children),
             ].flatMap((uuid) => direct.get(uuid) ?? []),
+        );
+    });
+    return new Map(
+        nodes.map((n) => [
+            n.departmentUuid,
+            rolled.get(n.departmentUuid) ?? [],
         ]),
     );
 };

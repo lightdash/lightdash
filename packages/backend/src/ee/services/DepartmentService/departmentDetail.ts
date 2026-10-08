@@ -1,6 +1,5 @@
 import {
-    getAncestorUuids,
-    getParentMap,
+    getDepthMap,
     type Department,
     type DepartmentMember,
     type DepartmentMembership,
@@ -48,8 +47,9 @@ export const computeWeeklyWithOrgAverage = (
     department: DepartmentWithMetrics,
     all: DepartmentWithMetrics[],
 ): DepartmentWeeklyActivePoint[] => {
-    const parentMap = getParentMap(all);
-    const depthOf = (uuid: string) => getAncestorUuids(uuid, parentMap).length;
+    // Every department's depth in one pass, not one walk up the tree per department
+    const depths = getDepthMap(all);
+    const depthOf = (uuid: string) => depths.get(uuid) ?? 0;
     const depth = depthOf(department.departmentUuid);
     const peers = all.filter((d) => depthOf(d.departmentUuid) === depth);
     return department.metrics.weeklyActive.map((point, index) => {

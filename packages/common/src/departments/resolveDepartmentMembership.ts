@@ -11,7 +11,7 @@ import {
 
 const resolveOne = (
     row: ResolvedMemberRow,
-    parentMap: Map<string, string | null>,
+    ancestorsOf: (departmentUuid: string) => Set<string>,
 ): MembershipResolution => {
     if (row.explicitDepartmentUuid !== null) {
         return {
@@ -24,13 +24,17 @@ const resolveOne = (
     const candidates = Array.from(
         new Set(row.groupLinks.map((l) => l.departmentUuid)),
     ).sort();
-    // Most specific wins: drop any candidate that is an ancestor of another
-    const ancestorsOfCandidates = new Set(
-        candidates.flatMap((c) => getAncestorUuids(c, parentMap)),
-    );
-    const mostSpecific = candidates.filter(
-        (c) => !ancestorsOfCandidates.has(c),
-    );
+    // Most specific wins: drop any candidate that is an ancestor of another.
+    // A lone candidate is never its own ancestor, so it needs no walk
+    const mostSpecific =
+        candidates.length < 2
+            ? candidates
+            : candidates.filter(
+                  (c) =>
+                      !candidates.some(
+                          (other) => other !== c && ancestorsOf(other).has(c),
+                      ),
+              );
     if (mostSpecific.length === 1) {
         const [departmentUuid] = mostSpecific;
         const [firstGroupName] = row.groupLinks
@@ -55,13 +59,22 @@ export const resolveDepartmentMembership = (
     departments: DepartmentTreeNode[],
 ): DepartmentMembership[] => {
     const parentMap = getParentMap(departments);
+    // Walked once per department per call, however many people share it
+    const ancestorSets = new Map<string, Set<string>>();
+    const ancestorsOf = (departmentUuid: string): Set<string> => {
+        const known = ancestorSets.get(departmentUuid);
+        if (known) return known;
+        const ancestors = new Set(getAncestorUuids(departmentUuid, parentMap));
+        ancestorSets.set(departmentUuid, ancestors);
+        return ancestors;
+    };
     return rows.map((row) => ({
         userUuid: row.userUuid,
         email: row.email,
         firstName: row.firstName,
         lastName: row.lastName,
         role: row.role,
-        resolution: resolveOne(row, parentMap),
+        resolution: resolveOne(row, ancestorsOf),
     }));
 };
 
