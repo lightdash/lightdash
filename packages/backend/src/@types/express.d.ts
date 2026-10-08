@@ -6,12 +6,14 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { ClientRepository } from '../clients/ClientRepository';
+import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 import { ServiceRepository } from '../services/ServiceRepository';
 
 declare global {
     namespace Express {
         interface Request {
             services: ServiceRepository;
+            agentConnectAttempt?: AgentConnectAttempt | null;
             agentConnectVerification?: {
                 failureReason: AgentIdentityConnectFailureReason | null;
             };

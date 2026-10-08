@@ -41,8 +41,7 @@ export const storeAgentConnectAttempt: RequestHandler = async (
         projectId,
         entryPoint,
     };
-    req.session.oauth ??= {};
-    req.session.oauth.agentConnect = attempt;
+    req.agentConnectAttempt = attempt;
     service.trackConnectStarted(attempt);
     next();
 };
@@ -85,25 +84,56 @@ export const classifyAgentConnectFailure = ({
     return AgentIdentityConnectFailureReason.SIGN_IN_FAILED;
 };
 
+const consumeConnectAttempt = (req: Request) => {
+    const { state } = req.query;
+    const attempts = req.session.agentConnectAttempts;
+    if (
+        typeof state !== 'string' ||
+        !attempts ||
+        !Object.hasOwn(attempts, state)
+    )
+        return null;
+    const attempt = attempts[state];
+    delete attempts[state];
+    return attempt;
+};
+
 const recordConnectOutcome = (
     req: Request,
     failureReason: AgentIdentityConnectFailureReason | null,
 ): void => {
-    const attempt = req.session.oauth?.agentConnect;
+    const attempt = consumeConnectAttempt(req);
     if (!attempt) return;
     req.services
         .getAiAccessService()
         .trackConnectOutcome(attempt, failureReason);
-    delete req.session.oauth?.agentConnect;
 };
 
-const recordConnectError = (req: Request): void => {
-    recordConnectOutcome(
-        req,
-        snowflakeAiPassportStrategy
-            ? AgentIdentityConnectFailureReason.SIGN_IN_FAILED
-            : AgentIdentityConnectFailureReason.NOT_CONFIGURED,
-    );
+const getConnectErrorReason = () =>
+    snowflakeAiPassportStrategy
+        ? AgentIdentityConnectFailureReason.SIGN_IN_FAILED
+        : AgentIdentityConnectFailureReason.NOT_CONFIGURED;
+
+const recordConnectError = (req: Request, error: unknown): void => {
+    if (error instanceof FeatureNotEnabledError) {
+        consumeConnectAttempt(req);
+        return;
+    }
+    recordConnectOutcome(req, getConnectErrorReason());
+};
+
+const recordConnectStartError = (req: Request): void => {
+    const attempt = req.agentConnectAttempt;
+    if (!attempt) return;
+    req.agentConnectAttempt = null;
+    const attempts = req.session.agentConnectAttempts;
+    const state = Object.entries(attempts ?? {}).find(
+        ([, pending]) => pending.connectAttemptId === attempt.connectAttemptId,
+    )?.[0];
+    if (attempts && state) delete attempts[state];
+    req.services
+        .getAiAccessService()
+        .trackConnectOutcome(attempt, getConnectErrorReason());
 };
 
 export const authenticateAgentConnect: RequestHandler = (req, res, next) => {
@@ -112,12 +142,12 @@ export const authenticateAgentConnect: RequestHandler = (req, res, next) => {
             req,
             res,
             (error: unknown) => {
-                if (error) recordConnectError(req);
+                if (error) recordConnectStartError(req);
                 next(error);
             },
         );
     } catch (error) {
-        recordConnectError(req);
+        recordConnectStartError(req);
         next(error);
     }
 };
@@ -140,7 +170,7 @@ export const agentConnectCallback: RequestHandler = (req, res, next) => {
             ) => {
                 const isSuccess = !error && !!user;
                 if (error instanceof FeatureNotEnabledError) {
-                    delete req.session.oauth?.agentConnect;
+                    consumeConnectAttempt(req);
                 } else {
                     recordConnectOutcome(
                         req,
@@ -159,11 +189,11 @@ export const agentConnectCallback: RequestHandler = (req, res, next) => {
                 res.redirect(getAgentConnectRedirectURL(isSuccess, error)(req));
             },
         )(req, res, (error: unknown) => {
-            if (error) recordConnectError(req);
+            if (error) recordConnectError(req, error);
             next(error);
         });
     } catch (error) {
-        recordConnectError(req);
+        recordConnectError(req, error);
         next(error);
     }
 };

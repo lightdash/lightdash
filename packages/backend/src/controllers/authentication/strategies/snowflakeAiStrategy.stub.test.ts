@@ -140,7 +140,7 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
             const next = vi.fn();
             storeAgentConnectRedirect(req, {} as Response, next);
             await storeAgentConnectAttempt(req, {} as Response, next);
-            const attempt = req.session.oauth?.agentConnect!;
+            const attempt = req.agentConnectAttempt!;
             passport.use('snowflake-ai', strategy);
             try {
                 const authorizeUrl = await new Promise<string>(
@@ -203,7 +203,7 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
                         },
                     ],
                 ]);
-                expect(req.session.oauth?.agentConnect).toBeUndefined();
+                expect(req.session.agentConnectAttempts).toEqual({});
                 expect(upsertAiSnowflakeCredential).toHaveBeenCalledTimes(
                     failureReason ? 0 : 1,
                 );
@@ -212,6 +212,122 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
             }
         },
     );
+
+    it('correlates a denied older start and a successful newer start over HTTP', async () => {
+        const {
+            storeAgentConnectAttempt,
+            authenticateAgentConnect,
+            agentConnectCallback,
+        } = await import('../agentConnectAnalytics');
+        const { storeAgentConnectRedirect } =
+            await import('../agentConnectRedirect');
+        const { AiAccessService } =
+            await import('../../../services/AiAccessService/AiAccessService');
+        const analytics = { track: vi.fn() };
+        const service = new AiAccessService({
+            analytics,
+            featureFlagModel: { get: vi.fn(async () => ({ enabled: true })) },
+        } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+        const upsertAiSnowflakeCredential = vi.fn(async () => undefined);
+        const session = {};
+        const start = async (entryPoint: AgentIdentityConnectEntryPoint) => {
+            const req = {
+                user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+                query: { entryPoint, redirect: '/agent-connected' },
+                session,
+                services: {
+                    getAiAccessService: () => service,
+                    getUserService: () => ({ upsertAiSnowflakeCredential }),
+                },
+            } as unknown as Request;
+            storeAgentConnectRedirect(req, {} as Response, vi.fn());
+            await storeAgentConnectAttempt(req, {} as Response, vi.fn());
+            const attempt = req.agentConnectAttempt!;
+            const authorizeUrl = await new Promise<string>(
+                (resolve, reject) => {
+                    let location = '';
+                    authenticateAgentConnect(
+                        req,
+                        {
+                            setHeader: (key: string, value: string) => {
+                                if (key === 'Location') location = value;
+                            },
+                            end: () => resolve(location),
+                        } as unknown as Response,
+                        reject,
+                    );
+                },
+            );
+            const response = await fetch(authorizeUrl, { redirect: 'manual' });
+            expect(response.status).toBe(302);
+            const callbackUrl = new URL(response.headers.get('location')!);
+            return { req, attempt, callbackUrl };
+        };
+        const callback = (req: Request) =>
+            new Promise<string>((resolve, reject) => {
+                agentConnectCallback(
+                    req,
+                    { redirect: resolve } as unknown as Response,
+                    reject,
+                );
+            });
+        passport.use('snowflake-ai', strategy);
+        try {
+            const first = await start(AgentIdentityConnectEntryPoint.CHAT_CARD);
+            const second = await start(
+                AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+            );
+            first.req.query = {
+                error: 'access_denied',
+                state: first.callbackUrl.searchParams.get('state')!,
+            };
+            expect(await callback(first.req)).toBe(
+                'http://lightdash.example/agent-connected?error=sign_in_failed',
+            );
+            second.req.query = Object.fromEntries(
+                second.callbackUrl.searchParams,
+            );
+            expect(await callback(second.req)).toBe(
+                'http://lightdash.example/agent-connected',
+            );
+            expect(analytics.track.mock.calls.map(([event]) => event)).toEqual([
+                ...[first, second].map(({ attempt }) => ({
+                    userId: 'user-uuid',
+                    event: 'agent_identity.connect_started',
+                    properties: {
+                        ...attempt,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    },
+                })),
+                {
+                    userId: 'user-uuid',
+                    event: 'agent_identity.connect_failed',
+                    properties: {
+                        ...first.attempt,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        failureReason:
+                            AgentIdentityConnectFailureReason.ACCESS_DENIED,
+                    },
+                },
+                {
+                    userId: 'user-uuid',
+                    event: 'agent_identity.connected',
+                    properties: {
+                        ...second.attempt,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        failureReason: null,
+                    },
+                },
+            ]);
+            expect(upsertAiSnowflakeCredential).toHaveBeenCalledOnce();
+            expect(second.req.session.agentConnectAttempts).toEqual({});
+            await callback(second.req);
+            expect(analytics.track).toHaveBeenCalledTimes(4);
+            expect(upsertAiSnowflakeCredential).toHaveBeenCalledOnce();
+        } finally {
+            passport.unuse('snowflake-ai');
+        }
+    });
 
     it('exchanges the auto-approved code, verifies the session, and rotates refresh tokens', async () => {
         const before = Date.now();

@@ -2,10 +2,11 @@ import { Ability } from '@casl/ability';
 import {
     AgentIdentityConnectEntryPoint as EntryPoint,
     AgentIdentityConnectFailureReason as FailureReason,
+    FeatureNotEnabledError,
     WarehouseTypes,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { type Request, type Response } from 'express';
+import { type Request, type RequestHandler, type Response } from 'express';
 import passport from 'passport';
 import {
     AuthorizationError,
@@ -18,7 +19,10 @@ import {
     defaultSessionUser,
 } from '../../auth/account/account.mock';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
+import {
+    AiAccessService,
+    type AgentConnectAttempt,
+} from '../../services/AiAccessService/AiAccessService';
 import {
     agentConnectCallback,
     authenticateAgentConnect,
@@ -28,6 +32,7 @@ import {
 import { storeAgentConnectRedirect } from './agentConnectRedirect';
 import { isAuthenticated } from './middlewares';
 import { requireAgentIdentity } from './requireAgentIdentity';
+import { AgentConnectStateStore } from './strategies/AgentConnectStateStore';
 import * as snowflakeAiStrategyModule from './strategies/snowflakeAiStrategy';
 import {
     snowflakeAiPassportStrategy,
@@ -92,7 +97,7 @@ const setup = () => {
         storeAgentConnectRedirect(req, {} as Response, next);
         await storeAgentConnectAttempt(req, {} as Response, next);
         expect(next.mock.calls).toEqual([[], []]);
-        return req.session.oauth?.agentConnect!;
+        return req.agentConnectAttempt!;
     };
     const callback = () =>
         new Promise<string>((resolve, reject) => {
@@ -236,7 +241,6 @@ describe('connect start', () => {
         const second = await start();
         expect(second.connectAttemptId).not.toBe(first.connectAttemptId);
         expect(req.session.oauth).toEqual({
-            agentConnect: second,
             returnTo: 'http://localhost:4321/done?x=1',
             isPopup: true,
         });
@@ -260,6 +264,47 @@ describe('connect start', () => {
 });
 
 describe('connect outcome with real Passport', () => {
+    it('correlates overlapping starts when A is denied and B connects', async () => {
+        const { req, analytics, upsert, start, authorize, callback } = setup();
+        req.query.entryPoint = EntryPoint.CHAT_CARD;
+        const first = await start();
+        const firstState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
+        req.query.entryPoint = EntryPoint.MCP_CONNECT_LINK;
+        const second = await start();
+        const secondState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
+        expect(secondState).not.toBe(firstState);
+        expect(req.session['oauth2:snowflake-ai']?.state).toBe(secondState);
+        req.query = { error: 'access_denied', state: firstState };
+        await callback();
+        expect(analytics.track).toHaveBeenLastCalledWith({
+            userId: defaultSessionUser.userUuid,
+            event: 'agent_identity.connect_failed',
+            properties: {
+                ...first,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                failureReason: FailureReason.ACCESS_DENIED,
+            },
+        });
+        expect(req.session['oauth2:snowflake-ai']?.state).toBe(secondState);
+        req.query = { code: 'code', state: secondState };
+        await callback();
+        expect(analytics.track).toHaveBeenLastCalledWith({
+            userId: defaultSessionUser.userUuid,
+            event: 'agent_identity.connected',
+            properties: {
+                ...second,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                failureReason: null,
+            },
+        });
+        expect(analytics.track).toHaveBeenCalledTimes(4);
+        expect(upsert).toHaveBeenCalledOnce();
+    });
+
     it('connects once after persistence, keeps start attribution, and ignores a replay', async () => {
         const { req, analytics, upsert, start, callback, authorize } = setup();
         const attempt = await start();
@@ -291,7 +336,7 @@ describe('connect outcome with real Passport', () => {
                 failureReason: null,
             },
         });
-        expect(req.session.oauth?.agentConnect).toBeUndefined();
+        expect(req.session.agentConnectAttempts ?? {}).toEqual({});
         expect(analytics.track).toHaveBeenCalledTimes(2);
         expect(await callback()).toBe(
             'http://localhost:4321/done?x=1&error=sign_in_failed',
@@ -303,8 +348,7 @@ describe('connect outcome with real Passport', () => {
     it.each([
         ['access_denied', FailureReason.ACCESS_DENIED, 'sign_in_failed'],
         ['oauth_error', FailureReason.OAUTH_ERROR, 'sign_in_failed'],
-        ['missing_state', FailureReason.STATE_MISMATCH, 'sign_in_failed'],
-        ['invalid_state', FailureReason.STATE_MISMATCH, 'sign_in_failed'],
+        ['invalid_nonce', FailureReason.STATE_MISMATCH, 'sign_in_failed'],
         ['consumed_state', FailureReason.STATE_MISMATCH, 'sign_in_failed'],
         ['token_error', FailureReason.TOKEN_EXCHANGE_FAILED, 'sign_in_failed'],
         [
@@ -355,9 +399,10 @@ describe('connect outcome with real Passport', () => {
                             ? 'access_denied'
                             : 'server_error',
                     error_description: 'private provider text',
+                    state: url.searchParams.get('state')!,
                 };
-            if (branch === 'missing_state') delete req.query.state;
-            if (branch === 'invalid_state') req.query.state = 'wrong';
+            if (branch === 'invalid_nonce')
+                req.session['oauth2:snowflake-ai'] = { state: 'other-nonce' };
             if (branch === 'consumed_state')
                 delete req.session['oauth2:snowflake-ai'];
             if (branch === 'token_error')
@@ -423,11 +468,108 @@ describe('connect outcome with real Passport', () => {
                     failureReason: reason,
                 },
             });
-            expect(req.session.oauth?.agentConnect).toBeUndefined();
+            expect(req.session.agentConnectAttempts ?? {}).toEqual({});
             await callback();
             expect(analytics.track).toHaveBeenCalledTimes(2);
         },
     );
+
+    it.each([
+        undefined,
+        'unknown',
+        ['state'],
+        { nested: 'state' },
+        '__proto__',
+        'constructor',
+    ])(
+        'ignores an uncorrelated callback state %j without consuming another attempt',
+        async (state) => {
+            const { req, start, authorize, callback, analytics } = setup();
+            const attempt = await start();
+            const pendingState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            req.query = { error: 'access_denied', state };
+            await callback();
+            expect(analytics.track).toHaveBeenCalledTimes(1);
+            expect(req.session.agentConnectAttempts).toEqual({
+                [pendingState]: attempt,
+            });
+            expect(req.session['oauth2:snowflake-ai']?.state).toBe(
+                pendingState,
+            );
+        },
+    );
+
+    it.each([undefined, 'unknown'])(
+        'does not consume attribution when Passport rejects code with state %j',
+        async (state) => {
+            const { req, start, authorize, callback, analytics, upsert } =
+                setup();
+            const attempt = await start();
+            const pendingState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            req.query = { code: 'code', state };
+            await callback();
+            expect(analytics.track).toHaveBeenCalledTimes(1);
+            expect(req.session.agentConnectAttempts).toEqual({
+                [pendingState]: attempt,
+            });
+            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it('bounds pending attempts to the five most recent starts', async () => {
+        const { req, start, authorize, callback, analytics } = setup();
+        const entries = await Array.from({ length: 7 }).reduce<
+            Promise<[string, AgentConnectAttempt][]>
+        >(async (previous) => {
+            const attempts = await previous;
+            const attempt = await start();
+            const state = new URL(await authorize()).searchParams.get('state')!;
+            return [...attempts, [state, attempt]];
+        }, Promise.resolve([]));
+        expect(req.session.agentConnectAttempts).toEqual(
+            Object.fromEntries(entries.slice(-5)),
+        );
+        expect(analytics.track).toHaveBeenCalledTimes(7);
+        req.query = { error: 'access_denied', state: entries[0][0] };
+        await callback();
+        expect(analytics.track).toHaveBeenCalledTimes(7);
+        expect(req.session.agentConnectAttempts).toEqual(
+            Object.fromEntries(entries.slice(-5)),
+        );
+    });
+
+    it('rejects an older code with its own attribution and preserves the latest attempt', async () => {
+        const { req, start, authorize, callback, analytics, upsert } = setup();
+        const first = await start();
+        const firstState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
+        const second = await start();
+        const secondState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
+        req.query = { code: 'old-code', state: firstState };
+        await callback();
+        expect(analytics.track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                event: 'agent_identity.connect_failed',
+                properties: expect.objectContaining({
+                    ...first,
+                    failureReason: FailureReason.STATE_MISMATCH,
+                }),
+            }),
+        );
+        expect(req.session.agentConnectAttempts).toEqual({
+            [secondState]: second,
+        });
+        expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+        expect(upsert).not.toHaveBeenCalled();
+    });
 
     it('emits nothing for an unsolicited callback', async () => {
         const { req, callback, analytics } = setup();
@@ -450,16 +592,23 @@ describe('connect outcome with real Passport', () => {
             });
             req.query = success
                 ? { code: 'code', state: url.searchParams.get('state')! }
-                : { error: 'access_denied' };
+                : {
+                      error: 'access_denied',
+                      state: url.searchParams.get('state')!,
+                  };
             expect(await callback()).toBe(
                 `https://app.example/auth/popup/${success ? 'success' : 'failure'}`,
             );
-            expect(req.session.oauth?.agentConnect).toBeUndefined();
+            expect(req.session.agentConnectAttempts ?? {}).toEqual({});
         },
     );
 
     it('does not record failure if the flag is disabled during token exchange', async () => {
         const { req, start, authorize, callback, flags, analytics } = setup();
+        const earlier = await start();
+        const earlierState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
         await start();
         const url = new URL(await authorize());
         req.query = { code: 'code', state: url.searchParams.get('state')! };
@@ -467,8 +616,10 @@ describe('connect outcome with real Passport', () => {
         expect(await callback()).toBe(
             'http://localhost:4321/done?x=1&error=sign_in_failed',
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(req.session.oauth?.agentConnect).toBeUndefined();
+        expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(req.session.agentConnectAttempts).toEqual({
+            [earlierState]: earlier,
+        });
     });
 
     it('records an unconfigured strategy at start without changing the error response', async () => {
@@ -493,18 +644,134 @@ describe('connect outcome with real Passport', () => {
                 failureReason: FailureReason.NOT_CONFIGURED,
             },
         });
-        expect(req.session.oauth?.agentConnect).toBeUndefined();
+        expect(req.session.agentConnectAttempts ?? {}).toEqual({});
     });
 
+    it('keeps start failure attribution if the authorization redirect throws after state binding', async () => {
+        const { req, start, authorize, analytics } = setup();
+        const earlier = await start();
+        const earlierState = new URL(await authorize()).searchParams.get(
+            'state',
+        )!;
+        const attempt = await start();
+        const error = new Error('redirect failed');
+        const next = vi.fn();
+        authenticateAgentConnect(
+            req,
+            {
+                setHeader: () => {
+                    throw error;
+                },
+            } as unknown as Response,
+            next,
+        );
+        expect(next).toHaveBeenCalledExactlyOnceWith(error);
+        expect(analytics.track).toHaveBeenCalledTimes(3);
+        expect(analytics.track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                event: 'agent_identity.connect_failed',
+                properties: expect.objectContaining({
+                    ...attempt,
+                    failureReason: FailureReason.SIGN_IN_FAILED,
+                }),
+            }),
+        );
+        expect(req.session.agentConnectAttempts).toEqual({
+            [earlierState]: earlier,
+        });
+        expect(req.agentConnectAttempt).toBeNull();
+    });
+
+    it.each(['next', 'throw'] as const)(
+        'correlates errors on the %s path and preserves unrelated attempts',
+        async (path) => {
+            const { req, start, authorize, analytics } = setup();
+            const first = await start();
+            const firstState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            const second = await start();
+            const secondState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            const error = new Error('passport failure');
+            vi.spyOn(passport, 'authenticate').mockImplementation(
+                (): RequestHandler => {
+                    if (path === 'throw') throw error;
+                    return (_req, _res, next) => next(error);
+                },
+            );
+            const next = vi.fn();
+            for (const state of [undefined, 'unknown']) {
+                req.query = { code: 'code', state };
+                agentConnectCallback(req, {} as Response, next);
+                expect(analytics.track).toHaveBeenCalledTimes(2);
+                expect(req.session.agentConnectAttempts).toEqual({
+                    [firstState]: first,
+                    [secondState]: second,
+                });
+            }
+            req.query = { code: 'code', state: firstState };
+            agentConnectCallback(req, {} as Response, next);
+            expect(next).toHaveBeenLastCalledWith(error);
+            expect(analytics.track).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    event: 'agent_identity.connect_failed',
+                    properties: expect.objectContaining({
+                        ...first,
+                        failureReason: FailureReason.SIGN_IN_FAILED,
+                    }),
+                }),
+            );
+            expect(req.session.agentConnectAttempts).toEqual({
+                [secondState]: second,
+            });
+            agentConnectCallback(req, {} as Response, next);
+            expect(analytics.track).toHaveBeenCalledTimes(3);
+        },
+    );
+
+    it.each(['next', 'throw'] as const)(
+        'suppresses a disabled-feature error on the %s path for only its correlated attempt',
+        async (path) => {
+            const { req, start, authorize, analytics } = setup();
+            const first = await start();
+            const firstState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            await start();
+            const secondState = new URL(await authorize()).searchParams.get(
+                'state',
+            )!;
+            const error = new FeatureNotEnabledError('disabled');
+            vi.spyOn(passport, 'authenticate').mockImplementation(
+                (): RequestHandler => {
+                    if (path === 'throw') throw error;
+                    return (_req, _res, next) => next(error);
+                },
+            );
+            req.query = { code: 'code', state: secondState };
+            const next = vi.fn();
+            agentConnectCallback(req, {} as Response, next);
+            expect(next).toHaveBeenCalledExactlyOnceWith(error);
+            expect(analytics.track).toHaveBeenCalledTimes(2);
+            expect(req.session.agentConnectAttempts).toEqual({
+                [firstState]: first,
+            });
+        },
+    );
+
     it('preserves errors forwarded outside the custom Passport callback', async () => {
-        const { req, start, analytics } = setup();
+        const { req, start, authorize, analytics } = setup();
         await start();
+        const url = new URL(await authorize());
+        req.query = { code: 'code', state: url.searchParams.get('state')! };
         passport.unuse('snowflake-ai');
         const next = vi.fn();
         agentConnectCallback(req, {} as Response, next);
         expect(next).toHaveBeenCalledWith(expect.any(Error));
         expect(analytics.track).toHaveBeenCalledTimes(2);
-        expect(req.session.oauth?.agentConnect).toBeUndefined();
+        expect(req.session.agentConnectAttempts ?? {}).toEqual({});
     });
 });
 
@@ -604,5 +871,50 @@ describe('failure classification', () => {
                 verification: { failureReason: null },
             }),
         ).toBe(FailureReason.SIGN_IN_FAILED);
+    });
+});
+
+describe('agent connect nonce store compatibility', () => {
+    it('keeps the default nonce generation, replacement, verification, and failure messages', () => {
+        const { req } = setup();
+        const store = new AgentConnectStateStore();
+        const stored = vi.fn();
+        store.store(req, stored);
+        const firstState = req.session['oauth2:snowflake-ai']!.state!;
+        expect(firstState).toHaveLength(24);
+        expect(stored).toHaveBeenLastCalledWith(null, firstState);
+        store.store(req, stored);
+        const secondState = req.session['oauth2:snowflake-ai']!.state!;
+        expect(secondState).not.toBe(firstState);
+        const verified = vi.fn();
+        store.verify(req, firstState, verified);
+        expect(verified).toHaveBeenLastCalledWith(null, false, {
+            message: 'Invalid authorization request state.',
+        });
+        expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+        store.verify(req, secondState, verified);
+        expect(verified).toHaveBeenLastCalledWith(null, false, {
+            message: 'Unable to verify authorization request state.',
+        });
+        store.store(req, stored);
+        store.verify(req, req.session['oauth2:snowflake-ai']!.state!, verified);
+        expect(verified).toHaveBeenLastCalledWith(null, true);
+        expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+        expect(req.session.agentConnectAttempts).toBeUndefined();
+    });
+
+    it('preserves the missing-session error when storing and verifying', () => {
+        const store = new AgentConnectStateStore();
+        const callback = vi.fn();
+        store.store({} as Request, callback);
+        store.verify({} as Request, 'state', callback);
+        expect(callback).toHaveBeenCalledTimes(2);
+        for (const [error] of callback.mock.calls) {
+            expect(error).toEqual(
+                new Error(
+                    'OAuth 2.0 authentication requires session support when using state. Did you forget to use express-session middleware?',
+                ),
+            );
+        }
     });
 });

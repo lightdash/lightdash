@@ -7,10 +7,15 @@ import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
 } from '@lightdash/warehouses';
-import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
+import {
+    Strategy as OAuth2Strategy,
+    VerifyCallback,
+    type StateStore,
+} from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
+import { AgentConnectStateStore } from './AgentConnectStateStore';
 
 const config = lightdashConfig.auth.snowflakeAi;
 
@@ -50,6 +55,7 @@ export const snowflakeAiPassportStrategy = !(
               passReqToCallback: true,
               state: true,
               sessionKey: 'oauth2:snowflake-ai',
+              store: new AgentConnectStateStore() as StateStore,
           },
           async (
               req: Express.Request,
