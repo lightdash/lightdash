@@ -1,5 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type AiActorKind, type AiIdentitySource } from './agentIdentity';
+import { type AiActorKind } from './agentIdentity';
 import { type AnyType } from './any';
 import {
     type CreateWarehouseCredentials,
@@ -204,12 +204,12 @@ export type ApiOrganizationAgentIdentitySettingsResponse = {
 export type AiAccessForUser = {
     requirementSource: 'organization' | null;
     identity: AiExecutionPlan['identity'] | null;
-    source: AiIdentitySource | null;
+    source: 'marked_person' | 'agent_sign_in' | 'ai_service_account' | null;
     marker: AiAgentMarker | null;
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     enabled: boolean;
-    principalKind: AiActorKind | null;
+    principalKind: 'person' | 'service_account' | null;
     refusal: AiAccessRefusal | null;
     expiresAt: Date | null;
 };

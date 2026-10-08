@@ -16,6 +16,10 @@ const MIGRATION_NAMES = [
     '20260923200200_add_warehouse_connection_bindings',
 ] as const;
 
+const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
+    '20261008120000_add_ai_service_account_credentials',
+] as const;
+
 const NEW_TABLES = [
     'warehouse_connections',
     'warehouse_connection_user_credentials_preference',
@@ -1113,6 +1117,14 @@ describe('warehouse connection mode schema on every migration', () => {
             await database.raw(`DELETE FROM warehouse_connections`);
             await database.raw(
                 `UPDATE projects SET connection_mode = 'single' WHERE connection_mode = 'multi'`,
+            );
+            const laterMigrations = await Promise.all(
+                LATER_MIGRATIONS_REFERENCING_CONNECTIONS.map((name) =>
+                    loadMigration(name),
+                ),
+            );
+            await runInOrder([...laterMigrations].reverse(), (migration) =>
+                migration.down(database),
             );
             await runInOrder(reversed, (migration) => migration.down(database));
             await runInOrder(reversed, (migration) => migration.down(database));
