@@ -95,22 +95,45 @@ const controlFontSize = (theme: MantineTheme, size: unknown) => {
 const isNeutral = (color: unknown) => color === undefined || color === 'gray';
 
 /**
- * Subtle alert palette: a pale fill, a translucent hairline of the same hue
- * and the colour reserved for the title and icon. Dark takes a tint of the
- * deep shade over the surface instead of a solid block.
+ * Alerts are a two-step scale rather than tint versus solid block: `light`
+ * is a pale wash, `filled` a firmer tint of the same hue. Both keep the
+ * semantic colour on the title and icon; dark tints the deep shade over the
+ * surface so neither becomes a block.
  */
-const subtleAlertVars = {
-    neutral: {
+type AlertTone = 'light' | 'filled';
+
+const ALERT_TONES: Record<
+    AlertTone,
+    { fill: number; border: number; darkFill: number; darkBorder: number }
+> = {
+    light: { fill: 45, border: 18, darkFill: 8, darkBorder: 22 },
+    filled: { fill: 100, border: 40, darkFill: 22, darkBorder: 40 },
+};
+
+const NEUTRAL_ALERT_VARS: Record<AlertTone, Record<string, string>> = {
+    light: {
         '--alert-bg': 'var(--mantine-color-ldGray-1)',
         '--alert-bd': '1px solid var(--mantine-color-ldGray-3)',
         '--alert-color': 'var(--mantine-color-text)',
     },
-    semantic: (color: string) => ({
-        '--alert-bg': `light-dark(color-mix(in srgb, var(--mantine-color-${color}-0) 60%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-color-${color}-9) 12%, transparent))`,
-        '--alert-bd': `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) 25%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) 28%, transparent))`,
-        '--alert-color': `light-dark(var(--mantine-color-${color}-8), var(--mantine-color-${color}-4))`,
-    }),
+    filled: {
+        '--alert-bg': 'var(--mantine-color-ldGray-2)',
+        '--alert-bd': '1px solid var(--mantine-color-ldGray-4)',
+        '--alert-color': 'var(--mantine-color-text)',
+    },
 };
+
+const semanticAlertVars = (tone: AlertTone, color: string) => {
+    const { fill, border, darkFill, darkBorder } = ALERT_TONES[tone];
+    return {
+        '--alert-bg': `light-dark(color-mix(in srgb, var(--mantine-color-${color}-0) ${fill}%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-color-${color}-9) ${darkFill}%, transparent))`,
+        '--alert-bd': `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) ${border}%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) ${darkBorder}%, transparent))`,
+        '--alert-color': `light-dark(var(--mantine-color-${color}-8), var(--mantine-color-${color}-4))`,
+    };
+};
+
+const isAlertTone = (variant: unknown): variant is AlertTone =>
+    variant === 'light' || variant === 'filled';
 
 /** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
 const dropdownTransition: NonNullable<PopoverProps['transitionProps']> = {
@@ -342,19 +365,20 @@ export const themeComponents: MantineThemeOverride['components'] = {
         },
         classNames: alertClasses,
         vars: (theme, props) => {
-            // Mantine paints `light` alerts with its own tints inline, so the
-            // subtle fill, hairline border and ink have to be set here.
-            if (props.variant !== undefined && props.variant !== 'light') {
+            // Mantine paints alert colours inline, so the fill, hairline
+            // border and ink have to be set here rather than in CSS.
+            const tone = props.variant ?? 'light';
+            if (!isAlertTone(tone)) {
                 return { root: {} };
             }
             if (isNeutral(props.color)) {
-                return { root: subtleAlertVars.neutral };
+                return { root: NEUTRAL_ALERT_VARS[tone] };
             }
             const [colorName] = props.color.split('.');
             return {
                 root:
                     colorName in theme.colors
-                        ? subtleAlertVars.semantic(colorName)
+                        ? semanticAlertVars(tone, colorName)
                         : {},
             };
         },

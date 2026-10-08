@@ -165,12 +165,42 @@ export const RichContent: Story = {
     ),
 };
 
-/** Other Mantine variants are untouched by the subtle theme. */
+/** `filled` is the firmer step of the same scale; `outline` and `default`
+ *  are Mantine's own. */
 export const OtherVariants: Story = {
     render: () => (
         <>
             <Title order={6}>filled</Title>
-            <Alert variant="filled" color="red" title="Payment failed">
+            <Alert
+                variant="filled"
+                color="gray"
+                title="Heads up"
+                icon={<MantineIcon icon={IconInfoCircle} />}
+            >
+                A calm, monochrome alert that never shouts.
+            </Alert>
+            <Alert
+                variant="filled"
+                color="green"
+                title="Deploy succeeded"
+                icon={<MantineIcon icon={IconCircleCheck} />}
+            >
+                Your changes are live on production.
+            </Alert>
+            <Alert
+                variant="filled"
+                color="orange"
+                title="Approaching limit"
+                icon={<MantineIcon icon={IconAlertTriangle} />}
+            >
+                You have used 82% of your monthly quota.
+            </Alert>
+            <Alert
+                variant="filled"
+                color="red"
+                title="Payment failed"
+                icon={<MantineIcon icon={IconAlertCircle} />}
+            >
                 We could not charge the card on file.
             </Alert>
             <Title order={6}>outline</Title>
