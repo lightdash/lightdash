@@ -812,27 +812,21 @@ describe('placeLabels by headcount', () => {
         expect(first?.box.y).toBeCloseTo(200 + 16 + 4, 6);
         expectCleanLabels([fewer, more], labels, PANEL);
     });
-    it('leaves a smaller sibling unlabelled when a larger one finds no spot, so a larger one is never the one left out', () => {
-        // Middle is boxed in by Top and Bottom; Open has room but fewer people than Middle
+    it('lets a smaller sibling take a free spot elsewhere when a larger one finds none', () => {
+        // Middle is boxed in by Top and Bottom and goes without; Open has fewer people but room of its own
         const stack = [
             sized('Top department', 300, 150, 16, 200),
             sized('Middle department', 300, 200, 16, 100),
             sized('Bottom department', 300, 250, 16, 200),
+            sized('Open department', 600, 300, 16, 10),
         ];
-        const ids = (open: PackedCircle) =>
-            placeOn([...stack, open])
-                .map((label) => label.id)
-                .sort();
-        expect(ids(sized('Open department', 600, 300, 16, 10))).toEqual([
-            'Bottom department',
-            'Top department',
-        ]);
-        // With more people than Middle it is labelled as before
-        expect(ids(sized('Open department', 600, 300, 16, 150))).toEqual([
+        const labels = placeOn(stack);
+        expect(labels.map((label) => label.id).sort()).toEqual([
             'Bottom department',
             'Open department',
             'Top department',
         ]);
+        expectCleanLabels(stack, labels, PANEL);
     });
 });
 

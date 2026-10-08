@@ -663,14 +663,10 @@ const placeAllLabels = (
                 a.name.localeCompare(b.name) ||
                 a.id.localeCompare(b.id),
         );
-    // The most people in a circle left without a label, per parent: its smaller siblings go without too,
-    // so a larger circle is never the one left out (each still shows its label on hover)
-    const leftOut = new Map<string | null, number>();
+    // A circle that finds no free spot leaves its smaller siblings to take theirs, and shows on hover
     ordered.forEach((circle) => {
         const stats = info.get(circle.id)?.stats;
         if (!stats) return;
-        const larger = leftOut.get(circle.parentId);
-        if (larger !== undefined && circle.size < larger) return;
         const candidates = getCandidates(
             circle,
             getFirstTexts(circle, stats),
@@ -682,7 +678,6 @@ const placeAllLabels = (
                 placement.isClear(circle, candidate),
         );
         if (chosen) placed.push({ id: circle.id, ...chosen });
-        else leftOut.set(circle.parentId, Math.max(larger ?? 0, circle.size));
     });
     // Longer wording for a top-level label where it still fits in the same spot, displacing nothing
     ordered.forEach((circle) => {

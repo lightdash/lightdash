@@ -15,9 +15,8 @@ import { deepOrganization, flatOrganization } from './organizationFixtures';
 
 const WIDTHS = Array.from({ length: 43 }, (_, index) => 360 + index * 20);
 const HEIGHT = 560;
-// How far a label may sit from its circle, and how large a sub-department is drawn before it is named
+// How far a label may sit from its circle
 const MAX_LABEL_DISTANCE_PX = 48;
-const NESTED_LABEL_MIN_RADIUS_PX = 16;
 
 const overlaps = (a: Box, b: Box): boolean =>
     a.x < b.x + b.width &&
@@ -124,31 +123,6 @@ describe.each([
                             ? [`${focus ?? 'top'}: ${circle.name} ${distance}`]
                             : [];
                     }),
-                ).toEqual([]);
-                // Among siblings that can be named, a larger one is never left out while a smaller one is named
-                const nameable = circles.filter(
-                    (circle) =>
-                        (circle.kind === 'department' || circle.depth === 1) &&
-                        (circle.depth === 1 ||
-                            circle.r >= NESTED_LABEL_MIN_RADIUS_PX),
-                );
-                expect(
-                    nameable.flatMap((larger) =>
-                        labelled.has(larger.id)
-                            ? []
-                            : nameable
-                                  .filter(
-                                      (smaller) =>
-                                          smaller.parentId ===
-                                              larger.parentId &&
-                                          smaller.size < larger.size &&
-                                          labelled.has(smaller.id),
-                                  )
-                                  .map(
-                                      (smaller) =>
-                                          `${focus ?? 'top'}: ${smaller.name} named, ${larger.name} not`,
-                                  ),
-                    ),
                 ).toEqual([]);
             });
         },
