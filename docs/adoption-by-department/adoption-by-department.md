@@ -75,7 +75,7 @@ Computed on each request in `DepartmentService` and `departmentMetrics.ts` from 
 | Role split    | Members by organization role. Member and viewer count as viewers, developer counts as editor                                                                                                                              |
 | Weekly active | Distinct members with a chart or dashboard view in each of the last 12 weeks, oldest first. Queries are left out so that every week is counted the same way                                                               |
 
-A query counts only when a person ran it. `DepartmentAnalyticsModel` keeps the `query_history` rows whose `context` the backend's `queryWorkloadOrigin` (`packages/backend/src/services/AsyncQueryService/queryUsage.ts`) classifies as interactive: explores, dashboards, saved charts, SQL runner and view underlying data. Scheduled deliveries, alerts, Google Sheets syncs, API and CLI runs, AI agent and MCP runs, and auto-refreshed dashboards do not make their owner active. The same filter applies to the per-person query count and to top explores.
+A query counts only when a person ran it. `DepartmentAnalyticsModel` keeps the `query_history` rows whose `context` the backend's `queryWorkloadOrigin` (`packages/backend/src/services/AsyncQueryService/queryUsage.ts`) classifies as interactive: explores, dashboards, saved charts and their history, SQL charts, SQL runner, view underlying data and the metrics explorer. Scheduled deliveries, alerts, Google Sheets syncs, API and CLI runs, AI agent and MCP runs, and auto-refreshed dashboards do not make their owner active. The same filter applies to the per-person query count and to top explores.
 
 Active has one definition, in SQL. The summary's 30-day count and weekly buckets come from a single query (`DepartmentAnalyticsModel.getActivity`, which scans views for 12 weeks and queries for 30 days), and the member list's `isActive30d` flag (`getMemberActivity`) uses the same sources and the same 30-day bound. The browser reads the flag for the member filters, the map's dot colours and the legend; it does not compare `lastActiveAt` to its own clock. The one exception is the map's "Active in 12 weeks" colouring, which still compares `lastActiveAt` to the clock for people who are not active in 30 days.
 
@@ -135,6 +135,8 @@ Code is under `packages/frontend/src/ee/`:
 - `hooks/useOrgDepartments.ts` holds the query and mutation hooks. Mutations invalidate the `org-adoption` query key.
 - `features/adoption/map/` draws the map: departments as nested circles, people as dots coloured by activity, role or last activity. Layout and geometry are pure modules with tests.
 - `features/adoption/components/` and `utils/` hold the list, drawer, tiles, charts and helpers.
+
+Two numbers on the index differ on purpose. The page header counts everyone on Lightdash. The map's organization tile counts the people placed in a department, and says so; the difference is the people in the attention strip. The map's "No account" tile and its legend entry are the same sum over the circles in view, so a sub-department with more accounts than headcount does not cancel out another's gap.
 
 The sidebar entry and the routes are added only when the instance has a valid enterprise licence (`health.license.valid`), the flag is on and the user has `view`. One helper, `canAccessOrganizationAdoption` in `packages/frontend/src/hooks/settings/organizationAdoptionAccess.ts`, decides both, so an unlicensed instance with the flag on shows no entry.
 

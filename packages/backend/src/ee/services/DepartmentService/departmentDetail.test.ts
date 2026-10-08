@@ -41,8 +41,6 @@ const department = (
     owners: [],
     linkedGroups: [],
     explicitMemberUuids: [],
-    createdAt: NOW,
-    updatedAt: NOW,
     effectiveHeadcount: null,
     headcountBelowChildren: false,
     metrics: metrics(weekly),

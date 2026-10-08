@@ -709,6 +709,44 @@ describe('AdoptionMap', () => {
         expect(viewport()).toBe(fitted);
     });
 
+    it('shows the same No account number in the inspector tile and the legend', async () => {
+        // Stores has more accounts than headcount, so netting across Ops would hide 5 of Depots' 10
+        const lopsided = [
+            d('Ops', null, 30, 25, 0, {
+                directMetrics: metricsFixture(0, null),
+            }),
+            d('Stores', 'Ops', 20, 25, 0),
+            d('Depots', 'Ops', 10, 0, 0),
+        ];
+        renderMap(lopsided);
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        const tile = within(details).getByText('No account').parentElement;
+        expect(tile).toHaveTextContent(/^No account10$/);
+        const legend = screen.getByRole('list', { name: 'Legend' });
+        expect(
+            within(legend).getByText('No account').closest('li'),
+        ).toHaveTextContent(/^No account10$/);
+    });
+
+    it('says the organization tile counts people placed in a department', async () => {
+        renderMap();
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(
+            within(details).getByText('On Lightdash').parentElement,
+        ).toHaveTextContent('placed in a department');
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Finance,/ }),
+        );
+        expect(
+            within(details).queryByText('placed in a department'),
+        ).not.toBeInTheDocument();
+    });
+
     it('lists departments lowest coverage first, the biggest first among equals', () => {
         renderMap(seededOrganization());
         const rows = within(

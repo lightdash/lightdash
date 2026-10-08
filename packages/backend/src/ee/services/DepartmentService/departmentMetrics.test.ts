@@ -47,8 +47,6 @@ const department = (
     owners: [],
     linkedGroups: [],
     explicitMemberUuids: [],
-    createdAt: new Date('2026-01-01'),
-    updatedAt: new Date('2026-01-01'),
 });
 
 const weekStarts = ['2026-09-28', '2026-10-05'];

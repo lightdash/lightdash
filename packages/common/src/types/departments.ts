@@ -21,8 +21,6 @@ export type Department = {
     owners: DepartmentOwner[]; // ordered, first is the display owner
     linkedGroups: DepartmentLinkedGroup[];
     explicitMemberUuids: string[];
-    createdAt: Date;
-    updatedAt: Date;
 };
 
 export type CreateDepartment = {

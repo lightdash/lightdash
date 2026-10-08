@@ -183,8 +183,6 @@ export class DepartmentModel {
             explicitMemberUuids: members
                 .filter((m) => m.department_uuid === row.department_uuid)
                 .map((m) => m.user_uuid),
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
         }));
     }
 
