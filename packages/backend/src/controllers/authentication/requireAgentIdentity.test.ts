@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { type NextFunction, type Request, type Response } from 'express';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
 import { requireAgentIdentity } from './requireAgentIdentity';
 
@@ -8,6 +9,7 @@ it.each([false, true])(
     async (enabled) => {
         const get = vi.fn(async () => ({ enabled }));
         const service = new AiAccessService({
+            analytics: analyticsMock,
             featureFlagModel: { get },
         } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
         const user = { userUuid: 'user', organizationUuid: 'org' };

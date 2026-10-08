@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
@@ -69,6 +70,7 @@ const callVerify = async (
         }),
     );
     const service = new AiAccessService({
+        analytics: analyticsMock,
         featureFlagModel: { get },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const user = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };

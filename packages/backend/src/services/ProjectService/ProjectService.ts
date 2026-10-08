@@ -213,6 +213,7 @@ import {
     ProjectSummary,
     ProjectType,
     QueryExecutionContext,
+    QuerySurface,
     RedshiftAuthenticationType,
     RegisteredAccount,
     ReplaceableCustomFields,
@@ -464,6 +465,7 @@ import {
     aiClientFromQueryContext,
     connectionContextFromAccount,
     connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
     surfaceFromQueryContext,
     type ConnectionContext,
 } from '../WarehouseClientFactory/ConnectionContext';
@@ -2296,6 +2298,7 @@ export class ProjectService
         userId,
         isRegisteredUser,
         context,
+        querySurface,
         isServiceAccount = false,
         purpose = 'query',
     }: {
@@ -2304,6 +2307,7 @@ export class ProjectService
         userId: string;
         isRegisteredUser: boolean;
         context?: QueryExecutionContext;
+        querySurface?: QuerySurface;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
     }): Promise<ResolvedWarehouseCredentials> {
@@ -2321,6 +2325,7 @@ export class ProjectService
             isRegisteredUser,
             isServiceAccount,
             context,
+            querySurface,
             purpose,
         });
     }
@@ -2899,18 +2904,26 @@ export class ProjectService
             isServiceAccount = false,
             context = null,
             purpose = 'query',
+            querySurface,
         }: {
             userId: string;
             isRegisteredUser: boolean;
             isServiceAccount?: boolean;
             context?: QueryExecutionContext | null;
             purpose?: 'query' | 'compile';
+            querySurface?: QuerySurface;
         },
     ): Promise<ResolvedWarehouseCredentials> {
         return this.warehouseClientFactory.resolveLoadedCredentials(base, {
             organizationUuid: base.organizationUuid,
             actor: {
-                surface: surfaceFromQueryContext(context),
+                surface:
+                    querySurface === undefined
+                        ? surfaceFromQueryContext(context)
+                        : connectionSurfaceFromQuerySurface(
+                              querySurface,
+                              context,
+                          ),
                 person: {
                     userUuid: userId,
                     isRegisteredUser,
@@ -2920,6 +2933,7 @@ export class ProjectService
             },
             queryContext: context,
             purpose,
+            aiAccess: 'enforce',
         });
     }
 
@@ -3026,6 +3040,7 @@ export class ProjectService
                         isRegisteredUser: args.isRegisteredUser,
                         isServiceAccount: args.isServiceAccount,
                         context: args.context,
+                        querySurface: args.querySurface,
                     });
                 return {
                     warehouseCredentials,
@@ -3188,6 +3203,7 @@ export class ProjectService
         userId,
         isRegisteredUser,
         context,
+        querySurface,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
@@ -3195,6 +3211,7 @@ export class ProjectService
         userId: string;
         isRegisteredUser: boolean;
         context?: QueryExecutionContext;
+        querySurface?: QuerySurface;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
     }): Promise<ResolvedWarehouseCredentials> {
@@ -3211,6 +3228,7 @@ export class ProjectService
             isRegisteredUser,
             isServiceAccount,
             context,
+            querySurface,
         });
     }
 
@@ -10685,6 +10703,7 @@ export class ProjectService
             connectionContextFromAccount(account, {
                 organizationUuid,
                 queryContext: QueryExecutionContext.AI,
+                aiAccess: 'diagnostic',
             }),
             async ({ warehouseClient, aiPlan }) => {
                 const { rows } = await warehouseClient.runQuery(
@@ -11211,6 +11230,7 @@ export class ProjectService
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
         context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
+        querySurface?: QuerySurface,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -11296,7 +11316,17 @@ export class ProjectService
             },
             connectionContextFromUser(
                 { userUuid: user.userUuid, isRegisteredUser: true },
-                { organizationUuid, queryContext: context },
+                {
+                    organizationUuid,
+                    queryContext: context,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  context,
+                              ),
+                },
             ),
             async ({ warehouseClient, warehouseCredentials, aiPlan }) => {
                 const timezone = resolveQueryTimezone({
@@ -12736,6 +12766,7 @@ export class ProjectService
         user: SessionUser,
         projectUuid: string,
         context?: QueryExecutionContext,
+        querySurface?: QuerySurface,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12763,7 +12794,17 @@ export class ProjectService
                 },
                 connectionContextFromUser(
                     { userUuid: user.userUuid, isRegisteredUser: true },
-                    { organizationUuid, queryContext: context ?? null },
+                    {
+                        organizationUuid,
+                        queryContext: context ?? null,
+                        surface:
+                            querySurface === undefined
+                                ? undefined
+                                : connectionSurfaceFromQuerySurface(
+                                      querySurface,
+                                      context ?? null,
+                                  ),
+                    },
                 ),
                 async ({ warehouseClient }) => {
                     const queryContext =
@@ -12826,6 +12867,7 @@ export class ProjectService
         tableName?: string,
         schemaName?: string,
         databaseName?: string,
+        querySurface?: QuerySurface,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12855,7 +12897,17 @@ export class ProjectService
             },
             connectionContextFromUser(
                 { userUuid: user.userUuid, isRegisteredUser: true },
-                { organizationUuid, queryContext },
+                {
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  queryContext,
+                              ),
+                },
             ),
             async ({ warehouseClient, warehouseCredentials: credentials }) => {
                 const queryTags: RunQueryTags = withAgentMarkerTag({

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     QueryExecutionContext,
+    QuerySurface,
     type Account,
 } from '@lightdash/common';
 
@@ -41,6 +42,28 @@ export type ConnectionContext = {
     actor: ConnectionActor;
     queryContext: QueryExecutionContext | null;
     purpose: 'query' | 'compile';
+    aiAccess: 'enforce' | 'diagnostic';
+};
+
+export const querySurfaceFromConnectionSurface = (
+    surface: ConnectionSurface,
+): QuerySurface => {
+    switch (surface) {
+        case ConnectionSurface.IN_APP_AGENT:
+        case ConnectionSurface.APP:
+        case ConnectionSurface.DATA_APP:
+        case ConnectionSurface.SCHEDULE:
+        case ConnectionSurface.EMBED:
+            return QuerySurface.APP;
+        case ConnectionSurface.SLACK_AGENT:
+            return QuerySurface.SLACK;
+        case ConnectionSurface.MCP:
+            return QuerySurface.MCP;
+        case ConnectionSurface.API:
+            return QuerySurface.API;
+        default:
+            return assertUnreachable(surface, 'Unknown connection surface');
+    }
 };
 
 export const surfaceFromQueryContext = (
@@ -97,6 +120,25 @@ export const surfaceFromQueryContext = (
     }
 };
 
+export const connectionSurfaceFromQuerySurface = (
+    surface: QuerySurface,
+    queryContext: QueryExecutionContext | null,
+): ConnectionSurface => {
+    switch (surface) {
+        case QuerySurface.APP:
+            return surfaceFromQueryContext(queryContext);
+        case QuerySurface.SLACK:
+            return ConnectionSurface.SLACK_AGENT;
+        case QuerySurface.MCP:
+            return ConnectionSurface.MCP;
+        case QuerySurface.API:
+        case QuerySurface.CLI:
+            return ConnectionSurface.API;
+        default:
+            return assertUnreachable(surface, 'Unknown query surface');
+    }
+};
+
 export const aiClientFromQueryContext = (
     context: QueryExecutionContext | null,
 ): ConnectionAiClient | null => {
@@ -123,6 +165,8 @@ type ConnectionContextOptions = {
     organizationUuid: string;
     queryContext: QueryExecutionContext | null;
     purpose?: 'query' | 'compile';
+    aiAccess?: ConnectionContext['aiAccess'];
+    surface?: ConnectionSurface;
 };
 
 export const connectionContextFromUser = (
@@ -139,16 +183,19 @@ export const connectionContextFromUser = (
         organizationUuid,
         queryContext,
         purpose = 'query',
+        aiAccess = 'enforce',
+        surface = surfaceFromQueryContext(queryContext),
     }: ConnectionContextOptions,
 ): ConnectionContext => ({
     organizationUuid,
     actor: {
-        surface: surfaceFromQueryContext(queryContext),
+        surface,
         person: { userUuid, isRegisteredUser, isServiceAccount },
         aiClient: aiClientFromQueryContext(queryContext),
     },
     queryContext,
     purpose,
+    aiAccess,
 });
 
 export const connectionContextFromAccount = (

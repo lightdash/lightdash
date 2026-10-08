@@ -128,6 +128,14 @@ export type ApiDownloadActivity = {
     results: DownloadActivityResults;
 };
 
+export enum QuerySurface {
+    APP = 'app',
+    SLACK = 'slack',
+    MCP = 'mcp',
+    CLI = 'cli',
+    API = 'api',
+}
+
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
@@ -165,9 +173,16 @@ export enum QueryExecutionContext {
     DESKTOP = 'desktop',
 }
 
+export type AiAccessQueryContext =
+    | QueryExecutionContext.DATA_APP_SAMPLE
+    | QueryExecutionContext.AI
+    | QueryExecutionContext.MCP_RUN_METRIC_QUERY
+    | QueryExecutionContext.MCP_RUN_SQL
+    | QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
-): boolean =>
+): context is AiAccessQueryContext =>
     context === QueryExecutionContext.DATA_APP_SAMPLE ||
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||

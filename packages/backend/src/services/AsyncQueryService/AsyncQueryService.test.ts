@@ -40,6 +40,7 @@ import {
     QueryHistoryStatus,
     QueryHistoryWindow,
     QuerySourceType,
+    QuerySurface,
     QueryTrigger,
     ResultColumns,
     ResultsExpiredError,
@@ -130,7 +131,7 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import { AiAccessService } from '../AiAccessService/AiAccessService';
 import {
     aiExecutionPlanMock,
     markedPersonPlanMock,
@@ -4060,6 +4061,375 @@ describe('AsyncQueryService', () => {
                 hit: true,
                 name: 'rollup',
             });
+        });
+    });
+
+    describe('agent refusal counting across execution and result reads', () => {
+        const setupRefusal = () => {
+            const credentials: CreateWarehouseCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'person',
+                password: 'private',
+                database: 'test',
+                warehouse: 'test',
+                schema: 'public',
+            };
+            const analytics = { track: vi.fn() };
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.SIGN_IN_EXPIRED,
+            );
+            const aiAccessService = new AiAccessService({
+                analytics,
+                lightdashConfig: lightdashConfigMock,
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                },
+                organizationAgentIdentitySettingsModel: {
+                    get: vi.fn(async () => ({
+                        requireVerifiedAgentSessions: true,
+                    })),
+                },
+                projectModel: {
+                    getSummary: vi.fn(async () => projectSummary),
+                    getWarehouseCredentialsForBinding: vi.fn(
+                        async () => credentials,
+                    ),
+                },
+                userModel: {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'private@example.test',
+                    })),
+                },
+                providerRegistry: () => ({
+                    configurationError: () => null,
+                    mint: vi.fn(async () => {
+                        throw refusal;
+                    }),
+                }),
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                aiAccessService,
+            });
+            Object.assign(service.projectModel, {
+                getAgentSqlScope: vi.fn().mockResolvedValue(null),
+            });
+            vi.mocked(
+                service.projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValue(credentials);
+            const resolve = vi.spyOn(aiAccessService, 'resolvePlan');
+            const markErrored = vi
+                .fn<AsyncQueryService['markAsyncQueryErrored']>()
+                .mockResolvedValue(undefined);
+            Object.assign(service, { markAsyncQueryErrored: markErrored });
+            const history = {
+                queryUuid: 'agent-query',
+                projectUuid,
+                context: QueryExecutionContext.MCP_RUN_SQL,
+                status: QueryHistoryStatus.ERROR,
+                requestParameters: {},
+                metricQuery: metricQueryMock,
+                createdByUserUuid: sessionAccount.user.id,
+            } as QueryHistory;
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
+            return { service, analytics, resolve, markErrored, history };
+        };
+        const executionArgs = {
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy' as const,
+            projectUuid,
+            query: 'SELECT private FROM secret',
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: { query_context: QueryExecutionContext.MCP_RUN_SQL },
+            queryUuid: 'agent-query',
+            cacheKey: 'cache',
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        };
+
+        test.each([
+            [QueryExecutionContext.AI, QuerySurface.APP],
+            [QueryExecutionContext.MCP_RUN_SQL, QuerySurface.MCP],
+        ] as const)(
+            'counts a preparation refusal for %s before dispatch',
+            async (context, surface) => {
+                const { service, analytics, resolve } = setupRefusal();
+                const dispatch = vi.spyOn(service, 'runAsyncWarehouseQuery');
+                const connect = vi.spyOn(
+                    service.warehouseClientFactory,
+                    'acquireUnscoped',
+                );
+                await expect(
+                    service['prepareSqlChartAsyncQueryArgs']({
+                        account: sessionAccount,
+                        projectUuid,
+                        organizationUuid: executionArgs.organizationUuid,
+                        sql: executionArgs.query,
+                        context,
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+                });
+                expect(resolve).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        evaluation: { kind: 'query', surface },
+                    }),
+                );
+                expect(dispatch).not.toHaveBeenCalled();
+                expect(connect).not.toHaveBeenCalled();
+                expect(
+                    analytics.track.mock.calls.map(([event]) => event.event),
+                ).toEqual(['query.refused', 'agent_identity.expired']);
+            },
+        );
+
+        test.each([QuerySurface.SLACK, QuerySurface.API])(
+            'reports %s from a refused AI SQL submission',
+            async (querySurface) => {
+                const { service, analytics } = setupRefusal();
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: 'select 1',
+                        context: QueryExecutionContext.AI,
+                        querySurface,
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+                });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => ({
+                        event: event.event,
+                        surface: event.properties.surface,
+                    })),
+                ).toEqual([
+                    { event: 'query.refused', surface: querySurface },
+                    { event: 'agent_identity.expired', surface: querySurface },
+                ]);
+            },
+        );
+
+        test.each([
+            [QuerySurface.SLACK, QueryExecutionContext.AI, QuerySurface.SLACK],
+            [QuerySurface.API, QueryExecutionContext.AI, QuerySurface.API],
+            [undefined, QueryExecutionContext.AI, QuerySurface.APP],
+            [undefined, QueryExecutionContext.MCP_RUN_SQL, QuerySurface.MCP],
+        ] as const)(
+            'dispatches stored surface %s for %s as %s',
+            async (querySurface, context, expectedSurface) => {
+                const {
+                    service,
+                    analytics,
+                    markErrored,
+                    history: previous,
+                } = setupRefusal();
+                const queued = {
+                    ...previous,
+                    status: QueryHistoryStatus.QUEUED,
+                    createdAt: new Date(),
+                    createdByActorType: 'session' as const,
+                    context,
+                };
+                const created = await service['createQueryHistory'](
+                    sessionAccount,
+                    {
+                        projectUuid,
+                        organizationUuid: executionArgs.organizationUuid,
+                        context,
+                        fields: {},
+                        compiledSql: 'select 1',
+                        usedParameters: null,
+                        metricQuery: metricQueryMock,
+                        cacheKey: 'unchanged',
+                        pivotConfiguration: null,
+                        originalColumns: null,
+                        requestParameters: {
+                            context,
+                            sql: 'select 1',
+                            queryUsage: {
+                                querySurface: QuerySurface.CLI,
+                            } as never,
+                        },
+                    },
+                    undefined,
+                    undefined,
+                    querySurface,
+                );
+                expect(created.queryUsage.querySurface).toBe(querySurface);
+                const stored = vi
+                    .mocked(service.queryHistoryModel.create)
+                    .mock.calls.at(-1)![1];
+                expect(stored.cacheKey).toBe('unchanged');
+                const history = {
+                    ...queued,
+                    ...stored,
+                    requestParameters:
+                        querySurface === undefined
+                            ? { context, sql: 'select 1' }
+                            : stored.requestParameters,
+                };
+                vi.mocked(
+                    service.queryHistoryModel.getByQueryUuid,
+                ).mockResolvedValue(history);
+                await expect(
+                    service.runAsyncWarehouseQueryFromHistory(
+                        queued.queryUuid,
+                        'worker',
+                    ),
+                ).resolves.toBe(true);
+                expect(markErrored).toHaveBeenCalledOnce();
+                expect(
+                    analytics.track.mock.calls.map(([event]) => ({
+                        event: event.event,
+                        surface: event.properties.surface,
+                    })),
+                ).toEqual([
+                    { event: 'query.refused', surface: expectedSurface },
+                    {
+                        event: 'agent_identity.expired',
+                        surface: expectedSurface,
+                    },
+                ]);
+                vi.mocked(
+                    service.queryHistoryModel.getByQueryUuid,
+                ).mockResolvedValue({
+                    ...history,
+                    status: QueryHistoryStatus.ERROR,
+                });
+                await expect(
+                    service.runAsyncWarehouseQueryFromHistory(
+                        queued.queryUuid,
+                        'worker',
+                    ),
+                ).resolves.toBe(false);
+                expect(analytics.track).toHaveBeenCalledTimes(2);
+            },
+        );
+
+        test('counts one expired refusal across all seven result readers and repeated polls', async () => {
+            const { service, analytics, resolve, markErrored } = setupRefusal();
+            await service.runAsyncWarehouseQuery(executionArgs);
+            expect(markErrored).toHaveBeenCalledOnce();
+            expect(resolve).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    evaluation: { kind: 'query', surface: QuerySurface.MCP },
+                }),
+            );
+            vi.spyOn(service, 'executeAsyncSqlChartQuery').mockResolvedValue({
+                queryUuid: 'agent-query',
+                cacheMetadata: { cacheHit: false },
+            } as Awaited<
+                ReturnType<AsyncQueryService['executeAsyncSqlChartQuery']>
+            >);
+            vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                undefined,
+            );
+            const readArgs = {
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'agent-query',
+            };
+            const readers = [
+                () => service.getAsyncQueryResults(readArgs),
+                () => service.getAsyncQueryHistory(readArgs),
+                () => service.getResultsStream(readArgs),
+                () =>
+                    service['downloadAsyncQueryResults']({
+                        ...readArgs,
+                        type: DownloadFileType.CSV,
+                        accessMode:
+                            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                    }),
+                () =>
+                    service['getReadyQueryResults']({
+                        ...readArgs,
+                        cacheMetadata: { cacheHit: false },
+                        fields: {},
+                    }),
+                () => service.getRawAsyncQueryResults(readArgs),
+                () =>
+                    service.executeSqlChartQueryAndGetResults({
+                        ...readArgs,
+                        savedSqlUuid: 'sql-chart',
+                        invalidateCache: false,
+                        context: QueryExecutionContext.MCP_RUN_SQL,
+                    }),
+            ];
+            const readAll = () =>
+                Promise.all(
+                    readers.map(async (read) => {
+                        await expect(read()).rejects.toMatchObject({
+                            refusal: {
+                                reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                            },
+                        });
+                    }),
+                );
+            await readAll();
+            await readAll();
+            expect(resolve).toHaveBeenCalledTimes(15);
+            expect(
+                resolve.mock.calls.slice(1).map(([args]) => args.evaluation),
+            ).toEqual(
+                Array.from({ length: 14 }, () => ({ kind: 'result_read' })),
+            );
+            expect(
+                analytics.track.mock.calls.map(([event]) => event.event),
+            ).toEqual(['query.refused', 'agent_identity.expired']);
+            expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                /private|secret|email|token|SELECT/,
+            );
+        });
+
+        test('keeps both raw-result guards silent when only the second one refuses', async () => {
+            const { service, analytics, resolve } = setupRefusal();
+            await service.runAsyncWarehouseQuery(executionArgs);
+            const readArgs = {
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'agent-query',
+            };
+            resolve.mockResolvedValueOnce(null);
+            await expect(
+                service.getRawAsyncQueryResults(readArgs),
+            ).rejects.toMatchObject({
+                refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+            });
+            expect(resolve.mock.calls.map(([args]) => args.evaluation)).toEqual(
+                [
+                    { kind: 'query', surface: QuerySurface.MCP },
+                    { kind: 'result_read' },
+                    { kind: 'result_read' },
+                ],
+            );
+            expect(
+                analytics.track.mock.calls.map(([event]) => event.event),
+            ).toEqual(['query.refused', 'agent_identity.expired']);
+        });
+
+        test('makes a pre-aggregate credential refusal terminal without a fallback retry', async () => {
+            const { service, analytics, resolve, markErrored } = setupRefusal();
+            Object.assign(service, {
+                isPreAggregateExecutionFallbackEnabled: vi.fn(async () => true),
+            });
+            const run = vi.spyOn(service, 'runAsyncWarehouseQuery');
+            await service.runAsyncPreAggregateQuery({
+                ...executionArgs,
+                preAggregateQuery: executionArgs.query,
+                warehouseQuery: executionArgs.query,
+                preAggregateExecution: 'project_warehouse',
+            });
+            expect(run).toHaveBeenCalledOnce();
+            expect(resolve).toHaveBeenCalledOnce();
+            expect(markErrored).toHaveBeenCalledOnce();
+            expect(
+                analytics.track.mock.calls.map(([event]) => event.event),
+            ).toEqual(['query.refused', 'agent_identity.expired']);
         });
     });
 

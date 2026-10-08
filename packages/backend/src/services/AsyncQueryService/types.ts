@@ -25,6 +25,7 @@ import {
     type QueryExecutionContext,
     type QueryHistory,
     type QuerySourceTableName,
+    type QuerySurface,
     type QueryUsageMetadata,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -47,6 +48,7 @@ import type {
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type CommonAsyncQueryArgs = {
+    querySurface?: QuerySurface;
     account: Account;
     projectUuid: string;
     invalidateCache?: boolean;

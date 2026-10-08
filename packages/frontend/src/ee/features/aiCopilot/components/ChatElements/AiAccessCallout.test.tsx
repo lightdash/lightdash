@@ -12,6 +12,7 @@ import { AiAccessGate } from './AiAccessGate';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 const mocks = vi.hoisted(() => ({
     can: vi.fn(),
+    popup: vi.fn(),
     login: vi.fn(),
     isLoading: false,
     error: null as Error | null,
@@ -28,11 +29,14 @@ vi.mock('../../../../../hooks/useProject', () => ({
     }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
-    useSnowflakeAiLoginPopup: () => ({
-        mutate: mocks.login,
-        isLoading: mocks.isLoading,
-        error: mocks.error,
-    }),
+    useSnowflakeAiLoginPopup: (attribution: unknown) => {
+        mocks.popup(attribution);
+        return {
+            mutate: mocks.login,
+            isLoading: mocks.isLoading,
+            error: mocks.error,
+        };
+    },
 }));
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
@@ -92,6 +96,14 @@ describe('AI access callout', () => {
                 screen.getByRole('button', { name: 'Connect agent' }),
             ).toBeEnabled();
             expect(!!screen.queryByRole('heading')).toBe(variant === 'card');
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            );
+            expect(mocks.login).toHaveBeenCalledOnce();
+            expect(mocks.popup).toHaveBeenLastCalledWith({
+                entryPoint: 'chat_card',
+                projectUuid: 'project',
+            });
             rerender(content(false, false));
             expect(
                 screen.getByRole('textbox', { name: 'Composer' }),

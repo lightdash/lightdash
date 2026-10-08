@@ -7,7 +7,8 @@ import {
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import knex, { Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { DbUserWarehouseCredentials } from '../../database/entities/userWarehouseCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentialsModel';
@@ -112,6 +113,56 @@ const createModel = ({
 };
 
 describe('UserWarehouseCredentialsModel', () => {
+    describe('deleteAiCredential', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        const model = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        });
+        beforeEach(() => tracker.reset());
+        afterAll(async () => database.destroy());
+
+        test.each(['project-uuid', null])(
+            'returns only deleted metadata with project %s',
+            async (projectUuid) => {
+                tracker.on.delete('user_warehouse_credentials').response([
+                    {
+                        warehouse_type: WarehouseTypes.SNOWFLAKE,
+                        project_uuid: projectUuid,
+                    },
+                ]);
+                expect(
+                    await model.deleteAiCredential('owner', 'credential'),
+                ).toEqual({
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    projectUuid,
+                });
+                expect(tracker.history.delete).toHaveLength(1);
+                expect(tracker.history.delete[0].sql).toBe(
+                    'delete from "user_warehouse_credentials" where "user_uuid" = $1 and "user_warehouse_credentials_uuid" = $2 and "purpose" = $3 returning "warehouse_type", "project_uuid"',
+                );
+                expect(tracker.history.delete[0].bindings).toEqual([
+                    'owner',
+                    'credential',
+                    UserWarehouseCredentialPurpose.AI,
+                ]);
+            },
+        );
+
+        test('returns null when no owned AI credential is deleted', async () => {
+            tracker.on.delete('user_warehouse_credentials').response([]);
+            await expect(
+                model.deleteAiCredential('other-owner', 'credential'),
+            ).resolves.toBeNull();
+            expect(tracker.history.delete[0].bindings).toEqual([
+                'other-owner',
+                'credential',
+                UserWarehouseCredentialPurpose.AI,
+            ]);
+        });
+    });
+
     test('the application list queries only default credentials', async () => {
         const calls: unknown[][] = [];
         const builder: Record<string, unknown> = {};

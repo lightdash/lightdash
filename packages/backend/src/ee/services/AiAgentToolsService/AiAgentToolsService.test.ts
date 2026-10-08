@@ -12,6 +12,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     SourceQuery,
@@ -247,6 +248,8 @@ function makeRuntimeContext(
         organizationUuid,
         projectUuid,
         source: 'ai_agent',
+        querySurface:
+            overrides.source === 'mcp' ? QuerySurface.MCP : QuerySurface.SLACK,
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
@@ -266,6 +269,7 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             QueryExecutionContext.AI,
+            QuerySurface.SLACK,
         );
         await service
             .createRuntime(
@@ -280,8 +284,86 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            QuerySurface.MCP,
         );
     });
+
+    it.each([QuerySurface.SLACK, QuerySurface.API])(
+        'forwards %s for SQL, metric and field queries',
+        async (querySurface) => {
+            const executeAsyncSqlQuery = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'sql' });
+            const executeMetricQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'metric', rows: [] });
+            const searchFieldUniqueValues = vi
+                .fn()
+                .mockResolvedValue({ results: ['paid'] });
+            const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
+                searchFieldUniqueValues,
+                asyncQueryService: {
+                    executeAsyncSqlQuery,
+                    executeMetricQueryAndGetResults,
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                    }),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ querySurface }),
+            );
+            await runtime.runSqlJob({ sql: 'select 1', limit: 10 });
+            await runtime.runAsyncQuery({
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customMetrics: null,
+            });
+            await runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'paid',
+            });
+            expect(executeAsyncSqlQuery).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+            );
+            expect(
+                executeMetricQueryAndGetResults,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+                expect.anything(),
+            );
+            expect(searchFieldUniqueValues).toHaveBeenCalledExactlyOnceWith(
+                user,
+                projectUuid,
+                'orders',
+                'orders_status',
+                'paid',
+                100,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                QueryExecutionContext.AI,
+                querySurface,
+            );
+        },
+    );
 
     const makeProjectSpace = (uuid: string, path: string, name: string) => ({
         uuid,
@@ -792,6 +874,7 @@ describe('AiAgentToolsService', () => {
                 'orders',
                 'jaffle',
                 'analytics',
+                QuerySurface.SLACK,
             );
         });
 
@@ -832,6 +915,7 @@ describe('AiAgentToolsService', () => {
                     'orders',
                     'jaffle',
                     'postgres3',
+                    QuerySurface.SLACK,
                 );
             },
         );
@@ -864,6 +948,7 @@ describe('AiAgentToolsService', () => {
                 'orders',
                 'analytics',
                 'main',
+                QuerySurface.SLACK,
             );
         });
     });
@@ -2025,6 +2110,7 @@ describe('AiAgentToolsService', () => {
                 chartUuid: 'allowed-chart-uuid',
                 limit: 100,
                 context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.SLACK,
             },
             undefined,
             onQueryPrepared,
@@ -2463,6 +2549,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             queries: composerQueries,
             context: QueryExecutionContext.AI,
+            querySurface: QuerySurface.SLACK,
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,

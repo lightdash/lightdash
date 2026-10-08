@@ -1,6 +1,6 @@
 import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
-import type { QueryExecutionContext } from './analytics';
+import type { QueryExecutionContext, QuerySurface } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
@@ -68,6 +68,7 @@ export type QueryUsageMetadata = {
     dashboardTileId: string | null;
     schedulerId: string | null;
     semanticUsage?: SemanticQueryUsage;
+    querySurface?: QuerySurface;
 };
 
 export type QueryHistory = {

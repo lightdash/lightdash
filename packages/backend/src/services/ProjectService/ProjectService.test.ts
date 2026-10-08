@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AiAgentMarkerLevel,
+    assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -54,6 +55,7 @@ import {
     PreviewWarehouseSignInExpiredError,
     ProjectType,
     QueryExecutionContext,
+    QuerySurface,
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
@@ -182,6 +184,7 @@ import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import {
     connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
 import {
@@ -4264,6 +4267,10 @@ describe('ProjectService', () => {
                     expect.objectContaining({
                         organizationUuid: projectSummary.organizationUuid,
                         queryContext: site.queryContext,
+                        aiAccess:
+                            site.name === 'runAgentMarkerProbe'
+                                ? 'diagnostic'
+                                : 'enforce',
                         actor: expect.objectContaining({
                             person: {
                                 userUuid: site.userUuid,
@@ -15920,7 +15927,10 @@ describe('AI principal credential routing', () => {
             queryTags: { ai_principal: 'ai' },
         },
     };
-    const resolveCredentials = (configured: ProjectService) =>
+    const resolveCredentials = (
+        configured: ProjectService,
+        querySurface?: QuerySurface,
+    ) =>
         (
             configured as unknown as {
                 getWarehouseCredentialsWithConnection: (args: {
@@ -15928,6 +15938,7 @@ describe('AI principal credential routing', () => {
                     userId: string;
                     isRegisteredUser: boolean;
                     context: QueryExecutionContext;
+                    querySurface?: QuerySurface;
                     binding: { kind: 'original' };
                 }) => Promise<{
                     warehouseCredentials: CreateWarehouseCredentials;
@@ -15939,12 +15950,17 @@ describe('AI principal credential routing', () => {
             userId: user.userUuid,
             isRegisteredUser: true,
             context: QueryExecutionContext.AI,
+            querySurface,
             binding: { kind: 'original' },
         });
 
-    test.each(['connected_person', 'marked_person', null] as const)(
-        'the scoped original path matches the legacy result for %s',
-        async (identity) => {
+    test.each([
+        { identity: 'connected_person', querySurface: QuerySurface.SLACK },
+        { identity: 'marked_person', querySurface: QuerySurface.API },
+        { identity: null, querySurface: QuerySurface.APP },
+    ] as const)(
+        'the scoped original path matches the legacy result for $identity on $querySurface',
+        async ({ identity, querySurface }) => {
             const configured = getMockedProjectService(lightdashConfigMock);
             let aiPlan: AiExecutionPlan | null = null;
             if (identity === 'connected_person') {
@@ -15961,10 +15977,9 @@ describe('AI principal credential routing', () => {
                     audit: { ...plan.audit, userUuid: user.userUuid },
                 };
             }
-            vi.spyOn(
-                configured.aiAccessService,
-                'resolvePlan',
-            ).mockResolvedValue(aiPlan);
+            const resolve = vi
+                .spyOn(configured.aiAccessService, 'resolvePlan')
+                .mockResolvedValue(aiPlan);
             vi.mocked(projectModel.getWarehouseCredentialsForProject)
                 .mockResolvedValueOnce({
                     ...credentials,
@@ -15982,7 +15997,7 @@ describe('AI principal credential routing', () => {
                 credentials: { ...credentials, user: 'personal-user' },
                 expiresAt: null,
             });
-            const legacy = await resolveCredentials(configured);
+            const legacy = await resolveCredentials(configured, querySurface);
             const scoped =
                 await configured.warehouseClientFactory.withWarehouseClient(
                     {
@@ -15995,6 +16010,10 @@ describe('AI principal credential routing', () => {
                         {
                             organizationUuid: projectSummary.organizationUuid,
                             queryContext: QueryExecutionContext.AI,
+                            surface: connectionSurfaceFromQuerySurface(
+                                querySurface,
+                                QueryExecutionContext.AI,
+                            ),
                         },
                     ),
                     async ({
@@ -16010,74 +16029,97 @@ describe('AI principal credential routing', () => {
                     }),
                 );
             expect(scoped).toStrictEqual(legacy);
+            expect(resolve.mock.calls.map(([args]) => args.evaluation)).toEqual(
+                [
+                    { kind: 'query', surface: querySurface },
+                    { kind: 'query', surface: querySurface },
+                ],
+            );
         },
     );
 
-    test('the scoped extra path matches the legacy route and AI credentials', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
-        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
-            plan,
-        );
-        vi.mocked(projectModel.getWarehouseCredentialsForProject)
-            .mockResolvedValueOnce(credentials)
-            .mockResolvedValueOnce(credentials);
-        vi.spyOn(
-            configured.projectModel,
-            'resolveWarehouseCredentialReadWithRoute',
-        )
-            .mockResolvedValueOnce({
-                route: 'multi',
-                target: {
-                    kind: 'extra',
-                    warehouseConnectionUuid: 'extra-uuid',
-                },
-                originalWarehouseConnectionUuid: 'original-uuid',
-            })
-            .mockResolvedValueOnce({
-                route: 'multi',
-                target: {
-                    kind: 'extra',
-                    warehouseConnectionUuid: 'extra-uuid',
-                },
-                originalWarehouseConnectionUuid: 'original-uuid',
-            });
-        Object.assign(configured.warehouseConnectionModel, {
-            getProject: vi.fn(async () => ({
-                projectUuid,
-                organizationUuid: projectSummary.organizationUuid,
-                connectionMode: 'multi',
-                originalWarehouseType: WarehouseTypes.POSTGRES,
-            })),
-            getExtraCredentialSource: vi.fn(async () => ({
-                credentials,
-                organizationWarehouseCredentialsUuid: null,
-            })),
-        });
-        const legacy = await resolveCredentials(configured);
-        const scoped =
-            await configured.warehouseClientFactory.withWarehouseClient(
-                { kind: 'binding', projectUuid, binding: { kind: 'original' } },
-                connectionContextFromUser(
-                    { userUuid: user.userUuid, isRegisteredUser: true },
-                    {
-                        organizationUuid: projectSummary.organizationUuid,
-                        queryContext: QueryExecutionContext.AI,
+    test.each([QuerySurface.SLACK, QuerySurface.API])(
+        'the scoped extra path matches the legacy route and AI credentials for %s',
+        async (querySurface) => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            const resolve = vi
+                .spyOn(configured.aiAccessService, 'resolvePlan')
+                .mockResolvedValue(plan);
+            vi.mocked(projectModel.getWarehouseCredentialsForProject)
+                .mockResolvedValueOnce(credentials)
+                .mockResolvedValueOnce(credentials);
+            vi.spyOn(
+                configured.projectModel,
+                'resolveWarehouseCredentialReadWithRoute',
+            )
+                .mockResolvedValueOnce({
+                    route: 'multi',
+                    target: {
+                        kind: 'extra',
+                        warehouseConnectionUuid: 'extra-uuid',
                     },
-                ),
-                async ({
-                    warehouseCredentials,
-                    aiPlan,
-                    warehouseConnectionUuid,
-                    connectionRoute,
-                }) => ({
-                    warehouseCredentials,
-                    aiPlan,
-                    warehouseConnectionUuid,
-                    connectionRoute,
-                }),
+                    originalWarehouseConnectionUuid: 'original-uuid',
+                })
+                .mockResolvedValueOnce({
+                    route: 'multi',
+                    target: {
+                        kind: 'extra',
+                        warehouseConnectionUuid: 'extra-uuid',
+                    },
+                    originalWarehouseConnectionUuid: 'original-uuid',
+                });
+            Object.assign(configured.warehouseConnectionModel, {
+                getProject: vi.fn(async () => ({
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    connectionMode: 'multi',
+                    originalWarehouseType: WarehouseTypes.POSTGRES,
+                })),
+                getExtraCredentialSource: vi.fn(async () => ({
+                    credentials,
+                    organizationWarehouseCredentialsUuid: null,
+                })),
+            });
+            const legacy = await resolveCredentials(configured, querySurface);
+            const scoped =
+                await configured.warehouseClientFactory.withWarehouseClient(
+                    {
+                        kind: 'binding',
+                        projectUuid,
+                        binding: { kind: 'original' },
+                    },
+                    connectionContextFromUser(
+                        { userUuid: user.userUuid, isRegisteredUser: true },
+                        {
+                            organizationUuid: projectSummary.organizationUuid,
+                            queryContext: QueryExecutionContext.AI,
+                            surface: connectionSurfaceFromQuerySurface(
+                                querySurface,
+                                QueryExecutionContext.AI,
+                            ),
+                        },
+                    ),
+                    async ({
+                        warehouseCredentials,
+                        aiPlan,
+                        warehouseConnectionUuid,
+                        connectionRoute,
+                    }) => ({
+                        warehouseCredentials,
+                        aiPlan,
+                        warehouseConnectionUuid,
+                        connectionRoute,
+                    }),
+                );
+            expect(scoped).toStrictEqual(legacy);
+            expect(resolve.mock.calls.map(([args]) => args.evaluation)).toEqual(
+                [
+                    { kind: 'query', surface: querySurface },
+                    { kind: 'query', surface: querySurface },
+                ],
             );
-        expect(scoped).toStrictEqual(legacy);
-    });
+        },
+    );
 
     test('the scoped original path keeps preloaded organization configuration and avoids a new summary read for an ordinary query', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
@@ -16107,6 +16149,77 @@ describe('AI principal credential routing', () => {
         expect(summary).not.toHaveBeenCalled();
         expect(config).not.toHaveBeenCalled();
     });
+
+    test.each([
+        { site: 'field search', querySurface: QuerySurface.SLACK },
+        { site: 'field search', querySurface: QuerySurface.API },
+        { site: 'catalog list', querySurface: QuerySurface.SLACK },
+        { site: 'catalog list', querySurface: QuerySurface.API },
+        { site: 'catalog describe', querySurface: QuerySurface.SLACK },
+        { site: 'catalog describe', querySurface: QuerySurface.API },
+    ] as const)(
+        '$site preserves $querySurface through the factory',
+        async ({ site, querySurface }) => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce(credentials);
+            const refusal = new Error('refused before warehouse access');
+            const resolve = vi
+                .spyOn(configured.aiAccessService, 'resolvePlan')
+                .mockRejectedValue(refusal);
+            const acquire = vi.spyOn(
+                configured.warehouseClientFactory,
+                'acquireUnscoped',
+            );
+            const run = () => {
+                switch (site) {
+                    case 'field search':
+                        return configured.searchFieldUniqueValues(
+                            user,
+                            projectUuid,
+                            'a',
+                            'a_dim1',
+                            '',
+                            10,
+                            undefined,
+                            true,
+                            undefined,
+                            undefined,
+                            QueryExecutionContext.AI,
+                            querySurface,
+                        );
+                    case 'catalog list':
+                        return configured.getWarehouseTables(
+                            user,
+                            projectUuid,
+                            QueryExecutionContext.AI,
+                            querySurface,
+                        );
+                    case 'catalog describe':
+                        return configured.getWarehouseFields(
+                            user,
+                            projectUuid,
+                            QueryExecutionContext.AI,
+                            'orders',
+                            'public',
+                            'catalog_database',
+                            querySurface,
+                        );
+                    default:
+                        return assertUnreachable(site, 'Unknown test site');
+                }
+            };
+            await expect(run()).rejects.toBe(refusal);
+            expect(resolve).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    evaluation: { kind: 'query', surface: querySurface },
+                }),
+            );
+            expect(acquire).not.toHaveBeenCalled();
+        },
+    );
 
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);

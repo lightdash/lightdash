@@ -21,9 +21,11 @@ import {
     storeSlackContext,
 } from '../controllers/authentication';
 import {
-    getAgentConnectRedirectURL,
-    storeAgentConnectRedirect,
-} from '../controllers/authentication/agentConnectRedirect';
+    agentConnectCallback,
+    authenticateAgentConnect,
+    storeAgentConnectAttempt,
+} from '../controllers/authentication/agentConnectAnalytics';
+import { storeAgentConnectRedirect } from '../controllers/authentication/agentConnectRedirect';
 import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
@@ -870,23 +872,15 @@ apiV1Router.get(
     isAuthenticated,
     requireAgentIdentity,
     storeAgentConnectRedirect,
-    passport.authenticate('snowflake-ai', { scope: ['refresh_token'] }),
+    storeAgentConnectAttempt,
+    authenticateAgentConnect,
 );
 
 apiV1Router.get(
     lightdashConfig.auth.snowflakeAi.callbackPath,
     isAuthenticated,
     requireAgentIdentity,
-    (req, res, next) => {
-        passport.authenticate(
-            'snowflake-ai',
-            (error: unknown, user: Express.User | false | null) => {
-                res.redirect(
-                    getAgentConnectRedirectURL(!error && !!user, error)(req),
-                );
-            },
-        )(req, res, next);
-    },
+    agentConnectCallback,
 );
 
 apiV1Router.get(

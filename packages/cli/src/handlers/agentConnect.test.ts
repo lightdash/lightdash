@@ -106,31 +106,53 @@ describe('agent connect', () => {
         expect(process.exitCode).toBe(1);
     });
 
-    it('opens the connect URL and accepts only GET /done, then closes the server', async () => {
-        const { completion, redirect } = await startWaitingForCallback();
-        const connectUrl = new URL(vi.mocked(openBrowser).mock.calls[0][0]);
-        expect(connectUrl.origin).toBe('https://example.com');
-        expect(connectUrl.pathname).toBe('/agent/connect');
-        expect(connectUrl.searchParams.get('project')).toBe(agentProjectUuid);
-        expect(connectUrl.searchParams.getAll('redirect')).toEqual([redirect]);
-        expect(redirect).toMatch(/^http:\/\/localhost:\d+\/done$/);
-        expect(console.error).toHaveBeenCalledWith(
-            expect.stringContaining(connectUrl.href),
-        );
-        expect((await fetch(`${redirect}/other`)).status).toBe(404);
-        expect((await fetch(redirect, { method: 'POST' })).status).toBe(404);
-        const response = await fetch(redirect);
-        expect(response.status).toBe(200);
-        expect(response.headers.get('content-type')).toContain('text/html');
-        const html = await response.text();
-        expect(html).toContain('Agent connected.');
-        expect(html).toContain('You can close this tab.');
-        await completion;
-        expect(console.error).toHaveBeenLastCalledWith('Agent connected');
-        expect(process.exitCode ?? 0).toBe(0);
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
-        await expect(fetch(redirect)).rejects.toThrow();
-    });
+    it.each([null, 'mcp_connect_link'])(
+        'sets CLI attribution over %s and preserves the callback flow',
+        async (entryPoint) => {
+            const sourceUrl = new URL(agentAccess.refusal!.connectUrl!);
+            if (entryPoint !== null)
+                sourceUrl.searchParams.set('entryPoint', entryPoint);
+            vi.mocked(lightdashApi).mockResolvedValue({
+                ...agentAccess,
+                refusal: {
+                    ...agentAccess.refusal!,
+                    connectUrl: sourceUrl.href,
+                },
+            });
+            const { completion, redirect } = await startWaitingForCallback();
+            const connectUrl = new URL(vi.mocked(openBrowser).mock.calls[0][0]);
+            expect(connectUrl.origin).toBe('https://example.com');
+            expect(connectUrl.pathname).toBe('/agent/connect');
+            expect(connectUrl.searchParams.get('project')).toBe(
+                agentProjectUuid,
+            );
+            expect(connectUrl.searchParams.getAll('entryPoint')).toEqual([
+                'cli',
+            ]);
+            expect(connectUrl.searchParams.getAll('redirect')).toEqual([
+                redirect,
+            ]);
+            expect(redirect).toMatch(/^http:\/\/localhost:\d+\/done$/);
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining(connectUrl.href),
+            );
+            expect((await fetch(`${redirect}/other`)).status).toBe(404);
+            expect((await fetch(redirect, { method: 'POST' })).status).toBe(
+                404,
+            );
+            const response = await fetch(redirect);
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toContain('text/html');
+            const html = await response.text();
+            expect(html).toContain('Agent connected.');
+            expect(html).toContain('You can close this tab.');
+            await completion;
+            expect(console.error).toHaveBeenLastCalledWith('Agent connected');
+            expect(process.exitCode ?? 0).toBe(0);
+            expect(lightdashApi).toHaveBeenCalledTimes(1);
+            await expect(fetch(redirect)).rejects.toThrow();
+        },
+    );
 
     it.each([
         [
