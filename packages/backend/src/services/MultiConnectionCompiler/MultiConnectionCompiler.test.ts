@@ -1,17 +1,23 @@
 import {
     DbtError,
     DbtProjectType,
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     JobStepStatusType,
     JobStepType,
     SupportedDbtVersions,
     WarehouseTypes,
+    type CreateDuckdbDucklakeCredentials,
     type CreateWarehouseCredentials,
     type DbtLog,
     type DbtManifest,
 } from '@lightdash/common';
 import {
+    DuckdbWarehouseClient,
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
+    warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import knex from 'knex';
 import { MockClient } from 'knex-mock-client';
@@ -38,14 +44,24 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
         class MockSshTunnel {
             constructor(
                 private readonly credentials: CreateWarehouseCredentials,
-            ) {}
+            ) {
+                this.overrideCredentials = credentials;
+            }
 
-            connect = vi.fn(async () =>
-                'useSshTunnel' in this.credentials &&
-                this.credentials.useSshTunnel
-                    ? { ...this.credentials, host: '127.0.0.1', port: 43210 }
-                    : this.credentials,
-            );
+            overrideCredentials: CreateWarehouseCredentials;
+
+            connect = vi.fn(async () => {
+                this.overrideCredentials =
+                    'useSshTunnel' in this.credentials &&
+                    this.credentials.useSshTunnel
+                        ? {
+                              ...this.credentials,
+                              host: '127.0.0.1',
+                              port: 43210,
+                          }
+                        : this.credentials;
+                return this.overrideCredentials;
+            });
 
             disconnect = vi.fn(async () => undefined);
         },
@@ -137,6 +153,8 @@ describe('multi-source compilation diagnostics', () => {
                         manifest,
                         connection: {
                             warehouseClient: warehouseClientMock,
+                            connectionCredentials:
+                                warehouseClientMock.credentials,
                             warehouseCredentials:
                                 warehouseClientMock.credentials,
                             deriveClient: vi.fn(() => warehouseClientMock),
@@ -312,7 +330,7 @@ describe('extra connection scope cleanup', () => {
                     connection: lease,
                     manifest,
                     dbtProjectDir: undefined,
-                    warehouseCredentials: lease.warehouseClient.credentials,
+                    warehouseCredentials: lease.connectionCredentials,
                     cachedWarehouse: {
                         warehouseCatalog: undefined,
                         onWarehouseCatalogChange: vi.fn(),
@@ -348,4 +366,113 @@ describe('extra connection scope cleanup', () => {
             await lease.release();
         },
     );
+});
+
+describe('DuckLake extra compile credentials', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('passes original DuckLake credentials to an extra source manifest fetch', async () => {
+        const credentials: CreateDuckdbDucklakeCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.DUCKLAKE,
+            catalogAlias: 'lake',
+            schema: 'public',
+            catalog: {
+                type: DucklakeCatalogType.SQLITE,
+                path: '/tmp/test-lake-catalog.sqlite',
+            },
+            dataPath: {
+                type: DucklakeDataPathType.LOCAL,
+                path: '/tmp/test-lake-data',
+            },
+        };
+        const projectModel = {
+            getWarehouseClientFromCredentials: vi.fn(
+                warehouseClientFromCredentials,
+            ),
+        };
+        const factory = new WarehouseClientFactory({
+            lightdashConfig: lightdashConfigMock,
+            projectModel,
+            featureFlagModel: {},
+            aiAccessService: {},
+            credentialSource: {},
+            logger: Logger,
+        } as unknown as ConstructorParameters<
+            typeof WarehouseClientFactory
+        >[0]);
+        const compiler = new MultiConnectionCompiler({
+            projectModel,
+            warehouseClientFactory: factory,
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: {
+                getCatalogCache: vi.fn(async () => undefined),
+            },
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(DuckdbWarehouseClient.prototype, 'test').mockResolvedValue(
+            undefined,
+        );
+        vi.spyOn(
+            DbtManifestProjectAdapter.prototype,
+            'compileAllExplores',
+        ).mockResolvedValue([]);
+        const fetchSourceManifest = vi.fn<FetchSourceManifest>(async () => ({
+            manifest,
+        }));
+        const internals = compiler as unknown as {
+            compileExtraGroup: (args: {
+                projectUuid: string;
+                context: ReturnType<typeof connectionContextFromUser>;
+                plan: CompileGroupPlan & { warehouseConnectionUuid: string };
+                dbtVersion: SupportedDbtVersions;
+                fetchSourceManifest: FetchSourceManifest;
+                loadExtraCredentials: () => Promise<CreateWarehouseCredentials>;
+                trackingParams: undefined;
+                warnings: string[];
+            }) => Promise<unknown>;
+        };
+        await internals.compileExtraGroup({
+            projectUuid: 'project-uuid',
+            context: connectionContextFromUser(
+                { userUuid: 'user' },
+                {
+                    organizationUuid: 'org',
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            plan: {
+                warehouseConnectionUuid: 'extra',
+                connectionName: 'Extra',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'source',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'source-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan & {
+                warehouseConnectionUuid: string;
+            },
+            dbtVersion: SupportedDbtVersions.V1_7,
+            fetchSourceManifest,
+            loadExtraCredentials: async () => credentials,
+            trackingParams: undefined,
+            warnings: [],
+        });
+        expect(fetchSourceManifest.mock.calls[0][1]).toEqual(credentials);
+        expect(
+            fetchSourceManifest.mock.calls[0][2].warehouseClient.credentials,
+        ).toMatchObject({
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            token: '',
+        });
+    });
 });

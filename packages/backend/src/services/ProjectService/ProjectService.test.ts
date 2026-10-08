@@ -21,6 +21,8 @@ import {
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     EMPTY_WAREHOUSE_LOCATION,
     ExploreType,
     FeatureFlags,
@@ -74,6 +76,7 @@ import {
     type CreateBigqueryCredentials,
     type CreateClickhouseCredentials,
     type CreateDatabricksCredentials,
+    type CreateDuckdbDucklakeCredentials,
     type CreateDuckdbMotherduckCredentials,
     type CreatePostgresCredentials,
     type CreateProject,
@@ -181,7 +184,11 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
-import { type ScopedWarehouseConnection } from '../WarehouseClientFactory/WarehouseClientFactory';
+import {
+    type ScopedWarehouseConnection,
+    type WarehouseClientFactory,
+    type WarehouseConnectionLease,
+} from '../WarehouseClientFactory/WarehouseClientFactory';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
@@ -294,6 +301,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockSshTunnel() {
             return {
+                overrideCredentials: warehouseClientMock.credentials,
                 connect: vi.fn(() => warehouseClientMock.credentials),
                 disconnect: vi.fn(),
             };
@@ -10917,6 +10925,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         adapter: primaryAdapter,
         connection: {
             warehouseClient: warehouseClientMock,
+            connectionCredentials: warehouseClientMock.credentials,
             warehouseCredentials: warehouseClientMock.credentials,
             aiPlan: null,
             warehouseConnectionUuid: null,
@@ -16219,4 +16228,265 @@ describe('Snowflake AI query credentials', () => {
             }
         },
     );
+});
+
+describe('compile adapter connection credentials', () => {
+    const ducklakeCredentials: CreateDuckdbDucklakeCredentials = {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.DUCKLAKE,
+        catalogAlias: 'lake',
+        schema: 'public',
+        catalog: {
+            type: DucklakeCatalogType.POSTGRES,
+            host: 'catalog.internal',
+            port: 5432,
+            database: 'catalog',
+            user: 'catalog-user',
+            password: 'catalog-password',
+        },
+        dataPath: {
+            type: DucklakeDataPathType.S3,
+            url: 's3://test-lake/data',
+            accessKeyId: 'test-key',
+            secretAccessKey: 'test-secret',
+        },
+    };
+    const caller = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };
+    const adapter = {
+        test: vi.fn(async () => undefined),
+        destroy: vi.fn(async () => undefined),
+    } as unknown as ProjectAdapter;
+    type CompilePrimary = ResolveCompileAdapterArgs['primary'];
+    type CompileInternals = ProjectServiceInternals & {
+        warehouseClientFactory: WarehouseClientFactory;
+        prepareCompileAdapter: () => Promise<unknown>;
+        withCompileAdapter: <T>(
+            projectUuid: string,
+            user: typeof caller,
+            fn: (primary: CompilePrimary) => Promise<T>,
+            adapters: ProjectAdapter[],
+        ) => Promise<T>;
+        testProjectAdapter: (
+            data: UpdateProject,
+            user: typeof caller,
+            context: 'project_create',
+            method: RequestMethod,
+            projectUuid: null,
+        ) => Promise<{ lease: WarehouseConnectionLease }>;
+    };
+
+    beforeEach(async () => {
+        const realWarehouses = await vi.importActual<
+            typeof import('@lightdash/warehouses')
+        >('@lightdash/warehouses');
+        vi.spyOn(
+            projectModel as unknown as ProjectModel,
+            'getWarehouseClientFromCredentials',
+        ).mockImplementation(realWarehouses.warehouseClientFromCredentials);
+        vi.mocked(SshTunnel).mockImplementation(
+            class CompileSshTunnel {
+                overrideCredentials: CreateWarehouseCredentials;
+
+                constructor(
+                    private readonly credentials: CreateWarehouseCredentials,
+                ) {
+                    this.overrideCredentials = credentials;
+                }
+
+                connect = vi.fn(async () => {
+                    this.overrideCredentials =
+                        'useSshTunnel' in this.credentials &&
+                        this.credentials.useSshTunnel
+                            ? {
+                                  ...this.credentials,
+                                  host: '127.0.0.1',
+                                  port: 43210,
+                              }
+                            : this.credentials;
+                    return this.overrideCredentials;
+                });
+
+                disconnect = vi.fn(async () => undefined);
+            } as unknown as typeof SshTunnel,
+        );
+        vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        ).mockResolvedValue(adapter);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each([
+        ducklakeCredentials,
+        {
+            ...warehouseClientMock.credentials,
+            type: WarehouseTypes.POSTGRES,
+            useSshTunnel: true,
+        } as CreatePostgresCredentials,
+    ])(
+        'withCompileAdapter passes original tunnel-adjusted $type credentials to dbt and its callback',
+        async (credentials) => {
+            const service = getMockedProjectService(
+                lightdashConfigMock,
+            ) as unknown as CompileInternals;
+            vi.spyOn(service, 'prepareCompileAdapter').mockResolvedValue({
+                project: { organizationUuid: 'org-uuid' },
+                dbtConnection: { type: DbtProjectType.NONE },
+                warehouseCredentials: credentials,
+                cachedWarehouse: {},
+                dbtVersionOption: DbtVersionOptionLatest.LATEST,
+                dbtPartialParse: false,
+            });
+            const expected =
+                credentials.type === WarehouseTypes.POSTGRES
+                    ? { ...credentials, host: '127.0.0.1', port: 43210 }
+                    : credentials;
+            let passedCredentials: CreateWarehouseCredentials | undefined;
+            await service.withCompileAdapter(
+                'project-uuid',
+                caller,
+                async (primary) => {
+                    passedCredentials = primary.warehouseCredentials;
+                },
+                [],
+            );
+            expect(
+                vi
+                    .mocked(projectAdapterModule.projectAdapterFromConfig)
+                    .mock.calls.at(-1)?.[2],
+            ).toEqual(expected);
+            expect(passedCredentials).toEqual(expected);
+        },
+    );
+
+    it('testProjectAdapter passes original DuckLake credentials to dbt', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as CompileInternals;
+        const tested = await service.testProjectAdapter(
+            {
+                ...projectWithSensitiveFields,
+                warehouseConnection: ducklakeCredentials,
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+            caller,
+            'project_create',
+            RequestMethod.WEB_APP,
+            null,
+        );
+        try {
+            expect(
+                vi
+                    .mocked(projectAdapterModule.projectAdapterFromConfig)
+                    .mock.calls.at(-1)?.[2],
+            ).toEqual(ducklakeCredentials);
+        } finally {
+            await tested.lease.release();
+        }
+    });
+
+    it('buildSourceAdapter derives from original DuckLake credentials with the source location', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as CompileInternals;
+        await service.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: ducklakeCredentials,
+            },
+            connectionContextFromUser(caller, {
+                organizationUuid: 'org-uuid',
+                queryContext: null,
+                purpose: 'compile',
+            }),
+            async (connection) => {
+                const derive = vi.spyOn(connection, 'deriveClient');
+                await service.buildSourceAdapter(
+                    { type: DbtProjectType.NONE },
+                    { database: null, schema: 'source_schema' },
+                    'org-uuid',
+                    {
+                        connection,
+                        warehouseCredentials: ducklakeCredentials,
+                        cachedWarehouse: {},
+                        dbtVersionOption: DbtVersionOptionLatest.LATEST,
+                    },
+                    null,
+                );
+                const expected = {
+                    ...ducklakeCredentials,
+                    schema: 'source_schema',
+                };
+                expect(derive).toHaveBeenCalledWith(expected);
+                expect(
+                    vi
+                        .mocked(projectAdapterModule.projectAdapterFromConfig)
+                        .mock.calls.at(-1)?.[2],
+                ).toEqual(expected);
+            },
+        );
+    });
+    it('buildMergedManifestAdapter derives its sibling from original DuckLake credentials', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as CompileInternals;
+        const manifest: DbtManifest = {
+            nodes: {},
+            metrics: {},
+            docs: {},
+            metadata: {
+                adapter_type: 'duckdb',
+                generated_at: '2026-10-08T00:00:00Z',
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v11.json',
+            },
+        };
+        const primaryAdapter = {
+            ...adapter,
+            getDbtManifest: vi.fn(async () => ({
+                manifest,
+                timings: NO_FETCH_TIMINGS,
+            })),
+        } as unknown as ProjectAdapter;
+        await service.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: ducklakeCredentials,
+            },
+            connectionContextFromUser(caller, {
+                organizationUuid: 'org-uuid',
+                queryContext: null,
+                purpose: 'compile',
+            }),
+            async (connection) => {
+                const derive = vi.spyOn(connection, 'deriveClient');
+                await service.buildMergedManifestAdapter({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'org-uuid',
+                    sources: [],
+                    manifestFetchAdapters: [],
+                    primary: {
+                        adapter: primaryAdapter,
+                        connection,
+                        warehouseCredentials: ducklakeCredentials,
+                        cachedWarehouse: {
+                            warehouseCatalog: {},
+                            warehouseTables: {},
+                        },
+                        dbtVersionOption: DbtVersionOptionLatest.LATEST,
+                        dbtPartialParse: false,
+                    },
+                });
+                expect(derive).toHaveBeenCalledWith(ducklakeCredentials);
+                expect(
+                    vi
+                        .mocked(projectAdapterModule.projectAdapterFromConfig)
+                        .mock.calls.at(-1)?.[2],
+                ).toEqual(ducklakeCredentials);
+            },
+        );
+    });
 });

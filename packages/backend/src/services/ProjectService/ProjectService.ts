@@ -6386,7 +6386,7 @@ export class ProjectService
                 data.dbtConnection,
                 user.organizationUuid,
             );
-            const warehouseCredentials = lease.warehouseClient.credentials;
+            const warehouseCredentials = lease.connectionCredentials;
             const cachedWarehouse: CachedWarehouse = {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
@@ -7100,7 +7100,7 @@ export class ProjectService
                 const adapter = await projectAdapterFromConfig(
                     dbtConnection,
                     connection.warehouseClient,
-                    connection.warehouseClient.credentials,
+                    connection.connectionCredentials,
                     cachedWarehouse,
                     dbtVersionOption,
                     this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -7116,8 +7116,7 @@ export class ProjectService
                     return await fn({
                         adapter,
                         connection,
-                        warehouseCredentials:
-                            connection.warehouseClient.credentials,
+                        warehouseCredentials: connection.connectionCredentials,
                         cachedWarehouse,
                         dbtVersionOption,
                         dbtPartialParse,
@@ -7173,7 +7172,7 @@ export class ProjectService
                 organizationUuid,
             );
         const warehouseCredentials = applyWarehouseLocation(
-            shared.connection.warehouseClient.credentials,
+            shared.connection.connectionCredentials,
             warehouseLocation,
         );
         return projectAdapterFromConfig(
@@ -7752,7 +7751,7 @@ export class ProjectService
                     hideRefreshButton: true,
                 },
                 shared.connection.deriveClient(
-                    shared.connection.warehouseClient.credentials,
+                    shared.connection.connectionCredentials,
                 ),
                 shared.warehouseCredentials,
                 shared.cachedWarehouse,

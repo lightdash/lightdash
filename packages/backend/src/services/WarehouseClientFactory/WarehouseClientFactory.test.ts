@@ -1,19 +1,24 @@
 import {
     AiAgentMarkerLevel,
+    applyWarehouseLocation,
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
     type AiExecutionPlan,
+    type CreateDuckdbDucklakeCredentials,
     type CreatePostgresCredentials,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import {
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
+    warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -51,12 +56,17 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
     SshTunnel: vi.fn().mockImplementation(function MockSshTunnel(
         this: {
+            overrideCredentials: CreateWarehouseCredentials;
             connect: () => Promise<CreateWarehouseCredentials>;
             disconnect: () => Promise<void>;
         },
         credentials: CreateWarehouseCredentials,
     ) {
-        this.connect = () => connect(credentials);
+        this.overrideCredentials = credentials;
+        this.connect = async () => {
+            this.overrideCredentials = await connect(credentials);
+            return this.overrideCredentials;
+        };
         this.disconnect = disconnect;
     }),
 }));
@@ -199,6 +209,90 @@ beforeEach(() => {
 });
 
 describe('WarehouseClientFactory', () => {
+    const ducklakeCredentials: CreateDuckdbDucklakeCredentials = {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.DUCKLAKE,
+        catalogAlias: 'lake',
+        schema: 'public',
+        catalog: {
+            type: DucklakeCatalogType.POSTGRES,
+            host: 'catalog.internal',
+            port: 5432,
+            database: 'catalog',
+            user: 'catalog-user',
+            password: 'catalog-password',
+        },
+        dataPath: {
+            type: DucklakeDataPathType.S3,
+            url: 's3://test-lake/data',
+            accessKeyId: 'test-key',
+            secretAccessKey: 'test-secret',
+        },
+    };
+
+    test('preserves DuckLake connection credentials before client normalisation', async () => {
+        const { factory, projectModel } = buildFixture();
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        await factory.withWarehouseClient(
+            compileRef(ducklakeCredentials),
+            contextFor(null, 'compile'),
+            async (connection) => {
+                expect(connection.warehouseClient.credentials).toMatchObject({
+                    connectionType: DuckdbConnectionType.MOTHERDUCK,
+                    database: 'lake',
+                    token: '',
+                });
+                expect(connection.connectionCredentials).toEqual(
+                    ducklakeCredentials,
+                );
+            },
+        );
+    });
+
+    test('derives a DuckLake source client from connection credentials without a MotherDuck token', async () => {
+        const { factory, projectModel } = buildFixture();
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        await factory.withWarehouseClient(
+            compileRef(ducklakeCredentials),
+            contextFor(null, 'compile'),
+            async (connection) => {
+                const sourceCredentials = applyWarehouseLocation(
+                    connection.connectionCredentials,
+                    { database: null, schema: 'source_schema' },
+                );
+                const derived = connection.deriveClient(sourceCredentials);
+                expect(derived.credentials).toMatchObject({
+                    schema: 'source_schema',
+                });
+                expect(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).toHaveBeenLastCalledWith(
+                    { ...ducklakeCredentials, schema: 'source_schema' },
+                    expect.any(Object),
+                );
+            },
+        );
+    });
+
+    test('exposes the local tunnel endpoint in connection credentials', async () => {
+        const { factory } = buildFixture();
+        const original = { ...credentials, useSshTunnel: true };
+        const tunneled = { ...original, host: '127.0.0.1', port: 43210 };
+        connect.mockResolvedValueOnce(tunneled);
+        await factory.withWarehouseClient(
+            compileRef(original),
+            contextFor(null, 'compile'),
+            async (connection) => {
+                expect(connection.warehouseCredentials).toEqual(original);
+                expect(connection.connectionCredentials).toEqual(tunneled);
+            },
+        );
+    });
+
     test.each([
         {
             aiPlan: null,
@@ -280,6 +374,7 @@ describe('WarehouseClientFactory', () => {
                 context,
                 async ({
                     warehouseClient: _client,
+                    connectionCredentials: _connectionCredentials,
                     tunnelConnectMs: _time,
                     deriveClient: _deriveClient,
                     ...resolved
@@ -724,6 +819,12 @@ describe('WarehouseClientFactory', () => {
             contextFor(),
             async (connection) => {
                 expect(connection.tunnelConnectMs).toBeNull();
+                expect(connection.connectionCredentials).toEqual({
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                });
                 return connection.warehouseClient;
             },
         );

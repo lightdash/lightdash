@@ -611,6 +611,7 @@ describe('Multi-connection compile on the real schema', () => {
             const connection: ScopedWarehouseConnection = {
                 warehouseClient:
                     warehouseClientFromCredentials(warehouseCredentials),
+                connectionCredentials: warehouseCredentials,
                 warehouseCredentials,
                 aiPlan: null,
                 warehouseConnectionUuid: null,

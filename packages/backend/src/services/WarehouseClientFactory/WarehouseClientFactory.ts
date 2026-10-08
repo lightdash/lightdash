@@ -114,6 +114,7 @@ export type ResolvedWarehouseConnection = {
 
 export type ScopedWarehouseConnection = {
     warehouseClient: WarehouseClient;
+    connectionCredentials: CreateWarehouseCredentials;
     warehouseCredentials: CreateWarehouseCredentials & {
         userWarehouseCredentialsUuid?: string;
     };
@@ -381,10 +382,12 @@ export class WarehouseClientFactory {
                         ref.kind === 'bypass' && ref.mode === 'connection_test',
                 },
             );
+        const connectionCredentials = sshTunnel.overrideCredentials;
         const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
         let releasePromise: Promise<void> | null = null;
         return {
             warehouseClient,
+            connectionCredentials,
             warehouseCredentials,
             aiPlan,
             warehouseConnectionUuid,
@@ -392,7 +395,7 @@ export class WarehouseClientFactory {
             credentialKind,
             tunnelConnectMs,
             deriveClient: (credentials, options) => {
-                const scopedCredentials = warehouseClient.credentials;
+                const scopedCredentials = connectionCredentials;
                 if (credentials.type !== scopedCredentials.type) {
                     throw new UnexpectedServerError(
                         'Derived warehouse client must use the scope warehouse type',

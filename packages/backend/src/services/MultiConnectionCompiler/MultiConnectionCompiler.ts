@@ -237,7 +237,7 @@ export class MultiConnectionCompiler {
             context,
             async (connection) => {
                 const { warehouseClient } = connection;
-                const warehouseCredentials = warehouseClient.credentials;
+                const warehouseCredentials = connection.connectionCredentials;
                 await warehouseClient.test();
                 const sourceManifests =
                     await MultiConnectionCompiler.fetchSourceManifests(

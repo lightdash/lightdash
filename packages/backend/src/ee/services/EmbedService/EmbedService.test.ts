@@ -1560,6 +1560,8 @@ describe('EmbedService', () => {
                     try {
                         return await callback({
                             warehouseClient: warehouseClientMock,
+                            connectionCredentials:
+                                warehouseClientMock.credentials,
                             warehouseCredentials:
                                 warehouseClientMock.credentials,
                             warehouseConnectionUuid: null,
