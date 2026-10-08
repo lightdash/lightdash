@@ -170,6 +170,47 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
         });
 
+        it('exports content with extensive dashboard version history within the page deadline', async () => {
+            // Every dashboard edit retains its tiles. The latest-version lookup
+            // must not rescan all versions once for each historical tile.
+            await db.raw(`
+                INSERT INTO dashboard_versions
+                    SELECT n, 1 FROM generate_series(10,8009) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT v, c FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                INSERT INTO dashboard_tile_sql_charts
+                    SELECT v, md5('sql-'||c)::uuid FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                INSERT INTO dashboard_tile_data_apps
+                    SELECT v, md5('app-'||c)::uuid FROM generate_series(10,8009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE v < 8009 OR c <> 2;
+                -- Most histories belong to other dashboards, as on a shared instance.
+                INSERT INTO dashboard_versions
+                    SELECT n, 10 + n % 990 FROM generate_series(10000,509999) n;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+                ANALYZE dashboard_tile_sql_charts;
+                ANALYZE dashboard_tile_data_apps;
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4020);
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 1`),
+                ).toMatchObject({ dashboard_references: 2 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 2`),
+                ).toMatchObject({ dashboard_references: 0 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 3`),
+                ).toMatchObject({ dashboard_references: 1 });
+            }
+        }, 20000);
+
         it('abandons a page waiting for a table lock and can retry afterward', async () => {
             const blocker = await db.transaction();
             try {

@@ -101,24 +101,36 @@ export const usageContentInventoryQuery = (
             ${
                 reference
                     ? `
-            SELECT i.content_id, d.dashboard_id, v.dashboard_version_id
+            SELECT i.content_id, d.dashboard_id, d.dashboard_version_id
             FROM inventory i
             JOIN ${reference.table} t ON t.${reference.column} = i.${reference.inventoryColumn}
-            JOIN dashboard_versions v ON v.dashboard_version_id = t.dashboard_version_id
-            JOIN dashboards d ON d.dashboard_id = v.dashboard_id
-            JOIN spaces s ON s.space_id = d.space_id
-            JOIN projects p ON p.project_id = s.project_id AND p.project_uuid = i.project_id
-            WHERE d.deleted_at IS NULL AND s.deleted_at IS NULL
+            -- This key identifies at most one row. Keep the lookup lateral so
+            -- a page cannot hash/scan the whole instance's version history.
+            JOIN LATERAL (
+                SELECT d.dashboard_id, v.dashboard_version_id
+                FROM dashboard_versions v
+                JOIN dashboards d ON d.dashboard_id = v.dashboard_id
+                JOIN spaces s ON s.space_id = d.space_id
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE v.dashboard_version_id = t.dashboard_version_id
+                    AND p.project_uuid = i.project_id
+                    AND d.deleted_at IS NULL AND s.deleted_at IS NULL
+                LIMIT 1
+            ) d ON true
             `
                     : 'SELECT NULL::uuid AS content_id, NULL::integer AS dashboard_id, NULL::integer AS dashboard_version_id WHERE false'
             }
+        ), latest_referenced_dashboards AS MATERIALIZED (
+            -- Resolve the latest version once per distinct dashboard in this page,
+            -- not once per historical tile. Materialize before joining tiles back
+            -- so the planner cannot inline and repeat this lookup for each tile.
+            SELECT d.dashboard_id, (SELECT MAX(latest.dashboard_version_id)
+                FROM dashboard_versions latest WHERE latest.dashboard_id = d.dashboard_id) AS dashboard_version_id
+            FROM (SELECT DISTINCT dashboard_id FROM referenced_dashboards) d
         ), dashboard_references AS (
-            -- Keep the latest-version lookup after the page-to-tile join. Otherwise
-            -- Postgres can evaluate it for every dashboard again on each page.
             SELECT content_id, COUNT(DISTINCT dashboard_id) AS count
             FROM referenced_dashboards d
-            WHERE d.dashboard_version_id = (SELECT MAX(latest.dashboard_version_id)
-                FROM dashboard_versions latest WHERE latest.dashboard_id = d.dashboard_id)
+            JOIN latest_referenced_dashboards latest USING (dashboard_id, dashboard_version_id)
             GROUP BY content_id
         )
     SELECT i.content_id AS cursor,
