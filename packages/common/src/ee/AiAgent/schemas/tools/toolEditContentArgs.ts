@@ -2,20 +2,17 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_EDIT_CONTENT_DESCRIPTION =
-    'Edit a dashboard, chart, or SQL chart by applying a patch to its JSON, then validate before persisting. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.';
+    'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting';
 
 export const toolEditContentArgsSchema = z.object({
-    slug: z
-        .string()
-        .min(1)
-        .describe('Slug of the dashboard, chart, or SQL chart to edit'),
+    slug: z.string().min(1).describe('Slug of the dashboard or chart to edit'),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to edit'),
     patch: z
         .array(z.unknown())
         .describe(
-            'RFC6902 Patch objects array to apply to the current dashboard, chart, or SQL chart JSON',
+            'RFC6902 Patch objects array to apply to the current dashboard or chart JSON',
         ),
 });
 
@@ -52,9 +49,7 @@ export const toolEditContentStructuredContentSchema = z.discriminatedUnion(
             href: editedContentHrefSchema,
             content: z
                 .record(z.string(), z.unknown())
-                .describe(
-                    'The dashboard, chart, or SQL chart as code after the edit',
-                ),
+                .describe('The dashboard or chart as code after the edit'),
             warnings: editedContentWarningsSchema,
         }),
         z.object({

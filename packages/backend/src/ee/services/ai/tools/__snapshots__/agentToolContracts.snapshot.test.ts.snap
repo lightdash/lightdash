@@ -2547,6 +2547,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "enum": [
             "dashboard",
             "chart",
+            "sql_chart",
           ],
           "type": "string",
         },
@@ -2673,6 +2674,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                       "enum": [
                         "dashboard",
                         "chart",
+                        "sql_chart",
                       ],
                       "type": "string",
                     },
