@@ -749,6 +749,42 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
+        "DashboardParameterControl": {
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "parameterKeys": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "tileTargets": {
+                    "$ref": "#/$defs/DashboardParameterControlTileTargets"
+                }
+            },
+            "required": ["tileTargets", "parameterKeys", "label", "id"],
+            "type": "object"
+        },
+        "DashboardParameterControlTileTargets": {
+            "additionalProperties": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "enum": [false],
+                        "type": "boolean"
+                    }
+                ]
+            },
+            "properties": {},
+            "type": "object"
+        },
         "DashboardParameters": {
             "$ref": "#/$defs/Record_string.DashboardParameterValue_"
         },
@@ -1458,6 +1494,12 @@
         "ownerEmail": {
             "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned.",
             "type": ["string", "null"]
+        },
+        "parameterControls": {
+            "items": {
+                "$ref": "#/$defs/DashboardParameterControl"
+            },
+            "type": "array"
         },
         "parameters": {
             "$ref": "#/$defs/DashboardParameters"

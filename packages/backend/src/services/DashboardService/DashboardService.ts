@@ -64,7 +64,6 @@ import {
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardParameterControl,
-    type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
@@ -264,7 +263,7 @@ export class DashboardService
 
     // Flag off: incoming parameter controls are ignored. Undefined tells the
     // model to keep the saved ones.
-    private async getParameterControlsToSave(
+    async getParameterControlsToSave(
         user: SessionUser,
         incoming: DashboardParameterControl[] | undefined,
     ): Promise<DashboardParameterControl[] | undefined> {
@@ -1721,8 +1720,6 @@ export class DashboardService
             name: data.dashboardName,
             slug: dashboard.slug,
             tabs: newTabs,
-            // Tile targets are not remapped to the copied tiles yet
-            parameterControls: undefined,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -1766,9 +1763,9 @@ export class DashboardService
                 }),
             );
 
-            const remapTileTargets = (
-                tileTargets: Record<string, DashboardTileTarget> | undefined,
-            ): Record<string, DashboardTileTarget> | undefined => {
+            const remapTileTargets = <T>(
+                tileTargets: Record<string, T> | undefined,
+            ): Record<string, T> | undefined => {
                 if (!tileTargets) return undefined;
                 return Object.fromEntries(
                     Object.entries(tileTargets).map(([key, value]) => [
@@ -1800,6 +1797,13 @@ export class DashboardService
                 {
                     tiles: [...updatedTiles],
                     filters: remappedFilters,
+                    parameterControls: newDashboard.parameterControls?.map(
+                        (control) => ({
+                            ...control,
+                            tileTargets:
+                                remapTileTargets(control.tileTargets) ?? {},
+                        }),
+                    ),
                     tabs: newTabs,
                 },
                 user,

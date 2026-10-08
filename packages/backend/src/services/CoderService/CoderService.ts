@@ -162,6 +162,8 @@ import {
     getConfigWithDateZoomTileUuids,
     getFiltersWithTileSlugs,
     getFiltersWithTileUuids,
+    getParameterControlsWithTileSlugs,
+    getParameterControlsWithTileUuids,
     getTileSlugForTileUuid,
     isAnyChartTile,
     withTileWarnings,
@@ -1849,6 +1851,12 @@ export class CoderService extends BaseService {
 
     static getConfigWithDateZoomTileUuids = getConfigWithDateZoomTileUuids;
 
+    static getParameterControlsWithTileSlugs =
+        getParameterControlsWithTileSlugs;
+
+    static getParameterControlsWithTileUuids =
+        getParameterControlsWithTileUuids;
+
     private static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
@@ -2001,6 +2009,15 @@ export class CoderService extends BaseService {
                 : {}),
             ...(dashboard.parameters
                 ? { parameters: dashboard.parameters }
+                : {}),
+            ...(dashboard.parameterControls &&
+            dashboard.parameterControls.length > 0
+                ? {
+                      parameterControls:
+                          CoderService.getParameterControlsWithTileSlugs(
+                              dashboard,
+                          ),
+                  }
                 : {}),
 
             spaceSlug,
@@ -5002,6 +5019,16 @@ export class CoderService extends BaseService {
                   tilesWithUuids,
               )
             : dashboardWithResolvedTabs.config;
+        // Declarative like filters: a file without controls saves none.
+        // Flag off resolves to undefined, which keeps the saved ones.
+        const dashboardParameterControls =
+            await this.dashboardService.getParameterControlsToSave(
+                user,
+                CoderService.getParameterControlsWithTileUuids(
+                    dashboardWithResolvedTabs.parameterControls ?? [],
+                    tilesWithUuids,
+                ),
+            );
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -5041,6 +5068,7 @@ export class CoderService extends BaseService {
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
                     config: dashboardConfig,
+                    parameterControls: dashboardParameterControls,
                 },
                 user,
                 projectUuid,
@@ -5189,6 +5217,7 @@ export class CoderService extends BaseService {
                     ...dashboard,
                     ...dashboardWithUuids,
                     filters: dashboardFilters,
+                    parameterControls: dashboardParameterControls,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 },

@@ -1983,6 +1983,77 @@ describe('DashboardService', () => {
             );
         });
 
+        test('should carry parameter controls with tileTargets remapped to the copied tiles', async () => {
+            const dashboardWithControls: Dashboard = {
+                ...dashboardWithScopedCharts,
+                parameterControls: [
+                    {
+                        id: 'control-1',
+                        label: 'Region',
+                        parameterKeys: ['region', 'area'],
+                        tileTargets: {
+                            [dashboardScopedTileUuid]: 'region',
+                            [spaceTileUuid]: false,
+                        },
+                    },
+                ],
+            };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(dashboardWithControls);
+            (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
+                dashboardWithControls,
+            );
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    parameterControls: dashboardWithControls.parameterControls,
+                }),
+                expect.anything(),
+                projectUuid,
+            );
+            const versionData = (
+                dashboardModel.addVersion as import('vitest').Mock
+            ).mock.calls[0][1];
+            const newTileUuid = versionData.tiles.find(
+                (t: DashboardChartTile) =>
+                    t.properties.savedChartUuid === 'new-duplicated-chart-uuid',
+            ).uuid;
+
+            expect(versionData.parameterControls).toEqual([
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region', 'area'],
+                    tileTargets: {
+                        [newTileUuid]: 'region',
+                        [spaceTileUuid]: false,
+                    },
+                },
+            ]);
+        });
+
+        test('should not add parameter controls to a copy of a dashboard without them', async () => {
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            const createData = (dashboardModel.create as import('vitest').Mock)
+                .mock.calls[0][1];
+            const versionData = (
+                dashboardModel.addVersion as import('vitest').Mock
+            ).mock.calls[0][1];
+            expect(createData.parameterControls).toBeUndefined();
+            expect(versionData.parameterControls).toBeUndefined();
+        });
+
         test('should preserve undefined tileTargets on filters', async () => {
             const dashboardWithUntargetedFilters: Dashboard = {
                 ...dashboardWithScopedCharts,

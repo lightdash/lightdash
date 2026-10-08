@@ -1194,6 +1194,80 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(newChanges.charts[0].data.dashboardUuid).toEqual(null);
     });
 
+    describe('parameter controls', () => {
+        // Promotion writes the promoted tiles with their own uuids, so
+        // tileTargets stay valid upstream without remapping, like filters
+        const tileUuid = promotedDashboard.dashboard.tiles[0].uuid;
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Region',
+                parameterKeys: ['region'],
+                tileTargets: { [tileUuid]: 'region' },
+            },
+        ];
+        const promotedWithControls = {
+            ...promotedDashboard,
+            dashboard: { ...promotedDashboard.dashboard, parameterControls },
+        };
+        const mockUpstreamSpace = () => {
+            (spaceModel.find as import('vitest').Mock)
+                .mockImplementationOnce(async () => [
+                    existingUpstreamDashboard.space,
+                ])
+                .mockImplementationOnce(async () => [
+                    existingUpstreamDashboard.space,
+                ]);
+        };
+
+        test('a new upstream dashboard is created with the controls intact', async () => {
+            mockUpstreamSpace();
+            const [changes] = await service.getPromotionDashboardChanges(
+                user,
+                promotedWithControls,
+                missingUpstreamDashboard,
+            );
+
+            await service.getOrCreateDashboard(user, changes);
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    parameterControls,
+                    tiles: [expect.objectContaining({ uuid: tileUuid })],
+                }),
+                user,
+                missingUpstreamDashboard.projectUuid,
+            );
+        });
+
+        test('an existing upstream dashboard gets a version with the controls intact', async () => {
+            mockUpstreamSpace();
+            const [changes] = await service.getPromotionDashboardChanges(
+                user,
+                promotedWithControls,
+                existingUpstreamDashboard,
+            );
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...promotedDashboard.dashboard,
+                ...existingUpstreamDashboard.dashboard!,
+                projectUuid: existingUpstreamDashboard.projectUuid,
+            });
+
+            await service.updateDashboard(user, changes);
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                existingUpstreamDashboard.dashboard!.uuid,
+                expect.objectContaining({
+                    parameterControls,
+                    tiles: [expect.objectContaining({ uuid: tileUuid })],
+                }),
+                user,
+                existingUpstreamDashboard.projectUuid,
+            );
+        });
+    });
+
     test('create dashboard and update dashboard uuid if a new dashboard with chart within dashboard is created', async () => {
         (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChartWithinDashboard.chart,

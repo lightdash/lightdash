@@ -1122,6 +1122,120 @@ describe('CoderService', () => {
         });
     });
 
+    describe('parameter control tileTargets', () => {
+        const dashboardWithControls = {
+            parameterControls: [
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region', 'area'],
+                    tileTargets: {
+                        'uuid-1': 'region',
+                        'uuid-2': false,
+                        'orphaned-uuid': 'area',
+                    },
+                },
+            ],
+            tiles: [
+                {
+                    uuid: 'uuid-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'slug-1' },
+                },
+                {
+                    uuid: 'uuid-2',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'slug-2' },
+                },
+            ],
+        } as AnyType;
+
+        it('should convert tile UUIDs to slugs and drop targets of missing tiles', () => {
+            expect(
+                CoderService.getParameterControlsWithTileSlugs(
+                    dashboardWithControls,
+                ),
+            ).toEqual([
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region', 'area'],
+                    tileTargets: { 'slug-1': 'region', 'slug-2': false },
+                },
+            ]);
+        });
+
+        it('should return undefined when the dashboard has no controls', () => {
+            expect(
+                CoderService.getParameterControlsWithTileSlugs({
+                    tiles: [],
+                } as AnyType),
+            ).toBeUndefined();
+        });
+
+        it('should round trip through slugs onto regenerated tile UUIDs', () => {
+            const asCode = CoderService.getParameterControlsWithTileSlugs(
+                dashboardWithControls,
+            );
+            const tilesWithNewUuids = [
+                {
+                    uuid: 'new-uuid-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'slug-1' },
+                },
+                {
+                    uuid: 'new-uuid-2',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'slug-2' },
+                },
+            ];
+
+            expect(
+                CoderService.getParameterControlsWithTileUuids(
+                    asCode!,
+                    tilesWithNewUuids as AnyType,
+                ),
+            ).toEqual([
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region', 'area'],
+                    tileTargets: {
+                        'new-uuid-1': 'region',
+                        'new-uuid-2': false,
+                    },
+                },
+            ]);
+        });
+
+        it('should drop targets whose tile slug is not on the dashboard', () => {
+            const consoleError = vi
+                .spyOn(console, 'error')
+                .mockImplementation(() => {});
+            expect(
+                CoderService.getParameterControlsWithTileUuids(
+                    [
+                        {
+                            id: 'control-1',
+                            label: 'Region',
+                            parameterKeys: ['region'],
+                            tileTargets: { 'unknown-slug': 'region' },
+                        },
+                    ],
+                    [],
+                ),
+            ).toEqual([
+                {
+                    id: 'control-1',
+                    label: 'Region',
+                    parameterKeys: ['region'],
+                    tileTargets: {},
+                },
+            ]);
+            consoleError.mockRestore();
+        });
+    });
+
     describe('convertTileWithSlugsToUuids', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({
@@ -1739,6 +1853,78 @@ describe('CoderService', () => {
                 tabSlug: 'overview',
             });
             expect(result.tiles[0].tabUuid).toBeUndefined();
+        });
+
+        describe('parameter controls', () => {
+            const transform = (dashboard: AnyType) =>
+                (
+                    CoderService as unknown as {
+                        transformDashboard: (...args: AnyType[]) => AnyType;
+                    }
+                ).transformDashboard(
+                    {
+                        description: null,
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        name: 'Dashboard',
+                        slug: 'dashboard',
+                        spaceUuid: 'space-uuid',
+                        tabs: [],
+                        tiles: [
+                            {
+                                uuid: 'tile-uuid',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                x: 0,
+                                y: 0,
+                                h: 2,
+                                w: 4,
+                                tabUuid: null,
+                                properties: {
+                                    savedChartUuid: 'chart-uuid',
+                                    chartSlug: 'chart',
+                                },
+                            },
+                        ],
+                        uuid: 'dashboard-uuid',
+                        ...dashboard,
+                    },
+                    [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                    new Map(),
+                );
+
+            it('exports parameter control tileTargets keyed by tile slug', () => {
+                const result = transform({
+                    parameterControls: [
+                        {
+                            id: 'control-1',
+                            label: 'Region',
+                            parameterKeys: ['region'],
+                            tileTargets: { 'tile-uuid': false },
+                        },
+                    ],
+                });
+
+                expect(result.parameterControls).toEqual([
+                    {
+                        id: 'control-1',
+                        label: 'Region',
+                        parameterKeys: ['region'],
+                        tileTargets: { chart: false },
+                    },
+                ]);
+            });
+
+            it.each([undefined, []])(
+                'exports no parameterControls key when the dashboard has %j',
+                (parameterControls) => {
+                    expect(transform({ parameterControls })).not.toHaveProperty(
+                        'parameterControls',
+                    );
+                },
+            );
         });
 
         it('reuses target-project tab UUIDs for portable slugs', () => {

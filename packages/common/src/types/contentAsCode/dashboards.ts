@@ -124,7 +124,13 @@ export type DashboardTabAsCode = {
 export type DashboardAsCode = Omit<
     Pick<
         Dashboard,
-        'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
+        | 'name'
+        | 'description'
+        | 'tabs'
+        | 'slug'
+        | 'config'
+        | 'parameters'
+        | 'parameterControls'
     >,
     'name' | 'slug' | 'tabs'
 > & {

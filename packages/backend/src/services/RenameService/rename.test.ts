@@ -1551,6 +1551,56 @@ describe('renameDashboard', () => {
         );
     });
 
+    test('should leave parameter controls untouched', () => {
+        // Parameter keys are not model fields. The renamed version carries
+        // the saved controls as they are, so the model writes them back.
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Payment region',
+                parameterKeys: ['payment_region'],
+                tileTargets: { tile1: 'payment_region', tile2: false },
+            },
+        ];
+        const dashboard = {
+            name: 'Payment Dashboard',
+            filters: {
+                dimensions: [
+                    {
+                        target: {
+                            fieldId: 'payment_id',
+                            tableName: 'payment',
+                        },
+                        operator: 'equals',
+                        values: ['123'],
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+            parameterControls,
+        } as unknown as DashboardDAO;
+
+        const { updatedDashboard, hasChanges } = renameDashboard(
+            RenameType.MODEL,
+            dashboard,
+            {
+                from: 'payment',
+                fromReference: 'payment',
+                to: 'invoice',
+                toReference: 'invoice',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+            },
+        );
+
+        expect(hasChanges).toBe(true);
+        expect(updatedDashboard.filters.dimensions[0].target.fieldId).toBe(
+            'invoice_id',
+        );
+        expect(updatedDashboard.parameterControls).toBe(parameterControls);
+    });
+
     test.each([
         { tableName: 'customer', fieldId: 'customer_id' },
         { tableName: 'payment_v2', fieldId: 'payment_v2_id' },

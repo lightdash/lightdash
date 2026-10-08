@@ -4,6 +4,8 @@ import {
     type DashboardAsCodeUpsertResult,
     type DashboardConfig,
     type DashboardDAO,
+    type DashboardParameterControl,
+    type DashboardParameterControlTileTargets,
     type DashboardTile,
     type DashboardTileAsCode,
     type DashboardTileTarget,
@@ -104,6 +106,45 @@ export const getFiltersWithTileUuids = (
         }, {}),
     })),
 });
+
+export const getParameterControlsWithTileSlugs = (
+    dashboard: DashboardDAO,
+): DashboardParameterControl[] | undefined =>
+    dashboard.parameterControls?.map((control) => ({
+        ...control,
+        tileTargets: Object.entries(
+            control.tileTargets,
+        ).reduce<DashboardParameterControlTileTargets>(
+            (result, [tileUuid, target]) => {
+                const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
+                return tileSlug ? { ...result, [tileSlug]: target } : result;
+            },
+            {},
+        ),
+    }));
+
+export const getParameterControlsWithTileUuids = (
+    parameterControls: DashboardParameterControl[],
+    tiles: DashboardTileWithSlug[],
+): DashboardParameterControl[] =>
+    parameterControls.map((control) => ({
+        ...control,
+        tileTargets: Object.entries(
+            control.tileTargets ?? {},
+        ).reduce<DashboardParameterControlTileTargets>(
+            (result, [tileSlug, target]) => {
+                const tileUuid = findTileUuid(tiles, tileSlug);
+                if (!tileUuid) {
+                    console.error(
+                        `Tile with slug ${tileSlug} not found for parameter control target`,
+                    );
+                    return result;
+                }
+                return { ...result, [tileUuid]: target };
+            },
+            {},
+        ),
+    }));
 
 export const getConfigWithDateZoomTileSlugs = (
     dashboard: DashboardDAO,

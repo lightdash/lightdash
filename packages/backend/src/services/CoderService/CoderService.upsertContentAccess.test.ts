@@ -7,6 +7,7 @@ import {
     DashboardAsCode,
     DashboardChartTile,
     DashboardDAO,
+    DashboardParameterControl,
     DashboardTileTypes,
     DimensionType,
     FilterOperator,
@@ -111,7 +112,12 @@ const buildService = () =>
         schedulerModel: {} as AnyType,
         schedulerService: {} as AnyType,
         savedChartService: {} as AnyType,
-        dashboardService: {} as AnyType,
+        dashboardService: {
+            // Feature flag on: incoming parameter controls are saved
+            getParameterControlsToSave: vi.fn(
+                async (_user: AnyType, controls: AnyType) => controls,
+            ),
+        } as AnyType,
         schedulerClient: {} as AnyType,
         promoteService: {
             getPromoteCharts: vi.fn(),
@@ -1663,6 +1669,234 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             }),
         ]);
     });
+});
+
+describe('CoderService upsertDashboard parameter controls', () => {
+    const tile: DashboardChartTile = {
+        uuid: 'saved-tile',
+        type: DashboardTileTypes.SAVED_CHART,
+        x: 0,
+        y: 0,
+        w: 6,
+        h: 5,
+        tabUuid: null,
+        properties: { savedChartUuid: 'chart-uuid', chartSlug: 'chart' },
+    };
+    const controlAsCode: DashboardParameterControl = {
+        id: 'control-1',
+        label: 'Region',
+        parameterKeys: ['region'],
+        tileTargets: { chart: 'region', 'missing-tile': false },
+    };
+    const controlWithUuids: DashboardParameterControl = {
+        ...controlAsCode,
+        tileTargets: { 'saved-tile': 'region' },
+    };
+    const getDashboardAsCode = (
+        parameterControls: DashboardAsCode['parameterControls'],
+    ): DashboardAsCode => ({
+        ...dashboardAsCode,
+        tiles: [
+            {
+                ...tile,
+                uuid: undefined,
+                tileSlug: 'chart',
+                properties: { chartSlug: 'chart' },
+            },
+        ],
+        ...(parameterControls ? { parameterControls } : {}),
+    });
+
+    const setup = ({ flagEnabled }: { flagEnabled: boolean }) => {
+        const service = buildService();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(console, 'info').mockImplementation(() => {});
+        Object.assign(service.dashboardService, {
+            getParameterControlsToSave: vi.fn(
+                async (_user: AnyType, controls: AnyType) =>
+                    flagEnabled ? controls : undefined,
+            ),
+        });
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'chart-uuid',
+                slug: 'chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType,
+        ]);
+        return service;
+    };
+
+    const setupExistingDashboard = (flagEnabled: boolean) => {
+        const service = setup({ flagEnabled });
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [tile],
+            parameterControls: [
+                { ...controlWithUuids, id: 'saved-control', label: 'Saved' },
+            ],
+        } as AnyType);
+        const promotedSide = {
+            dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+            projectUuid: PROJECT_UUID,
+            space: { name: 'Space' },
+            spaceAccessContext: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                access: [],
+            },
+        };
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockResolvedValue({
+            promotedDashboard: promotedSide,
+            upstreamDashboard: promotedSide,
+        } as AnyType);
+        vi.mocked(
+            service.promoteService.getPromotionDashboardChanges,
+        ).mockResolvedValue([
+            {
+                dashboards: [
+                    {
+                        action: PromotionAction.UPDATE,
+                        data: { uuid: 'dashboard-uuid' },
+                    },
+                ],
+                charts: [],
+                spaces: [],
+            },
+            [],
+        ] as AnyType);
+        return service;
+    };
+
+    const updateUser = () =>
+        makeSessionUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            { subject: 'SavedChart', action: 'view' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'Dashboard',
+                action: 'promote',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+    const getUpdatedParameterControls = (service: CoderService) =>
+        (
+            vi.mocked(service.promoteService.getPromotedDashboard).mock
+                .calls[0][1] as AnyType
+        ).parameterControls;
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('updates a dashboard with tileTargets resolved to the saved tile uuids', async () => {
+        const service = setupExistingDashboard(true);
+
+        await service.upsertDashboard(
+            updateUser(),
+            PROJECT_UUID,
+            dashboardAsCode.slug,
+            getDashboardAsCode([controlAsCode]),
+        );
+
+        expect(getUpdatedParameterControls(service)).toEqual([
+            controlWithUuids,
+        ]);
+    });
+
+    it('removes the saved controls when the file has none', async () => {
+        const service = setupExistingDashboard(true);
+
+        await service.upsertDashboard(
+            updateUser(),
+            PROJECT_UUID,
+            dashboardAsCode.slug,
+            getDashboardAsCode(undefined),
+        );
+
+        expect(getUpdatedParameterControls(service)).toEqual([]);
+    });
+
+    it('passes no controls on update when the feature flag is off', async () => {
+        const service = setupExistingDashboard(false);
+
+        await service.upsertDashboard(
+            updateUser(),
+            PROJECT_UUID,
+            dashboardAsCode.slug,
+            getDashboardAsCode([controlAsCode]),
+        );
+
+        // Undefined makes the model keep the saved controls
+        const promoted = vi.mocked(service.promoteService.getPromotedDashboard)
+            .mock.calls[0][1] as AnyType;
+        expect(promoted).toHaveProperty('parameterControls', undefined);
+    });
+
+    it.each([true, false])(
+        'creates a dashboard with controls gated by the flag (enabled: %s)',
+        async (flagEnabled) => {
+            const service = setup({ flagEnabled });
+            vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+                space: { uuid: SPACE_UUID } as AnyType,
+                created: false,
+            });
+            vi.mocked(service.dashboardModel.create).mockImplementation(
+                async (_spaceUuid, dashboard) =>
+                    ({
+                        ...dashboardMock,
+                        uuid: 'new-dashboard',
+                        projectUuid: PROJECT_UUID,
+                        tiles: dashboard.tiles,
+                        tabs: [],
+                    }) as AnyType,
+            );
+            const user = makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                { subject: 'Dashboard', action: 'create' },
+                { subject: 'SavedChart', action: 'view' },
+            ]);
+
+            await service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                getDashboardAsCode([controlAsCode]),
+                { mode: 'create' },
+            );
+
+            const created = vi.mocked(service.dashboardModel.create).mock
+                .calls[0][1] as AnyType;
+            // A new dashboard gets new tile uuids
+            expect(created).toHaveProperty(
+                'parameterControls',
+                flagEnabled
+                    ? [
+                          {
+                              ...controlAsCode,
+                              tileTargets: {
+                                  [created.tiles[0].uuid]: 'region',
+                              },
+                          },
+                      ]
+                    : undefined,
+            );
+        },
+    );
 });
 
 describe.each(['create', 'upsert'] as const)(
