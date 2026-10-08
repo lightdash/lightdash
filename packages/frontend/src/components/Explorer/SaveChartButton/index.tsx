@@ -431,9 +431,13 @@ const SaveChartButton: FC<{
                                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
                                 data-tour-title="Edit a verified chart"
                                 data-tour-label="Save and verify the changed chart"
+                                // Top customers, not Orders over time: the
+                                // Verify a chart walkthrough verifies that one,
+                                // and in a copy kept across walkthroughs the
+                                // Verify item would already be gone from it.
                                 data-tour-docs="explore/verified-content.mdx#what-you-see-when-saving-verified-content:1"
                                 data-tour-interactive="true"
-                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
+                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Top customers"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
                                 leftSection={
                                     <IconCircleCheckFilled size={16} />
                                 }
