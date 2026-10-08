@@ -2,8 +2,8 @@ import {
     assertRegisteredAccount,
     MissingConfigError,
     NotFoundError,
-    ParameterError,
-    truncateForMessage,
+    parseOverlapList,
+    parseUuid,
     type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
     type ApiDepartmentOverlapsResponse,
@@ -37,7 +37,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { validate as isUuid } from 'uuid';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -45,42 +44,9 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type DepartmentService } from '../services/DepartmentService/DepartmentService';
 
-// The overlap diagram shows at most three sets: the department and two others
-const MAX_COMPARED_DEPARTMENTS = 2;
-
-// Lower case, as the service compares uuids; a malformed one never reaches the database
-const toUuid = (value: unknown, label: string): string => {
-    if (typeof value !== 'string' || !isUuid(value)) {
-        throw new ParameterError(
-            `${label} must be a valid UUID: ${truncateForMessage(value)}`,
-        );
-    }
-    return value.toLowerCase();
-};
-
-// Comma-separated department uuids; an empty value is the same as leaving it out
-const toDepartmentList = (
-    parameter: 'with' | 'without',
-    value: string | undefined,
-    departmentUuid: string,
-): string[] | undefined => {
-    if (value === undefined || value === '') return undefined;
-    const entries = value.split(',');
-    if (entries.length > MAX_COMPARED_DEPARTMENTS) {
-        throw new ParameterError(
-            `"${parameter}" can list at most ${MAX_COMPARED_DEPARTMENTS} departments`,
-        );
-    }
-    const uuids = entries.map((entry) =>
-        toUuid(entry, `Department in "${parameter}"`),
-    );
-    if (uuids.includes(departmentUuid)) {
-        throw new ParameterError(
-            `"${parameter}" cannot list the department itself`,
-        );
-    }
-    return uuids;
-};
+// Comma-separated; an empty value is the same as leaving it out
+const splitQueryList = (value: string | undefined): string[] | undefined =>
+    value === undefined || value === '' ? undefined : value.split(',');
 
 @Route('/api/v1/org/departments')
 // Under development: hidden until the feature is generally available
@@ -174,22 +140,22 @@ export class OrgDepartmentsController extends BaseController {
         @Query('without') withoutDepartmentUuids?: string,
     ): Promise<ApiDepartmentOverlapsResponse> {
         assertRegisteredAccount(req.account);
-        const validDepartmentUuid = toUuid(departmentUuid, 'Department');
-        const withUuids = toDepartmentList(
+        const validDepartmentUuid = parseUuid(departmentUuid, 'Department');
+        const withUuids = parseOverlapList(
             'with',
-            withDepartmentUuids,
+            splitQueryList(withDepartmentUuids),
             validDepartmentUuid,
         );
-        const withoutUuids = toDepartmentList(
+        const withoutUuids = parseOverlapList(
             'without',
-            withoutDepartmentUuids,
+            splitQueryList(withoutDepartmentUuids),
             validDepartmentUuid,
         );
         const results = await this.departmentService().getOverlaps(
             req.account,
             validDepartmentUuid,
-            withUuids,
-            withoutUuids,
+            withUuids ?? undefined,
+            withoutUuids ?? undefined,
         );
         this.setStatus(200);
         return { status: 'ok', results };
@@ -295,11 +261,11 @@ export class OrgDepartmentsController extends BaseController {
         @Body() body: SetPrimaryDepartment,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
-        const validUserUuid = toUuid(userUuid, 'User');
+        const validUserUuid = parseUuid(userUuid, 'User');
         const validDepartmentUuid =
             body.departmentUuid === null
                 ? null
-                : toUuid(body.departmentUuid, 'Department');
+                : parseUuid(body.departmentUuid, 'Department');
         await this.departmentService().setPrimaryDepartment(
             req.account,
             validUserUuid,

@@ -192,6 +192,21 @@ describe('OrgDepartmentsController', () => {
             expect(setPrimaryDepartment).not.toHaveBeenCalled();
         },
     );
+    it('passes the service errors on the primary department through unchanged', async () => {
+        const notFound = new NotFoundError('not an active member');
+        const invalid = new ParameterError('not in that department');
+        const setPrimaryDepartment = vi
+            .fn()
+            .mockRejectedValueOnce(notFound)
+            .mockRejectedValueOnce(invalid);
+        const controller = buildController({ setPrimaryDepartment });
+        const setPrimary = () =>
+            controller.setPrimaryDepartment(request, PERSON, {
+                departmentUuid: MARKETING,
+            });
+        await expect(setPrimary()).rejects.toBe(notFound);
+        await expect(setPrimary()).rejects.toBe(invalid);
+    });
     it.each([
         {
             name: 'with neither list',
@@ -317,4 +332,17 @@ describe('OrgDepartmentsController', () => {
             expect(getOverlaps).not.toHaveBeenCalled();
         },
     );
+    it('passes the service errors on overlaps through unchanged', async () => {
+        const notFound = new NotFoundError('department not found');
+        const invalid = new ParameterError('not in this organization');
+        const getOverlaps = vi
+            .fn()
+            .mockRejectedValueOnce(notFound)
+            .mockRejectedValueOnce(invalid);
+        const controller = buildController({ getOverlaps });
+        const readOverlaps = () =>
+            controller.getOverlaps(request, DEPARTMENT, MARKETING, undefined);
+        await expect(readOverlaps()).rejects.toBe(notFound);
+        await expect(readOverlaps()).rejects.toBe(invalid);
+    });
 });
