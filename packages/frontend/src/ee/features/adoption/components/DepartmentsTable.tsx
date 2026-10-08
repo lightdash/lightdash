@@ -30,7 +30,6 @@ import {
     buildDepartmentRows,
     formatOwners,
     formatRoleSplit,
-    formatTarget,
     type DepartmentRow,
 } from '../utils/departmentRows';
 import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
@@ -40,7 +39,7 @@ import styles from './DepartmentsTable.module.css';
 const INDENT_PX = 24;
 const EXPANDER_WIDTH = 22;
 const EXPLANATION_MAX_WIDTH = 280;
-// Narrower tables leave out the role split, which the department page header and the map inspector also show
+// Narrower tables leave out the role split, which the map inspector also shows
 const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
 // Hover, keyboard focus and touch, as the headcount note used to be visible text
 const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
@@ -134,7 +133,7 @@ export const DepartmentsTable: FC<Props> = ({
         });
     }, []);
 
-    // Without the role split the widths fit a 1,100 px table, so names, numbers and the target show whole
+    // Without the role split the widths fit a 1,100 px table, so names and numbers show whole
     const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(() => {
         const dataColumns: ContentTableColumnDef<DepartmentRow>[] = [
             {
@@ -337,14 +336,6 @@ export const DepartmentsTable: FC<Props> = ({
                         </Group>
                     );
                 },
-            },
-            {
-                id: 'target',
-                header: 'Target',
-                size: 172,
-                Cell: ({ row }) => (
-                    <CellText>{formatTarget(row.original.department)}</CellText>
-                ),
             },
         ];
         // No empty column for people who cannot edit

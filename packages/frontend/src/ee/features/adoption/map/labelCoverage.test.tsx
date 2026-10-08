@@ -96,33 +96,35 @@ describe.each([
                             return isWhole ? [] : [`${view}: ${circle.name}`];
                         }),
                 ).toEqual([]);
-                const { container, unmount } = renderWithProviders(
-                    <DepartmentMap
-                        width={width}
-                        height={HEIGHT}
-                        circles={circles}
-                        info={info}
-                        dots={[]}
-                        showNames={false}
-                        ariaLabel="Map"
-                        measureText={estimateTextWidth}
-                        layoutKey={view}
-                        highlightedUuid={null}
-                        selectedUserUuid={null}
-                        onDepartmentClick={vi.fn()}
-                        onPersonClick={vi.fn()}
-                    />,
-                );
-                expect(container.querySelectorAll('[data-circle]').length).toBe(
-                    circles.length,
-                );
-                expect(
-                    container.querySelectorAll(
-                        '[data-label], [data-label-backing], svg text',
-                    ),
-                ).toHaveLength(0);
-                unmount();
             });
+            // Nothing drawn at rest depends on the view, so the organization's is drawn at every width
+            const { circles, info } = drawView(departments, null, area);
+            const { container, unmount } = renderWithProviders(
+                <DepartmentMap
+                    width={width}
+                    height={HEIGHT}
+                    circles={circles}
+                    info={info}
+                    dots={[]}
+                    showNames={false}
+                    ariaLabel="Map"
+                    measureText={estimateTextWidth}
+                    layoutKey="top"
+                    highlightedUuid={null}
+                    selectedUserUuid={null}
+                    onDepartmentClick={vi.fn()}
+                    onPersonClick={vi.fn()}
+                />,
+            );
+            expect(container.querySelectorAll('[data-circle]').length).toBe(
+                circles.length,
+            );
+            expect(
+                container.querySelectorAll(
+                    '[data-label], [data-label-backing], svg text',
+                ),
+            ).toHaveLength(0);
+            unmount();
         },
     );
 });

@@ -529,7 +529,6 @@ describe('DepartmentForm', () => {
         await clear(/^Parent department/);
         await userEvent.clear(screen.getByLabelText('Headcount'));
         await userEvent.clear(screen.getByLabelText('Headcount note'));
-        await userEvent.clear(screen.getByLabelText('Target date'));
         await save();
         await waitFor(() => expect(update).toHaveBeenCalled());
         expect(update).toHaveBeenCalledWith({
@@ -538,8 +537,26 @@ describe('DepartmentForm', () => {
                 parentDepartmentUuid: null,
                 headcount: null,
                 headcountNote: null,
-                targetDate: null,
             },
+        });
+    });
+
+    it('has no target fields, and an edit leaves the targets already set alone', async () => {
+        const aiming = dept('Ops', null, 10, {
+            headcount: 40,
+            targetActiveUsers: 30,
+            targetDate: '2026-12-01',
+        });
+        renderEdit(aiming);
+        expect(screen.queryByLabelText(/target/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/target/i)).not.toBeInTheDocument();
+        await userEvent.type(screen.getByLabelText(/^Name/), ' team');
+        await save();
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        // Only the name is sent, so the server keeps the target
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            data: { name: 'Ops team' },
         });
     });
 

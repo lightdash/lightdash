@@ -342,8 +342,20 @@ describe('DepartmentAnalyticsModel', () => {
             Object.assign(new DepartmentAnalyticsModel({ database }), {
                 hasAiTables: async () => exists,
             });
-        const item = { id: 'x', name: 'X', count: 3, distinct_people: 2 };
-        const mapped = { id: 'x', name: 'X', count: 3, distinctPeople: 2 };
+        const item = {
+            id: 'x',
+            name: 'X',
+            project_uuid: 'p',
+            count: 3,
+            distinct_people: 2,
+        };
+        const mapped = {
+            id: 'x',
+            name: 'X',
+            projectUuid: 'p',
+            count: 3,
+            distinctPeople: 2,
+        };
 
         it('returns empty lists for an empty user set without querying', async () => {
             const result = await modelWithAiTables(true).getTopContent(
@@ -421,6 +433,56 @@ describe('DepartmentAnalyticsModel', () => {
             const agents = find(/ai_prompt/);
             expect(agents?.sql).toMatch(/t\.organization_uuid = \$\d/);
             expect(agents?.bindings[0]).toBe('org');
+        });
+
+        it('returns the project of every item, for its link', async () => {
+            const explore = {
+                id: 'p:orders',
+                name: 'orders',
+                project_uuid: 'p',
+                count: 4,
+                distinct_people: 1,
+            };
+            tracker.on
+                .any(/analytics_dashboard_views/)
+                .responseOnce({ rows: [item] });
+            tracker.on.any(/exploreName/).responseOnce({ rows: [explore] });
+            tracker.on.any(/ai_prompt/).responseOnce({ rows: [item] });
+            const result = await modelWithAiTables(true).getTopContent(
+                'org',
+                ['u1'],
+                activeSince,
+                5,
+            );
+            expect(result).toEqual({
+                dashboards: [mapped],
+                // The explore keeps its composite id and carries its project on its own
+                explores: [
+                    {
+                        id: 'p:orders',
+                        name: 'orders',
+                        projectUuid: 'p',
+                        count: 4,
+                        distinctPeople: 1,
+                    },
+                ],
+                aiAgents: [mapped],
+            });
+            const find = (re: RegExp) => reads().find((q) => re.test(q.sql));
+            // The dashboard's project through its space, the join that already ties it to the organization
+            expect(find(/analytics_dashboard_views/)?.sql).toMatch(
+                /p\.project_uuid,[\s\S]*GROUP BY d\.dashboard_uuid, d\.name, p\.project_uuid/,
+            );
+            const explores = find(/exploreName/)?.sql;
+            expect(explores).toMatch(
+                /concat\(qh\.project_uuid, ':', qh\.metric_query->>'exploreName'\) AS id/,
+            );
+            expect(explores).toMatch(/qh\.project_uuid,\s+COUNT/);
+            // A query from a deleted project has no project to link to
+            expect(explores).toContain('qh.project_uuid IS NOT NULL');
+            expect(find(/ai_prompt/)?.sql).toMatch(
+                /a\.project_uuid,[\s\S]*GROUP BY a\.ai_agent_uuid, a\.name, a\.project_uuid/,
+            );
         });
 
         it('passes the user set as one array binding and the limit last', async () => {

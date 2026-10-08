@@ -2,10 +2,11 @@ import {
     assertUnreachable,
     type AdoptionMetrics,
     type DepartmentMember,
-    type DepartmentTargetProgress,
+    type DepartmentTopContent,
     type DepartmentTopContentItem,
     type WeeklyActivePoint,
 } from '@lightdash/common';
+import { getAiAgentPageBase } from '../../aiCopilot/hooks/aiAgentRouting';
 import { formatShare } from './departmentRows';
 import {
     formatCount,
@@ -125,29 +126,31 @@ export const formatMemberSource = (
     return via === null ? 'Direct' : `Via ${member.departmentName}`;
 };
 
-const formatTimeLeft = (weeksLeft: number | null): string | null => {
-    if (weeksLeft === null) return null;
-    if (weeksLeft === 0) return 'Due this week';
-    if (weeksLeft > 0) return `${formatQuantity(weeksLeft, WEEKS)} left`;
-    return `${formatQuantity(-weeksLeft, WEEKS)} overdue`;
-};
-
-export const formatTargetProgress = (
-    progress: DepartmentTargetProgress | null,
-): { value: string; detail: string } => {
-    if (progress === null) return { value: '–', detail: 'No target set' };
-    const value = `${formatCount(progress.activeUsers)} of ${formatCount(progress.targetActiveUsers)}`;
-    if (progress.remaining === 0) return { value, detail: 'Target met' };
-    const left = `${formatCount(progress.remaining)} to go`;
-    const time = formatTimeLeft(progress.weeksLeft);
-    return { value, detail: time === null ? left : `${left} · ${time}` };
-};
-
 export const formatTopContentUsage = (
-    item: DepartmentTopContentItem,
+    item: Pick<DepartmentTopContentItem, 'count' | 'distinctPeople'>,
     noun: Noun,
 ): string =>
     `${formatQuantity(item.count, noun)} · ${formatQuantity(item.distinctPeople, PEOPLE)}`;
+
+export type TopContentKind = keyof DepartmentTopContent;
+
+// Built from the ids and the explore's name alone, each one encoded, so a name can never become a URL
+export const getTopContentPath = (
+    kind: TopContentKind,
+    item: Pick<DepartmentTopContentItem, 'id' | 'name' | 'projectUuid'>,
+): string => {
+    const project = encodeURIComponent(item.projectUuid);
+    switch (kind) {
+        case 'dashboards':
+            return `/projects/${project}/dashboards/${encodeURIComponent(item.id)}/view`;
+        case 'explores':
+            return `/projects/${project}/tables/${encodeURIComponent(item.name)}`;
+        case 'aiAgents':
+            return `${getAiAgentPageBase(project, false)}/${encodeURIComponent(item.id)}`;
+        default:
+            return assertUnreachable(kind, `Unknown content ${kind}`);
+    }
+};
 
 export type WeeklyComparisonPoint = {
     weekStart: string;
@@ -247,15 +250,6 @@ export const getWeeklyChartLabel = (weeks: WeeklyComparisonPoint[]): string => {
     if (first.atOrgRate === null || last.atOrgRate === null) return department;
     return `${department}, against ${formatCount(first.atOrgRate)} and ${formatCount(last.atOrgRate)} at the organization's rate`;
 };
-
-// People counted in the headcount who have no account yet, never shown as rows
-export const countWithoutAccount = (
-    effectiveHeadcount: number | null,
-    memberCount: number,
-): number =>
-    effectiveHeadcount === null
-        ? 0
-        : Math.max(0, effectiveHeadcount - memberCount);
 
 const MORE_ACCOUNTS_THAN_HEADCOUNT = 'More accounts than headcount';
 

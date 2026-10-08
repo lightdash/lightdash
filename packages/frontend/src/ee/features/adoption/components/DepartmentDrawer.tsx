@@ -18,7 +18,6 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -42,7 +41,6 @@ import {
     cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
-    formatTargetDate,
     getAssignableUsers,
     getParentOptions,
     getResolvedMembers,
@@ -51,8 +49,6 @@ import {
     MAX_OWNERS,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
-    TARGET_DATE_MAX,
-    TARGET_DATE_MIN,
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
@@ -63,8 +59,6 @@ type FormValues = {
     parentDepartmentUuid: string | null;
     headcount: number | string;
     headcountNote: string;
-    targetActiveUsers: number | string;
-    targetDate: string | null;
     owners: string[];
     groupUuids: string[];
     memberUuids: string[];
@@ -140,8 +134,6 @@ export const DepartmentForm: FC<FormProps> = ({
             parentDepartmentUuid: department?.parentDepartmentUuid ?? null,
             headcount: department?.headcount ?? '',
             headcountNote: department?.headcountNote ?? '',
-            targetActiveUsers: department?.targetActiveUsers ?? '',
-            targetDate: department?.targetDate ?? null,
             owners: department?.owners.map(encodeOwner) ?? [],
             groupUuids: department?.linkedGroups.map((g) => g.groupUuid) ?? [],
             memberUuids: department?.explicitMemberUuids ?? [],
@@ -160,8 +152,6 @@ export const DepartmentForm: FC<FormProps> = ({
                 value.length > HEADCOUNT_NOTE_MAX_LENGTH
                     ? `Keep the note to ${HEADCOUNT_NOTE_MAX_LENGTH} characters or fewer`
                     : null,
-            targetActiveUsers: (value) =>
-                validateWholeNumber(value, 'Target active users'),
         },
     });
 
@@ -236,8 +226,9 @@ export const DepartmentForm: FC<FormProps> = ({
             parentDepartmentUuid: values.parentDepartmentUuid,
             headcount: toNullableNumber(values.headcount),
             headcountNote: cleanHeadcountNote(values.headcountNote),
-            targetActiveUsers: toNullableNumber(values.targetActiveUsers),
-            targetDate: formatTargetDate(values.targetDate),
+            // Targets are not edited here: a new department has none, and an edit keeps what is set
+            targetActiveUsers: saved?.core.targetActiveUsers ?? null,
+            targetDate: saved?.core.targetDate ?? null,
         };
         setIsSaving(true);
         try {
@@ -344,24 +335,6 @@ export const DepartmentForm: FC<FormProps> = ({
                         clearable
                         {...form.getInputProps('owners')}
                     />
-                    <Group grow align="flex-start">
-                        <NumberInput
-                            label="Target active users"
-                            min={0}
-                            max={MAX_WHOLE_NUMBER}
-                            allowNegative={false}
-                            {...form.getInputProps('targetActiveUsers')}
-                        />
-                        <DateInput
-                            label="Target date"
-                            valueFormat="D MMM YYYY"
-                            minDate={TARGET_DATE_MIN}
-                            maxDate={TARGET_DATE_MAX}
-                            clearable
-                            {...form.getInputProps('targetDate')}
-                        />
-                    </Group>
-
                     <Divider
                         label="Who is in this department"
                         labelPosition="left"

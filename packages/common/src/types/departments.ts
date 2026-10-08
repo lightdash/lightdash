@@ -143,6 +143,7 @@ export type DepartmentWeeklyActivePoint = {
 export type DepartmentTopContentItem = {
     id: string;
     name: string;
+    projectUuid: string; // the project the content is in, for its link
     count: number;
     distinctPeople: number;
 };

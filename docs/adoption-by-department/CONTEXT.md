@@ -93,7 +93,7 @@ Active members divided by effective headcount. Null without a headcount. Uncappe
 _Avoid_: adoption, usage rate
 
 **Target**:
-A number of active people a department aims for, with an optional date. Progress shows the remaining people and the weeks left.
+A number of active people a department aims for, with an optional date. The API reports progress as the people remaining and the weeks left; no page shows or edits targets.
 _Avoid_: goal, OKR, quota
 
 **Weeks left**:
@@ -108,9 +108,9 @@ _Avoid_: WAU, trend line
 The dashed line on a department's trend: the organization's weekly active share applied to this department's people on Lightdash, so a 96 %-active department of 70 and a 5 %-active department of 2,000 are each compared with the same rate. The API's `orgAverage` (the mean across departments at the same depth) is no longer drawn.
 _Avoid_: average department, benchmark, baseline, peer average
 
-**Top content**:
-The dashboards, explores and AI agents a department's members used most in the last 30 days.
-_Avoid_: popular content, favourites, what they use
+**Key content**:
+The dashboards, explores and AI agents a department's members used most in the last 30 days, each linked to the content. The API field is `topContent`.
+_Avoid_: popular content, favourites, what they use, what this department uses
 
 ### Views
 

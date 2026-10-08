@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { memberFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
-    countWithoutAccount,
     filterMembers,
     formatCoverage,
     formatLastActive,
     formatMemberSource,
-    formatTargetProgress,
     formatTopContentUsage,
     getActiveCaption,
     getCoverageCaption,
@@ -16,6 +14,7 @@ import {
     getWeekLabels,
     getWeeklyChartLabel,
     getWeeklyComparison,
+    getTopContentPath,
     getWeekTooltipRows,
     sortMembers,
 } from './departmentDetail';
@@ -146,76 +145,6 @@ describe('formatMemberSource', () => {
         expect(formatMemberSource({ ...group, isDirect: false })).toBe(
             'Group ops-all, via North',
         );
-    });
-});
-
-describe('formatTargetProgress', () => {
-    const progress = {
-        targetActiveUsers: 10,
-        targetDate: '2026-12-31' as string | null,
-        activeUsers: 2,
-        remaining: 8,
-        weeksLeft: 13 as number | null,
-    };
-    it('prompts when there is no target', () => {
-        expect(formatTargetProgress(null)).toEqual({
-            value: '–',
-            detail: 'No target set',
-        });
-    });
-    it('shows progress, what is left and the time remaining', () => {
-        expect(formatTargetProgress(progress)).toEqual({
-            value: '2 of 10',
-            detail: '8 to go · 13 weeks left',
-        });
-        expect(formatTargetProgress({ ...progress, weeksLeft: 1 }).detail).toBe(
-            '8 to go · 1 week left',
-        );
-    });
-    it('says due this week on the target day', () => {
-        expect(formatTargetProgress({ ...progress, weeksLeft: 0 }).detail).toBe(
-            '8 to go · Due this week',
-        );
-    });
-    it('says how overdue once the date has passed', () => {
-        expect(
-            formatTargetProgress({ ...progress, weeksLeft: -1 }).detail,
-        ).toBe('8 to go · 1 week overdue');
-        expect(
-            formatTargetProgress({ ...progress, weeksLeft: -2 }).detail,
-        ).toBe('8 to go · 2 weeks overdue');
-    });
-    it('gives no time phrase without a date', () => {
-        expect(
-            formatTargetProgress({
-                ...progress,
-                targetDate: null,
-                weeksLeft: null,
-            }).detail,
-        ).toBe('8 to go');
-    });
-    it('groups thousands', () => {
-        expect(
-            formatTargetProgress({
-                ...progress,
-                targetActiveUsers: 2400,
-                activeUsers: 1317,
-                remaining: 1083,
-            }),
-        ).toEqual({
-            value: '1,317 of 2,400',
-            detail: '1,083 to go · 13 weeks left',
-        });
-    });
-    it('says the target is met whatever the date', () => {
-        expect(
-            formatTargetProgress({
-                ...progress,
-                activeUsers: 14,
-                remaining: 0,
-                weeksLeft: -3,
-            }),
-        ).toEqual({ value: '14 of 10', detail: 'Target met' });
     });
 });
 
@@ -383,14 +312,6 @@ describe('getWeeklyChartLabel', () => {
     });
 });
 
-describe('countWithoutAccount', () => {
-    it('is the headcount not yet on Lightdash, never negative', () => {
-        expect(countWithoutAccount(10, 4)).toBe(6);
-        expect(countWithoutAccount(3, 5)).toBe(0);
-        expect(countWithoutAccount(null, 5)).toBe(0);
-    });
-});
-
 describe('getCoverageCaption', () => {
     it('counts against the headcount, the same base as the percentage', () => {
         expect(getCoverageCaption(40, 3)).toBe(
@@ -448,16 +369,72 @@ describe('formatTopContentUsage', () => {
     it('gives the count and the people behind it', () => {
         expect(
             formatTopContentUsage(
-                { id: 'd1', name: 'Jaffle', count: 37405, distinctPeople: 92 },
+                { count: 37405, distinctPeople: 92 },
                 { one: 'view', other: 'views' },
             ),
         ).toBe('37,405 views · 92 people');
         expect(
             formatTopContentUsage(
-                { id: 'e1', name: 'orders', count: 1, distinctPeople: 1 },
+                { count: 1, distinctPeople: 1 },
                 { one: 'query', other: 'queries' },
             ),
         ).toBe('1 query · 1 person');
+    });
+});
+
+describe('getTopContentPath', () => {
+    const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
+    it('opens a dashboard, an explore and an AI agent in their project', () => {
+        expect(
+            getTopContentPath('dashboards', {
+                id: 'c2e7a2a4-0b6e-4a49-9d43-0c5b3f0e8f1a',
+                name: 'Sales',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(
+            `/projects/${PROJECT}/dashboards/c2e7a2a4-0b6e-4a49-9d43-0c5b3f0e8f1a/view`,
+        );
+        // The explore's id joins the project and the name, so the name alone opens it
+        expect(
+            getTopContentPath('explores', {
+                id: `${PROJECT}:orders`,
+                name: 'orders',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/orders`);
+        expect(
+            getTopContentPath('aiAgents', {
+                id: '0d1f3c54-8a4e-4f7e-9c0b-2a6b9d1e7f3c',
+                name: 'Analyst',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(
+            `/projects/${PROJECT}/ai-agents/0d1f3c54-8a4e-4f7e-9c0b-2a6b9d1e7f3c`,
+        );
+    });
+    it('encodes the explore name, so a name can never become a URL of its own', () => {
+        expect(
+            getTopContentPath('explores', {
+                id: 'x',
+                name: 'javascript:alert(1)',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/javascript%3Aalert(1)`);
+        expect(
+            getTopContentPath('explores', {
+                id: 'x',
+                name: '../../settings?x=1#y',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/..%2F..%2Fsettings%3Fx%3D1%23y`);
+        // A dashboard or an agent is opened by its id, whatever its name
+        expect(
+            getTopContentPath('dashboards', {
+                id: 'd1',
+                name: 'javascript:alert(1)',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/dashboards/d1/view`);
     });
 });
 

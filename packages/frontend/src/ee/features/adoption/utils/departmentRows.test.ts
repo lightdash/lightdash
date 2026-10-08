@@ -5,7 +5,6 @@ import {
     formatOwners,
     formatRoleSplit,
     formatShare,
-    formatTarget,
 } from './departmentRows';
 
 const tree = [
@@ -153,25 +152,6 @@ describe('formatters', () => {
                 { type: 'user', uuid: 'v', name: 'Bo K' },
             ]),
         ).toBe('Ops leads +2');
-    });
-    it('formats the target with and without a date, short enough for one line', () => {
-        expect(
-            formatTarget({ targetActiveUsers: null, targetDate: null }),
-        ).toBe('–');
-        expect(formatTarget({ targetActiveUsers: 40, targetDate: null })).toBe(
-            '40 active',
-        );
-        expect(
-            formatTarget({ targetActiveUsers: 40, targetDate: '2026-12-31' }),
-        ).toBe('40 by 31 Dec 2026');
-    });
-    it('groups thousands in the target', () => {
-        expect(
-            formatTarget({ targetActiveUsers: 1200, targetDate: null }),
-        ).toBe('1,200 active');
-        expect(
-            formatTarget({ targetActiveUsers: 1200, targetDate: '2026-11-30' }),
-        ).toBe('1,200 by 30 Nov 2026');
     });
 });
 

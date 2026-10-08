@@ -123,10 +123,10 @@ describe('DepartmentsTable', () => {
             await screen.findByRole('columnheader', { name: 'Roles' }),
         ).toBeInTheDocument();
         unmount();
-        // Below that the department page header and the map inspector still show it
+        // Below that the map inspector still shows it
         setTableWidth(1299);
         renderTable();
-        await screen.findByRole('columnheader', { name: 'Target' });
+        await screen.findByRole('columnheader', { name: 'Owner' });
         await new Promise((resolve) => requestAnimationFrame(resolve));
         expect(
             screen.queryByRole('columnheader', { name: 'Roles' }),
@@ -191,7 +191,6 @@ describe('DepartmentsTable', () => {
         const name = 'Customer Success Managers for Enterprise Accounts';
         const roles =
             '493 viewers, 169 interactive viewers, 165 editors, 7 admins';
-        const target = '300 by 30 Nov 2026';
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -209,8 +208,6 @@ describe('DepartmentsTable', () => {
                                     name: 'emea-sales-leadership',
                                 },
                             ],
-                            targetActiveUsers: 300,
-                            targetDate: '2026-11-30',
                             metrics: metricsFixture(5, 50, {
                                 roleSplit: {
                                     viewers: 493,
@@ -229,12 +226,9 @@ describe('DepartmentsTable', () => {
         const link = screen.getByRole('link', { name });
         expect(link).toHaveAttribute('data-truncate', 'end');
         expect(link).toHaveAttribute('title', name);
-        [await screen.findByText(roles), screen.getByText(target)].forEach(
-            (cell) => {
-                expect(cell).toHaveAttribute('data-truncate', 'end');
-                expect(cell).toHaveAttribute('title', cell.textContent);
-            },
-        );
+        const rolesCell = await screen.findByText(roles);
+        expect(rolesCell).toHaveAttribute('data-truncate', 'end');
+        expect(rolesCell).toHaveAttribute('title', roles);
         expect(screen.getByText('50% (5)')).toHaveAttribute(
             'data-truncate',
             'end',
@@ -292,8 +286,6 @@ describe('DepartmentsTable', () => {
                         dept('Operations', null, null, {
                             headcount: 2350,
                             effectiveHeadcount: 2350,
-                            targetActiveUsers: 1200,
-                            targetDate: '2026-11-30',
                             metrics: metricsFixture(1317, 56, {
                                 activeCount30d: 1200,
                                 activePct: 51,
@@ -315,7 +307,30 @@ describe('DepartmentsTable', () => {
         expect(screen.getByText('2,350')).toBeVisible();
         expect(screen.getByText('56% (1,317)')).toBeVisible();
         expect(screen.getByText('51% (1,200)')).toBeVisible();
-        expect(screen.getByText('1,200 by 30 Nov 2026')).toBeVisible();
+    });
+    it('has no target column, even for a department with a target', async () => {
+        setTableWidth(WIDE);
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Operations', null, 50, {
+                            targetActiveUsers: 1200,
+                            targetDate: '2026-11-30',
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            await screen.findByRole('columnheader', { name: 'Roles' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('columnheader', { name: 'Target' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/1,200|30 Nov 2026/)).not.toBeInTheDocument();
     });
     it('shows coverage above 100% with the counts behind it, explained in a tooltip', async () => {
         renderWithProviders(
@@ -426,7 +441,8 @@ describe('DepartmentsTable', () => {
         setTableWidth(WIDE);
         renderTable(false);
         await screen.findByRole('columnheader', { name: 'Roles' });
-        expect(screen.getAllByRole('columnheader')).toHaveLength(8);
+        // Department, headcount, coverage, active, roles, 12 weeks and owner, with no edit column
+        expect(screen.getAllByRole('columnheader')).toHaveLength(7);
         expect(
             screen.queryByRole('button', { name: /Add headcount/ }),
         ).not.toBeInTheDocument();

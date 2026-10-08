@@ -1,9 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Anchor,
-    Badge,
     Button,
-    Group,
     SimpleGrid,
     Stack,
     Table,
@@ -29,19 +27,14 @@ import {
     getDepartmentPath,
 } from '../features/adoption/utils/adoptionNav';
 import {
-    countWithoutAccount,
     formatCoverage,
-    formatTargetProgress,
     getActiveCaption,
     getCoverageCaption,
     getCoverageNote,
     getWeeklyComparison,
 } from '../features/adoption/utils/departmentDetail';
-import {
-    formatRoleSplit,
-    sortByCoverage,
-} from '../features/adoption/utils/departmentRows';
-import { formatCount, type Noun } from '../features/adoption/utils/format';
+import { sortByCoverage } from '../features/adoption/utils/departmentRows';
+import { type Noun } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
     useOrgAdoptionSummary,
@@ -153,11 +146,6 @@ const AdoptionDepartment: FC = () => {
     const { department, ancestors, children, members, topContent } =
         detail.data;
     const { metrics } = department;
-    const target = formatTargetProgress(detail.data.targetProgress);
-    const withoutAccount = countWithoutAccount(
-        department.effectiveHeadcount,
-        metrics.memberCount,
-    );
 
     return (
         <SettingsPage
@@ -185,70 +173,13 @@ const AdoptionDepartment: FC = () => {
             }
         >
             <Stack gap="lg">
-                <Group gap="lg">
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Owners
-                        </Text>
-                        {department.owners.length === 0 && (
-                            <Text fz="sm">–</Text>
-                        )}
-                        {department.owners.map((owner) => (
-                            <Badge key={`${owner.type}:${owner.uuid}`}>
-                                {owner.name}
-                            </Badge>
-                        ))}
-                    </Group>
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Headcount
-                        </Text>
-                        <Text fz="sm">
-                            {department.effectiveHeadcount === null
-                                ? 'Not set'
-                                : formatCount(department.effectiveHeadcount)}
-                        </Text>
-                        {withoutAccount > 0 && (
-                            <Text fz="sm" c="dimmed">
-                                {`${formatCount(withoutAccount)} without an account`}
-                            </Text>
-                        )}
-                        {/* In full, wrapping when long, so it reads the same with a mouse, a keyboard or touch */}
-                        {department.headcountNote !== null && (
-                            <Text fz="xs" c="dimmed">
-                                {department.headcountNote}
-                            </Text>
-                        )}
-                    </Group>
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Linked groups
-                        </Text>
-                        {department.linkedGroups.length === 0 && (
-                            <Text fz="sm">–</Text>
-                        )}
-                        {department.linkedGroups.map((group) => (
-                            <Badge key={group.groupUuid} variant="outline">
-                                {group.name}
-                            </Badge>
-                        ))}
-                    </Group>
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Roles
-                        </Text>
-                        <Text fz="sm">
-                            {formatRoleSplit(metrics.roleSplit)}
-                        </Text>
-                    </Group>
-                </Group>
                 {department.headcountBelowChildren && (
                     <Text fz="sm" c="yellow">
                         Headcount is lower than the total of its sub-departments
                     </Text>
                 )}
 
-                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <StatTile
                         label="Coverage"
                         value={formatCoverage(
@@ -274,11 +205,6 @@ const AdoptionDepartment: FC = () => {
                             metrics.memberCount,
                         )}
                     />
-                    <StatTile
-                        label="Target progress"
-                        value={target.value}
-                        detail={target.detail}
-                    />
                 </SimpleGrid>
 
                 <Stack gap="xs">
@@ -292,20 +218,23 @@ const AdoptionDepartment: FC = () => {
                 </Stack>
 
                 <Stack gap="xs">
-                    <Title order={5}>What this department uses</Title>
+                    <Title order={5}>Key content</Title>
                     <SimpleGrid cols={{ base: 1, md: 3 }}>
                         <TopContentList
                             title="Dashboards"
+                            kind="dashboards"
                             noun={VIEWS}
                             items={topContent.dashboards}
                         />
                         <TopContentList
                             title="Explores"
+                            kind="explores"
                             noun={QUERIES}
                             items={topContent.explores}
                         />
                         <TopContentList
                             title="AI agents"
+                            kind="aiAgents"
                             noun={PROMPTS}
                             items={topContent.aiAgents}
                         />

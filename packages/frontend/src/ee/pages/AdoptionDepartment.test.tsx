@@ -3,7 +3,6 @@ import {
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -102,7 +101,24 @@ const loaded = (data: DepartmentDetail) => ({
     error: null,
 });
 
-const renderPage = (segment: string = DEPARTMENT) =>
+const ORGANIZATION = '172a2270-000f-42be-9c68-c4752c23ae51';
+// Someone who can manage departments, so the page offers Edit department
+const MANAGER: Parameters<typeof renderWithProviders>[1] = {
+    user: {
+        abilityRules: [
+            {
+                action: 'manage',
+                subject: 'OrganizationAdoption',
+                conditions: { organizationUuid: ORGANIZATION },
+            },
+        ],
+    },
+};
+
+const renderPage = (
+    segment: string = DEPARTMENT,
+    appMocks?: Parameters<typeof renderWithProviders>[1],
+) =>
     renderWithProviders(
         <MemoryRouter initialEntries={[`/generalSettings/adoption/${segment}`]}>
             <Routes>
@@ -112,6 +128,7 @@ const renderPage = (segment: string = DEPARTMENT) =>
                 />
             </Routes>
         </MemoryRouter>,
+        appMocks,
     );
 
 const failure = (statusCode: number) => ({
@@ -298,75 +315,108 @@ describe('AdoptionDepartment', () => {
                 ),
             ).toBeVisible();
         });
-        it('shows the headcount note in full beside the headcount, with nothing to hover', async () => {
-            renderPage();
-            const note = screen.getByText(LONG_NOTE);
-            expect(note).toBeVisible();
-            expect(note).not.toHaveAttribute('data-truncate');
+        it('keeps the breadcrumb, the title and Edit department, with no line of owners, headcount, groups or roles under them', async () => {
+            renderPage(DEPARTMENT, MANAGER);
             expect(
-                screen.getByText('Headcount').parentElement,
-            ).toContainElement(note);
-            await userEvent.hover(note);
-            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-            await userEvent.hover(screen.getByText('110'));
-            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-        });
-        it('gives the role split after the headcount and the linked groups', () => {
-            renderPage();
-            const roles = screen.getByText('Roles');
-            expect(roles.parentElement).toHaveTextContent(
-                /^Roles129 viewers, 40 interactive viewers, 20 editors, 2 admins$/,
+                await screen.findByRole('button', { name: 'Edit department' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'Adoption' }),
+            ).toHaveAttribute('href', '/generalSettings/adoption');
+            expect(screen.getByRole('heading', { name: 'Data' })).toBeVisible();
+            ['Owners', 'Headcount', 'Linked groups', 'Roles'].forEach((label) =>
+                expect(screen.queryByText(label)).not.toBeInTheDocument(),
             );
+            expect(screen.queryByText(LONG_NOTE)).not.toBeInTheDocument();
             expect(
-                screen
-                    .getByText('Linked groups')
-                    .compareDocumentPosition(roles) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
+                screen.queryByText(/without an account|viewers/),
+            ).not.toBeInTheDocument();
         });
-        it('leaves roles nobody holds out of the role split', () => {
-            const few = departmentDetail();
+        it('shows coverage and activity, and no target even when one is set', () => {
+            const aiming = departmentDetail();
             detail.mockReturnValue(
                 loaded({
-                    ...few,
+                    ...aiming,
                     department: {
-                        ...few.department,
-                        metrics: {
-                            ...few.department.metrics,
-                            roleSplit: {
-                                viewers: 1171,
-                                interactiveViewers: 0,
-                                editors: 1,
-                                admins: 0,
+                        ...aiming.department,
+                        targetActiveUsers: 120,
+                        targetDate: '2026-12-31',
+                    },
+                    targetProgress: {
+                        targetActiveUsers: 120,
+                        targetDate: '2026-12-31',
+                        activeUsers: 85,
+                        remaining: 35,
+                        weeksLeft: 12,
+                    },
+                }),
+            );
+            renderPage();
+            expect(
+                screen.getByRole('group', { name: 'Coverage' }),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('group', { name: 'Active in 30 days' }),
+            ).toBeVisible();
+            expect(
+                screen.queryByRole('group', { name: 'Target progress' }),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByText(/target/i)).not.toBeInTheDocument();
+        });
+        it('lists the key content, each item linked to it', () => {
+            const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
+            const used = departmentDetail();
+            detail.mockReturnValue(
+                loaded({
+                    ...used,
+                    topContent: {
+                        dashboards: [
+                            {
+                                id: 'd1',
+                                name: 'Sales',
+                                projectUuid: PROJECT,
+                                count: 3,
+                                distinctPeople: 2,
                             },
-                        },
+                        ],
+                        explores: [
+                            {
+                                id: `${PROJECT}:orders`,
+                                name: 'orders',
+                                projectUuid: PROJECT,
+                                count: 5,
+                                distinctPeople: 2,
+                            },
+                        ],
+                        aiAgents: [
+                            {
+                                id: 'a1',
+                                name: 'Analyst',
+                                projectUuid: PROJECT,
+                                count: 1,
+                                distinctPeople: 1,
+                            },
+                        ],
                     },
                 }),
             );
             renderPage();
-            expect(screen.getByText('Roles').parentElement).toHaveTextContent(
-                /^Roles1,171 viewers, 1 editor$/,
+            expect(
+                screen.getByRole('heading', { name: 'Key content' }),
+            ).toBeVisible();
+            expect(
+                screen.queryByText('What this department uses'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+                'href',
+                `/projects/${PROJECT}/dashboards/d1/view`,
             );
-        });
-        it('groups thousands in the header', () => {
-            const big = departmentDetail();
-            detail.mockReturnValue(
-                loaded({
-                    ...big,
-                    department: {
-                        ...big.department,
-                        headcount: 2350,
-                        effectiveHeadcount: 2350,
-                        metrics: {
-                            ...big.department.metrics,
-                            memberCount: 221,
-                        },
-                    },
-                }),
-            );
-            renderPage();
-            expect(screen.getByText('2,350')).toBeVisible();
-            expect(screen.getByText('2,129 without an account')).toBeVisible();
+            expect(
+                screen.getByRole('link', { name: 'orders' }),
+            ).toHaveAttribute('href', `/projects/${PROJECT}/tables/orders`);
+            expect(
+                screen.getByRole('link', { name: 'Analyst' }),
+            ).toHaveAttribute('href', `/projects/${PROJECT}/ai-agents/a1`);
         });
     });
 });

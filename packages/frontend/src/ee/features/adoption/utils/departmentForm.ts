@@ -15,9 +15,6 @@ export const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 // The server refuses more owners than this
 export const MAX_OWNERS = 20;
 export const MAX_WHOLE_NUMBER = 2147483647;
-// The server accepts target dates in these years only
-export const TARGET_DATE_MIN = new Date(1900, 0, 1);
-export const TARGET_DATE_MAX = new Date(2200, 11, 31);
 
 export type NamedDepartment = {
     departmentUuid: string;
@@ -128,22 +125,6 @@ export const getResolvedMembersFromDetail = (
         member,
         via: member.isDirect ? null : member.departmentName,
     }));
-
-const pad = (value: number, length: number): string =>
-    String(value).padStart(length, '0');
-
-// Builds YYYY-MM-DD from the local calendar day; toISOString() would shift it by the UTC offset
-export const formatTargetDate = (
-    value: Date | string | null,
-): string | null => {
-    if (value === null) return null;
-    if (typeof value === 'string') {
-        const day = /^\d{4}-\d{2}-\d{2}/.exec(value);
-        return day ? day[0] : null;
-    }
-    if (Number.isNaN(value.getTime())) return null;
-    return `${pad(value.getFullYear(), 4)}-${pad(value.getMonth() + 1, 2)}-${pad(value.getDate(), 2)}`;
-};
 
 export const validateWholeNumber = (
     value: number | string,

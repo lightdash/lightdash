@@ -85,11 +85,7 @@ const getDepartmentTiles = (
     department: DepartmentWithMetrics,
     totals: ViewTotals,
 ): TileProps[] => {
-    const { metrics, effectiveHeadcount, targetActiveUsers } = department;
-    const remaining =
-        targetActiveUsers === null
-            ? 0
-            : Math.max(targetActiveUsers - metrics.activeCount30d, 0);
+    const { metrics, effectiveHeadcount } = department;
     // Above the headcount the share carries the counts behind it, as on the department page
     const isActiveAboveHeadcount =
         metrics.activePct !== null &&
@@ -121,18 +117,6 @@ const getDepartmentTiles = (
                       label: 'No account',
                       value: countWithoutAccount(totals),
                       note: null,
-                  },
-              ]),
-        ...(targetActiveUsers === null
-            ? []
-            : [
-                  {
-                      label: 'Target',
-                      value: targetActiveUsers,
-                      note:
-                          remaining === 0
-                              ? 'met'
-                              : `${formatCount(remaining)} to go`,
                   },
               ]),
     ];

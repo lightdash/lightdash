@@ -34,6 +34,7 @@ export type MemberActivityRow = {
 type TopContentRow = {
     id: string;
     name: string;
+    project_uuid: string;
     count: number;
     distinct_people: number;
 };
@@ -56,6 +57,7 @@ export const COUNTED_QUERY_CONTEXTS: QueryExecutionContext[] = Object.values(
 const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
     id: row.id,
     name: row.name,
+    projectUuid: row.project_uuid,
     count: row.count,
     distinctPeople: row.distinct_people,
 });
@@ -282,6 +284,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT d.dashboard_uuid AS id,
                    d.name,
+                   p.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT v.user_uuid)::int AS distinct_people
             FROM analytics_dashboard_views v
@@ -293,7 +296,7 @@ export class DepartmentAnalyticsModel {
               AND v.user_uuid = ANY(?::uuid[])
               AND v.timestamp >= ?
               AND d.deleted_at IS NULL
-            GROUP BY d.dashboard_uuid, d.name
+            GROUP BY d.dashboard_uuid, d.name, p.project_uuid
             ORDER BY count DESC, d.name ASC
             LIMIT ?
             `,
@@ -314,6 +317,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT concat(qh.project_uuid, ':', qh.metric_query->>'exploreName') AS id,
                    qh.metric_query->>'exploreName' AS name,
+                   qh.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT qh.created_by_user_uuid)::int AS distinct_people
             FROM query_history qh
@@ -321,6 +325,7 @@ export class DepartmentAnalyticsModel {
               AND qh.created_by_user_uuid = ANY(?::uuid[])
               AND qh.context = ANY(?::text[])
               AND qh.created_at >= ?
+              AND qh.project_uuid IS NOT NULL
               AND qh.metric_query->>'exploreName' IS NOT NULL
             GROUP BY qh.project_uuid, qh.metric_query->>'exploreName'
             ORDER BY count DESC, name ASC
@@ -350,6 +355,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT a.ai_agent_uuid AS id,
                    a.name,
+                   a.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT pr.created_by_user_uuid)::int AS distinct_people
             FROM ai_prompt pr
@@ -360,7 +366,7 @@ export class DepartmentAnalyticsModel {
               AND pr.created_by_user_uuid = ANY(?::uuid[])
               AND pr.created_at >= ?
               AND NOT pr.hidden
-            GROUP BY a.ai_agent_uuid, a.name
+            GROUP BY a.ai_agent_uuid, a.name, a.project_uuid
             ORDER BY count DESC, a.name ASC
             LIMIT ?
             `,

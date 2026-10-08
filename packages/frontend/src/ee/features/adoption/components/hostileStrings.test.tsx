@@ -27,6 +27,9 @@ const GROUP_OWNER = hostile('Group owner');
 const GROUP = hostile('Group');
 const NOTE = hostile('Note');
 const DASHBOARD = hostile('Dashboard');
+const EXPLORE = hostile('Explore');
+const AGENT = hostile('Agent');
+const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
 const PERSON = hostile('Person');
 const SURNAME = hostile('Surname');
 const EMAIL = hostile('Email');
@@ -36,7 +39,7 @@ const CHILD = hostile('Child');
 vi.mock('../../../../components/EChartsReactWrapper', () => ({
     default: () => null,
 }));
-const { mutation, hooks, layout } = vi.hoisted(() => ({
+const { mutation, hooks } = vi.hoisted(() => ({
     mutation: () => ({
         mutate: vi.fn(),
         mutateAsync: vi.fn(),
@@ -47,8 +50,6 @@ const { mutation, hooks, layout } = vi.hoisted(() => ({
         membership: [] as DepartmentMembership[],
         detail: undefined as DepartmentDetail | undefined,
     },
-    // jsdom has no layout, so text is never measured as cut short unless a test says it is
-    layout: { isTruncated: false },
 }));
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useCreateDepartment: mutation,
@@ -75,12 +76,6 @@ vi.mock('../../../../hooks/useOrganizationUsers', () => ({
 vi.mock('../../../../hooks/useOrganizationGroups', () => ({
     useOrganizationGroups: () => ({ data: [] }),
 }));
-vi.mock('../../../../hooks/useIsTruncated', () => ({
-    useIsTruncated: () => ({
-        ref: { current: null },
-        isTruncated: layout.isTruncated,
-    }),
-}));
 
 const hostileDepartment = dept(NAME, null, 50, {
     departmentUuid: 'hostile',
@@ -96,6 +91,71 @@ const expectLiteral = (text: string) =>
     expect(
         screen.getAllByText((content) => content.includes(text)).length,
     ).toBeGreaterThan(0);
+
+// One of each kind of content, every name hostile, plus an explore named as a javascript: URL
+const KEY_CONTENT = {
+    dashboards: [
+        {
+            id: 'd1',
+            name: DASHBOARD,
+            projectUuid: PROJECT,
+            count: 3,
+            distinctPeople: 2,
+        },
+    ],
+    explores: [
+        {
+            id: `${PROJECT}:hostile`,
+            name: EXPLORE,
+            projectUuid: PROJECT,
+            count: 2,
+            distinctPeople: 1,
+        },
+        {
+            id: `${PROJECT}:script`,
+            name: 'javascript:alert(1)',
+            projectUuid: PROJECT,
+            count: 1,
+            distinctPeople: 1,
+        },
+    ],
+    aiAgents: [
+        {
+            id: 'a1',
+            name: AGENT,
+            projectUuid: PROJECT,
+            count: 1,
+            distinctPeople: 1,
+        },
+    ],
+};
+
+// Every link is built from the ids and the explore's encoded name, never from a name as typed
+const expectKeyContentLinks = () => {
+    expect(screen.getByRole('link', { name: DASHBOARD })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/dashboards/d1/view`,
+    );
+    expect(screen.getByRole('link', { name: EXPLORE })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/tables/${encodeURIComponent(EXPLORE)}`,
+    );
+    expect(
+        screen.getByRole('link', { name: 'javascript:alert(1)' }),
+    ).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/tables/javascript%3Aalert(1)`,
+    );
+    expect(screen.getByRole('link', { name: AGENT })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/ai-agents/a1`,
+    );
+    // A name cut short keeps the whole name in its title, as text
+    expect(screen.getByRole('link', { name: DASHBOARD })).toHaveAttribute(
+        'title',
+        DASHBOARD,
+    );
+};
 
 const expectNothingInjected = () => {
     expect(document.querySelector('img')).toBeNull();
@@ -113,7 +173,6 @@ describe('typed strings render as text', () => {
     afterEach(() => {
         hooks.membership = [];
         hooks.detail = undefined;
-        layout.isTruncated = false;
     });
 
     it('in the list table', async () => {
@@ -192,17 +251,31 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('in the top content list', () => {
+    it('in the key content lists, whose links are built from ids alone', () => {
         renderWithProviders(
-            <TopContentList
-                title="Dashboards"
-                noun={{ one: 'view', other: 'views' }}
-                items={[
-                    { id: 'd1', name: DASHBOARD, count: 3, distinctPeople: 2 },
-                ]}
-            />,
+            <MemoryRouter>
+                <TopContentList
+                    title="Dashboards"
+                    kind="dashboards"
+                    noun={{ one: 'view', other: 'views' }}
+                    items={KEY_CONTENT.dashboards}
+                />
+                <TopContentList
+                    title="Explores"
+                    kind="explores"
+                    noun={{ one: 'query', other: 'queries' }}
+                    items={KEY_CONTENT.explores}
+                />
+                <TopContentList
+                    title="AI agents"
+                    kind="aiAgents"
+                    noun={{ one: 'prompt', other: 'prompts' }}
+                    items={KEY_CONTENT.aiAgents}
+                />
+            </MemoryRouter>,
         );
-        expectLiteral(DASHBOARD);
+        [DASHBOARD, EXPLORE, AGENT].forEach(expectLiteral);
+        expectKeyContentLinks();
         expectNothingInjected();
     });
 
@@ -312,11 +385,10 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('on the department page: header, badges, headcount note, sub-departments and people', async () => {
+    it('on the department page: title, breadcrumb, key content, sub-departments and people', () => {
         const PAGE = '11111111-2222-4333-8444-555555555555';
         const PARENT_UUID = '22222222-3333-4444-8555-666666666666';
         const CHILD_UUID = '33333333-4444-4555-8666-777777777777';
-        layout.isTruncated = true;
         hooks.detail = {
             department: {
                 ...hostileDepartment,
@@ -337,13 +409,7 @@ describe('typed strings render as text', () => {
             ],
             targetProgress: null,
             weeklyActive: [],
-            topContent: {
-                dashboards: [
-                    { id: 'd1', name: DASHBOARD, count: 3, distinctPeople: 2 },
-                ],
-                explores: [],
-                aiAgents: [],
-            },
+            topContent: KEY_CONTENT,
             members: [
                 memberFixture('p1', null, {
                     firstName: PERSON,
@@ -374,28 +440,21 @@ describe('typed strings render as text', () => {
             'href',
             `/generalSettings/adoption/${PARENT_UUID}`,
         );
-        expectLiteral(OWNER);
-        expectLiteral(GROUP_OWNER);
-        expectLiteral(GROUP);
-        expectLiteral(NOTE);
         expect(screen.getByRole('link', { name: CHILD })).toHaveAttribute(
             'href',
             `/generalSettings/adoption/${CHILD_UUID}`,
         );
-        expectLiteral(DASHBOARD);
+        [DASHBOARD, EXPLORE, AGENT].forEach(expectLiteral);
+        expectKeyContentLinks();
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectLiteral(EMAIL);
         expectLiteral(`Group ${GROUP}`);
-
-        // The note is shown in full beside the headcount, as text
-        const note = screen.getByText(NOTE);
-        expect(screen.getByText('Headcount').parentElement).toContainElement(
-            note,
+        // Owners, linked groups and the headcount note are in Edit department, not on the page
+        [OWNER, GROUP_OWNER, NOTE].forEach((text) =>
+            expect(
+                screen.queryAllByText((content) => content.includes(text)),
+            ).toHaveLength(0),
         );
-        expect(note).not.toHaveAttribute('data-truncate');
-        // A dashboard name cut short gives the whole name in its tooltip, as text
-        await userEvent.hover(screen.getByText(DASHBOARD));
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(DASHBOARD);
         expectNothingInjected();
     });
 

@@ -119,6 +119,37 @@ const departmentFixture = (
     explicitMemberUuids: [],
 });
 
+// One item of each kind, each with the project its link opens in
+const TOP_CONTENT = {
+    dashboards: [
+        {
+            id: 'dashboard-uuid',
+            name: 'Sales',
+            projectUuid: 'project-uuid',
+            count: 3,
+            distinctPeople: 2,
+        },
+    ],
+    explores: [
+        {
+            id: 'project-uuid:orders',
+            name: 'orders',
+            projectUuid: 'project-uuid',
+            count: 5,
+            distinctPeople: 2,
+        },
+    ],
+    aiAgents: [
+        {
+            id: 'agent-uuid',
+            name: 'Analyst',
+            projectUuid: 'project-uuid',
+            count: 1,
+            distinctPeople: 1,
+        },
+    ],
+};
+
 const buildService = (opts: {
     flag: boolean;
     rows?: unknown[];
@@ -139,9 +170,7 @@ const buildService = (opts: {
             .fn()
             .mockResolvedValue({ activeUserUuids: [], weeklyActivity: [] }),
         getMemberActivity: vi.fn().mockResolvedValue([]),
-        getTopContent: vi
-            .fn()
-            .mockResolvedValue({ dashboards: [], explores: [], aiAgents: [] }),
+        getTopContent: vi.fn().mockResolvedValue(TOP_CONTENT),
     };
     const service = new DepartmentService({
         featureFlagService: {
@@ -1121,6 +1150,8 @@ describe('DepartmentService.getDetail', () => {
             'a',
             'b',
         ]);
+        // Each item keeps the project its link opens in
+        expect(detail.topContent).toEqual(TOP_CONTENT);
         expect(detail.targetProgress).toMatchObject({
             targetActiveUsers: 5,
             remaining: 5,

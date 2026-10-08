@@ -893,6 +893,24 @@ describe('AdoptionMap', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows no target in the inspector, even for a department with one', async () => {
+        renderMap([
+            d('Finance', null, 8, 3, 2, {
+                targetActiveUsers: 6,
+                targetDate: '2026-12-31',
+            }),
+            d('Legal', null, 60, 0, 0),
+        ]);
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Finance,/ }),
+        );
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(within(details).getByText('On Lightdash')).toBeInTheDocument();
+        expect(within(details).queryByText(/target|to go/i)).toBeNull();
+    });
+
     it('leaves the role split out of the inspector for a department with nobody on Lightdash', async () => {
         renderMap([d('Legal', null, 60, 0, 0), d('Finance', null, 8, 3, 2)]);
         await userEvent.click(screen.getByRole('button', { name: /^Legal,/ }));

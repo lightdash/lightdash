@@ -1,11 +1,9 @@
 import {
     getChildrenMap,
-    type Department,
     type DepartmentOwner,
     type DepartmentWithMetrics,
     type RoleSplit,
 } from '@lightdash/common';
-import dayjs from 'dayjs';
 import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
 
 // Levels shown in the table; deeper levels open on the department page
@@ -97,15 +95,4 @@ export const formatOwners = (owners: DepartmentOwner[]): string => {
     if (owners.length === 0) return '–';
     const [first, ...rest] = owners;
     return rest.length > 0 ? `${first.name} +${rest.length}` : first.name;
-};
-
-// Short enough for one line in the list: "120 by 31 Dec 2026", or "120 active" without a date
-export const formatTarget = (
-    department: Pick<Department, 'targetActiveUsers' | 'targetDate'>,
-): string => {
-    if (department.targetActiveUsers === null) return '–';
-    const count = formatCount(department.targetActiveUsers);
-    return department.targetDate === null
-        ? `${count} active`
-        : `${count} by ${dayjs(department.targetDate).format('D MMM YYYY')}`;
 };
