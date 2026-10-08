@@ -13,7 +13,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 color="orange"
                 icon={<MantineIcon icon={IconExclamationCircle} />}
             >
-                <Text c="orange" fz="sm">
+                <Text fz="sm">
                     This project is deployed using the CLI. To refresh native
                     YAML and edit source files in Lightdash, select GitHub above
                     and choose Native Lightdash YAML. You can also deploy with{' '}
