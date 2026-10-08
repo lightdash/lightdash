@@ -62,6 +62,20 @@ const TIMESTAMP_FIELDS: Record<ContentType, string[]> = {
     dashboard: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
 };
 
+const CREATE_REJECTED_PROPERTIES: Record<
+    ContentType,
+    Array<{ property: string; reason: string }>
+> = {
+    chart: [],
+    dashboard: [],
+    sql_chart: [
+        {
+            property: 'connection',
+            reason: 'SQL charts always run on the primary connection',
+        },
+    ],
+};
+
 const CONTENT_LABELS: Record<ContentType, string> = {
     chart: 'chart',
     dashboard: 'dashboard',
@@ -132,18 +146,44 @@ export class AiAgentContentValidation {
     }
 
     validateContent(type: ContentType, content: unknown): void {
+        AiAgentContentValidation.throwIfInvalid(
+            type,
+            this.getSchemaErrors(type, content),
+        );
+    }
+
+    /** Also rejects fields that only content-as-code uploads may set. */
+    validateNewContent(type: ContentType, content: unknown): void {
+        const rejected = CREATE_REJECTED_PROPERTIES[type]
+            .filter(
+                ({ property }) =>
+                    typeof content === 'object' &&
+                    content !== null &&
+                    property in content,
+            )
+            .map(
+                ({ property, reason }) =>
+                    `/${property} is not allowed: ${reason}`,
+            );
+        AiAgentContentValidation.throwIfInvalid(type, [
+            ...rejected,
+            ...this.getSchemaErrors(type, content),
+        ]);
+    }
+
+    private getSchemaErrors(type: ContentType, content: unknown): string[] {
         const validator = this.getValidator(type);
         const normalizedContent = this.normalizeTimestampFields(type, content);
-        const valid = validator(normalizedContent);
+        return validator(normalizedContent)
+            ? []
+            : AiAgentContentValidation.formatErrors(validator.errors ?? []);
+    }
 
-        if (valid) {
-            return;
-        }
-
-        const validationErrors = AiAgentContentValidation.formatErrors(
-            validator.errors ?? [],
-        );
-
+    private static throwIfInvalid(
+        type: ContentType,
+        validationErrors: string[],
+    ): void {
+        if (validationErrors.length === 0) return;
         throw new ParameterError(
             `Edited ${CONTENT_LABELS[type]} is invalid:\n${validationErrors
                 .map((error) => `- ${error}`)

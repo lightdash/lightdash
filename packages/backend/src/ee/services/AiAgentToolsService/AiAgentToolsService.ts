@@ -2648,7 +2648,7 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
             async () => {
-                this.aiAgentContentValidation.validateContent(type, content);
+                this.aiAgentContentValidation.validateNewContent(type, content);
                 await this.assertContentSpaceInScope(
                     context,
                     content.spaceSlug,
@@ -2761,19 +2761,17 @@ export class AiAgentToolsService extends BaseService {
         this.assertCanSaveSqlCharts(context);
         await approveSql();
 
-        // SQL charts always run on the project's primary connection.
-        const { connection, ...sqlChart } = content;
         const promotionChanges = await this.coderService.upsertSqlChart(
             context.user,
             context.projectUuid,
-            sqlChart.slug,
-            sqlChart,
+            content.slug,
+            content,
             { mode: 'create' },
         );
         const created = promotionChanges.charts[0]?.data;
         if (!created?.uuid) {
             throw new NotFoundError(
-                `Created SQL chart "${sqlChart.slug}" was not found`,
+                `Created SQL chart "${content.slug}" was not found`,
             );
         }
         const createdContent = await this.readContentAsCode(context, {
