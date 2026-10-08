@@ -24,6 +24,7 @@ export const CURRICULUM: string[] = [
     'manage:Space',
     'manage:ProjectHomepage',
     'manage:PinnedItems',
+    'manage:DeletedContent',
     'manage:ContentVerification',
     'manage:VerifiedContent',
     'manage:Explore',
