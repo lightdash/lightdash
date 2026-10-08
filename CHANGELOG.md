@@ -1,3 +1,10 @@
+# [2.493.0](https://github.com/lightdash/lightdash/compare/2.492.0...2.493.0) (2026-10-08)
+
+
+### Features
+
+* **sdk:** opt-in native rendering for the embedded AI agent ([#30726](https://github.com/lightdash/lightdash/issues/30726)) ([2123bcb](https://github.com/lightdash/lightdash/commit/2123bcb51a2d93ca97566d200505fac2cec776fa))
+
 # [2.492.0](https://github.com/lightdash/lightdash/compare/2.491.0...2.492.0) (2026-10-08)
 
 
