@@ -10,17 +10,14 @@ const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
 
         <Alert
             color="orange"
-            icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
+            icon={<MantineIcon icon={IconExclamationCircle} />}
         >
             <Text c="orange" fz="sm">
                 This connection type should only be used for local development.
             </Text>
         </Alert>
 
-        <Alert
-            color="blue"
-            icon={<MantineIcon icon={IconInfoCircle} size="lg" />}
-        >
+        <Alert color="blue" icon={<MantineIcon icon={IconInfoCircle} />}>
             <Stack gap="xs">
                 <Text c="blue" fz="sm">
                     When using the install script, when you&apos;re asked{' '}

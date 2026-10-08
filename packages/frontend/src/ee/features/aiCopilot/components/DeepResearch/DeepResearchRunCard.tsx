@@ -300,7 +300,7 @@ export const DeepResearchRunCard = ({
 
                 {canShowActionRequired && run.actionRequired && (
                     <Alert
-                        color="yellow"
+                        color="orange"
                         icon={<IconPlugConnected size={16} />}
                     >
                         <Stack gap="sm">
@@ -383,7 +383,7 @@ export const DeepResearchRunCard = ({
                 )}
 
                 {run.status === 'partially_completed' && !isReportExpired && (
-                    <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
+                    <Alert color="orange" icon={<IconAlertCircle size={16} />}>
                         This report is incomplete. Completed queries and
                         available findings are saved below.
                     </Alert>

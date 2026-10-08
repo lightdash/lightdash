@@ -8,7 +8,7 @@ const DbtManifestForm: FC = () => {
         <Stack>
             <Alert
                 color="orange"
-                icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
+                icon={<MantineIcon icon={IconExclamationCircle} />}
             >
                 <Text c="orange">
                     This project was created from a manifest.json file. If you

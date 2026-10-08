@@ -416,10 +416,7 @@ const RedshiftIamFormInputs: FC<{
 
     return (
         <Stack gap="xs">
-            <Alert
-                color="blue"
-                icon={<MantineIcon icon={IconInfoCircle} size="lg" />}
-            >
+            <Alert color="blue" icon={<MantineIcon icon={IconInfoCircle} />}>
                 <Stack gap="xxs">
                     <Text fz="xs">
                         Paste temporary AWS credentials generated from your
