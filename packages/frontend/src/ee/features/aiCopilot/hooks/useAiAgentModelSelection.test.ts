@@ -25,6 +25,7 @@ const modelOption = (name: string, isDefault = false): AiModelOption => ({
     default: isDefault,
     supportsReasoning: false,
     deprecated: false,
+    supersededBy: null,
 });
 
 const agentModel = modelOption('agent-model');

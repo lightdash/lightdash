@@ -1,4 +1,5 @@
 import { type AiAgentModelConfig, type SessionUser } from '@lightdash/common';
+import { getOrgModelCatalogue, MODEL_PRESETS } from '../ai/models';
 import { AiAgentService } from './AiAgentService';
 
 const organizationUuid = 'organization-uuid';
@@ -31,7 +32,7 @@ const buildService = ({
     organizationModelConfig: AiAgentModelConfig | null;
 }) => {
     const createPrompt = vi.fn(
-        async (_args: { modelConfig?: AiAgentModelConfig }) => promptUuid,
+        async (_args: { modelConfig: AiAgentModelConfig | null }) => promptUuid,
     );
     const service = new AiAgentService({
         aiAgentModel: {
@@ -57,6 +58,14 @@ const buildService = ({
         },
         aiOrganizationSettingsService: {
             getDefaultModelConfig: vi.fn(async () => organizationModelConfig),
+        },
+        orgAiCopilotConfigResolver: {
+            getOrgModelCatalogue: vi.fn(async () => ({
+                catalogue: getOrgModelCatalogue(MODEL_PRESETS.anthropic, {
+                    modelVisibility: null,
+                    keyAccessibleModelIds: null,
+                }),
+            })),
         },
         mobilePushNotificationService: {
             startLiveActivitiesForPrompt: vi.fn(async () => undefined),
@@ -156,7 +165,24 @@ describe.each(Object.entries(sendOnEachPath))(
 
             await send(service, undefined);
 
-            expect(storedModelConfig()).toBeUndefined();
+            expect(storedModelConfig()).toBeNull();
+        });
+
+        it("runs on the replacement when the agent's model is retired and nothing was picked", async () => {
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: {
+                    modelProvider: 'anthropic',
+                    modelName: 'claude-sonnet-5',
+                },
+                organizationModelConfig: organizationModel,
+            });
+
+            await send(service, undefined);
+
+            expect(storedModelConfig()).toEqual({
+                modelProvider: 'anthropic',
+                modelName: 'claude-sonnet-5-5',
+            });
         });
     },
 );
