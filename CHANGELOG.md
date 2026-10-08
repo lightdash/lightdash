@@ -1,3 +1,16 @@
+# [2.471.0](https://github.com/lightdash/lightdash/compare/2.470.1...2.471.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **sql runner:** schema-name searches keep the schema's tables in the sidebar ([#30662](https://github.com/lightdash/lightdash/issues/30662)) ([ef4502d](https://github.com/lightdash/lightdash/commit/ef4502daefc9ac56830c71894640eae3acec6e9c))
+* **sql runner:** share links open on the tab the sender shared, not the chart ([#30663](https://github.com/lightdash/lightdash/issues/30663)) ([a5cb236](https://github.com/lightdash/lightdash/commit/a5cb2362c74162c74304b66dcfb4a9caca264e48))
+
+
+### Features
+
+* **sql runner:** context-aware autocomplete ([#30660](https://github.com/lightdash/lightdash/issues/30660)) ([e42a7d0](https://github.com/lightdash/lightdash/commit/e42a7d01291e3d5bc4c8d9dc7d2f5853faad8545))
+
 ## [2.470.1](https://github.com/lightdash/lightdash/compare/2.470.0...2.470.1) (2026-10-08)
 
 
