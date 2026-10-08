@@ -29,14 +29,25 @@ const searchFieldValuesInstruction = (
         .split('\n')
         .find((line) => line.startsWith('4. **searchFieldValues**'));
 
-const extractExpressionFilterSection = (content: string): string => {
-    const start = content.indexOf('## Filter expressions');
-    const end = content.indexOf('## String filter case sensitivity');
+const extractSection = (
+    content: string,
+    startHeading: string,
+    endHeading: string,
+): string => {
+    const start = content.indexOf(startHeading);
+    const end = content.indexOf(endHeading);
     if (start < 0 || end < 0 || end <= start) {
-        throw new Error('Expression filter section was not rendered');
+        throw new Error(`Section "${startHeading}" was not rendered`);
     }
     return content.slice(start, end).trimEnd();
 };
+
+const extractExpressionFilterSection = (content: string): string =>
+    extractSection(
+        content,
+        '## Filter expressions',
+        '## String filter case sensitivity',
+    );
 
 const normalizeFilterModeSections = (
     content: string,
@@ -408,6 +419,39 @@ describe('getSystemPromptV2 custom chart types', () => {
     });
 });
 
+describe('getSystemPromptV2 response content', () => {
+    const extractResponseFormat = (content: string): string =>
+        extractSection(content, '## Response format', '## Data analysis');
+
+    test('keeps working notes out of the answer and recovers cleared reads silently', () => {
+        const responseFormat = extractResponseFormat(
+            promptText({ availableExplores: [] }),
+        );
+        expect(responseFormat).toContain(
+            'never your own working notes, progress recaps or state summaries',
+        );
+        expect(responseFormat).toContain(
+            'Do not write context-preservation notes, scratchpads',
+        );
+        expect(responseFormat).toContain(
+            'If earlier tool results are no longer available, re-read what you need without mentioning it',
+        );
+    });
+
+    test('states the working-notes rule once in fast mode', () => {
+        const fast = promptText({
+            availableExplores: [],
+            enableFastMetadata: true,
+        });
+        expect(
+            fast.split('Do not write context-preservation notes').length - 1,
+        ).toBe(1);
+        expect(extractResponseFormat(fast)).toContain(
+            'Do not write context-preservation notes, scratchpads',
+        );
+    });
+});
+
 describe('getSystemPromptV2 merge queries', () => {
     test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
         const fast = promptText({
@@ -415,7 +459,7 @@ describe('getSystemPromptV2 merge queries', () => {
             enableFastMetadata: true,
         });
         expect(fast).toContain('All assistant text is user-visible');
-        expect(fast).toContain('Do not write context-preservation notes');
+        expect(fast).toContain('Prior assistant notes are not evidence');
         expect(fast).toContain(
             'Correlation, timing and subgroup differences do not establish causation',
         );
