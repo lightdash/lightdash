@@ -1488,7 +1488,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+      "description": "Read a dashboard, chart, SQL chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1505,7 +1505,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the dashboard, chart, or data app to read.",
+            "description": "Slug of the dashboard, chart, SQL chart, or data app to read.",
             "minLength": 1,
             "type": "string",
           },
@@ -1514,6 +1514,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
               "data_app",
             ],
             "type": "string",
@@ -1587,7 +1588,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "description": "Create a new dashboard, chart, or SQL chart, consult the skills for the required fields. Returns the created content with the final persisted slug. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1739,6 +1740,85 @@ Usage tips:
                 ],
                 "type": "object",
               },
+              {
+                "additionalProperties": {},
+                "properties": {
+                  "chartKind": {
+                    "description": "Must equal config.type.",
+                    "enum": [
+                      "vertical_bar",
+                      "line",
+                      "pie",
+                      "big_number",
+                      "table",
+                    ],
+                    "type": "string",
+                  },
+                  "config": {
+                    "additionalProperties": {},
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "vertical_bar",
+                          "line",
+                          "pie",
+                          "big_number",
+                          "table",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "contentType": {
+                    "const": "sql_chart",
+                    "type": "string",
+                  },
+                  "description": {
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "limit": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "sql": {
+                    "description": "Read-only warehouse SQL (SELECT or WITH) run on the primary connection.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "sql",
+                  "chartKind",
+                  "config",
+                ],
+                "type": "object",
+              },
             ],
           },
           "projectUuid": {
@@ -1752,6 +1832,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
             ],
             "type": "string",
           },

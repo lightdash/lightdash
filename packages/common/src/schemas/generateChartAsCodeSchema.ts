@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-type JsonValue =
+export type JsonValue =
     | null
     | boolean
     | number
@@ -11,7 +11,7 @@ type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue };
 
-type SwaggerDoc = {
+export type SwaggerDoc = {
     components?: {
         schemas?: Record<string, JsonObject>;
     };
@@ -98,7 +98,7 @@ const resolveComponentRef = (
     return schema;
 };
 
-const resolveTopLevelAllOf = (
+export const resolveTopLevelAllOf = (
     schema: JsonObject,
     components: Record<string, JsonObject>,
 ): JsonObject => {
@@ -118,7 +118,7 @@ const resolveTopLevelAllOf = (
     }, {});
 };
 
-const collectComponentRefs = (
+export const collectComponentRefs = (
     value: JsonValue,
     refs: Set<string> = new Set(),
 ): Set<string> => {
@@ -596,7 +596,7 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
 const parseSwagger = (content: string): SwaggerDoc =>
     JSON.parse(content) as SwaggerDoc;
 
-const toStableJson = (value: JsonObject): string =>
+export const toStableJson = (value: JsonObject): string =>
     `${JSON.stringify(sortKeysDeep(value), null, 4)}\n`;
 
 const run = (): void => {

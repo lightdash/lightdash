@@ -4,17 +4,31 @@ import {
     dashboardAsCodeSchema,
     getChartAsCodeBranchSchema,
     ParameterError,
+    sqlChartAsCodeSchema,
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { compact, get, set, uniq } from 'lodash';
 
-type ContentType = 'dashboard' | 'chart';
+export type AiAgentValidatedContentType = 'dashboard' | 'chart' | 'sql_chart';
+
+type ContentType = AiAgentValidatedContentType;
 
 type PatchOperation = {
     path?: unknown;
     from?: unknown;
 };
+
+const CHART_BANNED_PATHS = [
+    { path: '/slug', reason: 'slug is read-only' },
+    { path: '/updatedAt', reason: 'updatedAt is read-only' },
+    { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
+    {
+        path: '/verified',
+        reason: 'verified cannot be edited with editContent',
+    },
+    { path: '/verification', reason: 'verification is read-only' },
+];
 
 const BANNED_PATHS: Record<
     ContentType,
@@ -23,15 +37,13 @@ const BANNED_PATHS: Record<
         reason: string;
     }>
 > = {
-    chart: [
-        { path: '/slug', reason: 'slug is read-only' },
-        { path: '/updatedAt', reason: 'updatedAt is read-only' },
-        { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
+    chart: CHART_BANNED_PATHS,
+    sql_chart: [
+        ...CHART_BANNED_PATHS,
         {
-            path: '/verified',
-            reason: 'verified cannot be edited with editContent',
+            path: '/connection',
+            reason: 'connection cannot be edited with editContent',
         },
-        { path: '/verification', reason: 'verification is read-only' },
     ],
     dashboard: [
         { path: '/slug', reason: 'slug is read-only' },
@@ -47,7 +59,14 @@ const BANNED_PATHS: Record<
 
 const TIMESTAMP_FIELDS: Record<ContentType, string[]> = {
     chart: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
+    sql_chart: ['/updatedAt', '/downloadedAt'],
     dashboard: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
+};
+
+const CONTENT_LABELS: Record<ContentType, string> = {
+    chart: 'chart',
+    dashboard: 'dashboard',
+    sql_chart: 'SQL chart',
 };
 
 const CHART_CONFIG_SUPPORTED_TYPES = [
@@ -70,12 +89,7 @@ export class AiAgentContentValidation {
 
     private readonly timestampFields = TIMESTAMP_FIELDS;
 
-    private validators:
-        | {
-              chart: ValidateFunction;
-              dashboard: ValidateFunction;
-          }
-        | undefined;
+    private validators: Record<ContentType, ValidateFunction> | undefined;
 
     constructor() {
         this.ajv = new Ajv({
@@ -132,7 +146,7 @@ export class AiAgentContentValidation {
         );
 
         throw new ParameterError(
-            `Edited ${type} is invalid:\n${validationErrors
+            `Edited ${CONTENT_LABELS[type]} is invalid:\n${validationErrors
                 .map((error) => `- ${error}`)
                 .join('\n')}`,
             { validationErrors },
@@ -144,6 +158,8 @@ export class AiAgentContentValidation {
         switch (type) {
             case 'chart':
                 return validators.chart;
+            case 'sql_chart':
+                return validators.sql_chart;
             case 'dashboard':
                 return validators.dashboard;
             default:
@@ -151,10 +167,7 @@ export class AiAgentContentValidation {
         }
     }
 
-    private getValidators(): {
-        chart: ValidateFunction;
-        dashboard: ValidateFunction;
-    } {
+    private getValidators(): Record<ContentType, ValidateFunction> {
         if (this.validators) {
             return this.validators;
         }
@@ -164,6 +177,7 @@ export class AiAgentContentValidation {
                 getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
             ),
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
+            sql_chart: this.ajv.compile(sqlChartAsCodeSchema),
         };
 
         return this.validators;

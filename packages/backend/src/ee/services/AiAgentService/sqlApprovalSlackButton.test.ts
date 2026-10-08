@@ -150,7 +150,7 @@ const decisionEvent = ({
     decision,
     source,
 }: {
-    toolName?: 'runSql' | 'runComposerQueries';
+    toolName?: 'runSql' | 'runComposerQueries' | 'createContent';
     decision: 'approved' | 'rejected' | 'approved_always';
     source: 'web' | 'slack';
 }) => ({
@@ -454,6 +454,58 @@ describe('SQL approval decision analytics', () => {
             );
         },
     );
+
+    it('tracks a web decision on a SQL chart save and resumes its Slack run', async () => {
+        const { service, analytics, schedulerClient } = buildService({
+            approvalContext: {
+                promptUuid: PROMPT_UUID,
+                threadUuid: THREAD_UUID,
+                agentUuid: AGENT_UUID,
+                toolName: 'createContent',
+                toolArgs: { type: 'sql_chart', content: { sql: 'select 1' } },
+                hasResult: false,
+            },
+        });
+
+        await service.decideSqlApproval(approverUser, {
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'approved',
+        });
+
+        expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+            decisionEvent({
+                toolName: 'createContent',
+                decision: 'approved',
+                source: 'web',
+            }),
+        );
+        expect(schedulerClient.slackAiPrompt).toHaveBeenCalledOnce();
+    });
+
+    it('refuses an approval for content that is not a SQL chart', async () => {
+        const { service, aiAgentModel } = buildService({
+            approvalContext: {
+                promptUuid: PROMPT_UUID,
+                threadUuid: THREAD_UUID,
+                agentUuid: AGENT_UUID,
+                toolName: 'createContent',
+                toolArgs: { type: 'dashboard', content: {} },
+                hasResult: false,
+            },
+        });
+
+        await expect(
+            service.decideSqlApproval(approverUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'approved',
+            }),
+        ).rejects.toThrow('is not a SQL approval');
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+    });
 
     it.each(['approved', 'rejected', 'approved_always'] as const)(
         'tracks a %s decision made from a Slack button',

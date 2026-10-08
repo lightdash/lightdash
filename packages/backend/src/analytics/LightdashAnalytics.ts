@@ -3264,7 +3264,7 @@ export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string;
         toolCallId: string;
-        toolName: 'runSql' | 'runComposerQueries';
+        toolName: 'runSql' | 'runComposerQueries' | 'createContent';
         decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
         source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
         isAutoApproved: boolean;

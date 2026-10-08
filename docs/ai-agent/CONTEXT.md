@@ -102,6 +102,14 @@ and lands in triage, where "Create skill" opens the skill editor prefilled
 and resolves the card on save.
 _Avoid_: skill suggestion, auto-skill, skill finding
 
+**SQL chart**:
+A chart saved from raw warehouse SQL rather than from an explore. Lives
+alongside semantic-layer charts in content as code (type `sql_chart`) and on
+dashboards as a SQL chart tile. The AI agent may run SQL in a thread, and
+may save a SQL chart only after the user approves that SQL for publication,
+unless the thread has approved SQL once and for all.
+_Avoid_: SQL Runner chart, saved SQL, raw SQL chart
+
 ## MCP servers
 
 **MCP server**:

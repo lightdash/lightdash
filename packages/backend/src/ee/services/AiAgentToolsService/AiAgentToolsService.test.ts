@@ -2309,6 +2309,220 @@ describe('AiAgentToolsService', () => {
         ).resolves.toBeDefined();
     });
 
+    describe('SQL charts', () => {
+        const makeSqlChartContent = (
+            overrides: Record<string, unknown> = {},
+        ) => ({
+            name: 'Orders by status',
+            description: null,
+            slug: 'orders-by-status',
+            spaceSlug: 'allowed-space',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+            chartKind: 'vertical_bar',
+            version: 1,
+            config: {
+                metadata: { version: 1 },
+                type: 'vertical_bar',
+                fieldConfig: {
+                    x: { reference: 'status', type: 'category' },
+                    y: [{ reference: 'orders', aggregation: 'sum' }],
+                    groupBy: [],
+                },
+                display: {},
+            },
+            ...overrides,
+        });
+
+        const userWithoutCustomSql = {
+            ...user,
+            ability: {
+                ...user.ability,
+                relevantRuleFor: vi.fn(
+                    (_action: string, caslSubject: unknown) =>
+                        (caslSubject as { __caslSubjectType__?: string })
+                            .__caslSubjectType__ === 'CustomSql'
+                            ? null
+                            : { inverted: false },
+                ),
+            },
+        } as unknown as SessionUser;
+
+        const makeSqlChartService = ({
+            upsertSqlChart = vi.fn().mockResolvedValue({
+                charts: [
+                    {
+                        data: {
+                            uuid: 'sql-chart-uuid',
+                            slug: 'orders-by-status-1',
+                        },
+                    },
+                ],
+                spaces: [],
+                dashboards: [],
+            }),
+            spaceModel,
+        }: {
+            upsertSqlChart?: import('vitest').Mock;
+            spaceModel?: Record<string, unknown>;
+        } = {}) => {
+            const getSqlChartsForRead = vi.fn(
+                async (_user: SessionUser, _project: string, [slug]) => ({
+                    sqlCharts: [makeSqlChartContent({ slug })],
+                }),
+            );
+            const service = makeService({
+                spaceModel,
+                coderService: { upsertSqlChart, getSqlChartsForRead },
+                aiAgentContentValidation:
+                    new AiAgentContentValidation() as unknown as Record<
+                        string,
+                        unknown
+                    >,
+            });
+            return { service, upsertSqlChart, getSqlChartsForRead };
+        };
+
+        it('saves an approved SQL chart with a unique slug on the primary connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const created = await runtime.createContent({
+                type: 'sql_chart',
+                content: makeSqlChartContent({
+                    connection: 'secondary',
+                }) as never,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledOnce();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.not.objectContaining({ connection: expect.anything() }),
+                { mode: 'create' },
+            );
+            expect(created).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                content: { slug: 'orders-by-status-1' },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status-1#chart-link`,
+            });
+        });
+
+        it('writes nothing when the SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not create a SQL chart outside the scoped agent spaces', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('names the SQL chart save permission without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a malformed SQL chart body before asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const { sql, ...withoutSql } = makeSqlChartContent();
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: { ...withoutSql, tableName: 'orders' } as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'Edited SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('reads a SQL chart by slug', async () => {
+            const { service, getSqlChartsForRead } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).resolves.toMatchObject({
+                type: 'sql_chart',
+                content: { sql: makeSqlChartContent().sql },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+            });
+            expect(getSqlChartsForRead).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                ['orders-by-status'],
+            );
+        });
+
+        it('does not read a SQL chart outside the scoped agent spaces', async () => {
+            const { service } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+    });
+
     describe('syncDbtProject', () => {
         afterEach(() => {
             vi.restoreAllMocks();

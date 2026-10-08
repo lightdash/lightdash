@@ -3,7 +3,7 @@ import type { ChartAsCode } from '../../../../types/coder';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION =
-    'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
+    'Create a new dashboard, chart, or SQL chart, consult the skills for the required fields. Returns the created content with the final persisted slug. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],
@@ -53,9 +53,45 @@ const baseContentSchema = z.object({
     verification: z.unknown().optional(),
 });
 
+const SQL_CHART_KINDS = [
+    'vertical_bar',
+    'line',
+    'pie',
+    'big_number',
+    'table',
+] as const;
+
+export const toolSqlChartAsCodeSchema = z
+    .object({
+        slug: baseContentSchema.shape.slug,
+        name: z.string().min(1),
+        description: z.string().nullable(),
+        spaceSlug: z.string().min(1),
+        version: z.coerce.number(),
+        contentType: z.literal('sql_chart').optional(),
+        updatedAt: z.unknown().optional(),
+        downloadedAt: z.unknown().optional(),
+        sql: z
+            .string()
+            .min(1)
+            .describe(
+                'Read-only warehouse SQL (SELECT or WITH) run on the primary connection.',
+            ),
+        limit: z.number().int().positive(),
+        chartKind: z.enum(SQL_CHART_KINDS).describe('Must equal config.type.'),
+        config: z
+            .object({ type: z.enum(SQL_CHART_KINDS) })
+            .passthrough()
+            .describe(
+                'SQL chart config: { metadata: { version: 1 }, type, fieldConfig, display } for charts, or { metadata, type: "table", columns, display } for tables. See sql-chart-reference.',
+            ),
+    })
+    .passthrough()
+    .describe('Full SQL chart JSON to create.');
+
 export const toolCreateContentArgsSchema = z.object({
     type: z
-        .enum(['dashboard', 'chart'])
+        .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to create.'),
     content: z.union([
         baseContentSchema
@@ -80,6 +116,7 @@ export const toolCreateContentArgsSchema = z.object({
             })
             .passthrough()
             .describe('Full Chart JSON to create.'),
+        toolSqlChartAsCodeSchema,
     ]),
 });
 
@@ -121,6 +158,7 @@ export const toolCreateContentStructuredContentSchema = z.discriminatedUnion(
     [
         z.object({ type: z.literal('dashboard'), ...createdContentShape }),
         z.object({ type: z.literal('chart'), ...createdContentShape }),
+        z.object({ type: z.literal('sql_chart'), ...createdContentShape }),
         z.object({
             type: z.literal('document'),
             ...createdContentShape,

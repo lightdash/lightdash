@@ -146,7 +146,7 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
 ]);
 
 export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'document']),
+    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
     content: z.union([
         documentAsCodeSchema,
         toolCreateContentArgsSchema.shape.content,
@@ -168,7 +168,7 @@ export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
         .describe(
             'For Documents only: UUID from a canonical Document URL, instead of slug.',
         ),
-    type: z.enum(['dashboard', 'chart', 'data_app', 'document']),
+    type: z.enum(['dashboard', 'chart', 'sql_chart', 'data_app', 'document']),
     chartId: z
         .string()
         .min(1)

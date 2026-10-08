@@ -48,14 +48,15 @@ tiles:
 
 ### SQL Chart Tile
 
-Display a SQL-based chart:
+Display a SQL chart. The SQL chart must exist before the dashboard references it: upload or create it first, then use its slug as `chartSlug`. See [SQL Chart Reference](./sql-chart-reference.md) for the SQL chart body and workflow.
 
 ```yaml
 tiles:
   - h: 6
     properties:
+      chartName: Custom SQL chart
       chartSlug: custom-sql-chart
-      savedSqlUuid: "abc123-def456"
+      title: Custom SQL chart
     type: sql_chart
     w: 12
     x: 12
