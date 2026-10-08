@@ -73,6 +73,7 @@ In `FilterConfiguration/`:
   - `useFilterTabPlacement` and `isFilterHiddenOnTab`: the tabs a rule is on,
     hidden on this tab, the "not applied" state and its tooltip. The pill
     being edited shows on every tab.
+  - `filterLock.ts`: the lock key, label, next rule and tracking event.
   - `filterLabels.ts`, `filterOrder.ts`: the label rules and the reorder.
 - A rule whose field cannot be resolved renders the shipped `UnresolvedFilter`
   (invalid or locked) and opens no editor. Nothing is called unresolved while
@@ -120,7 +121,8 @@ In `FilterConfiguration/`:
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
 - `close()` keeps the edits: they already live in the dashboard draft. It
   discards instead when the control cannot be kept (`canKeepFilterRule`: no
-  field).
+  field), and it turns off a default value that was switched on but left
+  empty.
 - A label is optional. A filter with none shows its field's name, as the
   shipped bar does.
 - `discard()` restores the snapshot taken when the control was opened. Saving
@@ -157,8 +159,8 @@ In `FilterConfiguration/`:
 ## Editor
 
 - `EditorShell` is the one chrome for the sidebar: title, subtitle, More actions
-  menu, a Close X, an `aboveTabs` slot for the label,
-  body and a footer. The X and "Done" both call
+  menu, a Close X, an `aboveTabs` slot for the label, a tab strip (shown when
+  there is more than one tab), body and a footer. The X and "Done" both call
   `close`; the quiet discard action ("Discard control" for a new one, "Discard
   changes" once an existing one has changed) calls `discard`. The footer status
   says what closing would drop. Add chrome there.
@@ -182,7 +184,10 @@ In `FilterConfiguration/`:
   (`useFilterRuleField`, over the shipped `useDashboardFilterField`:
   dimensions and metrics, with the labels of the tile it is mapped on). A SQL
   column filter (`target.isSqlColumn`) has no field: it goes by its column
-  name.
+  name, and its type is the column's as a tile reports it, else the target's
+  `fallbackType` (the shipped `getSqlColumnFilterType`, through
+  `useFilterRuleSqlColumnType`). `FilterSettings` passes that type down
+  (`getFilterRuleType`).
 - `useSqlColumnsByTile` offers every filter every column of every SQL chart
   tile, whatever the types, as the shipped popover does
   (`TileFilterConfiguration`). A placeholder gets none.
@@ -208,6 +213,60 @@ In `FilterConfiguration/`:
 - A row is named by its field's own label (a grain says which one). A SQL
   column filter has one row, its column, counted over the SQL chart tiles that
   have the column; it takes no other field.
+
+## Settings
+
+- `FilterSettings` renders two cards: "Default value" (`FilterValueSettings`)
+  and "Viewer controls" (`ViewerControls`).
+- This layer only exposes what a dashboard can already save: the operator,
+  `singleValue`, `disabled` and the rule's values as the default, `required`
+  and `requiredGroupId`, and `lockedTabUuids` (the dashboard uuid is the key
+  when there are no tabs).
+- Settings is disabled for a placeholder ("Pick a field first"). The tab id
+  stays `settings`.
+- `FilterValueSettings` renders the shipped settings form
+  (`dashboardFilters/FilterConfiguration/FilterSettings.tsx`) in edit mode,
+  with `hideLabel` and `hideRequiredCard`. It adds two lines of its own under
+  it: the hint while the default has no value, and the "Not set" note while
+  the default is off. Operator, value input and default switch are the
+  shipped form's; change them there.
+- There is no Apply: every edit the form emits is written at once, through
+  the shipped popover's rule (`getFilterRuleWithDisabledState`, edit mode): a
+  rule that has a value (`hasFilterValueSet`) is never `disabled`, and a
+  required rule with no value always is. So choosing an operator with the
+  default off keeps it off, unless the operator needs no value or brings one
+  (dates), which switches the default on as shipped.
+- Requirement rules are over dimension and metric filters only, as in the
+  shipped card; a table calculation filter is never offered as an alternative.
+- "Required" in `ViewerControls` follows the shipped form
+  (`handleToggleRequired`, `RequiredFilterCard`, the "Filter rules" popover)
+  through `requirements.ts`. The shipped card is not rendered: its switch
+  cannot be disabled or carry a tooltip.
+  - On: a filter saved in a shared rule goes back into it (`requiredGroupId`
+    of the rule in `dashboard.filters`), valueless; any other becomes required
+    on its own. A default value does not block it: it stays as a temporary
+    value, removed on dashboard save.
+  - Off: only this filter changes, and its values and settings are cleared
+    (`getFilterRuleWithDefaultValue(..., null)`). The rest of its rule keeps
+    its `requiredGroupId`, even a rule left with one member.
+  - Both writes go through the shipped disabled rule, like every edit of
+    `FilterValueSettings`.
+  - "Or one of these instead" gives the shipped reasons
+    (`getRequirementIneligibilityReason`). Unchecking takes that filter out
+    and leaves the others.
+  - A locked, required filter with no value cannot be satisfied by a viewer
+    (`isLockedRequiredMissingValue`, the shipped Apply guard restated: locked
+    on any tab, `required`, no value). The editor has no Apply, so the toggle
+    that would reach that state is disabled with the shipped message as its
+    tooltip: "Required" on a locked filter, each lock switch on a required
+    one. Switching either off is always allowed.
+  - "Edit rule →" shows for a filter that shares a rule, when
+    `useFilterBarPopovers()` is there. It closes the editor, then opens the
+    bar's "Filter rules", whose button is hidden while the editor is open.
+- Nothing blocks closing. While `isDefaultValueIncomplete(rule)` a hint says
+  the default is left off, and `close()` writes `disabled: true`.
+- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
+  hidden while the sidebar is open.
 
 ## Fields and tiles
 

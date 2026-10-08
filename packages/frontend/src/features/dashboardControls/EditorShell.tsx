@@ -5,6 +5,7 @@ import {
     Group,
     Menu,
     Stack,
+    Tabs,
     Text,
     Title,
     Tooltip,
@@ -13,6 +14,15 @@ import { IconDots, IconX } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './ControlSidebar.module.css';
+
+type EditorTab = {
+    value: string;
+    label: string;
+    count?: number;
+    changed?: boolean;
+    disabled?: boolean;
+    disabledReason?: string;
+};
 
 type Props = {
     title: string;
@@ -23,6 +33,9 @@ type Props = {
     /** Null hides the action: there is nothing to discard. */
     discardLabel: string | null;
     onDiscard: () => void;
+    tabs: EditorTab[];
+    activeTab: string;
+    onTabChange: (value: string) => void;
     footerStatus: string | null;
     aboveTabs: ReactNode;
     children: ReactNode;
@@ -36,6 +49,9 @@ export const EditorShell: FC<Props> = ({
     onClose,
     discardLabel,
     onDiscard,
+    tabs,
+    activeTab,
+    onTabChange,
     footerStatus,
     aboveTabs,
     children,
@@ -89,6 +105,49 @@ export const EditorShell: FC<Props> = ({
         <Stack gap="xs" px="md" pt="md">
             {aboveTabs}
         </Stack>
+
+        {tabs.length > 1 && (
+            <Tabs
+                value={activeTab}
+                onChange={(value) => {
+                    if (value !== null) onTabChange(value);
+                }}
+            >
+                <Tabs.List px="md" mt="md">
+                    {tabs.map((tab) => (
+                        <Tabs.Tab
+                            key={tab.value}
+                            value={tab.value}
+                            disabled={tab.disabled}
+                            // The reason is a description; the name stays the label
+                            aria-label={tab.disabled ? tab.label : undefined}
+                            title={
+                                tab.disabled ? tab.disabledReason : undefined
+                            }
+                            rightSection={
+                                tab.count !== undefined ? (
+                                    <Tooltip
+                                        label={`${tab.count} ${tab.count === 1 ? 'item' : 'items'}`}
+                                    >
+                                        <Text fz="xs" c="dimmed" span>
+                                            ({tab.count})
+                                        </Text>
+                                    </Tooltip>
+                                ) : tab.changed ? (
+                                    <Box
+                                        role="img"
+                                        aria-label="Changed from the default"
+                                        className={classes.changedDot}
+                                    />
+                                ) : null
+                            }
+                        >
+                            {tab.label}
+                        </Tabs.Tab>
+                    ))}
+                </Tabs.List>
+            </Tabs>
+        )}
 
         <Stack gap="md" p="md" className={classes.body}>
             {children}

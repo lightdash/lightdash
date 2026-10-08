@@ -31,6 +31,7 @@ import { getFilterFields, getTileField, setTileField } from './peers';
 import {
     canKeepFilterRule,
     findFilterRule,
+    isDefaultValueIncomplete,
     isFilterRuleDirty,
     PLACEHOLDER_TARGET,
     removeFilterRule,
@@ -40,6 +41,7 @@ import {
 import {
     ControlsSidebarContext,
     type ControlsSidebarContextValue,
+    type ControlsSidebarSection,
 } from './useControlsSidebar';
 import { EDITOR_ATTRIBUTE, useEditorDismiss } from './useEditorDismiss';
 
@@ -144,6 +146,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
     );
+    const [activeSection, setActiveSection] =
+        useState<ControlsSidebarSection>('fields');
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
         null,
     );
@@ -199,6 +203,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const reset = useCallback(() => {
         writeState(null);
         writePlaceholder(null);
+        setActiveSection('fields');
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
@@ -231,6 +236,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             if (current.state?.filterId === filterId) return;
             focusReturn.current = null;
             writePlaceholder(null);
+            setActiveSection('fields');
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             writeState({
@@ -258,6 +264,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         };
         focusReturn.current = null;
         writePlaceholder(rule);
+        setActiveSection('fields');
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         writeState({
@@ -486,8 +493,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             return;
         }
         rememberFocusReturn();
+        if (isDefaultValueIncomplete(rule)) {
+            writeFilters((filters) =>
+                replaceFilterRule(filters, { ...rule, disabled: true }),
+            );
+        }
         reset();
-    }, [discard, reset, rememberFocusReturn]);
+    }, [discard, reset, writeFilters, rememberFocusReturn]);
 
     // A new control is closed first, as "Done" would: kept when it can be,
     // dropped otherwise. Edits to an existing control are simply kept
@@ -547,6 +559,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isPlaceholder,
             editingRule,
             isSidebarOpen,
+            activeSection,
+            setActiveSection,
             open,
             openNew,
             addFirstField,
@@ -581,6 +595,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             editing,
             isPlaceholder,
             editingRule,
+            activeSection,
             open,
             openNew,
             addFirstField,
