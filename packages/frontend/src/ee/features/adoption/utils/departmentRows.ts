@@ -99,7 +99,7 @@ export const formatTarget = (
     department: Pick<Department, 'targetActiveUsers' | 'targetDate'>,
 ): string => {
     if (department.targetActiveUsers === null) return '–';
-    const target = `${department.targetActiveUsers} active`;
+    const target = `${formatCount(department.targetActiveUsers)} active`;
     return department.targetDate === null
         ? target
         : `${target} by ${dayjs(department.targetDate).format('D MMM YYYY')}`;

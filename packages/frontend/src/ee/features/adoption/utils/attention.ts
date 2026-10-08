@@ -1,14 +1,22 @@
-import { type DepartmentMembership } from '@lightdash/common';
-import { type NamedDepartment } from './departmentForm';
+import { type Department, type DepartmentMembership } from '@lightdash/common';
+import { formatQuantity, PEOPLE } from './format';
+
+// A department a person in a conflict is reached in, with the groups linked to it
+export type ConflictCandidate = { name: string; groupNames: string[] };
 
 export type AttentionRow = {
     member: DepartmentMembership;
     kind: 'conflict' | 'unassigned';
-    candidateNames: string[];
+    candidates: ConflictCandidate[]; // by department name; empty for unassigned people
 };
 
-const people = (count: number, verb: [string, string]): string =>
-    count === 1 ? `1 person ${verb[0]}` : `${count} people ${verb[1]}`;
+type AttentionDepartment = Pick<
+    Department,
+    'departmentUuid' | 'name' | 'linkedGroups'
+>;
+
+const people = (count: number): string =>
+    `${formatQuantity(count, PEOPLE)} ${count === 1 ? 'is' : 'are'}`;
 
 export const formatAttention = (
     conflictCount: number,
@@ -16,10 +24,10 @@ export const formatAttention = (
 ): string | null => {
     const parts = [
         conflictCount > 0
-            ? `${people(conflictCount, ['is', 'are'])} in more than one department`
+            ? `${people(conflictCount)} in more than one department`
             : null,
         unassignedCount > 0
-            ? `${people(unassignedCount, ['is', 'are'])} in no department`
+            ? `${people(unassignedCount)} in no department`
             : null,
     ].filter((part): part is string => part !== null);
     return parts.length > 0 ? parts.join(' · ') : null;
@@ -27,28 +35,66 @@ export const formatAttention = (
 
 export const getAttentionRows = (
     membership: DepartmentMembership[],
-    departments: NamedDepartment[],
+    departments: AttentionDepartment[],
 ): AttentionRow[] => {
-    const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
+    const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
     const conflicts = membership.flatMap((member): AttentionRow[] =>
         member.resolution.kind === 'conflict'
             ? [
                   {
                       member,
                       kind: 'conflict',
-                      candidateNames: member.resolution.departmentUuids
-                          .flatMap((uuid) => names.get(uuid) ?? [])
-                          .sort(),
+                      candidates: member.resolution.departmentUuids
+                          .flatMap((uuid) => byUuid.get(uuid) ?? [])
+                          .map((department) => ({
+                              name: department.name,
+                              groupNames: department.linkedGroups
+                                  .map((group) => group.name)
+                                  .sort((a, b) => a.localeCompare(b)),
+                          }))
+                          .sort((a, b) => a.name.localeCompare(b.name)),
                   },
               ]
             : [],
     );
     const unassigned = membership.flatMap((member): AttentionRow[] =>
         member.resolution.kind === 'unassigned'
-            ? [{ member, kind: 'unassigned', candidateNames: [] }]
+            ? [{ member, kind: 'unassigned', candidates: [] }]
             : [],
     );
     return [...conflicts, ...unassigned];
+};
+
+// "a", "a or b", "a, b or c"
+const listAlternatives = (names: string[]): string =>
+    names.length < 2
+        ? names.join('')
+        : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+
+// One line per department. The membership response names no groups, so every group linked to a department is offered
+export const describeConflict = (candidates: ConflictCandidate[]): string[] =>
+    candidates.map(({ name, groupNames }) =>
+        groupNames.length === 0
+            ? name
+            : `${name} through ${listAlternatives(groupNames)}`,
+    );
+
+// The endpoint replaces a department's assigned people, so a request carries everyone already assigned
+export const getPlacement = (
+    departments: Pick<Department, 'departmentUuid' | 'explicitMemberUuids'>[],
+    departmentUuid: string,
+    userUuids: string[],
+): { departmentUuid: string; userUuids: string[] } | null => {
+    const department = departments.find(
+        (d) => d.departmentUuid === departmentUuid,
+    );
+    if (department === undefined) return null;
+    return {
+        departmentUuid,
+        userUuids: Array.from(
+            new Set([...department.explicitMemberUuids, ...userUuids]),
+        ),
+    };
 };
 
 export const getMemberName = (member: DepartmentMembership): string =>

@@ -22,6 +22,11 @@ import {
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
 import {
+    formatCount,
+    formatQuantity,
+    PEOPLE,
+} from '../features/adoption/utils/format';
+import {
     getViewStorageKey,
     readStoredView,
     resolveAdoptionView,
@@ -160,9 +165,7 @@ const Adoption: FC = () => {
             {summary.data && departments.length > 0 && (
                 <Stack gap="md">
                     <Text fz="sm" c="dimmed">
-                        {summary.data.organization.memberCount} people on
-                        Lightdash · {summary.data.organization.activeCount30d}{' '}
-                        active in the last 30 days
+                        {`${formatQuantity(summary.data.organization.memberCount, PEOPLE)} on Lightdash · ${formatCount(summary.data.organization.activeCount30d)} active in the last 30 days`}
                     </Text>
                     <AttentionStrip
                         conflictCount={summary.data.attention.conflictCount}

@@ -17,6 +17,7 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
+import { getCoverageNote } from '../utils/departmentDetail';
 import { formatOwners } from '../utils/departmentRows';
 import { formatCount } from '../utils/format';
 import styles from './AdoptionMap.module.css';
@@ -183,6 +184,13 @@ export const MapInspector: FC<Props> = ({
         department === null
             ? getOrganizationTiles(overview)
             : getDepartmentTiles(department, totals);
+    const coverageNote =
+        department === null
+            ? null
+            : getCoverageNote(
+                  department.effectiveHeadcount,
+                  department.metrics.memberCount,
+              );
     return (
         <Paper p="md" component="aside" aria-label="Details">
             <Stack gap="md" h="100%">
@@ -204,6 +212,11 @@ export const MapInspector: FC<Props> = ({
                         <Tile key={tile.label} {...tile} />
                     ))}
                 </SimpleGrid>
+                {coverageNote !== null && (
+                    <Text fz="xs" c="dimmed">
+                        {coverageNote}
+                    </Text>
+                )}
                 {overviewCopy !== null && (
                     <Stack gap={4}>
                         <Text fz="sm">{overviewCopy.placed}</Text>

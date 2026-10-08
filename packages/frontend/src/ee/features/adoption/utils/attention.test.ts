@@ -6,15 +6,29 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     countAttentionNames,
+    describeConflict,
     formatAttention,
     getAttentionRows,
     getMemberName,
+    getPlacement,
     searchAttentionRows,
 } from './attention';
 
+const group = (name: string) => ({ groupUuid: `${name}-uuid`, name });
+
 const departments = [
-    { departmentUuid: 'ops', parentDepartmentUuid: null, name: 'Operations' },
-    { departmentUuid: 'fin', parentDepartmentUuid: null, name: 'Finance' },
+    {
+        departmentUuid: 'ops',
+        name: 'Operations',
+        linkedGroups: [group('ops-team')],
+        explicitMemberUuids: ['kept'],
+    },
+    {
+        departmentUuid: 'fin',
+        name: 'Finance',
+        linkedGroups: [group('finance-leads'), group('finance-all')],
+        explicitMemberUuids: [],
+    },
 ];
 
 const member = (
@@ -42,6 +56,11 @@ describe('formatAttention', () => {
             '1 person is in more than one department · 3 people are in no department',
         );
     });
+    it('groups thousands', () => {
+        expect(formatAttention(1951, 1200)).toBe(
+            '1,951 people are in more than one department · 1,200 people are in no department',
+        );
+    });
 });
 
 describe('getAttentionRows', () => {
@@ -55,10 +74,28 @@ describe('getAttentionRows', () => {
             ],
             departments,
         );
-        expect(rows[0].candidateNames).toEqual(['Operations']);
+        expect(rows[0].candidates).toEqual([
+            { name: 'Operations', groupNames: ['ops-team'] },
+        ]);
     });
 
-    it('returns conflicts first with their department names, then unassigned people, and skips assigned people', () => {
+    it('names the groups linked to each department in a conflict, by name', () => {
+        const [row] = getAttentionRows(
+            [
+                member('clash', {
+                    kind: 'conflict',
+                    departmentUuids: ['ops', 'fin'],
+                }),
+            ],
+            departments,
+        );
+        expect(row.candidates).toEqual([
+            { name: 'Finance', groupNames: ['finance-all', 'finance-leads'] },
+            { name: 'Operations', groupNames: ['ops-team'] },
+        ]);
+    });
+
+    it('returns conflicts first with their departments, then unassigned people, and skips assigned people', () => {
         const rows = getAttentionRows(
             [
                 member('none', { kind: 'unassigned' }),
@@ -76,11 +113,60 @@ describe('getAttentionRows', () => {
             departments,
         );
         expect(
-            rows.map((r) => [r.member.userUuid, r.kind, r.candidateNames]),
+            rows.map((r) => [
+                r.member.userUuid,
+                r.kind,
+                r.candidates.map((c) => c.name),
+            ]),
         ).toEqual([
             ['clash', 'conflict', ['Finance', 'Operations']],
             ['none', 'unassigned', []],
         ]);
+    });
+});
+
+describe('describeConflict', () => {
+    it('names each department with the group that reaches it, one line each', () => {
+        expect(
+            describeConflict([
+                { name: 'Data', groupNames: ['data-champions'] },
+                { name: 'Finance', groupNames: ['finance-all'] },
+            ]),
+        ).toEqual([
+            'Data through data-champions',
+            'Finance through finance-all',
+        ]);
+    });
+    it('offers every linked group when a department has several, as any of them can be the one', () => {
+        expect(
+            describeConflict([
+                { name: 'Data', groupNames: ['analysts', 'bi', 'data-team'] },
+                {
+                    name: 'Finance',
+                    groupNames: ['finance-all', 'finance-leads'],
+                },
+                { name: 'Sales', groupNames: [] },
+            ]),
+        ).toEqual([
+            'Data through analysts, bi or data-team',
+            'Finance through finance-all or finance-leads',
+            'Sales',
+        ]);
+    });
+    it('has nothing to say when no department is known', () => {
+        expect(describeConflict([])).toEqual([]);
+    });
+});
+
+describe('getPlacement', () => {
+    it('sends the department its assigned people plus everyone placed, once each', () => {
+        expect(getPlacement(departments, 'ops', ['a', 'kept', 'b'])).toEqual({
+            departmentUuid: 'ops',
+            userUuids: ['kept', 'a', 'b'],
+        });
+    });
+    it('is null for a department it does not know', () => {
+        expect(getPlacement(departments, 'gone', ['a'])).toBeNull();
     });
 });
 

@@ -5,9 +5,9 @@ import {
     Box,
     Button,
     Group,
-    Stack,
     Text,
     Tooltip,
+    type TextProps,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -24,6 +24,7 @@ import {
 } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getDepartmentPath } from '../utils/adoptionNav';
+import { formatCoverage, getCoverageNote } from '../utils/departmentDetail';
 import {
     buildDepartmentRows,
     formatOwners,
@@ -32,11 +33,57 @@ import {
     formatTarget,
     type DepartmentRow,
 } from '../utils/departmentRows';
+import { formatCount, formatQuantity, type Noun } from '../utils/format';
 import { ActivitySparkline } from './ActivitySparkline';
+import styles from './DepartmentsTable.module.css';
 
 const INDENT_PX = 24;
+const EXPANDER_WIDTH = 22;
+const EXPLANATION_MAX_WIDTH = 280;
 const BELOW_CHILDREN_WARNING =
     'Headcount is lower than the total of its sub-departments';
+const SUB_DEPARTMENTS: Noun = {
+    one: 'sub-department',
+    other: 'sub-departments',
+};
+
+// Every cell keeps to one line: text that does not fit ends in an ellipsis and shows in full on hover
+const CellText: FC<
+    Pick<TextProps, 'fz' | 'c' | 'className'> & { children: string }
+> = ({ children, fz = 'sm', c, className }) => (
+    <Text
+        fz={fz}
+        c={c}
+        truncate="end"
+        title={children}
+        miw={0}
+        className={className}
+    >
+        {children}
+    </Text>
+);
+
+// A value whose explanation shows on hover and keyboard focus, marked by a dotted underline
+const ExplainedValue: FC<{ value: string; explanation: string }> = ({
+    value,
+    explanation,
+}) => (
+    <Tooltip
+        label={explanation}
+        multiline
+        maw={EXPLANATION_MAX_WIDTH}
+        events={{ hover: true, focus: true, touch: false }}
+    >
+        <Text
+            component="span"
+            fz="sm"
+            tabIndex={0}
+            className={styles.explained}
+        >
+            {value}
+        </Text>
+    </Tooltip>
+);
 
 type Props = {
     departments: DepartmentWithMetrics[];
@@ -63,12 +110,13 @@ export const DepartmentsTable: FC<Props> = ({
         });
     }, []);
 
+    // Widths add up to fit a 1,100 px table: names and numbers come first, the role split and target give way
     const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(() => {
         const dataColumns: ContentTableColumnDef<DepartmentRow>[] = [
             {
                 id: 'name',
                 header: 'Department',
-                size: 220,
+                size: 252,
                 Cell: ({ row }) => {
                     const {
                         department,
@@ -100,7 +148,10 @@ export const DepartmentsTable: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             ) : (
-                                <Box w={22} />
+                                <Box
+                                    w={EXPANDER_WIDTH}
+                                    className={styles.fixed}
+                                />
                             )}
                             <Anchor
                                 component={Link}
@@ -109,14 +160,23 @@ export const DepartmentsTable: FC<Props> = ({
                                 )}
                                 fz="sm"
                                 fw={depth === 0 ? 600 : 400}
+                                truncate="end"
+                                title={department.name}
+                                miw={0}
                             >
                                 {department.name}
                             </Anchor>
                             {!canExpand && childCount > 0 && (
-                                <Text fz="xs" c="dimmed">
-                                    {childCount} sub-department
-                                    {childCount === 1 ? '' : 's'}
-                                </Text>
+                                <CellText
+                                    fz="xs"
+                                    c="dimmed"
+                                    className={styles.yields}
+                                >
+                                    {formatQuantity(
+                                        childCount,
+                                        SUB_DEPARTMENTS,
+                                    )}
+                                </CellText>
                             )}
                         </Group>
                     );
@@ -125,7 +185,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'headcount',
                 header: 'Headcount',
-                size: 100,
+                size: 96,
                 Cell: ({ row }) => {
                     const { department } = row.original;
                     if (department.effectiveHeadcount === null) {
@@ -144,80 +204,91 @@ export const DepartmentsTable: FC<Props> = ({
                             </Text>
                         );
                     }
+                    const headcount = formatCount(
+                        department.effectiveHeadcount,
+                    );
                     return (
-                        <Stack gap={0}>
-                            <Group gap="xs" wrap="nowrap">
-                                <Text fz="sm">
-                                    {department.effectiveHeadcount}
-                                </Text>
-                                {department.headcountBelowChildren && (
-                                    <Tooltip
-                                        label={BELOW_CHILDREN_WARNING}
-                                        events={{
-                                            hover: true,
-                                            focus: true,
-                                            touch: false,
-                                        }}
-                                    >
-                                        <Box
-                                            component="span"
-                                            role="img"
-                                            tabIndex={0}
-                                            aria-label={BELOW_CHILDREN_WARNING}
-                                        >
-                                            <MantineIcon
-                                                icon={IconAlertTriangle}
-                                                color="yellow"
-                                            />
-                                        </Box>
-                                    </Tooltip>
-                                )}
-                            </Group>
-                            {department.headcountNote !== null && (
-                                <Text fz="xs" c="dimmed" lineClamp={1}>
-                                    {department.headcountNote}
-                                </Text>
+                        <Group gap="xs" wrap="nowrap">
+                            {department.headcountNote === null ? (
+                                <Text fz="sm">{headcount}</Text>
+                            ) : (
+                                <ExplainedValue
+                                    value={headcount}
+                                    explanation={department.headcountNote}
+                                />
                             )}
-                        </Stack>
+                            {department.headcountBelowChildren && (
+                                <Tooltip
+                                    label={BELOW_CHILDREN_WARNING}
+                                    events={{
+                                        hover: true,
+                                        focus: true,
+                                        touch: false,
+                                    }}
+                                >
+                                    <Box
+                                        component="span"
+                                        role="img"
+                                        tabIndex={0}
+                                        aria-label={BELOW_CHILDREN_WARNING}
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertTriangle}
+                                            color="yellow"
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            )}
+                        </Group>
                     );
                 },
             },
             {
                 id: 'coverage',
                 header: 'Coverage',
-                size: 100,
-                Cell: ({ row }) => (
-                    <Text fz="sm">
-                        {formatShare(
-                            row.original.department.metrics.coveragePct,
-                            row.original.department.metrics.memberCount,
-                        )}
-                    </Text>
-                ),
+                size: 116,
+                Cell: ({ row }) => {
+                    const { metrics, effectiveHeadcount } =
+                        row.original.department;
+                    const coverage = formatCoverage(
+                        metrics.coveragePct,
+                        metrics.memberCount,
+                        effectiveHeadcount,
+                    );
+                    const note = getCoverageNote(
+                        effectiveHeadcount,
+                        metrics.memberCount,
+                    );
+                    return note === null ? (
+                        <CellText>{coverage}</CellText>
+                    ) : (
+                        <ExplainedValue value={coverage} explanation={note} />
+                    );
+                },
             },
             {
                 id: 'active',
                 header: 'Active 30d',
                 size: 110,
                 Cell: ({ row }) => (
-                    <Text fz="sm">
+                    <CellText>
                         {formatShare(
                             row.original.department.metrics.activePct,
                             row.original.department.metrics.activeCount30d,
                         )}
-                    </Text>
+                    </CellText>
                 ),
             },
             {
                 id: 'roles',
                 header: 'Roles',
-                size: 150,
+                size: 100,
                 Cell: ({ row }) => (
-                    <Text fz="xs" c="dimmed">
+                    <CellText fz="xs" c="dimmed">
                         {formatRoleSplit(
                             row.original.department.metrics.roleSplit,
                         )}
-                    </Text>
+                    </CellText>
                 ),
             },
             {
@@ -233,19 +304,19 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'owner',
                 header: 'Owner',
-                size: 110,
+                size: 130,
                 Cell: ({ row }) => (
-                    <Text fz="sm">
+                    <CellText>
                         {formatOwners(row.original.department.owners)}
-                    </Text>
+                    </CellText>
                 ),
             },
             {
                 id: 'target',
                 header: 'Target',
-                size: 120,
+                size: 114,
                 Cell: ({ row }) => (
-                    <Text fz="sm">{formatTarget(row.original.department)}</Text>
+                    <CellText>{formatTarget(row.original.department)}</CellText>
                 ),
             },
         ];

@@ -107,7 +107,7 @@ describe('typed strings render as text', () => {
         hooks.detail = undefined;
     });
 
-    it('in the list table', () => {
+    it('in the list table', async () => {
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -122,6 +122,9 @@ describe('typed strings render as text', () => {
             '/generalSettings/adoption/hostile',
         );
         expectLiteral(OWNER);
+        // The note is in the headcount's tooltip
+        await userEvent.hover(screen.getByText('10'));
+        await screen.findByRole('tooltip');
         expectLiteral(NOTE);
         expectNothingInjected();
     });

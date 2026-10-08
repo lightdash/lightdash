@@ -1,0 +1,18 @@
+/* Keeps its width however narrow the cell gets */
+.fixed {
+    flex-shrink: 0;
+}
+
+/* Gives up its width before the department name beside it does */
+.yields {
+    flex-shrink: 1000;
+}
+
+/* A value with an explanation in its tooltip */
+.explained {
+    cursor: help;
+    text-decoration: underline dotted;
+    text-decoration-color: var(--mantine-color-dimmed);
+    text-underline-offset: 3px;
+    white-space: nowrap;
+}

@@ -155,6 +155,11 @@ describe('formatters', () => {
             formatTarget({ targetActiveUsers: 40, targetDate: '2026-12-31' }),
         ).toBe('40 active by 31 Dec 2026');
     });
+    it('groups thousands in the target', () => {
+        expect(
+            formatTarget({ targetActiveUsers: 1200, targetDate: null }),
+        ).toBe('1,200 active');
+    });
 });
 
 describe('formatRoleSplit zero cases', () => {

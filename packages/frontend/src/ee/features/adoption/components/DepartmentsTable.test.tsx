@@ -117,9 +117,156 @@ describe('DepartmentsTable', () => {
             expect.objectContaining({ departmentUuid: 'Ops' }),
         );
     });
-    it('shows the headcount note as visible text without hovering', () => {
+    it('shows the headcount note in a tooltip on the headcount, on hover and on keyboard focus', async () => {
         renderTable();
-        expect(screen.getByText('Full-time staff only')).toBeVisible();
+        expect(
+            screen.queryByText('Full-time staff only'),
+        ).not.toBeInTheDocument();
+        const headcount = screen.getByText('300');
+        await userEvent.hover(headcount);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Full-time staff only',
+        );
+        await userEvent.unhover(headcount);
+        headcount.focus();
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Full-time staff only',
+        );
+    });
+    it('keeps every cell on one line, shortening long text with the full text in a title', () => {
+        const name = 'Customer Success Managers for Enterprise Accounts';
+        const owners = 'Valentina Choi-Attenborough +1';
+        const roles = '493 viewers, 169 interactive, 165 editors, 7 admins';
+        const target = '300 active by 30 Nov 2026';
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept(name, null, 50, {
+                            owners: [
+                                {
+                                    type: 'user',
+                                    uuid: 'u1',
+                                    name: 'Valentina Choi-Attenborough',
+                                },
+                                {
+                                    type: 'group',
+                                    uuid: 'g1',
+                                    name: 'emea-sales-leadership',
+                                },
+                            ],
+                            targetActiveUsers: 300,
+                            targetDate: '2026-11-30',
+                            metrics: metricsFixture(5, 50, {
+                                roleSplit: {
+                                    viewers: 493,
+                                    interactiveViewers: 169,
+                                    editors: 165,
+                                    admins: 7,
+                                },
+                            }),
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        const link = screen.getByRole('link', { name });
+        expect(link).toHaveAttribute('data-truncate', 'end');
+        expect(link).toHaveAttribute('title', name);
+        [owners, roles, target, '50% (5)'].forEach((text) => {
+            const cell = screen.getByText(text);
+            expect(cell).toHaveAttribute('data-truncate', 'end');
+            expect(cell).toHaveAttribute('title', text);
+        });
+    });
+    it('lets the count of deeper sub-departments give way before the name', async () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Commercial', null, 50),
+                        dept('Customer Success', 'Commercial', 50),
+                        dept('Support', 'Customer Success', 50),
+                        dept('Tier one', 'Support', 50),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Expand Commercial' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Expand Customer Success' }),
+        );
+        expect(screen.getByRole('link', { name: 'Support' })).toBeVisible();
+        const count = screen.getByText('1 sub-department');
+        expect(count).toHaveAttribute('data-truncate', 'end');
+        expect(count).toHaveAttribute('title', '1 sub-department');
+        expect(count).toHaveStyle({ minWidth: '0rem' });
+    });
+    it('groups thousands in every number', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Operations', null, null, {
+                            headcount: 2350,
+                            effectiveHeadcount: 2350,
+                            targetActiveUsers: 1200,
+                            targetDate: '2026-11-30',
+                            metrics: metricsFixture(1317, 56, {
+                                activeCount30d: 1200,
+                                activePct: 51,
+                                roleSplit: {
+                                    viewers: 1317,
+                                    interactiveViewers: 0,
+                                    editors: 0,
+                                    admins: 0,
+                                },
+                            }),
+                        }),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.getByText('2,350')).toBeVisible();
+        expect(screen.getByText('56% (1,317)')).toBeVisible();
+        expect(screen.getByText('51% (1,200)')).toBeVisible();
+        expect(screen.getByText('1,317 viewers')).toBeVisible();
+        expect(screen.getByText('1,200 active by 30 Nov 2026')).toBeVisible();
+    });
+    it('shows coverage above 100% with the counts behind it, explained in a tooltip', async () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Data governance', null, null, {
+                            headcount: 8,
+                            effectiveHeadcount: 8,
+                            metrics: metricsFixture(9, 113),
+                        }),
+                        dept('Sales', null, 80),
+                    ]}
+                    canManage
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        await userEvent.hover(screen.getByText('113% (9 of 8)'));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'More accounts than headcount',
+        );
+        // Coverage within the headcount needs no explanation
+        expect(screen.getByText('80% (8)')).toHaveAttribute(
+            'data-truncate',
+            'end',
+        );
     });
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();
