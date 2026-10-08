@@ -26,7 +26,8 @@ const getPlacements = (
         ...new Set([...explicitUuids, ...firstGroupNames.keys()]),
     ];
     // Most specific wins: drop a strict ancestor of another placement, found by one walk up from each candidate.
-    // The cost is linear in the number of candidate departments for shallow trees and bounded by the depth cap otherwise
+    // The cost is the sum of the candidates' depths: linear in the candidates for shallow trees, at most
+    // candidates times the depth cap (10, enforced on writes) otherwise
     const linked = new Set(linkedUuids);
     const linkedBelow = new Map<string, string[]>();
     if (linkedUuids.length > 1) {
