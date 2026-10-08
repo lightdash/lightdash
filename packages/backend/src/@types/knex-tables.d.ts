@@ -220,6 +220,10 @@ import {
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import {
+    OrganizationAgentIdentityRulesTable,
+    OrganizationAgentIdentityRulesTableName,
+} from '../database/entities/organizationAgentIdentityRules';
+import {
     OrganizationColorPaletteTable,
     OrganizationColorPaletteTableName,
 } from '../database/entities/organizationColorPalettes';
@@ -714,6 +718,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;

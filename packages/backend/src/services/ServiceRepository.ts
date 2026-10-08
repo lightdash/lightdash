@@ -967,6 +967,7 @@ export class ServiceRepository
             'aiServiceAccountService',
             () =>
                 new AiServiceAccountService({
+                    analytics: this.context.lightdashAnalytics,
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
@@ -992,6 +993,8 @@ export class ServiceRepository
                             this.models.getUserWarehouseCredentialsModel(),
                     }),
                     lightdashConfig: this.context.lightdashConfig,
+                    organizationAgentIdentityRulesModel:
+                        this.models.getOrganizationAgentIdentityRulesModel(),
                     organizationAgentIdentitySettingsModel:
                         this.models.getOrganizationAgentIdentitySettingsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),

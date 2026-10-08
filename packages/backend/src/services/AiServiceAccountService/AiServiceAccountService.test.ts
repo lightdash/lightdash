@@ -10,6 +10,7 @@ import {
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import { AiServiceAccountService } from './AiServiceAccountService';
 
@@ -60,7 +61,9 @@ const setup = () => {
     const withWarehouseClient = vi.fn(async (_ref, _context, callback) =>
         callback({ warehouseClient: { runQuery } }),
     );
+    const analytics = { track: vi.fn<LightdashAnalytics['track']>() };
     const service = new AiServiceAccountService({
+        analytics,
         aiServiceAccountCredentialsModel: model,
         featureFlagModel: { get: flag },
         projectModel: {
@@ -77,6 +80,7 @@ const setup = () => {
         projectService: { warehouseClientFactory: { withWarehouseClient } },
     } as unknown as ConstructorParameters<typeof AiServiceAccountService>[0]);
     return {
+        analytics,
         account,
         model,
         flag,
@@ -109,6 +113,7 @@ describe.each(operations)('%s boundaries', (operation) => {
             expect(mock).not.toHaveBeenCalled(),
         );
         expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.analytics.track).not.toHaveBeenCalled();
     });
     it('refuses a non-manager', async () => {
         const f = setup();
@@ -116,6 +121,7 @@ describe.each(operations)('%s boundaries', (operation) => {
         await expect(
             f.service[operation](f.account, 'project', null, input),
         ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.analytics.track).not.toHaveBeenCalled();
         expect(f.flag).not.toHaveBeenCalled();
         expect(f.load).not.toHaveBeenCalled();
     });
@@ -133,6 +139,7 @@ describe.each(operations)('%s boundaries', (operation) => {
         );
         expect(f.model.getSecrets).not.toHaveBeenCalled();
         expect(f.getExtra).not.toHaveBeenCalled();
+        expect(f.analytics.track).not.toHaveBeenCalled();
     });
     it.each(
         Object.values(WarehouseTypes).filter(
@@ -148,6 +155,7 @@ describe.each(operations)('%s boundaries', (operation) => {
             expect(mock).not.toHaveBeenCalled(),
         );
         expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.analytics.track).not.toHaveBeenCalled();
     });
 });
 
@@ -297,4 +305,169 @@ it('refuses to test an absent slot without submitted secrets', async () => {
         f.service.test(f.account, 'project', null, null),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(f.withWarehouseClient).not.toHaveBeenCalled();
+});
+
+describe('AI service account analytics', () => {
+    const properties = (f: ReturnType<typeof setup>) => ({
+        organizationId: f.account.organization.organizationUuid,
+        projectId: 'project',
+        userId: f.account.user.id,
+        warehouseType: WarehouseTypes.BIGQUERY,
+    });
+    const expectNoSecrets = (f: ReturnType<typeof setup>) => {
+        const calls = JSON.stringify(f.analytics.track.mock.calls);
+        for (const secret of [
+            secrets.keyfileContents.private_key,
+            secrets.keyfileContents.client_email,
+            connection.keyfileContents.refresh_token,
+            'SELECT SESSION_USER()',
+            'principal',
+            'keyfileContents',
+            'private_key',
+        ]) {
+            expect(calls).not.toContain(secret);
+        }
+    };
+
+    it.each(['created', 'updated'] as const)(
+        'tracks a %s slot after saving',
+        async (operation) => {
+            const f = setup();
+            f.model.getSlot.mockResolvedValue(
+                operation === 'created' ? null : { uuid: 'slot' },
+            );
+            f.model.upsert.mockImplementation(async () => {
+                expect(f.analytics.track).not.toHaveBeenCalled();
+                return { uuid: 'slot' };
+            });
+            await f.service.upsert(f.account, 'project', null, secrets);
+            expect(f.analytics.track).toHaveBeenCalledTimes(1);
+            expect(f.analytics.track).toHaveBeenCalledWith({
+                event: 'agent_identity.service_account_saved',
+                userId: f.account.user.id,
+                properties: { ...properties(f), operation },
+            });
+            expectNoSecrets(f);
+        },
+    );
+
+    it('counts replacing an unreadable slot as an update', async () => {
+        const f = setup();
+        f.model.getReplaceableSecrets.mockResolvedValue(null);
+        await f.service.upsert(f.account, 'project', null, secrets);
+        expect(f.analytics.track).toHaveBeenCalledTimes(1);
+        expect(f.analytics.track).toHaveBeenCalledWith({
+            event: 'agent_identity.service_account_saved',
+            userId: f.account.user.id,
+            properties: { ...properties(f), operation: 'updated' },
+        });
+        expectNoSecrets(f);
+    });
+
+    it('tracks a deleted slot after deletion succeeds', async () => {
+        const f = setup();
+        f.model.delete.mockImplementation(async () => {
+            expect(f.analytics.track).not.toHaveBeenCalled();
+        });
+        await f.service.delete(f.account, 'project', null);
+        expect(f.analytics.track).toHaveBeenCalledTimes(1);
+        expect(f.analytics.track).toHaveBeenCalledWith({
+            event: 'agent_identity.service_account_deleted',
+            userId: f.account.user.id,
+            properties: properties(f),
+        });
+        expectNoSecrets(f);
+    });
+
+    it.each(['submitted', 'saved'] as const)(
+        'tracks a successful %s credential test',
+        async (credentialSource) => {
+            const f = setup();
+            await f.service.test(
+                f.account,
+                'project',
+                null,
+                credentialSource === 'submitted' ? secrets : null,
+            );
+            expect(f.analytics.track).toHaveBeenCalledTimes(1);
+            expect(f.analytics.track).toHaveBeenCalledWith({
+                event: 'agent_identity.service_account_tested',
+                userId: f.account.user.id,
+                properties: {
+                    ...properties(f),
+                    result: 'success',
+                    failureReason: null,
+                    credentialSource,
+                },
+            });
+            expectNoSecrets(f);
+        },
+    );
+
+    it.each(['connection_failed', 'query_failed'] as const)(
+        'tracks a %s probe result without its error text',
+        async (failureReason) => {
+            const f = setup();
+            const error = new Error(
+                'saved-key agent@example.com personal-refresh SELECT SESSION_USER()',
+            );
+            if (failureReason === 'connection_failed')
+                f.withWarehouseClient.mockRejectedValue(error);
+            else f.runQuery.mockRejectedValue(error);
+            await expect(
+                f.service.test(f.account, 'project', null, null),
+            ).resolves.toMatchObject({ ok: false });
+            expect(f.analytics.track).toHaveBeenCalledTimes(1);
+            expect(f.analytics.track).toHaveBeenCalledWith({
+                event: 'agent_identity.service_account_tested',
+                userId: f.account.user.id,
+                properties: {
+                    ...properties(f),
+                    result: 'failure',
+                    failureReason,
+                    credentialSource: 'saved',
+                },
+            });
+            expectNoSecrets(f);
+        },
+    );
+
+    it.each(['upsert', 'delete'] as const)(
+        'does not track a failed %s',
+        async (operation) => {
+            const f = setup();
+            f.model[operation].mockRejectedValue(new Error('write failed'));
+            await expect(
+                f.service[operation](f.account, 'project', null, secrets),
+            ).rejects.toThrow('write failed');
+            expect(f.analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['upsert', 'test'] as const)(
+        'does not track %s with invalid submitted credentials',
+        async (operation) => {
+            const f = setup();
+            await expect(
+                f.service[operation](f.account, 'project', null, {
+                    ...secrets,
+                    keyfileContents: {
+                        ...secrets.keyfileContents,
+                        type: 'authorized_user',
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(f.analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    it('does not track a test rejected for a missing slot', async () => {
+        const f = setup();
+        f.model.getSecrets.mockResolvedValue(null);
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(f.analytics.track).not.toHaveBeenCalled();
+    });
 });

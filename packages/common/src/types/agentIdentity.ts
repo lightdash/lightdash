@@ -32,6 +32,47 @@ export const AGENT_IDENTITY_SOURCES: Record<
     [WarehouseTypes.DUCKDB]: markedOnly,
 };
 
+export const getAgentIdentityWarehouseTypes = (): WarehouseTypes[] =>
+    (Object.keys(AGENT_IDENTITY_SOURCES) as WarehouseTypes[]).filter((type) =>
+        Object.values(AGENT_IDENTITY_SOURCES[type]).some((sources) =>
+            sources.some((source) => source !== 'marked_person'),
+        ),
+    );
+
+export const isAllowedAgentIdentitySource = (
+    type: WarehouseTypes,
+    source: AiIdentitySource,
+): boolean =>
+    Object.values(AGENT_IDENTITY_SOURCES[type]).every((sources) =>
+        sources.includes(source),
+    );
+
+export type OrganizationAgentIdentityRule = {
+    warehouseType: WarehouseTypes;
+    source: AiIdentitySource;
+    required: boolean;
+};
+
+export type UpdateOrganizationAgentIdentityRule = {
+    source: AiIdentitySource;
+    required: boolean;
+};
+
+export type OrganizationAgentIdentityOverview = {
+    requireVerifiedAgentSessions: boolean;
+    rules: OrganizationAgentIdentityRule[];
+};
+
+export type ApiOrganizationAgentIdentityOverviewResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentityOverview;
+};
+
+export type ApiOrganizationAgentIdentityRuleResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentityRule;
+};
+
 export const supportsAiServiceAccount = (type: WarehouseTypes): boolean =>
     Object.values(AGENT_IDENTITY_SOURCES[type]).some((sources) =>
         sources.includes('ai_service_account'),

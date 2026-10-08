@@ -47,6 +47,7 @@ import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
@@ -180,6 +181,7 @@ export type ModelManifest = {
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
+    organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -1004,12 +1006,23 @@ export class ModelRepository
         );
     }
 
+    public getOrganizationAgentIdentityRulesModel(): OrganizationAgentIdentityRulesModel {
+        return this.getModel(
+            'organizationAgentIdentityRulesModel',
+            () =>
+                new OrganizationAgentIdentityRulesModel({
+                    database: this.database,
+                }),
+        );
+    }
+
     public getOrganizationAgentIdentitySettingsModel(): OrganizationAgentIdentitySettingsModel {
         return this.getModel(
             'organizationAgentIdentitySettingsModel',
             () =>
                 new OrganizationAgentIdentitySettingsModel({
                     database: this.database,
+                    rulesModel: this.getOrganizationAgentIdentityRulesModel(),
                 }),
         );
     }

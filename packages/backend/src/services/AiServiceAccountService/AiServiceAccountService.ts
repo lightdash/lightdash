@@ -13,6 +13,8 @@ import {
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -26,6 +28,7 @@ import {
 } from './applyAiServiceAccountCredentials';
 
 type Dependencies = {
+    analytics: Pick<LightdashAnalytics, 'track'>;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
@@ -114,7 +117,7 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput,
     ): Promise<AiServiceAccountSlot> {
-        const { connection, warehouseConnectionUuid } =
+        const { connection, warehouseConnectionUuid, organizationUuid } =
             await this.loadConnection(account, projectUuid, connectionUuid);
         if (input.type !== connection.type)
             throw new ParameterError(
@@ -126,12 +129,31 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const credentials = mergeAiServiceAccountCredentials(input, saved);
-        return this.deps.aiServiceAccountCredentialsModel.upsert(
+        const previous =
+            await this.deps.aiServiceAccountCredentialsModel.getSlot(
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        const slot = await this.deps.aiServiceAccountCredentialsModel.upsert(
             projectUuid,
             warehouseConnectionUuid,
             credentials,
             account.user.id,
         );
+        trackSafely(() =>
+            this.deps.analytics.track({
+                event: 'agent_identity.service_account_saved',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    userId: account.user.id,
+                    warehouseType: connection.type,
+                    operation: previous === null ? 'created' : 'updated',
+                },
+            }),
+        );
+        return slot;
     }
 
     async delete(
@@ -139,14 +161,23 @@ export class AiServiceAccountService extends BaseService {
         projectUuid: string,
         connectionUuid: string | null,
     ): Promise<void> {
-        const { warehouseConnectionUuid } = await this.loadConnection(
-            account,
-            projectUuid,
-            connectionUuid,
-        );
+        const { connection, warehouseConnectionUuid, organizationUuid } =
+            await this.loadConnection(account, projectUuid, connectionUuid);
         await this.deps.aiServiceAccountCredentialsModel.delete(
             projectUuid,
             warehouseConnectionUuid,
+        );
+        trackSafely(() =>
+            this.deps.analytics.track({
+                event: 'agent_identity.service_account_deleted',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    userId: account.user.id,
+                    warehouseType: connection.type,
+                },
+            }),
         );
     }
 
@@ -180,6 +211,9 @@ export class AiServiceAccountService extends BaseService {
             secrets,
         );
         const sql = 'SELECT SESSION_USER() AS principal';
+        let queryStarted = false;
+        let result: AiServiceAccountTestResult;
+        let failureReason: 'connection_failed' | 'query_failed' | null = null;
         try {
             const { rows } =
                 await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
@@ -193,14 +227,17 @@ export class AiServiceAccountService extends BaseService {
                         organizationUuid,
                         queryContext: QueryExecutionContext.API,
                     }),
-                    ({ warehouseClient }) => warehouseClient.runQuery(sql, {}),
+                    ({ warehouseClient }) => {
+                        queryStarted = true;
+                        return warehouseClient.runQuery(sql, {});
+                    },
                 );
             const row = rows[0];
             const principalValue: unknown = row?.principal ?? row?.PRINCIPAL;
             const principal =
                 typeof principalValue === 'string' ? principalValue : null;
             const observed: Record<string, string | null> = { principal };
-            return {
+            result = {
                 ok: true,
                 principal,
                 observed,
@@ -211,7 +248,8 @@ export class AiServiceAccountService extends BaseService {
                 checkedAt: new Date(),
             };
         } catch {
-            return {
+            failureReason = queryStarted ? 'query_failed' : 'connection_failed';
+            result = {
                 ok: false,
                 principal: null,
                 observed: {},
@@ -220,5 +258,21 @@ export class AiServiceAccountService extends BaseService {
                 checkedAt: new Date(),
             };
         }
+        trackSafely(() =>
+            this.deps.analytics.track({
+                event: 'agent_identity.service_account_tested',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    userId: account.user.id,
+                    warehouseType: connection.type,
+                    result: result.ok ? 'success' : 'failure',
+                    failureReason,
+                    credentialSource: input === null ? 'saved' : 'submitted',
+                },
+            }),
+        );
+        return result;
     }
 }

@@ -1,7 +1,9 @@
 import { assertValidBigqueryKeyfile } from '../utils/bigqueryKeyfile';
 import {
     AGENT_IDENTITY_SOURCES,
+    getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
+    isAllowedAgentIdentitySource,
     supportsAiServiceAccount,
 } from './agentIdentity';
 import { WarehouseTypes } from './projects';
@@ -83,4 +85,50 @@ describe('BigQuery service account key validation', () => {
             ).toThrow();
         },
     );
+});
+
+describe('organization identity rules', () => {
+    it('lists only enforceable warehouses in source-map order', () => {
+        expect(getAgentIdentityWarehouseTypes()).toEqual([
+            WarehouseTypes.SNOWFLAKE,
+            WarehouseTypes.BIGQUERY,
+        ]);
+    });
+
+    it.each(Object.values(WarehouseTypes))(
+        '%s validates each source',
+        (type) => {
+            expect(isAllowedAgentIdentitySource(type, 'marked_person')).toBe(
+                true,
+            );
+            expect(isAllowedAgentIdentitySource(type, 'agent_sign_in')).toBe(
+                type === WarehouseTypes.SNOWFLAKE,
+            );
+            expect(
+                isAllowedAgentIdentitySource(type, 'ai_service_account'),
+            ).toBe(type === WarehouseTypes.BIGQUERY);
+        },
+    );
+
+    it('requires every actor to allow a source, while listing any enforceable identity', () => {
+        const original =
+            AGENT_IDENTITY_SOURCES[WarehouseTypes.SNOWFLAKE].service_account;
+        try {
+            AGENT_IDENTITY_SOURCES[WarehouseTypes.SNOWFLAKE].service_account = [
+                'marked_person',
+            ];
+            expect(
+                isAllowedAgentIdentitySource(
+                    WarehouseTypes.SNOWFLAKE,
+                    'agent_sign_in',
+                ),
+            ).toBe(false);
+            expect(getAgentIdentityWarehouseTypes()).toContain(
+                WarehouseTypes.SNOWFLAKE,
+            );
+        } finally {
+            AGENT_IDENTITY_SOURCES[WarehouseTypes.SNOWFLAKE].service_account =
+                original;
+        }
+    });
 });

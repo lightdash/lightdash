@@ -1,13 +1,17 @@
 import {
     ApiErrorPayload,
-    ApiOrganizationAgentIdentitySettingsResponse,
+    ApiOrganizationAgentIdentityOverviewResponse,
+    ApiOrganizationAgentIdentityRuleResponse,
     OrganizationAgentIdentitySettings,
+    UpdateOrganizationAgentIdentityRule,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     Body,
     Get,
     Middlewares,
     OperationId,
+    Path,
     Put,
     Request,
     Response,
@@ -33,7 +37,7 @@ export class OrganizationAgentIdentityController extends BaseController {
     @SuccessResponse('200', 'Success')
     async getSettings(
         @Request() req: express.Request,
-    ): Promise<ApiOrganizationAgentIdentitySettingsResponse> {
+    ): Promise<ApiOrganizationAgentIdentityOverviewResponse> {
         return {
             status: 'ok',
             results: await this.services
@@ -48,12 +52,28 @@ export class OrganizationAgentIdentityController extends BaseController {
     async updateSettings(
         @Request() req: express.Request,
         @Body() settings: OrganizationAgentIdentitySettings,
-    ): Promise<ApiOrganizationAgentIdentitySettingsResponse> {
+    ): Promise<ApiOrganizationAgentIdentityOverviewResponse> {
         return {
             status: 'ok',
             results: await this.services
                 .getAiAccessService()
                 .updateOrganizationSettings(req.account!, settings),
+        };
+    }
+
+    @Put('/{warehouseType}')
+    @OperationId('updateOrganizationAgentIdentityRule')
+    @SuccessResponse('200', 'Success')
+    async updateRule(
+        @Request() req: express.Request,
+        @Path() warehouseType: WarehouseTypes,
+        @Body() rule: UpdateOrganizationAgentIdentityRule,
+    ): Promise<ApiOrganizationAgentIdentityRuleResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .updateOrganizationRule(req.account!, warehouseType, rule),
         };
     }
 }

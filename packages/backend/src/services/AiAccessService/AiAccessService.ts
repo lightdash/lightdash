@@ -14,7 +14,10 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
+    getAgentIdentityWarehouseTypes,
     isAiAccessQueryContext,
+    isAllowedAgentIdentitySource,
+    ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
@@ -26,9 +29,12 @@ import {
     type AiMarkerTestResult,
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
+    type OrganizationAgentIdentityOverview,
+    type OrganizationAgentIdentityRule,
     type OrganizationAgentIdentitySettings,
     type QueryHistory,
     type SessionUser,
+    type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
 import {
@@ -38,6 +44,7 @@ import {
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -75,7 +82,8 @@ export type ResolvePlanArgs = {
 type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
 
 type AiAccessServiceArguments = {
-    analytics: LightdashAnalytics;
+    analytics: Pick<LightdashAnalytics, 'track'>;
+    organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
@@ -88,7 +96,9 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
-    private readonly analytics: LightdashAnalytics;
+    private readonly analytics: Pick<LightdashAnalytics, 'track'>;
+
+    private readonly organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
 
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
@@ -110,6 +120,7 @@ export class AiAccessService extends BaseService {
 
     constructor({
         analytics,
+        organizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel,
         lightdashConfig,
         featureFlagModel,
@@ -122,6 +133,8 @@ export class AiAccessService extends BaseService {
     }: AiAccessServiceArguments) {
         super();
         this.analytics = analytics;
+        this.organizationAgentIdentityRulesModel =
+            organizationAgentIdentityRulesModel;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
         this.lightdashConfig = lightdashConfig;
@@ -194,15 +207,18 @@ export class AiAccessService extends BaseService {
 
     async getOrganizationSettings(
         account: Account,
-    ): Promise<OrganizationAgentIdentitySettings> {
+    ): Promise<OrganizationAgentIdentityOverview> {
         assertIsAccountWithOrg(account);
         await this.assertFeatureEnabled({
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
         });
-        return this.organizationAgentIdentitySettingsModel.get(
-            account.organization.organizationUuid,
-        );
+        const { organizationUuid } = account.organization;
+        const [settings, rules] = await Promise.all([
+            this.organizationAgentIdentitySettingsModel.get(organizationUuid),
+            this.organizationAgentIdentityRulesModel.list(organizationUuid),
+        ]);
+        return { ...settings, rules };
     }
 
     async updateOrganizationSettings(
@@ -250,7 +266,62 @@ export class AiAccessService extends BaseService {
                 }),
             );
         }
-        return savedSettings;
+        return { ...savedSettings, rules: await this.organizationAgentIdentityRulesModel.list(organizationUuid) };
+    }
+
+    async updateOrganizationRule(
+        account: Account,
+        warehouseType: WarehouseTypes,
+        rule: UpdateOrganizationAgentIdentityRule,
+    ): Promise<OrganizationAgentIdentityRule> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            !getAgentIdentityWarehouseTypes().includes(warehouseType) ||
+            !isAllowedAgentIdentitySource(warehouseType, rule.source)
+        ) {
+            throw new ParameterError(
+                'This identity source is not supported for the warehouse type',
+            );
+        }
+        const previous = await this.organizationAgentIdentityRulesModel.get(
+            organizationUuid,
+            warehouseType,
+            'person',
+        );
+        await this.organizationAgentIdentityRulesModel.set(
+            organizationUuid,
+            warehouseType,
+            rule,
+        );
+        trackSafely(() =>
+            this.analytics.track({
+                event: 'agent_identity.rule_updated',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    userId: account.user.id,
+                    warehouseType,
+                    source: rule.source,
+                    required: rule.required,
+                    previousSource: previous.source,
+                    previousRequired: previous.required,
+                },
+            }),
+        );
+        return { warehouseType, source: rule.source, required: rule.required };
     }
 
     private async authorizeProject(

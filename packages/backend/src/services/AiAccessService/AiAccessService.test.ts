@@ -4,14 +4,18 @@ import {
     AiAccessRefusedError,
     AiAgentMarkerLevel,
     FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
+    ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type OrganizationAgentIdentityRule,
     type PossibleAbilities,
     type QueryHistory,
+    type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
@@ -20,6 +24,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -148,11 +153,36 @@ const setup = () => {
             credentials: { type: WarehouseTypes.SNOWFLAKE },
         })),
     };
-    const analytics = { track: vi.fn() };
+    const analytics = { track: vi.fn<LightdashAnalytics['track']>() };
+    const organizationRules = {
+        get: vi.fn(
+            async (): Promise<UpdateOrganizationAgentIdentityRule> => ({
+                source: 'marked_person',
+                required: false,
+            }),
+        ),
+        list: vi.fn(
+            async (): Promise<OrganizationAgentIdentityRule[]> => [
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'marked_person',
+                    required: false,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    required: false,
+                },
+            ],
+        ),
+        set: vi.fn(async () => {}),
+    };
     const service = new AiAccessService({
-        analytics: analytics as unknown as LightdashAnalytics,
         userWarehouseCredentialsModel:
             credentials as unknown as UserWarehouseCredentialsModel,
+        analytics,
+        organizationAgentIdentityRulesModel:
+            organizationRules as unknown as OrganizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel:
             organizationSettings as unknown as OrganizationAgentIdentitySettingsModel,
         lightdashConfig: {
@@ -176,6 +206,7 @@ const setup = () => {
         historyModel,
         credentials,
         organizationSettings,
+        organizationRules,
         provider,
         flags,
         registry,
@@ -1531,5 +1562,248 @@ describe('AiAccessService', () => {
             (value) => value !== WarehouseTypes.SNOWFLAKE,
         ))
             expect(registry(type)).toBeNull();
+    });
+});
+
+describe('organization agent identity rules', () => {
+    const manager = () => {
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Organization',
+                conditions: {
+                    organizationUuid: admin.organization.organizationUuid,
+                },
+            },
+        ]);
+        return admin;
+    };
+
+    test('returns the legacy default and default enforceable rules', async () => {
+        const { service, organizationSettings, organizationRules } = setup();
+        const member = buildAccount();
+        organizationSettings.get.mockResolvedValue({
+            requireVerifiedAgentSessions: false,
+        });
+        expect(await service.getOrganizationSettings(member)).toEqual({
+            requireVerifiedAgentSessions: false,
+            rules: [
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'marked_person',
+                    required: false,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    required: false,
+                },
+            ],
+        });
+        expect(organizationRules.list).toHaveBeenCalledWith(
+            member.organization.organizationUuid,
+        );
+    });
+
+    test.each([
+        [WarehouseTypes.BIGQUERY, 'ai_service_account'],
+        [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
+    ] as const)(
+        'writes %s rules for the account organization',
+        async (warehouseType, source) => {
+            const { service, organizationRules, analytics } = setup();
+            const admin = manager();
+            const rule = { source, required: true };
+            expect(
+                await service.updateOrganizationRule(
+                    admin,
+                    warehouseType,
+                    rule,
+                ),
+            ).toEqual({ warehouseType, ...rule });
+            expect(organizationRules.set).toHaveBeenCalledWith(
+                admin.organization.organizationUuid,
+                warehouseType,
+                rule,
+            );
+            expect(organizationRules.get).toHaveBeenCalledWith(
+                admin.organization.organizationUuid,
+                warehouseType,
+                'person',
+            );
+            expect(analytics.track).toHaveBeenCalledTimes(1);
+            expect(analytics.track).toHaveBeenCalledWith({
+                event: 'agent_identity.rule_updated',
+                userId: admin.user.id,
+                properties: {
+                    organizationId: admin.organization.organizationUuid,
+                    userId: admin.user.id,
+                    warehouseType,
+                    source,
+                    required: true,
+                    previousSource: 'marked_person',
+                    previousRequired: false,
+                },
+            });
+        },
+    );
+
+    test.each([
+        [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
+        [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
+        [WarehouseTypes.POSTGRES, 'marked_person'],
+        [WarehouseTypes.POSTGRES, 'agent_sign_in'],
+        [WarehouseTypes.POSTGRES, 'ai_service_account'],
+    ] as const)(
+        'rejects %s source %s without writing',
+        async (type, source) => {
+            const {
+                service,
+                organizationRules,
+                organizationSettings,
+                analytics,
+            } = setup();
+            await expect(
+                service.updateOrganizationRule(manager(), type, {
+                    source,
+                    required: false,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    test('rejects a non-manager', async () => {
+        const { service, organizationRules, analytics } = setup();
+        await expect(
+            service.updateOrganizationRule(
+                buildAccount(),
+                WarehouseTypes.BIGQUERY,
+                { source: 'ai_service_account', required: true },
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(organizationRules.set).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    test.each(['get', 'legacy', 'rule'] as const)(
+        'gates %s before reading or writing settings',
+        async (method) => {
+            const {
+                service,
+                flags,
+                organizationSettings,
+                organizationRules,
+                analytics,
+            } = setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            const admin = manager();
+            const actions = {
+                get: () => service.getOrganizationSettings(admin),
+                legacy: () =>
+                    service.updateOrganizationSettings(admin, {
+                        requireVerifiedAgentSessions: true,
+                    }),
+                rule: () =>
+                    service.updateOrganizationRule(
+                        admin,
+                        WarehouseTypes.BIGQUERY,
+                        { source: 'ai_service_account', required: true },
+                    ),
+            };
+            await expect(actions[method]()).rejects.toBeInstanceOf(
+                FeatureNotEnabledError,
+            );
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+            expect(organizationRules.list).not.toHaveBeenCalled();
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(organizationSettings.get).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([true, false])(
+        'delegates legacy %s to the atomic settings adapter and returns its overview',
+        async (required) => {
+            const {
+                service,
+                organizationRules,
+                organizationSettings,
+                analytics,
+            } = setup();
+            const admin = manager();
+            const rules: OrganizationAgentIdentityRule[] = [
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: required ? 'agent_sign_in' : 'marked_person',
+                    required,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    required: false,
+                },
+            ];
+            organizationRules.list.mockResolvedValue(rules);
+            expect(
+                await service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: required,
+                }),
+            ).toEqual({ requireVerifiedAgentSessions: required, rules });
+            expect(organizationSettings.upsert).toHaveBeenCalledWith(
+                admin.organization.organizationUuid,
+                { requireVerifiedAgentSessions: required },
+            );
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
+    test('tracks the previous non-default rule after a successful update', async () => {
+        const { service, organizationRules, analytics } = setup();
+        const admin = manager();
+        organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+            required: true,
+        });
+        organizationRules.set.mockImplementation(async () => {
+            expect(analytics.track).not.toHaveBeenCalled();
+            expect(organizationRules.get).toHaveBeenCalledTimes(1);
+        });
+        await service.updateOrganizationRule(admin, WarehouseTypes.BIGQUERY, {
+            source: 'marked_person',
+            required: false,
+        });
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'agent_identity.rule_updated',
+            userId: admin.user.id,
+            properties: {
+                organizationId: admin.organization.organizationUuid,
+                userId: admin.user.id,
+                warehouseType: WarehouseTypes.BIGQUERY,
+                source: 'marked_person',
+                required: false,
+                previousSource: 'ai_service_account',
+                previousRequired: true,
+            },
+        });
+        expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+            /saved-key|agent@example.com|keyfileContents|private_key|SELECT/,
+        );
+    });
+
+    test('does not track a failed rule write', async () => {
+        const { service, organizationRules, analytics } = setup();
+        organizationRules.set.mockRejectedValue(new Error('write failed'));
+        await expect(
+            service.updateOrganizationRule(
+                manager(),
+                WarehouseTypes.SNOWFLAKE,
+                { source: 'agent_sign_in', required: true },
+            ),
+        ).rejects.toThrow('write failed');
+        expect(analytics.track).not.toHaveBeenCalled();
     });
 });

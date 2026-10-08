@@ -52,6 +52,7 @@ import {
     type AiDeepResearchFailureStage,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
+    type AiIdentitySource,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
@@ -369,6 +370,30 @@ type WarehouseConnectionChangedEvent = BaseTrack & {
         changedCredentials: boolean | null;
         changedDatabaseSettings: boolean | null;
     };
+};
+
+type AgentIdentityServiceAccountSavedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_saved';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties & {
+        operation: 'created' | 'updated';
+    };
+};
+
+type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_tested';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties & {
+        result: 'success' | 'failure';
+        failureReason: 'connection_failed' | 'query_failed' | null;
+        credentialSource: 'submitted' | 'saved';
+    };
+};
+
+type AgentIdentityServiceAccountDeletedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_deleted';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties;
 };
 
 type WarehouseConnectionTestCompletedEvent = BaseTrack & {
@@ -4610,7 +4635,9 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
     properties: {
         organizationId: string;
         userId: string | null;
-        warehouseType: WarehouseTypes.SNOWFLAKE;
+        warehouseType: WarehouseTypes;
+        source?: AiIdentitySource;
+        previousSource?: AiIdentitySource;
         required: boolean;
         previousRequired: boolean;
     };
@@ -4687,6 +4714,9 @@ type AgentIdentityEvent =
 
 type TypedEvent =
     | AgentIdentityEvent
+    | AgentIdentityServiceAccountSavedEvent
+    | AgentIdentityServiceAccountTestedEvent
+    | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
