@@ -43,6 +43,7 @@ import {
     decodeOwners,
     encodeOwner,
     formatTargetDate,
+    getAssignableUsers,
     getParentOptions,
     getResolvedMembers,
     getResolvedMembersFromDetail,
@@ -163,13 +164,23 @@ export const DepartmentForm: FC<FormProps> = ({
         },
     });
 
+    const alreadyChosen = useMemo(
+        () =>
+            new Set([
+                ...(department?.explicitMemberUuids ?? []),
+                ...(department?.owners ?? [])
+                    .filter((owner) => owner.type === 'user')
+                    .map((owner) => owner.uuid),
+            ]),
+        [department],
+    );
     const userOptions = useMemo(
         () =>
-            users.map((user) => ({
+            getAssignableUsers(users, alreadyChosen).map((user) => ({
                 value: user.userUuid,
                 label: getFullName(user),
             })),
-        [users],
+        [users, alreadyChosen],
     );
     const groupOptions = useMemo(
         () => groups.map((group) => ({ value: group.uuid, label: group.name })),

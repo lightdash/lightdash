@@ -46,6 +46,19 @@ export const decodeOwners = (values: string[]): DepartmentOwnerInput[] =>
 export const toNullableNumber = (value: number | string): number | null =>
     value === '' ? null : Number(value);
 
+// Only people on Lightdash can be newly assigned or made owners; anyone already chosen stays on offer
+export const getAssignableUsers = <
+    T extends { userUuid: string; isActive: boolean; isPending?: boolean },
+>(
+    users: T[],
+    alreadyChosen: Set<string>,
+): T[] =>
+    users.filter(
+        (user) =>
+            (user.isActive && user.isPending !== true) ||
+            alreadyChosen.has(user.userUuid),
+    );
+
 // The note always shows on one line and the server refuses line breaks, so they become spaces
 export const cleanHeadcountNote = (value: string): string | null => {
     const cleaned = value.replace(/\s+/g, ' ').trim();

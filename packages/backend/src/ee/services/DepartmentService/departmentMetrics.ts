@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     computeEffectiveHeadcounts,
     getDirectMembersByDepartment,
     OrganizationMemberRole,
@@ -10,6 +9,7 @@ import {
     type OrganizationAdoptionSummary,
     type RoleSplit,
 } from '@lightdash/common';
+import Logger from '../../../logging/logger';
 import { type ActivityRow } from '../../../models/DepartmentAnalyticsModel';
 
 export type MetricsInput = {
@@ -71,6 +71,8 @@ const pct = (num: number, headcount: number | null): number | null =>
         ? null
         : Math.round((100 * num) / headcount);
 
+const warnedRoles = new Set<string>();
+
 const bucket = (split: RoleSplit, role: OrganizationMemberRole): RoleSplit => {
     switch (role) {
         case OrganizationMemberRole.MEMBER:
@@ -86,8 +88,18 @@ const bucket = (split: RoleSplit, role: OrganizationMemberRole): RoleSplit => {
             return { ...split, editors: split.editors + 1 };
         case OrganizationMemberRole.ADMIN:
             return { ...split, admins: split.admins + 1 };
-        default:
-            return assertUnreachable(role, `Unknown role ${role}`);
+        default: {
+            // Still exhaustive at compile time; a role added to the database later counts as a
+            // viewer instead of failing the whole summary, and is logged once per role
+            const unknownRole: never = role;
+            if (!warnedRoles.has(String(unknownRole))) {
+                warnedRoles.add(String(unknownRole));
+                Logger.warn(
+                    `Adoption by department counts unknown organization role "${String(unknownRole)}" as a viewer`,
+                );
+            }
+            return { ...split, viewers: split.viewers + 1 };
+        }
     }
 };
 

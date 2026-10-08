@@ -42,6 +42,8 @@ const person = (userUuid: string, firstName: string) => ({
     firstName,
     lastName: 'Test',
     email: `${userUuid}@example.com`,
+    isActive: true,
+    isPending: false,
 });
 let users = [person('u1', 'Ann'), person('u2', 'Bob')];
 const groups = [

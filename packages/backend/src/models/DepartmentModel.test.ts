@@ -391,6 +391,9 @@ describe('DepartmentModel', () => {
         tracker.on.select(/from "department_owners"/).response([]);
         tracker.on.delete(DepartmentMemberTableName).response(0);
         tracker.on.insert(DepartmentMemberTableName).response([]);
+        tracker.on
+            .any(/is_active = true/)
+            .response({ rows: [{ user_uuid: 'u1' }] });
 
         await model.setMembers('org', 'dep', ['u1']);
 
@@ -411,6 +414,9 @@ describe('DepartmentModel', () => {
         tracker.on.select(/from "department_owners"/).response([]);
         tracker.on.delete(DepartmentOwnerTableName).response(0);
         tracker.on.insert(DepartmentOwnerTableName).response([]);
+        tracker.on
+            .any(/is_active = true/)
+            .response({ rows: [{ user_uuid: 'u1' }] });
 
         await model.setOwners('org', 'dep', [
             { type: 'group', uuid: 'g1' },
@@ -444,24 +450,86 @@ describe('DepartmentModel', () => {
         );
     });
 
-    it('still lets a deactivated or pending user be assigned, so the place is kept for them', async () => {
-        tracker.on
-            .select(OrganizationMembershipsTableName)
-            .response([{ user_uuid: 'pending' }]);
-        tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
-        tracker.on.select(DepartmentLinkTableName).response([]);
-        tracker.on.select(DepartmentMemberTableName).response([]);
-        tracker.on.select(DepartmentOwnerTableName).response([]);
-        tracker.on.delete(DepartmentMemberTableName).response(1);
-        tracker.on.insert(DepartmentMemberTableName).response([]);
-        await model.setMembers('org', 'dep', ['pending']);
-        const check = tracker.history.select.find((q) =>
-            q.sql.includes(`from "${OrganizationMembershipsTableName}"`),
-        );
-        expect(check).toBeDefined();
-        expect(check?.sql).not.toContain('is_active');
-        expect(check?.sql).not.toContain('is_verified');
-        expect(tracker.history.insert).toHaveLength(1);
+    describe('who can be newly assigned or made an owner', () => {
+        const ON_LIGHTDASH = /is_active = true/;
+        const respondToMemberWrite = (listed: string[]) => {
+            tracker.on
+                .select(OrganizationMembershipsTableName)
+                .response([
+                    { user_uuid: 'pending' },
+                    { user_uuid: 'u1' },
+                    { user_uuid: 'quiet' },
+                ]);
+            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+            tracker.on
+                .select(/^select "user_uuid" from "department_members"/)
+                .response(listed.map((user_uuid) => ({ user_uuid })));
+            tracker.on
+                .select(/^select "principal_uuid" from "department_owners"/)
+                .response(listed.map((principal_uuid) => ({ principal_uuid })));
+            tracker.on.select(/from "department_/).response([]);
+            tracker.on.delete(/.*/).response(0);
+            tracker.on.insert(/.*/).response([]);
+        };
+
+        it('refuses a person who is deactivated or has not finished signing up', async () => {
+            respondToMemberWrite([]);
+            tracker.on.any(ON_LIGHTDASH).response({ rows: [] });
+            await expect(
+                model.setMembers('org', 'dep', ['pending']),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'User pending must be an active member of this organization',
+                ),
+            );
+            expect(tracker.history.insert).toHaveLength(0);
+            const check = tracker.history.all.find((q) =>
+                ON_LIGHTDASH.test(q.sql),
+            );
+            // The same definition of on Lightdash as the membership read
+            expect(check?.sql).toMatch(
+                /u\.is_active = true\s+AND \(\s+e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)/,
+            );
+            expect(check?.sql).toContain('e.is_primary = true');
+            expect(check?.bindings).toEqual([['pending']]);
+        });
+        it('refuses a new user owner who is not on Lightdash', async () => {
+            respondToMemberWrite([]);
+            tracker.on.any(ON_LIGHTDASH).response({ rows: [] });
+            await expect(
+                model.setOwners('org', 'dep', [
+                    { type: 'user', uuid: 'pending' },
+                ]),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'User pending must be an active member of this organization',
+                ),
+            );
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+        it('keeps people already in the list, checking only the newcomers', async () => {
+            respondToMemberWrite(['quiet']);
+            tracker.on
+                .any(ON_LIGHTDASH)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            await model.setMembers('org', 'dep', ['quiet', 'u1']);
+            await model.setOwners('org', 'dep', [
+                { type: 'user', uuid: 'quiet' },
+                { type: 'user', uuid: 'u1' },
+            ]);
+            const checks = tracker.history.all.filter((q) =>
+                ON_LIGHTDASH.test(q.sql),
+            );
+            expect(checks.map((q) => q.bindings)).toEqual([[['u1']], [['u1']]]);
+            expect(tracker.history.insert).toHaveLength(2);
+        });
+        it('does not check anyone when nobody new is added', async () => {
+            respondToMemberWrite(['quiet']);
+            await model.setMembers('org', 'dep', ['quiet']);
+            expect(
+                tracker.history.all.some((q) => ON_LIGHTDASH.test(q.sql)),
+            ).toBe(false);
+        });
     });
 
     describe('department and depth limits', () => {
@@ -592,6 +660,9 @@ describe('DepartmentModel', () => {
             tracker.on.insert(/.*/).response([{ department_uuid: 'dep' }]);
             tracker.on.update(/.*/).response(1);
             tracker.on.delete(/.*/).response(1);
+            tracker.on
+                .any(/is_active = true/)
+                .response({ rows: [{ user_uuid: 'u1' }] });
         };
         const newDepartment = {
             name: 'Ops',

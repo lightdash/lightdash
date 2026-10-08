@@ -77,6 +77,15 @@ const isUniqueViolation = (e: unknown): boolean =>
     'code' in e &&
     e.code === UNIQUE_VIOLATION;
 
+// On Lightdash: active and signed up (a password, a single sign-on identity or a verified primary
+// email), derived as the organization members list derives it. Needs users as u and the primary email as e
+const ON_LIGHTDASH_SQL = `u.is_active = true
+                  AND (
+                      e.is_verified = true
+                      OR EXISTS (SELECT 1 FROM password_logins pl WHERE pl.user_id = u.user_id)
+                      OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
+                  )`;
+
 const normalizeNote = (note: string | null): string | null => {
     const trimmed = note?.trim() ?? '';
     return trimmed.length > 0 ? trimmed : null;
@@ -495,6 +504,34 @@ export class DepartmentModel {
         }
     }
 
+    // Someone newly assigned or made an owner must be on Lightdash. People already in the list stay,
+    // so a list holding someone since deactivated can still be saved
+    private static async assertNewcomersOnLightdash(
+        userUuids: string[],
+        alreadyListed: Set<string>,
+        db: Knex,
+    ): Promise<void> {
+        const newcomers = userUuids.filter((u) => !alreadyListed.has(u));
+        if (newcomers.length === 0) return;
+        const result = await db.raw<{ rows: { user_uuid: string }[] }>(
+            `
+            SELECT u.user_uuid
+            FROM users u
+            JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
+            WHERE u.user_uuid = ANY(?::uuid[])
+              AND ${ON_LIGHTDASH_SQL}
+            `,
+            [newcomers],
+        );
+        const found = new Set(result.rows.map((r) => r.user_uuid));
+        const inactive = newcomers.find((u) => !found.has(u));
+        if (inactive) {
+            throw new ParameterError(
+                `User ${inactive} must be an active member of this organization`,
+            );
+        }
+    }
+
     async setGroupLinks(
         organizationUuid: string,
         departmentUuid: string,
@@ -542,6 +579,14 @@ export class DepartmentModel {
                 trx,
             );
             await this.getRow(organizationUuid, departmentUuid, trx);
+            const listed = await trx(DepartmentMemberTableName)
+                .where('department_uuid', departmentUuid)
+                .select<{ user_uuid: string }[]>('user_uuid');
+            await DepartmentModel.assertNewcomersOnLightdash(
+                unique,
+                new Set(listed.map((m) => m.user_uuid)),
+                trx,
+            );
             // One explicit assignment per user per org
             const orgDepartments = trx(DepartmentTableName)
                 .select('department_uuid')
@@ -577,10 +622,13 @@ export class DepartmentModel {
             seen.add(key);
             return true;
         });
+        const userOwners = unique
+            .filter((o) => o.type === 'user')
+            .map((o) => o.uuid);
         await this.inOrganizationLock(organizationUuid, async (trx) => {
             await DepartmentModel.assertUsersInOrg(
                 organizationUuid,
-                unique.filter((o) => o.type === 'user').map((o) => o.uuid),
+                userOwners,
                 trx,
             );
             await DepartmentModel.assertGroupsInOrg(
@@ -589,6 +637,17 @@ export class DepartmentModel {
                 trx,
             );
             await this.getRow(organizationUuid, departmentUuid, trx);
+            const listed = await trx(DepartmentOwnerTableName)
+                .where({
+                    department_uuid: departmentUuid,
+                    principal_type: 'user',
+                })
+                .select<{ principal_uuid: string }[]>('principal_uuid');
+            await DepartmentModel.assertNewcomersOnLightdash(
+                userOwners,
+                new Set(listed.map((o) => o.principal_uuid)),
+                trx,
+            );
             await trx(DepartmentOwnerTableName)
                 .where('department_uuid', departmentUuid)
                 .delete();
@@ -633,12 +692,7 @@ export class DepartmentModel {
                 JOIN users u ON u.user_id = om.user_id
                 JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
                 WHERE u.is_internal = false
-                  AND u.is_active = true
-                  AND (
-                      e.is_verified = true
-                      OR EXISTS (SELECT 1 FROM password_logins pl WHERE pl.user_id = u.user_id)
-                      OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
-                  )
+                  AND ${ON_LIGHTDASH_SQL}
             ),
             explicit AS (
                 SELECT dm.user_uuid, MIN(dm.department_uuid::text) AS department_uuid
