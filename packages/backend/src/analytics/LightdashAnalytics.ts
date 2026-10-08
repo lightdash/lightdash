@@ -2353,6 +2353,8 @@ export type DataAppThreadClearedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         threadNumber: number;
+        // null when the app had no sandbox to destroy
+        sandboxDestroyed: boolean | null;
     };
 };
 

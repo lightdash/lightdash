@@ -3274,20 +3274,24 @@ export class AppGenerateService extends BaseService {
         return sessionTar;
     }
 
+    /** Returns whether the provider destroy succeeded. */
     private async destroySandboxAndClearReference(
         appUuid: string,
         sandboxUuid: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
+        let destroyed = false;
         try {
             await this.getSandboxManager().destroy({
                 sandboxUuid,
             });
+            destroyed = true;
         } catch (error) {
             this.logger.warn(
-                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+                `App ${appUuid}: failed to destroy sandbox ${sandboxUuid}: ${getErrorMessage(error)}`,
             );
         }
-        await this.appModel.updateSandboxUuid(appUuid, null);
+        await this.appModel.clearSandboxUuidIfCurrent(appUuid, sandboxUuid);
+        return destroyed;
     }
 
     /** Best-effort restore of a carried Claude session into the new box. */
@@ -8321,7 +8325,8 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Start a fresh thread on the app: the coding agent forgets the current
-     * thread; the app, its versions and its sandbox are unchanged.
+     * thread and its sandbox is destroyed, so the next prompt runs in a fresh
+     * one seeded from the latest ready version. Versions are unchanged.
      */
     async clearAgentContext(
         user: SessionUser,
@@ -8348,6 +8353,13 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        const sandboxDestroyed = app.sandbox_id
+            ? await this.destroySandboxAndClearReference(
+                  appUuid,
+                  app.sandbox_id,
+              )
+            : null;
+
         const thread = await this.appModel.createThread({
             appUuid,
             origin: 'builder',
@@ -8363,10 +8375,11 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 threadNumber: thread.thread_number,
+                sandboxDestroyed,
             },
         });
         this.logger.info(
-            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
+            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, sandboxDestroyed=${sandboxDestroyed}, user=${user.userUuid})`,
         );
 
         return this.getAppVersions(user, projectUuid, appUuid, {});
