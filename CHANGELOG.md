@@ -1,3 +1,10 @@
+# [2.472.0](https://github.com/lightdash/lightdash/compare/2.471.0...2.472.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** mark every agent warehouse query and guide the Snowflake agent sign-in ([#30598](https://github.com/lightdash/lightdash/issues/30598)) ([5e6dcd0](https://github.com/lightdash/lightdash/commit/5e6dcd08335ab7b84943b121f4b393ab7369940d)), closes [#30426](https://github.com/lightdash/lightdash/issues/30426)
+
 # [2.471.0](https://github.com/lightdash/lightdash/compare/2.470.1...2.471.0) (2026-10-08)
 
 

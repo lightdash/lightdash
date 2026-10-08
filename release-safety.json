@@ -1,14 +1,42 @@
 {
   "schemaVersion": "2",
-  "version": "2.471.0",
-  "previousVersion": "2.470.1",
-  "releaseDate": "2026-10-08T00:11:01.040Z",
+  "version": "2.472.0",
+  "previousVersion": "2.471.0",
+  "releaseDate": "2026-10-08T05:57:16.645Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 2,
+    "coreCount": 2,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261005170000_add_user_warehouse_credential_purpose.ts",
+        "edition": "core",
+        "tables": [
+          "pg_class",
+          "pg_index",
+          "user_warehouse_credentials"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20261007165605_add_organization_agent_identity_settings.ts",
+        "edition": "core",
+        "tables": [
+          "organization_agent_identity_settings",
+          "organizations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

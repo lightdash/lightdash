@@ -34788,6 +34788,9 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "requireAgentSession": {
+                        "type": "boolean"
+                    },
                     "authenticationType": {
                         "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     },
@@ -36387,6 +36390,9 @@
                     },
                     "privateKey": {
                         "type": "string"
+                    },
+                    "requireAgentSession": {
+                        "type": "boolean"
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
@@ -46760,6 +46766,10 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "UserWarehouseCredentialPurpose": {
+                "enum": ["default", "ai"],
+                "type": "string"
+            },
             "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
                 "properties": {
                     "type": {
@@ -46925,6 +46935,9 @@
                     "userUuid": {
                         "type": "string"
                     },
+                    "purpose": {
+                        "$ref": "#/components/schemas/UserWarehouseCredentialPurpose"
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -46936,6 +46949,7 @@
                     "createdAt",
                     "name",
                     "userUuid",
+                    "purpose",
                     "uuid"
                 ],
                 "type": "object"
@@ -47122,6 +47136,9 @@
                         "type": "string"
                     },
                     "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "requireAgentSession": {
                         "type": "boolean"
                     },
                     "authenticationType": {
@@ -67787,6 +67804,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "OrganizationAgentIdentitySettings": {
+                "properties": {
+                    "requireVerifiedAgentSessions": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["requireVerifiedAgentSessions"],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentitySettingsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {
@@ -69560,6 +69600,238 @@
             "CatalogSortField": {
                 "type": "string",
                 "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
+            },
+            "AiAgentMarkerLevel": {
+                "enum": [
+                    "verified_session",
+                    "request_bound",
+                    "identify_only",
+                    "none"
+                ],
+                "type": "string"
+            },
+            "AiAgentMarker": {
+                "properties": {
+                    "enforce": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signals": {
+                        "items": {
+                            "properties": {
+                                "where": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["where", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/AiAgentMarkerLevel"
+                    }
+                },
+                "required": ["enforce", "note", "signals", "level"],
+                "type": "object"
+            },
+            "AiWarehouseCapabilities": {
+                "properties": {
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "marker": {
+                        "$ref": "#/components/schemas/AiAgentMarker"
+                    }
+                },
+                "required": ["warehouseType", "marker"],
+                "type": "object"
+            },
+            "ApiAiWarehouseCapabilitiesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiWarehouseCapabilities"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAccessRefusalReason": {
+                "enum": [
+                    "result_not_agent_produced",
+                    "principal_failed",
+                    "needs_sign_in",
+                    "warehouse_not_supported",
+                    "service_account",
+                    "embed_not_supported"
+                ],
+                "type": "string"
+            },
+            "AiAccessRefusalAction": {
+                "enum": ["sign_in", "ask_admin"],
+                "type": "string"
+            },
+            "AiAccessRefusal": {
+                "properties": {
+                    "settingsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "action": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAccessRefusalAction"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/AiAccessRefusalReason"
+                    },
+                    "code": {
+                        "type": "string",
+                        "enum": ["ai_access_refused"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "settingsUrl",
+                    "action",
+                    "message",
+                    "reason",
+                    "code"
+                ],
+                "type": "object"
+            },
+            "AiAccessForUser": {
+                "properties": {
+                    "refusal": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAccessRefusal"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "principalKind": {
+                        "type": "string",
+                        "enum": ["person", null],
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "marker": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentMarker"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "identity": {
+                        "type": "string",
+                        "enum": ["marked_person", "connected_person", null],
+                        "nullable": true
+                    },
+                    "requirementSource": {
+                        "type": "string",
+                        "enum": ["organization", null],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "refusal",
+                    "principalKind",
+                    "enabled",
+                    "warehouseConnectionUuid",
+                    "projectUuid",
+                    "marker",
+                    "identity",
+                    "requirementSource"
+                ],
+                "type": "object"
+            },
+            "ApiAiAccessForUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAccessForUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Record_string.string-or-null_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string",
+                    "nullable": true
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiMarkerTestResult": {
+                "properties": {
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "observed": {
+                        "$ref": "#/components/schemas/Record_string.string-or-null_"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/AiAgentMarkerLevel"
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["checkedAt", "message", "observed", "level", "ok"],
+                "type": "object"
+            },
+            "ApiAiMarkerTestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiMarkerTestResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -69578,7 +69850,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.471.0",
+        "version": "2.472.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -110653,6 +110925,74 @@
                 }
             }
         },
+        "/api/v2/org/agent-identity": {
+            "get": {
+                "operationId": "getOrganizationAgentIdentitySettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "updateOrganizationAgentIdentitySettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrganizationAgentIdentitySettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/feature-flag": {
             "get": {
                 "operationId": "List feature flags",
@@ -112443,6 +112783,147 @@
                             "items": {
                                 "type": "string"
                             }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/capabilities": {
+            "get": {
+                "operationId": "getCapabilitiesAiAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiWarehouseCapabilitiesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/me": {
+            "get": {
+                "operationId": "getMyAccessAiAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAccessForUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/marker/test": {
+            "post": {
+                "operationId": "testMarkerAiAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMarkerTestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
