@@ -191,6 +191,7 @@ import {
     type MetricQuery,
     type PivotConfiguration,
     type SessionUser,
+    type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
@@ -4284,29 +4285,12 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // The SQL ultimately runs under the prompt issuer's identity, but
-        // approving raw SQL is itself a privileged action — require the
-        // approver to hold the same SqlRunner scope so a thread reader
-        // without that ability can't trigger execution.
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid,
-                        threadUuid,
-                        toolCallId,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You need the SqlRunner permission to approve SQL execution',
-            );
-        }
+        this.assertCanApproveSql(user, {
+            toolName,
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            metadata: { agentUuid, threadUuid, toolCallId },
+        });
 
         const recorded = await this.recordSqlApprovalDecision({
             organizationUuid,
@@ -4333,6 +4317,66 @@ export class AiAgentService extends BaseService {
         }
 
         return { decision };
+    }
+
+    // Approving is privileged even though the SQL runs as the prompt issuer:
+    // raw SQL needs SqlRunner, saving a SQL chart needs CustomSql.
+    private assertCanApproveSql(
+        user: SessionUser,
+        {
+            toolName,
+            organizationUuid,
+            projectUuid,
+            metadata,
+        }: {
+            toolName: SqlApprovalToolName;
+            organizationUuid: string;
+            projectUuid: string;
+            metadata: {
+                agentUuid: string;
+                threadUuid: string;
+                toolCallId: string;
+            };
+        },
+    ): void {
+        const ability = this.createAuditedAbility(user);
+        switch (toolName) {
+            case 'runSql':
+            case 'runComposerQueries':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the SqlRunner permission to approve SQL execution',
+                    );
+                }
+                return;
+            case 'createContent':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('CustomSql', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the CustomSql permission to save SQL charts to approve this SQL',
+                    );
+                }
+                return;
+            default:
+                assertUnreachable(toolName, 'Unknown SQL approval tool');
+        }
     }
 
     private async recordSqlApprovalDecision(
@@ -18126,24 +18170,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             `Agent not found: ${approvalContext.agentUuid}`,
                         );
                     }
-                    if (
-                        this.createAuditedAbility(decidedBy).cannot(
-                            'manage',
-                            subject('SqlRunner', {
-                                organizationUuid,
-                                projectUuid: agent.projectUuid,
-                                metadata: {
-                                    agentUuid: approvalContext.agentUuid,
-                                    threadUuid,
-                                    toolCallId,
-                                },
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            'You need the SqlRunner permission to approve SQL execution',
-                        );
-                    }
+                    this.assertCanApproveSql(decidedBy, {
+                        toolName,
+                        organizationUuid,
+                        projectUuid: agent.projectUuid,
+                        metadata: {
+                            agentUuid: approvalContext.agentUuid,
+                            threadUuid,
+                            toolCallId,
+                        },
+                    });
                     decisionRecord = {
                         organizationUuid,
                         projectUuid: agent.projectUuid,

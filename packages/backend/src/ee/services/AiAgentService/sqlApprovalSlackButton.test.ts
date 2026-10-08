@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
     OpenIdIdentityIssuerType,
@@ -43,6 +44,24 @@ const makeSessionUser = (role: OrganizationMemberRole): SessionUser =>
 
 const approverUser = makeSessionUser(OrganizationMemberRole.DEVELOPER);
 const readerUser = makeSessionUser(OrganizationMemberRole.EDITOR);
+// Can run SQL but cannot save SQL charts.
+const sqlRunnerOnlyUser = {
+    ...approverUser,
+    ability: new Ability(
+        approverUser.ability.rules.filter(
+            (rule) => rule.subject !== 'CustomSql',
+        ),
+    ),
+} as unknown as SessionUser;
+
+const sqlChartApprovalContext = {
+    promptUuid: PROMPT_UUID,
+    threadUuid: THREAD_UUID,
+    agentUuid: AGENT_UUID,
+    toolName: 'createContent',
+    toolArgs: { type: 'sql_chart', content: { sql: 'select 1' } },
+    hasResult: false,
+};
 
 type ActionHandlerArgs = {
     ack: () => Promise<void>;
@@ -545,5 +564,73 @@ describe('SQL approval decision analytics', () => {
         await clickButton(handler);
 
         expect(analytics.track).not.toHaveBeenCalled();
+    });
+});
+
+describe('SQL approval approver permissions', () => {
+    it('lets a SqlRunner-only approver approve runSql', async () => {
+        const { service, aiAgentModel } = buildService({
+            sessionUser: sqlRunnerOnlyUser,
+        });
+
+        await service.decideSqlApproval(sqlRunnerOnlyUser, {
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'approved',
+        });
+
+        expect(aiAgentModel.recordSqlApproval).toHaveBeenCalledOnce();
+    });
+
+    it('refuses a SQL chart approval in the web app from an approver who cannot save SQL charts', async () => {
+        const { service, aiAgentModel } = buildService({
+            sessionUser: sqlRunnerOnlyUser,
+            approvalContext: sqlChartApprovalContext,
+        });
+
+        await expect(
+            service.decideSqlApproval(sqlRunnerOnlyUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'approved',
+            }),
+        ).rejects.toThrow('permission to save SQL charts');
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+    });
+
+    it('refuses a SQL chart approval from Slack by an approver who cannot save SQL charts', async () => {
+        const { handler, aiAgentModel } = buildService({
+            sessionUser: sqlRunnerOnlyUser,
+            approvalContext: sqlChartApprovalContext,
+        });
+
+        const { respond } = await clickButton(handler, {
+            decision: 'approved_always',
+        });
+
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+        expect(aiAgentModel.setThreadSqlAutoApproved).not.toHaveBeenCalled();
+        expect(respond).toHaveBeenCalledWith(
+            expect.objectContaining({
+                response_type: 'ephemeral',
+                text: expect.stringContaining('permission to save SQL charts'),
+            }),
+        );
+    });
+
+    it('accepts a SQL chart approval from Slack by an approver who can save SQL charts', async () => {
+        const { handler, aiAgentModel } = buildService({
+            approvalContext: sqlChartApprovalContext,
+        });
+
+        await clickButton(handler);
+
+        expect(aiAgentModel.recordSqlApproval).toHaveBeenCalledWith(
+            TOOL_CALL_ID,
+            'approved',
+            approverUser.userUuid,
+        );
     });
 });
