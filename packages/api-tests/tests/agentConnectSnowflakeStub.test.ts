@@ -1,4 +1,5 @@
 import {
+    AgentIdentityConnectEntryPoint,
     AiAccessRefusalReason,
     FeatureFlags,
     getAiAccessRefusalMessage,
@@ -207,7 +208,13 @@ describe.skipIf(!stubUrl)(
             expect([...parsedConnectUrl.searchParams.entries()]).toEqual([
                 ['project', projectUuid],
                 ['redirect', '/agent-connected'],
+                ['entryPoint', AgentIdentityConnectEntryPoint.UNKNOWN],
             ]);
+            const mcpConnectUrl = new URL(connectUrl!);
+            mcpConnectUrl.searchParams.set(
+                'entryPoint',
+                AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+            );
             const callTool = await openMcpSession(client, projectUuid!);
             const refused = await callTool('run_sql', {
                 projectUuid,
@@ -219,7 +226,7 @@ describe.skipIf(!stubUrl)(
                 getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN),
             );
 
-            expect(mcpText(refused)).toContain(connectUrl);
+            expect(mcpText(refused)).toContain(mcpConnectUrl.href);
             const connectionStatus = await callTool('connect_agent', {
                 projectUuid,
             });
@@ -227,7 +234,7 @@ describe.skipIf(!stubUrl)(
             const expectedStatus = {
                 status: 'needs_sign_in',
                 message: before.body.results.refusal!.message,
-                connectUrl,
+                connectUrl: mcpConnectUrl.href,
                 expiresAt: null,
             };
             expect(connectionStatus).toMatchObject({
@@ -358,6 +365,16 @@ describe.skipIf(!stubUrl)(
                 const connectUrl = new URL('/agent/connect', SITE_URL);
                 connectUrl.searchParams.set('project', projectUuid!);
                 connectUrl.searchParams.set('redirect', '/agent-connected');
+                const statusConnectUrl = new URL(connectUrl);
+                statusConnectUrl.searchParams.set(
+                    'entryPoint',
+                    AgentIdentityConnectEntryPoint.UNKNOWN,
+                );
+                const mcpConnectUrl = new URL(connectUrl);
+                mcpConnectUrl.searchParams.set(
+                    'entryPoint',
+                    AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+                );
                 const message = getAiAccessRefusalMessage(
                     AiAccessRefusalReason.SIGN_IN_EXPIRED,
                 );
@@ -366,7 +383,7 @@ describe.skipIf(!stubUrl)(
                         expiresAt: null,
                         refusal: {
                             reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                            connectUrl: connectUrl.href,
+                            connectUrl: statusConnectUrl.href,
                         },
                     });
                 } else {
@@ -386,7 +403,7 @@ describe.skipIf(!stubUrl)(
                 });
                 expect(refused.isError).toBe(true);
                 expect(mcpText(refused)).toContain(message);
-                expect(mcpText(refused)).toContain(connectUrl.href);
+                expect(mcpText(refused)).toContain(mcpConnectUrl.href);
                 if (code === 'expiring-code') {
                     expect(
                         await callTool('connect_agent', { projectUuid }),
@@ -394,7 +411,7 @@ describe.skipIf(!stubUrl)(
                         structuredContent: {
                             status: 'needs_sign_in',
                             message,
-                            connectUrl: connectUrl.href,
+                            connectUrl: mcpConnectUrl.href,
                             expiresAt: null,
                         },
                     });

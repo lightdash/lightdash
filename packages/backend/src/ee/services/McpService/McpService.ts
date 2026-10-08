@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentIdentityConnectEntryPoint,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
@@ -2324,10 +2325,17 @@ export class McpService extends BaseService {
             access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         ) {
+            const connectUrl = access.refusal.connectUrl
+                ? new URL(access.refusal.connectUrl)
+                : null;
+            connectUrl?.searchParams.set(
+                'entryPoint',
+                AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+            );
             return {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
-                connectUrl: access.refusal.connectUrl,
+                connectUrl: connectUrl?.href ?? null,
                 expiresAt: null,
             };
         }

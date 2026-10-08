@@ -2193,7 +2193,7 @@ it('returns an AI access refusal as an MCP tool error', async () => {
 
 describe('agent connection over MCP', () => {
     const connectUrl =
-        'https://lightdash.example/agent/connect?project=project-uuid&redirect=%2Fagent-connected';
+        'https://lightdash.example/agent/connect?project=project-uuid&redirect=%2Fagent-connected&entryPoint=mcp_connect_link';
     const refusal = new AiAccessRefusedError(
         AiAccessRefusalReason.NEEDS_SIGN_IN,
         { connectUrl },
@@ -2217,8 +2217,10 @@ describe('agent connection over MCP', () => {
     ])(
         'returns %s from the tool and resource, then reports connected with expiry',
         async (reason) => {
+            const statusUrl = new URL(connectUrl);
+            statusUrl.searchParams.set('entryPoint', 'unknown');
             const signInRefusal = new AiAccessRefusedError(reason, {
-                connectUrl,
+                connectUrl: statusUrl.href,
             });
             const { aiAccessService } = makeMcpService({
                 agentIdentityEnabled: true,

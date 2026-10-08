@@ -1,4 +1,5 @@
 import {
+    AgentIdentityConnectEntryPoint,
     formatDate,
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentials,
@@ -22,7 +23,10 @@ export const AgentConnectionSection = ({
         !!credential?.expiresAt &&
         new Date(credential.expiresAt).getTime() <= Date.now();
     const connected = !!credential && !expired;
-    const login = useSnowflakeAiLoginPopup();
+    const login = useSnowflakeAiLoginPopup({
+        entryPoint: AgentIdentityConnectEntryPoint.MY_WAREHOUSE_CONNECTIONS,
+        projectUuid: null,
+    });
     const [isRemoving, setIsRemoving] = useState(false);
     return (
         <Paper p="md">

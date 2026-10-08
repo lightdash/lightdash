@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_TAG,
@@ -16,6 +17,7 @@ import {
     isAiAccessQueryContext,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     querySurfaceFromContext,
     UnexpectedServerError,
     WarehouseTypes,
@@ -27,7 +29,6 @@ import {
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
     type QueryHistory,
-    type QuerySurface,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
@@ -153,10 +154,12 @@ export class AiAccessService extends BaseService {
         }
     }
 
-    async getAgentConnectPrompt(
-        user: SessionUser,
-    ): Promise<
-        | { required: true; reason: 'needs_sign_in' | 'sign_in_expired' }
+    async getAgentConnectPrompt(user: SessionUser): Promise<
+        | {
+              required: true;
+              reason: 'needs_sign_in' | 'sign_in_expired';
+              projectUuid: string;
+          }
         | { required: false }
     > {
         const { organizationUuid, userUuid } = user;
@@ -197,7 +200,7 @@ export class AiAccessService extends BaseService {
             reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         )
-            return { required: true, reason };
+            return { required: true, reason, projectUuid: project.projectUuid };
         return { required: false };
     }
 
@@ -588,9 +591,28 @@ export class AiAccessService extends BaseService {
         return provider;
     }
 
+    private connectEntryPoint(
+        surface: QuerySurface,
+    ): AgentIdentityConnectEntryPoint {
+        switch (surface) {
+            case QuerySurface.MCP:
+                return AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK;
+            case QuerySurface.SLACK:
+                return AgentIdentityConnectEntryPoint.SLACK_LINK;
+            case QuerySurface.APP:
+                return AgentIdentityConnectEntryPoint.CHAT_CARD;
+            case QuerySurface.API:
+            case QuerySurface.CLI:
+                return AgentIdentityConnectEntryPoint.UNKNOWN;
+            default:
+                return assertUnreachable(surface, 'Unknown query surface');
+        }
+    }
+
     private withRefusalUrls(
         error: AiAccessRefusedError,
         projectUuid: string,
+        entryPoint: AgentIdentityConnectEntryPoint,
     ): AiAccessRefusedError {
         if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
             const connectUrl = new URL(
@@ -599,6 +621,7 @@ export class AiAccessService extends BaseService {
             );
             connectUrl.searchParams.set('project', projectUuid);
             connectUrl.searchParams.set('redirect', '/agent-connected');
+            connectUrl.searchParams.set('entryPoint', entryPoint);
             return new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
@@ -703,6 +726,9 @@ export class AiAccessService extends BaseService {
                 const refusalError = this.withRefusalUrls(
                     error,
                     args.projectUuid,
+                    args.evaluation.kind === 'query'
+                        ? this.connectEntryPoint(args.evaluation.surface)
+                        : AgentIdentityConnectEntryPoint.UNKNOWN,
                 );
                 this.logRefusal(args, refusalError);
                 if (args.evaluation.kind === 'query') {
@@ -875,7 +901,11 @@ export class AiAccessService extends BaseService {
             result.expiresAt = credential?.expiresAt ?? null;
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = this.withRefusalUrls(error, args.projectUuid);
+            const refusalError = this.withRefusalUrls(
+                error,
+                args.projectUuid,
+                AgentIdentityConnectEntryPoint.UNKNOWN,
+            );
             this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }

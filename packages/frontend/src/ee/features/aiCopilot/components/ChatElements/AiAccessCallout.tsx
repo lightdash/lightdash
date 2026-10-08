@@ -1,4 +1,5 @@
 import {
+    AgentIdentityConnectEntryPoint,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
     type AiAccessRefusal,
@@ -29,7 +30,10 @@ export const AiAccessCallout = ({
     variant?: 'card' | 'inline';
 }) => {
     const { user } = useApp();
-    const login = useSnowflakeAiLoginPopup();
+    const login = useSnowflakeAiLoginPopup({
+        entryPoint: AgentIdentityConnectEntryPoint.CHAT_CARD,
+        projectUuid,
+    });
     const client = useQueryClient();
     const t = useUiStrings();
     const canUpdate = user.data?.ability.can('manage', 'Organization');

@@ -352,7 +352,7 @@ describe('AiAccessService', () => {
                     refusal: {
                         ...refusal.refusal,
                         connectUrl:
-                            'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                            'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=chat_card',
                     },
                 });
                 expect(
@@ -678,7 +678,8 @@ describe('AiAccessService', () => {
             AiAccessRefusalReason.NEEDS_SIGN_IN,
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
         ])('prompts a project viewer for %s', async (reason) => {
-            const { service, projects, provider, registry } = setup();
+            const { service, projects, provider, registry, analytics } =
+                setup();
             projects.getWarehouseCredentialsForBinding.mockResolvedValue(
                 snowflake,
             );
@@ -686,10 +687,12 @@ describe('AiAccessService', () => {
             expect(await service.getAgentConnectPrompt(user)).toEqual({
                 required: true,
                 reason,
+                projectUuid: 'project',
             });
             expect(projects.getAllByOrganizationUuid).toHaveBeenCalledWith(
                 'org',
             );
+            expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
                 connection: snowflake,
@@ -1266,7 +1269,7 @@ describe('AiAccessService', () => {
             expiresAt: null,
             refusal: {
                 connectUrl:
-                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=unknown',
             },
         });
     });
@@ -1284,7 +1287,34 @@ describe('AiAccessService', () => {
             ).rejects.toMatchObject({
                 refusal: {
                     connectUrl:
-                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=chat_card',
+                },
+            });
+        },
+    );
+
+    test.each([
+        [QuerySurface.MCP, 'mcp_connect_link'],
+        [QuerySurface.SLACK, 'slack_link'],
+        [QuerySurface.APP, 'chat_card'],
+        [QuerySurface.API, 'unknown'],
+        [QuerySurface.CLI, 'unknown'],
+    ] as const)(
+        'attributes a %s query refusal to %s',
+        async (surface, entryPoint) => {
+            const { service, provider } = setup();
+            provider.mint.mockRejectedValue(
+                new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+            );
+            await expect(
+                service.resolvePlan({
+                    ...args,
+                    connection: snowflake,
+                    evaluation: { kind: 'query', surface },
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    connectUrl: `https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=${entryPoint}`,
                 },
             });
         },
@@ -1329,7 +1359,7 @@ describe('AiAccessService', () => {
                     'Connect your agent to the warehouse once so it can run as you.',
                 settingsUrl: null,
                 connectUrl:
-                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=unknown',
             },
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
