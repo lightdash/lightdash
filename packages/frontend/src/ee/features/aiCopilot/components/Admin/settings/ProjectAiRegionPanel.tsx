@@ -1,7 +1,9 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../../../components/common/EmptyStateLoader';
+import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAiProviderCredentials } from '../../../hooks/useAiProviderCredentials';
 import {
     useProjectAiProviderCredential,
@@ -18,10 +20,17 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
     const credentialsQuery = useAiProviderCredentials();
     const selectionQuery = useProjectAiProviderCredential(projectUuid);
     const setCredential = useSetProjectAiProviderCredential(projectUuid);
+    const customProvidersFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrgAiCustomProviders,
+    );
 
     const [selected, setSelected] = useState<string | null>(null);
 
-    if (credentialsQuery.isInitialLoading || selectionQuery.isInitialLoading) {
+    if (
+        credentialsQuery.isInitialLoading ||
+        selectionQuery.isInitialLoading ||
+        customProvidersFlagQuery.isInitialLoading
+    ) {
         return <EmptyStateLoader />;
     }
 
@@ -29,6 +38,22 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
     const storedUuid = selectionQuery.data?.credentialUuid ?? null;
     const value = selected ?? storedUuid ?? ORGANIZATION_DEFAULT;
     const defaultCredential = credentials.find((c) => c.isDefault) ?? null;
+    const customProvidersEnabled =
+        customProvidersFlagQuery.isSuccess &&
+        customProvidersFlagQuery.data.enabled;
+
+    // Mirrors the agent-settings selector: hidden while the flag is off — the
+    // backend rejects the write anyway — unless a pin is already stored, which
+    // must always offer a way to be cleared.
+    if (!customProvidersEnabled && storedUuid === null) {
+        return (
+            <Callout variant="info">
+                <Text fz="sm">
+                    Custom AI providers are not enabled for this organization.
+                </Text>
+            </Callout>
+        );
+    }
 
     if (credentials.length === 0) {
         return (
@@ -47,6 +72,16 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Stack gap="sm">
+            {!customProvidersEnabled && (
+                <Callout variant="warning">
+                    <Text fz="sm">
+                        Custom AI providers are not enabled for this
+                        organization, so this project's pinned credential is not
+                        being served — AI features are unavailable in this
+                        project. Clear the pin, or enable custom providers.
+                    </Text>
+                </Callout>
+            )}
             <Select
                 label="AI provider credential"
                 description="Where this project's Ask AI requests are processed."
@@ -57,9 +92,12 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
                             ? `Organization default — ${defaultCredential.label} (${defaultCredential.region})`
                             : 'Organization default',
                     },
+                    // While the flag is off only clearing is offered — the
+                    // backend rejects any new pin.
                     ...credentials.map((credential) => ({
                         value: credential.uuid,
                         label: `${credential.label} — ${credential.region}`,
+                        disabled: !customProvidersEnabled,
                     })),
                 ]}
                 value={value}

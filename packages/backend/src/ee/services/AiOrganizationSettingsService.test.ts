@@ -832,11 +832,14 @@ describe('converting a legacy Bedrock configuration', () => {
 describe('pinning a project to a credential', () => {
     const buildService = ({
         resolution = { status: 'ok' as const, credential: {} },
+        customProvidersEnabled = true,
     } = {}) => {
         const setProjectCredential = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
             featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({
+                    enabled: customProvidersEnabled,
+                }),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {},
             aiOrganizationProviderCredentialModel: {
@@ -905,6 +908,136 @@ describe('pinning a project to a credential', () => {
         });
         await service.setProjectProviderCredential(user, 'project-1', null);
         expect(setProjectCredential).toHaveBeenCalledWith('project-1', null);
+    });
+
+    // A pin saved while the flag is off would be inert at best and rerouted
+    // at worst, so the write is refused outright — same contract as agent pins.
+    it('rejects a pin while custom providers are disabled', async () => {
+        const { service, setProjectCredential } = buildService({
+            customProvidersEnabled: false,
+        });
+        await expect(
+            service.setProjectProviderCredential(user, 'project-1', 'cred-1'),
+        ).rejects.toThrow(/not enabled/);
+        expect(setProjectCredential).not.toHaveBeenCalled();
+    });
+
+    // Cleanup must stay possible for a flag-off organization.
+    it('clears the pin while custom providers are disabled', async () => {
+        const { service, setProjectCredential } = buildService({
+            customProvidersEnabled: false,
+        });
+        await service.setProjectProviderCredential(user, 'project-1', null);
+        expect(setProjectCredential).toHaveBeenCalledWith('project-1', null);
+    });
+});
+
+describe('credential writes while custom providers are disabled', () => {
+    const buildService = () => {
+        const credentialModel = {
+            create: vi.fn(async () => 'new-cred-uuid'),
+            update: vi.fn(async () => undefined),
+            replace: vi.fn(async () => undefined),
+            setDefault: vi.fn(async () => undefined),
+            delete: vi.fn(async () => undefined),
+            countByOrganizationUuid: vi.fn(async () => 0),
+            findDefaultDecrypted: vi.fn(async () => ({
+                status: 'none' as const,
+            })),
+            findAllByOrganizationUuid: vi.fn(async () => ({
+                credentials: [],
+                unreadable: [],
+            })),
+        };
+        const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
+            aiOrganizationSettingsModel: {
+                findDecryptedProviderApiKeys: async () => null,
+                findByOrganizationUuid: async () => null,
+                update: vi.fn(async () => undefined),
+            },
+            aiOrganizationProviderCredentialModel: credentialModel,
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, credentialModel };
+    };
+
+    const user = {
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+    } as never;
+
+    const credentialData = {
+        provider: 'bedrock' as const,
+        label: 'Japan (Tokyo)',
+        region: 'ap-northeast-1',
+        allowedModels: ['claude-sonnet-4-5'],
+        apiKey: 'ABSKkey',
+    };
+
+    // Stored org provider config is inert while the flag is off, so these
+    // writes would save successfully and then silently do nothing.
+    it('rejects creating a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.createProviderCredential(user, credentialData),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects updating a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.updateProviderCredential(user, 'cred-1', {
+                label: 'renamed',
+            }),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects replacing a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.replaceProviderCredential(user, 'cred-1', credentialData),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.replace).not.toHaveBeenCalled();
+    });
+
+    it('rejects changing the default credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.setDefaultProviderCredential(user, 'cred-1'),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.setDefault).not.toHaveBeenCalled();
+    });
+
+    it('rejects adopting the legacy configuration', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.adoptLegacyProviderCredential(user),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.create).not.toHaveBeenCalled();
+    });
+
+    // Deletion stays allowed so a flag-off organization can clean up.
+    it('still deletes a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await service.deleteProviderCredential(user, 'cred-1');
+        expect(credentialModel.delete).toHaveBeenCalledWith(
+            'org-uuid',
+            'cred-1',
+        );
     });
 });
 

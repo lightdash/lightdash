@@ -12,6 +12,15 @@ let listData: AiProviderCredentialsList = {
     unreadableCredentials: [],
 };
 let storedCredentialUuid: string | null = null;
+let customProvidersEnabled = true;
+
+vi.mock('../../../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        isSuccess: true,
+        isInitialLoading: false,
+        data: { enabled: customProvidersEnabled },
+    }),
+}));
 
 vi.mock('../../../hooks/useAiProviderCredentials', () => ({
     useAiProviderCredentials: () => ({
@@ -52,9 +61,11 @@ const US = {
 const renderPanel = ({
     credentials = [TOKYO, US],
     stored = null,
+    flagEnabled = true,
 }: {
     credentials?: AiProviderCredentialsList['credentials'];
     stored?: string | null;
+    flagEnabled?: boolean;
 } = {}) => {
     listData = {
         credentials,
@@ -62,6 +73,7 @@ const renderPanel = ({
         unreadableCredentials: [],
     };
     storedCredentialUuid = stored;
+    customProvidersEnabled = flagEnabled;
     return renderWithProviders(
         <ProjectAiRegionPanel projectUuid="project-1" />,
     );
@@ -144,5 +156,58 @@ describe('ProjectAiRegionPanel', () => {
         expect(
             screen.getByText(/No AI provider credentials are configured/),
         ).toBeInTheDocument();
+    });
+
+    // The backend rejects pin writes while the flag is off, so the selector
+    // must not be offered at all without a stored pin.
+    it('hides the selector while custom providers are disabled and no pin is stored', () => {
+        renderPanel({ flagEnabled: false });
+
+        expect(
+            screen.getByText(/Custom AI providers are not enabled/),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('combobox', { name: 'AI provider credential' }),
+        ).not.toBeInTheDocument();
+    });
+
+    // A pin stored before the flag was turned off is failing the project's AI
+    // requests — the screen must say so and still offer a way to clear it.
+    it('keeps the selector and warns when a pin is stored while disabled', async () => {
+        renderPanel({ stored: 'cred-us', flagEnabled: false });
+
+        expect(
+            screen.getByText(/pinned credential is\s+not being served/),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AI provider credential' }),
+        );
+        await userEvent.click(
+            screen.getByText(
+                'Organization default — Japan (Tokyo) (ap-northeast-1)',
+            ),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            expect(setMutation).toHaveBeenCalledWith(null);
+        });
+    });
+
+    // Only clearing is possible while the flag is off; re-pinning would be
+    // rejected by the backend.
+    it('disables credential options while custom providers are disabled', async () => {
+        renderPanel({ stored: 'cred-us', flagEnabled: false });
+
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AI provider credential' }),
+        );
+
+        expect(
+            screen.getByRole('option', {
+                name: 'Japan (Tokyo) — ap-northeast-1',
+            }),
+        ).toHaveAttribute('data-combobox-disabled', 'true');
     });
 });

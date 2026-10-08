@@ -240,7 +240,14 @@ export class AiOrganizationProviderCredentialModel {
         organizationUuid: string,
         projectUuid: string,
         database: Knex = this.database,
-    ): Promise<AiProviderCredentialResolution> {
+    ): Promise<{
+        resolution: AiProviderCredentialResolution;
+        /**
+         * Whether the project's own pin (rather than the organization default)
+         * was selected — a pin must fail closed where the default may degrade.
+         */
+        fromProjectPin: boolean;
+    }> {
         const row = await database(`${ProjectAiSettingsTableName} as s`)
             .innerJoin(
                 `${AiOrganizationProviderCredentialTableName} as c`,
@@ -254,8 +261,16 @@ export class AiOrganizationProviderCredentialModel {
 
         // An unreadable pin is reported as such rather than falling through to
         // the organization default, which would be a different region.
-        if (row) return this.resolveRow(row);
-        return this.findDefaultDecrypted(organizationUuid, database);
+        if (row) {
+            return { resolution: this.resolveRow(row), fromProjectPin: true };
+        }
+        return {
+            resolution: await this.findDefaultDecrypted(
+                organizationUuid,
+                database,
+            ),
+            fromProjectPin: false,
+        };
     }
 
     async findProjectCredentialUuid(

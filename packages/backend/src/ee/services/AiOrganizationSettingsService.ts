@@ -1113,6 +1113,7 @@ export class AiOrganizationSettingsService extends BaseService {
     async adoptLegacyProviderCredential(user: SessionUser): Promise<void> {
         this.checkManageAiAgentAccess(user);
         const organizationUuid = user.organizationUuid!;
+        await this.assertCustomProvidersEnabled(organizationUuid);
         const existingCount =
             await this.aiOrganizationProviderCredentialModel.countByOrganizationUuid(
                 organizationUuid,
@@ -1201,12 +1202,34 @@ export class AiOrganizationSettingsService extends BaseService {
         });
     }
 
+    /**
+     * Stored org provider config is inert while the org flag is off, so a
+     * credential write in that state would save successfully and then silently
+     * do nothing — for a data-residency feature, the worst failure mode.
+     * Mirrors the `upsertSettings` gate on provider API keys. Deletion and pin
+     * clearing stay allowed so a flag-off organization can clean up.
+     */
+    private async assertCustomProvidersEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.OrgAiCustomProviders,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Custom AI providers are not enabled for this organization',
+            );
+        }
+    }
+
     async createProviderCredential(
         user: SessionUser,
         data: CreateAiProviderCredential,
     ): Promise<{ uuid: string }> {
         this.checkManageAiAgentAccess(user);
         const organizationUuid = user.organizationUuid!;
+        await this.assertCustomProvidersEnabled(organizationUuid);
         await this.adoptLegacyBedrockCredential(user, organizationUuid);
         const uuid = await this.aiOrganizationProviderCredentialModel.create(
             organizationUuid,
@@ -1224,6 +1247,7 @@ export class AiOrganizationSettingsService extends BaseService {
         data: UpdateAiProviderCredential,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.update(
             user.organizationUuid!,
             credentialUuid,
@@ -1242,6 +1266,7 @@ export class AiOrganizationSettingsService extends BaseService {
         data: CreateAiProviderCredential,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.replace(
             user.organizationUuid!,
             credentialUuid,
@@ -1269,6 +1294,7 @@ export class AiOrganizationSettingsService extends BaseService {
         credentialUuid: string,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.setDefault(
             user.organizationUuid!,
             credentialUuid,
@@ -1318,8 +1344,10 @@ export class AiOrganizationSettingsService extends BaseService {
             projectUuid,
         );
         // Resolved through the organization so a project can never be pinned to
-        // another organization's credential.
+        // another organization's credential. Clearing a pin stays allowed while
+        // the flag is off so a flag-off organization can clean up.
         if (credentialUuid !== null) {
+            await this.assertCustomProvidersEnabled(organizationUuid);
             const resolution =
                 await this.aiOrganizationProviderCredentialModel.findDecrypted(
                     organizationUuid,

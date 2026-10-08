@@ -447,14 +447,15 @@ describe('OrgAiCopilotConfigResolver', () => {
                     .mockResolvedValue(
                         resolutionFor(defaultCredential, unreadableDefault),
                     ),
-                findForProjectDecrypted: vi
-                    .fn()
-                    .mockResolvedValue(
-                        resolutionFor(
-                            projectCredential ?? defaultCredential,
-                            unreadableProjectCredential ?? unreadableDefault,
-                        ),
+                findForProjectDecrypted: vi.fn().mockResolvedValue({
+                    resolution: resolutionFor(
+                        projectCredential ?? defaultCredential,
+                        unreadableProjectCredential ?? unreadableDefault,
                     ),
+                    fromProjectPin: Boolean(
+                        projectCredential ?? unreadableProjectCredential,
+                    ),
+                }),
                 findDecrypted: vi
                     .fn()
                     .mockResolvedValue(
@@ -765,6 +766,47 @@ describe('OrgAiCopilotConfigResolver', () => {
                         credentialUuid: 'cred-tokyo',
                     }),
                 ).rejects.toThrow(/custom AI providers are not enabled/i);
+            });
+        });
+
+        describe('project credential pin while custom providers are disabled', () => {
+            // Same contract as agent pins: the flag was turned off after the
+            // pin was saved, and the pin must not silently reroute the
+            // project's content to the instance provider's region.
+            it('fails closed for a pinned project', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        projectCredential: credential(),
+                        customProvidersEnabled: false,
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: 'project-jp',
+                        credentialUuid: null,
+                    }),
+                ).rejects.toThrow(
+                    /project is pinned to an AI provider credential/,
+                );
+            });
+
+            // The org DEFAULT credential is ordinary stored provider config —
+            // inert while the flag is off, never a hard failure. Only explicit
+            // pins fail closed.
+            it('silently ignores the org default credential for a project without a pin', async () => {
+                const result = await makeResolver({
+                    orgKeys: null,
+                    defaultCredential: credential(),
+                    customProvidersEnabled: false,
+                }).getCopilotConfig({
+                    organizationUuid: 'org-uuid',
+                    projectUuid: 'project-jp',
+                    credentialUuid: null,
+                });
+
+                expect(result.providers.openai?.apiKey).toBe(
+                    'instance-openai-key',
+                );
+                expect(result.byoProviders).toEqual([]);
             });
         });
 
