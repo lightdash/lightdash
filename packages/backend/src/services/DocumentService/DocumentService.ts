@@ -511,7 +511,9 @@ export class DocumentService extends BaseService {
         );
         const content = await this.resolveCustomCharts(
             projectUuid,
-            parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
+            parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content, {
+                previous,
+            }),
             previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
@@ -1087,7 +1089,7 @@ export class DocumentService extends BaseService {
         content: DocumentContent,
         previous?: DocumentContent,
     ): Promise<void> {
-        parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
+        parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content, { previous });
         const limit = pLimit(MAX_CONCURRENT_CHART_VALIDATIONS);
         const previousCharts = Object.values(previous?.charts ?? {});
         // Compile only changed charts: narrative edits must not require chart authoring capabilities.
@@ -1503,8 +1505,22 @@ export class DocumentService extends BaseService {
     async listAsCode(
         account: RegisteredAccount,
         projectUuid: UUID,
-        { slugs, offset = 0 }: { slugs?: string[]; offset?: number } = {},
+        {
+            slugs,
+            offset = 0,
+            schemaVersion = DOCUMENT_SCHEMA_VERSION,
+        }: {
+            slugs?: string[];
+            offset?: number;
+            /** The newest Document schema version the client reads. */
+            schemaVersion?: number;
+        } = {},
     ): Promise<DocumentAsCodeList> {
+        if (schemaVersion < DOCUMENT_SCHEMA_VERSION) {
+            throw new ParameterError(
+                `Documents use schema version ${DOCUMENT_SCHEMA_VERSION}, which this client doesn't support. Upgrade the CLI to download them.`,
+            );
+        }
         await this.assertContentAsCodeAccess(account, projectUuid, 'view');
         const limit = pLimit(MAX_CONCURRENT_AS_CODE_READS);
         if (slugs !== undefined && slugs.length > 0) {
@@ -1570,17 +1586,19 @@ export class DocumentService extends BaseService {
         slug: string,
         input: unknown,
     ): Promise<ContentAsCodeUpsertAction> {
-        const desired = parseDocumentAsCode(input);
+        await this.assertContentAsCodeAccess(account, projectUuid, 'create');
+        const existing = await this.findBySlug(account, projectUuid, slug);
+        const desired = parseDocumentAsCode(input, {
+            previous: existing?.version.content,
+        });
         if (desired.slug !== slug) {
             throw new ParameterError('Document path and body slugs must match');
         }
         DocumentService.validateMetadata(desired);
-        await this.assertContentAsCodeAccess(account, projectUuid, 'create');
         const space = await this.findSpaceByAsCodeSlug(
             projectUuid,
             desired.spaceSlug,
         );
-        const existing = await this.findBySlug(account, projectUuid, slug);
         if (existing === undefined) {
             await this.create(account, projectUuid, {
                 name: desired.name,
@@ -1607,7 +1625,8 @@ export class DocumentService extends BaseService {
         }
         if (
             current.markdown !== matched.markdown ||
-            !isEqual(current.charts, matched.charts)
+            !isEqual(current.charts, matched.charts) ||
+            !isEqual(current.unsupportedCharts, matched.unsupportedCharts)
         ) {
             await this.updateContent(
                 account,
@@ -1618,6 +1637,7 @@ export class DocumentService extends BaseService {
                     content: {
                         markdown: desired.markdown,
                         charts: desired.charts,
+                        unsupportedCharts: desired.unsupportedCharts,
                     },
                 },
             );

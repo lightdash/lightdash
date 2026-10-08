@@ -8,6 +8,10 @@ import {
     DOCUMENT_CHART_NODE,
     type DocumentChartAttributes,
 } from './documentChartNode';
+import {
+    DOCUMENT_UNSUPPORTED_NODE,
+    type DocumentUnsupportedAttributes,
+} from './documentUnsupportedNode';
 
 // tiptap-markdown exposes its markdown-it parser on storage without typing it.
 declare module 'tiptap-markdown' {
@@ -26,12 +30,16 @@ const blockToContent = (
         // register StarterKit's children twice.
         return generateJSON(html, editor.options.extensions).content ?? [];
     }
-    const attrs: DocumentChartAttributes = {
-        content: block.chart,
-        chartId: block.id,
-        isSaved: true,
-    };
-    return [{ type: DOCUMENT_CHART_NODE, attrs }];
+    if (block.type === 'chart') {
+        const attrs: DocumentChartAttributes = {
+            content: block.chart,
+            chartId: block.id,
+            isSaved: true,
+        };
+        return [{ type: DOCUMENT_CHART_NODE, attrs }];
+    }
+    const attrs: DocumentUnsupportedAttributes = { block };
+    return [{ type: DOCUMENT_UNSUPPORTED_NODE, attrs }];
 };
 
 /** One Tiptap document for a saved version: chart tags become chart nodes in place. */

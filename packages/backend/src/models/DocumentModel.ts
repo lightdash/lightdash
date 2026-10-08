@@ -16,6 +16,7 @@ import {
     NotFoundError,
     ParameterError,
     parseDocumentContent,
+    parseStoredDocumentContent,
     UpdateDocumentContentRequest,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -77,10 +78,19 @@ const cellsToContent = (content: unknown) => {
     return { markdown: blocks.join('\n\n'), charts };
 };
 
+/** Unsupported charts are stored beside the others, so a newer release reads them again. */
+const toChartData = ({
+    charts,
+    unsupportedCharts,
+}: DocumentContent): Record<string, unknown> => ({
+    ...unsupportedCharts,
+    ...charts,
+});
+
 const getStoredContent = (version: DbDocumentVersion): unknown => {
     if (![1, DOCUMENT_SCHEMA_VERSION].includes(version.schema_version)) {
         throw new ParameterError(
-            `Unsupported Document schema version: ${version.schema_version}`,
+            `This Document was saved by a newer version (schema version ${version.schema_version}) and can't be opened here`,
         );
     }
     return version.markdown === null
@@ -629,10 +639,7 @@ export class DocumentModel {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,
-                content: parseDocumentContent(
-                    DOCUMENT_SCHEMA_VERSION,
-                    getStoredContent(version),
-                ),
+                content: parseStoredDocumentContent(getStoredContent(version)),
                 createdByUserUuid: version.created_by_user_uuid,
                 createdAt: version.created_at,
             },
@@ -721,7 +728,7 @@ export class DocumentModel {
                 version_number: 1,
                 schema_version: DOCUMENT_SCHEMA_VERSION,
                 markdown: content.markdown,
-                chart_data: JSON.stringify(content.charts),
+                chart_data: JSON.stringify(toChartData(content)),
                 created_by_user_uuid: input.createdByUserUuid,
             });
             return this.getWithDatabase(
@@ -768,6 +775,7 @@ export class DocumentModel {
                     parseDocumentContent(
                         DOCUMENT_SCHEMA_VERSION,
                         input.content,
+                        { previous: document.version.content },
                     ),
                     document.version.content,
                 ),
@@ -778,7 +786,7 @@ export class DocumentModel {
                 version_number: document.version.versionNumber + 1,
                 schema_version: DOCUMENT_SCHEMA_VERSION,
                 markdown: content.markdown,
-                chart_data: JSON.stringify(content.charts),
+                chart_data: JSON.stringify(toChartData(content)),
                 created_by_user_uuid: createdByUserUuid,
             });
             await transaction(DocumentsTableName)

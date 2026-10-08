@@ -5012,6 +5012,7 @@ export class AiAgentToolsService extends BaseService {
                 content: parseDocumentContent(
                     existing.version.schemaVersion,
                     getContent(),
+                    { previous: stored },
                 ),
             },
             {

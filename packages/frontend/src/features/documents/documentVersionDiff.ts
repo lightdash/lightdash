@@ -27,25 +27,52 @@ export type DocumentVersionDiff = {
     hasChanges: boolean;
 };
 
+/** `chart` is null for a chart saved by a newer release; `definition` is what was stored. */
 type PlacedChart = {
     id: string;
-    chart: DocumentChartContent;
+    name: string;
+    chart: DocumentChartContent | null;
+    definition: unknown;
     position: number;
 };
 
+const UNSUPPORTED_CHART_NAME = 'Chart from a newer version';
+
 const getText = (content: DocumentContent): string[] =>
     getDocumentChartBlocks(content)
-        .flatMap((block) => (block.type === 'markdown' ? [block.markdown] : []))
+        .flatMap((block) => {
+            if (block.type === 'markdown') return [block.markdown];
+            if (block.type === 'unsupportedTag') return [block.line];
+            return [];
+        })
         .join('\n\n')
         .split('\n');
 
 const getCharts = (content: DocumentContent): PlacedChart[] =>
     getDocumentChartBlocks(content)
-        .flatMap((block) =>
-            block.type === 'chart'
-                ? [{ id: block.id, chart: block.chart }]
-                : [],
-        )
+        .flatMap((block): Omit<PlacedChart, 'position'>[] => {
+            if (block.type === 'chart') {
+                return [
+                    {
+                        id: block.id,
+                        name: block.chart.chart.name,
+                        chart: block.chart,
+                        definition: block.chart,
+                    },
+                ];
+            }
+            if (block.type === 'unsupportedChart') {
+                return [
+                    {
+                        id: block.id,
+                        name: UNSUPPORTED_CHART_NAME,
+                        chart: null,
+                        definition: block.raw,
+                    },
+                ];
+            }
+            return [];
+        })
         .map((chart, index) => ({ ...chart, position: index + 1 }));
 
 /** Line diff from the longest common subsequence; ties prefer removals first. */
@@ -163,7 +190,7 @@ const CHART_PARTS: Array<[string, (content: DocumentChartContent) => unknown]> =
         ],
     ];
 
-const getChangedParts = (
+const getKnownChangedParts = (
     before: DocumentChartContent,
     after: DocumentChartContent,
 ): string[] => {
@@ -182,6 +209,15 @@ const getChangedParts = (
     return named.length > 0 || isEqual(before, after)
         ? named
         : ['Query settings'];
+};
+
+const getChangedParts = (before: PlacedChart, after: PlacedChart): string[] => {
+    if (before.chart === null || after.chart === null) {
+        return isEqual(before.definition, after.definition)
+            ? []
+            : ['Chart definition'];
+    }
+    return getKnownChangedParts(before.chart, after.chart);
 };
 
 /** Indexes of pairs that keep their relative order (longest increasing run). */
@@ -240,7 +276,7 @@ export const diffDocumentVersions = (
                     pairedAfter.add(match);
                 }
             });
-    pairUp((left, right) => isEqual(left.chart, right.chart));
+    pairUp((left, right) => isEqual(left.definition, right.definition));
     pairUp((left, right) => left.id === right.id);
 
     const pairList = beforeCharts.flatMap((chart) => {
@@ -250,10 +286,10 @@ export const diffDocumentVersions = (
     const stable = getStablePairs(pairList.map(([, match]) => match.position));
     const paired: DocumentChartChange[] = pairList.map(
         ([chart, match], index) => {
-            const changedParts = getChangedParts(chart.chart, match.chart);
+            const changedParts = getChangedParts(chart, match);
             return {
                 kind: changedParts.length > 0 ? 'changed' : 'unchanged',
-                name: match.chart.chart.name,
+                name: match.name,
                 beforePosition: chart.position,
                 afterPosition: match.position,
                 moved: !stable.has(index),
@@ -265,7 +301,7 @@ export const diffDocumentVersions = (
         .filter((chart) => !pairedAfter.has(chart))
         .map((chart) => ({
             kind: 'added',
-            name: chart.chart.chart.name,
+            name: chart.name,
             beforePosition: null,
             afterPosition: chart.position,
             moved: false,
@@ -275,7 +311,7 @@ export const diffDocumentVersions = (
         .filter((chart) => !pairs.has(chart))
         .map((chart) => ({
             kind: 'removed',
-            name: chart.chart.chart.name,
+            name: chart.name,
             beforePosition: chart.position,
             afterPosition: null,
             moved: false,

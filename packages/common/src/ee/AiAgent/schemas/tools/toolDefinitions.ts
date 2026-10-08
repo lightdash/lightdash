@@ -2109,7 +2109,7 @@ export const mcpReadContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description:
-        'Read a dashboard, chart, SQL chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full.',
+        'Read a dashboard, chart, SQL chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },

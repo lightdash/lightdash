@@ -5,6 +5,10 @@ import {
     DOCUMENT_CHART_NODE,
     type DocumentChartAttributes,
 } from './documentChartNode';
+import {
+    DOCUMENT_UNSUPPORTED_NODE,
+    type DocumentUnsupportedAttributes,
+} from './documentUnsupportedNode';
 
 // tiptap-markdown exposes its serializer on storage without typing it.
 declare module 'tiptap-markdown' {
@@ -23,6 +27,7 @@ const serializeMarkdown = (editor: Editor, run: ProseMirrorNode[]) =>
 export const getDocumentContent = (editor: Editor): DocumentContent => {
     const parts: string[] = [];
     const charts: DocumentContent['charts'] = {};
+    const unsupportedCharts: Record<string, unknown> = {};
     let run: ProseMirrorNode[] = [];
     let newCharts = 0;
     const flush = () => {
@@ -31,6 +36,18 @@ export const getDocumentContent = (editor: Editor): DocumentContent => {
         run = [];
     };
     editor.state.doc.forEach((node) => {
+        if (node.type.name === DOCUMENT_UNSUPPORTED_NODE) {
+            flush();
+            const { block } = node.attrs as DocumentUnsupportedAttributes;
+            // Written back as read; a copy of a chart would repeat its id
+            if (block?.type === 'unsupportedTag') {
+                parts.push(block.line);
+            } else if (block && !Object.hasOwn(unsupportedCharts, block.id)) {
+                unsupportedCharts[block.id] = block.raw;
+                parts.push(getDocumentChartTag(block.id));
+            }
+            return;
+        }
         if (node.type.name !== DOCUMENT_CHART_NODE) {
             run.push(node);
             return;
@@ -48,7 +65,13 @@ export const getDocumentContent = (editor: Editor): DocumentContent => {
         parts.push(getDocumentChartTag(id));
     });
     flush();
-    return { markdown: parts.join('\n\n'), charts };
+    return {
+        markdown: parts.join('\n\n'),
+        charts,
+        ...(Object.keys(unsupportedCharts).length > 0
+            ? { unsupportedCharts }
+            : {}),
+    };
 };
 
 /**
