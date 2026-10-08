@@ -847,6 +847,7 @@ export const AgentChatInput = ({
         !isEmbedAiAgentRoute();
     const showFastModeInModelSelector =
         showFastModeControl && !isMinimalMode && showModelSelectorControl;
+    const showStatusRow = threadModelName !== undefined && !disabled;
     const showFastModeInComposerMenu =
         showFastModeControl && !showFastModeInModelSelector;
     const activeMessageUuid = isAgentActive
@@ -1393,21 +1394,63 @@ export const AgentChatInput = ({
         );
     };
 
-    const showStatusRow = threadModelName !== undefined && !disabled;
-
+    // Status bar under the thread composer: attach, Fast and SQL Runner stay
+    // switchable mid-thread; the model is fixed so it is only a label.
     const renderStatusRow = () => {
         if (!showStatusRow) return null;
-        const showFastStatus = showFastModeControl;
         return (
             <Group
-                className={styles.statusRow}
+                className={styles.statusBar}
                 justify="space-between"
                 align="center"
                 gap="sm"
                 wrap="nowrap"
             >
                 <Group gap="sm" align="center" wrap="nowrap">
-                    {footerNotice}
+                    {canAttachThreadFile && showAttachControl && (
+                        <FileButton
+                            accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                                (ext) => ext !== '.csv' && ext !== '.tsv',
+                            ).join(',')}
+                            multiple
+                            resetRef={resetDocumentFileInputRef}
+                            onChange={(files) => {
+                                resetDocumentFileInputRef.current?.();
+                                if (files.length > 0) {
+                                    void attachThreadFiles(files);
+                                }
+                            }}
+                        >
+                            {(fileButtonProps) => (
+                                <Tooltip
+                                    label="Attach a document"
+                                    position="top"
+                                    openDelay={300}
+                                >
+                                    <ActionIcon
+                                        {...fileButtonProps}
+                                        size="xs"
+                                        variant="transparent"
+                                        aria-label={
+                                            canUseAttachControl
+                                                ? 'Attach a document'
+                                                : 'Attach a document unavailable in deep research'
+                                        }
+                                        disabled={
+                                            isUploadingThreadFile ||
+                                            !canUseAttachControl
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconPaperclip}
+                                            size={14}
+                                            color="dimmed"
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </FileButton>
+                    )}
                     {sqlMode && (
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon
@@ -1416,7 +1459,7 @@ export const AgentChatInput = ({
                                 color="dimmed"
                             />
                             <Text size="xs" c="dimmed">
-                                SQL Runner
+                                Can run SQL
                             </Text>
                         </Group>
                     )}
@@ -1432,10 +1475,11 @@ export const AgentChatInput = ({
                             </Text>
                         </Group>
                     )}
+                    {footerNotice}
                 </Group>
-                {(threadModelName || showFastStatus) && (
-                    <Group gap={4} align="center" wrap="nowrap">
-                        {showFastStatus && (
+                {(threadModelName || showFastModeControl) && (
+                    <Group gap={4} wrap="nowrap">
+                        {showFastModeControl && (
                             <Tooltip
                                 label="Jev picks the quickest way to answer, so simple questions come back faster"
                                 multiline
@@ -1474,7 +1518,7 @@ export const AgentChatInput = ({
                             </Tooltip>
                         )}
                         {threadModelName && (
-                            <Text size="xs" c="dimmed" fw={500}>
+                            <Text size="xs" c="dimmed">
                                 {threadModelName}
                             </Text>
                         )}
@@ -1649,6 +1693,7 @@ export const AgentChatInput = ({
                             />
                             {renderDropOverlay('inline')}
                         </Box>
+                        {renderStatusRow()}
                     </Box>
 
                     {!isThreadInput &&
@@ -1663,14 +1708,9 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {showStatusRow
-                    ? renderStatusRow()
-                    : !disabled &&
-                      footerNotice && (
-                          <Box className={styles.footerNotice}>
-                              {footerNotice}
-                          </Box>
-                      )}
+                {!showStatusRow && !disabled && footerNotice && (
+                    <Box className={styles.footerNotice}>{footerNotice}</Box>
+                )}
             </Box>
         );
     }
