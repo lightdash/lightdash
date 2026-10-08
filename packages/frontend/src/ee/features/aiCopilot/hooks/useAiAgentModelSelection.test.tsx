@@ -119,11 +119,9 @@ describe('useAiAgentModelSelection', () => {
         );
 
         expect(result.current.selectedModel).toBe(sonnet55);
-        expect(result.current.modelConfig).toEqual({
-            modelName: 'claude-sonnet-5-5',
-            modelProvider: 'anthropic',
-            reasoning: true,
-        });
+        expect(result.current.agentDefault.model).toBe(sonnet55);
+        // The server resolves the agent's retired model to its replacement.
+        expect(result.current.explicitModelConfig).toBeUndefined();
     });
 
     it('moves a remembered retired choice to its replacement', () => {

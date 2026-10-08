@@ -50,7 +50,10 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import {
+    ModelSelector,
+    type AgentDefaultOption,
+} from '../../../../../components/common/ModelSelector/ModelSelector';
 import {
     ComposerSubmitButton,
     PromptComposer,
@@ -272,6 +275,7 @@ interface AgentChatInputProps {
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;
     onExtendedThinkingChange?: (enabled: boolean) => void;
+    agentDefault?: AgentDefaultOption;
     sqlMode?: boolean;
     onSqlModeChange?: (enabled: boolean) => void;
     defaultValue?: string;
@@ -344,6 +348,7 @@ export const AgentChatInput = ({
     onModelChange,
     extendedThinking = false,
     onExtendedThinkingChange,
+    agentDefault,
     sqlMode = false,
     onSqlModeChange,
     defaultValue,
@@ -1639,6 +1644,7 @@ export const AgentChatInput = ({
                                                     onReasoningChange={
                                                         onExtendedThinkingChange
                                                     }
+                                                    agentDefault={agentDefault}
                                                 />
                                             </Box>
                                         )}
