@@ -12403,6 +12403,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             .mockReset()
             .mockResolvedValue(compiledProject);
         projectModel.get.mockReset().mockResolvedValue(compiledProject);
+        projectModel.getWarehouseCredentialsForProject
+            .mockReset()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        projectModel.getProjectWarehouseConfig.mockResolvedValue({
+            organizationWarehouseCredentialsUuid: null,
+            queryTimezone: null,
+        });
         projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
         projectModel.getWarehouseFromCache
             .mockReset()
@@ -13924,7 +13931,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         });
     });
 
-    describe("prepareCompileAdapter's inline Snowflake SSO refresh", () => {
+    describe('prepareCompileAdapter Snowflake SSO refresh', () => {
         test('persists token rotation before returning compile credentials', async () => {
             const projectSnowflakeCredentials: CreateSnowflakeCredentials = {
                 ...baseSnowflakeCredentials,
@@ -13940,6 +13947,9 @@ describe('Snowflake credential pins (SPK-2336)', () => {
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce(snowflakeProject);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                projectSnowflakeCredentials,
+            );
             (
                 projectModel.getWarehouseFromCache as import('vitest').Mock
             ).mockResolvedValueOnce(undefined);

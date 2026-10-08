@@ -920,6 +920,11 @@ export class ProjectService
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
+        if (!lightdashConfig.warehouseClient.resolveCompileCredentials) {
+            this.logger.warn(
+                'Compile credential resolution is disabled; using legacy refresh and rotation behaviour',
+            );
+        }
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
@@ -2360,11 +2365,6 @@ export class ProjectService
                 projectUuid,
             );
         const { organizationWarehouseCredentialsUuid } = source;
-        const connectionRotationSource: RefreshTokenRotationSource = {
-            kind: 'warehouseConnection',
-            project,
-            warehouseConnectionUuid,
-        };
         if (
             source.credentials.type === WarehouseTypes.DUCKDB &&
             source.credentials.connectionType === DuckdbConnectionType.ANALYTICS
@@ -2373,26 +2373,13 @@ export class ProjectService
                 'Local analytics cannot run on an extra warehouse connection',
             );
         }
-        let credentials = {
+        const credentials = {
             ...source.credentials,
             requireUserCredentials: getExtraConnectionRequireUserCredentials(
                 originalCredentials,
                 source,
             ),
         } as CreateWarehouseCredentials;
-
-        if (purpose === 'compile') {
-            credentials = await this.refreshCredentialsAndPersistRotation(
-                credentials,
-                userId,
-                organizationWarehouseCredentialsUuid
-                    ? {
-                          kind: 'organization',
-                          organizationWarehouseCredentialsUuid,
-                      }
-                    : connectionRotationSource,
-            );
-        }
 
         return {
             kind: 'extra',
@@ -2419,20 +2406,12 @@ export class ProjectService
         const { projectUuid, organizationWarehouseCredentialsUuid } = base;
         let { credentials } = base;
         let userWarehouseCredentialsUuid: string | undefined;
-        const { purpose } = context;
         const { project, warehouseConnectionUuid } = base;
         const connectionRotationSource: RefreshTokenRotationSource = {
             kind: 'warehouseConnection',
             project,
             warehouseConnectionUuid,
         };
-
-        if (purpose === 'compile') {
-            return {
-                ...credentials,
-                userWarehouseCredentialsUuid,
-            };
-        }
 
         if (
             organizationWarehouseCredentialsUuid &&
@@ -2968,6 +2947,7 @@ export class ProjectService
                     ...args,
                     preloadedOrgWarehouseCredentialsUuid:
                         ref.preloadedOrgWarehouseCredentialsUuid,
+                    purpose: context.purpose,
                 });
                 break;
             case 'extra':
@@ -2990,6 +2970,9 @@ export class ProjectService
         base: WarehouseCredentialBase,
         context: WarehouseCredentialResolutionContext,
     ): Promise<ResolvedWarehouseCredentials> {
+        if (context.purpose === 'compile' && base.kind !== 'final') {
+            return this.finishCompileCredentials(base, context);
+        }
         switch (base.kind) {
             case 'final':
                 return {
@@ -3006,6 +2989,96 @@ export class ProjectService
                     'Unknown warehouse credential phase',
                 );
         }
+    }
+
+    private async finishCompileCredentials(
+        base: Exclude<WarehouseCredentialBase, { kind: 'final' }>,
+        context: WarehouseCredentialResolutionContext,
+    ): Promise<ResolvedWarehouseCredentials> {
+        const { person } = context.actor;
+        if (person === null) {
+            throw new ForbiddenError(
+                'Warehouse credentials require a connection person',
+            );
+        }
+        const { projectUuid, organizationWarehouseCredentialsUuid } = base;
+        let { credentials } = base;
+        let source: RefreshTokenRotationSource = {
+            kind: 'project',
+            projectUuid,
+        };
+        if (organizationWarehouseCredentialsUuid) {
+            source = {
+                kind: 'organization',
+                organizationWarehouseCredentialsUuid,
+            };
+        } else if (base.kind === 'extra') {
+            source = {
+                kind: 'warehouseConnection',
+                project: base.project,
+                warehouseConnectionUuid: base.warehouseConnectionUuid,
+            };
+        }
+        let userWarehouseCredentialsUuid: string | undefined;
+
+        if (base.kind === 'original' && !organizationWarehouseCredentialsUuid) {
+            credentials = await this.repairStalePreviewSsoCredentials(
+                projectUuid,
+                credentials,
+            );
+            if (
+                credentials.type === WarehouseTypes.DATABRICKS &&
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_U2M &&
+                !credentials.refreshToken
+            ) {
+                const userCredentials =
+                    await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                        projectUuid,
+                        person.userUuid,
+                        WarehouseTypes.DATABRICKS,
+                    );
+                if (
+                    userCredentials?.credentials.type ===
+                        WarehouseTypes.DATABRICKS &&
+                    userCredentials.credentials.authenticationType ===
+                        DatabricksAuthenticationType.OAUTH_U2M &&
+                    userCredentials.credentials.refreshToken
+                ) {
+                    const userHost = normalizeDatabricksHostLenient(
+                        userCredentials.credentials.serverHostName,
+                    );
+                    const projectHost = normalizeDatabricksHostLenient(
+                        credentials.serverHostName,
+                    );
+                    if (userHost && projectHost && userHost !== projectHost) {
+                        throw new DatabricksTokenError(
+                            'Please authenticate to access Databricks for this workspace',
+                        );
+                    }
+                    credentials = {
+                        ...credentials,
+                        refreshToken: userCredentials.credentials.refreshToken,
+                        oauthClientId:
+                            userCredentials.credentials.oauthClientId ||
+                            credentials.oauthClientId,
+                    };
+                    userWarehouseCredentialsUuid = userCredentials.uuid;
+                    source = {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid,
+                    };
+                }
+            }
+        }
+        return {
+            ...(await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                person.userUuid,
+                source,
+            )),
+            userWarehouseCredentialsUuid,
+        };
     }
 
     protected async getWarehouseCredentialsWithConnection({
@@ -3242,6 +3315,7 @@ export class ProjectService
         context,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
+        purpose = 'query',
     }: {
         projectUuid: string;
         userId: string;
@@ -3249,6 +3323,7 @@ export class ProjectService
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
+        purpose?: ConnectionContext['purpose'];
     }): Promise<WarehouseCredentialBase> {
         const organizationWarehouseCredentialsUuid =
             preloadedOrgWarehouseCredentialsUuid !== undefined
@@ -6954,29 +7029,86 @@ export class ProjectService
                 'Warehouse credentials must be provided to connect to your dbt project',
             );
         }
-        if (!project.organizationWarehouseCredentialsUuid) {
-            project.warehouseConnection =
-                await this.repairStalePreviewSsoCredentials(
-                    projectUuid,
-                    project.warehouseConnection,
-                );
-        }
+        const warehouseCredentials = this.lightdashConfig.warehouseClient
+            .resolveCompileCredentials
+            ? (
+                  await this.warehouseClientFactory.resolveWarehouseCredentials(
+                      {
+                          kind: 'binding',
+                          projectUuid,
+                          binding: { kind: 'original' },
+                      },
+                      connectionContextFromUser(
+                          { userUuid: user.userUuid },
+                          {
+                              organizationUuid: project.organizationUuid,
+                              queryContext: null,
+                              purpose: 'compile',
+                          },
+                      ),
+                  )
+              ).warehouseCredentials
+            : await this.prepareLegacyCompileCredentials(project, user);
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
 
+        const dbtConnection = await this.resolveDbtConnectionInstallationId(
+            project.dbtConnection,
+            user.organizationUuid,
+        );
+
+        const cachedWarehouse: CachedWarehouse = {
+            warehouseCatalog: cachedWarehouseCatalog,
+            onWarehouseCatalogChange: async (warehouseCatalog) => {
+                await this.projectModel.saveWarehouseToCache(
+                    projectUuid,
+                    warehouseCatalog,
+                );
+            },
+        };
+        const dbtVersionOption =
+            project.dbtVersion || DefaultSupportedDbtVersion;
+        const dbtPartialParse = await this.isDbtPartialParseEnabled(user);
+        return {
+            project,
+            dbtConnection,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+            dbtPartialParse,
+        };
+    }
+
+    private async prepareLegacyCompileCredentials(
+        project: Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<CreateWarehouseCredentials> {
+        const { projectUuid } = project;
+        if (!project.warehouseConnection) {
+            throw new MissingWarehouseCredentialsError(
+                'Warehouse credentials must be provided to connect to your dbt project',
+            );
+        }
+        let { warehouseConnection } = project;
+        if (!project.organizationWarehouseCredentialsUuid) {
+            warehouseConnection = await this.repairStalePreviewSsoCredentials(
+                projectUuid,
+                warehouseConnection,
+            );
+        }
         if (
-            project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
-            project.warehouseConnection.authenticationType === 'sso' &&
-            project.warehouseConnection.refreshToken
+            warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            warehouseConnection.authenticationType === 'sso' &&
+            warehouseConnection.refreshToken
         ) {
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
             );
-            const oldRefreshToken = project.warehouseConnection.refreshToken;
+            const oldRefreshToken = warehouseConnection.refreshToken;
             const { accessToken, refreshToken: newRefreshToken } =
                 await UserService.generateSnowflakeAccessToken(oldRefreshToken);
-            project.warehouseConnection.token = accessToken;
-            project.warehouseConnection.refreshToken = newRefreshToken;
+            warehouseConnection.token = accessToken;
+            warehouseConnection.refreshToken = newRefreshToken;
             if (newRefreshToken !== oldRefreshToken) {
                 await this.persistRefreshTokenRotation({
                     source: { kind: 'project', projectUuid },
@@ -6987,41 +7119,40 @@ export class ProjectService
         }
 
         if (
-            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            project.warehouseConnection.authenticationType ===
+            warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_M2M
         ) {
             // If we have OAuth credentials but no refresh token, exchange them for tokens
             if (
-                project.warehouseConnection.oauthClientId &&
-                project.warehouseConnection.oauthClientSecret &&
-                !project.warehouseConnection.refreshToken
+                warehouseConnection.oauthClientId &&
+                warehouseConnection.oauthClientSecret &&
+                !warehouseConnection.refreshToken
             ) {
                 this.logger.debug(
                     `Exchanging Databricks OAuth credentials for access token on buildAdapter`,
                 );
                 const { accessToken, refreshToken } =
                     await exchangeDatabricksOAuthCredentials(
-                        project.warehouseConnection.serverHostName,
-                        project.warehouseConnection.oauthClientId,
-                        project.warehouseConnection.oauthClientSecret,
+                        warehouseConnection.serverHostName,
+                        warehouseConnection.oauthClientId,
+                        warehouseConnection.oauthClientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
+                warehouseConnection.token = accessToken;
                 if (refreshToken) {
-                    project.warehouseConnection.refreshToken = refreshToken;
+                    warehouseConnection.refreshToken = refreshToken;
                     // Note: refresh token will be persisted when project credentials are next saved
                 }
-            } else if (project.warehouseConnection.refreshToken) {
+            } else if (warehouseConnection.refreshToken) {
                 // If we have a refresh token, use it to get a fresh access token
                 this.logger.debug(
                     `Refreshing databricks warehouse credentials from refresh token on buildAdapter`,
                 );
                 let clientId: string;
                 let clientSecret: string | undefined;
-                if (project.warehouseConnection.oauthClientId) {
-                    clientId = project.warehouseConnection.oauthClientId;
-                    clientSecret =
-                        project.warehouseConnection.oauthClientSecret;
+                if (warehouseConnection.oauthClientId) {
+                    clientId = warehouseConnection.oauthClientId;
+                    clientSecret = warehouseConnection.oauthClientSecret;
                 } else if (this.lightdashConfig.auth.databricks.clientId) {
                     clientId = this.lightdashConfig.auth.databricks.clientId;
                     clientSecret =
@@ -7032,24 +7163,23 @@ export class ProjectService
                 }
                 const { accessToken, refreshToken } =
                     await refreshDatabricksOAuthToken(
-                        project.warehouseConnection.serverHostName,
+                        warehouseConnection.serverHostName,
                         clientId,
-                        project.warehouseConnection.refreshToken,
+                        warehouseConnection.refreshToken,
                         clientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
-                project.warehouseConnection.refreshToken = refreshToken;
+                warehouseConnection.token = accessToken;
+                warehouseConnection.refreshToken = refreshToken;
             }
         }
 
         if (
-            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            project.warehouseConnection.authenticationType ===
+            warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_U2M
         ) {
             // For U2M OAuth, resolve refresh token from user credentials if not on project
-            let u2mRefreshToken =
-                project.warehouseConnection.refreshToken ?? undefined;
+            let u2mRefreshToken = warehouseConnection.refreshToken ?? undefined;
 
             let userCredOauthClientId: string | undefined;
             if (!u2mRefreshToken) {
@@ -7078,8 +7208,7 @@ export class ProjectService
                 let clientId: string;
                 let clientSecret: string | undefined;
                 const storedClientId =
-                    userCredOauthClientId ||
-                    project.warehouseConnection.oauthClientId;
+                    userCredOauthClientId || warehouseConnection.oauthClientId;
                 if (storedClientId) {
                     clientId = storedClientId;
                 } else if (this.lightdashConfig.auth.databricks.clientId) {
@@ -7097,41 +7226,17 @@ export class ProjectService
 
                 const { accessToken, refreshToken } =
                     await refreshDatabricksOAuthToken(
-                        project.warehouseConnection.serverHostName,
+                        warehouseConnection.serverHostName,
                         clientId,
                         u2mRefreshToken,
                         clientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
-                project.warehouseConnection.refreshToken = refreshToken;
+                warehouseConnection.token = accessToken;
+                warehouseConnection.refreshToken = refreshToken;
             }
         }
 
-        const dbtConnection = await this.resolveDbtConnectionInstallationId(
-            project.dbtConnection,
-            user.organizationUuid,
-        );
-
-        const cachedWarehouse: CachedWarehouse = {
-            warehouseCatalog: cachedWarehouseCatalog,
-            onWarehouseCatalogChange: async (warehouseCatalog) => {
-                await this.projectModel.saveWarehouseToCache(
-                    projectUuid,
-                    warehouseCatalog,
-                );
-            },
-        };
-        const dbtVersionOption =
-            project.dbtVersion || DefaultSupportedDbtVersion;
-        const dbtPartialParse = await this.isDbtPartialParseEnabled(user);
-        return {
-            project,
-            dbtConnection,
-            warehouseCredentials: project.warehouseConnection,
-            cachedWarehouse,
-            dbtVersionOption,
-            dbtPartialParse,
-        };
+        return warehouseConnection;
     }
 
     private async withCompileAdapter<T>(
@@ -7870,6 +7975,17 @@ export class ProjectService
             });
         const { manifest, selectedModelIds } =
             await primary.adapter.getDbtManifest();
+        const compileContext = connectionContextFromUser(
+            { userUuid },
+            {
+                organizationUuid:
+                    organizationUuid ??
+                    (await this.projectModel.getSummary(projectUuid))
+                        .organizationUuid,
+                queryContext: null,
+                purpose: 'compile',
+            },
+        );
         return this.multiConnectionCompiler.compile({
             projectUuid,
             primary: {
@@ -7880,17 +7996,7 @@ export class ProjectService
                 warehouseCredentials: primary.warehouseCredentials,
                 cachedWarehouse: primary.cachedWarehouse,
             },
-            context: connectionContextFromUser(
-                { userUuid },
-                {
-                    organizationUuid:
-                        organizationUuid ??
-                        (await this.projectModel.getSummary(projectUuid))
-                            .organizationUuid,
-                    queryContext: null,
-                    purpose: 'compile',
-                },
-            ),
+            context: compileContext,
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
             includeUnboundSources,
             fetchSourceManifest: async (
@@ -7919,15 +8025,19 @@ export class ProjectService
                 return sourceAdapter.getDbtManifest();
             },
             loadExtraCredentials: async (warehouseConnectionUuid) => {
-                const { userWarehouseCredentialsUuid, ...credentials } =
-                    await this.getExtraConnectionWarehouseCredentials({
-                        projectUuid,
-                        warehouseConnectionUuid,
-                        userId: userUuid,
-                        isRegisteredUser: true,
-                        purpose: 'compile',
-                    });
-                return credentials;
+                const resolution =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        {
+                            kind: 'binding',
+                            projectUuid,
+                            binding: {
+                                kind: 'connection',
+                                warehouseConnectionUuid,
+                            },
+                        },
+                        compileContext,
+                    );
+                return resolution.warehouseCredentials;
             },
             trackingParams,
             analytics: this.analytics,

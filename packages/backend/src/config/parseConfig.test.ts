@@ -693,6 +693,39 @@ describe('scoped SSH tunnel release', () => {
     });
 });
 
+describe('compile credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            expected,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when scoped SSH release is disabled', () => {
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
