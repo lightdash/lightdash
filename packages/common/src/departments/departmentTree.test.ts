@@ -341,19 +341,23 @@ describe('very deep and very wide trees', () => {
     });
 
     it('rolls up people without overflowing the stack', () => {
-        const deep = rollUpByDepartment(chain, new Map([[leaf, ['p']]]));
-        expect(deep.get('d0')).toEqual(['p']);
-        expect(deep.get(`d${SIZE - 2}`)).toEqual(['p']);
+        const p = { userUuid: 'p' };
+        const deep = rollUpByDepartment(chain, new Map([[leaf, [p]]]));
+        expect(deep.get('d0')).toEqual([p]);
+        expect(deep.get(`d${SIZE - 2}`)).toEqual([p]);
         const broad = rollUpByDepartment(
             wide,
             new Map(
                 wide
                     .slice(1)
-                    .map((n) => [n.departmentUuid, [n.departmentUuid]]),
+                    .map((n) => [
+                        n.departmentUuid,
+                        [{ userUuid: n.departmentUuid }],
+                    ]),
             ),
         );
         expect(broad.get('root')).toEqual(
-            wide.slice(1).map((n) => n.departmentUuid),
+            wide.slice(1).map((n) => ({ userUuid: n.departmentUuid })),
         );
     });
 
@@ -455,18 +459,28 @@ const recursiveEffectiveHeadcounts = (
     return result;
 };
 
-const perDepartmentRollUp = <T>(
+const perDepartmentRollUp = <T extends { userUuid: string }>(
     input: { departmentUuid: string; parentDepartmentUuid: string | null }[],
     direct: Map<string, T[]>,
 ) =>
     new Map(
-        input.map((n) => [
-            n.departmentUuid,
-            [
+        input.map((n) => {
+            // Same rule as the walk under test: each person once, first occurrence kept
+            const seen = new Set<string>();
+            return [
                 n.departmentUuid,
-                ...getDescendantUuids(n.departmentUuid, input),
-            ].flatMap((uuid) => direct.get(uuid) ?? []),
-        ]),
+                [
+                    n.departmentUuid,
+                    ...getDescendantUuids(n.departmentUuid, input),
+                ]
+                    .flatMap((uuid) => direct.get(uuid) ?? [])
+                    .filter((person) => {
+                        if (seen.has(person.userUuid)) return false;
+                        seen.add(person.userUuid);
+                        return true;
+                    }),
+            ];
+        }),
     );
 
 describe('iterative walks match the recursive ones', () => {
@@ -519,7 +533,10 @@ describe('iterative walks match the recursive ones', () => {
                     .filter((_, i) => i % 3 !== 0)
                     .map((n) => [
                         n.departmentUuid,
-                        [`${n.departmentUuid}-a`, `${n.departmentUuid}-b`],
+                        [
+                            { userUuid: `${n.departmentUuid}-a` },
+                            { userUuid: `${n.departmentUuid}-b` },
+                        ],
                     ]),
             );
             expect([...rollUpByDepartment(tree, direct)]).toEqual([
