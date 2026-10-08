@@ -128,6 +128,10 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import type {
+    ApiAiServiceAccountSlotResponse,
+    ApiAiServiceAccountTestResponse,
+} from './agentIdentity';
+import type {
     ApiAiAccessForUserResponse,
     ApiAiMarkerTestResponse,
     ApiAiWarehouseCapabilitiesResponse,
@@ -1561,6 +1565,8 @@ type ApiResults =
     | ApiAiWarehouseCapabilitiesResponse['results']
     | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']
+    | ApiAiServiceAccountSlotResponse['results']
+    | ApiAiServiceAccountTestResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

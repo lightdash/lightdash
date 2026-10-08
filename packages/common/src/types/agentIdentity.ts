@@ -1,0 +1,111 @@
+import { WarehouseTypes, type BigqueryAuthenticationType } from './projects';
+
+export type AiActorKind = 'person' | 'service_account';
+export type AiIdentitySource =
+    | 'marked_person'
+    | 'agent_sign_in'
+    | 'ai_service_account';
+
+const markedOnly: Record<AiActorKind, readonly AiIdentitySource[]> = {
+    person: ['marked_person'],
+    service_account: ['marked_person'],
+};
+
+export const AGENT_IDENTITY_SOURCES: Record<
+    WarehouseTypes,
+    Record<AiActorKind, readonly AiIdentitySource[]>
+> = {
+    [WarehouseTypes.SNOWFLAKE]: {
+        person: ['marked_person', 'agent_sign_in'],
+        service_account: ['marked_person', 'agent_sign_in'],
+    },
+    [WarehouseTypes.BIGQUERY]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
+    [WarehouseTypes.POSTGRES]: markedOnly,
+    [WarehouseTypes.REDSHIFT]: markedOnly,
+    [WarehouseTypes.DATABRICKS]: markedOnly,
+    [WarehouseTypes.TRINO]: markedOnly,
+    [WarehouseTypes.CLICKHOUSE]: markedOnly,
+    [WarehouseTypes.ATHENA]: markedOnly,
+    [WarehouseTypes.DUCKDB]: markedOnly,
+};
+
+export const supportsAiServiceAccount = (type: WarehouseTypes): boolean =>
+    Object.values(AGENT_IDENTITY_SOURCES[type]).some((sources) =>
+        sources.includes('ai_service_account'),
+    );
+
+export type WarehouseServiceAuthMethod =
+    | 'password'
+    | 'private_key'
+    | 'oauth_m2m'
+    | 'iam'
+    | 'access_key'
+    | 'iam_role'
+    | 'web_identity'
+    | 'token';
+
+const serviceAuthMethods: Record<
+    WarehouseTypes,
+    readonly WarehouseServiceAuthMethod[]
+> = {
+    [WarehouseTypes.BIGQUERY]: ['private_key'],
+    [WarehouseTypes.SNOWFLAKE]: ['password', 'private_key'],
+    [WarehouseTypes.POSTGRES]: ['password'],
+    [WarehouseTypes.REDSHIFT]: ['password', 'iam'],
+    [WarehouseTypes.DATABRICKS]: ['oauth_m2m'],
+    [WarehouseTypes.TRINO]: ['password'],
+    [WarehouseTypes.CLICKHOUSE]: ['password'],
+    [WarehouseTypes.ATHENA]: ['access_key', 'iam_role', 'web_identity'],
+    [WarehouseTypes.DUCKDB]: ['token'],
+};
+
+export const getWarehouseServiceAuthMethods = (
+    type: WarehouseTypes,
+): readonly WarehouseServiceAuthMethod[] => serviceAuthMethods[type];
+
+export type AiServiceAccountCredentialInput = {
+    type: WarehouseTypes.BIGQUERY;
+    authenticationType: BigqueryAuthenticationType.PRIVATE_KEY;
+    keyfileContents?: { [key: string]: string };
+};
+
+export type AiServiceAccountSlot = {
+    uuid: string;
+    identityUuid: string;
+    projectUuid: string;
+    warehouseConnectionUuid: string | null;
+    kind: 'ai_service_account';
+    scope: 'connection';
+    warehouseType: WarehouseTypes;
+    method: WarehouseServiceAuthMethod;
+    createdByUserUuid: string | null;
+    updatedByUserUuid: string | null;
+    credentialSubjectUserUuid: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AiServiceAccountTestRequest = {
+    credentials: AiServiceAccountCredentialInput | null;
+};
+
+export type AiServiceAccountTestResult = {
+    ok: boolean;
+    principal: string | null;
+    observed: Record<string, string | null>;
+    message: string;
+    checkedAt: Date;
+};
+
+export type ApiAiServiceAccountSlotResponse = {
+    status: 'ok';
+    results: AiServiceAccountSlot | null;
+};
+
+export type ApiAiServiceAccountTestResponse = {
+    status: 'ok';
+    results: AiServiceAccountTestResult;
+};

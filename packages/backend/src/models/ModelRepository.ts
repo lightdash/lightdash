@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
@@ -178,6 +179,7 @@ export type ModelManifest = {
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
+    aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -987,6 +989,17 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.getUserModel(),
+                }),
+        );
+    }
+
+    public getAiServiceAccountCredentialsModel(): AiServiceAccountCredentialsModel {
+        return this.getModel(
+            'aiServiceAccountCredentialsModel',
+            () =>
+                new AiServiceAccountCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }

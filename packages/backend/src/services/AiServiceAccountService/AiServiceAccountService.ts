@@ -1,0 +1,224 @@
+import { subject } from '@casl/ability';
+import {
+    assertIsAccountWithOrg,
+    FeatureFlags,
+    FeatureNotEnabledError,
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
+    QueryExecutionContext,
+    supportsAiServiceAccount,
+    type Account,
+    type AiServiceAccountCredentialInput,
+    type AiServiceAccountSlot,
+    type AiServiceAccountTestResult,
+} from '@lightdash/common';
+import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { BaseService } from '../BaseService';
+import { type ProjectService } from '../ProjectService/ProjectService';
+import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
+import {
+    applyAiServiceAccountCredentials,
+    mergeAiServiceAccountCredentials,
+} from './applyAiServiceAccountCredentials';
+
+type Dependencies = {
+    aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
+    featureFlagModel: FeatureFlagModel;
+    projectModel: ProjectModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
+    projectService: Pick<ProjectService, 'warehouseClientFactory'>;
+};
+
+export class AiServiceAccountService extends BaseService {
+    constructor(private readonly deps: Dependencies) {
+        super();
+    }
+
+    private async loadConnection(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+    ) {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.deps.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { enabled } = await this.deps.featureFlagModel.get({
+            user: { userUuid: account.user.id, organizationUuid },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled)
+            throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
+        let warehouseConnectionUuid = connectionUuid;
+        if (warehouseConnectionUuid !== null) {
+            const project =
+                await this.deps.warehouseConnectionModel.getProject(
+                    projectUuid,
+                );
+            const connection = await this.deps.warehouseConnectionModel.get(
+                project,
+                warehouseConnectionUuid,
+            );
+            if (connection.isOriginal) warehouseConnectionUuid = null;
+        }
+        const connection =
+            warehouseConnectionUuid === null
+                ? await this.deps.projectModel.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
+                  )
+                : await this.deps.warehouseConnectionModel.getCredentials(
+                      await this.deps.warehouseConnectionModel.getProject(
+                          projectUuid,
+                      ),
+                      warehouseConnectionUuid,
+                  );
+        if (!supportsAiServiceAccount(connection.type)) {
+            throw new ParameterError(
+                'This warehouse does not support an AI service account.',
+            );
+        }
+        return { connection, warehouseConnectionUuid, organizationUuid };
+    }
+
+    async get(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+    ): Promise<AiServiceAccountSlot | null> {
+        const { warehouseConnectionUuid } = await this.loadConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        return this.deps.aiServiceAccountCredentialsModel.getSlot(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
+    }
+
+    async upsert(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+        input: AiServiceAccountCredentialInput,
+    ): Promise<AiServiceAccountSlot> {
+        const { connection, warehouseConnectionUuid } =
+            await this.loadConnection(account, projectUuid, connectionUuid);
+        if (input.type !== connection.type)
+            throw new ParameterError(
+                'The AI service account must match the connection warehouse type.',
+            );
+        const saved =
+            await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        const credentials = mergeAiServiceAccountCredentials(input, saved);
+        return this.deps.aiServiceAccountCredentialsModel.upsert(
+            projectUuid,
+            warehouseConnectionUuid,
+            credentials,
+            account.user.id,
+        );
+    }
+
+    async delete(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+    ): Promise<void> {
+        const { warehouseConnectionUuid } = await this.loadConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.deps.aiServiceAccountCredentialsModel.delete(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
+    }
+
+    async test(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+        input: AiServiceAccountCredentialInput | null,
+    ): Promise<AiServiceAccountTestResult> {
+        const { connection, warehouseConnectionUuid, organizationUuid } =
+            await this.loadConnection(account, projectUuid, connectionUuid);
+        if (input !== null && input.type !== connection.type)
+            throw new ParameterError(
+                'The AI service account must match the connection warehouse type.',
+            );
+        const saved =
+            await this.deps.aiServiceAccountCredentialsModel.getSecrets(
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        const secrets =
+            input === null
+                ? saved
+                : mergeAiServiceAccountCredentials(input, saved);
+        if (secrets === null)
+            throw new NotFoundError(
+                'The connection has no AI service account.',
+            );
+        const credentials = applyAiServiceAccountCredentials(
+            connection,
+            secrets,
+        );
+        const sql = 'SELECT SESSION_USER() AS principal';
+        try {
+            const { rows } =
+                await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
+                    {
+                        kind: 'bypass',
+                        mode: 'connection_test',
+                        projectUuid,
+                        credentials,
+                    },
+                    connectionContextFromAccount(account, {
+                        organizationUuid,
+                        queryContext: QueryExecutionContext.API,
+                    }),
+                    ({ warehouseClient }) => warehouseClient.runQuery(sql, {}),
+                );
+            const row = rows[0];
+            const principalValue: unknown = row?.principal ?? row?.PRINCIPAL;
+            const principal =
+                typeof principalValue === 'string' ? principalValue : null;
+            const observed: Record<string, string | null> = { principal };
+            return {
+                ok: true,
+                principal,
+                observed,
+                message:
+                    principal === null
+                        ? 'Connection checked; principal not observed.'
+                        : 'AI service account connection checked.',
+                checkedAt: new Date(),
+            };
+        } catch {
+            return {
+                ok: false,
+                principal: null,
+                observed: {},
+                message:
+                    'Could not verify the AI service account. Check the credentials and connection settings.',
+                checkedAt: new Date(),
+            };
+        }
+    }
+}

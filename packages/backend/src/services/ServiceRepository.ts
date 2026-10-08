@@ -23,6 +23,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
+import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -154,6 +155,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
+    aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
@@ -956,6 +958,22 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
+    public getAiServiceAccountService(): AiServiceAccountService {
+        return this.getService(
+            'aiServiceAccountService',
+            () =>
+                new AiServiceAccountService({
+                    aiServiceAccountCredentialsModel:
+                        this.models.getAiServiceAccountCredentialsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
