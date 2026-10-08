@@ -5031,6 +5031,11 @@ export class ProjectService
         jobUuid: string,
         method: RequestMethod,
     ): Promise<{ projectUuid: string }> {
+        const cleanup: {
+            adapter: ProjectAdapter | null;
+            lease: WarehouseConnectionLease | null;
+            started: boolean;
+        } = { adapter: null, lease: null, started: false };
         try {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
@@ -5047,14 +5052,18 @@ export class ProjectService
             const { adapter, lease } = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.TESTING_ADAPTOR,
-                async () =>
-                    this.testProjectAdapter(
+                async () => {
+                    const tested = await this.testProjectAdapter(
                         createProject,
                         user,
                         'project_create',
                         method,
                         null,
-                    ),
+                    );
+                    cleanup.adapter = tested.adapter;
+                    cleanup.lease = tested.lease;
+                    return tested;
+                },
             );
 
             const { explores, lightdashProjectConfig, projectContext } =
@@ -5070,6 +5079,7 @@ export class ProjectService
                                   projectContext: [],
                               };
                           } finally {
+                              cleanup.started = true;
                               try {
                                   await adapter.destroy();
                               } finally {
@@ -5110,6 +5120,7 @@ export class ProjectService
                                       projectContext: compiledProjectContext,
                                   };
                               } finally {
+                                  cleanup.started = true;
                                   try {
                                       await adapter.destroy();
                                   } finally {
@@ -5258,6 +5269,19 @@ export class ProjectService
             }
             this.logger.error(`Error running background job: ${error}`);
             throw error;
+        } finally {
+            if (!cleanup.started && cleanup.adapter && cleanup.lease) {
+                try {
+                    await cleanup.adapter.destroy();
+                } catch (destroyError) {
+                    this.logger.warn(
+                        'Failed to destroy a project adapter after job step failure',
+                        { error: destroyError },
+                    );
+                } finally {
+                    await cleanup.lease.release();
+                }
+            }
         }
     }
 
@@ -6001,6 +6025,11 @@ export class ProjectService
             cacheExplores: { start: 0, end: 0 },
         };
 
+        const cleanup: {
+            adapter: ProjectAdapter | null;
+            lease: WarehouseConnectionLease | null;
+            started: boolean;
+        } = { adapter: null, lease: null, started: false };
         try {
             const auditedAbility = this.createAuditedAbility(user);
             if (
@@ -6039,14 +6068,18 @@ export class ProjectService
             } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
-                async () =>
-                    this.testProjectAdapter(
+                async () => {
+                    const tested = await this.testProjectAdapter(
                         updatedProject as UpdateProject,
                         user,
                         'project_update',
                         method,
                         projectUuid,
-                    ),
+                    );
+                    cleanup.adapter = tested.adapter;
+                    cleanup.lease = tested.lease;
+                    return tested;
+                },
             );
             timings.testAdapter.end = performance.now();
             // Source git clones built only to read manifests for the merge.
@@ -6192,6 +6225,7 @@ export class ProjectService
 
                             return result;
                         } finally {
+                            cleanup.started = true;
                             try {
                                 await compileAdapter.destroy();
                             } finally {
@@ -6225,6 +6259,7 @@ export class ProjectService
                         jobResults: { projectUuid },
                     });
                 } finally {
+                    cleanup.started = true;
                     try {
                         await primaryAdapter.destroy();
                     } finally {
@@ -6281,6 +6316,19 @@ export class ProjectService
                 jobStatus: JobStatusType.ERROR,
             });
             throw error;
+        } finally {
+            if (!cleanup.started && cleanup.adapter && cleanup.lease) {
+                try {
+                    await cleanup.adapter.destroy();
+                } catch (destroyError) {
+                    this.logger.warn(
+                        'Failed to destroy a project adapter after job step failure',
+                        { error: destroyError },
+                    );
+                } finally {
+                    await cleanup.lease.release();
+                }
+            }
         }
     }
 

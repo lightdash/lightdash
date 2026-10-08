@@ -602,6 +602,8 @@ const getMockedProjectService = (
     overrides: Partial<
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
+            | 'jobModel'
+            | 'projectModel'
             | 'spacePermissionService'
             | 'spaceModel'
             | 'provisionPlaygroundProject'
@@ -621,7 +623,8 @@ const getMockedProjectService = (
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
-        projectModel: projectModel as unknown as ProjectModel,
+        projectModel:
+            overrides.projectModel ?? (projectModel as unknown as ProjectModel),
         projectDbtSourcesModel:
             overrides.projectDbtSourcesModel ??
             ({
@@ -630,7 +633,7 @@ const getMockedProjectService = (
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        jobModel: jobModel as unknown as JobModel,
+        jobModel: overrides.jobModel ?? (jobModel as unknown as JobModel),
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
@@ -7899,6 +7902,192 @@ describe('ProjectService', () => {
             ]);
         });
     });
+
+    describe.each(['_create', 'testAndCompileProject'] as const)(
+        '%s compile lease bookkeeping',
+        (method) => {
+            test.each([
+                'testing done',
+                'compiling start',
+                'compile callback',
+                'success',
+                'no compile success',
+                'no compile done',
+                'fallback destroy',
+                'inner destroy',
+                'inner release',
+            ])('cleans up exactly once after %s', async (failure) => {
+                const error = new Error(failure);
+                const destroyError = new Error('adapter cleanup failed');
+                const noCompile = failure.startsWith('no compile');
+                const failedStep =
+                    failure === 'testing done' || failure === 'fallback destroy'
+                        ? JobStepType.TESTING_ADAPTOR
+                        : JobStepType.COMPILING;
+                const stepJobModel = {
+                    ...jobModel,
+                    startJobStep: vi.fn<JobModel['startJobStep']>(
+                        async (_uuid, step) => {
+                            if (
+                                failure === 'compiling start' &&
+                                step === JobStepType.COMPILING
+                            ) {
+                                throw error;
+                            }
+                        },
+                    ),
+                    updateJobStep: vi.fn<JobModel['updateJobStep']>(
+                        async (_uuid, status, step) => {
+                            if (
+                                (failure === 'testing done' ||
+                                    failure === 'fallback destroy') &&
+                                step === JobStepType.TESTING_ADAPTOR &&
+                                status === JobStepStatusType.DONE
+                            ) {
+                                throw error;
+                            }
+                        },
+                    ),
+                    update: vi.fn<JobModel['update']>(async (_uuid, update) => {
+                        if (
+                            failure === 'no compile done' &&
+                            update.jobStatus === JobStatusType.DONE
+                        ) {
+                            throw error;
+                        }
+                    }),
+                    tryJobStep: JobModel.prototype.tryJobStep,
+                };
+                const compile = vi.fn(async () => {
+                    if (failure === 'compile callback') throw error;
+                    return [];
+                });
+                const adapter = {
+                    compileAllExplores: compile,
+                    prepareExploreStream: vi.fn(async () => {
+                        const compiled = await compile();
+                        return (async function* explores() {
+                            yield* compiled;
+                        })();
+                    }),
+                    getLightdashProjectConfig: vi.fn(async () => ({})),
+                    destroy: vi.fn(async () => {
+                        if (failure === 'fallback destroy') throw destroyError;
+                        if (failure === 'inner destroy') throw error;
+                    }),
+                } as unknown as ProjectAdapter;
+                const lease = {
+                    release: vi.fn(async () => {
+                        if (failure === 'inner release') throw error;
+                    }),
+                };
+                const project = {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: warehouseClientMock.credentials,
+                    dbtConnection: noCompile
+                        ? { type: DbtProjectType.NONE as const }
+                        : projectWithSensitiveFields.dbtConnection,
+                };
+                const boundaryService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        jobModel: stepJobModel as unknown as JobModel,
+                        projectModel: {
+                            ...projectModel,
+                            getWithSensitiveFields: vi.fn(async () => project),
+                            create: vi.fn(async () => projectUuid),
+                            createProjectAccess: vi.fn(async () => undefined),
+                        } as unknown as ProjectModel,
+                    },
+                );
+                const internals = boundaryService as unknown as {
+                    testProjectAdapter: () => Promise<unknown>;
+                    getProjectContextFromAdapter: () => Promise<[]>;
+                    resolveCompileAdapter: () => Promise<{
+                        adapter: ProjectAdapter;
+                    }>;
+                    runPostProjectCreationProvisioning: () => Promise<void>;
+                    logger: { warn: (...args: unknown[]) => void };
+                };
+                vi.spyOn(internals, 'testProjectAdapter').mockResolvedValue({
+                    adapter,
+                    lease,
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    cachedWarehouse: {},
+                    dbtVersionOption: DefaultSupportedDbtVersion,
+                    dbtPartialParse: false,
+                });
+                vi.spyOn(
+                    internals,
+                    'getProjectContextFromAdapter',
+                ).mockResolvedValue([]);
+                vi.spyOn(internals, 'resolveCompileAdapter').mockResolvedValue({
+                    adapter,
+                });
+                vi.spyOn(
+                    internals,
+                    'runPostProjectCreationProvisioning',
+                ).mockResolvedValue();
+                const warn = vi.spyOn(internals.logger, 'warn');
+                const caller = {
+                    ...user,
+                    organizationUuid: 'organizationUuid',
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                };
+                const jobUuid = 'lease-bookkeeping-job';
+                const result =
+                    method === '_create'
+                        ? boundaryService._create(
+                              caller,
+                              project,
+                              jobUuid,
+                              RequestMethod.WEB_APP,
+                          )
+                        : boundaryService.testAndCompileProject(
+                              caller,
+                              projectUuid,
+                              RequestMethod.WEB_APP,
+                              jobUuid,
+                          );
+
+                if (failure.endsWith('success')) {
+                    await result;
+                    expect(stepJobModel.update).toHaveBeenCalledWith(
+                        jobUuid,
+                        expect.objectContaining({
+                            jobStatus: JobStatusType.DONE,
+                        }),
+                    );
+                } else {
+                    await expect(result).rejects.toThrow(error);
+                    expect(stepJobModel.update).toHaveBeenCalledWith(jobUuid, {
+                        jobStatus: JobStatusType.ERROR,
+                    });
+                    if (!noCompile) {
+                        expect(stepJobModel.updateJobStep).toHaveBeenCalledWith(
+                            jobUuid,
+                            JobStepStatusType.ERROR,
+                            failedStep,
+                            error.message,
+                            [],
+                        );
+                    }
+                }
+                expect(lease.release).toHaveBeenCalledTimes(1);
+                expect(adapter.destroy).toHaveBeenCalledTimes(1);
+                expect(
+                    vi.mocked(adapter.destroy).mock.invocationCallOrder[0],
+                ).toBeLessThan(lease.release.mock.invocationCallOrder[0]);
+                if (failure === 'fallback destroy') {
+                    expect(warn).toHaveBeenCalledWith(
+                        'Failed to destroy a project adapter after job step failure',
+                        { error: destroyError },
+                    );
+                }
+            });
+        },
+    );
 
     describe('testAndCompileProject', () => {
         test('records explore errors for settings-page deploys', async () => {
