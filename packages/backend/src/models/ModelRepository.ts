@@ -21,6 +21,7 @@ import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DepartmentAnalyticsModel } from './DepartmentAnalyticsModel';
 import { DepartmentModel } from './DepartmentModel';
 import { DeploySessionModel } from './DeploySessionModel';
 import { DirectAccessModel } from './DirectAccessModel';
@@ -131,6 +132,7 @@ export type ModelManifest = {
     jiraAppInstallationsModel: JiraAppInstallationsModel;
     linearAppInstallationsModel: LinearAppInstallationsModel;
     departmentModel: DepartmentModel;
+    departmentAnalyticsModel: DepartmentAnalyticsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
@@ -538,6 +540,13 @@ export class ModelRepository
         return this.getModel(
             'departmentModel',
             () => new DepartmentModel({ database: this.database }),
+        );
+    }
+
+    public getDepartmentAnalyticsModel(): DepartmentAnalyticsModel {
+        return this.getModel(
+            'departmentAnalyticsModel',
+            () => new DepartmentAnalyticsModel({ database: this.database }),
         );
     }
 
