@@ -2,7 +2,7 @@ import { formatCount } from '../utils/format';
 import {
     countBucketPeople,
     countPeople,
-    enlargeSmallLeaves,
+    enlargeSmallCircles,
     layoutPack,
     MIN_CIRCLE_RADIUS,
     shouldRenderDots,
@@ -61,11 +61,16 @@ const INSIDE_INSET_PX = 3;
 const OUTSIDE_EXTRA_WIDTH_PX = 80;
 // A sub-department is named on the map once it is drawn this large; smaller ones are named on hover
 const NESTED_LABEL_MIN_RADIUS_PX = 16;
-// A label outside a circle moves away from it, down from below or up from above, in these steps
+// A label outside a circle moves away from it, down from below or up from above, in these steps;
+// with the gap it always keeps, it never ends up more than 48 px from its circle
 const NUDGE_STEP_PX = 8;
-const NUDGE_STEPS = 6;
+const MAX_LABEL_DISTANCE_PX = 48;
 const NUDGE_OFFSETS = Array.from(
-    { length: NUDGE_STEPS + 1 },
+    {
+        length:
+            Math.floor((MAX_LABEL_DISTANCE_PX - LABEL_GAP_PX) / NUDGE_STEP_PX) +
+            1,
+    },
     (_, index) => index * NUDGE_STEP_PX,
 );
 const ELLIPSIS = '…';
@@ -224,7 +229,7 @@ const fitCircles = (
     };
 };
 
-// Packs at true size and fits the pack to the panel; only then are the smallest leaves enlarged
+// Packs at true size and fits the pack to the panel; only then are the smallest circles enlarged
 export const fitToArea = (
     input: PackDatum,
     area: Area,
@@ -233,7 +238,7 @@ export const fitToArea = (
     if (input.children.length === 0) return [];
     const size = Math.max(Math.min(area.width, area.height), MIN_PACK_SIZE);
     const { circles } = fitCircles(layoutPack(input, size), area, spread);
-    return enlargeSmallLeaves(circles, MIN_CIRCLE_RADIUS, area);
+    return enlargeSmallCircles(circles, MIN_CIRCLE_RADIUS, area);
 };
 
 // The line of numbers under a circle, longest first so the widest that fits wins
@@ -274,6 +279,8 @@ export type CircleLabel = {
     detail: string | null;
     // Footprint on screen at the zoom it was placed for
     box: Box;
+    // Drawn on a light backing, as it sits over its circle's people
+    hasBacking: boolean;
 };
 
 type LabelText = { name: string; detail: string | null };
@@ -360,8 +367,8 @@ const getFirstTexts = (
     ];
 };
 
-// Inside an empty circle the label sits in the middle. Over dots it sits as high as it fits and stays
-// in the upper half, so the active people at the core stay in view
+// Inside an empty circle the label sits in the middle. Over dots, its last resort, it sits as high as
+// it fits, so as many of the active people at the core stay in view as can
 const getInsideBox = (
     circle: PackedCircle,
     zoom: number,
@@ -377,11 +384,9 @@ const getInsideBox = (
         ? y - Math.sqrt(radius ** 2 - halfWidth ** 2)
         : y - size.height / 2;
     const bottom = top + size.height;
-    const fits =
-        (!isOverDots || bottom <= y) &&
-        [top, bottom].every(
-            (cornerY) => Math.hypot(halfWidth, cornerY - y) <= radius + 1e-6,
-        );
+    const fits = [top, bottom].every(
+        (cornerY) => Math.hypot(halfWidth, cornerY - y) <= radius + 1e-6,
+    );
     return fits ? { x: x - halfWidth, y: top, ...size } : null;
 };
 
@@ -417,6 +422,7 @@ const makeCandidate = (
     placement: LabelPlacement,
     box: Box,
     offset: number,
+    hasBacking: boolean = false,
 ): Candidate => ({
     placement,
     isNested: circle.depth > 1,
@@ -424,6 +430,7 @@ const makeCandidate = (
     detail: text.detail,
     box,
     offset,
+    hasBacking,
 });
 
 // Centred under or over the circle, slid sideways only as far as it takes to stay inside the drawing
@@ -479,13 +486,14 @@ const getCandidates = (
     placement: Placement,
 ): Candidate[] => {
     const { zoom, area, measure } = placement;
+    const isOverDots = placement.isOverDots(circle);
     const byText = texts.map((text) => {
         const insideBox = placement.canGoInside(circle)
             ? getInsideBox(
                   circle,
                   zoom,
                   measureLabel(text, nameRoleOf(circle), measure),
-                  placement.isOverDots(circle),
+                  isOverDots,
               )
             : null;
         const outside = getOutsideText(
@@ -509,24 +517,46 @@ const getCandidates = (
                       ),
                   );
         return {
-            insideOrBelow: [
-                ...(insideBox === null
+            inside:
+                insideBox === null
                     ? []
-                    : [makeCandidate(circle, text, 'inside', insideBox, 0)]),
-                ...outsideOn('below'),
-            ],
+                    : [
+                          makeCandidate(
+                              circle,
+                              text,
+                              'inside',
+                              insideBox,
+                              0,
+                              isOverDots,
+                          ),
+                      ],
+            below: outsideOn('below'),
             above: outsideOn('above'),
         };
     });
-    // Every wording inside or under the circle comes before any wording over it
-    return [
-        ...byText.flatMap((candidates) => candidates.insideOrBelow),
-        ...byText.flatMap((candidates) => candidates.above),
-    ].filter((candidate) => placement.staysInGroup(circle, candidate.box));
+    const above = byText.flatMap((candidates) => candidates.above);
+    // Every wording under the circle comes before any wording over it. Over its people a label goes
+    // inside only when nothing else is free, and then on a backing; an empty circle takes it first
+    const ordered = isOverDots
+        ? [
+              ...byText.flatMap((candidates) => candidates.below),
+              ...above,
+              ...byText.flatMap((candidates) => candidates.inside),
+          ]
+        : [
+              ...byText.flatMap((candidates) => [
+                  ...candidates.inside,
+                  ...candidates.below,
+              ]),
+              ...above,
+          ];
+    return ordered.filter((candidate) =>
+        placement.staysInGroup(circle, candidate.box),
+    );
 };
 
-// Each label goes inside its circle when it fits, otherwise under it or, failing that, over it, moved
-// away from it to clear other labels. It never sits on another department's circle, or is left out
+// A label goes under its circle or, failing that, over it, moved away to clear other labels, and never
+// sits on another department's circle; an empty circle takes it inside first, a circle of people last
 const placeAllLabels = (
     circles: PackedCircle[],
     info: Map<string, CircleInfo>,
@@ -623,18 +653,24 @@ const placeAllLabels = (
             );
         },
     };
+    // Level by level, the most people first, so the larger circles claim their spots first
     const ordered = circles
         .filter((circle) => isLabelledAt(circle, zoom))
         .sort(
             (a, b) =>
                 a.depth - b.depth ||
-                b.r - a.r ||
+                b.size - a.size ||
                 a.name.localeCompare(b.name) ||
                 a.id.localeCompare(b.id),
         );
+    // The most people in a circle left without a label, per parent: its smaller siblings go without too,
+    // so a larger circle is never the one left out (each still shows its label on hover)
+    const leftOut = new Map<string | null, number>();
     ordered.forEach((circle) => {
         const stats = info.get(circle.id)?.stats;
         if (!stats) return;
+        const larger = leftOut.get(circle.parentId);
+        if (larger !== undefined && circle.size < larger) return;
         const candidates = getCandidates(
             circle,
             getFirstTexts(circle, stats),
@@ -646,6 +682,7 @@ const placeAllLabels = (
                 placement.isClear(circle, candidate),
         );
         if (chosen) placed.push({ id: circle.id, ...chosen });
+        else leftOut.set(circle.parentId, Math.max(larger ?? 0, circle.size));
     });
     // Longer wording for a top-level label where it still fits in the same spot, displacing nothing
     ordered.forEach((circle) => {
@@ -666,7 +703,14 @@ const placeAllLabels = (
                     );
                     return box === null
                         ? null
-                        : makeCandidate(circle, text, 'inside', box, 0);
+                        : makeCandidate(
+                              circle,
+                              text,
+                              'inside',
+                              box,
+                              0,
+                              current.hasBacking,
+                          );
                 }
                 const outside = getOutsideText(
                     circle,

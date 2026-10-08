@@ -9,6 +9,7 @@ import {
     type ZoomTransform,
 } from 'd3-zoom';
 import {
+    Fragment,
     memo,
     useCallback,
     useEffect,
@@ -45,6 +46,8 @@ const HALO_PX = 3.5;
 const NO_ACCOUNT_SCALE = 0.78;
 // Fed to the shared truncation rule: about ten characters
 const FIRST_NAME_RADIUS = 36;
+// Room around a label drawn on a backing over a circle's people
+const BACKING_PADDING_PX = 2;
 
 const LINE_CLASSES: Record<TextRole, string> = {
     name: styles.labelName,
@@ -81,6 +84,13 @@ type Props = {
 const getMemberName = (member: NonNullable<MapDot['member']>): string =>
     `${member.firstName} ${member.lastName}`.trim() || member.email;
 
+// What decides a circle's fill, so a label's backing takes the fill of the circle it sits in
+const getFillAttributes = (circle: PackedCircle) => ({
+    'data-nested': circle.depth > 1 || undefined,
+    'data-empty': !circle.hasMembers || undefined,
+    'data-no-headcount': !circle.hasHeadcount || undefined,
+});
+
 // The layers below take no zoom transform, so panning and zooming never re-render them
 
 const CirclesLayer = memo<{
@@ -113,11 +123,7 @@ const CirclesLayer = memo<{
                                         : undefined
                                 }
                                 data-opens={opens ?? undefined}
-                                data-nested={circle.depth > 1 || undefined}
-                                data-empty={!circle.hasMembers || undefined}
-                                data-no-headcount={
-                                    !circle.hasHeadcount || undefined
-                                }
+                                {...getFillAttributes(circle)}
                                 data-highlighted={
                                     (circle.kind === 'department' &&
                                         circle.departmentUuid ===
@@ -185,28 +191,52 @@ DotsLayer.displayName = 'DotsLayer';
 
 // Text keeps its size on screen, so these layers follow the zoom level but not panning
 
-const LabelsLayer = memo<{ labels: CircleLabel[]; zoomLevel: number }>(
-    ({ labels, zoomLevel }) => (
-        <>
-            {labels.flatMap((label) =>
-                getLabelLines(label, zoomLevel).map((line) => (
-                    <text
-                        key={`${label.id}:${line.role}`}
-                        className={`${styles.label} ${LINE_CLASSES[line.role]}`}
-                        data-label={label.id}
-                        x={line.x}
-                        y={line.y}
-                        textAnchor={line.anchor}
-                        fontSize={TEXT_FONTS[line.role].size / zoomLevel}
-                        strokeWidth={HALO_PX / zoomLevel}
-                    >
-                        {line.text}
-                    </text>
-                )),
-            )}
-        </>
-    ),
-);
+const LabelsLayer = memo<{
+    labels: CircleLabel[];
+    circlesById: Map<string, PackedCircle>;
+    zoomLevel: number;
+}>(({ labels, circlesById, zoomLevel }) => (
+    <>
+        {labels.map((label) => {
+            const circle = circlesById.get(label.id);
+            return (
+                <Fragment key={label.id}>
+                    {label.hasBacking && circle && (
+                        <rect
+                            className={styles.labelBacking}
+                            data-label-backing={label.id}
+                            {...getFillAttributes(circle)}
+                            x={(label.box.x - BACKING_PADDING_PX) / zoomLevel}
+                            y={(label.box.y - BACKING_PADDING_PX) / zoomLevel}
+                            width={
+                                (label.box.width + BACKING_PADDING_PX * 2) /
+                                zoomLevel
+                            }
+                            height={
+                                (label.box.height + BACKING_PADDING_PX * 2) /
+                                zoomLevel
+                            }
+                        />
+                    )}
+                    {getLabelLines(label, zoomLevel).map((line) => (
+                        <text
+                            key={line.role}
+                            className={`${styles.label} ${LINE_CLASSES[line.role]}`}
+                            data-label={label.id}
+                            x={line.x}
+                            y={line.y}
+                            textAnchor={line.anchor}
+                            fontSize={TEXT_FONTS[line.role].size / zoomLevel}
+                            strokeWidth={HALO_PX / zoomLevel}
+                        >
+                            {line.text}
+                        </text>
+                    ))}
+                </Fragment>
+            );
+        })}
+    </>
+));
 LabelsLayer.displayName = 'LabelsLayer';
 
 const NamesLayer = memo<{ dots: MapDot[]; zoomLevel: number }>(
@@ -315,6 +345,10 @@ export const DepartmentMap: FC<Props> = ({
     }, [resetView, layoutKey, width, height]);
 
     const { k } = view.transform;
+    const circlesById = useMemo(
+        () => new Map(circles.map((circle) => [circle.id, circle])),
+        [circles],
+    );
     const labels = useMemo(
         () => placeLabels(circles, info, k, { width, height }, measureText),
         [circles, info, k, width, height, measureText],
@@ -415,9 +449,17 @@ export const DepartmentMap: FC<Props> = ({
                             selectedUserUuid={selectedUserUuid}
                         />
                     </g>
-                    <LabelsLayer labels={labels} zoomLevel={k} />
+                    <LabelsLayer
+                        labels={labels}
+                        circlesById={circlesById}
+                        zoomLevel={k}
+                    />
                     {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
-                    <LabelsLayer labels={hoverLabels} zoomLevel={k} />
+                    <LabelsLayer
+                        labels={hoverLabels}
+                        circlesById={circlesById}
+                        zoomLevel={k}
+                    />
                 </g>
             </svg>
             <Group gap={4} className={styles.controls}>

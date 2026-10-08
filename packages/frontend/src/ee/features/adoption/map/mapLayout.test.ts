@@ -27,6 +27,7 @@ import {
     type CircleLabel,
 } from './mapLayout';
 import { describeCircles } from './mapView';
+import { deepOrganization } from './organizationFixtures';
 
 const d = (
     name: string,
@@ -264,6 +265,31 @@ describe('fitToArea', () => {
         );
         ['Procurement', 'Logistics'].forEach((id) =>
             expect(contains(find('Supply chain'), find(id))).toBe(true),
+        );
+    });
+    it('never draws a department smaller than one beside it with fewer people', () => {
+        // The panel of a 1,024 px window: Executive Office (12 people, no sub-departments) once drew
+        // larger than Data & Analytics (70, with sub-departments), which was never enlarged
+        const { circles, find } = build(deepOrganization, {
+            width: 346,
+            height: 560,
+        });
+        expect(find('Data & Analytics').r).toBeGreaterThanOrEqual(
+            find('Executive Office').r,
+        );
+        expect(find('People').r).toBeGreaterThanOrEqual(
+            find('Legal & Compliance').r,
+        );
+        circles.forEach((circle) =>
+            circles
+                .filter(
+                    (other) =>
+                        other.parentId === circle.parentId &&
+                        other.size < circle.size,
+                )
+                .forEach((smaller) => {
+                    expect(circle.r).toBeGreaterThanOrEqual(smaller.r - 1e-9);
+                }),
         );
     });
     it('keeps areas in proportion to headcount', () => {
@@ -557,6 +583,28 @@ describe('placeLabels on the seeded organization', () => {
             )?.placement,
         ).toBe('below');
     });
+    it('never puts a label further than 48 px from its circle', () => {
+        // The panel of a 420 px window, where a label once moved 52 px down from its circle
+        const area = { width: 394, height: 560 };
+        const drawn = build(deepOrganization, area);
+        const executive = drawn.labels.find(
+            (label) => label.id === 'Executive Office',
+        );
+        expect(executive).toBeDefined();
+        drawn.labels.forEach((label) => {
+            const circle = drawn.find(label.id);
+            if (label.placement === 'below') {
+                expect(label.box.y - (circle.y + circle.r)).toBeLessThanOrEqual(
+                    48,
+                );
+            }
+            if (label.placement === 'above') {
+                expect(
+                    circle.y - circle.r - (label.box.y + label.box.height),
+                ).toBeLessThanOrEqual(48);
+            }
+        });
+    });
     it('leaves the people directly in a department unlabelled', () => {
         expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(
             true,
@@ -675,11 +723,19 @@ describe('placeLabels at the focused level', () => {
                 });
         });
     });
-    it('puts a label inside its circle when it fits and under the circle when it does not', () => {
-        expect(labelOf('Warehousing')).toMatchObject({
-            placement: 'inside',
+    it('puts a label under a circle of people rather than over them', () => {
+        const warehousing = circles.find(
+            (circle) => circle.id === 'Warehousing',
+        );
+        const label = labelOf('Warehousing');
+        expect(label).toMatchObject({
+            placement: 'below',
             name: 'Warehousing · 900',
+            hasBacking: false,
         });
+        if (warehousing && label) {
+            expect(label.box.y).toBeGreaterThan(warehousing.y + warehousing.r);
+        }
         const small = labelOf('Health and safety');
         const circle = circles.find((each) => each.id === 'Health and safety');
         expect(small?.placement).toBe('below');
@@ -689,6 +745,94 @@ describe('placeLabels at the focused level', () => {
     });
     it('never puts a label inside a circle that holds sub-departments', () => {
         expect(labelOf('Supply chain')?.placement).toBe('below');
+    });
+    it('puts a label inside its circle first when no people are drawn in it', () => {
+        // Three times the people: above 5,000 the dots are hidden, so the circles are empty
+        const large = operations.map((department) => ({
+            ...department,
+            headcount: (department.headcount ?? 0) * 3,
+            effectiveHeadcount: (department.effectiveHeadcount ?? 0) * 3,
+        }));
+        const drawn = build(large, PANEL, 'Operations');
+        expect(
+            drawn.labels.find((label) => label.id === 'Warehousing'),
+        ).toMatchObject({
+            placement: 'inside',
+            name: 'Warehousing · 2,700',
+            hasBacking: false,
+        });
+    });
+});
+
+describe('placeLabels over people', () => {
+    // More than 150 people, so first names are not drawn and a label may go over the dots
+    const crowded = (
+        id: string,
+        x: number,
+        y: number,
+        r: number,
+    ): PackedCircle => ({
+        ...placedCircle(id, x, y, r),
+        people: { metrics: metricsFixture(200, null), headcount: 300 },
+    });
+
+    it('puts the label under a circle of people when there is room, never over them', () => {
+        const [label] = placeOn([crowded('Customer service', 380, 250, 120)]);
+        expect(label).toMatchObject({ placement: 'below', hasBacking: false });
+        expect(label.box.y).toBeGreaterThanOrEqual(250 + 120);
+    });
+    it('puts it over the people, on a backing, only when nothing outside the circle is free', () => {
+        // The circle fills the panel from top to bottom, so there is no room under or over it
+        const [label] = placeOn([crowded('Customer service', 380, 280, 278)]);
+        expect(label).toMatchObject({ placement: 'inside', hasBacking: true });
+        expectCleanLabels(
+            [crowded('Customer service', 380, 280, 278)],
+            [label],
+            PANEL,
+        );
+    });
+});
+
+describe('placeLabels by headcount', () => {
+    const sized = (
+        id: string,
+        x: number,
+        y: number,
+        r: number,
+        size: number,
+    ): PackedCircle => ({ ...placedCircle(id, x, y, r), size });
+
+    it('lets the circle with more people claim a contested spot first, whatever its drawn size', () => {
+        // Drawn smaller but holding more people, so its label takes the spot right under it
+        const more = sized('More people', 300, 200, 16, 100);
+        const fewer = sized('Fewer people', 360, 200, 18, 50);
+        const labels = placeOn([fewer, more]);
+        const first = labels.find((label) => label.id === 'More people');
+        expect(first?.placement).toBe('below');
+        expect(first?.box.y).toBeCloseTo(200 + 16 + 4, 6);
+        expectCleanLabels([fewer, more], labels, PANEL);
+    });
+    it('leaves a smaller sibling unlabelled when a larger one finds no spot, so a larger one is never the one left out', () => {
+        // Middle is boxed in by Top and Bottom; Open has room but fewer people than Middle
+        const stack = [
+            sized('Top department', 300, 150, 16, 200),
+            sized('Middle department', 300, 200, 16, 100),
+            sized('Bottom department', 300, 250, 16, 200),
+        ];
+        const ids = (open: PackedCircle) =>
+            placeOn([...stack, open])
+                .map((label) => label.id)
+                .sort();
+        expect(ids(sized('Open department', 600, 300, 16, 10))).toEqual([
+            'Bottom department',
+            'Top department',
+        ]);
+        // With more people than Middle it is labelled as before
+        expect(ids(sized('Open department', 600, 300, 16, 150))).toEqual([
+            'Bottom department',
+            'Open department',
+            'Top department',
+        ]);
     });
 });
 
@@ -809,6 +953,7 @@ describe('getLabelLines', () => {
         name: 'Finance',
         detail: '32 · nobody yet',
         box: { x: 100, y: 200, width: 96, height: 30 },
+        hasBacking: false,
     };
     it('centres two lines in the footprint under a circle', () => {
         const [name, detail] = getLabelLines(base, 1);

@@ -196,6 +196,43 @@ describe('AdoptionDepartment', () => {
                 { weekStart: '2026-10-05', activeUsers: 40, atOrgRate: 23.9 },
             ]);
         });
+        it('draws no comparison for a department with nobody on Lightdash, and says why', () => {
+            summary.mockReturnValue({ data: organizationSummary() });
+            const empty = departmentDetail();
+            const nobody = metricsFixture(0, 0, {
+                weeklyActive: empty.department.metrics.weeklyActive.map(
+                    ({ weekStart }) => ({ weekStart, activeUsers: 0 }),
+                ),
+            });
+            detail.mockReturnValue(
+                loaded({
+                    ...empty,
+                    department: { ...empty.department, metrics: nobody },
+                    weeklyActive: nobody.weeklyActive.map((point) => ({
+                        ...point,
+                        orgAverage: 12,
+                    })),
+                }),
+            );
+            renderPage();
+            expect(chartWeeks).toHaveBeenLastCalledWith(
+                WEEK_STARTS.map((weekStart) => ({
+                    weekStart,
+                    activeUsers: 0,
+                    atOrgRate: null,
+                })),
+            );
+            expect(
+                screen.getByText('No comparison: nobody on Lightdash yet'),
+            ).toBeVisible();
+        });
+        it('compares a department with people on Lightdash without that note', () => {
+            summary.mockReturnValue({ data: organizationSummary() });
+            renderPage();
+            expect(
+                screen.queryByText('No comparison: nobody on Lightdash yet'),
+            ).not.toBeInTheDocument();
+        });
         it('draws the department alone until the organization numbers arrive', () => {
             renderPage();
             expect(chartWeeks).toHaveBeenLastCalledWith(

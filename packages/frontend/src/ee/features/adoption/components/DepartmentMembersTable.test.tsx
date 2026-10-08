@@ -20,12 +20,14 @@ const members = [
 const bodyRows = () => screen.getAllByRole('row').slice(1);
 
 describe('DepartmentMembersTable', () => {
-    it('lists no recorded activity first, then the least recently active', () => {
+    it('lists people with no activity in 90 days first, then the least recently active', () => {
         renderWithProviders(<DepartmentMembersTable members={members} />);
         const rows = bodyRows();
         expect(rows).toHaveLength(3);
         expect(within(rows[0]).getByText('never@example.com')).toBeVisible();
-        expect(within(rows[0]).getByText('No recorded activity')).toBeVisible();
+        expect(
+            within(rows[0]).getByText('No activity in 90 days'),
+        ).toBeVisible();
         expect(within(rows[0]).getByText('Via North')).toBeVisible();
         expect(within(rows[1]).getByText('stale@example.com')).toBeVisible();
         expect(within(rows[1]).getByText('Group ops-all')).toBeVisible();
@@ -46,7 +48,7 @@ describe('DepartmentMembersTable', () => {
             'All (3)',
             'Active in 30 days (1)',
             'Not active in 30 days (1)',
-            'No recorded activity (1)',
+            'No activity in 90 days (1)',
         ]);
         expect(screen.getByRole('radio', { name: 'All (3)' })).toBeChecked();
     });
@@ -58,9 +60,9 @@ describe('DepartmentMembersTable', () => {
             within(bodyRows()[0]).getByText('recent@example.com'),
         ).toBeVisible();
     });
-    it('filters to people with no recorded activity', async () => {
+    it('filters to people with no activity in 90 days', async () => {
         renderWithProviders(<DepartmentMembersTable members={members} />);
-        await userEvent.click(screen.getByText('No recorded activity (1)'));
+        await userEvent.click(screen.getByText('No activity in 90 days (1)'));
         expect(bodyRows()).toHaveLength(1);
         expect(
             within(bodyRows()[0]).getByText('never@example.com'),
@@ -84,7 +86,7 @@ describe('DepartmentMembersTable', () => {
                 ]}
             />,
         );
-        await userEvent.click(screen.getByText('No recorded activity (0)'));
+        await userEvent.click(screen.getByText('No activity in 90 days (0)'));
         expect(screen.getByText('Nobody matches this filter')).toBeVisible();
     });
     it('groups thousands in the filter counts', () => {
@@ -101,7 +103,9 @@ describe('DepartmentMembersTable', () => {
             />,
         );
         expect(screen.getByText('All (1,201)')).toBeVisible();
-        expect(screen.getByText('No recorded activity (1,200)')).toBeVisible();
+        expect(
+            screen.getByText('No activity in 90 days (1,200)'),
+        ).toBeVisible();
     });
     it('groups thousands in queries and dashboard views', () => {
         renderWithProviders(

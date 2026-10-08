@@ -104,6 +104,14 @@ export const computeMapCards = (
         (d) => d.metrics.memberCount - d.metrics.activeCount30d,
     );
     const unplaced = attention.conflictCount + attention.unassignedCount;
+    // With nobody on Lightdash in view there is no seat to leave unused
+    const focus =
+        departments.find(
+            (department) => department.departmentUuid === focusUuid,
+        ) ?? null;
+    const hasAccounts = (focus === null ? departments : [focus]).some(
+        (department) => department.metrics.memberCount > 0,
+    );
     const hasHeadcount = level.some(
         ({ department }) => department.effectiveHeadcount !== null,
     );
@@ -156,7 +164,9 @@ export const computeMapCards = (
               key: 'seatsUnused',
               title: 'Most seats unused',
               value: '–',
-              detail: 'Everyone with an account is active',
+              detail: hasAccounts
+                  ? 'Everyone with an account is active'
+                  : 'Nobody on Lightdash yet',
               departmentUuid: null,
           };
 

@@ -283,6 +283,11 @@ const AdoptionDepartment: FC = () => {
 
                 <Stack gap="xs">
                     <Title order={5}>Weekly active people</Title>
+                    {metrics.memberCount === 0 && (
+                        <Text fz="xs" c="dimmed">
+                            No comparison: nobody on Lightdash yet
+                        </Text>
+                    )}
                     <WeeklyActiveChart weeks={weeks} />
                 </Stack>
 

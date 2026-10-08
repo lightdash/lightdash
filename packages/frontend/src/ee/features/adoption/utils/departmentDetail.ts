@@ -83,7 +83,7 @@ export const countMembersByFilter = (
     noRecordedActivity: filterMembers(members, 'noRecordedActivity').length,
 });
 
-// No recorded activity first, then the longest quiet; ties by email
+// No activity in 90 days first, then the longest quiet; ties by email
 export const sortMembers = (members: DepartmentMember[]): DepartmentMember[] =>
     [...members].sort((a, b) => {
         if (a.lastActiveAt === b.lastActiveAt) {
@@ -102,7 +102,7 @@ export const formatLastActive = (
     now: Date = new Date(),
 ): string => {
     // Only the last 90 days are read, and queries are kept for less, so a missing timestamp is not proof of never
-    if (lastActiveAt === null) return 'No recorded activity';
+    if (lastActiveAt === null) return 'No activity in 90 days';
     const days = daysSince(lastActiveAt, now);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
@@ -172,7 +172,14 @@ export const getWeeklyComparison = (
     );
     const atOrgRate = (weekStart: string): number | null => {
         const active = organizationActive.get(weekStart);
-        if (organization === null || active === undefined) return null;
+        // With nobody on Lightdash here the line would sit at zero under the department's own, so none is drawn
+        if (
+            organization === null ||
+            active === undefined ||
+            memberCount === 0
+        ) {
+            return null;
+        }
         if (organization.memberCount === 0) return 0;
         return roundToTenth((active * memberCount) / organization.memberCount);
     };

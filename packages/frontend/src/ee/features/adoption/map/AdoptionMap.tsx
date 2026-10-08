@@ -405,6 +405,7 @@ export const AdoptionMap: FC<Props> = ({
                     <MapLegend
                         colourBy={colourBy}
                         counts={legendCounts}
+                        isOrganizationView={focus === null}
                         hasEmptyDepartment={departmentCircles.some(
                             (circle) => !circle.hasMembers,
                         )}

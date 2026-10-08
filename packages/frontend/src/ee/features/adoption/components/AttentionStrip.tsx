@@ -5,6 +5,9 @@ import Callout from '../../../../components/common/Callout';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { formatAttention } from '../utils/attention';
 
+// Narrower than this, the message leaves the button a line of its own rather than squeeze it
+const MESSAGE_MIN_WIDTH = '16rem';
+
 type Props = {
     conflictCount: number;
     unassignedCount: number;
@@ -26,8 +29,8 @@ export const AttentionStrip: FC<Props> = ({
             variant="warning"
             icon={<MantineIcon icon={IconUserQuestion} size="lg" />}
         >
-            <Group justify="space-between" wrap="nowrap">
-                <Text fz="sm">
+            <Group justify="space-between" wrap="wrap">
+                <Text fz="sm" flex={`1 1 ${MESSAGE_MIN_WIDTH}`}>
                     {message}.{' '}
                     {canManage
                         ? "They aren't counted in any department until you place them"
@@ -37,6 +40,7 @@ export const AttentionStrip: FC<Props> = ({
                     <Button
                         size="compact-sm"
                         variant="default"
+                        flex="none"
                         onClick={onReview}
                     >
                         Place people

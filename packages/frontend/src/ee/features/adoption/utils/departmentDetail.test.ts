@@ -34,7 +34,7 @@ describe('filterMembers', () => {
     it('returns everyone for all', () => {
         expect(filterMembers(members, 'all')).toHaveLength(5);
     });
-    it('no recorded activity means no timestamp at all', () => {
+    it('no activity in 90 days means no timestamp at all', () => {
         expect(
             filterMembers(members, 'noRecordedActivity').map((m) => m.userUuid),
         ).toEqual(['never']);
@@ -68,7 +68,7 @@ describe('filterMembers', () => {
             noRecordedActivity: 1,
         });
     });
-    it('splits everyone into active, not active and no recorded activity', () => {
+    it('splits everyone into active, not active and no activity in 90 days', () => {
         const counts = countMembersByFilter(members);
         expect(
             counts.active30d + counts.inactive30d + counts.noRecordedActivity,
@@ -77,7 +77,7 @@ describe('filterMembers', () => {
 });
 
 describe('sortMembers', () => {
-    it('puts no recorded activity first, then the least recently active', () => {
+    it('puts no activity in 90 days first, then the least recently active', () => {
         const shuffled = [
             members[4],
             members[1],
@@ -102,7 +102,7 @@ describe('sortMembers', () => {
 
 describe('formatLastActive', () => {
     it.each([
-        [null, 'No recorded activity'],
+        [null, 'No activity in 90 days'],
         ['2026-10-07T00:00:00Z', 'Today'],
         ['2026-10-07T08:00:00Z', 'Today'],
         ['2026-10-06T23:59:00Z', 'Yesterday'],
@@ -279,13 +279,20 @@ describe('getWeeklyComparison', () => {
             ),
         ).toEqual([null, null, null]);
     });
-    it('is zero when nobody in the organization is on Lightdash', () => {
+    it('has no comparison for a department with nobody on Lightdash', () => {
+        expect(
+            getWeeklyComparison(department, 0, organization).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, null, null]);
         expect(
             getWeeklyComparison([week('2026-10-05', 0)], 0, {
                 memberCount: 0,
                 weeklyActive: [week('2026-10-05', 0)],
             }),
-        ).toEqual([{ weekStart: '2026-10-05', activeUsers: 0, atOrgRate: 0 }]);
+        ).toEqual([
+            { weekStart: '2026-10-05', activeUsers: 0, atOrgRate: null },
+        ]);
     });
 });
 

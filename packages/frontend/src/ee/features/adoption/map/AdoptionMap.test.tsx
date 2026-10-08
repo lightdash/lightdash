@@ -299,7 +299,7 @@ describe('AdoptionMap', () => {
             screen.getByRole('button', { name: 'Grace Hopper' }),
         );
         expect(screen.getByText('grace@example.com')).toBeInTheDocument();
-        expect(screen.getByText('No recorded activity')).toBeInTheDocument();
+        expect(screen.getByText('No activity in 90 days')).toBeInTheDocument();
         expect(container.querySelectorAll('[data-selected]')).toHaveLength(1);
     });
 
@@ -887,6 +887,15 @@ describe('AdoptionMap', () => {
         });
         expect(within(details).queryByText(/viewer|editor|admin/)).toBeNull();
         expect(within(details).queryByText('No one yet')).toBeNull();
+    });
+
+    it('says the legend counts placed people where the panel counts everyone', async () => {
+        renderMap();
+        const caption = 'Legend counts people placed in a department';
+        expect(screen.getByText(caption)).toBeInTheDocument();
+        // Inside a department the legend and the panel count the same people
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        expect(screen.queryByText(caption)).toBeNull();
     });
 
     it('says sizes compare within a department when sub-departments are drawn', async () => {

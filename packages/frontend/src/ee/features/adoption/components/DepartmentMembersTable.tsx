@@ -20,7 +20,7 @@ const FILTER_LABELS: Record<MemberFilter, string> = {
     all: 'All',
     active30d: 'Active in 30 days',
     inactive30d: 'Not active in 30 days',
-    noRecordedActivity: 'No recorded activity',
+    noRecordedActivity: 'No activity in 90 days',
 };
 const FILTERS: MemberFilter[] = [
     'all',

@@ -19,7 +19,7 @@ const CIRCLE_PADDING = 8;
 const MAX_PADDING_SHARE = 0.08;
 // An enlarged circle stays this far from its parent's edge and its neighbours
 const ENLARGED_CLEARANCE = 2;
-// A leaf that could grow by no more than this is left at its true size
+// A circle that could grow by no more than this is left at its true size
 const MIN_ENLARGEMENT = 0.5;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -496,77 +496,103 @@ export const layoutPack = (
     return placed;
 };
 
-// A leaf below the minimum radius grows in place towards it, as far as its parent's edge (or the
-// drawing's) and its neighbours allow; nothing else moves or changes size, and it is not to scale.
-export const enlargeSmallLeaves = (
+// A circle below the minimum radius grows in place, its sub-departments with it, as far as its parent's
+// edge (or the drawing's), its neighbours and every sibling with more people allow; it is not to scale
+export const enlargeSmallCircles = (
     circles: PackedCircle[],
     minRadius: number,
     area: { width: number; height: number },
 ): PackedCircle[] => {
-    const byId = new Map(circles.map((circle) => [circle.id, circle]));
-    const parents = new Set(
-        circles.flatMap((circle) =>
-            circle.parentId === null ? [] : [circle.parentId],
-        ),
-    );
-    const siblings = new Map<string | null, PackedCircle[]>();
+    // Each circle as drawn so far: a grown parent's contents and grown neighbours count as they now are
+    const current = new Map(circles.map((circle) => [circle.id, circle]));
+    const childIds = new Map<string | null, string[]>();
     circles.forEach((circle) => {
-        const group = siblings.get(circle.parentId);
-        if (group) group.push(circle);
-        else siblings.set(circle.parentId, [circle]);
+        const group = childIds.get(circle.parentId);
+        if (group) group.push(circle.id);
+        else childIds.set(circle.parentId, [circle.id]);
     });
-    // Radii as drawn so far, so two enlarged neighbours never meet
-    const radii = new Map(circles.map((circle) => [circle.id, circle.r]));
-    const grow = (circle: PackedCircle): PackedCircle | null => {
-        const parent =
-            circle.parentId === null ? undefined : byId.get(circle.parentId);
-        const roomInside =
-            parent === undefined
-                ? Math.min(
-                      circle.x,
-                      area.width - circle.x,
-                      circle.y,
-                      area.height - circle.y,
-                  )
-                : parent.r -
-                  Math.hypot(circle.x - parent.x, circle.y - parent.y);
-        const roomBeside = (siblings.get(circle.parentId) ?? []).reduce(
-            (room, other) =>
-                other.id === circle.id
-                    ? room
-                    : Math.min(
-                          room,
-                          Math.hypot(circle.x - other.x, circle.y - other.y) -
-                              (radii.get(other.id) ?? other.r),
-                      ),
-            Number.POSITIVE_INFINITY,
-        );
-        const r = Math.min(
-            minRadius,
-            roomInside - ENLARGED_CLEARANCE,
-            roomBeside - ENLARGED_CLEARANCE,
-        );
-        return r - circle.r > MIN_ENLARGEMENT
-            ? { ...circle, r, isAreaHonest: false }
-            : null;
+    // Everything drawn inside a circle, walked with a queue so a deep tree cannot overflow
+    const getDescendants = (id: string): PackedCircle[] => {
+        const seen = new Set<string>([id]);
+        const queue = [...(childIds.get(id) ?? [])];
+        const found: PackedCircle[] = [];
+        for (let index = 0; index < queue.length; index += 1) {
+            const descendantId = queue[index];
+            const descendant = current.get(descendantId);
+            if (!seen.has(descendantId) && descendant) {
+                seen.add(descendantId);
+                found.push(descendant);
+                queue.push(...(childIds.get(descendantId) ?? []));
+            }
+        }
+        return found;
     };
-    // The smallest grow first, in an order that does not depend on the order departments arrive in
-    const enlarged = new Map<string, PackedCircle>();
-    circles
-        .filter((circle) => circle.r < minRadius && !parents.has(circle.id))
+    const getSiblings = (circle: PackedCircle): PackedCircle[] =>
+        (childIds.get(circle.parentId) ?? []).flatMap((id) => {
+            const sibling = current.get(id);
+            return sibling && id !== circle.id ? [sibling] : [];
+        });
+    [...circles]
         .sort(
             (a, b) =>
-                a.r - b.r ||
+                a.depth - b.depth ||
+                b.size - a.size ||
                 a.name.localeCompare(b.name) ||
                 a.id.localeCompare(b.id),
         )
-        .forEach((circle) => {
-            const grown = grow(circle);
-            if (grown === null) return;
-            radii.set(circle.id, grown.r);
-            enlarged.set(circle.id, grown);
+        .forEach(({ id }) => {
+            const circle = current.get(id);
+            if (!circle || circle.r >= minRadius) return;
+            const parent =
+                circle.parentId === null
+                    ? undefined
+                    : current.get(circle.parentId);
+            const roomInside =
+                parent === undefined
+                    ? Math.min(
+                          circle.x,
+                          area.width - circle.x,
+                          circle.y,
+                          area.height - circle.y,
+                      )
+                    : parent.r -
+                      Math.hypot(circle.x - parent.x, circle.y - parent.y);
+            const siblings = getSiblings(circle);
+            const roomBeside = siblings.reduce(
+                (room, other) =>
+                    Math.min(
+                        room,
+                        Math.hypot(circle.x - other.x, circle.y - other.y) -
+                            other.r,
+                    ),
+                Number.POSITIVE_INFINITY,
+            );
+            // Parents settle before their children and larger siblings first, so these are final
+            const largestAllowed = siblings
+                .filter((other) => other.size > circle.size)
+                .reduce(
+                    (smallest, other) => Math.min(smallest, other.r),
+                    Number.POSITIVE_INFINITY,
+                );
+            const r = Math.min(
+                minRadius,
+                roomInside - ENLARGED_CLEARANCE,
+                roomBeside - ENLARGED_CLEARANCE,
+                largestAllowed,
+            );
+            if (r - circle.r <= MIN_ENLARGEMENT) return;
+            const scale = r / circle.r;
+            getDescendants(circle.id).forEach((descendant) =>
+                current.set(descendant.id, {
+                    ...descendant,
+                    x: circle.x + (descendant.x - circle.x) * scale,
+                    y: circle.y + (descendant.y - circle.y) * scale,
+                    r: descendant.r * scale,
+                }),
+            );
+            current.set(circle.id, { ...circle, r, isAreaHonest: false });
         });
-    return circles.map((circle) => enlarged.get(circle.id) ?? circle);
+    return circles.map((circle) => current.get(circle.id) ?? circle);
 };
 
 export const countPeople = (circles: PackedCircle[]): number =>

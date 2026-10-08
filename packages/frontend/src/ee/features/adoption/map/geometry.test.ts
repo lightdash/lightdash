@@ -7,7 +7,7 @@ import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import {
     buildPackInput,
     countPeople,
-    enlargeSmallLeaves,
+    enlargeSmallCircles,
     expandDots,
     getDotRadius,
     getDotSegments,
@@ -666,7 +666,7 @@ describe('packing order', () => {
     });
 });
 
-describe('enlargeSmallLeaves', () => {
+describe('enlargeSmallCircles', () => {
     const AREA = { width: 720, height: 720 };
     // Group and Big hold the same number of people; Tiny is too small to select
     const departments = [
@@ -676,7 +676,7 @@ describe('enlargeSmallLeaves', () => {
         d('Tiny', 'Group', 3, 1),
     ];
     const packed = layoutPack(buildPackInput(departments, null), 720);
-    const enlarged = enlargeSmallLeaves(packed, MIN_CIRCLE_RADIUS, AREA);
+    const enlarged = enlargeSmallCircles(packed, MIN_CIRCLE_RADIUS, AREA);
     const pick = (circles: PackedCircle[], id: string): PackedCircle => {
         const circle = circles.find((each) => each.id === id);
         if (!circle) throw new Error(`No circle ${id}`);
@@ -713,7 +713,7 @@ describe('enlargeSmallLeaves', () => {
         expect(distance(tiny, core)).toBeGreaterThanOrEqual(tiny.r + core.r);
     });
     it('enlarges a top-level leaf without touching its neighbour or leaving the drawing', () => {
-        const pair = enlargeSmallLeaves(
+        const pair = enlargeSmallCircles(
             layoutPack(
                 buildPackInput(
                     [d('Huge', null, 5000, 10), d('Speck', null, 1, 1)],
@@ -765,7 +765,7 @@ describe('enlargeSmallLeaves', () => {
             at('Close', 'Parent', 100, 132.7, 5),
             at('Free', 'Parent', 75, 100, 5),
         ];
-        const after = enlargeSmallLeaves(circles, MIN_CIRCLE_RADIUS, AREA);
+        const after = enlargeSmallCircles(circles, MIN_CIRCLE_RADIUS, AREA);
         expect(pick(after, 'Snug')).toEqual(pick(circles, 'Snug'));
         expect(pick(after, 'Close')).toEqual(pick(circles, 'Close'));
         expect(pick(after, 'Free').r).toBeCloseTo(13, 9);
@@ -776,11 +776,11 @@ describe('enlargeSmallLeaves', () => {
             buildPackInput([d('A', null, 10, 1), d('B', null, 12, 1)], null),
             720,
         );
-        expect(enlargeSmallLeaves(roomy, MIN_CIRCLE_RADIUS, AREA)).toEqual(
+        expect(enlargeSmallCircles(roomy, MIN_CIRCLE_RADIUS, AREA)).toEqual(
             roomy,
         );
     });
-    it('never enlarges a circle that holds sub-departments', () => {
+    it('enlarges a department that holds sub-departments, and scales them inside it', () => {
         const nested = layoutPack(
             buildPackInput(
                 [
@@ -792,8 +792,55 @@ describe('enlargeSmallLeaves', () => {
             ),
             720,
         );
-        const after = enlargeSmallLeaves(nested, MIN_CIRCLE_RADIUS, AREA);
-        expect(pick(after, 'Small')).toEqual(pick(nested, 'Small'));
+        const after = enlargeSmallCircles(nested, MIN_CIRCLE_RADIUS, AREA);
+        const before = pick(nested, 'Small');
+        const small = pick(after, 'Small');
+        const inner = pick(after, 'Inner');
+        expect(small.r).toBeGreaterThan(before.r + 1);
+        expect(small).toMatchObject({
+            x: before.x,
+            y: before.y,
+            isAreaHonest: false,
+        });
+        // About the department's centre, so its sub-department fills it as before and stays inside
+        const scale = small.r / before.r;
+        expect(inner.r).toBeCloseTo(pick(nested, 'Inner').r * scale, 9);
+        expect(distance(inner, small) + inner.r).toBeLessThanOrEqual(
+            small.r + 1e-9,
+        );
+        expect(distance(small, pick(after, 'Huge'))).toBeGreaterThanOrEqual(
+            small.r + pick(after, 'Huge').r,
+        );
+    });
+    it('never draws a circle smaller than a sibling with fewer people', () => {
+        // A 70-person department with sub-departments beside a 12-person one without, both too small to select
+        const packedSmall = layoutPack(
+            buildPackInput(
+                [
+                    d('Huge', null, 80000, 10),
+                    d('Seventy', null, 70, 67, 5),
+                    d('Twenty two', 'Seventy', 22, 21),
+                    d('Eighteen', 'Seventy', 18, 18),
+                    d('Fifteen', 'Seventy', 15, 14),
+                    d('Eight', 'Seventy', 8, 9),
+                    d('Twelve', null, 12, 8),
+                ],
+                null,
+            ),
+            720,
+        );
+        expect(pick(packedSmall, 'Seventy').r).toBeLessThan(MIN_CIRCLE_RADIUS);
+        const after = enlargeSmallCircles(packedSmall, MIN_CIRCLE_RADIUS, AREA);
+        const seventy = pick(after, 'Seventy');
+        expect(seventy.isAreaHonest).toBe(false);
+        expect(seventy.r).toBeGreaterThanOrEqual(pick(after, 'Twelve').r);
+        // Inside it too, the larger sub-departments stay at least as large as the smaller
+        const inside = ['Twenty two', 'Eighteen', 'Fifteen', 'Eight'].map(
+            (id) => pick(after, id).r,
+        );
+        inside.slice(1).forEach((r, index) => {
+            expect(r).toBeLessThanOrEqual(inside[index] + 1e-9);
+        });
     });
 });
 

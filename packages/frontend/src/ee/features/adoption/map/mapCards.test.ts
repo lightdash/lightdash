@@ -117,9 +117,28 @@ describe('computeMapCards', () => {
         expect(none.map((c) => [c.value, c.detail])).toEqual([
             ['–', 'Add headcount to see gaps'],
             ['–', 'No targets set'],
-            ['–', 'Everyone with an account is active'],
+            ['–', 'Nobody on Lightdash yet'],
             ['0 people', 'Everyone is placed'],
         ]);
+    });
+    it('says nobody is on Lightdash yet rather than that everyone with an account is active', () => {
+        const departments = [
+            d('Finance', 70, 0, 0, 15),
+            d('Sales', 50, 40, 35, 45),
+        ];
+        const unused = (focus: string | null) =>
+            computeMapCards(departments, focus, attention).find(
+                (card) => card.key === 'seatsUnused',
+            );
+        expect(unused('Finance')).toMatchObject({
+            value: '–',
+            detail: 'Nobody on Lightdash yet',
+        });
+        // Sales has accounts, five of them not active in 30 days
+        expect(unused(null)).toMatchObject({ value: '5 idle' });
+        expect(
+            computeMapCards([d('Finance', 70, 0, 0)], null, attention)[2],
+        ).toMatchObject({ detail: 'Nobody on Lightdash yet' });
     });
 });
 

@@ -527,7 +527,7 @@ describe('formatPct', () => {
 
 describe('formatMemberActivity', () => {
     it('reads as a sentence for recent days and keeps dates as written', () => {
-        expect(formatMemberActivity(null, NOW)).toBe('No recorded activity');
+        expect(formatMemberActivity(null, NOW)).toBe('No activity in 90 days');
         expect(formatMemberActivity('2026-10-07T08:00:00Z', NOW)).toBe(
             'Last active today',
         );

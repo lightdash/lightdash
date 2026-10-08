@@ -9,6 +9,8 @@ import { DOT_LABELS, LEGEND_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
 type Props = {
     colourBy: ColourBy;
     counts: Map<DotKind, number>;
+    // The whole organization is in view, where the page header and the panel count everyone on Lightdash
+    isOrganizationView: boolean;
     hasEmptyDepartment: boolean;
     hasDepartmentWithoutHeadcount: boolean;
     hasEnlargedCircle: boolean;
@@ -49,6 +51,7 @@ const RingSwatch: FC<{ variant: 'empty' | 'noHeadcount' }> = ({ variant }) => (
 export const MapLegend: FC<Props> = ({
     colourBy,
     counts,
+    isOrganizationView,
     hasEmptyDepartment,
     hasDepartmentWithoutHeadcount,
     hasEnlargedCircle,
@@ -81,6 +84,11 @@ export const MapLegend: FC<Props> = ({
                 </li>
             )}
         </ul>
+        {isOrganizationView && (
+            <Text fz="xs" c="dimmed">
+                Legend counts people placed in a department
+            </Text>
+        )}
         <Text fz="xs" c="dimmed">
             {areDotsHidden
                 ? `Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`

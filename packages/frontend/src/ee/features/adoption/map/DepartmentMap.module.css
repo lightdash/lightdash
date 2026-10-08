@@ -156,6 +156,22 @@
     font-weight: 600;
 }
 
+/* Behind a label that has to sit over a circle's people: the circle's own fill (as above), mostly opaque */
+.labelBacking {
+    fill: var(--mantine-color-ldGray-0);
+    fill-opacity: 0.85;
+    pointer-events: none;
+}
+
+.labelBacking[data-nested],
+.labelBacking[data-no-headcount] {
+    fill: var(--mantine-color-body);
+}
+
+.labelBacking[data-empty] {
+    fill: var(--mantine-color-ldGray-0);
+}
+
 .personName {
     fill: var(--mantine-color-text);
 }
