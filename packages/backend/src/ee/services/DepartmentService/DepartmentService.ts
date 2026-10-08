@@ -46,6 +46,8 @@ import {
 
 export const ACTIVE_DAYS = 30;
 export const TREND_WEEKS = 12;
+// A member's last activity is read this far back; beyond it the page says "No recorded activity"
+export const LAST_ACTIVE_DAYS = 90;
 const TOP_CONTENT_LIMIT = 5;
 const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -81,6 +83,7 @@ export const getActivityWindows = (
 ): ActivityWindows => ({
     activeSince: daysBefore(now, ACTIVE_DAYS),
     trendSince: daysBefore(now, TREND_WEEKS * 7),
+    lastActiveSince: daysBefore(now, LAST_ACTIVE_DAYS),
 });
 
 const isWholeNonNegative = (value: number): boolean =>
@@ -326,13 +329,14 @@ export class DepartmentService extends BaseService {
         organizationUuid: string,
         snapshot: AdoptionSnapshot,
         departmentUuid: string,
-        activeSince: Date,
+        windows: ActivityWindows,
     ): Promise<DepartmentMember[]> {
         const members = snapshot.rolledMembers.get(departmentUuid) ?? [];
         const activity = await this.departmentAnalyticsModel.getMemberActivity(
             organizationUuid,
             members.map((m) => m.userUuid),
-            activeSince,
+            windows.activeSince,
+            windows.lastActiveSince,
         );
         return buildDepartmentMembers({
             departmentUuid,
@@ -365,7 +369,7 @@ export class DepartmentService extends BaseService {
                 organizationUuid,
                 snapshot,
                 departmentUuid,
-                windows.activeSince,
+                windows,
             ),
             this.departmentAnalyticsModel.getTopContent(
                 organizationUuid,

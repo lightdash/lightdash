@@ -9,7 +9,12 @@ import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 export type ActivityRow = { userUuid: string; weekStart: string };
 
 // One clock per request, so every read in it shares the same rolling bounds
-export type ActivityWindows = { activeSince: Date; trendSince: Date };
+export type ActivityWindows = {
+    activeSince: Date;
+    trendSince: Date;
+    // How far back a member's last activity is read
+    lastActiveSince: Date;
+};
 
 export type ActivitySnapshot = {
     activeUserUuids: string[]; // active since activeSince
@@ -162,11 +167,13 @@ export class DepartmentAnalyticsModel {
         return this.aiTablesExist;
     }
 
-    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count
+    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count.
+    // Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
     async getMemberActivity(
         organizationUuid: string,
         userUuids: string[],
         since: Date,
+        lastActiveSince: Date,
     ): Promise<MemberActivityRow[]> {
         if (userUuids.length === 0) return [];
         const result = await this.database.raw<{
@@ -187,6 +194,7 @@ export class DepartmentAnalyticsModel {
                 WHERE organization_uuid = ?
                   AND created_by_user_uuid = ANY(?::uuid[])
                   AND context = ANY(?::text[])
+                  AND created_at >= ?
                 GROUP BY created_by_user_uuid
             ),
             dv AS (
@@ -200,6 +208,7 @@ export class DepartmentAnalyticsModel {
                 JOIN organizations o ON o.organization_id = p.organization_id
                 WHERE o.organization_uuid = ?
                   AND v.user_uuid = ANY(?::uuid[])
+                  AND v.timestamp >= ?
                 GROUP BY v.user_uuid
             ),
             cv AS (
@@ -210,6 +219,7 @@ export class DepartmentAnalyticsModel {
                 JOIN organizations o ON o.organization_id = p.organization_id
                 WHERE o.organization_uuid = ?
                   AND v.user_uuid = ANY(?::uuid[])
+                  AND v.timestamp >= ?
                 GROUP BY v.user_uuid
             )
             SELECT u.user_uuid,
@@ -227,11 +237,14 @@ export class DepartmentAnalyticsModel {
                 organizationUuid,
                 userUuids,
                 COUNTED_QUERY_CONTEXTS,
+                lastActiveSince,
                 since,
                 organizationUuid,
                 userUuids,
+                lastActiveSince,
                 organizationUuid,
                 userUuids,
+                lastActiveSince,
                 since,
                 userUuids,
             ],

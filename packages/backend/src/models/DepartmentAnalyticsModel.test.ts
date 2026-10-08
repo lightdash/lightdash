@@ -20,7 +20,8 @@ describe('DepartmentAnalyticsModel', () => {
 
     const activeSince = new Date('2026-09-08T12:00:00Z');
     const trendSince = new Date('2026-07-16T12:00:00Z');
-    const windows = { activeSince, trendSince };
+    const lastActiveSince = new Date('2026-07-10T12:00:00Z');
+    const windows = { activeSince, trendSince, lastActiveSince };
 
     it('returns no activity for an empty user set without querying', async () => {
         expect(await model.getActivity('org', [], windows)).toEqual({
@@ -109,9 +110,14 @@ describe('DepartmentAnalyticsModel', () => {
     });
 
     it('returns no member activity for an empty user set without querying', async () => {
-        expect(await model.getMemberActivity('org', [], activeSince)).toEqual(
-            [],
-        );
+        expect(
+            await model.getMemberActivity(
+                'org',
+                [],
+                activeSince,
+                lastActiveSince,
+            ),
+        ).toEqual([]);
         expect(tracker.history.all).toHaveLength(0);
     });
 
@@ -136,7 +142,12 @@ describe('DepartmentAnalyticsModel', () => {
             ],
         });
         expect(
-            await model.getMemberActivity('org', ['u1', 'u2'], activeSince),
+            await model.getMemberActivity(
+                'org',
+                ['u1', 'u2'],
+                activeSince,
+                lastActiveSince,
+            ),
         ).toEqual([
             {
                 userUuid: 'u1',
@@ -157,7 +168,12 @@ describe('DepartmentAnalyticsModel', () => {
 
     it('limits member activity to the organization on every source table', async () => {
         tracker.on.any(/unnest/).responseOnce({ rows: [] });
-        await model.getMemberActivity('org', ['u1'], activeSince);
+        await model.getMemberActivity(
+            'org',
+            ['u1'],
+            activeSince,
+            lastActiveSince,
+        );
         const [query] = tracker.history.all;
         const orgBindings = query.bindings.filter((b) => b === 'org');
         // query_history, dashboard views and chart views each bind the organization
@@ -167,9 +183,38 @@ describe('DepartmentAnalyticsModel', () => {
         expect(query.sql).toContain('JOIN organizations o');
     });
 
+    it('reads every source of member activity back to the 90-day bound only', async () => {
+        tracker.on.any(/unnest/).responseOnce({ rows: [] });
+        await model.getMemberActivity(
+            'org',
+            ['u1'],
+            activeSince,
+            lastActiveSince,
+        );
+        const [query] = tracker.history.all;
+        const placeholders = query.bindings.flatMap((b, i) =>
+            b === lastActiveSince ? [`$${i + 1}`] : [],
+        );
+        expect(placeholders).toHaveLength(3);
+        const [queries, dashboardViews, chartViews] = placeholders;
+        // One bound in each source: queries, then dashboard views, then chart views
+        const [queryPart, viewParts] = query.sql.split('dv AS (');
+        const [dashboardPart, chartPart] = viewParts.split('cv AS (');
+        expect(queryPart).toContain(`AND created_at >= ${queries}\n`);
+        expect(dashboardPart).toContain(
+            `AND v.timestamp >= ${dashboardViews}\n`,
+        );
+        expect(chartPart).toContain(`AND v.timestamp >= ${chartViews}\n`);
+    });
+
     it('flags a member active from the latest activity and the same 30-day bound', async () => {
         tracker.on.any(/unnest/).responseOnce({ rows: [] });
-        await model.getMemberActivity('org', ['u1'], activeSince);
+        await model.getMemberActivity(
+            'org',
+            ['u1'],
+            activeSince,
+            lastActiveSince,
+        );
         const [query] = tracker.history.all;
         expect(query.sql).toMatch(
             /COALESCE\(GREATEST\(q\.last_at, dv\.last_at, cv\.last_at\) >= \$\d+, false\) AS is_active_30d/,
@@ -245,7 +290,12 @@ describe('DepartmentAnalyticsModel', () => {
 
         it('filters member activity to counted contexts', async () => {
             tracker.on.any(/unnest/).responseOnce({ rows: [] });
-            await model.getMemberActivity('org', ['u1'], activeSince);
+            await model.getMemberActivity(
+                'org',
+                ['u1'],
+                activeSince,
+                lastActiveSince,
+            );
             const [query] = tracker.history.all;
             expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
             expect(query.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);

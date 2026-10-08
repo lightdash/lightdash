@@ -476,10 +476,11 @@ describe('DepartmentService analytics scoping', () => {
 });
 
 describe('getActivityWindows', () => {
-    it('measures 30 days and 12 weeks back from one instant', () => {
+    it('measures 30 days, 12 weeks and 90 days back from one instant', () => {
         expect(getActivityWindows(new Date('2026-10-08T09:30:00Z'))).toEqual({
             activeSince: new Date('2026-09-08T09:30:00Z'),
             trendSince: new Date('2026-07-16T09:30:00Z'),
+            lastActiveSince: new Date('2026-07-10T09:30:00Z'),
         });
     });
 });
@@ -852,6 +853,13 @@ describe('DepartmentService.getDetail', () => {
             departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],
         ).toBe(
             departmentAnalyticsModel.getActivity.mock.calls[0][2].activeSince,
+        );
+        // Last activity is read back 90 days from that instant too
+        expect(
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0][3],
+        ).toBe(
+            departmentAnalyticsModel.getActivity.mock.calls[0][2]
+                .lastActiveSince,
         );
     });
     it('lists ancestors from the top down', async () => {
