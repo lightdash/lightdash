@@ -464,6 +464,12 @@ import { formatSkillResult } from '../ai/tools/loadSkill';
 import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
+    buildSqlApprovalDecidedEvent,
+    isSqlApprovalToolName,
+    toStoredSqlApprovalDecision,
+    type StorableSqlApprovalDecisionRecord,
+} from '../ai/tools/sqlApprovals';
+import {
     AiAgentArgs,
     AiAgentDependencies,
     type AiAgentDeepResearchRunContext,
@@ -4235,10 +4241,8 @@ export class AiAgentService extends BaseService {
                 'Tool call does not belong to the supplied agent',
             );
         }
-        if (
-            context.toolName !== 'runSql' &&
-            context.toolName !== 'runComposerQueries'
-        ) {
+        const { toolName } = context;
+        if (!isSqlApprovalToolName(toolName)) {
             throw new ParameterError(
                 `Tool call ${toolCallId} is not a SQL approval`,
             );
@@ -4301,11 +4305,17 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const recorded = await this.aiAgentModel.recordSqlApproval(
+        const recorded = await this.recordSqlApprovalDecision({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            agentUuid,
+            threadUuid,
             toolCallId,
+            toolName,
             decision,
-            user.userUuid,
-        );
+            source: 'web',
+            userUuid: user.userUuid,
+        });
         this.enqueueMobilePushThreadReconciliation(threadUuid);
         if (!recorded) {
             // A decision was already in place for this tool call — likely a
@@ -4315,11 +4325,25 @@ export class AiAgentService extends BaseService {
                 `SQL approval for ${toolCallId} was already recorded; retrying Slack resume if applicable.`,
             );
         }
-        if (context.toolName === 'runSql') {
+        if (toolName === 'runSql') {
             await this.resumeSlackSqlApproval(context.promptUuid);
         }
 
         return { decision };
+    }
+
+    private async recordSqlApprovalDecision(
+        record: StorableSqlApprovalDecisionRecord,
+    ): Promise<boolean> {
+        const recorded = await this.aiAgentModel.recordSqlApproval(
+            record.toolCallId,
+            toStoredSqlApprovalDecision(record.decision),
+            record.userUuid,
+        );
+        if (recorded) {
+            this.analytics.track(buildSqlApprovalDecidedEvent(record));
+        }
+        return recorded;
     }
 
     private async resumeSlackSqlApproval(promptUuid: string): Promise<void> {
@@ -15801,12 +15825,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             waitForSqlApproval: (toolCallId, timeoutMs) =>
                 this.aiAgentModel.waitForSqlApproval(toolCallId, timeoutMs),
-            recordSqlApproval: (toolCallId, decision, decidedByUserUuid) =>
-                this.aiAgentModel.recordSqlApproval(
+            recordSqlApproval: ({
+                toolCallId,
+                toolName,
+                decidedByUserUuid,
+                source,
+            }) =>
+                this.recordSqlApprovalDecision({
+                    organizationUuid: prompt.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                    agentUuid: agentSettings.uuid,
+                    threadUuid: prompt.threadUuid,
                     toolCallId,
-                    decision,
-                    decidedByUserUuid,
-                ),
+                    toolName,
+                    decision: 'approved',
+                    source,
+                    userUuid: decidedByUserUuid,
+                }),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
             loadSkill: async (name, loadOptions) => {
@@ -18023,7 +18058,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // web approval path (decideSqlApproval) before recording.
                 const approvalContext =
                     await this.aiAgentModel.findSqlApprovalContext(toolCallId);
-                if (!approvalContext?.agentUuid) {
+                if (
+                    !approvalContext?.agentUuid ||
+                    !isSqlApprovalToolName(approvalContext.toolName)
+                ) {
                     await respond({
                         text: 'This SQL approval request is no longer available.',
                         replace_original: false,
@@ -18031,12 +18069,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                     return;
                 }
+                const { toolName } = approvalContext;
 
                 if (!context.teamId) {
                     return;
                 }
 
-                let decidedBy: SessionUser;
+                let decisionRecord: StorableSqlApprovalDecisionRecord;
                 try {
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -18052,7 +18091,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             'Slack account is not linked to a user',
                         );
                     }
-                    decidedBy =
+                    const decidedBy =
                         await this.userModel.findSessionUserAndOrgByUuid(
                             identity.userUuid,
                             organizationUuid,
@@ -18084,6 +18123,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             'You need the SqlRunner permission to approve SQL execution',
                         );
                     }
+                    decisionRecord = {
+                        organizationUuid,
+                        projectUuid: agent.projectUuid,
+                        agentUuid: approvalContext.agentUuid,
+                        threadUuid,
+                        toolCallId,
+                        toolName,
+                        decision: rawDecision,
+                        source: 'slack',
+                        userUuid: decidedBy.userUuid,
+                    };
                 } catch (error) {
                     Logger.warn(
                         `Slack SQL approval denied for Slack user ${
@@ -18106,11 +18156,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                 }
 
-                const recorded = await this.aiAgentModel.recordSqlApproval(
-                    toolCallId,
-                    decision,
-                    decidedBy.userUuid,
-                );
+                const recorded =
+                    await this.recordSqlApprovalDecision(decisionRecord);
 
                 // Resume the suspended run once, on the first recorded decision.
                 // The reply job rebuilds history with the approval response, so

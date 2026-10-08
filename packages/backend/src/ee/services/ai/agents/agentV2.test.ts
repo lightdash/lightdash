@@ -676,6 +676,82 @@ describe('empty finishes and interrupts', () => {
         },
     );
 
+    it('generate: tracks a timed-out SQL approval with the run identifiers', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const trackEvent = vi.fn();
+        Object.assign(dependencies, {
+            getPrompt: async () => ({
+                promptUuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                createdByUserUuid: 'prompted-user',
+            }),
+            waitForSqlApproval: async () => 'timeout',
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            consumePromptSteers: async () => [],
+            trackEvent,
+        });
+        const args = buildAgentArgs();
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                calls += 1;
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'sql-call',
+                                      toolName: 'runSql',
+                                      input: '{"sql":"SELECT 1","limit":10}',
+                                  },
+                              ]
+                            : [{ type: 'text' as const, text: 'Timed out.' }],
+                    finishReason: {
+                        unified: calls === 1 ? 'tool-calls' : 'stop',
+                        raw: undefined,
+                    },
+                    usage: {
+                        inputTokens: {
+                            total: 1,
+                            noCache: 1,
+                            cacheRead: 0,
+                            cacheWrite: 0,
+                        },
+                        outputTokens: { total: 1, text: 1, reasoning: 0 },
+                    },
+                    warnings: [],
+                };
+            },
+        });
+
+        await generateAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        expect(trackEvent).toHaveBeenCalledWith({
+            event: 'ai_agent.sql_approval_decided',
+            userId: 'prompted-user',
+            properties: {
+                organizationId: 'organization-1',
+                projectId: 'project-1',
+                aiAgentId: 'agent-1',
+                threadId: 'thread-1',
+                toolCallId: 'sql-call',
+                toolName: 'runSql',
+                decision: 'timed_out',
+                source: 'web',
+                isAutoApproved: false,
+                isThreadAutoApproval: false,
+            },
+        });
+    });
+
     it('generate: replays a persisted rejected SQL approval without executing it again', async () => {
         const { generateText: generateWithSdk } =
             await vi.importActual<typeof import('ai')>('ai');

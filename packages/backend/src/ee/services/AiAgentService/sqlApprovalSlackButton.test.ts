@@ -105,8 +105,10 @@ const buildService = ({
     const schedulerClient = {
         slackAiPrompt: vi.fn().mockResolvedValue(undefined),
     };
+    const analytics = { track: vi.fn() };
     const service = new AiAgentService({
         aiAgentModel,
+        analytics,
         openIdIdentityModel,
         userModel,
         slackAuthenticationModel,
@@ -139,8 +141,34 @@ const buildService = ({
         openIdIdentityModel,
         userModel,
         schedulerClient,
+        analytics,
     };
 };
+
+const decisionEvent = ({
+    toolName = 'runSql',
+    decision,
+    source,
+}: {
+    toolName?: 'runSql' | 'runComposerQueries';
+    decision: 'approved' | 'rejected' | 'approved_always';
+    source: 'web' | 'slack';
+}) => ({
+    event: 'ai_agent.sql_approval_decided',
+    userId: approverUser.userUuid,
+    properties: {
+        organizationId: ORGANIZATION_UUID,
+        projectId: PROJECT_UUID,
+        aiAgentId: AGENT_UUID,
+        threadId: THREAD_UUID,
+        toolCallId: TOOL_CALL_ID,
+        toolName,
+        decision,
+        source,
+        isAutoApproved: false,
+        isThreadAutoApproval: false,
+    },
+});
 
 const clickButton = async (
     handler: ActionHandler,
@@ -362,6 +390,26 @@ describe('AiAgentService.handleSqlApprovalButton', () => {
         expect(aiAgentModel.setThreadSqlAutoApproved).not.toHaveBeenCalled();
     });
 
+    it('does not record a decision for a tool call that is not a SQL approval', async () => {
+        const { handler, aiAgentModel, analytics } = buildService({
+            approvalContext: {
+                promptUuid: PROMPT_UUID,
+                threadUuid: THREAD_UUID,
+                agentUuid: AGENT_UUID,
+                toolName: 'findExplores',
+                hasResult: false,
+            },
+        });
+
+        const { respond } = await clickButton(handler);
+
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+        expect(respond).toHaveBeenCalledWith(
+            expect.objectContaining({ response_type: 'ephemeral' }),
+        );
+    });
+
     it('resumes native runs under the prompt issuer identity once the decision is authorized', async () => {
         const { handler, schedulerClient } = buildService({});
 
@@ -373,5 +421,77 @@ describe('AiAgentService.handleSqlApprovalButton', () => {
             projectUuid: PROJECT_UUID,
             organizationUuid: ORGANIZATION_UUID,
         });
+    });
+});
+
+describe('SQL approval decision analytics', () => {
+    it.each([
+        ['approved', 'runSql'],
+        ['rejected', 'runSql'],
+        ['approved', 'runComposerQueries'],
+    ] as const)(
+        'tracks a %s %s decision made in the web app',
+        async (decision, toolName) => {
+            const { service, analytics } = buildService({
+                approvalContext: {
+                    promptUuid: PROMPT_UUID,
+                    threadUuid: THREAD_UUID,
+                    agentUuid: AGENT_UUID,
+                    toolName,
+                    hasResult: false,
+                },
+            });
+
+            await service.decideSqlApproval(approverUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision,
+            });
+
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                decisionEvent({ toolName, decision, source: 'web' }),
+            );
+        },
+    );
+
+    it.each(['approved', 'rejected', 'approved_always'] as const)(
+        'tracks a %s decision made from a Slack button',
+        async (decision) => {
+            const { handler, analytics } = buildService({});
+
+            await clickButton(handler, { decision });
+
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                decisionEvent({ decision, source: 'slack' }),
+            );
+        },
+    );
+
+    it('does not track a decision that lost the race to an earlier one', async () => {
+        const { service, handler, analytics } = buildService({
+            recorded: false,
+        });
+
+        await clickButton(handler);
+        await service.decideSqlApproval(approverUser, {
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'rejected',
+        });
+
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    it('does not track a Slack decision the user was not allowed to make', async () => {
+        const { handler, analytics } = buildService({
+            identity: { userUuid: readerUser.userUuid },
+            sessionUser: readerUser,
+        });
+
+        await clickButton(handler);
+
+        expect(analytics.track).not.toHaveBeenCalled();
     });
 });

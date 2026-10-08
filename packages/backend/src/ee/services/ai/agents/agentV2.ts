@@ -129,6 +129,10 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import {
+    buildSqlApprovalDecidedEvent,
+    type TrackSqlApprovalTimeoutFn,
+} from '../tools/sqlApprovals';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
@@ -1892,6 +1896,27 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
+    const trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn = ({
+        toolCallId,
+        toolName,
+        promptedUserUuid,
+        source,
+    }) => {
+        dependencies.trackEvent(
+            buildSqlApprovalDecidedEvent({
+                organizationUuid: args.organizationId,
+                projectUuid: args.agentSettings.projectUuid,
+                agentUuid: args.agentSettings.uuid,
+                threadUuid: args.threadUuid,
+                toolCallId,
+                toolName,
+                decision: 'timed_out',
+                source,
+                userUuid: promptedUserUuid,
+            }),
+        );
+    };
+
     // Composer queries supersede the standalone runSql tool: a single `sql`
     // node is the direct equivalent, and exposing both lets the model shadow
     // the composer path with raw runSql calls.
@@ -1908,6 +1933,7 @@ export const getAgentTools = (
                   waitForSqlApproval: dependencies.waitForSqlApproval,
                   recordSqlApproval: dependencies.recordSqlApproval,
                   isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  trackSqlApprovalTimeout,
                   storeToolResults: dependencies.storeToolResults,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                   maxQueryLimit: args.runSqlMaxLimit,
@@ -1930,6 +1956,7 @@ export const getAgentTools = (
               getPrompt: dependencies.getPrompt,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              trackSqlApprovalTimeout,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerPipelines:
                   dependencies.listThreadComposerPipelines,
