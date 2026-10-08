@@ -1,3 +1,10 @@
+## [2.495.1](https://github.com/lightdash/lightdash/compare/2.495.0...2.495.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **deps:** update simple-git to 4.0.2 [security] ([#30511](https://github.com/lightdash/lightdash/issues/30511)) ([14a83c5](https://github.com/lightdash/lightdash/commit/14a83c5e48ed70011d74c6fe24b9e4146d9fd12f))
+
 # [2.495.0](https://github.com/lightdash/lightdash/compare/2.494.0...2.495.0) (2026-10-08)
 
 
