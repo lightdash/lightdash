@@ -269,3 +269,70 @@ describe('limited project settings navigation', () => {
         },
     );
 });
+
+describe('Adoption settings navigation', () => {
+    const allowed: Partial<SettingsContext> = {
+        health: { license: { valid: true } } as SettingsContext['health'],
+        isOrganizationAdoptionEnabled: true,
+        organization: {
+            organizationUuid: 'org',
+        } as SettingsContext['organization'],
+        user: {
+            ability: new Ability([
+                {
+                    action: 'view',
+                    subject: 'OrganizationAdoption',
+                    conditions: { organizationUuid: 'org' },
+                },
+            ]),
+        } as unknown as SettingsContext['user'],
+    };
+    const adoption = (overrides: Partial<SettingsContext> = {}) =>
+        organizationNavigation({ ...allowed, ...overrides })?.find(
+            (item) => item.label === 'Adoption',
+        );
+
+    it('shows Adoption with the flag on, the view ability and a valid licence', () => {
+        expect(adoption()?.to).toBe('/generalSettings/adoption');
+    });
+
+    it('hides Adoption when the flag is off', () => {
+        expect(
+            adoption({ isOrganizationAdoptionEnabled: false }),
+        ).toBeUndefined();
+    });
+
+    it('hides Adoption when the view ability is missing', () => {
+        expect(
+            adoption({
+                user: {
+                    ability: new Ability([]),
+                } as unknown as SettingsContext['user'],
+            }),
+        ).toBeUndefined();
+        expect(adoption({ user: undefined })).toBeUndefined();
+    });
+
+    it('hides Adoption from a user who can only view another organization', () => {
+        expect(
+            adoption({
+                organization: {
+                    organizationUuid: 'other',
+                } as SettingsContext['organization'],
+            }),
+        ).toBeUndefined();
+    });
+
+    it.each([
+        ['invalid', { license: { valid: false } }],
+        ['absent', {}],
+    ])('hides Adoption when the licence is %s', (_label, health) => {
+        expect(
+            adoption({ health: health as SettingsContext['health'] }),
+        ).toBeUndefined();
+    });
+
+    it('hides Adoption while health has not loaded', () => {
+        expect(adoption({ health: undefined })).toBeUndefined();
+    });
+});

@@ -18,36 +18,47 @@ const NOW = new Date('2026-10-07T12:00:00Z');
 const members = [
     memberFixture('never', null),
     memberFixture('stale', '2026-08-01T00:00:00Z'),
-    memberFixture('edge', '2026-09-07T23:00:00Z'), // 30 UTC days ago
-    memberFixture('over', '2026-09-06T23:59:00Z'), // 31 UTC days ago
-    memberFixture('recent', '2026-10-06T00:00:00Z'),
+    memberFixture('edge', '2026-09-07T23:00:00Z', { isActive30d: true }),
+    memberFixture('over', '2026-09-06T23:59:00Z'),
+    memberFixture('recent', '2026-10-06T00:00:00Z', { isActive30d: true }),
 ];
 
 describe('filterMembers', () => {
     it('returns everyone for all', () => {
-        expect(filterMembers(members, 'all', NOW)).toHaveLength(5);
+        expect(filterMembers(members, 'all')).toHaveLength(5);
     });
-    it('never active means no recorded activity at all', () => {
+    it('no recorded activity means no timestamp at all', () => {
         expect(
-            filterMembers(members, 'neverActive', NOW).map((m) => m.userUuid),
+            filterMembers(members, 'noRecordedActivity').map((m) => m.userUuid),
         ).toEqual(['never']);
     });
     it('inactive 30d means active once but not in the last 30 days', () => {
         expect(
-            filterMembers(members, 'inactive30d', NOW).map((m) => m.userUuid),
+            filterMembers(members, 'inactive30d').map((m) => m.userUuid),
         ).toEqual(['stale', 'over']);
     });
+    it('trusts the server flag over the timestamp and this clock', () => {
+        const flaggedInactive = memberFixture('x', new Date().toISOString());
+        const flaggedActive = memberFixture('y', '2020-01-01T00:00:00Z', {
+            isActive30d: true,
+        });
+        expect(
+            filterMembers([flaggedInactive, flaggedActive], 'inactive30d').map(
+                (m) => m.userUuid,
+            ),
+        ).toEqual(['x']);
+    });
     it('counts each filter', () => {
-        expect(countMembersByFilter(members, NOW)).toEqual({
+        expect(countMembersByFilter(members)).toEqual({
             all: 5,
-            neverActive: 1,
+            noRecordedActivity: 1,
             inactive30d: 2,
         });
     });
 });
 
 describe('sortMembers', () => {
-    it('puts never active first, then the least recently active', () => {
+    it('puts no recorded activity first, then the least recently active', () => {
         const shuffled = [
             members[4],
             members[1],
@@ -72,7 +83,7 @@ describe('sortMembers', () => {
 
 describe('formatLastActive', () => {
     it.each([
-        [null, 'Never'],
+        [null, 'No recorded activity'],
         ['2026-10-07T00:00:00Z', 'Today'],
         ['2026-10-07T08:00:00Z', 'Today'],
         ['2026-10-06T23:59:00Z', 'Yesterday'],

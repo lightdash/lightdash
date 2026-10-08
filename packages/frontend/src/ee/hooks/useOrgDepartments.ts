@@ -12,9 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
 
-// Consumed by the table and drawer components that follow
-// ts-unused-exports:disable-next-line
-export const ORG_ADOPTION_QUERY_KEY = ['org-adoption'];
+const ORG_ADOPTION_QUERY_KEY = ['org-adoption'];
 
 export const useOrgAdoptionSummary = (enabled = true) =>
     useQuery<OrganizationAdoptionSummary, ApiError>({

@@ -72,10 +72,9 @@ export const getDirectMembersByDepartment = (
     membership.forEach((member) => {
         if (member.resolution.kind === 'assigned') {
             const { departmentUuid } = member.resolution;
-            direct.set(departmentUuid, [
-                ...(direct.get(departmentUuid) ?? []),
-                member,
-            ]);
+            const members = direct.get(departmentUuid);
+            if (members) members.push(member);
+            else direct.set(departmentUuid, [member]);
         }
     });
     return direct;

@@ -96,12 +96,13 @@ export const buildDepartmentMembers = (input: {
                 source,
                 sourceGroupName,
                 lastActiveAt: row?.lastActiveAt?.toISOString() ?? null,
+                isActive30d: row?.isActive30d ?? false,
                 queries30d: row?.queries30d ?? 0,
                 dashboardViews30d: row?.dashboardViews30d ?? 0,
             },
         ];
     });
-    // Never active first, then longest inactive, then by name
+    // No recorded activity first, then longest inactive, then by name
     return built.sort((a, b) => {
         if (a.lastActiveAt === null && b.lastActiveAt !== null) return -1;
         if (a.lastActiveAt !== null && b.lastActiveAt === null) return 1;

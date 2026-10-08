@@ -10,6 +10,7 @@ import {
     expandDots,
     getDotRadius,
     getDotSegments,
+    getSunflowerSpacing,
     getMemberDotKind,
     layoutDots,
     layoutPack,
@@ -264,6 +265,7 @@ describe('dot budget', () => {
 describe('member dots', () => {
     const recent = memberFixture('recent', '2026-10-01T00:00:00Z', {
         role: OrganizationMemberRole.ADMIN,
+        isActive30d: true,
     });
     const lapsed = memberFixture('lapsed', '2026-08-15T00:00:00Z', {
         role: OrganizationMemberRole.DEVELOPER,
@@ -276,6 +278,18 @@ describe('member dots', () => {
         expect(getMemberDotKind(recent, 'active', NOW)).toBe('active');
         expect(getMemberDotKind(lapsed, 'active', NOW)).toBe('idle');
         expect(getMemberDotKind(never, 'active', NOW)).toBe('idle');
+    });
+    it('takes active in 30 days from the server flag, not from the timestamp', () => {
+        const flaggedIdle = memberFixture('x', NOW.toISOString());
+        const flaggedActive = memberFixture('y', '2020-01-01T00:00:00Z', {
+            isActive30d: true,
+        });
+        expect(getMemberDotKind(flaggedIdle, 'active', NOW)).toBe('idle');
+        expect(getMemberDotKind(flaggedIdle, 'lastActive', NOW)).toBe('lapsed');
+        expect(getMemberDotKind(flaggedActive, 'active', NOW)).toBe('active');
+        expect(getMemberDotKind(flaggedActive, 'lastActive', NOW)).toBe(
+            'active',
+        );
     });
     it('colours by role with the same buckets as the role split', () => {
         expect(getMemberDotKind(recent, 'role', NOW)).toBe('admin');
@@ -583,5 +597,97 @@ describe('dot size for the people in view', () => {
         const { dotRadius } = layoutDots(1, MIN_CIRCLE_RADIUS);
         expect(dotRadius).toBeLessThanOrEqual(MIN_CIRCLE_RADIUS / 2);
         expect(dotRadius).toBeGreaterThan(3);
+    });
+});
+
+describe('dots never overlap', () => {
+    const closest = (positions: { x: number; y: number }[]): number =>
+        positions.reduce(
+            (best, a, index) =>
+                positions
+                    .slice(index + 1)
+                    .reduce(
+                        (inner, b) =>
+                            Math.min(inner, Math.hypot(a.x - b.x, a.y - b.y)),
+                        best,
+                    ),
+            Number.POSITIVE_INFINITY,
+        );
+    const COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 12, 20, 50, 150];
+    const RADII = [MIN_CIRCLE_RADIUS, 20, 30, 40, 80, 250];
+    const cases = RADII.flatMap((radius) =>
+        COUNTS.map((count): [number, number] => [count, radius]),
+    );
+
+    it.each(cases)(
+        'keeps %i dots apart and inside a circle of radius %i',
+        (count, radius) => {
+            const { dotRadius, positions } = layoutDots(count, radius);
+            expect(positions).toHaveLength(count);
+            expect(dotRadius).toBeGreaterThan(0);
+            if (count > 1) {
+                // Full-size dots, with no help from the smaller "no account" ones
+                expect(closest(positions)).toBeGreaterThanOrEqual(
+                    dotRadius * 2,
+                );
+            }
+            positions.forEach((position) => {
+                expect(
+                    Math.hypot(position.x, position.y) + dotRadius,
+                ).toBeLessThanOrEqual(radius - 2 + 1e-9);
+            });
+        },
+    );
+    it.each(cases)(
+        'lays out %i dots at radius %i the same every time',
+        (count, radius) => {
+            expect(layoutDots(count, radius)).toEqual(
+                layoutDots(count, radius),
+            );
+        },
+    );
+    it('holds for every count up to 400 in the smallest circle and for thousands', () => {
+        const check = (count: number, radius: number) => {
+            const { dotRadius, positions } = layoutDots(count, radius);
+            expect(closest(positions)).toBeGreaterThanOrEqual(dotRadius * 2);
+        };
+        for (let count = 2; count <= 400; count += 1) {
+            check(count, MIN_CIRCLE_RADIUS);
+        }
+        [1000, 3000].forEach((count) => {
+            check(count, MIN_CIRCLE_RADIUS);
+            check(count, 250);
+        });
+    });
+    it('finds the true closest pair of a sunflower from its spiral neighbours', () => {
+        [8, 9, 13, 20, 50, 150, 400, 1000, 3000].forEach((count) => {
+            expect(getSunflowerSpacing(count)).toBeCloseTo(
+                closest(sunflowerPositions(count, 1)),
+                12,
+            );
+        });
+    });
+    it('puts the first people innermost or first on the ring', () => {
+        const three = layoutDots(3, 40).positions;
+        // First at the top of the ring, the rest clockwise
+        expect(three[0].x).toBeCloseTo(0, 9);
+        expect(three[0].y).toBeLessThan(0);
+        expect(three[1].x).toBeGreaterThan(0);
+        const seven = layoutDots(7, 40).positions;
+        expect(seven[0]).toEqual({ x: 0, y: 0 });
+        const many = layoutDots(50, 40).positions.map((position) =>
+            Math.hypot(position.x, position.y),
+        );
+        many.slice(1).forEach((distance, index) => {
+            expect(distance).toBeGreaterThan(many[index]);
+        });
+    });
+    it('keeps a few people readable wherever there is room', () => {
+        [1, 2, 3, 5, 7, 8, 20].forEach((count) => {
+            expect(layoutDots(count, 250).dotRadius).toBeCloseTo(11, 6);
+        });
+        // In a small circle the dots are as large as fit, not specks
+        expect(layoutDots(3, 30).dotRadius).toBeGreaterThan(8);
+        expect(layoutDots(2, MIN_CIRCLE_RADIUS).dotRadius).toBeGreaterThan(4);
     });
 });

@@ -277,6 +277,58 @@ describe('DepartmentModel', () => {
         );
     });
 
+    describe('a name that differs only by case', () => {
+        // What Postgres raises when the unique index on (organization_uuid, lower(name)) is violated
+        const caseOnlyDuplicate = Object.assign(
+            new Error('duplicate key value violates unique constraint'),
+            {
+                code: '23505',
+                constraint:
+                    'organization_departments_organization_uuid_lower_name_unique',
+            },
+        );
+
+        it('is rejected on create with AlreadyExistsError', async () => {
+            tracker.on
+                .insert(DepartmentTableName)
+                .simulateError(caseOnlyDuplicate);
+            await expect(
+                model.create(
+                    'org',
+                    {
+                        name: 'operations',
+                        parentDepartmentUuid: null,
+                        headcount: null,
+                        headcountNote: null,
+                        targetActiveUsers: null,
+                        targetDate: null,
+                    },
+                    'user',
+                ),
+            ).rejects.toThrow(
+                new AlreadyExistsError(
+                    'A department named "operations" already exists',
+                ),
+            );
+        });
+
+        it('is rejected on rename with AlreadyExistsError', async () => {
+            tracker.on
+                .select(SELECT_DEPARTMENTS)
+                .response([departmentRow({ name: 'Finance' })]);
+            tracker.on
+                .update(DepartmentTableName)
+                .simulateError(caseOnlyDuplicate);
+            await expect(
+                model.update('org', 'dep', { name: 'OPERATIONS' }, 'user'),
+            ).rejects.toThrow(
+                new AlreadyExistsError(
+                    'A department named "OPERATIONS" already exists',
+                ),
+            );
+        });
+    });
+
     it('replaces group links, taking each group from any other department', async () => {
         tracker.on
             .select(/^select .* from "groups"/)
@@ -347,6 +399,40 @@ describe('DepartmentModel', () => {
             'user',
             'u1',
         ]);
+    });
+
+    it('counts only active users who have completed sign-up', async () => {
+        tracker.on.any(/with org as/i).response({ rows: [] });
+        await model.getResolvedMemberRows('org');
+        const [query] = tracker.history.all;
+        expect(query.bindings).toEqual(['org']);
+        expect(query.sql).toMatch(
+            /WHERE u\.is_internal = false\s+AND u\.is_active = true\s+AND \(/,
+        );
+        // Signed up means a verified primary email, a password or a single sign-on identity
+        expect(query.sql).toMatch(
+            /e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)/,
+        );
+    });
+
+    it('still lets a deactivated or pending user be assigned, so the place is kept for them', async () => {
+        tracker.on
+            .select(OrganizationMembershipsTableName)
+            .response([{ user_uuid: 'pending' }]);
+        tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+        tracker.on.select(DepartmentLinkTableName).response([]);
+        tracker.on.select(DepartmentMemberTableName).response([]);
+        tracker.on.select(DepartmentOwnerTableName).response([]);
+        tracker.on.delete(DepartmentMemberTableName).response(1);
+        tracker.on.insert(DepartmentMemberTableName).response([]);
+        await model.setMembers('org', 'dep', ['pending']);
+        const check = tracker.history.select.find((q) =>
+            q.sql.includes(`from "${OrganizationMembershipsTableName}"`),
+        );
+        expect(check).toBeDefined();
+        expect(check?.sql).not.toContain('is_active');
+        expect(check?.sql).not.toContain('is_verified');
+        expect(tracker.history.insert).toHaveLength(1);
     });
 
     it('maps resolved member rows and defaults missing group links to empty', async () => {

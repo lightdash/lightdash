@@ -100,6 +100,7 @@ import { DataAppActivitySettingsPage } from '../features/dataAppActivity/compone
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
+import { canAccessOrganizationAdoption } from '../hooks/settings/organizationAdoptionAccess';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
@@ -210,6 +211,8 @@ const Settings: FC = () => {
         isProjectSettingsAccessLoading,
         projectSettingsAccessError,
     } = context;
+
+    const isLicenseValid = health?.license?.valid === true;
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -699,13 +702,12 @@ const Settings: FC = () => {
         }
 
         if (
-            isOrganizationAdoptionEnabled &&
-            user?.ability.can(
-                'view',
-                subject('OrganizationAdoption', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
+            canAccessOrganizationAdoption({
+                isLicenseValid,
+                isOrganizationAdoptionEnabled,
+                organization,
+                ability: user?.ability,
+            })
         ) {
             allowedRoutes.push({
                 path: '/adoption',
@@ -891,6 +893,7 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isOrganizationAdoptionEnabled,
+        isLicenseValid,
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,

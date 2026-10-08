@@ -1,25 +1,29 @@
-import {
-    type DepartmentMembership,
-    type DepartmentWithMetrics,
-} from '@lightdash/common';
-import { Badge, Group, Select, Stack, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { type DepartmentWithMetrics } from '@lightdash/common';
+import { Badge, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
     useDepartmentMembership,
     useSetDepartmentMembers,
 } from '../../../hooks/useOrgDepartments';
-import { getAttentionRows } from '../utils/attention';
+import {
+    countAttentionNames,
+    getAttentionRows,
+    getMemberName,
+    searchAttentionRows,
+} from '../utils/attention';
 import { getParentOptions } from '../utils/departmentForm';
+
+// Rows drawn at once; a large organization narrows the list by searching
+const VISIBLE_ROW_LIMIT = 50;
 
 type Props = {
     opened: boolean;
     onClose: () => void;
     departments: DepartmentWithMetrics[];
 };
-
-const getName = (member: DepartmentMembership): string =>
-    `${member.firstName} ${member.lastName}`.trim() || member.email;
 
 export const MembershipModal: FC<Props> = ({
     opened,
@@ -29,10 +33,17 @@ export const MembershipModal: FC<Props> = ({
     const { data: membership = [], isInitialLoading } =
         useDepartmentMembership(opened);
     const setMembers = useSetDepartmentMembers();
+    const [search, setSearch] = useState('');
     const rows = useMemo(
         () => getAttentionRows(membership, departments),
         [membership, departments],
     );
+    const nameCounts = useMemo(() => countAttentionNames(rows), [rows]);
+    const matching = useMemo(
+        () => searchAttentionRows(rows, search),
+        [rows, search],
+    );
+    const visible = matching.slice(0, VISIBLE_ROW_LIMIT);
     const departmentOptions = useMemo(
         () => getParentOptions(departments, null),
         [departments],
@@ -73,11 +84,25 @@ export const MembershipModal: FC<Props> = ({
                         Everyone is placed in one department
                     </Text>
                 )}
-                {rows.map(({ member, kind, candidateNames }) => {
-                    const name = getName(member);
-                    const isDuplicateName =
-                        rows.filter((row) => getName(row.member) === name)
-                            .length > 1;
+                {rows.length > 0 && (
+                    <TextInput
+                        aria-label="Search people"
+                        placeholder="Search by name or email"
+                        leftSection={<MantineIcon icon={IconSearch} />}
+                        value={search}
+                        onChange={(event) =>
+                            setSearch(event.currentTarget.value)
+                        }
+                    />
+                )}
+                {rows.length > 0 && matching.length === 0 && (
+                    <Text fz="sm" c="dimmed">
+                        Nobody matches this search
+                    </Text>
+                )}
+                {visible.map(({ member, kind, candidateNames }) => {
+                    const name = getMemberName(member);
+                    const isDuplicateName = (nameCounts.get(name) ?? 0) > 1;
                     return (
                         <Group
                             key={member.userUuid}
@@ -121,6 +146,11 @@ export const MembershipModal: FC<Props> = ({
                         </Group>
                     );
                 })}
+                {matching.length > visible.length && (
+                    <Text fz="sm" c="dimmed">
+                        {`Showing ${visible.length.toLocaleString('en-US')} of ${matching.length.toLocaleString('en-US')}, search to narrow`}
+                    </Text>
+                )}
             </Stack>
         </MantineModal>
     );
