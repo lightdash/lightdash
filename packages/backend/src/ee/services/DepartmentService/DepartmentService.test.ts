@@ -163,6 +163,7 @@ const buildService = (opts: {
         setGroupLinks: vi.fn().mockResolvedValue({}),
         setMembers: vi.fn().mockResolvedValue({}),
         setOwners: vi.fn().mockResolvedValue({}),
+        setPrimaryDepartment: vi.fn().mockResolvedValue(undefined),
     };
     const departmentAnalyticsModel = {
         getActivity: vi
@@ -242,6 +243,12 @@ describe('DepartmentService gating', () => {
             'setOwners',
             (s: DepartmentService, a: Account) => s.setOwners(a, DEP, []),
             'setOwners',
+        ],
+        [
+            'setPrimaryDepartment',
+            (s: DepartmentService, a: Account) =>
+                s.setPrimaryDepartment(a, USR, { departmentUuid: DEP }),
+            'setPrimaryDepartment',
         ],
     ])('%s needs manage, not just view', async (_name, call, modelMethod) => {
         const { service, departmentModel } = buildService({ flag: true });
@@ -361,6 +368,11 @@ describe('DepartmentService snapshot cache', () => {
             (s: DepartmentService, a: Account) =>
                 s.setOwners(a, DEP, [{ type: 'user', uuid: USR }]),
         ],
+        [
+            'setPrimaryDepartment',
+            (s: DepartmentService, a: Account) =>
+                s.setPrimaryDepartment(a, USR, { departmentUuid: null }),
+        ],
     ])('drops the snapshot after %s', async (_name, write) => {
         const { service, departmentModel } = buildService({ flag: true });
         await service.getSummary(viewer());
@@ -395,7 +407,8 @@ describe('DepartmentService snapshot cache', () => {
                 firstName: 'U',
                 lastName: 'One',
                 role: OrganizationMemberRole.MEMBER,
-                explicitDepartmentUuid: null,
+                explicitDepartmentUuids: [],
+                primaryDepartmentUuid: null,
                 groupLinks: [],
             },
         ]);
@@ -479,6 +492,76 @@ describe('DepartmentService with API tokens', () => {
             expect(departmentModel.setMembers).not.toHaveBeenCalled();
         },
     );
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'lets %s holding manage set the department a person counts in',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({
+                flag: true,
+                departments: [departmentFixture(DEP, null, null)],
+                rows: [
+                    {
+                        userUuid: USR,
+                        email: 'person@example.com',
+                        firstName: 'P',
+                        lastName: 'L',
+                        role: OrganizationMemberRole.MEMBER,
+                        explicitDepartmentUuids: [DEP],
+                        groupLinks: [],
+                        primaryDepartmentUuid: null,
+                    },
+                ],
+            });
+            const account = buildTokenAccount(
+                authentication,
+                abilityWith(['view', ORG], ['manage', ORG]),
+            );
+            await service.setPrimaryDepartment(account, USR, {
+                departmentUuid: DEP,
+            });
+            await service.setPrimaryDepartment(account, USR, {
+                departmentUuid: null,
+            });
+            expect(departmentModel.setPrimaryDepartment.mock.calls).toEqual([
+                [ORG, USR, DEP],
+                [ORG, USR, null],
+            ]);
+        },
+    );
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'refuses %s setting a primary with view only, or manage on another organization, without reading or writing',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({ flag: true });
+            await expect(
+                service.setPrimaryDepartment(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', ORG]),
+                    ),
+                    USR,
+                    { departmentUuid: DEP },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.setPrimaryDepartment(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', 'other'], ['manage', 'other']),
+                    ),
+                    USR,
+                    { departmentUuid: DEP },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            Object.values(departmentModel).forEach((fn) =>
+                expect(fn).not.toHaveBeenCalled(),
+            );
+        },
+    );
 });
 
 describe('DepartmentService.getMembership', () => {
@@ -504,7 +587,8 @@ describe('DepartmentService.getMembership', () => {
                     firstName: 'U',
                     lastName: 'One',
                     role: OrganizationMemberRole.MEMBER,
-                    explicitDepartmentUuid: null,
+                    explicitDepartmentUuids: [],
+                    primaryDepartmentUuid: null,
                     groupLinks: [],
                 },
             ],
@@ -515,7 +599,10 @@ describe('DepartmentService.getMembership', () => {
         expect(result).toHaveLength(1);
         expect(result[0]).toMatchObject({
             userUuid: 'u1',
-            resolution: { kind: 'unassigned' },
+            kind: 'unassigned',
+            placements: [],
+            primaryDepartmentUuid: null,
+            countedDepartmentUuids: [],
         });
     });
 });
@@ -583,6 +670,21 @@ describe('DepartmentService input validation', () => {
             'malformed owner uuid',
             (s: DepartmentService, a: Account) =>
                 s.setOwners(a, DEP, [{ type: 'user', uuid: 'nope' }]),
+        ],
+        [
+            'malformed user uuid on setPrimaryDepartment',
+            (s: DepartmentService, a: Account) =>
+                s.setPrimaryDepartment(a, 'nope', { departmentUuid: DEP }),
+        ],
+        [
+            'malformed department uuid on setPrimaryDepartment',
+            (s: DepartmentService, a: Account) =>
+                s.setPrimaryDepartment(a, USR, { departmentUuid: 'nope' }),
+        ],
+        [
+            'a missing department on setPrimaryDepartment',
+            (s: DepartmentService, a: Account) =>
+                s.setPrimaryDepartment(a, USR, {} as never),
         ],
         [
             'bad owner type',
@@ -674,7 +776,8 @@ describe('DepartmentService.getSummary', () => {
             firstName: userUuid,
             lastName: 'L',
             role: OrganizationMemberRole.MEMBER,
-            explicitDepartmentUuid: null,
+            explicitDepartmentUuids: [],
+            primaryDepartmentUuid: null,
             groupLinks,
         });
         const { service, departmentAnalyticsModel } = buildService({
@@ -704,8 +807,67 @@ describe('DepartmentService.getSummary', () => {
         expect(byUuid.get('ops')?.hasHeadcount).toBe(true);
         expect(byUuid.get('ops')?.headcountBelowChildren).toBe(false);
         expect(summary.attention).toEqual({
-            conflictCount: 0,
             unassignedCount: 1,
+            sharedCount: 0,
+        });
+        // Only people who count somewhere make the organization total
+        expect(summary.organization.memberCount).toBe(1);
+    });
+    it('counts a person explicitly in Marketing and in Sales through a group in both, and once in the organization', async () => {
+        const marketing = { ...departmentFixture('marketing', null, 10) };
+        const sales = { ...departmentFixture('sales', null, 10) };
+        const row = (
+            userUuid: string,
+            explicitDepartmentUuids: string[],
+            groupDepartmentUuids: string[],
+        ) => ({
+            userUuid,
+            email: `${userUuid}@example.com`,
+            firstName: userUuid,
+            lastName: 'L',
+            role: OrganizationMemberRole.MEMBER,
+            explicitDepartmentUuids,
+            groupLinks: groupDepartmentUuids.map((departmentUuid) => ({
+                departmentUuid,
+                groupUuid: `g-${departmentUuid}`,
+                groupName: `${departmentUuid} staff`,
+            })),
+            primaryDepartmentUuid: null,
+        });
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments: [marketing, sales],
+            rows: [
+                row('both', ['marketing'], ['sales']),
+                row('writer', ['marketing'], []),
+            ],
+        });
+        departmentAnalyticsModel.getActivity.mockResolvedValue({
+            lastActiveAt: new Map([['both', new Date()]]),
+            weeklyActivity: [],
+        });
+
+        const summary = await service.getSummary(
+            buildAccount(abilityWith(['view', ORG])),
+        );
+        const metricsOf = (departmentUuid: string) =>
+            summary.departments.find((d) => d.departmentUuid === departmentUuid)
+                ?.metrics;
+        expect(metricsOf('marketing')).toMatchObject({
+            memberCount: 2,
+            activeCount30d: 1,
+        });
+        expect(metricsOf('sales')).toMatchObject({
+            memberCount: 1,
+            activeCount30d: 1,
+        });
+        expect(summary.organization).toMatchObject({
+            memberCount: 2,
+            activeCount30d: 1,
+        });
+        expect(summary.attention).toEqual({
+            unassignedCount: 0,
+            sharedCount: 1,
         });
     });
     it('never puts a headcount below the people on Lightdash, and counts them where none is set', async () => {
@@ -719,8 +881,9 @@ describe('DepartmentService.getSummary', () => {
             firstName: userUuid,
             lastName: 'L',
             role: OrganizationMemberRole.MEMBER,
-            explicitDepartmentUuid: departmentUuid,
+            explicitDepartmentUuids: [departmentUuid],
             groupLinks: [],
+            primaryDepartmentUuid: null,
         });
         const { service, departmentAnalyticsModel } = buildService({
             flag: true,
@@ -765,7 +928,8 @@ describe('DepartmentService analytics scoping', () => {
             firstName: userUuid,
             lastName: 'L',
             role: OrganizationMemberRole.MEMBER,
-            explicitDepartmentUuid: null,
+            explicitDepartmentUuids: [],
+            primaryDepartmentUuid: null,
             groupLinks: [],
         });
         const { service, departmentModel, departmentAnalyticsModel } =
@@ -1078,7 +1242,8 @@ describe('DepartmentService.getDetail', () => {
         firstName: userUuid,
         lastName: 'L',
         role: OrganizationMemberRole.VIEWER,
-        explicitDepartmentUuid: null,
+        explicitDepartmentUuids: [],
+        primaryDepartmentUuid: null,
         groupLinks: [link(departmentUuid)],
     });
     const departments = [
@@ -1256,6 +1421,33 @@ describe('DepartmentService.getDetail', () => {
                 .lastActiveSince,
         );
     });
+    it('lists a person in two departments on both pages, each naming the other as also in', async () => {
+        const both = {
+            ...user('d', STORES),
+            explicitDepartmentUuids: [FINANCE],
+        };
+        const { service } = buildService({
+            flag: true,
+            departments,
+            rows: [...rows, both],
+        });
+        const memberD = async (departmentUuid: string) =>
+            (await service.getDetail(viewer(), departmentUuid)).members.find(
+                (m) => m.userUuid === 'd',
+            );
+        expect(await memberD(OPS)).toMatchObject({
+            departmentUuid: STORES,
+            isDirect: false,
+            sharedWith: [{ departmentUuid: FINANCE, name: FINANCE }],
+            primaryDepartmentUuid: null,
+        });
+        expect(await memberD(FINANCE)).toMatchObject({
+            departmentUuid: FINANCE,
+            isDirect: true,
+            source: 'explicit',
+            sharedWith: [{ departmentUuid: STORES, name: STORES }],
+        });
+    });
     it('lists ancestors from the top down', async () => {
         const { service } = buildService({ flag: true, departments, rows });
         const detail = await service.getDetail(viewer(), STORES);
@@ -1266,5 +1458,456 @@ describe('DepartmentService.getDetail', () => {
         const detail = await service.getDetail(viewer(), FINANCE);
         expect(detail.ancestors).toEqual([]);
         expect(detail.targetProgress).toBeNull();
+    });
+});
+
+const named = (
+    departmentUuid: string,
+    parentDepartmentUuid: string | null,
+    name: string,
+) => ({
+    ...departmentFixture(departmentUuid, parentDepartmentUuid, null),
+    name,
+});
+
+const placedRow = (
+    userUuid: string,
+    {
+        explicit = [],
+        groups = [],
+        primary = null,
+    }: { explicit?: string[]; groups?: string[]; primary?: string | null },
+) => ({
+    userUuid,
+    email: `${userUuid}@example.com`,
+    firstName: userUuid,
+    lastName: 'L',
+    role: OrganizationMemberRole.VIEWER,
+    explicitDepartmentUuids: explicit,
+    groupLinks: groups.map((departmentUuid) => ({
+        departmentUuid,
+        groupUuid: `g-${departmentUuid}`,
+        groupName: `${departmentUuid} staff`,
+    })),
+    primaryDepartmentUuid: primary,
+});
+
+describe('DepartmentService.setPrimaryDepartment', () => {
+    // Valid uuids, since the path and body are checked before anything is read
+    const MARKETING = '0a000000-0000-4000-8000-000000000001';
+    const SALES = '0a000000-0000-4000-8000-000000000002';
+    const FINANCE = '0a000000-0000-4000-8000-000000000003';
+    const FOREIGN = '0a000000-0000-4000-8000-000000000099';
+    const departments = [
+        named(MARKETING, null, 'Marketing'),
+        named(SALES, null, 'Sales'),
+        named(FINANCE, null, 'Finance'),
+    ];
+    // Explicitly in Marketing, in Sales through a group
+    const shared = (primary: string | null = null) =>
+        placedRow(USR, { explicit: [MARKETING], groups: [SALES], primary });
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+    const viewer = () => buildAccount(abilityWith(['view', ORG]));
+    const countsIn = async (service: DepartmentService) =>
+        new Map(
+            (await service.getSummary(viewer())).departments.map((d) => [
+                d.departmentUuid,
+                d.metrics.memberCount,
+            ]),
+        );
+
+    it("stores one of the person's departments as the one they count in", async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [shared()],
+        });
+        await service.setPrimaryDepartment(manager(), USR, {
+            departmentUuid: SALES,
+        });
+        expect(departmentModel.setPrimaryDepartment).toHaveBeenCalledWith(
+            ORG,
+            USR,
+            SALES,
+        );
+    });
+    it('refuses a department that is not one of theirs with 400, without writing', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [shared()],
+        });
+        await expect(
+            service.setPrimaryDepartment(manager(), USR, {
+                departmentUuid: FINANCE,
+            }),
+        ).rejects.toThrow(
+            new ParameterError(`User ${USR} is not in department ${FINANCE}`),
+        );
+        expect(departmentModel.setPrimaryDepartment).not.toHaveBeenCalled();
+    });
+    it('refuses a department from another organization the same way', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [shared()],
+        });
+        await expect(
+            service.setPrimaryDepartment(manager(), USR, {
+                departmentUuid: FOREIGN,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(departmentModel.setPrimaryDepartment).not.toHaveBeenCalled();
+    });
+    it('answers 404 for someone who is not an active member, without writing', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [],
+        });
+        await expect(
+            service.setPrimaryDepartment(manager(), USR, {
+                departmentUuid: SALES,
+            }),
+        ).rejects.toThrow(
+            new NotFoundError(
+                `User ${USR} is not an active member of this organization`,
+            ),
+        );
+        expect(departmentModel.setPrimaryDepartment).not.toHaveBeenCalled();
+    });
+    it("clears it with null, leaving the member check to the model's lock", async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.setPrimaryDepartment(manager(), USR, {
+            departmentUuid: null,
+        });
+        expect(departmentModel.setPrimaryDepartment).toHaveBeenCalledWith(
+            ORG,
+            USR,
+            null,
+        );
+        expect(departmentModel.getResolvedMemberRows).not.toHaveBeenCalled();
+    });
+    it('lower-cases the person and the department', async () => {
+        // Letters, so upper and lower case differ
+        const person = 'abcdef00-0000-4000-8000-0000000000ab';
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [
+                placedRow(person, { explicit: [MARKETING], groups: [SALES] }),
+            ],
+        });
+        await service.setPrimaryDepartment(manager(), person.toUpperCase(), {
+            departmentUuid: SALES.toUpperCase(),
+        });
+        expect(departmentModel.setPrimaryDepartment).toHaveBeenCalledWith(
+            ORG,
+            person,
+            SALES,
+        );
+    });
+    it('checks the departments the person is in now, not the cached snapshot', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [placedRow(USR, { explicit: [MARKETING] })],
+        });
+        await service.getSummary(viewer());
+        // Placed in Sales since, by a write this process did not see
+        departmentModel.getResolvedMemberRows.mockResolvedValue([shared()]);
+        await service.setPrimaryDepartment(manager(), USR, {
+            departmentUuid: SALES,
+        });
+        expect(departmentModel.setPrimaryDepartment).toHaveBeenCalledWith(
+            ORG,
+            USR,
+            SALES,
+        );
+    });
+    it('drops the snapshot after a primary is set, so the next read counts the person in it alone', async () => {
+        const { service, departmentModel, departmentAnalyticsModel } =
+            buildService({ flag: true, departments, rows: [shared()] });
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [MARKETING]: 1,
+            [SALES]: 1,
+            [FINANCE]: 0,
+        });
+        await service.setPrimaryDepartment(manager(), USR, {
+            departmentUuid: SALES,
+        });
+        departmentModel.getResolvedMemberRows.mockResolvedValue([
+            shared(SALES),
+        ]);
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [MARKETING]: 0,
+            [SALES]: 1,
+            [FINANCE]: 0,
+        });
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(2);
+    });
+    it('counts the person in every department again once the primary is cleared', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [shared(MARKETING)],
+        });
+        const before = await service.getSummary(viewer());
+        expect(before.attention.sharedCount).toBe(0);
+        expect((await countsIn(service)).get(SALES)).toBe(0);
+
+        await service.setPrimaryDepartment(manager(), USR, {
+            departmentUuid: null,
+        });
+        departmentModel.getResolvedMemberRows.mockResolvedValue([shared()]);
+        const after = await service.getSummary(viewer());
+        expect(after.attention.sharedCount).toBe(1);
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [MARKETING]: 1,
+            [SALES]: 1,
+            [FINANCE]: 0,
+        });
+        expect(after.organization.memberCount).toBe(1);
+    });
+    it('counts the person in every remaining department once their primary department is deleted', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows: [
+                placedRow(USR, {
+                    explicit: [MARKETING],
+                    groups: [SALES, FINANCE],
+                    primary: MARKETING,
+                }),
+            ],
+        });
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [MARKETING]: 1,
+            [SALES]: 0,
+            [FINANCE]: 0,
+        });
+
+        await service.delete(manager(), MARKETING);
+        // The department's rows, the primary among them, go with it
+        departmentModel.listByOrganization.mockResolvedValue(
+            departments.filter((d) => d.departmentUuid !== MARKETING),
+        );
+        departmentModel.getResolvedMemberRows.mockResolvedValue([
+            placedRow(USR, { groups: [SALES, FINANCE] }),
+        ]);
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [SALES]: 1,
+            [FINANCE]: 1,
+        });
+        expect((await service.getSummary(viewer())).attention).toEqual({
+            unassignedCount: 0,
+            sharedCount: 1,
+        });
+    });
+    it('ignores a stored primary that is no longer one of their departments', async () => {
+        const { service } = buildService({
+            flag: true,
+            departments,
+            rows: [shared(FINANCE)],
+        });
+        expect(Object.fromEntries(await countsIn(service))).toEqual({
+            [MARKETING]: 1,
+            [SALES]: 1,
+            [FINANCE]: 0,
+        });
+    });
+});
+
+describe('DepartmentService.getOverlaps', () => {
+    const OPS = '0b000000-0000-4000-8000-000000000001';
+    const STORES = '0b000000-0000-4000-8000-000000000002';
+    const DEPOTS = '0b000000-0000-4000-8000-000000000003';
+    const MARKETING = '0b000000-0000-4000-8000-000000000004';
+    const FINANCE = '0b000000-0000-4000-8000-000000000005';
+    const FOREIGN = '0b000000-0000-4000-8000-000000000099';
+    // ops ─┬─ stores
+    //      └─ depots
+    // marketing
+    // finance
+    const departments = [
+        named(OPS, null, 'Operations'),
+        named(STORES, OPS, 'Stores'),
+        named(DEPOTS, OPS, 'Depots'),
+        named(MARKETING, null, 'Marketing'),
+        named(FINANCE, null, 'Finance'),
+    ];
+    const rows = [
+        placedRow('ann', { explicit: [MARKETING], groups: [STORES] }),
+        placedRow('cara', { groups: [DEPOTS, STORES] }),
+        placedRow('dan', { explicit: [STORES] }),
+        placedRow('eve', { groups: [MARKETING, FINANCE] }),
+        placedRow('gus', { explicit: [STORES, MARKETING] }),
+    ];
+    const viewer = () => buildAccount(abilityWith(['view', ORG]));
+
+    it('is gated like the summary', async () => {
+        const { service, departmentModel } = buildService({
+            flag: false,
+            departments,
+            rows,
+        });
+        await expect(service.getOverlaps(viewer(), STORES)).rejects.toThrow(
+            NotFoundError,
+        );
+        expect(departmentModel.listByOrganization).not.toHaveBeenCalled();
+    });
+    it('throws ForbiddenError without the view scope', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(
+            service.getOverlaps(buildAccount(abilityWith()), STORES),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it.each([
+        ['a malformed department', 'nope', undefined],
+        ['a malformed department to compare with', STORES, ['nope']],
+        [
+            'more than two departments to compare with',
+            STORES,
+            [OPS, MARKETING, FINANCE],
+        ],
+        [
+            'the department itself to compare with',
+            STORES,
+            [MARKETING, STORES.toUpperCase()],
+        ],
+    ])(
+        'rejects %s before reading anything',
+        async (_label, uuid, withUuids) => {
+            const { service, departmentModel, departmentAnalyticsModel } =
+                buildService({ flag: true, departments, rows });
+            await expect(
+                service.getOverlaps(viewer(), uuid, withUuids),
+            ).rejects.toThrow(ParameterError);
+            expect(departmentModel.listByOrganization).not.toHaveBeenCalled();
+            expect(departmentAnalyticsModel.getActivity).not.toHaveBeenCalled();
+        },
+    );
+    it('throws NotFoundError for a department that is not in the organization', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(service.getOverlaps(viewer(), FOREIGN)).rejects.toThrow(
+            new NotFoundError(`Department ${FOREIGN} not found`),
+        );
+    });
+    it('refuses a department to compare with that is not in the organization with 400, naming it', async () => {
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        await expect(
+            service.getOverlaps(viewer(), STORES, [MARKETING, FOREIGN]),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department ${FOREIGN} is not in this organization`,
+            ),
+        );
+        expect(
+            departmentAnalyticsModel.getMemberActivity,
+        ).not.toHaveBeenCalled();
+    });
+    it("lists other branches' departments from the cached snapshot, with the diagram and no people unless asked", async () => {
+        const { service, departmentModel, departmentAnalyticsModel } =
+            buildService({ flag: true, departments, rows });
+        departmentAnalyticsModel.getActivity.mockResolvedValue({
+            lastActiveAt: new Map([
+                ['ann', new Date()],
+                ['eve', new Date()],
+            ]),
+            weeklyActivity: [],
+        });
+        await service.getSummary(viewer());
+        const result = await service.getOverlaps(viewer(), STORES);
+
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledWith(ORG);
+        expect(result.department).toEqual({
+            departmentUuid: STORES,
+            name: 'Stores',
+        });
+        // Operations sits above Stores, so it is left out though it holds everyone here
+        expect(result.overlaps).toEqual([
+            {
+                departmentUuid: MARKETING,
+                name: 'Marketing',
+                people: 2,
+                active30d: 1,
+            },
+            { departmentUuid: DEPOTS, name: 'Depots', people: 1, active30d: 0 },
+        ]);
+        expect(result.venn?.sets.map((d) => d.name)).toEqual([
+            'Stores',
+            'Marketing',
+            'Depots',
+        ]);
+        expect(result.venn?.regions.reduce((sum, r) => sum + r.people, 0)).toBe(
+            5,
+        );
+        expect(result.members).toBeNull();
+        expect(
+            departmentAnalyticsModel.getMemberActivity,
+        ).not.toHaveBeenCalled();
+    });
+    it('returns the people in both, mapped like the department page, least recently active first', async () => {
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        departmentAnalyticsModel.getMemberActivity.mockResolvedValue([
+            {
+                userUuid: 'ann',
+                lastActiveAt: new Date('2026-10-01T09:00:00Z'),
+                isActive30d: true,
+                queries30d: 2,
+                dashboardViews30d: 1,
+            },
+            {
+                userUuid: 'gus',
+                lastActiveAt: null,
+                isActive30d: false,
+                queries30d: 0,
+                dashboardViews30d: 0,
+            },
+        ]);
+
+        const result = await service.getOverlaps(viewer(), STORES, [
+            MARKETING.toUpperCase(),
+        ]);
+
+        const [org, userUuids, since, lastActiveSince] =
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0];
+        expect(org).toBe(ORG);
+        expect([...userUuids].sort()).toEqual(['ann', 'gus']);
+        const windows = departmentAnalyticsModel.getActivity.mock.calls[0][2];
+        expect(since).toBe(windows.activeSince);
+        expect(lastActiveSince).toBe(windows.lastActiveSince);
+        expect(result.members?.map((m) => m.userUuid)).toEqual(['gus', 'ann']);
+        expect(result.members?.[1]).toMatchObject({
+            departmentUuid: STORES,
+            departmentName: 'Stores',
+            isDirect: true,
+            source: 'group',
+            sharedWith: [{ departmentUuid: MARKETING, name: 'Marketing' }],
+            primaryDepartmentUuid: null,
+            isActive30d: true,
+        });
+        expect(result.overlaps.map((o) => o.name)).toEqual([
+            'Marketing',
+            'Depots',
+        ]);
+    });
+    it('returns no one when nobody is in all three', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        const result = await service.getOverlaps(viewer(), STORES, [
+            MARKETING,
+            DEPOTS,
+        ]);
+        expect(result.members).toEqual([]);
     });
 });

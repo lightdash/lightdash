@@ -38,8 +38,10 @@ export type SnapshotInput = {
 
 export type AdoptionSnapshot = {
     summary: OrganizationAdoptionSummary;
+    // By department: who counts in it (direct), and in it or below it (rolled)
     directMembers: Map<string, DepartmentMembership[]>;
     rolledMembers: Map<string, DepartmentMembership[]>;
+    activeUserUuids: Set<string>; // active in the last 30 days
 };
 
 const isoDate = (d: Date): string => d.toISOString().slice(0, 10);
@@ -172,6 +174,17 @@ export const buildAdoptionSnapshot = (
     const weeksByUser = indexWeeklyActivity(input.weeklyActivity);
     const directMembers = getDirectMembersByDepartment(membership);
     const rolledMembers = rollUpByDepartment(departments, directMembers);
+    // Active in the last 30 days: the healthy bucket, read with the same bounds as the counts
+    const activeUserUuids = new Set(
+        [...lastActiveAt]
+            .filter(([, at]) => getActivityBucket(at, windows) === 'healthy')
+            .map(([userUuid]) => userUuid),
+    );
+    const departmentUuids = new Set(departments.map((d) => d.departmentUuid));
+    // Everyone who counts in at least one department, once each
+    const counted = membership.filter((m) =>
+        m.countedDepartmentUuids.some((uuid) => departmentUuids.has(uuid)),
+    );
     const headcounts = computeEffectiveHeadcounts(
         departments,
         new Map(
@@ -195,7 +208,7 @@ export const buildAdoptionSnapshot = (
     return {
         summary: {
             // The org row is a count baseline; there is no org-wide headcount
-            organization: metricsFor(membership, null),
+            organization: metricsFor(counted, null),
             departments: departments.map((d) => {
                 const members = rolledMembers.get(d.departmentUuid) ?? [];
                 const direct = directMembers.get(d.departmentUuid) ?? [];
@@ -230,15 +243,18 @@ export const buildAdoptionSnapshot = (
                 };
             }),
             attention: {
-                conflictCount: membership.filter(
-                    (m) => m.resolution.kind === 'conflict',
-                ).length,
                 unassignedCount: membership.filter(
-                    (m) => m.resolution.kind === 'unassigned',
+                    (m) => m.kind === 'unassigned',
+                ).length,
+                // Counted in each of their departments until someone picks one
+                sharedCount: membership.filter(
+                    (m) =>
+                        m.kind === 'shared' && m.primaryDepartmentUuid === null,
                 ).length,
             },
         },
         directMembers,
         rolledMembers,
+        activeUserUuids,
     };
 };

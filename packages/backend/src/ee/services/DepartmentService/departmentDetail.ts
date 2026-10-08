@@ -1,11 +1,11 @@
 import {
     getActivityBucket,
     getDepthMap,
+    getDescendantUuids,
     type ActivityWindows,
     type Department,
     type DepartmentMember,
     type DepartmentMembership,
-    type DepartmentRef,
     type DepartmentTargetProgress,
     type DepartmentWeeklyActivePoint,
     type DepartmentWithMetrics,
@@ -74,7 +74,10 @@ export const computeWeeklyWithOrgAverage = (
 export const buildDepartmentMembers = (input: {
     departmentUuid: string;
     members: DepartmentMembership[];
-    departments: DepartmentRef[];
+    departments: Pick<
+        Department,
+        'departmentUuid' | 'parentDepartmentUuid' | 'name'
+    >[];
     activity: MemberActivityRow[];
     // The bounds the summary's counts were taken with, so each person lands in the bucket that counts them
     windows: ActivityWindows;
@@ -82,10 +85,24 @@ export const buildDepartmentMembers = (input: {
     const names = new Map(
         input.departments.map((d) => [d.departmentUuid, d.name]),
     );
+    const branch = new Set([
+        input.departmentUuid,
+        ...getDescendantUuids(input.departmentUuid, input.departments),
+    ]);
+    const nameOf = (departmentUuid: string) => names.get(departmentUuid) ?? '';
     const activity = new Map(input.activity.map((a) => [a.userUuid, a]));
     const built = input.members.flatMap((member): DepartmentMember[] => {
-        if (member.resolution.kind !== 'assigned') return [];
-        const { departmentUuid, source, sourceGroupName } = member.resolution;
+        // Where they count under this department: here if they count here, else the first sub-department
+        const countedHere = member.placements.filter(
+            (p) =>
+                branch.has(p.departmentUuid) &&
+                member.countedDepartmentUuids.includes(p.departmentUuid),
+        );
+        const placement =
+            countedHere.find(
+                (p) => p.departmentUuid === input.departmentUuid,
+            ) ?? countedHere[0];
+        if (placement === undefined) return [];
         const row = activity.get(member.userUuid);
         return [
             {
@@ -94,11 +111,11 @@ export const buildDepartmentMembers = (input: {
                 firstName: member.firstName,
                 lastName: member.lastName,
                 role: member.role,
-                departmentUuid,
-                departmentName: names.get(departmentUuid) ?? '',
-                isDirect: departmentUuid === input.departmentUuid,
-                source,
-                sourceGroupName,
+                departmentUuid: placement.departmentUuid,
+                departmentName: nameOf(placement.departmentUuid),
+                isDirect: placement.departmentUuid === input.departmentUuid,
+                source: placement.source,
+                sourceGroupName: placement.sourceGroupName,
                 lastActiveAt: row?.lastActiveAt?.toISOString() ?? null,
                 isActive30d: row?.isActive30d ?? false,
                 activity: getActivityBucket(
@@ -107,6 +124,15 @@ export const buildDepartmentMembers = (input: {
                 ),
                 queries30d: row?.queries30d ?? 0,
                 dashboardViews30d: row?.dashboardViews30d ?? 0,
+                sharedWith: member.placements
+                    .filter(
+                        (p) => p.departmentUuid !== placement.departmentUuid,
+                    )
+                    .map((p) => ({
+                        departmentUuid: p.departmentUuid,
+                        name: nameOf(p.departmentUuid),
+                    })),
+                primaryDepartmentUuid: member.primaryDepartmentUuid,
             },
         ];
     });
