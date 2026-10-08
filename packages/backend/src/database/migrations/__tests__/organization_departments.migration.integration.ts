@@ -278,26 +278,35 @@ const windowsAt = (now: Date): ActivityWindows => ({
 
 describe('the departments migrations', () => {
     test('reverse newest first and reapply on the real schema', async () => {
-        await db.transaction(async (trx) => {
-            await downGroupLinks(trx);
-            // The primaries reference departments, so they go before them and come back after
-            await downPrimaryMemberships(trx);
-            expect(
-                await trx.schema.hasTable('department_primary_memberships'),
-            ).toBe(false);
-            await downDepartments(trx);
-            const afterDown = await Promise.all(
-                TABLES.map((table) => trx.schema.hasTable(table)),
-            );
-            expect(afterDown).toEqual(TABLES.map(() => false));
-            await upDepartments(trx);
-            await upPrimaryMemberships(trx);
-            await upGroupLinks(trx);
-            const afterUp = await Promise.all(
-                TABLES.map((table) => trx.schema.hasTable(table)),
-            );
-            expect(afterUp).toEqual(TABLES.map(() => true));
-        });
+        const warn = vi.spyOn(console, 'warn');
+        let warnings: unknown[][] = [];
+        await db
+            .transaction(async (trx) => {
+                await downGroupLinks(trx);
+                // The primaries reference departments, so they go before them and come back after
+                await downPrimaryMemberships(trx);
+                expect(
+                    await trx.schema.hasTable('department_primary_memberships'),
+                ).toBe(false);
+                await downDepartments(trx);
+                const afterDown = await Promise.all(
+                    TABLES.map((table) => trx.schema.hasTable(table)),
+                );
+                expect(afterDown).toEqual(TABLES.map(() => false));
+                await upDepartments(trx);
+                await upPrimaryMemberships(trx);
+                await upGroupLinks(trx);
+                const afterUp = await Promise.all(
+                    TABLES.map((table) => trx.schema.hasTable(table)),
+                );
+                expect(afterUp).toEqual(TABLES.map(() => true));
+            })
+            .finally(() => {
+                warnings = [...warn.mock.calls];
+                warn.mockRestore();
+            });
+        // No group was in two departments, so nothing was dropped or warned about
+        expect(warnings).toEqual([]);
         const index = await db.raw<{ rows: { indexdef: string }[] }>(
             `SELECT indexdef FROM pg_indexes
              WHERE indexname = 'organization_departments_organization_uuid_lower_name_unique'`,
@@ -360,36 +369,50 @@ describe('the departments migrations', () => {
         ]);
     });
 
-    test('steps back to one department per group, keeping the link with the lowest department uuid', async () => {
+    test('steps back to one department per group, keeping the link with the lowest department uuid and warning how many go', async () => {
         const organization = await createOrganization('Links down');
-        const team = await createGroup(organization, 'Two departments', []);
+        const team = await createGroup(organization, 'Three departments', []);
+        const solo = await createGroup(organization, 'One department', []);
         const linked = await Promise.all([
             create(organization, 'First'),
             create(organization, 'Second'),
+            create(organization, 'Third'),
         ]);
         await Promise.all(
-            linked.map((departmentUuid) =>
+            linked.map((departmentUuid, i) =>
                 departments.setGroupLinks(
                     organization.organizationUuid,
                     departmentUuid,
-                    [team],
+                    i === 0 ? [team, solo] : [team],
                 ),
             ),
         );
-        const linksOf = (knex: Knex) =>
+        const linksOf = (knex: Knex, groupUuid: string) =>
             knex('department_links')
-                .where('link_uuid', team)
+                .where('link_uuid', groupUuid)
                 .orderBy('department_uuid')
                 .pluck('department_uuid');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const rollBack = new Error('roll back');
-        await expect(
-            db.transaction(async (trx) => {
-                await downGroupLinks(trx);
-                expect(await linksOf(trx)).toEqual([[...linked].sort()[0]]);
-                throw rollBack;
-            }),
-        ).rejects.toBe(rollBack);
-        expect(await linksOf(db)).toEqual([...linked].sort());
+        try {
+            await expect(
+                db.transaction(async (trx) => {
+                    await downGroupLinks(trx);
+                    expect(await linksOf(trx, team)).toEqual([
+                        [...linked].sort()[0],
+                    ]);
+                    expect(await linksOf(trx, solo)).toEqual([linked[0]]);
+                    throw rollBack;
+                }),
+            ).rejects.toBe(rollBack);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(
+                'dropping 2 duplicate group links',
+            );
+        } finally {
+            warn.mockRestore();
+        }
+        expect(await linksOf(db, team)).toEqual([...linked].sort());
     });
 
     test('refuses a negative headcount and cascades an organization delete', async () => {
