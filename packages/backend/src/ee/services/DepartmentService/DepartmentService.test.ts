@@ -497,13 +497,54 @@ describe('validateDepartmentInput', () => {
             { headcountNote: 'x'.repeat(501) },
             'Headcount note must be 500 characters or fewer',
         ],
+        ['NUL in the name', { name: 'Fin\u0000ance' }, 'NAMECONTROL'],
+        ['a tab in the name', { name: 'Fin\tance' }, 'NAMECONTROL'],
+        ['DEL in the name', { name: 'Fin\u007Fance' }, 'NAMECONTROL'],
+        ['NUL in the note', { headcountNote: 'a\u0000b' }, 'NOTECONTROL'],
+        ['a line break in the note', { headcountNote: 'a\nb' }, 'NOTECONTROL'],
+        [
+            'a name of zero-width characters only',
+            { name: '\u200B\u2060\uFEFF' },
+            'Department name is required',
+        ],
+        [
+            'a name over 255 characters once normalised',
+            { name: '\uFDFA'.repeat(20) },
+            'Department name must be 255 characters or fewer',
+        ],
+        ['year 0000', { targetDate: '0000-01-01' }, 'YEARMSG: 0000-01-01'],
+        ['year 1899', { targetDate: '1899-12-31' }, 'YEARMSG: 1899-12-31'],
+        ['year 2201', { targetDate: '2201-01-01' }, 'YEARMSG: 2201-01-01'],
+        [
+            'a very long malformed parent uuid, echoed cut short',
+            { parentDepartmentUuid: 'x'.repeat(5000) },
+            `Parent department must be a valid UUID: ${'x'.repeat(80)}…`,
+        ],
+        [
+            'a very long malformed date, echoed cut short',
+            { targetDate: `2026-01-01${'x'.repeat(5000)}` },
+            `DATEMSG: 2026-01-01${'x'.repeat(70)}…`,
+        ],
     ])('rejects %s', (_label, data, message) => {
         expect(() => validateDepartmentInput(data)).toThrow(
             new ParameterError(
-                message.replace(
-                    'DATEMSG',
-                    'Target date must be a real date in YYYY-MM-DD format',
-                ),
+                message
+                    .replace(
+                        'DATEMSG',
+                        'Target date must be a real date in YYYY-MM-DD format',
+                    )
+                    .replace(
+                        'YEARMSG',
+                        'Target date must be between the years 1900 and 2200',
+                    )
+                    .replace(
+                        'NAMECONTROL',
+                        'Department name cannot contain control characters such as tabs or line breaks',
+                    )
+                    .replace(
+                        'NOTECONTROL',
+                        'Headcount note cannot contain control characters such as tabs or line breaks',
+                    ),
             ),
         );
     });
@@ -518,6 +559,93 @@ describe('validateDepartmentInput', () => {
         ).not.toThrow();
         expect(() => validateDepartmentInput({ headcount: 0 })).not.toThrow();
         expect(() => validateDepartmentInput({})).not.toThrow();
+        expect(() =>
+            validateDepartmentInput({ targetDate: '1900-01-01' }),
+        ).not.toThrow();
+        expect(() =>
+            validateDepartmentInput({ targetDate: '2200-12-31' }),
+        ).not.toThrow();
+        // Look-alike characters are normalised away rather than refused
+        expect(() =>
+            validateDepartmentInput({ name: 'Ｆｉｎ\u200Bａｎｃｅ' }),
+        ).not.toThrow();
+    });
+});
+
+describe('DepartmentService input normalisation', () => {
+    // Letters, so upper and lower case differ
+    const MIXED = 'AbCdEf12-3456-4789-8AbC-DeF012345678';
+    const LOWER = MIXED.toLowerCase();
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+
+    it('stores the normalised name and a lower-case parent on create', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.create(manager(), {
+            ...newDepartment,
+            name: '  Ｆｉｎ\u200Bａｎｃｅ   Team ',
+            parentDepartmentUuid: MIXED,
+        });
+        expect(departmentModel.create).toHaveBeenCalledWith(
+            ORG,
+            {
+                ...newDepartment,
+                name: 'Finance Team',
+                parentDepartmentUuid: LOWER,
+            },
+            'user-uuid',
+        );
+    });
+    it('lower-cases every uuid from the path and the body on writes', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const account = manager();
+        await service.update(account, MIXED, {
+            name: 'Ops\u00A0 team',
+            parentDepartmentUuid: MIXED,
+        });
+        await service.delete(account, MIXED);
+        await service.setGroups(account, MIXED, [MIXED]);
+        await service.setMembers(account, MIXED, [MIXED]);
+        await service.setOwners(account, MIXED, [
+            { type: 'user', uuid: MIXED },
+        ]);
+        expect(departmentModel.update).toHaveBeenCalledWith(
+            ORG,
+            LOWER,
+            { name: 'Ops team', parentDepartmentUuid: LOWER },
+            'user-uuid',
+        );
+        expect(departmentModel.delete).toHaveBeenCalledWith(ORG, LOWER);
+        expect(departmentModel.setGroupLinks).toHaveBeenCalledWith(ORG, LOWER, [
+            LOWER,
+        ]);
+        expect(departmentModel.setMembers).toHaveBeenCalledWith(ORG, LOWER, [
+            LOWER,
+        ]);
+        expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, LOWER, [
+            { type: 'user', uuid: LOWER },
+        ]);
+    });
+    it('finds a department by its uuid in upper case', async () => {
+        const { service } = buildService({
+            flag: true,
+            departments: [departmentFixture(LOWER, null, 5)],
+        });
+        const detail = await service.getDetail(
+            buildAccount(abilityWith(['view', ORG])),
+            MIXED.toUpperCase(),
+        );
+        expect(detail.department.departmentUuid).toBe(LOWER);
+    });
+    it('cuts a long malformed path uuid short in the error', async () => {
+        const { service } = buildService({ flag: true });
+        await expect(
+            service.delete(manager(), 'y'.repeat(100_000)),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department must be a valid UUID: ${'y'.repeat(80)}…`,
+            ),
+        );
     });
 });
 

@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     NotFoundError,
     ParameterError,
+    truncateForMessage,
     type CreateDepartment,
     type Department,
     type DepartmentGroupLink,
@@ -282,7 +283,7 @@ export class DepartmentModel {
         } catch (e) {
             if (isUniqueViolation(e)) {
                 throw new AlreadyExistsError(
-                    `A department named "${data.name.trim()}" already exists`,
+                    `A department named "${truncateForMessage(data.name.trim())}" already exists`,
                 );
             }
             throw e;
@@ -332,7 +333,7 @@ export class DepartmentModel {
         } catch (e) {
             if (isUniqueViolation(e)) {
                 throw new AlreadyExistsError(
-                    `A department named "${data.name?.trim() ?? ''}" already exists`,
+                    `A department named "${truncateForMessage(data.name?.trim() ?? '')}" already exists`,
                 );
             }
             throw e;

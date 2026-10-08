@@ -5,6 +5,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     buildDepartmentUpdate,
+    cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
     formatTargetDate,
@@ -60,6 +61,15 @@ describe('toNullableNumber', () => {
         expect(toNullableNumber('')).toBeNull();
         expect(toNullableNumber(0)).toBe(0);
         expect(toNullableNumber('12')).toBe(12);
+    });
+});
+
+describe('cleanHeadcountNote', () => {
+    it('puts the note on one line and maps an empty note to null', () => {
+        expect(cleanHeadcountNote(' Store managers\n\tand buyers ')).toBe(
+            'Store managers and buyers',
+        );
+        expect(cleanHeadcountNote(' \n ')).toBeNull();
     });
 });
 

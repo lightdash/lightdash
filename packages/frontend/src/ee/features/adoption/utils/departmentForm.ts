@@ -12,6 +12,9 @@ import {
 export const NAME_MAX_LENGTH = 255;
 export const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 export const MAX_WHOLE_NUMBER = 2147483647;
+// The server accepts target dates in these years only
+export const TARGET_DATE_MIN = new Date(1900, 0, 1);
+export const TARGET_DATE_MAX = new Date(2200, 11, 31);
 
 export type NamedDepartment = {
     departmentUuid: string;
@@ -40,6 +43,12 @@ export const decodeOwners = (values: string[]): DepartmentOwnerInput[] =>
 
 export const toNullableNumber = (value: number | string): number | null =>
     value === '' ? null : Number(value);
+
+// The note always shows on one line and the server refuses line breaks, so they become spaces
+export const cleanHeadcountNote = (value: string): string | null => {
+    const cleaned = value.replace(/\s+/g, ' ').trim();
+    return cleaned.length > 0 ? cleaned : null;
+};
 
 export const getDepartmentPathLabel = (
     departmentUuid: string,

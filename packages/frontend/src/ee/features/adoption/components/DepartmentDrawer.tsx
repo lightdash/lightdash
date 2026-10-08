@@ -1,4 +1,5 @@
 import {
+    normalizeDepartmentName,
     type CreateDepartment,
     type DepartmentMember,
     type DepartmentWithMetrics,
@@ -38,6 +39,7 @@ import {
 import { getDepartmentPath } from '../utils/adoptionNav';
 import {
     buildDepartmentUpdate,
+    cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
     formatTargetDate,
@@ -47,6 +49,8 @@ import {
     HEADCOUNT_NOTE_MAX_LENGTH,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
+    TARGET_DATE_MAX,
+    TARGET_DATE_MIN,
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
@@ -141,8 +145,10 @@ export const DepartmentForm: FC<FormProps> = ({
         },
         validate: {
             name: (value) => {
-                if (value.trim().length === 0) return 'Enter a name';
-                return value.trim().length > NAME_MAX_LENGTH
+                // The name as the server compares and stores it
+                const name = normalizeDepartmentName(value);
+                if (name.length === 0) return 'Enter a name';
+                return name.length > NAME_MAX_LENGTH
                     ? `Keep the name to ${NAME_MAX_LENGTH} characters or fewer`
                     : null;
             },
@@ -213,10 +219,10 @@ export const DepartmentForm: FC<FormProps> = ({
 
     const handleSubmit = async (values: FormValues) => {
         const next: CreateDepartment = {
-            name: values.name.trim(),
+            name: normalizeDepartmentName(values.name),
             parentDepartmentUuid: values.parentDepartmentUuid,
             headcount: toNullableNumber(values.headcount),
-            headcountNote: values.headcountNote.trim() || null,
+            headcountNote: cleanHeadcountNote(values.headcountNote),
             targetActiveUsers: toNullableNumber(values.targetActiveUsers),
             targetDate: formatTargetDate(values.targetDate),
         };
@@ -335,6 +341,8 @@ export const DepartmentForm: FC<FormProps> = ({
                         <DateInput
                             label="Target date"
                             valueFormat="D MMM YYYY"
+                            minDate={TARGET_DATE_MIN}
+                            maxDate={TARGET_DATE_MAX}
                             clearable
                             {...form.getInputProps('targetDate')}
                         />

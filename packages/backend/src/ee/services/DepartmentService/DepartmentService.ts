@@ -6,9 +6,12 @@ import {
     ForbiddenError,
     getAncestorUuids,
     getParentMap,
+    hasControlCharacter,
+    normalizeDepartmentName,
     NotFoundError,
     ParameterError,
     resolveDepartmentMembership,
+    truncateForMessage,
     type Account,
     type CreateDepartment,
     type Department,
@@ -53,6 +56,8 @@ type Deps = {
 const MAX_INT4 = 2147483647;
 const NAME_MAX_LENGTH = 255;
 const MAX_LIST_LENGTH = 5000;
+const TARGET_YEAR_MIN = 1900;
+const TARGET_YEAR_MAX = 2200;
 
 const daysBefore = (now: Date, days: number): Date => {
     const since = new Date(now);
@@ -80,15 +85,23 @@ const isRealDate = (value: string): boolean => {
     );
 };
 
-const assertUuid = (value: unknown, label: string): void => {
-    if (typeof value !== 'string' || !isUuid(value)) {
-        throw new ParameterError(
-            `${label} must be a valid UUID: ${String(value)}`,
-        );
-    }
+// Postgres has no year 0, and no sensible target sits centuries away
+const isTargetYear = (value: string): boolean => {
+    const year = Number(value.slice(0, 4));
+    return year >= TARGET_YEAR_MIN && year <= TARGET_YEAR_MAX;
 };
 
-const assertUuidList = (values: unknown, label: string): void => {
+// Lower case, so a uuid matches the same everywhere: Postgres compares uuids in any case, JavaScript does not
+const toUuid = (value: unknown, label: string): string => {
+    if (typeof value !== 'string' || !isUuid(value)) {
+        throw new ParameterError(
+            `${label} must be a valid UUID: ${truncateForMessage(value)}`,
+        );
+    }
+    return value.toLowerCase();
+};
+
+const toUuidList = (values: unknown, label: string): string[] => {
     if (!Array.isArray(values)) {
         throw new ParameterError(`${label} must be a list`);
     }
@@ -97,15 +110,22 @@ const assertUuidList = (values: unknown, label: string): void => {
             `${label} can hold at most ${MAX_LIST_LENGTH} entries`,
         );
     }
-    values.forEach((v) => assertUuid(v, label));
+    return values.map((v: unknown) => toUuid(v, label));
 };
 
 export const validateDepartmentInput = (data: UpdateDepartment): void => {
     if (data.name !== undefined) {
-        if (data.name.trim().length === 0) {
+        // Checked before normalising, which would quietly turn a tab or line break into a space
+        if (hasControlCharacter(data.name)) {
+            throw new ParameterError(
+                'Department name cannot contain control characters such as tabs or line breaks',
+            );
+        }
+        const name = normalizeDepartmentName(data.name);
+        if (name.length === 0) {
             throw new ParameterError('Department name is required');
         }
-        if (data.name.length > NAME_MAX_LENGTH) {
+        if (name.length > NAME_MAX_LENGTH) {
             throw new ParameterError(
                 `Department name must be ${NAME_MAX_LENGTH} characters or fewer`,
             );
@@ -117,7 +137,7 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.headcount)
     ) {
         throw new ParameterError(
-            `Headcount must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.headcount}`,
+            `Headcount must be a whole number of 0 or more, up to ${MAX_INT4}: ${truncateForMessage(data.headcount)}`,
         );
     }
     if (
@@ -126,36 +146,62 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.targetActiveUsers)
     ) {
         throw new ParameterError(
-            `Target active users must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.targetActiveUsers}`,
+            `Target active users must be a whole number of 0 or more, up to ${MAX_INT4}: ${truncateForMessage(data.targetActiveUsers)}`,
         );
     }
-    if (
-        data.targetDate !== undefined &&
-        data.targetDate !== null &&
-        !isRealDate(data.targetDate)
-    ) {
-        throw new ParameterError(
-            `Target date must be a real date in YYYY-MM-DD format: ${data.targetDate}`,
-        );
+    if (data.targetDate !== undefined && data.targetDate !== null) {
+        if (!isRealDate(data.targetDate)) {
+            throw new ParameterError(
+                `Target date must be a real date in YYYY-MM-DD format: ${truncateForMessage(data.targetDate)}`,
+            );
+        }
+        if (!isTargetYear(data.targetDate)) {
+            throw new ParameterError(
+                `Target date must be between the years ${TARGET_YEAR_MIN} and ${TARGET_YEAR_MAX}: ${data.targetDate}`,
+            );
+        }
     }
-    if (
-        data.headcountNote !== undefined &&
-        data.headcountNote !== null &&
-        data.headcountNote.length > HEADCOUNT_NOTE_MAX_LENGTH
-    ) {
-        throw new ParameterError(
-            'Headcount note must be 500 characters or fewer',
-        );
+    if (data.headcountNote !== undefined && data.headcountNote !== null) {
+        if (hasControlCharacter(data.headcountNote)) {
+            throw new ParameterError(
+                'Headcount note cannot contain control characters such as tabs or line breaks',
+            );
+        }
+        if (data.headcountNote.length > HEADCOUNT_NOTE_MAX_LENGTH) {
+            throw new ParameterError(
+                'Headcount note must be 500 characters or fewer',
+            );
+        }
     }
     if (
         data.parentDepartmentUuid !== undefined &&
         data.parentDepartmentUuid !== null
     ) {
-        assertUuid(data.parentDepartmentUuid, 'Parent department');
+        toUuid(data.parentDepartmentUuid, 'Parent department');
     }
 };
 
-const assertOwners = (owners: DepartmentOwnerInput[]): void => {
+// What the model stores: the name in the form names are compared in, uuids in lower case
+const normalizeCreate = (data: CreateDepartment): CreateDepartment => ({
+    ...data,
+    name: normalizeDepartmentName(data.name),
+    parentDepartmentUuid:
+        data.parentDepartmentUuid === null
+            ? null
+            : data.parentDepartmentUuid.toLowerCase(),
+});
+
+const normalizeUpdate = (data: UpdateDepartment): UpdateDepartment => ({
+    ...data,
+    ...(data.name === undefined
+        ? {}
+        : { name: normalizeDepartmentName(data.name) }),
+    ...(typeof data.parentDepartmentUuid === 'string'
+        ? { parentDepartmentUuid: data.parentDepartmentUuid.toLowerCase() }
+        : {}),
+});
+
+const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
     if (!Array.isArray(owners)) {
         throw new ParameterError('Owners must be a list');
     }
@@ -164,13 +210,13 @@ const assertOwners = (owners: DepartmentOwnerInput[]): void => {
             `Owners can hold at most ${MAX_LIST_LENGTH} entries`,
         );
     }
-    owners.forEach((o) => {
+    return owners.map((o) => {
         if (o.type !== 'user' && o.type !== 'group') {
             throw new ParameterError(
-                `Owner type must be user or group: ${String(o.type)}`,
+                `Owner type must be user or group: ${truncateForMessage(o.type)}`,
             );
         }
-        assertUuid(o.uuid, 'Owner');
+        return { type: o.type, uuid: toUuid(o.uuid, 'Owner') };
     });
 };
 
@@ -281,10 +327,10 @@ export class DepartmentService extends BaseService {
 
     async getDetail(
         account: Account,
-        departmentUuid: string,
+        rawDepartmentUuid: string,
     ): Promise<DepartmentDetail> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        assertUuid(departmentUuid, 'Department');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         // The count and the member list share these bounds, so they agree on who is active
         const windows = getActivityWindows();
         const snapshot = await this.loadSnapshot(organizationUuid, windows);
@@ -342,42 +388,46 @@ export class DepartmentService extends BaseService {
             'manage',
         );
         validateDepartmentInput(data);
-        return this.departmentModel.create(organizationUuid, data, userUuid);
+        return this.departmentModel.create(
+            organizationUuid,
+            normalizeCreate(data),
+            userUuid,
+        );
     }
 
     async update(
         account: Account,
-        departmentUuid: string,
+        rawDepartmentUuid: string,
         data: UpdateDepartment,
     ): Promise<Department> {
         const { organizationUuid, userUuid } = await this.authorize(
             account,
             'manage',
         );
-        assertUuid(departmentUuid, 'Department');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         validateDepartmentInput(data);
         return this.departmentModel.update(
             organizationUuid,
             departmentUuid,
-            data,
+            normalizeUpdate(data),
             userUuid,
         );
     }
 
-    async delete(account: Account, departmentUuid: string): Promise<void> {
+    async delete(account: Account, rawDepartmentUuid: string): Promise<void> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         await this.departmentModel.delete(organizationUuid, departmentUuid);
     }
 
     async setGroups(
         account: Account,
-        departmentUuid: string,
-        groupUuids: string[],
+        rawDepartmentUuid: string,
+        rawGroupUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertUuidList(groupUuids, 'Group');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const groupUuids = toUuidList(rawGroupUuids, 'Group');
         return this.departmentModel.setGroupLinks(
             organizationUuid,
             departmentUuid,
@@ -387,12 +437,12 @@ export class DepartmentService extends BaseService {
 
     async setMembers(
         account: Account,
-        departmentUuid: string,
-        userUuids: string[],
+        rawDepartmentUuid: string,
+        rawUserUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertUuidList(userUuids, 'User');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const userUuids = toUuidList(rawUserUuids, 'User');
         return this.departmentModel.setMembers(
             organizationUuid,
             departmentUuid,
@@ -402,12 +452,12 @@ export class DepartmentService extends BaseService {
 
     async setOwners(
         account: Account,
-        departmentUuid: string,
-        owners: DepartmentOwnerInput[],
+        rawDepartmentUuid: string,
+        rawOwners: DepartmentOwnerInput[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertOwners(owners);
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const owners = toOwners(rawOwners);
         return this.departmentModel.setOwners(
             organizationUuid,
             departmentUuid,
