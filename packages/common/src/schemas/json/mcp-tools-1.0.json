@@ -25,7 +25,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Create a new dashboard, chart, or SQL chart, consult the skills for the required fields. Returns the created content with the final persisted slug. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+            "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -203,7 +203,6 @@
                                         "type": "object"
                                     },
                                     "contentType": {
-                                        "const": "sql_chart",
                                         "type": "string"
                                     },
                                     "description": {
@@ -242,6 +241,7 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "contentType",
                                     "sql",
                                     "chartKind",
                                     "config"
@@ -2509,12 +2509,12 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Read a dashboard, chart, SQL chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+            "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "slug": {
-                        "description": "Slug of the dashboard, chart, SQL chart, or data app to read.",
+                        "description": "Slug of the dashboard, chart, or data app to read.",
                         "minLength": 1,
                         "type": "string"
                     },

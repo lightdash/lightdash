@@ -17,6 +17,7 @@ const sqlChart = {
     name: 'Orders by status',
     description: null,
     slug: 'orders-by-status',
+    contentType: 'sql_chart' as const,
     spaceSlug: 'sales',
     sql: 'select status, count(*) as orders from orders group by 1',
     limit: 500,

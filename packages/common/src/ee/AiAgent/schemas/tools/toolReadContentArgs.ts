@@ -2,15 +2,13 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_READ_CONTENT_DESCRIPTION =
-    'Read a dashboard, chart, SQL chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.';
+    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.';
 
 export const toolReadContentArgsSchema = z.object({
     slug: z
         .string()
         .min(1)
-        .describe(
-            'Slug of the dashboard, chart, SQL chart, or data app to read.',
-        ),
+        .describe('Slug of the dashboard, chart, or data app to read.'),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),

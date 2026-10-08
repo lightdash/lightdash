@@ -26,7 +26,6 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.
-  - SQL charts (type sql_chart) save raw warehouse SQL as a chart. Saving one needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved; follow sql-chart-reference. For a dashboard of SQL charts, create each SQL chart first, then reference their slugs in sql_chart tiles.
   - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. Data apps cannot be created or edited with the content tools.
   - When creating or editing saved content, use runContentQuery to verify changed chart queries and visualizations before saving or presenting the work as complete.
 
@@ -1481,7 +1480,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a new dashboard, chart, or SQL chart, consult the skills for the required fields. Returns the created content with the final persisted slug. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+    "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -1518,7 +1517,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           ],
           "type": "object",
         },
-        "__schema42": {
+        "__schema35": {
           "additionalProperties": {},
           "description": "SQL chart config: { metadata: { version: 1 }, type, fieldConfig, display } for charts, or { metadata, type: "table", columns, display } for tables. See sql-chart-reference.",
           "properties": {
@@ -1682,10 +1681,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "type": "string",
                 },
                 "config": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema35",
                 },
                 "contentType": {
-                  "const": "sql_chart",
                   "type": "string",
                 },
                 "description": {
@@ -1728,6 +1726,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "description",
                 "spaceSlug",
                 "version",
+                "contentType",
                 "sql",
                 "limit",
                 "chartKind",
@@ -11695,13 +11694,13 @@ Parameters:
     },
   },
   {
-    "description": "Read a dashboard, chart, SQL chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+    "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "slug": {
-          "description": "Slug of the dashboard, chart, SQL chart, or data app to read.",
+          "description": "Slug of the dashboard, chart, or data app to read.",
           "minLength": 1,
           "type": "string",
         },
