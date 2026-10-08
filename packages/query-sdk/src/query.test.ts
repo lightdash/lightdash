@@ -33,7 +33,68 @@ const executeAndGetBody = async (
     return calls[0].body as Record<string, unknown>;
 };
 
-describe('query metric filters', () => {
+describe('query execution', () => {
+    it('returns table calculation values, columns, and formatting without qualifying their names', async () => {
+        const adapter: FetchAdapter = async <T>(method: string): Promise<T> => {
+            if (method === 'POST') {
+                return {
+                    queryUuid: 'q-1',
+                    fields: {
+                        share: {
+                            fieldType: 'table_calculation',
+                            displayName: 'Share of orders',
+                        },
+                    },
+                } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {
+                    orders_status: { type: 'string' },
+                    orders_count: { type: 'number' },
+                    share: { type: 'number' },
+                },
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: 'completed', formatted: 'completed' },
+                        },
+                        orders_count: { value: { raw: 97, formatted: '97' } },
+                        share: { value: { raw: 64.238, formatted: '64.2%' } },
+                    },
+                ],
+                totalResults: 1,
+            } as T;
+        };
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        );
+        const result = await transport.executeQuery(
+            query('orders')
+                .dimensions(['status'])
+                .metrics(['count'])
+                .tableCalculations([
+                    {
+                        name: 'share',
+                        displayName: 'Share of orders',
+                        sql: '100.0 * ${orders.count} / SUM(${orders.count}) OVER ()',
+                    },
+                ])
+                .build(),
+        );
+        expect(result.rows).toEqual([
+            { status: 'completed', count: 97, share: 64.238 },
+        ]);
+        expect(result.columns).toContainEqual({
+            name: 'share',
+            label: 'Share of orders',
+            type: 'number',
+        });
+        expect(result.rowKeys?.share).toBe('share');
+        expect(result.format(result.rows[0], 'share')).toBe('64.2%');
+    });
+
     it('serializes selected metric filters separately from dimension filters', async () => {
         const metricId = 'custom_roles_custom_roles_created';
         const body = await executeAndGetBody(

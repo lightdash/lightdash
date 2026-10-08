@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
@@ -18,7 +19,9 @@ import { extract as tarExtract, pack as tarPack } from 'tar-stream';
 import { getQueryRequestContext } from '../../../logging/winston';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
+import { MockSandbox } from '../SandboxRuntime/SandboxRuntime.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { ZERO_CLAUDE_USAGE } from './ClaudeStreamProcessor';
 import {
     TEMPLATE_DEPENDENCIES,
     TEMPLATE_DEV_DEPENDENCIES,
@@ -154,6 +157,7 @@ function buildService(
         getVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
         updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
+        recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         updateApp: vi.fn().mockResolvedValue({}),
         moveToSpace: vi.fn().mockResolvedValue(undefined),
     };
@@ -295,6 +299,139 @@ function buildService(
         coderService,
     };
 }
+
+describe('AppGenerateService custom SQL build repair', () => {
+    const dynamicSource = `
+        import { query } from '@lightdash/query-sdk';
+        const makeMetric = () => ({name: 'total', table: 'orders', type: 'sum', sql: '1'});
+        query('orders').additionalMetrics([makeMetric()]).metrics(['total']);
+    `;
+    const literalSource = `
+        import { query } from '@lightdash/query-sdk';
+        query('orders').additionalMetrics([{name: 'total', table: 'orders', type: 'sum', sql: '1'}]).metrics(['total']);
+    `;
+
+    async function setup(sources: string[]) {
+        const { service } = buildService();
+        const sandbox = new MockSandbox('sql-build-test');
+        const archives = await Promise.all(sources.map(makeSingleSourceTar));
+        const readBytes = vi.spyOn(sandbox.files, 'readBytes');
+        readBytes.mockResolvedValue(archives[archives.length - 1]);
+        for (const archive of archives)
+            readBytes.mockResolvedValueOnce(archive);
+        const write = vi.spyOn(sandbox.files, 'write');
+        const run = vi.spyOn(sandbox.commands, 'run');
+        const generate = vi
+            .spyOn(
+                service as unknown as {
+                    runCodingAgentGeneration: () => Promise<{
+                        durationMs: number;
+                        usage: typeof ZERO_CLAUDE_USAGE;
+                    }>;
+                },
+                'runCodingAgentGeneration',
+            )
+            .mockResolvedValue({ durationMs: 1, usage: ZERO_CLAUDE_USAGE });
+        return {
+            generate,
+            write,
+            run,
+            readBytes,
+            build: () =>
+                service['runBuildWithAutoFix'](
+                    sandbox,
+                    EXISTING_APP_UUID,
+                    1,
+                    null,
+                    {},
+                    DEFAULT_DATA_APP_CLAUDE_MODEL,
+                    'low',
+                ),
+        };
+    }
+
+    it('repairs unresolved custom SQL after a successful compile and validates the new source', async () => {
+        const { build, generate, write, run, readBytes } = await setup([
+            dynamicSource,
+            literalSource,
+        ]);
+        await expect(build()).resolves.toMatchObject({ fixAttempts: 1 });
+        expect(generate).toHaveBeenCalledOnce();
+        expect(readBytes).toHaveBeenCalledTimes(2);
+        expect(
+            run.mock.calls.filter(([command]) => command === 'pnpm build'),
+        ).toHaveLength(2);
+        expect(write).toHaveBeenCalledWith(
+            '/tmp/prompt.txt',
+            expect.stringContaining('src/App.tsx:'),
+        );
+        expect(write).toHaveBeenCalledWith(
+            '/tmp/prompt.txt',
+            expect.stringContaining('Preserve the requested calculations'),
+        );
+    });
+
+    it('fails the build after the bounded repair attempts leave SQL unresolved', async () => {
+        const { build, generate } = await setup([dynamicSource]);
+        await expect(build()).rejects.toThrow(
+            'App validation failed after 2 auto-fix attempt(s): Custom SQL could not be verified',
+        );
+        expect(generate).toHaveBeenCalledTimes(2);
+    });
+
+    it('allows dynamic filters when custom SQL is fully captured', async () => {
+        const { build, generate } = await setup([
+            literalSource.replace(
+                ".metrics(['total'])",
+                ".metrics(['total']).filters(filtersFor('orders'))",
+            ),
+        ]);
+        await expect(build()).resolves.toMatchObject({ fixAttempts: 0 });
+        expect(generate).not.toHaveBeenCalled();
+    });
+
+    it('repairs an unresolved explore even when the SQL itself is literal', async () => {
+        const { build, generate } = await setup([
+            literalSource.replace("query('orders')", 'query(getExplore())'),
+            literalSource,
+        ]);
+        await expect(build()).resolves.toMatchObject({ fixAttempts: 1 });
+        expect(generate).toHaveBeenCalledOnce();
+    });
+
+    it.each(['compile', 'placeholder'])(
+        'preserves repair of %s failures before checking SQL',
+        async (failure) => {
+            const { build, run, write } = await setup([literalSource]);
+            if (failure === 'compile') {
+                run.mockResolvedValueOnce({
+                    exitCode: 1,
+                    stdout: '',
+                    stderr: 'Syntax error',
+                });
+            } else {
+                run.mockResolvedValueOnce({
+                    exitCode: 0,
+                    stdout: '',
+                    stderr: '',
+                }).mockResolvedValueOnce({
+                    exitCode: 0,
+                    stdout: '/app/dist/assets/index.js',
+                    stderr: '',
+                });
+            }
+            await expect(build()).resolves.toMatchObject({ fixAttempts: 1 });
+            expect(write).toHaveBeenCalledWith(
+                '/tmp/prompt.txt',
+                expect.stringContaining(
+                    failure === 'compile'
+                        ? 'Syntax error'
+                        : 'still renders the placeholder',
+                ),
+            );
+        },
+    );
+});
 
 describe('AppGenerateService.importAppCode', () => {
     beforeEach(() => {
