@@ -1,4 +1,5 @@
 import { Box, Text } from '@mantine/core';
+import { useDrag } from '@mantine/hooks';
 import { RichTextEditor } from '@mantine/tiptap';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
@@ -15,9 +16,53 @@ import {
     useRef,
     useState,
     type ClipboardEvent as ReactClipboardEvent,
+    type KeyboardEvent as ReactKeyboardEvent,
     type ReactNode,
 } from 'react';
 import classes from './PromptComposer.module.css';
+
+const RESIZE_KEYBOARD_STEP = 16;
+// Fallback when computed styles are unavailable (e.g. jsdom).
+const MIN_EDITOR_HEIGHT = 40;
+// The editor may take at most half of the area it is docked in, so the
+// conversation above it always keeps room.
+const MAX_EDITOR_SHARE = 0.5;
+
+const px = (value: string) => Number.parseFloat(value) || 0;
+
+const findScrollParent = (element: HTMLElement): HTMLElement | null => {
+    let node = element.parentElement;
+    while (node) {
+        const { overflowY } = getComputedStyle(node);
+        if (overflowY === 'auto' || overflowY === 'scroll') return node;
+        node = node.parentElement;
+    }
+    return null;
+};
+
+// The floor is one line of text without a scrollbar, which exceeds the
+// stylesheet's min-height once the editor's own inner padding is counted.
+const minEditorHeight = (content: HTMLElement) => {
+    const contentStyle = getComputedStyle(content);
+    const editor = content.querySelector<HTMLElement>('.ProseMirror');
+    const editorStyle = editor ? getComputedStyle(editor) : null;
+    const oneLine = editorStyle
+        ? px(contentStyle.paddingTop) +
+          px(contentStyle.paddingBottom) +
+          px(editorStyle.paddingTop) +
+          px(editorStyle.paddingBottom) +
+          px(editorStyle.lineHeight)
+        : 0;
+    return Math.max(px(contentStyle.minHeight), oneLine) || MIN_EDITOR_HEIGHT;
+};
+
+const clampEditorHeight = (height: number, content: HTMLElement) => {
+    const min = minEditorHeight(content);
+    const dockHeight =
+        findScrollParent(content)?.clientHeight || window.innerHeight;
+    const max = Math.max(min, Math.round(dockHeight * MAX_EDITOR_SHARE));
+    return Math.min(max, Math.max(min, Math.round(height)));
+};
 
 export type PromptComposerHandle = {
     editor: Editor | null;
@@ -68,6 +113,9 @@ type Props = {
     attachments?: ReactNode;
     toolbarLeft?: ReactNode;
     toolbarRight?: ReactNode;
+    /** Card only: a handle on the top edge lets the editor be dragged taller,
+     *  growing upwards so a bottom-anchored composer keeps its place. */
+    resizable?: boolean;
     className?: string;
 };
 
@@ -94,6 +142,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             attachments,
             toolbarLeft,
             toolbarRight,
+            resizable = false,
             className,
         },
         ref,
@@ -219,6 +268,50 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         );
 
         const isInline = variant === 'inline';
+        const contentRef = useRef<HTMLDivElement>(null);
+        const [editorHeight, setEditorHeight] = useState<number | null>(null);
+        const dragStartHeightRef = useRef<number | null>(null);
+
+        // The handle sits on the top edge, so dragging up grows the editor.
+        const { ref: resizeHandleRef } = useDrag(
+            ({ first, movement: [, dy], event }) => {
+                const content = contentRef.current;
+                if (!content) return;
+                if (first) {
+                    dragStartHeightRef.current = content.clientHeight;
+                    (
+                        event.currentTarget as HTMLElement | null
+                    )?.setPointerCapture(event.pointerId);
+                    return;
+                }
+                const start = dragStartHeightRef.current;
+                if (start === null) return;
+                setEditorHeight(clampEditorHeight(start - dy, content));
+            },
+        );
+
+        const handleResizeKeyDown = (
+            event: ReactKeyboardEvent<HTMLDivElement>,
+        ) => {
+            const content = contentRef.current;
+            if (!content) return;
+            const direction =
+                event.key === 'ArrowUp'
+                    ? 1
+                    : event.key === 'ArrowDown'
+                      ? -1
+                      : 0;
+            if (direction === 0) return;
+            event.preventDefault();
+            const step = RESIZE_KEYBOARD_STEP * (event.shiftKey ? 4 : 1);
+            setEditorHeight(
+                clampEditorHeight(
+                    content.clientHeight + direction * step,
+                    content,
+                ),
+            );
+        };
+
         const editorSurface = (
             <RichTextEditor
                 editor={editor}
@@ -229,7 +322,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                         : classes.editorContent,
                 }}
             >
-                <RichTextEditor.Content />
+                <RichTextEditor.Content ref={contentRef} />
             </RichTextEditor>
         );
 
@@ -240,8 +333,26 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-size={size}
                 data-accent={accent}
                 data-disabled={disabled || undefined}
+                data-resized={editorHeight !== null || undefined}
+                __vars={{
+                    '--composer-editor-height':
+                        editorHeight === null ? undefined : `${editorHeight}px`,
+                }}
                 onMouseDown={onMouseDown}
             >
+                {!isInline && resizable && (
+                    <Box
+                        ref={resizeHandleRef}
+                        role="separator"
+                        aria-label="Resize composer"
+                        aria-orientation="horizontal"
+                        tabIndex={0}
+                        className={classes.resizeHandle}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onDoubleClick={() => setEditorHeight(null)}
+                        onKeyDown={handleResizeKeyDown}
+                    />
+                )}
                 {header && <Box className={classes.header}>{header}</Box>}
 
                 {isInline && toolbarLeft && (

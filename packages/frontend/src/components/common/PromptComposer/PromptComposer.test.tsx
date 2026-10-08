@@ -132,3 +132,47 @@ describe('PromptComposer placeholder', () => {
         expect(placeholderOf()).toBe('Ask for a change…');
     });
 });
+
+describe('PromptComposer resize handle', () => {
+    const resizedHeight = (handle: HTMLElement) => {
+        const root = handle.parentElement as HTMLElement;
+        return root.hasAttribute('data-resized')
+            ? Number.parseFloat(
+                  root.style.getPropertyValue('--composer-editor-height'),
+              )
+            : null;
+    };
+
+    it('is only offered on the card composer', () => {
+        renderWithProviders(<PromptComposer variant="inline" resizable />);
+        expect(screen.queryByRole('separator')).toBeNull();
+    });
+
+    it('grows with ArrowUp, more with Shift, and resets on double-click', () => {
+        renderWithProviders(<PromptComposer resizable />);
+        const handle = screen.getByRole('separator', {
+            name: 'Resize composer',
+        });
+        expect(resizedHeight(handle)).toBeNull();
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp' });
+        const grown = resizedHeight(handle);
+        expect(grown).not.toBeNull();
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+        expect(resizedHeight(handle)).toBeGreaterThan(grown as number);
+
+        fireEvent.doubleClick(handle);
+        expect(resizedHeight(handle)).toBeNull();
+    });
+
+    it('never shrinks below the minimum editor height', () => {
+        renderWithProviders(<PromptComposer resizable />);
+        const handle = screen.getByRole('separator', {
+            name: 'Resize composer',
+        });
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        expect(resizedHeight(handle)).toBe(40);
+    });
+});

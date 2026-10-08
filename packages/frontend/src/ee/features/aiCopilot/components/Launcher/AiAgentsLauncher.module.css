@@ -245,6 +245,12 @@
     overflow: hidden;
 }
 
+/* The card composer leaves the gutter to its host; match the minimal one. */
+.panelBody [data-layout='card'] {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm);
+}
+
 .flexFillNoMin {
     flex: 1;
     min-width: 0;
