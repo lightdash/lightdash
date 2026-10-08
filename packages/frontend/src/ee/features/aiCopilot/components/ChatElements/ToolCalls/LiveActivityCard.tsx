@@ -718,7 +718,8 @@ export const LiveActivityCard: FC<Props> = ({
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
-        latest?.toolName === 'runComposerQueries';
+        latest?.toolName === 'runComposerQueries' ||
+        latestAwaitingApproval;
     const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
 
     return (

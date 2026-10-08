@@ -1,7 +1,12 @@
 import { formatSql } from '@lightdash/common';
 import { Box, Button, CopyButton } from '@mantine/core';
-import { IconCheck, IconCopy, IconEye } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import {
+    IconCheck,
+    IconCopy,
+    IconEye,
+    type Icon as IconType,
+} from '@tabler/icons-react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -11,9 +16,19 @@ type Props = {
     sql: string;
     opened: boolean;
     onClose: () => void;
+    title?: string;
+    icon?: IconType;
+    subtitle?: ReactNode;
+    /** Replaces the default (empty) footer, e.g. with approval actions. */
+    footer?: ReactNode;
+    /** `inline` puts the copy icon inside the code block, as chat code blocks do. */
+    copyPlacement?: 'header' | 'inline';
 };
 
-const AiSqlCode: FC<{ sql: string }> = ({ sql }) => {
+const AiSqlCode: FC<{ sql: string; withCopyButton: boolean }> = ({
+    sql,
+    withCopyButton,
+}) => {
     const formattedSql = useMemo(() => formatSql(sql).trim(), [sql]);
     const lineNumbers = Array.from(
         { length: formattedSql.split('\n').length },
@@ -29,40 +44,53 @@ const AiSqlCode: FC<{ sql: string }> = ({ sql }) => {
                 code={formattedSql}
                 language="sql"
                 background="ldGray.0"
-                withCopyButton={false}
+                withCopyButton={withCopyButton}
             />
         </Box>
     );
 };
 
-export const AiSqlModal: FC<Props> = ({ sql, opened, onClose }) => {
+export const AiSqlModal: FC<Props> = ({
+    sql,
+    opened,
+    onClose,
+    title = 'SQL',
+    icon = IconEye,
+    subtitle,
+    footer,
+    copyPlacement = 'header',
+}) => {
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="SQL"
-            icon={IconEye}
+            title={title}
+            icon={icon}
+            subtitle={subtitle}
+            footer={footer}
             size="xl"
             headerActions={
-                <CopyButton value={sql}>
-                    {({ copied, copy }) => (
-                        <Button
-                            variant="default"
-                            size="xs"
-                            leftSection={
-                                <MantineIcon
-                                    icon={copied ? IconCheck : IconCopy}
-                                />
-                            }
-                            onClick={copy}
-                        >
-                            {copied ? 'Copied' : 'Copy SQL'}
-                        </Button>
-                    )}
-                </CopyButton>
+                copyPlacement === 'header' ? (
+                    <CopyButton value={sql}>
+                        {({ copied, copy }) => (
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={copied ? IconCheck : IconCopy}
+                                    />
+                                }
+                                onClick={copy}
+                            >
+                                {copied ? 'Copied' : 'Copy SQL'}
+                            </Button>
+                        )}
+                    </CopyButton>
+                ) : null
             }
         >
-            <AiSqlCode sql={sql} />
+            <AiSqlCode sql={sql} withCopyButton={copyPlacement === 'inline'} />
         </MantineModal>
     );
 };
