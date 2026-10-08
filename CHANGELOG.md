@@ -1,3 +1,10 @@
+# [2.476.0](https://github.com/lightdash/lightdash/compare/2.475.2...2.476.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** let the agent set "to date" bounds on current-period filters ([#30654](https://github.com/lightdash/lightdash/issues/30654)) ([804dbd1](https://github.com/lightdash/lightdash/commit/804dbd18405072c07ee18375ac1fa61abdc7dff0))
+
 ## [2.475.2](https://github.com/lightdash/lightdash/compare/2.475.1...2.475.2) (2026-10-08)
 
 
