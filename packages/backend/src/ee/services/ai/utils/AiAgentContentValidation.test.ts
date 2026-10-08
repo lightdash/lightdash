@@ -35,6 +35,16 @@ const getValidationErrors = (run: () => void): string[] => {
 describe('AiAgentContentValidation', () => {
     const validation = new AiAgentContentValidation();
 
+    it('names the operation in the error', () => {
+        const { sql, ...withoutSql } = sqlChart;
+        expect(() =>
+            validation.validateNewContent('sql_chart', withoutSql),
+        ).toThrow(/^New SQL chart is invalid:/);
+        expect(() =>
+            validation.validateContent('sql_chart', withoutSql),
+        ).toThrow(/^Edited SQL chart is invalid:/);
+    });
+
     it('accepts a SQL chart', () => {
         expect(
             getValidationErrors(() =>

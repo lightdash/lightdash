@@ -2477,7 +2477,7 @@ describe('AiAgentToolsService', () => {
                     approveSql,
                 }),
             ).rejects.toThrow(
-                'Edited SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
+                'New SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
             );
             expect(approveSql).not.toHaveBeenCalled();
             expect(upsertSqlChart).not.toHaveBeenCalled();
@@ -2498,7 +2498,7 @@ describe('AiAgentToolsService', () => {
                     approveSql,
                 }),
             ).rejects.toThrow(
-                'Edited SQL chart is invalid:\n- /connection is not allowed: SQL charts always run on the primary connection\n- / has unexpected property "tableName"',
+                'New SQL chart is invalid:\n- /connection is not allowed: SQL charts always run on the primary connection\n- / has unexpected property "tableName"',
             );
             expect(approveSql).not.toHaveBeenCalled();
             expect(upsertSqlChart).not.toHaveBeenCalled();

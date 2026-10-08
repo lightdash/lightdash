@@ -76,6 +76,13 @@ const CREATE_REJECTED_PROPERTIES: Record<
     ],
 };
 
+type ContentOperation = 'create' | 'edit';
+
+const OPERATION_LABELS: Record<ContentOperation, string> = {
+    create: 'New',
+    edit: 'Edited',
+};
+
 const CONTENT_LABELS: Record<ContentType, string> = {
     chart: 'chart',
     dashboard: 'dashboard',
@@ -147,6 +154,7 @@ export class AiAgentContentValidation {
 
     validateContent(type: ContentType, content: unknown): void {
         AiAgentContentValidation.throwIfInvalid(
+            'edit',
             type,
             this.getSchemaErrors(type, content),
         );
@@ -165,7 +173,7 @@ export class AiAgentContentValidation {
                 ({ property, reason }) =>
                     `/${property} is not allowed: ${reason}`,
             );
-        AiAgentContentValidation.throwIfInvalid(type, [
+        AiAgentContentValidation.throwIfInvalid('create', type, [
             ...rejected,
             ...this.getSchemaErrors(type, content),
         ]);
@@ -180,12 +188,15 @@ export class AiAgentContentValidation {
     }
 
     private static throwIfInvalid(
+        operation: ContentOperation,
         type: ContentType,
         validationErrors: string[],
     ): void {
         if (validationErrors.length === 0) return;
         throw new ParameterError(
-            `Edited ${CONTENT_LABELS[type]} is invalid:\n${validationErrors
+            `${OPERATION_LABELS[operation]} ${
+                CONTENT_LABELS[type]
+            } is invalid:\n${validationErrors
                 .map((error) => `- ${error}`)
                 .join('\n')}`,
             { validationErrors },
