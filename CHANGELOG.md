@@ -1,3 +1,16 @@
+# [2.478.0](https://github.com/lightdash/lightdash/compare/2.477.1...2.478.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** gate credential writes and project pins on the custom providers flag ([#30685](https://github.com/lightdash/lightdash/issues/30685)) ([07957b9](https://github.com/lightdash/lightdash/commit/07957b92640097fde5cb4899fddf573bdbf223be))
+
+
+### Features
+
+* **apps:** discard sandbox when clearing agent context ([#30668](https://github.com/lightdash/lightdash/issues/30668)) ([acad5d7](https://github.com/lightdash/lightdash/commit/acad5d7e4c27652550cd25c91d6a2e27907cdb97))
+* **filters:** parse "to date" current-period filters in dbt YAML ([#30653](https://github.com/lightdash/lightdash/issues/30653)) ([026e9ec](https://github.com/lightdash/lightdash/commit/026e9eccb4bdf3196a5c8bd15d40a60a66e4fbd6))
+
 ## [2.477.1](https://github.com/lightdash/lightdash/compare/2.477.0...2.477.1) (2026-10-08)
 
 
