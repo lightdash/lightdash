@@ -46,7 +46,7 @@ export const AiVizSwitchedResult: FC<Props> = ({
         return axes
             ? buildComposerVizConfig({
                   kind,
-                  fieldConfig: getComposerFieldConfig(axes),
+                  fieldConfig: getComposerFieldConfig(axes, kind),
               })
             : null;
     }, [kind, plan]);

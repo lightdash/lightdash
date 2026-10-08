@@ -135,7 +135,7 @@ const defaultLayoutFor = (
 ): PivotChartLayout | null => {
     const plan = getComposerVizPlan({ columns, rows, node, vizConfig: null });
     const axes = plan.axes[kind];
-    if (axes) return getComposerFieldConfig(axes);
+    if (axes) return getComposerFieldConfig(axes, kind);
     const y = columns.find(isComposerNumericColumn);
     if (!y) return null;
     const layout: PivotChartLayout = {
@@ -167,7 +167,7 @@ export const getComposerVizPanelValue = ({
     if (!axes) return tableConfig();
     return buildComposerVizConfig({
         kind: plan.defaultKind,
-        fieldConfig: getComposerFieldConfig(axes),
+        fieldConfig: getComposerFieldConfig(axes, plan.defaultKind),
     });
 };
 
@@ -456,11 +456,10 @@ export const resolveComposerVizColumns = (
     };
 };
 
-/** True when the chart needs the pivoted re-run: a series split, a real aggregation, or an x sort. */
+/** True when the chart needs the pivoted re-run: a series split or a real aggregation. An x sort alone orders the fetched rows. */
 export const composerVizNeedsPivot = (layout: PivotChartLayout): boolean =>
     (layout.groupBy?.length ?? 0) > 0 ||
-    layout.y.some((y) => y.aggregation !== VizAggregationOptions.ANY) ||
-    (layout.sortBy?.length ?? 0) > 0;
+    layout.y.some((y) => y.aggregation !== VizAggregationOptions.ANY);
 
 const referenceSchema = z.string().min(1);
 const metadataSchema = z.object({ version: z.number().int() }).strict();

@@ -3,6 +3,7 @@ import {
     composerVizNeedsPivot,
     ECHARTS_DEFAULT_COLORS,
     getComposerChartKind,
+    getComposerVizSort,
     resolveComposerVizColumns,
     VizIndexType,
     type AllVizChartConfig,
@@ -155,9 +156,9 @@ type Props = {
     loadingMessage: string;
 };
 
-// Draws from the fetched rows, or from a pivot of the stored result on the
-// compose engine for aggregations, series splits and value sorts. The last
-// chart stays on screen until the next one is built.
+// Draws from the fetched rows, ordered by the x sort, or from a pivot of the
+// stored result on the compose engine for aggregations and series splits.
+// The last chart stays on screen until the next one is built.
 export const AiComposerChartVisualization: FC<Props> = ({
     projectUuid,
     results,
@@ -205,10 +206,20 @@ export const AiComposerChartVisualization: FC<Props> = ({
                   rows,
                   x: drawn.x,
                   y: drawn.y,
+                  sort: getComposerVizSort(vizConfig),
                   colors,
               }
             : undefined;
-    }, [pivotLayout, pivot.data, kind, colors, drawn, columns, rows]);
+    }, [
+        pivotLayout,
+        pivot.data,
+        kind,
+        colors,
+        drawn,
+        columns,
+        rows,
+        vizConfig,
+    ]);
     const spec = useComposerChartSpec(input, buildSpecFrom);
 
     if (pivot.error instanceof ComposerPivotExpiredError) {
