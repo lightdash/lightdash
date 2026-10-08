@@ -1,11 +1,13 @@
 // packages/backend/src/models/DepartmentModel.test.ts
 import {
     AlreadyExistsError,
+    ConflictError,
     NotFoundError,
     ParameterError,
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { DatabaseError } from 'pg';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     DepartmentLinkTableName,
@@ -41,6 +43,7 @@ const SELECT_TREE = new RegExp(
     `^select "department_uuid", "parent_department_uuid" from "${DepartmentTableName}"`,
 );
 const LOCK = /pg_advisory_xact_lock/;
+const LOCK_TIMEOUT = /lock_timeout/;
 const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
 
 describe('DepartmentModel', () => {
@@ -51,6 +54,7 @@ describe('DepartmentModel', () => {
         tracker = getTracker();
     });
     beforeEach(() => {
+        tracker.on.any(LOCK_TIMEOUT).response([]);
         tracker.on.any(LOCK).response([]);
     });
     afterEach(() => {
@@ -862,7 +866,7 @@ describe('DepartmentModel', () => {
             targetDate: null,
         };
 
-        it.each([
+        const writes: Array<[string, () => Promise<unknown>]> = [
             [
                 'create',
                 () => model.create('org', newDepartment, 'user', LIMITS),
@@ -889,8 +893,12 @@ describe('DepartmentModel', () => {
                         { type: 'group', uuid: 'g1' },
                     ]),
             ],
-        ])(
-            '%s takes the organization lock first, then checks and writes in the same transaction',
+        ];
+        const databaseError = (code: string, message: string) =>
+            Object.assign(new DatabaseError(message, 0, 'error'), { code });
+
+        it.each(writes)(
+            '%s sets a lock timeout, takes the organization lock, then checks and writes in the same transaction',
             async (_name, write) => {
                 respondToEveryRead();
                 await write();
@@ -898,7 +906,9 @@ describe('DepartmentModel', () => {
                 expect(tracker.history.transactions).toHaveLength(1);
                 const [transaction] = tracker.history.transactions;
                 expect(transaction.state).toBe('committed');
-                const [lock, ...rest] = transaction.queries;
+                const [timeout, lock, ...rest] = transaction.queries;
+                // SET LOCAL, so the timeout ends with this transaction and never stays on the pooled connection
+                expect(timeout.sql).toBe("SET LOCAL lock_timeout = '5s'");
                 expect(lock.sql).toBe(
                     'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
                 );
@@ -947,8 +957,49 @@ describe('DepartmentModel', () => {
             ).rejects.toThrow(ParameterError);
             const [transaction] = tracker.history.transactions;
             expect(transaction.state).toBe('rolled back');
-            expect(LOCK.test(transaction.queries[0].sql)).toBe(true);
+            expect(LOCK_TIMEOUT.test(transaction.queries[0].sql)).toBe(true);
+            expect(LOCK.test(transaction.queries[1].sql)).toBe(true);
             expect(tracker.history.update).toHaveLength(0);
+        });
+
+        it.each(writes)(
+            '%s answers ConflictError and writes nothing when the wait for the lock times out (55P03)',
+            async (_name, write) => {
+                tracker.resetHandlers();
+                tracker.on.any(LOCK_TIMEOUT).response([]);
+                tracker.on
+                    .any(LOCK)
+                    .simulateError(
+                        databaseError(
+                            '55P03',
+                            'canceling statement due to lock timeout',
+                        ),
+                    );
+
+                const error = await write().catch((e: unknown) => e);
+
+                expect(error).toBeInstanceOf(ConflictError);
+                expect(error).toMatchObject({
+                    statusCode: 409,
+                    message:
+                        'Another change to departments is being saved. Try again in a moment',
+                });
+                const [transaction] = tracker.history.transactions;
+                expect(transaction.state).toBe('rolled back');
+                expect([
+                    ...tracker.history.insert,
+                    ...tracker.history.update,
+                    ...tracker.history.delete,
+                ]).toHaveLength(0);
+            },
+        );
+
+        it('passes any other database error through unchanged', async () => {
+            const deadlock = databaseError('40P01', 'deadlock detected');
+            tracker.resetHandlers();
+            tracker.on.any(LOCK_TIMEOUT).response([]);
+            tracker.on.any(LOCK).simulateError(deadlock);
+            await expect(model.delete('org', 'dep')).rejects.toBe(deadlock);
         });
     });
 

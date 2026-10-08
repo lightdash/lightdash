@@ -1,6 +1,7 @@
 // packages/backend/src/models/DepartmentModel.ts
 import {
     AlreadyExistsError,
+    ConflictError,
     getAncestorUuids,
     getBranchHeight,
     getParentMap,
@@ -30,11 +31,14 @@ import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { UserTableName } from '../database/entities/users';
+import { isLockTimeout } from '../database/errors';
 
 const UNIQUE_VIOLATION = '23505';
 // Transaction-scoped, so it is released on commit or rollback
 const ORGANIZATION_LOCK_SQL =
     'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))';
+// Set before the lock is asked for, so a write queued behind others gives up instead of holding a connection
+const ORGANIZATION_LOCK_TIMEOUT_SQL = "SET LOCAL lock_timeout = '5s'";
 
 type Deps = { database: Knex };
 
@@ -252,12 +256,22 @@ export class DepartmentModel {
         organizationUuid: string,
         write: (trx: Knex.Transaction) => Promise<T>,
     ): Promise<T> {
-        return this.database.transaction(async (trx) => {
-            await trx.raw(ORGANIZATION_LOCK_SQL, [
-                `organization-departments:${organizationUuid}`,
-            ]);
-            return write(trx);
-        });
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(ORGANIZATION_LOCK_TIMEOUT_SQL);
+                await trx.raw(ORGANIZATION_LOCK_SQL, [
+                    `organization-departments:${organizationUuid}`,
+                ]);
+                return write(trx);
+            });
+        } catch (e) {
+            if (isLockTimeout(e)) {
+                throw new ConflictError(
+                    'Another change to departments is being saved. Try again in a moment',
+                );
+            }
+            throw e;
+        }
     }
 
     private static async getTree(
