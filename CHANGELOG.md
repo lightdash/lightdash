@@ -1,3 +1,10 @@
+# [2.483.0](https://github.com/lightdash/lightdash/compare/2.482.0...2.483.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** require Documents for Deep Research ([#30707](https://github.com/lightdash/lightdash/issues/30707)) ([198bf1f](https://github.com/lightdash/lightdash/commit/198bf1fabdea4409046e079e162b4111015ad3e5))
+
 # [2.482.0](https://github.com/lightdash/lightdash/compare/2.481.2...2.482.0) (2026-10-08)
 
 
