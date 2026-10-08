@@ -186,6 +186,35 @@ describe('filterTablesBySchema', () => {
         expect(filterTablesBySchema(tablesBySchema, 'zzz', null)).toEqual([]);
     });
 
+    it('keeps every table of a schema whose name matches', () => {
+        expect(filterTablesBySchema(tablesBySchema, 'JAFF', null)).toEqual([
+            tablesBySchema[0],
+        ]);
+        expect(filterTablesBySchema(tablesBySchema, ' staging ', null)).toEqual(
+            [tablesBySchema[1]],
+        );
+    });
+
+    it('keeps every schema of a database whose name matches', () => {
+        expect(filterTablesBySchema(twoDatabases, 'prod', null)).toEqual([
+            twoDatabases[1],
+        ]);
+    });
+
+    it('still applies the type filter to a matching schema', () => {
+        expect(filterTablesBySchema(tablesBySchema, 'jaffle', 'views')).toEqual(
+            [
+                {
+                    database: 'warehouse',
+                    schema: 'jaffle',
+                    tables: {
+                        payments: { tableType: WarehouseTableType.VIEW },
+                    },
+                },
+            ],
+        );
+    });
+
     it('keeps only views, treating untyped rows as tables', () => {
         expect(filterTablesBySchema(tablesBySchema, '', 'views')).toEqual([
             {

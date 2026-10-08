@@ -201,74 +201,87 @@ const SchemaItem: FC<{
     id: string;
     schema: string;
     databaseLabel: string | null;
+    search: string;
     isExpanded: boolean;
     count: number | null;
     onToggle: (schemaRowId: string, isExpanded: boolean) => void;
-}> = memo(({ id, schema, databaseLabel, isExpanded, count, onToggle }) => {
-    const { ref: databaseRef, isTruncated: isDatabaseTruncated } =
-        useIsTruncated<HTMLParagraphElement>();
-    const { ref: schemaRef, isTruncated: isSchemaTruncated } =
-        useIsTruncated<HTMLParagraphElement>();
-    return (
-        <UnstyledButton
-            onClick={() => onToggle(id, isExpanded)}
-            className={styles.schemaButton}
-            ff="inherit"
-        >
-            <Group wrap="nowrap" gap="xs">
-                <MantineIcon
-                    icon={isExpanded ? IconChevronDown : IconChevronRight}
-                    size="sm"
-                    className={styles.chevron}
-                />
-                <Tooltip
-                    label={
-                        databaseLabel === null
-                            ? schema
-                            : `${databaseLabel}.${schema}`
-                    }
-                    disabled={!isDatabaseTruncated && !isSchemaTruncated}
-                    multiline
-                    maw={300}
-                    classNames={{ tooltip: styles.labelTooltip }}
-                >
-                    <Box className={styles.schemaLabel}>
-                        {databaseLabel !== null && (
-                            <>
-                                <Text
-                                    ref={databaseRef}
-                                    fz="sm"
-                                    c="dimmed"
-                                    truncate
-                                    className={styles.databaseLabel}
-                                >
-                                    {databaseLabel}
-                                </Text>
-                                <Text fz="sm" c="dimmed" flex="0 0 auto">
-                                    .
-                                </Text>
-                            </>
-                        )}
-                        <Text
-                            ref={schemaRef}
-                            fz="sm"
-                            fw={500}
-                            truncate
-                            className={styles.schemaName}
-                        >
-                            {schema}
+}> = memo(
+    ({ id, schema, databaseLabel, search, isExpanded, count, onToggle }) => {
+        const { ref: databaseRef, isTruncated: isDatabaseTruncated } =
+            useIsTruncated<HTMLParagraphElement>();
+        const { ref: schemaRef, isTruncated: isSchemaTruncated } =
+            useIsTruncated<HTMLParagraphElement>();
+        return (
+            <UnstyledButton
+                onClick={() => onToggle(id, isExpanded)}
+                className={styles.schemaButton}
+                ff="inherit"
+            >
+                <Group wrap="nowrap" gap="xs">
+                    <MantineIcon
+                        icon={isExpanded ? IconChevronDown : IconChevronRight}
+                        size="sm"
+                        className={styles.chevron}
+                    />
+                    <Tooltip
+                        label={
+                            databaseLabel === null
+                                ? schema
+                                : `${databaseLabel}.${schema}`
+                        }
+                        disabled={!isDatabaseTruncated && !isSchemaTruncated}
+                        multiline
+                        maw={300}
+                        classNames={{ tooltip: styles.labelTooltip }}
+                    >
+                        <Box className={styles.schemaLabel}>
+                            {databaseLabel !== null && (
+                                <>
+                                    <Text
+                                        ref={databaseRef}
+                                        fz="sm"
+                                        c="dimmed"
+                                        truncate
+                                        className={styles.databaseLabel}
+                                    >
+                                        {databaseLabel}
+                                    </Text>
+                                    <Text fz="sm" c="dimmed" flex="0 0 auto">
+                                        .
+                                    </Text>
+                                </>
+                            )}
+                            <Text
+                                ref={schemaRef}
+                                fz="sm"
+                                fw={500}
+                                truncate
+                                className={styles.schemaName}
+                            >
+                                {search ? (
+                                    <Highlight
+                                        component="span"
+                                        highlight={search}
+                                        inherit
+                                    >
+                                        {schema}
+                                    </Highlight>
+                                ) : (
+                                    schema
+                                )}
+                            </Text>
+                        </Box>
+                    </Tooltip>
+                    {count !== null && (
+                        <Text fz="xs" c="dimmed" ml="auto" pr="xs">
+                            {count}
                         </Text>
-                    </Box>
-                </Tooltip>
-                {count !== null && (
-                    <Text fz="xs" c="dimmed" ml="auto" pr="xs">
-                        {count}
-                    </Text>
-                )}
-            </Group>
-        </UnstyledButton>
-    );
-});
+                    )}
+                </Group>
+            </UnstyledButton>
+        );
+    },
+);
 
 // Manual expand/collapse choices, keyed by the search and type filter they were made under
 type SchemaExpansion = {
@@ -343,6 +356,7 @@ const VirtualRow: FC<{
                 id={row.id}
                 schema={row.schema}
                 databaseLabel={row.databaseLabel}
+                search={search}
                 isExpanded={row.isExpanded}
                 count={showCounts ? row.tableCount : null}
                 onToggle={onToggleSchema}

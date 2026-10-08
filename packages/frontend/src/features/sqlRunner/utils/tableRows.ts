@@ -68,7 +68,18 @@ const searchTableNames = (tableNames: string[], search: string): string[] => {
     return fuse.search(search).map((result) => result.item);
 };
 
-// Schemas left with no matching table are dropped
+const plainMatch = (value: string, search: string) =>
+    search !== '' && value.toLowerCase().includes(search.toLowerCase());
+
+const schemaNameMatches = (
+    { database, schema }: { database: string; schema: string },
+    search: string,
+): boolean =>
+    plainMatch(String(schema), search.trim()) ||
+    plainMatch(database, search.trim());
+
+// A schema whose own name (or database) matches keeps every table;
+// otherwise tables are searched by name and empty schemas are dropped
 export const filterTablesBySchema = (
     tablesBySchema: SchemaTables[],
     search: string,
@@ -79,7 +90,12 @@ export const filterTablesBySchema = (
             const typed = Object.keys(tables).filter((table) =>
                 matchesTableTypeFilter(tables[table].tableType, typeFilter),
             );
-            const matches = searchTableNames(typed, search);
+            const matches = schemaNameMatches(
+                { database, schema: String(schema) },
+                search,
+            )
+                ? typed
+                : searchTableNames(typed, search);
             return {
                 database,
                 schema,
