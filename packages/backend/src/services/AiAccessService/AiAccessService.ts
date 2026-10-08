@@ -64,6 +64,7 @@ import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
+import { getQuerySourceParameters } from './queryResultLineage';
 
 export type AgentConnectAttempt = Omit<
     AgentIdentityConnectProperties,
@@ -829,6 +830,12 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
+        return this.resolveEnabledPlan(args);
+    }
+
+    private async resolveEnabledPlan(
+        args: ResolvePlanArgs,
+    ): Promise<AiExecutionPlan> {
         const rule = await this.organizationAgentIdentityRulesModel.get(
             args.organizationUuid,
             args.connection.type,
@@ -987,87 +994,182 @@ export class AiAccessService extends BaseService {
         account: Account,
         projectUuid: string,
         queryHistory: QueryHistory,
-        ancestors = new Set<string>(),
+        { agentProducedOnly = false }: { agentProducedOnly?: boolean } = {},
     ): Promise<AiExecutionPlan | null> {
-        if (ancestors.has(queryHistory.queryUuid)) {
-            throw new AiAccessRefusedError(
+        const organizationUuid =
+            queryHistory.organizationUuid ??
+            (await this.projectModel.getSummary(projectUuid)).organizationUuid;
+        if (
+            !(await this.isEnabled({
+                userUuid: account.user.id,
+                organizationUuid,
+            }))
+        ) {
+            return null;
+        }
+
+        const maxNodes = 500;
+        const maxDepth = 50;
+        const refuse = () =>
+            new AiAccessRefusedError(
                 AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
             );
-        }
-        const { connection, organizationUuid } = await this.loadConnection(
-            account,
-            projectUuid,
-            queryHistory.warehouseConnectionUuid ?? null,
-            'view',
-        );
-        const plan = await this.resolvePlan({
-            evaluation: { kind: 'result_read' },
-            projectUuid,
-            organizationUuid,
-            warehouseConnectionUuid:
-                queryHistory.warehouseConnectionUuid ?? null,
-            connection,
-            context: QueryExecutionContext.AI,
-            purpose: 'check',
-            userUuid: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-        if (queryHistory.status === QueryHistoryStatus.READY) {
-            const generation = getAiExecutionCredentialUuid(plan);
-            if (
-                generation !== null &&
-                queryHistory.requestParameters.aiSignInCredentialUuid !==
-                    generation
-            ) {
-                throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
-                );
-            }
-            const execution = await this.queryHistoryModel.getDuckdbExecution(
-                queryHistory.queryUuid,
-            );
-            const sources = Object.values(execution?.references ?? {});
-            if (sources.length > 0) {
-                const nextAncestors = new Set(ancestors).add(
+        const nodes = new Map<
+            string,
+            { queryHistory: QueryHistory; sources: string[] }
+        >();
+        const visited = new Set([queryHistory.queryUuid]);
+        const rootLevel = [
+            {
+                queryHistory,
+                execution: await this.queryHistoryModel.getDuckdbExecution(
                     queryHistory.queryUuid,
+                ),
+            },
+        ];
+        const readLevel = async (
+            level: typeof rootLevel,
+            depth: number,
+        ): Promise<void> => {
+            const next = new Set<string>();
+            for (const node of level) {
+                const { references } = getQuerySourceParameters(
+                    node.queryHistory.requestParameters,
                 );
-                const sourcePlans = await Promise.all(
-                    sources.map(async (queryUuid) => {
-                        const source = await this.queryHistoryModel.get(
-                            queryUuid,
-                            projectUuid,
-                            account,
-                        );
-                        return this.assertCanReadResults(
-                            account,
-                            projectUuid,
-                            source,
-                            nextAncestors,
-                        );
-                    }),
-                );
-                const credentialPlan = sourcePlans.find(
-                    (sourcePlan) =>
-                        getAiExecutionCredentialUuid(sourcePlan) !== null,
-                );
-                if (
-                    sourcePlans.some(
-                        (sourcePlan) =>
-                            getAiExecutionCredentialUuid(sourcePlan) !== null &&
-                            getAiExecutionCredentialUuid(sourcePlan) !==
-                                queryHistory.requestParameters
-                                    .aiSignInCredentialUuid,
-                    )
-                ) {
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
-                    );
+                const sources = [
+                    ...new Set([
+                        ...Object.values(references ?? {}),
+                        ...Object.values(node.execution?.references ?? {}),
+                    ]),
+                ];
+                nodes.set(node.queryHistory.queryUuid, {
+                    queryHistory: node.queryHistory,
+                    sources,
+                });
+                for (const uuid of sources) {
+                    if (!visited.has(uuid)) {
+                        visited.add(uuid);
+                        if (visited.size > maxNodes) throw refuse();
+                        next.add(uuid);
+                    }
                 }
-                return credentialPlan ?? plan;
             }
+            if (next.size === 0) return;
+            if (depth >= maxDepth) throw refuse();
+            const nextLevel =
+                await this.queryHistoryModel.getManyWithDuckdbExecutions(
+                    [...next],
+                    projectUuid,
+                    account,
+                );
+            return readLevel(nextLevel, depth + 1);
+        };
+        await readLevel(rootLevel, 0);
+
+        const active = new Set<string>();
+        const heights = new Map<string, number>();
+        const ordered: string[] = [];
+        const visit = (uuid: string, pathDepth: number): number => {
+            if (active.has(uuid) || pathDepth > maxDepth) throw refuse();
+            const knownHeight = heights.get(uuid);
+            if (knownHeight !== undefined) {
+                if (pathDepth + knownHeight > maxDepth) throw refuse();
+                return knownHeight;
+            }
+            active.add(uuid);
+            let height = 0;
+            for (const source of nodes.get(uuid)!.sources) {
+                height = Math.max(height, 1 + visit(source, pathDepth + 1));
+            }
+            active.delete(uuid);
+            heights.set(uuid, height);
+            ordered.push(uuid);
+            return height;
+        };
+        visit(queryHistory.queryUuid, 0);
+
+        const plans = new Map<string, AiExecutionPlan | null>();
+        const plansByConnection = new Map<
+            string | null,
+            Promise<AiExecutionPlan>
+        >();
+        await Promise.all(
+            [...nodes.values()].map(async ({ queryHistory: node }) => {
+                const uuid = node.queryUuid;
+                if (
+                    agentProducedOnly &&
+                    !node.requestParameters?.aiSignInCredentialUuid &&
+                    !isAiAccessQueryContext(node.context)
+                ) {
+                    plans.set(uuid, null);
+                    return;
+                }
+                const warehouseConnectionUuid =
+                    node.warehouseConnectionUuid ?? null;
+                let planPromise = plansByConnection.get(
+                    warehouseConnectionUuid,
+                );
+                if (!planPromise) {
+                    planPromise = (async () => {
+                        const { connection } = await this.loadConnection(
+                            account,
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            'view',
+                        );
+                        return this.resolveEnabledPlan({
+                            evaluation: { kind: 'result_read' },
+                            projectUuid,
+                            organizationUuid,
+                            warehouseConnectionUuid,
+                            connection,
+                            context: QueryExecutionContext.AI,
+                            purpose: 'check',
+                            userUuid: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
+                        });
+                    })();
+                    plansByConnection.set(warehouseConnectionUuid, planPromise);
+                }
+                const plan = await planPromise;
+                const generation = getAiExecutionCredentialUuid(plan);
+                if (
+                    node.status === QueryHistoryStatus.READY &&
+                    generation !== null &&
+                    node.requestParameters?.aiSignInCredentialUuid !==
+                        generation
+                ) {
+                    throw refuse();
+                }
+                plans.set(uuid, plan);
+            }),
+        );
+        for (const uuid of ordered) {
+            const { queryHistory: node, sources } = nodes.get(uuid)!;
+            const plan = plans.get(uuid) ?? null;
+            const sourcePlans = sources.map(
+                (source) => plans.get(source) ?? null,
+            );
+            const credentialPlan = sourcePlans.find(
+                (sourcePlan) =>
+                    getAiExecutionCredentialUuid(sourcePlan) !== null,
+            );
+            if (
+                plan !== null &&
+                node.status === QueryHistoryStatus.READY &&
+                sourcePlans.some(
+                    (sourcePlan) =>
+                        getAiExecutionCredentialUuid(sourcePlan) !== null &&
+                        getAiExecutionCredentialUuid(sourcePlan) !==
+                            node.requestParameters?.aiSignInCredentialUuid,
+                )
+            ) {
+                throw refuse();
+            }
+            plans.set(uuid, credentialPlan ?? plan);
         }
-        return plan;
+        return plans.get(queryHistory.queryUuid) ?? null;
     }
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {

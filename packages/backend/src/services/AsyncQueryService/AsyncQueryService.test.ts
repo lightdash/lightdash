@@ -1132,6 +1132,7 @@ describe('AsyncQueryService', () => {
                 agentProduced: boolean,
                 generation: string,
             ) => {
+                let currentGeneration = generation;
                 const source: QueryHistory = {
                     ...referencedQueryHistory,
                     requestParameters: {
@@ -1176,12 +1177,34 @@ describe('AsyncQueryService', () => {
                         ),
                     },
                     queryHistoryModel: history,
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({ enabled: true })),
+                    },
                 } as unknown as ConstructorParameters<
                     typeof AiAccessService
                 >[0]);
-                vi.spyOn(aiAccessService, 'resolvePlan').mockResolvedValue({
+                vi.spyOn(
+                    aiAccessService as AnyType,
+                    'resolveEnabledPlan',
+                ).mockImplementation(async () => ({
                     ...aiServiceAccountPlanMock,
-                    identityUuid: generation,
+                    identityUuid: currentGeneration,
+                }));
+                Object.assign(history, {
+                    getManyWithDuckdbExecutions: vi.fn(
+                        async (uuids: string[]) =>
+                            Promise.all(
+                                uuids.map(async (uuid) => ({
+                                    queryHistory: await history.get(
+                                        uuid,
+                                        projectUuid,
+                                        sessionAccount,
+                                    ),
+                                    execution:
+                                        await history.getDuckdbExecution(uuid),
+                                })),
+                            ),
+                    ),
                 });
                 const guard = vi.spyOn(aiAccessService, 'assertCanReadResults');
                 const service = getMockedAsyncQueryService(
@@ -1197,10 +1220,148 @@ describe('AsyncQueryService', () => {
                     'runAsyncDuckdbQueryFromHistory',
                 ).mockResolvedValue(true);
                 const readPage = vi
-                    .spyOn(service, 'getResultsPageFromS3')
+                    .spyOn(service as AnyType, 'getResultsPageFromS3')
                     .mockResolvedValue({ rows: [] } as never);
-                return { service, source, composed, history, guard, readPage };
+                service.exportsStorageClient.isEnabled = vi.fn(() => true);
+                return {
+                    service,
+                    source,
+                    composed,
+                    history,
+                    guard,
+                    readPage,
+                    setGeneration: (value: string) => {
+                        currentGeneration = value;
+                    },
+                };
             };
+
+            test.each([false, true])(
+                'totals read rechecks the source generation after polling, rotated=%s',
+                async (rotated) => {
+                    const { service, composed, setGeneration } =
+                        buildLineageService(true, 'generation-1');
+                    composed.context = QueryExecutionContext.CALCULATE_TOTAL;
+                    vi.spyOn(
+                        service,
+                        'executeAsyncCalculateTotalFromQueryHistory',
+                    ).mockResolvedValue({
+                        queryUuid: composed.queryUuid,
+                        cacheMetadata: { cacheHit: false },
+                        fields: {},
+                    } as never);
+                    vi.spyOn(
+                        service as AnyType,
+                        'pollForQueryCompletion',
+                    ).mockImplementation(async () => {
+                        if (rotated) setGeneration('generation-2');
+                    });
+                    vi.mocked(
+                        service.resultsStorageClient.getDownloadStream,
+                    ).mockImplementation(async () =>
+                        Readable.from(['{"one":42}\n']),
+                    );
+                    const read = (
+                        service as AnyType
+                    ).executeCalculateTotalAndGetResults({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: 'source',
+                        kind: 'columnTotal',
+                    });
+                    if (rotated) {
+                        await expect(read).rejects.toMatchObject({
+                            refusal: {
+                                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                            },
+                        });
+                        expect(
+                            service.resultsStorageClient.getDownloadStream,
+                        ).not.toHaveBeenCalled();
+                    } else {
+                        await expect(read).resolves.toMatchObject({
+                            rows: [{ one: 42 }],
+                        });
+                    }
+                },
+            );
+
+            test('saved SQL chart result read checks a referenced rotated slot', async () => {
+                const { service, composed } = buildLineageService(
+                    true,
+                    'generation-2',
+                );
+                vi.spyOn(
+                    service,
+                    'executeAsyncSqlChartQuery',
+                ).mockResolvedValue({
+                    queryUuid: composed.queryUuid,
+                    cacheMetadata: { cacheHit: false },
+                } as never);
+                vi.spyOn(
+                    service as AnyType,
+                    'pollForQueryCompletion',
+                ).mockResolvedValue(undefined);
+                await expect(
+                    service.executeSqlChartQueryAndGetResults({
+                        account: sessionAccount,
+                        projectUuid,
+                    } as never),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    },
+                });
+                expect(
+                    service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+
+            test.each([
+                'history',
+                'raw',
+                'stream',
+                'download',
+                'scheduled download',
+            ] as const)(
+                '%s reader checks referenced rotated slot results',
+                async (reader) => {
+                    const { service, composed } = buildLineageService(
+                        true,
+                        'generation-2',
+                    );
+                    const args = {
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: composed.queryUuid,
+                    };
+                    const read = {
+                        history: () => service.getAsyncQueryHistory(args),
+                        raw: () => service.getRawAsyncQueryResults(args),
+                        stream: () => service.getResultsStream(args),
+                        download: () =>
+                            service.download({
+                                ...args,
+                                type: DownloadFileType.CSV,
+                                accessMode:
+                                    PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                            }),
+                        'scheduled download': () =>
+                            service.scheduleDownloadAsyncQueryResults({
+                                ...args,
+                                type: DownloadFileType.CSV,
+                            }),
+                    }[reader]();
+                    await expect(read).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                    expect(
+                        service.resultsStorageClient.getDownloadStream,
+                    ).not.toHaveBeenCalled();
+                },
+            );
 
             test.each(cases)(
                 'compose submit checks $sourceKind',
@@ -1226,13 +1387,14 @@ describe('AsyncQueryService', () => {
                             queryUuid: 'composed-query',
                         });
                     }
-                    if (agentProduced)
-                        expect(guard).toHaveBeenCalledWith(
-                            sessionAccount,
-                            projectUuid,
-                            source,
-                        );
-                    else expect(guard).not.toHaveBeenCalled();
+                    expect(guard).toHaveBeenCalledWith(
+                        sessionAccount,
+                        projectUuid,
+                        expect.objectContaining({
+                            queryUuid: source.queryUuid,
+                        }),
+                        { agentProducedOnly: !agentProduced },
+                    );
                 },
             );
 
@@ -1261,13 +1423,59 @@ describe('AsyncQueryService', () => {
                         });
                         expect(readPage).toHaveBeenCalledOnce();
                     }
-                    if (agentProduced)
-                        expect(guard).toHaveBeenCalledWith(
-                            sessionAccount,
-                            projectUuid,
-                            source,
-                        );
-                    else expect(guard).not.toHaveBeenCalled();
+                    expect(guard).toHaveBeenCalledWith(
+                        sessionAccount,
+                        projectUuid,
+                        expect.objectContaining({
+                            queryUuid: 'composed-query',
+                        }),
+                        { agentProducedOnly: true },
+                    );
+                },
+            );
+
+            test.each([
+                { context: QueryExecutionContext.AI, refused: true },
+                {
+                    context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    refused: false,
+                },
+            ])(
+                'compose results fetch checks a non-agent source with root context $context',
+                async ({ context, refused }) => {
+                    const { service, composed, guard, readPage } =
+                        buildLineageService(false, 'generation-2');
+                    composed.context = context;
+                    if (refused) {
+                        composed.requestParameters = {
+                            ...composed.requestParameters,
+                            aiSignInCredentialUuid: 'generation-2',
+                        };
+                    }
+                    const fetch = service.getAsyncQueryResults({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: composed.queryUuid,
+                    });
+                    if (refused) {
+                        await expect(fetch).rejects.toMatchObject({
+                            refusal: {
+                                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                            },
+                        });
+                        expect(readPage).not.toHaveBeenCalled();
+                    } else {
+                        await expect(fetch).resolves.toMatchObject({
+                            status: QueryHistoryStatus.READY,
+                        });
+                        expect(readPage).toHaveBeenCalledOnce();
+                    }
+                    expect(guard).toHaveBeenCalledWith(
+                        sessionAccount,
+                        projectUuid,
+                        composed,
+                        { agentProducedOnly: !refused },
+                    );
                 },
             );
 
@@ -4723,9 +4931,7 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.EXPLORE,
                 status: QueryHistoryStatus.READY,
             } as QueryHistory;
-            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
-                history,
-            );
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
             await expect(
                 service.getRawAsyncQueryResults({
                     account: sessionAccount,
@@ -4738,6 +4944,7 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
                 projectUuid,
                 history,
+                { agentProducedOnly: false },
             );
             expect(
                 service.resultsStorageClient.getDownloadStream,
@@ -4772,6 +4979,7 @@ describe('AsyncQueryService', () => {
             sessionAccount,
             projectUuid,
             history,
+            { agentProducedOnly: false },
         );
         expect(
             service.resultsStorageClient.getDownloadStream,
@@ -4784,7 +4992,7 @@ describe('AsyncQueryService', () => {
             id: FeatureFlags.AiAccessSkipResultsCache,
             enabled: true,
         });
-        vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue({
+        vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
             context: QueryExecutionContext.EXPLORE,
             status: QueryHistoryStatus.READY,
             metricQuery: {},
@@ -5272,9 +5480,11 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = vi
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
-                rows: [expectedFormattedRow],
-            });
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({
+                    rows: [expectedFormattedRow],
+                });
             serviceWithCache.getExplore = vi
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -5395,7 +5605,7 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = vi
                 .fn()
                 .mockResolvedValue(composeQueryHistory);
-            serviceWithCache.getResultsPageFromS3 = vi
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
                 .fn()
                 .mockResolvedValue({ rows: [] });
 
@@ -5498,9 +5708,11 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = vi
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
-                rows: [expectedFormattedRow],
-            });
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({
+                    rows: [expectedFormattedRow],
+                });
             serviceWithCache.getExplore = vi
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -5565,9 +5777,11 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = vi
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
-                rows: [expectedFormattedRow],
-            });
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({
+                    rows: [expectedFormattedRow],
+                });
             serviceWithCache.getExplore = vi
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -6360,6 +6574,7 @@ describe('AsyncQueryService', () => {
                     account,
                     projectUuid,
                     history,
+                    { agentProducedOnly: false },
                 );
             },
         );

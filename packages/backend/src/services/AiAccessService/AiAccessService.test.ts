@@ -145,6 +145,16 @@ const setup = () => {
         getDuckdbExecution: vi.fn().mockResolvedValue(null),
         get: vi.fn(),
     };
+    Object.assign(historyModel, {
+        getManyWithDuckdbExecutions: vi.fn(async (uuids: string[]) =>
+            Promise.all(
+                uuids.map(async (uuid) => ({
+                    queryHistory: await historyModel.get(uuid),
+                    execution: await historyModel.getDuckdbExecution(uuid),
+                })),
+            ),
+        ),
+    });
     const registry = vi.fn((): AiCredentialProvider => provider);
     const organizationSettings = {
         get: vi.fn(async () => ({ requireVerifiedAgentSessions: true })),
@@ -2429,5 +2439,260 @@ describe('slot result composition and identity validation', () => {
         });
         expect(slots.getSecrets).not.toHaveBeenCalled();
         expect(analytics.track).not.toHaveBeenCalled();
+    });
+});
+
+describe('bounded stored result lineage', () => {
+    const buildGraph = (edges: Record<string, string[]>) => {
+        const built = setup();
+        const rows = Object.fromEntries(
+            Object.keys(edges).map((queryUuid) => [
+                queryUuid,
+                {
+                    queryUuid,
+                    organizationUuid: 'org',
+                    context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    status: QueryHistoryStatus.READY,
+                    requestParameters: {},
+                } as QueryHistory,
+            ]),
+        );
+        const execution = (uuid: string) => ({
+            references: Object.fromEntries(
+                edges[uuid].map((source, i) => [`source_${i}`, source]),
+            ),
+        });
+        built.historyModel.get.mockImplementation(
+            async (uuid: string) => rows[uuid],
+        );
+        built.historyModel.getDuckdbExecution.mockImplementation(
+            async (uuid: string) => execution(uuid),
+        );
+        const batch = vi.fn(async (uuids: string[]) =>
+            uuids.map((uuid) => ({
+                queryHistory: rows[uuid],
+                execution: execution(uuid),
+            })),
+        );
+        Object.assign(built.historyModel, {
+            getManyWithDuckdbExecutions: batch,
+        });
+        return { ...built, rows, batch };
+    };
+
+    test('flag off performs zero lineage reads for a compose with references', async () => {
+        const { service, flags, historyModel, rows, batch } = buildGraph({
+            root: ['source'],
+            source: [],
+        });
+        flags.get.mockResolvedValue({ enabled: false });
+        rows.root.requestParameters = {
+            sql: 'SELECT * FROM source',
+            references: { source: 'source' },
+        };
+        await expect(
+            service.assertCanReadResults(account, 'project', rows.root),
+        ).resolves.toBeNull();
+        expect(historyModel.get).not.toHaveBeenCalled();
+        expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
+        expect(batch).not.toHaveBeenCalled();
+        expect(flags.get).toHaveBeenCalledOnce();
+    });
+
+    test.each([1, 2])(
+        'a 20-node DAG reads lineage once and resolves plans once per connection (%s connections)',
+        async (connectionCount) => {
+            const edges = Object.fromEntries(
+                Array.from({ length: 20 }, (_, i) => [
+                    String(i),
+                    [i - 1, i - 2].filter((n) => n >= 0).map(String),
+                ]),
+            );
+            const {
+                service,
+                flags,
+                historyModel,
+                rows,
+                batch,
+                organizationRules,
+                slots,
+                projects,
+                connections,
+            } = buildGraph(edges);
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            slots.getSecrets.mockResolvedValue({ slot, secrets });
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                bigquery,
+            );
+            connections.getCredentials.mockResolvedValue(bigquery);
+            const defaultConnectionReads = vi.spyOn(
+                projects,
+                'getWarehouseCredentialsForBinding',
+            );
+            const additionalConnectionReads = vi.spyOn(
+                connections,
+                'getCredentials',
+            );
+            const secretReads = vi.spyOn(slots, 'getSecrets');
+            for (const row of Object.values(rows)) {
+                row.warehouseConnectionUuid =
+                    connectionCount === 2 && Number(row.queryUuid) % 2 === 1
+                        ? 'additional-connection'
+                        : null;
+                row.context = QueryExecutionContext.AI;
+                row.requestParameters = {
+                    ...row.requestParameters,
+                    aiSignInCredentialUuid: slot.identityUuid,
+                };
+            }
+            await service.assertCanReadResults(account, 'project', rows['19']);
+            const rowReads = [
+                ...historyModel.get.mock.calls.map(([uuid]) => uuid),
+                ...batch.mock.calls.flatMap(([uuids]) => uuids),
+            ];
+            const specReads = [
+                ...historyModel.getDuckdbExecution.mock.calls.map(
+                    ([uuid]) => uuid,
+                ),
+                ...batch.mock.calls.flatMap(([uuids]) => uuids),
+            ];
+            for (let i = 0; i < 19; i += 1) {
+                expect(
+                    rowReads.filter((uuid) => uuid === String(i)),
+                ).toHaveLength(1);
+            }
+            for (let i = 0; i < 20; i += 1) {
+                expect(
+                    specReads.filter((uuid) => uuid === String(i)),
+                ).toHaveLength(1);
+            }
+            expect(flags.get).toHaveBeenCalledOnce();
+            expect(defaultConnectionReads).toHaveBeenCalledOnce();
+            expect(additionalConnectionReads).toHaveBeenCalledTimes(
+                connectionCount - 1,
+            );
+            expect(secretReads).toHaveBeenCalledTimes(connectionCount);
+            expect(secretReads).toHaveBeenCalledWith('project', null, true);
+            if (connectionCount === 2) {
+                expect(secretReads).toHaveBeenCalledWith(
+                    'project',
+                    'additional-connection',
+                    true,
+                );
+            }
+        },
+    );
+
+    test.each(['nodes', 'depth'] as const)(
+        'refuses lineage beyond the %s cap with a typed refusal',
+        async (cap) => {
+            const edges =
+                cap === 'nodes'
+                    ? {
+                          root: Array.from({ length: 500 }, (_, i) =>
+                              String(i),
+                          ),
+                          ...Object.fromEntries(
+                              Array.from({ length: 500 }, (_, i) => [
+                                  String(i),
+                                  [],
+                              ]),
+                          ),
+                      }
+                    : {
+                          root: ['0'],
+                          ...Object.fromEntries(
+                              Array.from({ length: 51 }, (_, i) => [
+                                  String(i),
+                                  i === 50 ? [] : [String(i + 1)],
+                              ]),
+                          ),
+                      };
+            const { service, historyModel, rows, batch } = buildGraph(edges);
+            const read = service.assertCanReadResults(
+                account,
+                'project',
+                rows.root,
+            );
+            await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+            await expect(read).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            const rowReads =
+                historyModel.get.mock.calls.length +
+                batch.mock.calls.reduce(
+                    (count, [uuids]) => count + uuids.length,
+                    0,
+                );
+            expect(rowReads).toBe(cap === 'nodes' ? 0 : 50);
+        },
+    );
+
+    test.each(['nodes', 'depth'] as const)(
+        'allows lineage at the %s cap',
+        async (cap) => {
+            const edges =
+                cap === 'nodes'
+                    ? {
+                          root: Array.from({ length: 499 }, (_, i) =>
+                              String(i),
+                          ),
+                          ...Object.fromEntries(
+                              Array.from({ length: 499 }, (_, i) => [
+                                  String(i),
+                                  [],
+                              ]),
+                          ),
+                      }
+                    : {
+                          root: ['0'],
+                          ...Object.fromEntries(
+                              Array.from({ length: 50 }, (_, i) => [
+                                  String(i),
+                                  i === 49 ? [] : [String(i + 1)],
+                              ]),
+                          ),
+                      };
+            const { service, rows } = buildGraph(edges);
+            await expect(
+                service.assertCanReadResults(account, 'project', rows.root),
+            ).resolves.toMatchObject({ identity: 'marked_person' });
+        },
+    );
+
+    test('refuses a path beyond the depth cap even when every ancestor has a shortcut from the root', async () => {
+        const edges = {
+            root: Array.from({ length: 51 }, (_, i) => String(i)),
+            ...Object.fromEntries(
+                Array.from({ length: 51 }, (_, i) => [
+                    String(i),
+                    i === 50 ? [] : [String(i + 1)],
+                ]),
+            ),
+        };
+        const { service, rows } = buildGraph(edges);
+        await expect(
+            service.assertCanReadResults(account, 'project', rows.root),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
+    test('refuses a cycle through a shared ancestor', async () => {
+        const { service, rows } = buildGraph({
+            root: ['left', 'right'],
+            left: ['shared'],
+            right: ['shared'],
+            shared: ['right'],
+        });
+        await expect(
+            service.assertCanReadResults(account, 'project', rows.root),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            },
+        });
     });
 });
