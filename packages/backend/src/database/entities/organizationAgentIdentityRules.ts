@@ -13,21 +13,15 @@ export type DbOrganizationAgentIdentityRule = {
     warehouse_type: WarehouseTypes;
     actor_kind: AiActorKind;
     source: AiIdentitySource;
-    required: boolean;
     created_at: Date;
     updated_at: Date;
 };
 
 export type DbOrganizationAgentIdentityRuleInsert = Omit<
     DbOrganizationAgentIdentityRule,
-    'created_at' | 'updated_at' | 'required'
+    'created_at' | 'updated_at'
 > &
-    Partial<
-        Pick<
-            DbOrganizationAgentIdentityRule,
-            'created_at' | 'updated_at' | 'required'
-        >
-    >;
+    Partial<Pick<DbOrganizationAgentIdentityRule, 'created_at' | 'updated_at'>>;
 
 export type OrganizationAgentIdentityRulesTable = Knex.CompositeTableType<
     DbOrganizationAgentIdentityRule,

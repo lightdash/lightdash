@@ -1,4 +1,8 @@
-import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    WarehouseTypes,
+    type AiServiceAccountSlot,
+} from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import MantineModal from '../../components/common/MantineModal';
@@ -8,9 +12,11 @@ import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 export const AiServiceAccountForm = ({
     projectUuid,
     onClose,
+    onSaved,
 }: {
     projectUuid: string;
     onClose: () => void;
+    onSaved: (slot: AiServiceAccountSlot, principal: string | null) => void;
 }) => {
     const [file, setFile] = useState<File | null>(null);
     const [keyfileContents, setKeyfileContents] = useState<Record<
@@ -38,7 +44,21 @@ export const AiServiceAccountForm = ({
             confirmLoading={save.isLoading}
             onConfirm={() => {
                 if (credentials)
-                    save.mutate(credentials, { onSuccess: onClose });
+                    save.mutate(credentials, {
+                        onSuccess: (savedSlot) => {
+                            if (savedSlot)
+                                onSaved(
+                                    savedSlot,
+                                    test.data?.ok &&
+                                        test.variables?.credentials
+                                            ?.keyfileContents ===
+                                            credentials.keyfileContents
+                                        ? test.data.principal
+                                        : null,
+                                );
+                            onClose();
+                        },
+                    });
             }}
             actions={
                 <Button
@@ -66,7 +86,7 @@ export const AiServiceAccountForm = ({
                 {test.data && (
                     <Text size="sm" role="status">
                         {test.data.ok && test.data.principal
-                            ? `Connected as ${test.data.principal}`
+                            ? `Signs in as ${test.data.principal}`
                             : test.data.message}
                     </Text>
                 )}

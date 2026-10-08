@@ -1,3 +1,4 @@
+import { expectTypeOf } from 'vitest';
 import { assertValidBigqueryKeyfile } from '../utils/bigqueryKeyfile';
 import {
     AGENT_IDENTITY_SOURCES,
@@ -5,6 +6,8 @@ import {
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
     supportsAiServiceAccount,
+    type OrganizationAgentIdentityRule,
+    type UpdateOrganizationAgentIdentityRule,
 } from './agentIdentity';
 import {
     AiAgentMarkerLevel,
@@ -93,6 +96,28 @@ describe('BigQuery service account key validation', () => {
 });
 
 describe('organization identity rules', () => {
+    it('uses source-only updates and includes missing-project metadata in overview rules', () => {
+        const update: UpdateOrganizationAgentIdentityRule = {
+            source: 'ai_service_account',
+        };
+        const rule: OrganizationAgentIdentityRule = {
+            ...update,
+            warehouseType: WarehouseTypes.BIGQUERY,
+            projectsMissingAiServiceAccount: [
+                { projectUuid: 'project', name: 'Orders' },
+            ],
+        };
+        expectTypeOf<
+            keyof UpdateOrganizationAgentIdentityRule
+        >().toEqualTypeOf<'source'>();
+        expectTypeOf<keyof OrganizationAgentIdentityRule>().toEqualTypeOf<
+            'source' | 'warehouseType' | 'projectsMissingAiServiceAccount'
+        >();
+        expect(rule.projectsMissingAiServiceAccount).toEqual([
+            { projectUuid: 'project', name: 'Orders' },
+        ]);
+    });
+
     it('lists only enforceable warehouses in source-map order', () => {
         expect(getAgentIdentityWarehouseTypes()).toEqual([
             WarehouseTypes.SNOWFLAKE,

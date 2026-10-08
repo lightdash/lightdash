@@ -31,6 +31,4 @@ export const inlineIdentityLabel = (source: AiIdentitySource) => {
 export const agentIdentitySentence = (warehouseName: string) =>
     `When AI agents query ${warehouseName}, they run as`;
 
-export const requiredIdentityLabel =
-    'Refuse agent queries without this identity.';
 export const bigQueryAgentConnectionLabel = `${identityWarehouseNames.bigquery}: Agents run as the project's AI service account. Nothing to connect.`;

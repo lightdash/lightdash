@@ -111,7 +111,7 @@ export const useUpdateOrganizationAgentIdentityRule = () => {
     return useMutation<
         OrganizationAgentIdentityRule,
         ApiError,
-        OrganizationAgentIdentityRule
+        Pick<OrganizationAgentIdentityRule, 'warehouseType' | 'source'>
     >({
         mutationFn: ({ warehouseType, ...rule }) =>
             lightdashApi<OrganizationAgentIdentityRule>({

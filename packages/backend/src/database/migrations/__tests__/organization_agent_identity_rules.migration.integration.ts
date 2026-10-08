@@ -66,6 +66,12 @@ test('copies only existing Snowflake settings, preserves the legacy table on dow
             [required, optional, absent],
         );
         expect(rows).toHaveLength(4);
+        expect(
+            await trx.schema.hasColumn(
+                'organization_agent_identity_rules',
+                'required',
+            ),
+        ).toBe(false);
         for (const actorKind of actors) {
             expect(rows).toContainEqual(
                 expect.objectContaining({
@@ -73,7 +79,6 @@ test('copies only existing Snowflake settings, preserves the legacy table on dow
                     warehouse_type: 'snowflake',
                     actor_kind: actorKind,
                     source: 'agent_sign_in',
-                    required: true,
                 }),
             );
             expect(rows).toContainEqual(
@@ -82,7 +87,6 @@ test('copies only existing Snowflake settings, preserves the legacy table on dow
                     warehouse_type: 'snowflake',
                     actor_kind: actorKind,
                     source: 'marked_person',
-                    required: false,
                 }),
             );
         }
@@ -112,7 +116,6 @@ test('copies only existing Snowflake settings, preserves the legacy table on dow
                     'warehouse_type',
                     'actor_kind',
                     'source',
-                    'required',
                 )
                 .orderBy(['organization_uuid', 'actor_kind']),
         ).toEqual(
@@ -123,13 +126,11 @@ test('copies only existing Snowflake settings, preserves the legacy table on dow
                         warehouse_type,
                         actor_kind,
                         source,
-                        required: isRequired,
                     }) => ({
                         organization_uuid,
                         warehouse_type,
                         actor_kind,
                         source,
-                        required: isRequired,
                     }),
                 )
                 .sort(
@@ -149,7 +150,7 @@ test('defaults every missing actor and type and lists only enforceable warehouse
             actors.map(async (actorKind) => {
                 expect(
                     await model.get(organizationUuid, warehouseType, actorKind),
-                ).toEqual({ source: 'marked_person', required: false });
+                ).toEqual({ source: 'marked_person' });
             }),
         ),
     );
@@ -157,27 +158,22 @@ test('defaults every missing actor and type and lists only enforceable warehouse
         {
             warehouseType: WarehouseTypes.SNOWFLAKE,
             source: 'marked_person',
-            required: false,
+            projectsMissingAiServiceAccount: null,
         },
         {
             warehouseType: WarehouseTypes.BIGQUERY,
             source: 'marked_person',
-            required: false,
+            projectsMissingAiServiceAccount: null,
         },
     ]);
 });
 
-test.each([
-    { source: 'agent_sign_in', required: true },
-    { source: 'agent_sign_in', required: false },
-    { source: 'marked_person', required: true },
-    { source: 'marked_person', required: false },
-] as const)(
-    'writes both Snowflake actors and legacy settings for $source/$required',
+test.each([{ source: 'agent_sign_in' }, { source: 'marked_person' }] as const)(
+    'writes both Snowflake actors and legacy settings for $source',
     async (rule) => {
         const { model, settings, organizationUuid } = await fixture();
         await settings.upsert(organizationUuid, {
-            requireVerifiedAgentSessions: !rule.required,
+            requireVerifiedAgentSessions: rule.source !== 'agent_sign_in',
         });
         await model.set(organizationUuid, WarehouseTypes.SNOWFLAKE, rule);
         await Promise.all(
@@ -192,12 +188,12 @@ test.each([
             }),
         );
         expect(await settings.get(organizationUuid)).toEqual({
-            requireVerifiedAgentSessions:
-                rule.source === 'agent_sign_in' && rule.required,
+            requireVerifiedAgentSessions: rule.source === 'agent_sign_in',
         });
         expect((await model.list(organizationUuid))[0]).toEqual({
             warehouseType: WarehouseTypes.SNOWFLAKE,
             ...rule,
+            projectsMissingAiServiceAccount: null,
         });
         expect(
             await migrated
@@ -209,7 +205,7 @@ test.each([
 
 test('writes both BigQuery actors without creating or changing legacy settings', async () => {
     const { model, settings, organizationUuid } = await fixture();
-    const rule = { source: 'ai_service_account', required: true } as const;
+    const rule = { source: 'ai_service_account' } as const;
     await model.set(organizationUuid, WarehouseTypes.BIGQUERY, rule);
     expect(
         await migrated
@@ -236,7 +232,6 @@ test('writes both BigQuery actors without creating or changing legacy settings',
         .first();
     await model.set(organizationUuid, WarehouseTypes.BIGQUERY, {
         source: 'marked_person',
-        required: false,
     });
     expect(
         await migrated
@@ -268,7 +263,6 @@ test.each([true, false])(
                     ),
                 ).toEqual({
                     source: required ? 'agent_sign_in' : 'marked_person',
-                    required,
                 });
             }),
         );
@@ -293,7 +287,6 @@ test('rolls back both actor rows when the legacy write fails', async () => {
         await expect(
             model.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
                 source: 'agent_sign_in',
-                required: true,
             }),
         ).rejects.toMatchObject({ code: '23514' });
         expect(
@@ -332,7 +325,7 @@ test('honors a caller transaction and rolls back rules and legacy settings toget
             await model.set(
                 organizationUuid,
                 WarehouseTypes.SNOWFLAKE,
-                { source: 'agent_sign_in', required: true },
+                { source: 'agent_sign_in' },
                 trx,
             );
             expect(
@@ -366,7 +359,6 @@ test('serializes concurrent writes and cascades organization deletion', async ()
     await Promise.all([
         model.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
             source: 'agent_sign_in',
-            required: true,
         }),
         settings.upsert(organizationUuid, {
             requireVerifiedAgentSessions: false,
@@ -385,8 +377,7 @@ test('serializes concurrent writes and cascades organization deletion', async ()
         ),
     ).toEqual(person);
     expect(await settings.get(organizationUuid)).toEqual({
-        requireVerifiedAgentSessions:
-            person.source === 'agent_sign_in' && person.required,
+        requireVerifiedAgentSessions: person.source === 'agent_sign_in',
     });
     await migrated
         .database('organizations')

@@ -71,17 +71,18 @@ describe.skipIf(!hasBigqueryCredentials())(
             return response.body.results;
         };
 
-        const putRule = async (required: boolean) => {
+        const putRule = async (
+            source: 'marked_person' | 'ai_service_account',
+        ) => {
             const response =
                 await admin.put<ApiOrganizationAgentIdentityRuleResponse>(
                     bigqueryRuleUrl,
-                    { source: 'ai_service_account', required },
+                    { source },
                 );
             expect(response.status).toBe(200);
-            expect(response.body.results).toEqual({
+            expect(response.body.results).toMatchObject({
                 warehouseType: WarehouseTypes.BIGQUERY,
-                source: 'ai_service_account',
-                required,
+                source,
             });
         };
 
@@ -125,11 +126,10 @@ describe.skipIf(!hasBigqueryCredentials())(
             if (!admin) return;
             const cleanup: (() => Promise<void>)[] = [];
             if (previousRule) {
-                const { source, required } = previousRule;
+                const { source } = previousRule;
                 cleanup.push(async () => {
                     expect(
-                        (await admin.put(bigqueryRuleUrl, { source, required }))
-                            .status,
+                        (await admin.put(bigqueryRuleUrl, { source })).status,
                     ).toBe(200);
                 });
             }
@@ -184,7 +184,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             const before = await admin.get<ApiProjectResponse>(projectUrl);
             const rejected = await admin.put(
                 bigqueryRuleUrl,
-                { source: 'agent_sign_in', required: true },
+                { source: 'agent_sign_in' },
                 { failOnStatusCode: false },
             );
             expect(rejected.status).toBeGreaterThanOrEqual(400);
@@ -204,7 +204,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                 JSON.stringify(after.body.results.warehouseConnection) ===
                     JSON.stringify(before.body.results.warehouseConnection),
             ).toBe(true);
-            await putRule(false);
+            await putRule('marked_person');
         });
 
         it('rejects an AI service account slot on the Postgres seed project', async () => {
@@ -237,12 +237,12 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(await getSlot()).toBeNull();
         }, 240_000);
 
-        it('uses the marked person for MCP SQL when the slot is optional and missing', async () => {
+        it('uses the connection account for MCP SQL under the marked person rule', async () => {
             const me = await admin.get<Body<AiAccessForUser>>(
                 `${accessUrl()}/me`,
             );
             expect(me.body.results).toMatchObject({
-                source: 'ai_service_account',
+                source: 'marked_person',
                 identity: 'marked_person',
                 refusal: null,
             });
@@ -258,8 +258,8 @@ describe.skipIf(!hasBigqueryCredentials())(
             });
         });
 
-        it('refuses MCP SQL for a required missing slot while normal SQL still works', async () => {
-            await putRule(true);
+        it('refuses MCP SQL for a missing AI service account slot while normal SQL still works', async () => {
+            await putRule('ai_service_account');
             const me = await admin.get<Body<AiAccessForUser>>(
                 `${accessUrl()}/me`,
             );

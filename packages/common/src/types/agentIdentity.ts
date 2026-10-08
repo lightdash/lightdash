@@ -50,12 +50,13 @@ export const isAllowedAgentIdentitySource = (
 export type OrganizationAgentIdentityRule = {
     warehouseType: WarehouseTypes;
     source: AiIdentitySource;
-    required: boolean;
+    projectsMissingAiServiceAccount:
+        | { projectUuid: string; name: string }[]
+        | null;
 };
 
 export type UpdateOrganizationAgentIdentityRule = {
     source: AiIdentitySource;
-    required: boolean;
 };
 
 export type OrganizationAgentIdentityOverview = {

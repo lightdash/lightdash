@@ -64,7 +64,6 @@ export class OrganizationAgentIdentitySettingsModel {
                     .first();
             await this.rulesModel.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
                 source: settings.requireVerifiedAgentSessions ? 'agent_sign_in' : 'marked_person',
-                required: settings.requireVerifiedAgentSessions,
             }, transaction);
             return {
                 settings: {

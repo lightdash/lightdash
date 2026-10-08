@@ -134,6 +134,42 @@ export class AiServiceAccountCredentialsModel {
         }
     }
 
+    async findProjectsMissingSlot(
+        organizationUuid: string,
+        warehouseType: WarehouseTypes,
+    ): Promise<{ projectUuid: string; name: string }[]> {
+        return this.args
+            .database('projects')
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .join(
+                'warehouse_credentials',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .where('projects.project_type', 'DEFAULT')
+            .where('warehouse_credentials.warehouse_type', warehouseType)
+            .whereNotExists(
+                this.args
+                    .database(AiServiceAccountCredentialsTableName)
+                    .select(this.args.database.raw('1'))
+                    .where(
+                        'ai_service_account_credentials.project_uuid',
+                        this.args.database.ref('projects.project_uuid'),
+                    )
+                    .whereNull('warehouse_connection_uuid'),
+            )
+            .select({
+                projectUuid: 'projects.project_uuid',
+                name: 'projects.name',
+            })
+            .orderBy('projects.name');
+    }
+
     async getSlot(
         projectUuid: string,
         warehouseConnectionUuid: string | null,

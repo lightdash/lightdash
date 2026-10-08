@@ -17,9 +17,9 @@ test.each([
 ] as const)(
     'rejects %s source %s before opening a transaction',
     async (type, source) => {
-        await expect(
-            model.set('org', type, { source, required: true }),
-        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(model.set('org', type, { source })).rejects.toBeInstanceOf(
+            ParameterError,
+        );
         expect(transaction).not.toHaveBeenCalled();
     },
 );

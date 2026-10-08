@@ -5,6 +5,7 @@ import {
     formatDate,
     type Project,
     type AiServiceAccountSlot,
+    type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import {
     Alert,
@@ -41,10 +42,12 @@ const AiServiceAccountSlotSummary = ({
     projectUuid,
     slot,
     onReplace,
+    onTestSuccess,
 }: {
     projectUuid: string;
     slot: AiServiceAccountSlot;
     onReplace: () => void;
+    onTestSuccess: (principal: string) => void;
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
@@ -73,7 +76,17 @@ const AiServiceAccountSlotSummary = ({
                         variant="default"
                         loading={test.isLoading}
                         disabled={remove.isLoading}
-                        onClick={() => test.mutate({ credentials: null })}
+                        onClick={() =>
+                            test.mutate(
+                                { credentials: null },
+                                {
+                                    onSuccess: (result) => {
+                                        if (result.ok && result.principal)
+                                            onTestSuccess(result.principal);
+                                    },
+                                },
+                            )
+                        }
                     >
                         Test
                     </Button>
@@ -87,11 +100,9 @@ const AiServiceAccountSlotSummary = ({
                     </Button>
                 </Group>
             </Group>
-            {test.data && (
+            {test.data && !test.data.ok && (
                 <Text size="sm" role="status">
-                    {test.data.ok && test.data.principal
-                        ? `Connected as ${test.data.principal}`
-                        : test.data.message}
+                    {test.data.message}
                 </Text>
             )}
             {test.error && (
@@ -122,10 +133,81 @@ const AiServiceAccountSlotSummary = ({
     );
 };
 
+const AiServiceAccountSettingsContent = ({
+    projectUuid,
+    slot,
+    rule,
+    testedPrincipal,
+    onTestSuccess,
+    onEdit,
+}: {
+    projectUuid: string;
+    slot: AiServiceAccountSlot | null;
+    rule: OrganizationAgentIdentityRule;
+    testedPrincipal: string | null;
+    onTestSuccess: (principal: string) => void;
+    onEdit: () => void;
+}) => {
+    return (
+        <Stack gap="sm">
+            <Text size="sm">
+                {agentIdentitySentence(identityWarehouseNames.bigquery)}{' '}
+                {inlineIdentityLabel(rule.source)}.
+            </Text>
+            <Text size="sm">
+                {rule.source === 'ai_service_account' &&
+                    'Required by your organisation. '}
+                <Anchor
+                    component={Link}
+                    to="/generalSettings/warehouseCredentials"
+                    size="sm"
+                >
+                    Organisation settings
+                </Anchor>
+            </Text>
+            {rule.source === 'marked_person' && (
+                <Text size="sm" c="dimmed">
+                    Agents use the same credentials as the user. No AI service
+                    account key is needed.
+                </Text>
+            )}
+            {!slot && rule.source === 'ai_service_account' && (
+                <Alert color="yellow">
+                    AI agents on this connection are refused until an AI service
+                    account is added.
+                </Alert>
+            )}
+            {testedPrincipal && (
+                <Text size="sm" role="status">
+                    Signs in as {testedPrincipal}
+                </Text>
+            )}
+            {slot ? (
+                <AiServiceAccountSlotSummary
+                    projectUuid={projectUuid}
+                    slot={slot}
+                    onTestSuccess={onTestSuccess}
+                    onReplace={onEdit}
+                />
+            ) : (
+                <Paper variant="dotted" p="sm">
+                    <Button variant="subtle" onClick={onEdit}>
+                        Add an AI service account
+                    </Button>
+                </Paper>
+            )}
+        </Stack>
+    );
+};
+
 const AiServiceAccountSettings = ({ projectUuid }: { projectUuid: string }) => {
+    const [editing, setEditing] = useState(false);
+    const [testedPrincipal, setTestedPrincipal] = useState<{
+        identityUuid: string;
+        principal: string;
+    } | null>(null);
     const settings = useOrganizationAgentIdentitySettings();
     const slot = useAiServiceAccount(projectUuid);
-    const [editing, setEditing] = useState(false);
     const rule = settings.data?.rules.find(
         ({ warehouseType }) => warehouseType === WarehouseTypes.BIGQUERY,
     );
@@ -143,54 +225,47 @@ const AiServiceAccountSettings = ({ projectUuid }: { projectUuid: string }) => {
         );
 
     return (
-        <Stack gap="sm">
-            <Text size="sm">
-                {agentIdentitySentence(identityWarehouseNames.bigquery)}{' '}
-                {inlineIdentityLabel(rule.source)}.
-            </Text>
-            {rule.required && (
-                <Text size="sm">Required by your organisation.</Text>
-            )}
-            <Anchor
-                component={Link}
-                to="/generalSettings/warehouseCredentials"
-                size="sm"
-            >
-                Organisation settings
-            </Anchor>
-            {!slot.data &&
-                rule.source === 'ai_service_account' &&
-                (rule.required ? (
-                    <Alert color="yellow">
-                        AI agents on this connection are refused until an AI
-                        service account is added.
-                    </Alert>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        AI agents use the same credentials as the user until an
-                        AI service account is added.
-                    </Text>
-                ))}
-            {slot.data ? (
-                <AiServiceAccountSlotSummary
-                    projectUuid={projectUuid}
-                    slot={slot.data}
-                    onReplace={() => setEditing(true)}
-                />
-            ) : (
-                <Paper variant="dotted" p="sm">
-                    <Button variant="subtle" onClick={() => setEditing(true)}>
-                        Add an AI service account
-                    </Button>
-                </Paper>
-            )}
+        <>
+            <AiServiceAccountSettingsContent
+                key={
+                    slot.data
+                        ? `${slot.data.identityUuid}:${slot.data.updatedAt}`
+                        : 'empty'
+                }
+                projectUuid={projectUuid}
+                slot={slot.data ?? null}
+                rule={rule}
+                testedPrincipal={
+                    testedPrincipal?.identityUuid === slot.data?.identityUuid
+                        ? (testedPrincipal?.principal ?? null)
+                        : null
+                }
+                onTestSuccess={(principal) => {
+                    if (slot.data)
+                        setTestedPrincipal({
+                            identityUuid: slot.data.identityUuid,
+                            principal,
+                        });
+                }}
+                onEdit={() => setEditing(true)}
+            />
             {editing && (
                 <AiServiceAccountForm
                     projectUuid={projectUuid}
+                    onSaved={(savedSlot, principal) =>
+                        setTestedPrincipal(
+                            principal
+                                ? {
+                                      identityUuid: savedSlot.identityUuid,
+                                      principal,
+                                  }
+                                : null,
+                        )
+                    }
                     onClose={() => setEditing(false)}
                 />
             )}
-        </Stack>
+        </>
     );
 };
 

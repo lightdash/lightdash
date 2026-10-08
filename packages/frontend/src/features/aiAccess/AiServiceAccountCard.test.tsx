@@ -75,7 +75,6 @@ vi.mock('../../components/ProjectConnection/formContext', () => ({
 }));
 
 let source: AiIdentitySource = 'marked_person';
-let required = false;
 let slot: AiServiceAccountSlot | null = null;
 const savedSlot = {
     uuid: 'slot',
@@ -120,7 +119,7 @@ const setup = (props = project, connectionPage = false) => {
             </MemoryRouter>
         </QueryClientProvider>,
     );
-    return { ...rendered, invalidate };
+    return { ...rendered, invalidate, client };
 };
 const openForm = async () => {
     fireEvent.click(
@@ -137,7 +136,6 @@ describe('AI service account card', () => {
         mocks.enabled = true;
         mocks.canManage = true;
         source = 'marked_person';
-        required = false;
         slot = null;
         vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
             if (url === '/org/agent-identity')
@@ -147,7 +145,7 @@ describe('AI service account card', () => {
                         {
                             warehouseType: WarehouseTypes.BIGQUERY,
                             source,
-                            required,
+                            projectsMissingAiServiceAccount: null,
                         },
                     ],
                 };
@@ -202,21 +200,22 @@ describe('AI service account card', () => {
     });
     it('warns when a required service account is missing', async () => {
         source = 'ai_service_account';
-        required = true;
         setup();
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'AI agents on this connection are refused until an AI service account is added.',
         );
         expect(
-            screen.getByText('Required by your organisation.'),
-        ).toBeInTheDocument();
+            screen.getByRole('link', { name: 'Organisation settings' })
+                .parentElement,
+        ).toHaveTextContent(
+            'Required by your organisation. Organisation settings',
+        );
     });
-    it('explains the fallback for an optional service account', async () => {
-        source = 'ai_service_account';
+    it('explains that no key is needed for the marked person source', async () => {
         setup();
         expect(
             await screen.findByText(
-                'AI agents use the same credentials as the user until an AI service account is added.',
+                'Agents use the same credentials as the user. No AI service account key is needed.',
             ),
         ).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -225,9 +224,9 @@ describe('AI service account card', () => {
         slot = savedSlot;
         setup();
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'tested-principal',
-        );
+        expect(
+            await screen.findByText('Signs in as tested-principal'),
+        ).toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
@@ -250,9 +249,9 @@ describe('AI service account card', () => {
             screen.queryByText(/secret-email|secret-key/),
         ).not.toBeInTheDocument();
         fireEvent.click(testButton);
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'tested-principal',
-        );
+        expect(
+            await within(dialog).findByText('Signs in as tested-principal'),
+        ).toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
@@ -268,6 +267,182 @@ describe('AI service account card', () => {
         });
         expect(
             screen.queryByText(/secret-email|secret-key/),
+        ).not.toBeInTheDocument();
+    });
+    it('does not show an unsaved test principal on the card after Cancel', async () => {
+        setup();
+        const dialog = await openForm();
+        upload();
+        const testButton = within(dialog).getByRole('button', { name: 'Test' });
+        await waitFor(() => expect(testButton).toBeEnabled());
+        fireEvent.click(testButton);
+        await within(dialog).findByText('Signs in as tested-principal');
+        expect(
+            screen.getAllByText('Signs in as tested-principal'),
+        ).toHaveLength(1);
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.queryByText('Signs in as tested-principal'),
+        ).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+    });
+    it.each(['add', 'replace'])(
+        'keeps the tested principal after %s and Save',
+        async (mode) => {
+            if (mode === 'replace')
+                slot = { ...savedSlot, identityUuid: 'previous-identity' };
+            setup();
+            if (mode === 'replace')
+                fireEvent.click(
+                    await screen.findByRole('button', { name: 'Replace' }),
+                );
+            else await openForm();
+            const dialog = await screen.findByRole('dialog');
+            upload();
+            const testButton = within(dialog).getByRole('button', {
+                name: 'Test',
+            });
+            await waitFor(() => expect(testButton).toBeEnabled());
+            fireEvent.click(testButton);
+            await within(dialog).findByText('Signs in as tested-principal');
+            expect(
+                screen.getAllByText('Signs in as tested-principal'),
+            ).toHaveLength(1);
+            fireEvent.click(
+                within(dialog).getByRole('button', { name: 'Save' }),
+            );
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+            );
+            expect(
+                screen.getByText('Signs in as tested-principal'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Replace' }),
+            ).toBeInTheDocument();
+        },
+    );
+    it.each(['untested', 'changed key', 'failed retest', 'retest error'])(
+        'does not carry a principal into a saved slot for %s',
+        async (scenario) => {
+            setup();
+            const dialog = await openForm();
+            upload();
+            const testButton = within(dialog).getByRole('button', {
+                name: 'Test',
+            });
+            await waitFor(() => expect(testButton).toBeEnabled());
+            if (scenario !== 'untested') {
+                fireEvent.click(testButton);
+                await within(dialog).findByText('Signs in as tested-principal');
+                if (scenario === 'changed key') {
+                    upload(
+                        JSON.stringify({
+                            ...key,
+                            private_key: 'different-key',
+                        }),
+                    );
+                    await waitFor(() => expect(testButton).toBeEnabled());
+                } else {
+                    if (scenario === 'failed retest')
+                        vi.mocked(lightdashApi).mockResolvedValueOnce({
+                            ok: false,
+                            principal: null,
+                            message: 'Access denied.',
+                        });
+                    else
+                        vi.mocked(lightdashApi).mockRejectedValueOnce({
+                            error: { message: 'Access denied.' },
+                        });
+                    fireEvent.click(testButton);
+                    await within(dialog).findByText('Access denied.');
+                }
+            }
+            fireEvent.click(
+                within(dialog).getByRole('button', { name: 'Save' }),
+            );
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+            );
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+            expect(
+                await screen.findByText('Signs in as tested-principal'),
+            ).toBeInTheDocument();
+        },
+    );
+    it('clears the saved principal when the key is replaced without a Test', async () => {
+        slot = { ...savedSlot, identityUuid: 'previous-identity' };
+        setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        await screen.findByText('Signs in as tested-principal');
+        fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+        const dialog = await screen.findByRole('dialog');
+        upload();
+        const saveButton = within(dialog).getByRole('button', { name: 'Save' });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        fireEvent.click(saveButton);
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+    });
+    it('hides the saved principal when a refetch returns a different identity', async () => {
+        slot = savedSlot;
+        const { client } = setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        await screen.findByText('Signs in as tested-principal');
+        slot = { ...savedSlot, identityUuid: 'replacement-identity' };
+        await client.invalidateQueries(['ai-access']);
+        await waitFor(() =>
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument(),
+        );
+    });
+    it('keeps the saved principal after testing and cancelling replacement, and clears it on removal', async () => {
+        slot = savedSlot;
+        setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        await screen.findByText('Signs in as tested-principal');
+        fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+        const dialog = await screen.findByRole('dialog');
+        upload();
+        const testButton = within(dialog).getByRole('button', { name: 'Test' });
+        await waitFor(() => expect(testButton).toBeEnabled());
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            ok: true,
+            principal: 'replacement-principal',
+            message: 'Connection works.',
+        });
+        fireEvent.click(testButton);
+        await within(dialog).findByText('Signs in as replacement-principal');
+        expect(
+            screen.getByText('Signs in as tested-principal'),
+        ).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByText('Signs in as tested-principal'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Signs in as replacement-principal'),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        const confirmation = await screen.findByRole('dialog');
+        fireEvent.click(
+            within(confirmation).getByRole('button', { name: 'Remove' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Add an AI service account',
+        });
+        expect(
+            screen.queryByText('Signs in as tested-principal'),
         ).not.toBeInTheDocument();
     });
     it('saves, replaces and removes the slot only after confirmation', async () => {
@@ -431,9 +606,9 @@ describe('AI service account card', () => {
         );
         expect(button).toBeEnabled();
         fireEvent.click(button);
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'tested-principal',
-        );
+        expect(
+            await screen.findByText('Signs in as tested-principal'),
+        ).toBeInTheDocument();
     });
     it('reports a load failure instead of offering to overwrite an unknown slot', async () => {
         vi.mocked(lightdashApi).mockRejectedValue({

@@ -6,14 +6,15 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
+    Anchor,
     Group,
     Select,
-    Loader,
     Stack,
-    Switch,
     Text,
     Title,
 } from '@mantine/core';
+import { Fragment } from 'react';
+import { Link } from 'react-router';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
@@ -29,7 +30,6 @@ import {
     agentIdentitySentence,
     identityLabels,
     identityWarehouseNames,
-    requiredIdentityLabel,
 } from './identityLabels';
 
 const AgentIdentityRule = ({
@@ -63,6 +63,17 @@ const AgentIdentityRule = ({
                             disabled: source === 'agent_sign_in' && !configured,
                         }),
                     )}
+                    renderOption={({ option }) => (
+                        <Stack gap={0}>
+                            <Text size="sm">{option.label}</Text>
+                            {option.disabled &&
+                                option.value === 'agent_sign_in' && (
+                                    <Text size="xs" c="dimmed">
+                                        Needs the Snowflake agent integration
+                                    </Text>
+                                )}
+                        </Stack>
+                    )}
                     allowDeselect={false}
                     disabled={save.isLoading}
                     w={340}
@@ -72,12 +83,8 @@ const AgentIdentityRule = ({
                         ].person.find((allowed) => allowed === value);
                         if (source)
                             save.mutate({
-                                ...rule,
+                                warehouseType: rule.warehouseType,
                                 source,
-                                required:
-                                    source === 'marked_person'
-                                        ? false
-                                        : rule.required,
                             });
                     }}
                 />
@@ -85,35 +92,53 @@ const AgentIdentityRule = ({
             <Text size="sm" c="dimmed">
                 {identityLabels[rule.source].helper}
             </Text>
-            <Switch
-                label={requiredIdentityLabel}
-                checked={rule.required}
-                disabled={save.isLoading || rule.source === 'marked_person'}
-                thumbIcon={save.isLoading ? <Loader size="xs" /> : undefined}
-                aria-busy={save.isLoading}
-                onChange={(event) =>
-                    save.mutate({
-                        ...rule,
-                        required: event.currentTarget.checked,
-                    })
-                }
-            />
-            {rule.warehouseType === WarehouseTypes.SNOWFLAKE && !configured && (
-                <Stack gap="xs">
-                    <Text size="xs" c="dimmed">
-                        Agent sign-in needs the Snowflake agent integration.
+            {rule.projectsMissingAiServiceAccount &&
+                rule.projectsMissingAiServiceAccount.length > 0 && (
+                    <Text size="sm" c="orange">
+                        {rule.projectsMissingAiServiceAccount.length}{' '}
+                        {rule.projectsMissingAiServiceAccount.length === 1
+                            ? 'project has'
+                            : 'projects have'}{' '}
+                        no AI service account:{' '}
+                        {rule.projectsMissingAiServiceAccount
+                            .slice(0, 3)
+                            .map((project, index) => (
+                                <Fragment key={project.projectUuid}>
+                                    {index > 0 && ', '}
+                                    <Anchor
+                                        component={Link}
+                                        size="sm"
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
+                                    >
+                                        {project.name}
+                                    </Anchor>
+                                </Fragment>
+                            ))}
+                        {rule.projectsMissingAiServiceAccount.length > 3 &&
+                            ` and ${rule.projectsMissingAiServiceAccount.length - 3} more`}
+                        . Agents are refused on them until a project admin adds
+                        one.
                     </Text>
-                    <Accordion variant="default">
-                        <Accordion.Item value="setup">
-                            <Accordion.Control>
-                                Set up the Snowflake agent integration
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <Stack gap="xs">
-                                    <CodeBlock
-                                        language="sql"
-                                        copyLabel="Copy integration SQL"
-                                        code={`CREATE SECURITY INTEGRATION LIGHTDASH_AGENT
+                )}
+            {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                (rule.source === 'agent_sign_in' || !configured) && (
+                    <Stack gap="xs">
+                        <Text size="xs" c="dimmed">
+                            {configured
+                                ? 'The Snowflake agent integration is set up on this instance.'
+                                : 'Agent sign-in needs the Snowflake agent integration.'}
+                        </Text>
+                        <Accordion variant="default">
+                            <Accordion.Item value="setup">
+                                <Accordion.Control>
+                                    Set up the Snowflake agent integration
+                                </Accordion.Control>
+                                <Accordion.Panel>
+                                    <Stack gap="xs">
+                                        <CodeBlock
+                                            language="sql"
+                                            copyLabel="Copy integration SQL"
+                                            code={`CREATE SECURITY INTEGRATION LIGHTDASH_AGENT
   TYPE = OAUTH
   OAUTH_CLIENT = CUSTOM
   OAUTH_CLIENT_TYPE = 'CONFIDENTIAL'
@@ -123,21 +148,22 @@ const AgentIdentityRule = ({
   OAUTH_ISSUE_REFRESH_TOKENS = TRUE
   OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`}
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        Set SNOWFLAKE_AI_OAUTH_CLIENT_ID and
-                                        SNOWFLAKE_AI_OAUTH_CLIENT_SECRET from
-                                        the secret output, and set
-                                        SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT
-                                        and SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT
-                                        for the account.
-                                    </Text>
-                                </Stack>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                    </Accordion>
-                </Stack>
-            )}
+                                        />
+                                        <Text size="xs" c="dimmed">
+                                            Set SNOWFLAKE_AI_OAUTH_CLIENT_ID and
+                                            SNOWFLAKE_AI_OAUTH_CLIENT_SECRET
+                                            from the secret output, and set
+                                            SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT
+                                            and
+                                            SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT
+                                            for the account.
+                                        </Text>
+                                    </Stack>
+                                </Accordion.Panel>
+                            </Accordion.Item>
+                        </Accordion>
+                    </Stack>
+                )}
         </Stack>
     );
 };

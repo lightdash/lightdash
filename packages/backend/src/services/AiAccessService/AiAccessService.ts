@@ -190,8 +190,7 @@ export class AiAccessService extends BaseService {
             WarehouseTypes.SNOWFLAKE,
             'person',
         );
-        if (rule.source !== 'agent_sign_in' || !rule.required)
-            return { required: false };
+        if (rule.source !== 'agent_sign_in') return { required: false };
         const projects =
             await this.projectModel.getAllByOrganizationUuid(organizationUuid);
         const ability = this.createAuditedAbility(user);
@@ -236,7 +235,25 @@ export class AiAccessService extends BaseService {
             this.organizationAgentIdentitySettingsModel.get(organizationUuid),
             this.organizationAgentIdentityRulesModel.list(organizationUuid),
         ]);
-        return { ...settings, rules };
+        const canManage = this.createAuditedAbility(account).can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        );
+        return {
+            ...settings,
+            rules: await Promise.all(
+                rules.map(async (rule) => ({
+                    ...rule,
+                    projectsMissingAiServiceAccount:
+                        canManage && rule.source === 'ai_service_account'
+                            ? await this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
+                                  organizationUuid,
+                                  rule.warehouseType,
+                              )
+                            : null,
+                })),
+            ),
+        };
     }
 
     async updateOrganizationSettings(
@@ -333,13 +350,21 @@ export class AiAccessService extends BaseService {
                     userId: account.user.id,
                     warehouseType,
                     source: rule.source,
-                    required: rule.required,
                     previousSource: previous.source,
-                    previousRequired: previous.required,
                 },
             }),
         );
-        return { warehouseType, source: rule.source, required: rule.required };
+        return {
+            warehouseType,
+            source: rule.source,
+            projectsMissingAiServiceAccount:
+                rule.source === 'ai_service_account'
+                    ? await this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
+                          organizationUuid,
+                          warehouseType,
+                      )
+                    : null,
+        };
     }
 
     private async authorizeProject(
@@ -813,7 +838,6 @@ export class AiAccessService extends BaseService {
             if (rule.source === 'marked_person')
                 return await this.markedPlan(args);
             if (!args.isRegisteredUser && !args.isServiceAccount) {
-                if (!rule.required) return await this.markedPlan(args);
                 throw new AiAccessRefusedError(
                     AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
                 );
@@ -833,7 +857,6 @@ export class AiAccessService extends BaseService {
                     );
                 }
                 if (saved === null) {
-                    if (!rule.required) return await this.markedPlan(args);
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
                     );
@@ -876,8 +899,6 @@ export class AiAccessService extends BaseService {
                     rule.source,
                     'Unknown AI identity source',
                 );
-            if (args.isServiceAccount && !rule.required)
-                return await this.markedPlan(args);
             const provider = await this.provider(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
@@ -886,14 +907,6 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            if (
-                !rule.required &&
-                (await provider.missingPrerequisite({
-                    connection: args.connection,
-                    person: { userUuid: args.userUuid, email },
-                })) !== null
-            )
-                return await this.markedPlan(args);
             const { credentials, assurances, identityUuid } =
                 await provider.mint({
                     connection: args.connection,
@@ -1067,7 +1080,8 @@ export class AiAccessService extends BaseService {
               )
             : null;
         const result: AiAccessForUser = {
-            requirementSource: rule?.required ? 'organization' : null,
+            requirementSource:
+                rule && rule.source !== 'marked_person' ? 'organization' : null,
             source: rule?.source ?? null,
             identity: enabled ? 'marked_person' : null,
             marker: enabled ? describeAgentMarker(args.connection.type) : null,
@@ -1081,7 +1095,6 @@ export class AiAccessService extends BaseService {
         if (!rule || rule.source === 'marked_person') return result;
         try {
             if (!args.isRegisteredUser && !args.isServiceAccount) {
-                if (!rule.required) return result;
                 throw new AiAccessRefusedError(
                     AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
                 );
@@ -1096,11 +1109,6 @@ export class AiAccessService extends BaseService {
                             args.warehouseConnectionUuid,
                         );
                     if (slot === null) {
-                        if (!rule.required) {
-                            result.identity = 'marked_person';
-                            result.principalKind = this.actorKind(args);
-                            return result;
-                        }
                         throw new AiAccessRefusedError(
                             AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
                         );
@@ -1116,7 +1124,6 @@ export class AiAccessService extends BaseService {
                     return result;
                 }
                 case 'agent_sign_in': {
-                    if (args.isServiceAccount && !rule.required) return result;
                     result.identity = 'connected_person';
                     const provider = await this.provider(args);
                     const { email } = await this.userModel.getUserDetailsByUuid(
@@ -1131,10 +1138,6 @@ export class AiAccessService extends BaseService {
                         person: { userUuid: args.userUuid, email },
                     });
                     if (missing !== null) {
-                        if (!rule.required) {
-                            result.identity = 'marked_person';
-                            return result;
-                        }
                         throw new AiAccessRefusedError(missing);
                     }
                     const credential =

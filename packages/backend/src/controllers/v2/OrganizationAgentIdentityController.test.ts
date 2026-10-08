@@ -25,18 +25,18 @@ const setup = () => {
         ),
     };
     const rules = {
-        get: vi.fn(async () => ({ source: 'marked_person', required: false })),
+        get: vi.fn(async () => ({ source: 'marked_person' })),
         list: vi.fn(
             async (): Promise<OrganizationAgentIdentityRule[]> => [
                 {
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     source: 'marked_person',
-                    required: false,
+                    projectsMissingAiServiceAccount: null,
                 },
                 {
                     warehouseType: WarehouseTypes.BIGQUERY,
                     source: 'marked_person',
-                    required: false,
+                    projectsMissingAiServiceAccount: null,
                 },
             ],
         ),
@@ -45,6 +45,9 @@ const setup = () => {
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
         analytics: analyticsMock,
+        aiServiceAccountCredentialsModel: {
+            findProjectsMissingSlot: vi.fn(async () => []),
+        },
         featureFlagModel: flags,
         organizationAgentIdentityRulesModel:
             rules as unknown as OrganizationAgentIdentityRulesModel,
@@ -69,12 +72,12 @@ test('allows an authenticated member to read their organization settings', async
                 {
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     source: 'marked_person',
-                    required: false,
+                    projectsMissingAiServiceAccount: null,
                 },
                 {
                     warehouseType: WarehouseTypes.BIGQUERY,
                     source: 'marked_person',
-                    required: false,
+                    projectsMissingAiServiceAccount: null,
                 },
             ],
         },
@@ -107,12 +110,12 @@ test('allows an organization admin to update their own settings', async () => {
         {
             warehouseType: WarehouseTypes.SNOWFLAKE,
             source: 'agent_sign_in',
-            required: true,
+            projectsMissingAiServiceAccount: null,
         },
         {
             warehouseType: WarehouseTypes.BIGQUERY,
             source: 'marked_person',
-            required: false,
+            projectsMissingAiServiceAccount: null,
         },
     ];
     rules.list.mockResolvedValue(updatedRules);
@@ -193,16 +196,20 @@ test.each([
     expect(
         await controller.updateRule(req, warehouseType, {
             source,
-            required: true,
         }),
     ).toEqual({
         status: 'ok',
-        results: { warehouseType, source, required: true },
+        results: {
+            warehouseType,
+            source,
+            projectsMissingAiServiceAccount:
+                source === 'ai_service_account' ? [] : null,
+        },
     });
     expect(rules.set).toHaveBeenCalledWith(
         account.organization.organizationUuid,
         warehouseType,
-        { source, required: true },
+        { source },
     );
 });
 
@@ -218,7 +225,6 @@ test('rejects a rule update scoped to another organization', async () => {
     await expect(
         controller.updateRule(req, WarehouseTypes.BIGQUERY, {
             source: 'ai_service_account',
-            required: false,
         }),
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(rules.set).not.toHaveBeenCalled();
@@ -230,7 +236,6 @@ test('gates the per-warehouse PUT before writing', async () => {
     await expect(
         controller.updateRule(req, WarehouseTypes.BIGQUERY, {
             source: 'ai_service_account',
-            required: true,
         }),
     ).rejects.toMatchObject({
         name: 'FeatureNotEnabledError',

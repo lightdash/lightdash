@@ -309,3 +309,75 @@ test('reverses and reapplies the migration', async () => {
         ).toBe(true);
     });
 });
+
+test('lists only matching default projects in the organization without an original slot, ordered by name', async () => {
+    const { database } = migrated;
+    const f = await fixture();
+    const [org, otherOrg] = await database('organizations')
+        .insert([
+            { organization_name: 'Missing slots' },
+            { organization_name: 'Another organization' },
+        ])
+        .returning('*');
+    const create = async (
+        name: string,
+        warehouseType: WarehouseTypes,
+        projectType = 'DEFAULT',
+        organizationId = org.organization_id,
+    ) => {
+        const [project] = await database('projects')
+            .insert({
+                name,
+                organization_id: organizationId,
+                project_type: projectType,
+            } as never)
+            .returning('*');
+        await database('warehouse_credentials').insert({
+            project_id: project.project_id,
+            warehouse_type: warehouseType,
+            encrypted_credentials: encryptionUtil.encrypt('{}'),
+        });
+        return project;
+    };
+    const orders = await create('Orders', WarehouseTypes.BIGQUERY);
+    const jaffle = await create('Jaffle shop', WarehouseTypes.BIGQUERY);
+    const configured = await create('Configured', WarehouseTypes.BIGQUERY);
+    await f.model.upsert(
+        configured.project_uuid,
+        null,
+        credentials,
+        f.userUuid,
+    );
+    await create('Preview', WarehouseTypes.BIGQUERY, 'PREVIEW');
+    await create('Postgres', WarehouseTypes.POSTGRES);
+    await create(
+        'Other organization',
+        WarehouseTypes.BIGQUERY,
+        'DEFAULT',
+        otherOrg.organization_id,
+    );
+    const [extra] = await database('warehouse_connections')
+        .insert({
+            project_uuid: orders.project_uuid,
+            name: 'Extra',
+            is_original: false,
+            warehouse_type: 'bigquery',
+            encrypted_credentials: encryptionUtil.encrypt('{}'),
+        })
+        .returning('warehouse_connection_uuid');
+    await f.model.upsert(
+        orders.project_uuid,
+        extra.warehouse_connection_uuid,
+        credentials,
+        f.userUuid,
+    );
+    expect(
+        await f.model.findProjectsMissingSlot(
+            org.organization_uuid,
+            WarehouseTypes.BIGQUERY,
+        ),
+    ).toEqual([
+        { projectUuid: jaffle.project_uuid, name: 'Jaffle shop' },
+        { projectUuid: orders.project_uuid, name: 'Orders' },
+    ]);
+});

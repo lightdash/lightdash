@@ -4658,8 +4658,8 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
         warehouseType: WarehouseTypes;
         source?: AiIdentitySource;
         previousSource?: AiIdentitySource;
-        required: boolean;
-        previousRequired: boolean;
+        required?: boolean;
+        previousRequired?: boolean;
     };
 };
 

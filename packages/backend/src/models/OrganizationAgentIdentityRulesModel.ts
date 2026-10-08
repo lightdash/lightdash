@@ -31,7 +31,6 @@ export class OrganizationAgentIdentityRulesModel {
             .first();
         return {
             source: row?.source ?? 'marked_person',
-            required: row?.required ?? false,
         };
     }
 
@@ -54,7 +53,7 @@ export class OrganizationAgentIdentityRulesModel {
             return {
                 warehouseType,
                 source: row?.source ?? 'marked_person',
-                required: row?.required ?? false,
+                projectsMissingAiServiceAccount: null,
             };
         });
     }
@@ -79,7 +78,6 @@ export class OrganizationAgentIdentityRulesModel {
                         warehouse_type: warehouseType,
                         actor_kind: actorKind,
                         source: rule.source,
-                        required: rule.required,
                     })),
                 )
                 .onConflict([
@@ -89,20 +87,21 @@ export class OrganizationAgentIdentityRulesModel {
                 ])
                 .merge({
                     source: rule.source,
-                    required: rule.required,
                     updated_at: transaction.fn.now(),
                 });
             if (warehouseType === WarehouseTypes.SNOWFLAKE) {
-                const required =
-                    rule.source === 'agent_sign_in' && rule.required;
+                const requireVerifiedAgentSessions =
+                    rule.source === 'agent_sign_in';
                 await transaction('organization_agent_identity_settings')
                     .insert({
                         organization_uuid: organizationUuid,
-                        require_verified_agent_sessions: required,
+                        require_verified_agent_sessions:
+                            requireVerifiedAgentSessions,
                     })
                     .onConflict('organization_uuid')
                     .merge({
-                        require_verified_agent_sessions: required,
+                        require_verified_agent_sessions:
+                            requireVerifiedAgentSessions,
                         updated_at: transaction.fn.now(),
                     });
             }
