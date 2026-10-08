@@ -352,6 +352,43 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
+    it('parses "to date" pre-aggregate filters into current period bounds', () => {
+        const parsed = parseDbtPreAggregateDef(
+            {
+                name: 'orders_rollup',
+                dimensions: ['status'],
+                metrics: ['order_count'],
+                time_dimension: 'order_date',
+                granularity: 'day',
+                filters: [
+                    { order_date: 'inTheCurrent month to date' },
+                    { status: 'notInTheCurrent year to date excluding today' },
+                ],
+            },
+            'orders',
+        );
+        expect(parsed.filters).toStrictEqual([
+            {
+                id: expect.any(String),
+                target: { fieldRef: 'order_date' },
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+            {
+                id: expect.any(String),
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.years,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+        ]);
+    });
+
     it('throws when pre-aggregate filters use invalid filter grammar', () => {
         expect(() =>
             parseDbtPreAggregates(
