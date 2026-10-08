@@ -3939,11 +3939,7 @@
                     "type": "array"
                 },
                 "hideMetricNames": {
-                    "description": "Hide the metric-name header row in pivoted tables. Defaults to false.",
-                    "type": "boolean"
-                },
-                "hidePivotDimensionNames": {
-                    "description": "Hide pivoted dimension names, keeping their values. Defaults to false.",
+                    "description": "Hide the metric name header row in pivoted tables, along with the\npivoted dimension names, so column headers show only dimension values.\nDefaults to false.",
                     "type": "boolean"
                 },
                 "hideRowNumbers": {

@@ -130,7 +130,6 @@ describe('resolveTableChartConfig', () => {
             },
             hideRowNumbers: true,
             hideMetricNames: true,
-            hidePivotDimensionNames: true,
             conditionalFormattings: [],
             metricsAsRows: true,
         };
@@ -149,7 +148,6 @@ describe('resolveTableChartConfig', () => {
         expect(resolved.validConfig.showTableNames).toBe(false);
         expect(resolved.validConfig.hideRowNumbers).toBe(true);
         expect(resolved.validConfig.hideMetricNames).toBe(true);
-        expect(resolved.validConfig.hidePivotDimensionNames).toBe(true);
         // one unpivoted dimension left: subtotals are disabled
         expect(resolved.validConfig.showSubtotals).toBe(false);
         expect(resolved.canUseSubtotals).toBe(false);

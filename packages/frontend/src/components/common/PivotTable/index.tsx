@@ -184,7 +184,6 @@ type PivotTableProps = BoxProps & // TODO: remove this
         minMaxMap: ConditionalFormattingMinMaxMap | undefined;
         hideRowNumbers: boolean;
         hideMetricNames?: boolean;
-        hidePivotDimensionNames?: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
@@ -242,7 +241,6 @@ const PivotTable: FC<PivotTableProps> = ({
     minMaxMap = {},
     hideRowNumbers = false,
     hideMetricNames = false,
-    hidePivotDimensionNames = false,
     getFieldLabel,
     getField,
     className,
@@ -1223,12 +1221,8 @@ const PivotTable: FC<PivotTableProps> = ({
     }, [virtualRows, rowVirtualizer]);
 
     const headerRows = useMemo(
-        () =>
-            getVisiblePivotHeaderRows(data, {
-                hideMetricNames,
-                hidePivotDimensionNames,
-            }),
-        [data, hideMetricNames, hidePivotDimensionNames],
+        () => getVisiblePivotHeaderRows(data, { hideMetricNames }),
+        [data, hideMetricNames],
     );
     const lastHeaderRow = headerRows.at(-1);
     // A merged header spans several columns, so it cannot resize just one
@@ -1754,17 +1748,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                 </Table.CellHead>
                             ) : null;
                         })}
-                        {headerRow.groupTitle && (
-                            <Table.CellHead
-                                key={`header-group-${headerRow.index}`}
-                                isMinimal={isMinimal}
-                                withBoldFont
-                                ta="center"
-                                colSpan={headerRow.groupTitle.colSpan}
-                            >
-                                {getFieldLabel(headerRow.groupTitle.fieldId)}
-                            </Table.CellHead>
-                        )}
                         {/* render the total label */}
                         {hasRowTotals
                             ? headerRow.rowTotalFields?.map(
