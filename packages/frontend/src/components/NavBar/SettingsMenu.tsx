@@ -7,11 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
-import {
-    getProjectSettingsAccess,
-    LEARNER_COPY_SETTINGS_PAGE,
-} from '../../hooks/settings/projectSettingsAccess';
+import { useProjectSettingsAccess } from '../../hooks/settings/useProjectSettingsAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
@@ -25,7 +21,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
-    const { isTrainingCopy } = useIsTrainingCopy(project);
+    const { projectSettingsAccess } = useProjectSettingsAccess(project);
 
     if (!user || !activeProjectUuid) return null;
 
@@ -36,18 +32,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
         }),
     );
 
-    const projectSettingsAccess = getProjectSettingsAccess({
-        ability: user.ability,
-        project: user.organizationUuid
-            ? {
-                  organizationUuid: user.organizationUuid,
-                  projectUuid: activeProjectUuid,
-              }
-            : undefined,
-        isTrainingCopy,
-    });
-
-    if (!userCanViewOrganization && projectSettingsAccess === 'none') {
+    if (!userCanViewOrganization && projectSettingsAccess.type === 'none') {
         return null;
     }
 
@@ -75,16 +60,11 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             </Menu.Target>
 
             <Menu.Dropdown>
-                {projectSettingsAccess !== 'none' && (
+                {projectSettingsAccess.type !== 'none' && (
                     <Menu.Item
                         component={Link}
                         leftSection={<MantineIcon icon={IconDatabase} />}
-                        // A learner copy's settings hold the Validator alone
-                        to={`/generalSettings/projectManagement/${activeProjectUuid}/${
-                            projectSettingsAccess === 'learnerCopy'
-                                ? LEARNER_COPY_SETTINGS_PAGE
-                                : 'settings'
-                        }`}
+                        to={`/generalSettings/projectManagement/${activeProjectUuid}/${projectSettingsAccess.defaultPage}`}
                         data-tour-nav="project-settings"
                         data-tour-hint="Open Project settings"
                     >

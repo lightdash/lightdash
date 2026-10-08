@@ -100,6 +100,7 @@ export type SettingsContext = {
     /** Which project settings the user can open; see `getProjectSettingsAccess`. */
     projectSettingsAccess: ProjectSettingsAccess;
     isProjectSettingsAccessLoading: boolean;
+    projectSettingsAccessError: ApiError | null;
     isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
