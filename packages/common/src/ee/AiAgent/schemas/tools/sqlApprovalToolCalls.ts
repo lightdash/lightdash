@@ -83,7 +83,10 @@ export const isSqlApprovalToolCall = (
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
-    if (isRecord(toolArgs.content) && typeof toolArgs.content.sql === 'string') {
+    if (
+        isRecord(toolArgs.content) &&
+        typeof toolArgs.content.sql === 'string'
+    ) {
         return toolArgs.content.sql;
     }
     return getPatchedSql(toolArgs.patch);
