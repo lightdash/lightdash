@@ -43,6 +43,8 @@ With the switches on, these paths behave differently from before. Each switch re
 - The data timezone preview in edit mode selects credentials as a query does. A person who can edit the project can need personal warehouse credentials to preview its timezone.
 - The webhook checks that the project creator can create the preview before it resolves credentials for a new preview.
 
+Known limitation: when a Snowflake integration requires single-use refresh tokens, a webhook that creates a new preview refreshes the upstream token first. If the project creator's own Snowflake sign-in holds the same token, preview creation then fails. Set `DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED=false` to restore the old order. Previews already store a refresh token that single-use mode has consumed, because of the resolver behaviour below.
+
 Not changed: `_resolveWarehouseClientCredentials`, which resolves typed credentials, keeps the previous refresh token after a Snowflake or Databricks U2M refresh, and does not save rotations for typed organisation credentials.
 
 ## SQL builders without a connection
