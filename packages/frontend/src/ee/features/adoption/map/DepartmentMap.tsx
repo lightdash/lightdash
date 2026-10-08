@@ -148,17 +148,19 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
         <>
             {dots.map((dot) => {
                 const isOutlined = OUTLINED_DOT_KINDS.has(dot.kind);
+                const outerRadius =
+                    dot.kind === 'noAccount' ? dot.r * NO_ACCOUNT_SCALE : dot.r;
                 const strokeWidth = isOutlined
-                    ? Math.min(1.6, dot.r * 0.45)
+                    ? Math.min(1.6, outerRadius * 0.45)
                     : 0;
-                const radius =
-                    dot.kind === 'noAccount'
-                        ? dot.r * NO_ACCOUNT_SCALE
-                        : dot.r - strokeWidth / 2;
+                const radius = outerRadius - strokeWidth / 2;
                 return (
                     <circle
                         key={dot.key}
                         data-dot={dot.kind}
+                        data-circle={
+                            dot.member === null ? undefined : dot.circleId
+                        }
                         data-user={dot.member?.userUuid}
                         data-selected={
                             (dot.member !== null &&
@@ -368,7 +370,7 @@ export const DepartmentMap: FC<Props> = ({
                 : null,
         );
     };
-    // Moving straight onto another circle is followed by its own pointerover
+    // Moving onto another circle, or onto a person in one, is followed by its own pointerover
     const handleCircleOut = (event: PointerEvent<SVGGElement>) => {
         const next = event.relatedTarget;
         if (next instanceof SVGElement && next.dataset.circle) return;
@@ -397,12 +399,10 @@ export const DepartmentMap: FC<Props> = ({
                     className={styles.viewport}
                     data-animated={view.isAnimated || undefined}
                     transform={view.transform.toString()}
+                    onPointerOver={handleCircleOver}
+                    onPointerOut={handleCircleOut}
                 >
-                    <g
-                        onClick={handleCircleClick}
-                        onPointerOver={handleCircleOver}
-                        onPointerOut={handleCircleOut}
-                    >
+                    <g onClick={handleCircleClick}>
                         <CirclesLayer
                             circles={circles}
                             info={info}

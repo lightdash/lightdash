@@ -616,6 +616,56 @@ describe('sizing by headcount', () => {
     });
 });
 
+describe('packing order', () => {
+    const shapeOf = (departments: DepartmentWithMetrics[]) =>
+        new Map(
+            layoutPack(buildPackInput(departments, null)).map((circle) => [
+                circle.id,
+                { x: circle.x, y: circle.y, r: circle.r },
+            ]),
+        );
+    // Every sibling list reversed, and rotated by three, against the order the departments came in
+    const reversed = [...organization].reverse();
+    const rotated = [...organization.slice(3), ...organization.slice(0, 3)];
+
+    it('draws the same circles whatever order the departments arrive in', () => {
+        const expected = shapeOf(organization);
+        [reversed, rotated].forEach((order) => {
+            const actual = shapeOf(order);
+            expect(actual.size).toBe(expected.size);
+            expected.forEach((circle, id) => {
+                expect(actual.get(id)?.r).toBeCloseTo(circle.r, 9);
+                expect(actual.get(id)?.x).toBeCloseTo(circle.x, 9);
+                expect(actual.get(id)?.y).toBeCloseTo(circle.y, 9);
+            });
+        });
+    });
+    it('keeps the order of siblings with the same headcount by name', () => {
+        const twins = [
+            d('Group', null, 30, 0, 0),
+            d('Beta', 'Group', 10, 0),
+            d('Alpha', 'Group', 10, 0),
+            d('Gamma', 'Group', 10, 0),
+        ];
+        const first = shapeOf(twins);
+        const second = shapeOf([...twins].reverse());
+        ['Alpha', 'Beta', 'Gamma'].forEach((id) => {
+            expect(second.get(id)?.x).toBeCloseTo(first.get(id)?.x ?? 0, 9);
+            expect(second.get(id)?.y).toBeCloseTo(first.get(id)?.y ?? 0, 9);
+        });
+    });
+    it('packs the largest sub-departments first, so they fill more of their parent', () => {
+        // Smallest first, the order that packs worst
+        const circles = layoutPack(buildPackInput(reversed, null));
+        const byId = new Map(circles.map((circle) => [circle.id, circle]));
+        const share = (child: string, parent: string) =>
+            ((byId.get(child)?.r ?? 0) / (byId.get(parent)?.r ?? 1)) ** 2;
+        // Supply chain holds 1,750 of Operations' 2,350; packed in arrival order it got about a quarter
+        expect(share('Supply chain', 'Operations')).toBeGreaterThan(0.38);
+        expect(share('Sales', 'Commercial')).toBeGreaterThan(0.22);
+    });
+});
+
 describe('enlargeSmallLeaves', () => {
     const AREA = { width: 720, height: 720 };
     // Group and Big hold the same number of people; Tiny is too small to select
@@ -683,6 +733,43 @@ describe('enlargeSmallLeaves', () => {
         expect(speck.y - speck.r).toBeGreaterThanOrEqual(0);
         expect(speck.x + speck.r).toBeLessThanOrEqual(AREA.width);
         expect(speck.y + speck.r).toBeLessThanOrEqual(AREA.height);
+    });
+    it('flags a leaf as not to scale only when it grows by more than half a pixel', () => {
+        const at = (
+            id: string,
+            parentId: string | null,
+            x: number,
+            y: number,
+            r: number,
+        ): PackedCircle => ({
+            id,
+            kind: 'department',
+            departmentUuid: id,
+            name: id,
+            hasHeadcount: true,
+            hasMembers: true,
+            childDepartmentCount: 0,
+            size: 1,
+            people: null,
+            depth: parentId === null ? 1 : 2,
+            parentId,
+            x,
+            y,
+            r,
+            isAreaHonest: true,
+        });
+        // Room to the parent's edge, less the clearance: none for Snug, 0.3 px for Close, 8 px for Free
+        const circles = [
+            at('Parent', null, 100, 100, 40),
+            at('Snug', 'Parent', 100, 67, 5),
+            at('Close', 'Parent', 100, 132.7, 5),
+            at('Free', 'Parent', 75, 100, 5),
+        ];
+        const after = enlargeSmallLeaves(circles, MIN_CIRCLE_RADIUS, AREA);
+        expect(pick(after, 'Snug')).toEqual(pick(circles, 'Snug'));
+        expect(pick(after, 'Close')).toEqual(pick(circles, 'Close'));
+        expect(pick(after, 'Free').r).toBeCloseTo(13, 9);
+        expect(pick(after, 'Free').isAreaHonest).toBe(false);
     });
     it('leaves circles at the minimum radius or more alone', () => {
         const roomy = layoutPack(

@@ -19,6 +19,8 @@ const CIRCLE_PADDING = 8;
 const MAX_PADDING_SHARE = 0.08;
 // An enlarged circle stays this far from its parent's edge and its neighbours
 const ENLARGED_CLEARANCE = 2;
+// A leaf that could grow by no more than this is left at its true size
+const MIN_ENLARGEMENT = 0.5;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -429,8 +431,12 @@ const packInside = (
     }));
 };
 
+// Largest first, then by name: the densest packing, and the same whatever order siblings arrive in
+const byPackingOrder = (a: PackDatum, b: PackDatum): number =>
+    b.size - a.size || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+
 // Siblings are packed from their own sizes and scaled to fit inside their parent, so areas compare
-// at every level. Breadth first over an explicit queue, so a deep tree cannot overflow the stack.
+// exactly within a parent. Breadth first over an explicit queue, so deep trees cannot overflow.
 export const layoutPack = (
     input: PackDatum,
     size: number = MAP_SIZE,
@@ -448,12 +454,24 @@ export const layoutPack = (
                 circle === null
                     ? CIRCLE_PADDING
                     : Math.min(CIRCLE_PADDING, radius * MAX_PADDING_SHARE);
-            const children = packInside(
-                datum.children.map(unitRadius),
+            const order = datum.children
+                .map((_, childIndex) => childIndex)
+                .sort((a, b) =>
+                    byPackingOrder(datum.children[a], datum.children[b]),
+                );
+            const packedInOrder = packInside(
+                order.map((childIndex) =>
+                    unitRadius(datum.children[childIndex]),
+                ),
                 centre,
                 radius,
                 gap,
             );
+            // Back to the order the siblings arrived in, which is the order they are listed in
+            const children: Packed[] = [];
+            order.forEach((childIndex, packedIndex) => {
+                children[childIndex] = packedInOrder[packedIndex];
+            });
             datum.children.forEach((child, childIndex) => {
                 const packed: PackedCircle = {
                     id: child.id,
@@ -499,8 +517,7 @@ export const enlargeSmallLeaves = (
     });
     // Radii as drawn so far, so two enlarged neighbours never meet
     const radii = new Map(circles.map((circle) => [circle.id, circle.r]));
-    return circles.map((circle) => {
-        if (circle.r >= minRadius || parents.has(circle.id)) return circle;
+    const grow = (circle: PackedCircle): PackedCircle | null => {
         const parent =
             circle.parentId === null ? undefined : byId.get(circle.parentId);
         const roomInside =
@@ -529,10 +546,27 @@ export const enlargeSmallLeaves = (
             roomInside - ENLARGED_CLEARANCE,
             roomBeside - ENLARGED_CLEARANCE,
         );
-        if (r <= circle.r) return circle;
-        radii.set(circle.id, r);
-        return { ...circle, r, isAreaHonest: false };
-    });
+        return r - circle.r > MIN_ENLARGEMENT
+            ? { ...circle, r, isAreaHonest: false }
+            : null;
+    };
+    // The smallest grow first, in an order that does not depend on the order departments arrive in
+    const enlarged = new Map<string, PackedCircle>();
+    circles
+        .filter((circle) => circle.r < minRadius && !parents.has(circle.id))
+        .sort(
+            (a, b) =>
+                a.r - b.r ||
+                a.name.localeCompare(b.name) ||
+                a.id.localeCompare(b.id),
+        )
+        .forEach((circle) => {
+            const grown = grow(circle);
+            if (grown === null) return;
+            radii.set(circle.id, grown.r);
+            enlarged.set(circle.id, grown);
+        });
+    return circles.map((circle) => enlarged.get(circle.id) ?? circle);
 };
 
 export const countPeople = (circles: PackedCircle[]): number =>

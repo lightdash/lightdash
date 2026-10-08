@@ -140,6 +140,8 @@ export const countDotKinds = (
 
 export type MapDot = {
     key: string;
+    // The circle the dot is drawn in
+    circleId: string;
     x: number;
     y: number;
     r: number;
@@ -162,6 +164,7 @@ export const buildDots = (
     const { dotRadius, positions } = layoutDots(kinds.length, circle.r);
     return positions.map((position, index) => ({
         key: `${circle.id}:${index}`,
+        circleId: circle.id,
         x: circle.x + position.x,
         y: circle.y + position.y,
         r: dotRadius,
@@ -288,70 +291,50 @@ export type OrganizationOverview = {
     onLightdash: number;
     active30d: number;
     placed: number;
-    // People in the departments' headcount without an account, as the legend counts them
+    // Each top-level department against its own headcount, so placed = headcount - without + above
     withoutAccount: number;
-    // The departments' effective headcounts added up, or null when none has one
     headcount: number | null;
-    // Placed people beyond their department's headcount
     aboveHeadcount: number;
-    // Placed people in departments with no headcount at all
-    withoutHeadcount: number;
 };
 
-// Totals reads the circles of the whole organization, as the legend does
 export const getOrganizationOverview = (
     organization: AdoptionMetrics,
     departments: DepartmentWithMetrics[],
-    totals: ViewTotals,
 ): OrganizationOverview => {
-    const children = getChildrenMap(departments);
-    const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
-    const childrenOf = (uuid: string | null): DepartmentWithMetrics[] =>
-        (children.get(uuid) ?? []).flatMap((childUuid) => {
-            const child = byUuid.get(childUuid);
-            return child ? [child] : [];
-        });
-    const topLevel = childrenOf(null);
+    const topLevel = getVisibleDepartments(departments, null);
     const counted = topLevel.filter(
         (department) => department.effectiveHeadcount !== null,
     );
-    // People placed in a department itself beyond the headcount its sub-departments leave it
-    const aboveHeadcount = departments.reduce((sum, department) => {
-        if (department.effectiveHeadcount === null) return sum;
-        const room =
-            getDepartmentSize(department) -
-            childrenOf(department.departmentUuid).reduce(
-                (taken, child) => taken + getDepartmentSize(child),
-                0,
-            );
-        return (
-            sum +
-            Math.max(
-                department.directMetrics.memberCount - Math.max(room, 0),
-                0,
-            )
-        );
-    }, 0);
+    const sum = (
+        list: DepartmentWithMetrics[],
+        value: (department: DepartmentWithMetrics) => number,
+    ): number =>
+        list.reduce((total, department) => total + value(department), 0);
     return {
         onLightdash: organization.memberCount,
         active30d: organization.activeCount30d,
-        placed: totals.members,
-        withoutAccount: Math.max(totals.people - totals.members, 0),
-        headcount:
-            counted.length > 0
-                ? counted.reduce(
-                      (sum, department) =>
-                          sum + (department.effectiveHeadcount ?? 0),
-                      0,
-                  )
-                : null,
-        aboveHeadcount,
-        withoutHeadcount: topLevel
-            .filter((department) => department.effectiveHeadcount === null)
-            .reduce(
-                (sum, department) => sum + department.metrics.memberCount,
+        placed: sum(topLevel, (department) => department.metrics.memberCount),
+        withoutAccount: sum(counted, (department) =>
+            Math.max(
+                (department.effectiveHeadcount ?? 0) -
+                    department.metrics.memberCount,
                 0,
             ),
+        ),
+        headcount:
+            counted.length > 0
+                ? sum(
+                      counted,
+                      (department) => department.effectiveHeadcount ?? 0,
+                  )
+                : null,
+        aboveHeadcount: sum(counted, (department) =>
+            Math.max(
+                department.metrics.memberCount -
+                    (department.effectiveHeadcount ?? 0),
+                0,
+            ),
+        ),
     };
 };
 
@@ -361,7 +344,6 @@ export type OrganizationOverviewCopy = {
     caption: string | null;
 };
 
-// The caption explains why the placed people are more than the headcount with an account
 export const describeOrganizationOverview = (
     overview: OrganizationOverview,
 ): OrganizationOverviewCopy => {
@@ -369,22 +351,13 @@ export const describeOrganizationOverview = (
     if (overview.headcount === null) {
         return { placed, withoutAccount: null, caption: null };
     }
-    const above =
-        overview.aboveHeadcount > 0
-            ? `${plural(overview.aboveHeadcount, 'person', 'people')} in departments with more accounts than headcount`
-            : null;
-    const unsized =
-        overview.withoutHeadcount > 0
-            ? `${above === null ? plural(overview.withoutHeadcount, 'person', 'people') : formatCount(overview.withoutHeadcount)} in departments without a headcount`
-            : null;
-    const reasons = [above, unsized].filter(
-        (reason): reason is string => reason !== null,
-    );
     return {
         placed,
         withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
         caption:
-            reasons.length > 0 ? `Includes ${reasons.join(' and ')}` : null,
+            overview.aboveHeadcount > 0
+                ? `Excludes ${plural(overview.aboveHeadcount, 'account', 'accounts')} above their department's headcount`
+                : null,
     };
 };
 

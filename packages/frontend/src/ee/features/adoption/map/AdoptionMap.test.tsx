@@ -766,12 +766,7 @@ describe('AdoptionMap', () => {
         expect(
             within(details).getByText('Without an account: 26 of 38 headcount'),
         ).toBeInTheDocument();
-        // The same number the legend gives its grey dots
-        const legend = screen.getByRole('list', { name: 'Legend' });
-        expect(
-            within(legend).getByText('No account').closest('li'),
-        ).toHaveTextContent(/^No account26$/);
-        expect(within(details).queryByText(/^Includes/)).toBeNull();
+        expect(within(details).queryByText(/^Excludes/)).toBeNull();
         // A department keeps its own numbers
         await userEvent.click(
             screen.getByRole('button', { name: /^Finance,/ }),
@@ -784,25 +779,48 @@ describe('AdoptionMap', () => {
         ).toHaveTextContent(/^On Lightdash3of 8$/);
     });
 
-    it('explains the people above a department headcount', () => {
-        renderMap([
-            d('Ops', null, 30, 25, 4, {
-                directMetrics: metricsFixture(0, null),
-            }),
-            d('Stores', 'Ops', 20, 25, 4),
-            d('Depots', 'Ops', 10, 0, 0),
-        ]);
+    it('says how many accounts sit above their department headcount', () => {
+        // Placed 17 = headcount 18 - 5 without an account + 4 accounts above Data's headcount
+        renderMap([d('Data', null, 10, 14, 6), d('Finance', null, 8, 3, 2)], {
+            organization: metricsFixture(20, null, { activeCount30d: 8 }),
+        });
         const details = screen.getByRole('complementary', {
             name: 'Details',
         });
         expect(
-            within(details).getByText('Without an account: 10 of 30 headcount'),
+            within(details).getByText(
+                'Placed in a department: 17 of 20 on Lightdash',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText('Without an account: 5 of 18 headcount'),
         ).toBeInTheDocument();
         expect(
             within(details).getByText(
-                'Includes 5 people in departments with more accounts than headcount',
+                "Excludes 4 accounts above their department's headcount",
             ),
         ).toBeInTheDocument();
+    });
+
+    it('says sizes compare within a department when sub-departments are drawn', async () => {
+        renderMap();
+        const note = 'Circles are to scale within their department';
+        expect(screen.getByText(note)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        expect(screen.queryByText(note)).toBeNull();
+    });
+
+    it('draws people without an account as light rings', () => {
+        const { container } = renderMap();
+        const rings = container.querySelectorAll(
+            'svg[role="img"] [data-dot="noAccount"]',
+        );
+        expect(rings.length).toBeGreaterThan(0);
+        rings.forEach((ring) => {
+            expect(Number(ring.getAttribute('stroke-width'))).toBeGreaterThan(
+                0,
+            );
+        });
     });
 
     it('names the path of a sub-department in the cards', () => {
@@ -852,6 +870,77 @@ describe('AdoptionMap', () => {
         expect(shown[0].textContent).toBe(id);
         fireEvent.pointerLeave(circle);
         expect(container.querySelector(`[data-label="${id}"]`)).toBeNull();
+    });
+
+    it("keeps a hovered circle's label while the pointer is on one of its people", async () => {
+        // Small enough to name everyone, crowded enough that some labels have no room
+        const teams = Array.from({ length: 24 }, (_, index) =>
+            d(
+                `Team with a long descriptive name, number ${index}`,
+                'Hub',
+                5,
+                3,
+                1,
+            ),
+        );
+        const hub = d('Hub', null, 120, 72, 24, {
+            directMetrics: metricsFixture(0, null),
+        });
+        loadMembers(
+            'Hub',
+            teams.flatMap((team) =>
+                Array.from({ length: 3 }, (_, index) =>
+                    memberFixture(`${team.departmentUuid}-${index}`, null, {
+                        departmentUuid: team.departmentUuid,
+                        firstName: `Person${index}`,
+                    }),
+                ),
+            ),
+        );
+        const { container } = renderMap([hub, ...teams]);
+        await userEvent.click(screen.getByRole('button', { name: /^Hub,/ }));
+        const unlabelled = [
+            ...container.querySelectorAll<SVGCircleElement>(
+                'svg[role="img"] [data-department]',
+            ),
+        ].find(
+            (circle) =>
+                container.querySelector(
+                    `[data-label="${circle.dataset.department}"]`,
+                ) === null &&
+                container.querySelector(
+                    `[data-dot][data-circle="${circle.dataset.circle}"][data-user]`,
+                ) !== null,
+        );
+        expect(unlabelled).toBeDefined();
+        if (!unlabelled) return;
+        const id = unlabelled.dataset.circle ?? '';
+        const person = container.querySelector<SVGCircleElement>(
+            `[data-dot][data-circle="${id}"][data-user]`,
+        );
+        expect(person).not.toBeNull();
+        if (!person) return;
+        const shown = () => container.querySelector(`[data-label="${id}"]`);
+        fireEvent.pointerOver(unlabelled);
+        expect(shown()).not.toBeNull();
+        // Onto one of its people, then off the map altogether
+        fireEvent(
+            unlabelled,
+            new MouseEvent('pointerout', {
+                bubbles: true,
+                relatedTarget: person,
+            }),
+        );
+        fireEvent(person, new MouseEvent('pointerover', { bubbles: true }));
+        expect(shown()).not.toBeNull();
+        fireEvent(
+            person,
+            new MouseEvent('pointerout', {
+                bubbles: true,
+                relatedTarget: null,
+            }),
+        );
+        expect(shown()).toBeNull();
     });
 
     it('lists departments lowest coverage first, the biggest first among equals', () => {

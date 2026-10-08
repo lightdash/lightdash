@@ -104,6 +104,12 @@
     fill: var(--mantine-color-teal-3);
 }
 
+/* A light ring; in the light scheme its white inside is 1.5:1 lighter than the teal, beyond hue */
+.dots circle[data-dot='noAccount'] {
+    fill: var(--mantine-color-body);
+    stroke: var(--mantine-color-ldGray-3);
+}
+
 .dots circle[data-dot='interactiveViewer'] {
     fill: var(--mantine-color-violet-filled);
     fill-opacity: 0.45;
@@ -121,10 +127,6 @@
 .dots circle[data-dot='viewer'] {
     fill: var(--mantine-color-body);
     stroke: var(--mantine-color-violet-outline);
-}
-
-.dots circle[data-dot='noAccount'] {
-    fill: var(--mantine-color-ldGray-3);
 }
 
 .dots circle[data-selected] {

@@ -12,11 +12,13 @@ export const DOT_LABELS: Record<DotKind, string> = {
     noAccount: 'No account',
 };
 
-// Drawn as a ring rather than a filled dot
+// Drawn as a ring rather than a filled dot; people without an account are light grey rings,
+// so they differ from the filled teal and purple in lightness, not only in hue
 export const OUTLINED_DOT_KINDS: ReadonlySet<DotKind> = new Set<DotKind>([
     'idle',
     'inactive',
     'viewer',
+    'noAccount',
 ]);
 
 export const COLOUR_BY_OPTIONS: ColourBy[] = ['active', 'role', 'lastActive'];

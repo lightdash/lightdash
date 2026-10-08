@@ -147,13 +147,9 @@ export const AdoptionMap: FC<Props> = ({
     const overview = useMemo(
         () =>
             focus === null
-                ? getOrganizationOverview(
-                      summary.organization,
-                      departments,
-                      totals,
-                  )
+                ? getOrganizationOverview(summary.organization, departments)
                 : null,
-        [focus, summary.organization, departments, totals],
+        [focus, summary.organization, departments],
     );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
@@ -414,6 +410,9 @@ export const AdoptionMap: FC<Props> = ({
                         )}
                         hasEnlargedCircle={circles.some(
                             (circle) => !circle.isAreaHonest,
+                        )}
+                        hasSubDepartments={circles.some(
+                            (circle) => circle.depth > 1,
                         )}
                         areDotsHidden={!showDots}
                         haveNamesFailed={haveNamesFailed}

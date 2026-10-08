@@ -12,6 +12,8 @@ type Props = {
     hasEmptyDepartment: boolean;
     hasDepartmentWithoutHeadcount: boolean;
     hasEnlargedCircle: boolean;
+    // Sub-departments are drawn inside their department, scaled to fill it
+    hasSubDepartments: boolean;
     areDotsHidden: boolean;
     haveNamesFailed: boolean;
     dotLimit: number;
@@ -50,6 +52,7 @@ export const MapLegend: FC<Props> = ({
     hasEmptyDepartment,
     hasDepartmentWithoutHeadcount,
     hasEnlargedCircle,
+    hasSubDepartments,
     areDotsHidden,
     haveNamesFailed,
     dotLimit,
@@ -83,6 +86,11 @@ export const MapLegend: FC<Props> = ({
                 ? `Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`
                 : 'Dots show how many people are active, not who they are. Open a department to see its people'}
         </Text>
+        {hasSubDepartments && (
+            <Text fz="xs" c="dimmed">
+                Circles are to scale within their department
+            </Text>
+        )}
         {hasEnlargedCircle && (
             <Text fz="xs" c="dimmed">
                 The smallest circles are enlarged so you can select them, which

@@ -89,17 +89,33 @@ const boxesIntersect = (a: Box, b: Box): boolean =>
     a.y < b.y + b.height &&
     b.y < a.y + a.height;
 
-// The rule every placement must meet: a label belongs to a circle on the map, never
-// overlaps another label and stays inside the drawing
+// The rule every placement must meet: a label touches no other label, no circle except the ones
+// its own circle is drawn inside (and its own, when inside it), and stays inside the drawing
 const expectCleanLabels = (
     circles: PackedCircle[],
     labels: CircleLabel[],
     area: Area,
     zoom: number = 1,
 ) => {
+    const byId = new Map(circles.map((circle) => [circle.id, circle]));
     labels.forEach((label, index) => {
-        const own = circles.find((circle) => circle.id === label.id);
+        const own = byId.get(label.id);
         expect(own).toBeDefined();
+        if (!own) return;
+        const allowed = new Set<string>();
+        let parentId = own.parentId;
+        while (parentId !== null && !allowed.has(parentId)) {
+            allowed.add(parentId);
+            parentId = byId.get(parentId)?.parentId ?? null;
+        }
+        if (label.placement === 'inside') allowed.add(own.id);
+        circles
+            .filter((circle) => !allowed.has(circle.id))
+            .forEach((circle) => {
+                expect(boxTouchesCircle(label.box, circle, zoom, 0)).toBe(
+                    false,
+                );
+            });
         labels.slice(index + 1).forEach((other) => {
             expect(boxesIntersect(label.box, other.box)).toBe(false);
         });
@@ -447,40 +463,39 @@ describe('placeLabels on the seeded organization', () => {
             expectCleanLabels(fitted.circles, fitted.labels, area);
         },
     );
-    it('keeps labels off the zoom buttons however the departments are ordered', () => {
-        // The order changes where each circle lands, so some arrangement puts one in every corner
+    it('places the same labels whatever order the departments arrive in', () => {
         const seededTree = seededOrganization();
-        const tops = seededTree.filter(
-            (each) => each.parentDepartmentUuid === null,
-        );
-        const rest = seededTree.filter(
-            (each) => each.parentDepartmentUuid !== null,
-        );
-        const orders = tops.flatMap((_, shift) => {
-            const rotated = [...tops.slice(shift), ...tops.slice(0, shift)];
-            return [rotated, [...rotated].reverse()];
+        const expected = labels.map((label) => ({ ...label }));
+        [
+            [...seededTree].reverse(),
+            [...seededTree.slice(4), ...seededTree.slice(0, 4)],
+        ].forEach((order) => {
+            const reordered = build(order).labels;
+            expect(
+                [...reordered].sort((a, b) => a.id.localeCompare(b.id)),
+            ).toEqual([...expected].sort((a, b) => a.id.localeCompare(b.id)));
         });
-        const nearControls = orders.filter((order) => {
-            const fitted = build([...order, ...rest]);
-            const controls = getControlsBox(PANEL);
-            fitted.labels.forEach((label) => {
-                expect(boxesIntersect(label.box, controls)).toBe(false);
-            });
-            expectCleanLabels(fitted.circles, fitted.labels, PANEL);
-            topLevel.forEach((id) => {
-                const label = fitted.labels.find((each) => each.id === id);
-                expect(label?.name).toBe(id);
-                expect(label?.detail).not.toBeNull();
-            });
-            // A circle whose usual label spot, right underneath it, is where the buttons are
-            return fitted.circles.some(
-                (circle) =>
-                    circle.depth === 1 &&
-                    circle.x < controls.width + 60 &&
-                    circle.y + circle.r > controls.y - 40,
-            );
-        });
-        expect(nearControls.length).toBeGreaterThan(0);
+    });
+    it('leaves a label out rather than put it on the zoom buttons', () => {
+        // The only spots under this circle are on the buttons or past the bottom of the panel
+        const corner = placedCircle('Corner department', 60, 470, 30);
+        const controls = getControlsBox(PANEL);
+        expect(
+            boxesIntersect({ x: 0, y: 504, width: 172, height: 30 }, controls),
+        ).toBe(true);
+        expect(placeOn([corner])).toEqual([]);
+        // Zoomed in, the buttons no longer cover the same part of the map
+        const zoomed = placeLabels(
+            [corner],
+            describeCircles(
+                [corner],
+                new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
+            ),
+            2,
+            PANEL,
+            estimateTextWidth,
+        );
+        expect(zoomed).toHaveLength(1);
     });
     it('leaves the people directly in a department unlabelled', () => {
         expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(
@@ -566,27 +581,39 @@ describe('placeLabels at the focused level', () => {
     const { circles, labels } = build(operations, PANEL, 'Operations');
     const labelOf = (id: string) => labels.find((label) => label.id === id);
 
-    it('labels every circle in view, sub-departments of sub-departments included', () => {
-        const named = circles.filter(
-            (circle) => circle.kind === 'department' || circle.depth === 1,
-        );
-        expect(named.map((circle) => circle.id).sort()).toEqual(
+    it('labels every circle at the focused level, and the sub-departments inside them that have room', () => {
+        const focused = circles.filter((circle) => circle.depth === 1);
+        expect(focused.map((circle) => circle.id).sort()).toEqual(
             [
-                'Demand planning',
                 'Facilities',
                 'Health and safety',
-                'Logistics',
-                'Procurement operations',
                 'Quality',
                 'Supply chain',
-                'Warehousing',
                 'own:Operations',
             ].sort(),
         );
-        named.forEach((circle) => {
+        focused.forEach((circle) => {
             expect(labelOf(circle.id)).toBeDefined();
         });
+        ['Warehousing', 'Logistics'].forEach((id) => {
+            expect(labelOf(id)).toBeDefined();
+        });
         expectCleanLabels(circles, labels, PANEL);
+    });
+    it("never puts a label over another department's circle at the same level", () => {
+        labels.forEach((label) => {
+            const own = circles.find((circle) => circle.id === label.id);
+            circles
+                .filter(
+                    (circle) =>
+                        circle.id !== label.id && circle.depth === own?.depth,
+                )
+                .forEach((circle) => {
+                    expect(boxTouchesCircle(label.box, circle, 1, 0)).toBe(
+                        false,
+                    );
+                });
+        });
     });
     it('puts a label inside its circle when it fits and under the circle when it does not', () => {
         expect(labelOf('Warehousing')).toMatchObject({
@@ -614,7 +641,7 @@ describe('placeLabels under small circles', () => {
         expect(label.name.length).toBeLessThan(long.length);
         expect(label.box.width).toBeLessThanOrEqual(16 * 2 + 80);
     });
-    it('moves a label down or up to clear another label before leaving it out', () => {
+    it('moves a label down, away from its own circle, to clear another label', () => {
         const left = placedCircle('Customer operations', 300, 200, 16);
         const right = placedCircle('Revenue operations', 360, 200, 16);
         const labels = placeOn([left, right]);
@@ -624,10 +651,18 @@ describe('placeLabels under small circles', () => {
         ]);
         const [first, second] = labels;
         expect(boxesIntersect(first.box, second.box)).toBe(false);
-        // The first keeps its spot right under its circle; the second is moved, still centred under its own
+        // The first keeps its spot right under its circle; the second moves further down, never across its own
         expect(first.box.y).toBeCloseTo(200 + 16 + 4, 6);
-        expect(second.box.y).not.toBeCloseTo(200 + 16 + 4, 6);
+        expect(second.box.y).toBeGreaterThan(200 + 16 + 4);
+        expect(boxTouchesCircle(second.box, right, 1, 0)).toBe(false);
         expect(second.box.x + second.box.width / 2).toBeCloseTo(360, 6);
+    });
+    it("leaves a label out rather than put it on another department's circle or past it", () => {
+        // The only spots under Upper are on Lower's circle, or beyond it
+        const upper = placedCircle('Upper department', 300, 200, 16);
+        const lower = placedCircle('Lower department', 300, 250, 16);
+        const labels = placeOn([upper, lower]);
+        expect(labels.map((label) => label.id)).toEqual(['Lower department']);
     });
     it('leaves a label out when no move clears the others', () => {
         const stack = Array.from({ length: 12 }, (_, index) =>
@@ -642,10 +677,10 @@ describe('placeLabels under small circles', () => {
 
 describe('placeLabels on a crowded map', () => {
     const { circles, labels } = build(crowd);
-    it('leaves labels out rather than overlapping another label', () => {
+    it('leaves labels out rather than overlapping another label or circle', () => {
         expectCleanLabels(circles, labels, PANEL);
-        expect(labels.length).toBeGreaterThan(10);
-        expect(labels.length).toBeLessThanOrEqual(circles.length);
+        expect(labels.length).toBeGreaterThan(0);
+        expect(labels.length).toBeLessThan(circles.length);
     });
     it('labels one huge department and the tiny one beside it', () => {
         const pair = build(lopsided);

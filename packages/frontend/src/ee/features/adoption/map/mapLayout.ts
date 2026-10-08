@@ -59,16 +59,13 @@ const INSIDE_INSET_PX = 3;
 const OUTSIDE_EXTRA_WIDTH_PX = 80;
 // A sub-department is named on the map once it is drawn this large; smaller ones are named on hover
 const NESTED_LABEL_MIN_RADIUS_PX = 16;
-// A label under a circle moves down, then up, in these steps to clear another label
+// A label under a circle moves down, away from its circle, in these steps to clear another label
 const NUDGE_STEP_PX = 8;
 const NUDGE_STEPS = 6;
-const NUDGE_OFFSETS = [
-    0,
-    ...Array.from({ length: NUDGE_STEPS }, (_, index) => [
-        (index + 1) * NUDGE_STEP_PX,
-        -(index + 1) * NUDGE_STEP_PX,
-    ]).flat(),
-];
+const NUDGE_OFFSETS = Array.from(
+    { length: NUDGE_STEPS + 1 },
+    (_, index) => index * NUDGE_STEP_PX,
+);
 const ELLIPSIS = '…';
 
 // The circles a circle is drawn inside, nearest first
@@ -279,7 +276,7 @@ export type CircleLabel = {
 
 type LabelText = { name: string; detail: string | null };
 type Candidate = Omit<CircleLabel, 'id'> & { offset: number };
-type PlacedLabel = CircleLabel & { offset: number; coversOthers: boolean };
+type PlacedLabel = CircleLabel & { offset: number };
 
 const boxesOverlap = (a: Box, b: Box): boolean =>
     a.x < b.x + b.width + CLEARANCE_PX &&
@@ -473,7 +470,7 @@ type Placement = {
     // A sub-department's label stays inside its top-level circle, so it never reads as another's
     staysInGroup: (circle: PackedCircle, box: Box) => boolean;
     isFree: (box: Box, ownId: string | null) => boolean;
-    coversOthers: (circle: PackedCircle, candidate: Candidate) => boolean;
+    isClear: (circle: PackedCircle, candidate: Candidate) => boolean;
 };
 
 const getCandidates = (
@@ -517,8 +514,8 @@ const getCandidates = (
     });
 };
 
-// Each label goes inside its circle when it fits, otherwise under it, moved down or up to clear the
-// labels already placed; a spot over no unrelated circle wins, and one with no free spot is left out
+// Each label goes inside its circle when it fits, otherwise under it, moved down to clear the labels
+// already placed. It never sits on another department's circle; one with no such spot is left out
 const placeAllLabels = (
     circles: PackedCircle[],
     info: Map<string, CircleInfo>,
@@ -582,18 +579,35 @@ const placeAllLabels = (
             !placed.some(
                 (label) => label.id !== ownId && boxesOverlap(label.box, box),
             ),
-        coversOthers: (circle, candidate) => {
+        // Nothing unrelated under the label, nor between a moved label and its own circle
+        isClear: (circle, candidate) => {
             const own = related.get(circle.id);
-            return circles.some(
+            const { box } = candidate;
+            const halfWidth = Math.min(circle.r * zoom, box.width / 2);
+            const gap: Box = {
+                x: circle.x * zoom - halfWidth,
+                y: (circle.y + circle.r) * zoom + LABEL_GAP_PX,
+                width: halfWidth * 2,
+                height: candidate.offset,
+            };
+            return !circles.some(
                 (other) =>
                     !own?.has(other.id) &&
-                    boxTouchesCircle(candidate.box, other, zoom),
+                    (boxTouchesCircle(box, other, zoom) ||
+                        (candidate.offset > 0 &&
+                            boxTouchesCircle(gap, other, zoom))),
             );
         },
     };
     const ordered = circles
         .filter((circle) => isLabelledAt(circle, zoom))
-        .sort((a, b) => a.depth - b.depth || b.r - a.r);
+        .sort(
+            (a, b) =>
+                a.depth - b.depth ||
+                b.r - a.r ||
+                a.name.localeCompare(b.name) ||
+                a.id.localeCompare(b.id),
+        );
     ordered.forEach((circle) => {
         const stats = info.get(circle.id)?.stats;
         if (!stats) return;
@@ -602,23 +616,12 @@ const placeAllLabels = (
             getFirstTexts(circle, stats),
             placement,
         );
-        const clear = candidates.find(
+        const chosen = candidates.find(
             (candidate) =>
                 placement.isFree(candidate.box, null) &&
-                !placement.coversOthers(circle, candidate),
+                placement.isClear(circle, candidate),
         );
-        const chosen =
-            clear ??
-            candidates.find((candidate) =>
-                placement.isFree(candidate.box, null),
-            );
-        if (chosen) {
-            placed.push({
-                id: circle.id,
-                ...chosen,
-                coversOthers: clear === undefined,
-            });
-        }
+        if (chosen) placed.push({ id: circle.id, ...chosen });
     });
     // Longer wording for a top-level label where it still fits in the same spot, displacing nothing
     ordered.forEach((circle) => {
@@ -662,16 +665,9 @@ const placeAllLabels = (
                 (candidate): candidate is Candidate =>
                     candidate !== null &&
                     placement.isFree(candidate.box, circle.id) &&
-                    (current.coversOthers ||
-                        !placement.coversOthers(circle, candidate)),
+                    placement.isClear(circle, candidate),
             );
-        if (longer) {
-            placed[index] = {
-                id: circle.id,
-                ...longer,
-                coversOthers: current.coversOthers,
-            };
-        }
+        if (longer) placed[index] = { id: circle.id, ...longer };
     });
     return placed;
 };
@@ -684,7 +680,7 @@ export const placeLabels = (
     measure: TextMeasurer,
 ): CircleLabel[] =>
     placeAllLabels(circles, info, zoom, area, measure).map(
-        ({ offset, coversOthers, ...label }) => label,
+        ({ offset, ...label }) => label,
     );
 
 // A label left out for want of room shows under its circle while the circle is hovered, in full
@@ -714,19 +710,19 @@ export const getHoverLabel = (
     return { id: circle.id, ...candidate };
 };
 
-// A top-level label counts as missing when it is left out, has no numbers or covers another circle
+// How far the top-level labels fall short: one left out counts twice one without its numbers
 const countUnlabelled = (
     circles: PackedCircle[],
     labels: PlacedLabel[],
 ): number => {
-    const complete = new Set(
-        labels
-            .filter((label) => label.detail !== null && !label.coversOthers)
-            .map((label) => label.id),
-    );
-    return circles.filter(
-        (circle) => circle.depth === 1 && !complete.has(circle.id),
-    ).length;
+    const byId = new Map(labels.map((label) => [label.id, label]));
+    return circles
+        .filter((circle) => circle.depth === 1)
+        .reduce((shortfall, circle) => {
+            const label = byId.get(circle.id);
+            if (!label) return shortfall + 2;
+            return shortfall + (label.detail === null ? 1 : 0);
+        }, 0);
 };
 
 // Fills the panel, spreading the circles further apart until every top-level label has room.
