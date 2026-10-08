@@ -9,3 +9,8 @@
     font-size: var(--mantine-font-size-sm);
     line-height: var(--mantine-line-height-sm);
 }
+
+/* Only the title and icon carry the semantic colour; the body stays quiet. */
+.root[data-variant='light'] .message {
+    color: var(--mantine-color-dimmed);
+}

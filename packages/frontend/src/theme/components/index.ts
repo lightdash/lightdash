@@ -94,6 +94,24 @@ const controlFontSize = (theme: MantineTheme, size: unknown) => {
 
 const isNeutral = (color: unknown) => color === undefined || color === 'gray';
 
+/**
+ * Subtle alert palette: a pale fill, a translucent hairline of the same hue
+ * and the colour reserved for the title and icon. Dark takes a tint of the
+ * deep shade over the surface instead of a solid block.
+ */
+const subtleAlertVars = {
+    neutral: {
+        '--alert-bg': 'var(--mantine-color-ldGray-1)',
+        '--alert-bd': '1px solid var(--mantine-color-ldGray-3)',
+        '--alert-color': 'var(--mantine-color-text)',
+    },
+    semantic: (color: string) => ({
+        '--alert-bg': `light-dark(color-mix(in srgb, var(--mantine-color-${color}-0) 60%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-color-${color}-9) 12%, transparent))`,
+        '--alert-bd': `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) 25%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) 28%, transparent))`,
+        '--alert-color': `light-dark(var(--mantine-color-${color}-8), var(--mantine-color-${color}-4))`,
+    }),
+};
+
 /** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
 const dropdownTransition: NonNullable<PopoverProps['transitionProps']> = {
     transition: {
@@ -323,6 +341,23 @@ export const themeComponents: MantineThemeOverride['components'] = {
             variant: 'light',
         },
         classNames: alertClasses,
+        vars: (theme, props) => {
+            // Mantine paints `light` alerts with its own tints inline, so the
+            // subtle fill, hairline border and ink have to be set here.
+            if (props.variant !== undefined && props.variant !== 'light') {
+                return { root: {} };
+            }
+            if (isNeutral(props.color)) {
+                return { root: subtleAlertVars.neutral };
+            }
+            const [colorName] = props.color.split('.');
+            return {
+                root:
+                    colorName in theme.colors
+                        ? subtleAlertVars.semantic(colorName)
+                        : {},
+            };
+        },
     }),
 
     Table: Table.extend({

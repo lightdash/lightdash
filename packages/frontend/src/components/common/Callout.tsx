@@ -22,7 +22,7 @@ const CALLOUT_CONFIG: Record<
         icon: IconAlertCircle,
     },
     warning: {
-        color: 'yellow',
+        color: 'orange',
         icon: IconAlertTriangle,
     },
     info: {
@@ -76,7 +76,6 @@ const Callout: FC<CalloutProps> = ({
 
     return (
         <Alert
-            variant={variant === 'neutral' ? 'default' : undefined}
             color={config.color}
             icon={!hideIcon && resolvedIcon}
             title={title}
