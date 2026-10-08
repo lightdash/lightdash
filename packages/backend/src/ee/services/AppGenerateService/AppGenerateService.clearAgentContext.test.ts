@@ -20,7 +20,10 @@ const ORG_UUID = 'org-uuid-1';
 const makeUser = () =>
     ({ userUuid: USER_UUID, organizationUuid: ORG_UUID }) as never;
 
-function buildService(opts: { canManage?: boolean } = {}) {
+function buildService(
+    opts: { canManage?: boolean; sandboxId?: string | null } = {},
+) {
+    const sandboxManager = { destroy: vi.fn().mockResolvedValue(undefined) };
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
             app_id: APP_UUID,
@@ -28,7 +31,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
             organization_uuid: ORG_UUID,
             space_uuid: null,
             created_by_user_uuid: USER_UUID,
-            sandbox_id: null,
+            sandbox_id: opts.sandboxId ?? null,
             template: 'data_app',
             registry_slug: null,
         }),
@@ -39,7 +42,9 @@ function buildService(opts: { canManage?: boolean } = {}) {
             app_thread_uuid: 'thread-2',
             thread_number: 2,
         }),
+        clearSandboxUuidIfCurrent: vi.fn().mockResolvedValue(undefined),
     };
+    const analytics = { track: vi.fn() };
 
     const service = new AppGenerateService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
@@ -49,7 +54,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
                 dataAppCodingAgent: 'claude',
             },
         } as never,
-        analytics: { track: vi.fn() } as never,
+        analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         userModel: {} as never,
@@ -90,7 +95,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
-        sandboxManager: null,
+        sandboxManager: sandboxManager as never,
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
@@ -107,12 +112,81 @@ function buildService(opts: { canManage?: boolean } = {}) {
         rules: [],
     });
 
-    return { service, appModel };
+    vi.spyOn(
+        service as unknown as { getAppVersions: () => unknown },
+        'getAppVersions',
+    ).mockResolvedValue({ versions: [] } as never);
+
+    return { service, appModel, sandboxManager, analytics };
 }
 
 describe('clearAgentContext', () => {
-    it('refuses while a version is building and starts no thread', async () => {
-        const { service, appModel } = buildService();
+    it('destroys the sandbox and clears its reference so the next prompt starts cold', async () => {
+        const { service, appModel, sandboxManager, analytics } = buildService({
+            sandboxId: 'sandbox-1',
+        });
+
+        await service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID);
+
+        expect(appModel.createThread).toHaveBeenCalledTimes(1);
+        expect(sandboxManager.destroy).toHaveBeenCalledWith({
+            sandboxUuid: 'sandbox-1',
+        });
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-1',
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.thread.cleared',
+                properties: expect.objectContaining({
+                    sandboxDestroyed: true,
+                }),
+            }),
+        );
+    });
+
+    it('still clears the reference when the provider destroy fails', async () => {
+        const { service, appModel, sandboxManager, analytics } = buildService({
+            sandboxId: 'sandbox-1',
+        });
+        sandboxManager.destroy.mockRejectedValue(new Error('provider down'));
+
+        await service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID);
+
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-1',
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    sandboxDestroyed: false,
+                }),
+            }),
+        );
+    });
+
+    it('skips sandbox work when the app has none', async () => {
+        const { service, appModel, sandboxManager, analytics } = buildService();
+
+        await service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID);
+
+        expect(sandboxManager.destroy).not.toHaveBeenCalled();
+        expect(appModel.clearSandboxUuidIfCurrent).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    sandboxDestroyed: null,
+                }),
+            }),
+        );
+    });
+
+    it('refuses while a version is building and leaves thread and sandbox alone', async () => {
+        const { service, appModel, sandboxManager } = buildService({
+            sandboxId: 'sandbox-1',
+        });
         appModel.getLatestVersion.mockResolvedValue({
             version: 4,
             status: 'generating',
@@ -122,6 +196,7 @@ describe('clearAgentContext', () => {
             service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID),
         ).rejects.toThrow('A version is already building for this app');
         expect(appModel.createThread).not.toHaveBeenCalled();
+        expect(sandboxManager.destroy).not.toHaveBeenCalled();
     });
 
     it('rejects a user without manage permission', async () => {

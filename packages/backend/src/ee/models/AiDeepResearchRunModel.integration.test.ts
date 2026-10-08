@@ -593,7 +593,10 @@ describe('AiDeepResearchRunModel integration', () => {
     it('clears a private report checkpoint when a running run is cancelled', async () => {
         const run = await createRun();
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
-        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        // Runs from before Document publishing may hold a report checkpoint.
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ result_markdown: report });
         await model.requestCancellation(run.ai_deep_research_run_uuid);
 
         await model.markCancelled(
@@ -610,7 +613,7 @@ describe('AiDeepResearchRunModel integration', () => {
     });
 
     it.each(['completed', 'partially_completed'] as const)(
-        'persists a 30-day expiry for a successfully %s report',
+        'keeps report content and expiry out of a %s run',
         async (status) => {
             const run = await createRun();
             await model.claimQueuedRun(run.ai_deep_research_run_uuid);
@@ -632,12 +635,12 @@ describe('AiDeepResearchRunModel integration', () => {
             const persisted = await model.findByUuid(
                 run.ai_deep_research_run_uuid,
             );
-            expect(persisted?.status).toBe(status);
-            expect(persisted?.report_expired_at).toBeNull();
-            expect(
-                persisted!.report_expires_at!.getTime() -
-                    persisted!.completed_at!.getTime(),
-            ).toBe(30 * 24 * 60 * 60 * 1_000);
+            expect(persisted).toMatchObject({
+                status,
+                result_markdown: null,
+                report_expires_at: null,
+                report_expired_at: null,
+            });
         },
     );
 
@@ -1113,7 +1116,10 @@ describe('AiDeepResearchRunModel integration', () => {
     it('promotes a stale run with a report checkpoint to useful partial', async () => {
         const run = await createRun();
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
-        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        // Runs from before Document publishing may hold a report checkpoint.
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ result_markdown: report });
         await database(AiDeepResearchRunsTableName)
             .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
             .update({ updated_at: database.raw("now() - interval '2 hours'") });
@@ -1136,7 +1142,10 @@ describe('AiDeepResearchRunModel integration', () => {
     it('prioritizes a pending cancellation over stale checkpoint recovery', async () => {
         const run = await createRun();
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
-        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        // Runs from before Document publishing may hold a report checkpoint.
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ result_markdown: report });
         await model.requestCancellation(run.ai_deep_research_run_uuid);
         await database(AiDeepResearchRunsTableName)
             .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)

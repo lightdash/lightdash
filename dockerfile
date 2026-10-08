@@ -204,6 +204,7 @@ ENV TURBO_API=https://cache.depot.dev
 COPY package.json .
 COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
+COPY patches ./patches
 COPY turbo.json .
 COPY tsconfig.json .
 COPY .oxlintrc.base.json .

@@ -33,3 +33,9 @@
         font-size: 16px;
     }
 }
+
+@media (width >= $mantine-breakpoint-sm) and (pointer: fine) {
+    .header {
+        display: none;
+    }
+}

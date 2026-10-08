@@ -48,8 +48,11 @@ export const normalizeLlmGatewayBaseUrl = (
  * trailing /v1 segment because Claude Code appends /v1/messages itself.
  * Accept a trailing /v1 for backwards compatibility and normalize it away.
  */
-export const normalizeAnthropicGatewayBaseUrl = (value: string): string => {
-    const normalized = normalizeLlmGatewayBaseUrl(value, 'ANTHROPIC_BASE_URL');
+export const normalizeAnthropicGatewayBaseUrl = (
+    value: string,
+    environmentVariable = 'ANTHROPIC_BASE_URL',
+): string => {
+    const normalized = normalizeLlmGatewayBaseUrl(value, environmentVariable);
     const url = new URL(normalized);
     const pathname = url.pathname.replace(/\/v1$/, '');
     url.pathname = pathname || '/';

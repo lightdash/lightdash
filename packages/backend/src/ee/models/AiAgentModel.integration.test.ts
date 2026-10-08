@@ -120,6 +120,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Persist a filter expression',
         });
         const created = await model.createArtifact({
@@ -201,6 +202,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Track this prompt activity',
         });
         const prompt = await database(AiPromptTableName)
@@ -218,6 +220,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Choose one execution mode',
         });
 
@@ -245,6 +248,7 @@ describe('AiAgentModel prompt activity', () => {
                     model.createWebAppPrompt({
                         threadUuid,
                         createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        modelConfig: null,
                         prompt: `${state} prompt`,
                     }),
                 ),
@@ -376,6 +380,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Retry a failed response with recorded token usage',
         });
         const failedAttemptTokenUsage = {
@@ -492,6 +497,7 @@ describe('AiAgentModel prompt activity', () => {
                 model.createWebAppPrompt({
                     threadUuid,
                     createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    modelConfig: null,
                     prompt: `Prompt for ${result}`,
                 }),
             ),
@@ -562,6 +568,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createSlackPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Current Slack prompt',
             slackUserId: 'U123',
             slackChannelId: `C-${suffix}`,
@@ -595,6 +602,7 @@ describe('AiAgentModel prompt activity', () => {
         const sourcePromptUuid = await model.createWebAppPrompt({
             threadUuid: sourceThreadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Clone this prompt',
         });
         const historicalCreatedAt = new Date('2026-01-02T00:00:00.456Z');
@@ -630,6 +638,7 @@ describe('AiAgentModel prompt activity', () => {
         const sourcePromptUuid = await model.createWebAppPrompt({
             threadUuid: sourceThreadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Add a revenue metric',
         });
         await model.updateModelResponse({
@@ -835,6 +844,7 @@ describe('AiAgentModel prompt activity', () => {
             const promptUuid = await model.createWebAppPrompt({
                 threadUuid,
                 createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                modelConfig: null,
                 prompt: 'Add a revenue metric',
             });
             const toolCallId = 'writeback-call';
@@ -888,6 +898,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Add a revenue metric',
         });
         const toolCallId = 'writeback-call';
@@ -999,6 +1010,7 @@ describe('AiAgentModel prompt activity', () => {
         const prompt = {
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'same event',
             slackUserId: 'U123',
             slackChannelId: `C-${suffix}`,
@@ -1023,6 +1035,7 @@ describe('AiAgentModel prompt activity', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Interrupt me',
         });
 
@@ -1117,6 +1130,7 @@ describe('AiAgentModel pending data app builds', () => {
         const promptUuid = await model.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            modelConfig: null,
             prompt: 'Build me a revenue app',
         });
         await model.createToolCall({

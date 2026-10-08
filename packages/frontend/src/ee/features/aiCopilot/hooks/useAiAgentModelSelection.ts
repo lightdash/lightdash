@@ -4,7 +4,10 @@ import { useCallback, useMemo, useReducer } from 'react';
 import {
     filterDeprecatedModelsForPicker,
     getModelKey,
+    getSupersedingModel,
     matchesModelConfig,
+    resolveModelForNewChat,
+    type ModelReplacement,
 } from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useModelOptions } from './useModelOptions';
@@ -54,29 +57,35 @@ const getDefaultModelSelection = (
     modelConfig: AiAgentModelConfig | null | undefined,
 ) => {
     const configuredModel = getConfiguredModelOption(modelOptions, modelConfig);
-    const model = configuredModel ?? getSystemDefaultModelOption(modelOptions);
+    const model = configuredModel
+        ? resolveModelForNewChat(modelOptions ?? [], configuredModel)
+        : getSystemDefaultModelOption(modelOptions);
 
     if (!model) return undefined;
 
     return {
         model,
         extendedThinking:
-            configuredModel?.supportsReasoning === true &&
+            configuredModel !== undefined &&
+            model.supportsReasoning &&
             modelConfig?.reasoning === true,
     };
 };
+
+const toAiAgentModelConfig = (
+    model: AiModelOption,
+    extendedThinking: boolean,
+): AiAgentModelConfig => ({
+    modelName: model.name,
+    modelProvider: model.provider,
+    reasoning: model.supportsReasoning ? extendedThinking : undefined,
+});
 
 export const getAiAgentModelConfig = (
     model: AiModelOption | undefined,
     extendedThinking: boolean,
 ): AiAgentModelConfig | undefined =>
-    model
-        ? {
-              modelName: model.name,
-              modelProvider: model.provider,
-              reasoning: model.supportsReasoning ? extendedThinking : undefined,
-          }
-        : undefined;
+    model ? toAiAgentModelConfig(model, extendedThinking) : undefined;
 
 type UseDefaultAiAgentModelProps = {
     modelOptions: AiModelOption[] | undefined;
@@ -104,6 +113,20 @@ export const useDefaultAiAgentModel = ({
             ),
         [modelOptions, selectedModelKey],
     );
+    const modelReplacement = useMemo((): ModelReplacement | null => {
+        const model = selectedModel
+            ? getSupersedingModel(modelOptions ?? [], selectedModel)
+            : null;
+        return model
+            ? {
+                  model,
+                  modelConfig: toAiAgentModelConfig(
+                      model,
+                      modelConfig?.reasoning ?? false,
+                  ),
+              }
+            : null;
+    }, [modelConfig?.reasoning, modelOptions, selectedModel]);
     const fallbackModel = useMemo(
         () =>
             getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
@@ -118,6 +141,7 @@ export const useDefaultAiAgentModel = ({
     return {
         fallbackModel,
         fallbackModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
@@ -219,7 +243,10 @@ export const useAiAgentModelSelection = ({
                 : undefined,
         [isDefaultModelConfigReady, modelOptions, resolvedDefaultModelConfig],
     );
-    const storedModel = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModelOption = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModel = storedModelOption
+        ? resolveModelForNewChat(modelOptions ?? [], storedModelOption)
+        : undefined;
     const effectiveSelectedModelKey =
         selectedModelKey ??
         (storedModel ? getModelKey(storedModel) : null) ??

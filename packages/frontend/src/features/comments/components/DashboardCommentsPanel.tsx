@@ -346,7 +346,10 @@ export const DashboardCommentsPanel: FC<Props> = ({
                             </div>
                         </Group>
                     </Drawer.Title>
-                    <Drawer.CloseButton aria-label="Close comments" size={44} />
+                    <Drawer.CloseButton
+                        aria-label="Close comments"
+                        mod="touch-target"
+                    />
                 </Drawer.Header>
                 <Drawer.Body className={classes.body}>
                     <div className={classes.list}>

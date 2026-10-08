@@ -2250,6 +2250,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
                 prompt: expect.stringContaining(
                     "Re-run the user's original question",
                 ),
+                modelConfig: null,
                 context: [
                     {
                         type: 'thread',
@@ -2325,6 +2326,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             prompt: {
                 createdByUserUuid: USER_UUID,
                 prompt: 'Show revenue',
+                modelConfig: null,
             },
         });
         expect(schedulerClient.aiAgentReviewRemediationRun).toHaveBeenCalled();

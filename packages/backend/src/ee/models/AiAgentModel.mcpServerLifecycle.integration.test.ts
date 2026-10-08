@@ -128,6 +128,7 @@ describe('AiAgentModel MCP server lifecycle', () => {
             threadUuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
             prompt: 'Use the MCP tool',
+            modelConfig: null,
         });
         await database(AiAgentToolCallTableName).insert({
             ai_prompt_uuid: promptUuid,

@@ -63,6 +63,7 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     threadUuid: 'thread-quarterly-retention',
+    promptUuid: 'prompt-quarterly-retention',
     question:
         'Why did enterprise retention fall in Q2 despite higher product adoption?',
     status: 'completed',
@@ -94,5 +95,6 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     reportExpiresAt: '2026-08-29T09:18:00.000Z',
     reportExpiredAt: null,
     isReportExpired: false,
+    document: null,
     errorMessage: null,
 };

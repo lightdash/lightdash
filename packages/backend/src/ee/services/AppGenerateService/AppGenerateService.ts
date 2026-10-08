@@ -1427,7 +1427,7 @@ export class AppGenerateService extends BaseService {
                     organizationUuid,
                 );
             return {
-                ...codex,
+                ...this.withDataAppGatewayOverrides(codex),
                 promptCacheTtl: null,
                 compactLongSessions: false,
             };
@@ -1436,7 +1436,41 @@ export class AppGenerateService extends BaseService {
             await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
                 organizationUuid,
             );
-        return { ...claude, promptCacheTtl: '1h', compactLongSessions: true };
+        return {
+            ...this.withDataAppGatewayOverrides(claude),
+            promptCacheTtl: '1h',
+            compactLongSessions: true,
+        };
+    }
+
+    private withDataAppGatewayOverrides(
+        copilot: ResolvedCopilotConfig,
+    ): ResolvedCopilotConfig {
+        const urls = this.lightdashConfig.appRuntime.dataAppGatewayBaseUrls;
+        // Instance routing must not redirect organization-owned credentials.
+        if (
+            !urls ||
+            !Object.values(urls).some(Boolean) ||
+            copilot.byoProviders.length > 0
+        ) {
+            return copilot;
+        }
+        const { anthropic, bedrock, openai } = copilot.providers;
+        return {
+            ...copilot,
+            providers: {
+                ...copilot.providers,
+                ...(anthropic && urls.anthropic
+                    ? { anthropic: { ...anthropic, baseUrl: urls.anthropic } }
+                    : {}),
+                ...(bedrock && urls.bedrock
+                    ? { bedrock: { ...bedrock, baseUrl: urls.bedrock } }
+                    : {}),
+                ...(openai && urls.openai
+                    ? { openai: { ...openai, baseUrl: urls.openai } }
+                    : {}),
+            },
+        };
     }
 
     private getCodingAgentEnv(
@@ -3274,20 +3308,24 @@ export class AppGenerateService extends BaseService {
         return sessionTar;
     }
 
+    /** Returns whether the provider destroy succeeded. */
     private async destroySandboxAndClearReference(
         appUuid: string,
         sandboxUuid: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
+        let destroyed = false;
         try {
             await this.getSandboxManager().destroy({
                 sandboxUuid,
             });
+            destroyed = true;
         } catch (error) {
             this.logger.warn(
-                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+                `App ${appUuid}: failed to destroy sandbox ${sandboxUuid}: ${getErrorMessage(error)}`,
             );
         }
-        await this.appModel.updateSandboxUuid(appUuid, null);
+        await this.appModel.clearSandboxUuidIfCurrent(appUuid, sandboxUuid);
+        return destroyed;
     }
 
     /** Best-effort restore of a carried Claude session into the new box. */
@@ -4868,10 +4906,9 @@ export class AppGenerateService extends BaseService {
     private static readonly MAX_BUILD_FIX_ATTEMPTS = 2;
 
     /**
-     * Run `pnpm build` and feed any failure back to Claude to fix. A failure is
-     * either a non-zero compile (the build output is fed back) or a clean
-     * compile that still renders the placeholder (see {@link detectBlankApp}) —
-     * both are silent ways to ship a broken app, so both drive the fix loop.
+     * Build and validate the generated app, feeding failures back to the coding
+     * agent. Compilation, placeholder, and custom-SQL extraction failures share
+     * the same bounded repair loop.
      * Retries up to MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
      */
     private async runBuildWithAutoFix(
@@ -4897,17 +4934,13 @@ export class AppGenerateService extends BaseService {
         let lastResult = await this.runBuild(sandbox, appUuid);
         buildMs += lastResult.durationMs;
 
-        // A clean compile isn't enough: an app that builds but renders only the
-        // placeholder (e.g. the entry component was never authored) is a silent
-        // blank-page failure. Treat it like a build error and feed it back into
-        // the same fix loop.
-        let blankAppProblem =
+        let appProblem =
             lastResult.exitCode === 0
-                ? await this.detectBlankApp(sandbox, appUuid)
+                ? await this.detectAppProblem(sandbox, appUuid)
                 : null;
 
         while (
-            (lastResult.exitCode !== 0 || blankAppProblem !== null) &&
+            (lastResult.exitCode !== 0 || appProblem !== null) &&
             fixAttempts < AppGenerateService.MAX_BUILD_FIX_ATTEMPTS
         ) {
             // Each iteration depends on the previous one: Claude's fix must
@@ -4928,15 +4961,15 @@ export class AppGenerateService extends BaseService {
                 `App ${appUuid}: ${
                     isBuildError
                         ? `build failed (exit ${lastResult.exitCode})`
-                        : 'app renders the placeholder'
-                }, asking Claude to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
+                        : 'app failed validation'
+                }, asking the coding agent to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
             );
 
             try {
                 await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
-                    isBuildError ? 'Fixing build errors' : 'Fixing blank app',
+                    isBuildError ? 'Fixing build errors' : 'Fixing app errors',
                     'stage',
                 );
             } catch (e) {
@@ -4959,8 +4992,8 @@ export class AppGenerateService extends BaseService {
                     `Build output:\n${errorOutput}`;
             } else {
                 fixPrompt =
-                    `The code you just produced compiles, but it ships a blank page. ` +
-                    `${blankAppProblem ?? ''} ` +
+                    `The code you just produced compiles, but failed app validation. ` +
+                    `${appProblem ?? ''} ` +
                     `Do not ask questions — apply the fix directly.`;
             }
             // Remove the previous prompt file first — after the Claude CLI
@@ -5028,9 +5061,9 @@ export class AppGenerateService extends BaseService {
                 fixAttempts,
                 fixGenerationMs,
             });
-            blankAppProblem =
+            appProblem =
                 lastResult.exitCode === 0
-                    ? await this.detectBlankApp(sandbox, appUuid)
+                    ? await this.detectAppProblem(sandbox, appUuid)
                     : null;
             /* eslint-enable no-await-in-loop */
         }
@@ -5041,9 +5074,9 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        if (blankAppProblem !== null) {
+        if (appProblem !== null) {
             throw new Error(
-                `App still renders the placeholder after ${fixAttempts} auto-fix attempt(s): ${blankAppProblem}`,
+                `App validation failed after ${fixAttempts} auto-fix attempt(s): ${appProblem}`,
             );
         }
 
@@ -5054,6 +5087,48 @@ export class AppGenerateService extends BaseService {
         }
 
         return { buildMs, fixAttempts, fixGenerationMs, fixUsage };
+    }
+
+    private async detectAppProblem(
+        sandbox: SandboxHandle,
+        appUuid: string,
+    ): Promise<string | null> {
+        const blankAppProblem = await this.detectBlankApp(sandbox, appUuid);
+        if (blankAppProblem !== null) return blankAppProblem;
+
+        await sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
+            timeoutMs: 60_000,
+        });
+        const sourceTar = await sandbox.files.readBytes('/tmp/source.tar');
+        const files = await AppGenerateService.extractTarFiles(
+            Buffer.from(sourceTar),
+        );
+        const { references } =
+            AppGenerateService.extractPersistedDataReferences(files);
+        const unresolvedSql = references.filter(
+            (ref) =>
+                ref.kind === 'query' &&
+                (ref.unresolved.includes('customSql') ||
+                    (ref.explore === null &&
+                        ref.customSql &&
+                        (ref.customSql.tableCalculations.length > 0 ||
+                            ref.customSql.additionalMetrics.length > 0 ||
+                            ref.customSql.customDimensions.length > 0))),
+        );
+        if (unresolvedSql.length === 0) return null;
+
+        const locations = unresolvedSql
+            .slice(0, 20)
+            .map(({ location }) => `${location.path}:${location.line}`)
+            .join(', ');
+        return (
+            `Custom SQL could not be verified for viewer access in ${unresolvedSql.length} query reference(s): ${locations}. ` +
+            'Read /app/references/custom-sql.md when available. Prefer existing modelled fields when their business meaning matches. ' +
+            'Otherwise use plain object definitions with literal SQL strings and statically resolvable table and explore names. ' +
+            'Simple constants and arrays are supported; helper factories, .map(), and interpolated SQL are not. ' +
+            'Use SDK filters or declared parameters for interactive values. Preserve the requested calculations, filters, and denominators; ' +
+            'do not remove features or move calculations into JavaScript just to pass validation.'
+        );
     }
 
     // Heading text rendered by the shipped src/App.jsx stub. The blank-app
@@ -8321,7 +8396,8 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Start a fresh thread on the app: the coding agent forgets the current
-     * thread; the app, its versions and its sandbox are unchanged.
+     * thread and its sandbox is destroyed, so the next prompt runs in a fresh
+     * one seeded from the latest ready version. Versions are unchanged.
      */
     async clearAgentContext(
         user: SessionUser,
@@ -8348,6 +8424,13 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        const sandboxDestroyed = app.sandbox_id
+            ? await this.destroySandboxAndClearReference(
+                  appUuid,
+                  app.sandbox_id,
+              )
+            : null;
+
         const thread = await this.appModel.createThread({
             appUuid,
             origin: 'builder',
@@ -8363,10 +8446,11 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 threadNumber: thread.thread_number,
+                sandboxDestroyed,
             },
         });
         this.logger.info(
-            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
+            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, sandboxDestroyed=${sandboxDestroyed}, user=${user.userUuid})`,
         );
 
         return this.getAppVersions(user, projectUuid, appUuid, {});

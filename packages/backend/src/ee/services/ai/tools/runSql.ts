@@ -32,6 +32,7 @@ import {
 } from '../utils/sqlScope';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
+import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;
@@ -44,6 +45,7 @@ type Dependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
@@ -133,6 +135,7 @@ export const getRunSql = ({
     waitForSqlApproval,
     recordSqlApproval,
     isThreadSqlAutoApproved,
+    trackSqlApprovalTimeout,
     storeToolResults,
     createOrUpdateArtifact,
     maxQueryLimit,
@@ -265,11 +268,16 @@ export const getRunSql = ({
                     if (isSlack) {
                         await renderState({ kind: 'approved', sql });
                     }
-                    const recorded = await recordSqlApproval(
+                    const recorded = await recordSqlApproval({
                         toolCallId,
-                        'approved',
-                        autoApproveSql ? autoApproveSqlUserUuid : null,
-                    );
+                        toolName: 'runSql',
+                        decidedByUserUuid: autoApproveSql
+                            ? autoApproveSqlUserUuid
+                            : null,
+                        source: autoApproveSql
+                            ? 'auto_approve'
+                            : 'thread_auto_approve',
+                    });
                     // A pre-existing decision means this is a resume (the button
                     // recorded it), so onStepFinish won't persist the result.
                     if (!recorded) {
@@ -298,6 +306,12 @@ export const getRunSql = ({
                 }
                 if (decision === 'timeout') {
                     sqlApprovalTimedOut = true;
+                    trackSqlApprovalTimeout({
+                        toolCallId,
+                        toolName: 'runSql',
+                        promptedUserUuid: prompt.createdByUserUuid,
+                        source: isSlack ? 'slack' : 'web',
+                    });
                     await renderState({ kind: 'timeout', sql });
                     return await persistResumeResult(
                         nonSuccessOutput(

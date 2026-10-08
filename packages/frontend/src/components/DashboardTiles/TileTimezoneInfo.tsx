@@ -11,6 +11,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { getTimezoneSourceLabel } from '../../utils/timezoneSourceLabel';
 import MantineIcon from '../common/MantineIcon';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type Props = {
     resolvedTimezone: string | null | undefined;
@@ -46,7 +47,7 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
     }
 
     return (
-        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+        <TileHeaderPopover>
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
@@ -64,7 +65,7 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
                     <MantineIcon icon={IconWorld} />
                 </ActionIcon>
             </Popover.Target>
-        </Popover>
+        </TileHeaderPopover>
     );
 };
 

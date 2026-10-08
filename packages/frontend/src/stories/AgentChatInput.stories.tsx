@@ -73,6 +73,7 @@ const models: AiModelOption[] = [
         default: true,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
     {
         name: 'claude-haiku',
@@ -83,6 +84,7 @@ const models: AiModelOption[] = [
         default: false,
         supportsReasoning: false,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 

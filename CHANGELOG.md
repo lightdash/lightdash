@@ -1,3 +1,174 @@
+# [2.490.0](https://github.com/lightdash/lightdash/compare/2.489.0...2.490.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai-agent:** list only edited content under the Steps taken edited group ([#30634](https://github.com/lightdash/lightdash/issues/30634)) ([d4c9805](https://github.com/lightdash/lightdash/commit/d4c980580db17e126f767958439b5d53f257f85e))
+
+
+### Features
+
+* **ai-agent:** run agents pinned to a retired model on its replacement and warn in settings ([#30637](https://github.com/lightdash/lightdash/issues/30637)) ([391bc9e](https://github.com/lightdash/lightdash/commit/391bc9e86af7591dbf95fc08d27638418ab43fdd))
+
+# [2.489.0](https://github.com/lightdash/lightdash/compare/2.488.1...2.489.0) (2026-10-08)
+
+
+### Features
+
+* **slack:** unfurl Document links with a title and preview image ([#30733](https://github.com/lightdash/lightdash/issues/30733)) ([d732aa5](https://github.com/lightdash/lightdash/commit/d732aa57dcb78c5eda78ec69edea7eb0ede65f4b))
+
+## [2.488.1](https://github.com/lightdash/lightdash/compare/2.488.0...2.488.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* resolve org-level OneLogin SSO without a login hint on single-org instances ([#30723](https://github.com/lightdash/lightdash/issues/30723)) ([71f8478](https://github.com/lightdash/lightdash/commit/71f8478294159cf8ee400399ac5f14b7bb6c2c05)), closes [#30716](https://github.com/lightdash/lightdash/issues/30716)
+
+# [2.488.0](https://github.com/lightdash/lightdash/compare/2.487.1...2.488.0) (2026-10-08)
+
+
+### Features
+
+* **documents:** record Document moves and Space-cascaded deletes in activity and audit ([#30722](https://github.com/lightdash/lightdash/issues/30722)) ([1db4273](https://github.com/lightdash/lightdash/commit/1db4273f7c99f372d848529711822160a24e6391))
+
+## [2.487.1](https://github.com/lightdash/lightdash/compare/2.487.0...2.487.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **data-apps:** prefer modelled fields and validate custom SQL ([#30683](https://github.com/lightdash/lightdash/issues/30683)) ([b0f7404](https://github.com/lightdash/lightdash/commit/b0f740434a63b23fdc41eb1726217bf8fad151b8))
+
+# [2.487.0](https://github.com/lightdash/lightdash/compare/2.486.1...2.487.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **learn:** scroll a walkthrough's control away from the page's edge before placing the card (CS-379) ([#30724](https://github.com/lightdash/lightdash/issues/30724)) ([4026893](https://github.com/lightdash/lightdash/commit/4026893715fc4dbb2ca6fa1e98d86f629b7472d2))
+
+
+### Features
+
+* **ai:** show a Connect agent button in Slack when agent sign-in is needed ([#30714](https://github.com/lightdash/lightdash/issues/30714)) ([39eb5c2](https://github.com/lightdash/lightdash/commit/39eb5c27fb01ad9121dd3e57b8c7550559e1496f))
+* **learn:** bring back the Recently deleted walkthrough through project settings (CS-311) ([#30708](https://github.com/lightdash/lightdash/issues/30708)) ([8d8a13e](https://github.com/lightdash/lightdash/commit/8d8a13edf8fdb6abcb2dbbc368d62b8dde5c799e))
+
+## [2.486.1](https://github.com/lightdash/lightdash/compare/2.486.0...2.486.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** make the Deep Research run card readable in dark mode ([#30720](https://github.com/lightdash/lightdash/issues/30720)) ([ecb2648](https://github.com/lightdash/lightdash/commit/ecb2648dbc29d444975347a0c41052ebe7a96d37))
+
+# [2.486.0](https://github.com/lightdash/lightdash/compare/2.485.0...2.486.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** answer Deep Research follow-ups from the published Document ([#30719](https://github.com/lightdash/lightdash/issues/30719)) ([2adb879](https://github.com/lightdash/lightdash/commit/2adb879035e7177d71ed95a220c1c03f23b89cbe)), closes [#30718](https://github.com/lightdash/lightdash/issues/30718) [#30718](https://github.com/lightdash/lightdash/issues/30718)
+
+# [2.485.0](https://github.com/lightdash/lightdash/compare/2.484.0...2.485.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** publish Deep Research reports as Documents ([#30718](https://github.com/lightdash/lightdash/issues/30718)) ([a9e75a5](https://github.com/lightdash/lightdash/commit/a9e75a51467b56cd76025032f5e3725e2f73fdc0)), closes [#30719](https://github.com/lightdash/lightdash/issues/30719) [#30717](https://github.com/lightdash/lightdash/issues/30717)
+
+# [2.484.0](https://github.com/lightdash/lightdash/compare/2.483.0...2.484.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** show a Deep Research run's published Document ([#30717](https://github.com/lightdash/lightdash/issues/30717)) ([5d34ee5](https://github.com/lightdash/lightdash/commit/5d34ee583a36ce55566b6bc67a88ee0b90910d0f)), closes [#30707](https://github.com/lightdash/lightdash/issues/30707)
+
+# [2.483.0](https://github.com/lightdash/lightdash/compare/2.482.0...2.483.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** require Documents for Deep Research ([#30707](https://github.com/lightdash/lightdash/issues/30707)) ([198bf1f](https://github.com/lightdash/lightdash/commit/198bf1fabdea4409046e079e162b4111015ad3e5))
+
+# [2.482.0](https://github.com/lightdash/lightdash/compare/2.481.2...2.482.0) (2026-10-08)
+
+
+### Features
+
+* **theme:** subtle semantic alerts with an icon chip in both colour schemes ([#30710](https://github.com/lightdash/lightdash/issues/30710)) ([6a6fdf8](https://github.com/lightdash/lightdash/commit/6a6fdf84d78e6503928e6bc7a6a13456518a5a04))
+
+## [2.481.2](https://github.com/lightdash/lightdash/compare/2.481.1...2.481.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **viz:** hide overlapping x-axis labels on SQL chart time axes ([#30711](https://github.com/lightdash/lightdash/issues/30711)) ([3852813](https://github.com/lightdash/lightdash/commit/38528137b7ab254cc1171eb615838029e2a6c19c))
+
+## [2.481.1](https://github.com/lightdash/lightdash/compare/2.481.0...2.481.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** remove the empty space under the Ask AI input ([#30712](https://github.com/lightdash/lightdash/issues/30712)) ([451a6af](https://github.com/lightdash/lightdash/commit/451a6af8b8d8cf6ba4941a4b31d2fe8f5de83345))
+
+# [2.481.0](https://github.com/lightdash/lightdash/compare/2.480.0...2.481.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** add Claude Haiku 5.5 presets for Anthropic and Bedrock ([#30657](https://github.com/lightdash/lightdash/issues/30657)) ([3131b4e](https://github.com/lightdash/lightdash/commit/3131b4eb238f82cf40d8ad3f87e536fdeed2e58c))
+
+# [2.480.0](https://github.com/lightdash/lightdash/compare/2.479.1...2.480.0) (2026-10-08)
+
+
+### Features
+
+* allow separate Data Apps LLM gateway URLs ([#30687](https://github.com/lightdash/lightdash/issues/30687)) ([8e64dc9](https://github.com/lightdash/lightdash/commit/8e64dc95aa4b74b26cb13ae5be5c30d667c73e36))
+
+## [2.479.1](https://github.com/lightdash/lightdash/compare/2.479.0...2.479.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **documents:** suffix a taken slug when AI creates a Document ([#30706](https://github.com/lightdash/lightdash/issues/30706)) ([f9e996b](https://github.com/lightdash/lightdash/commit/f9e996b1803c1ba469014b0e12daa1a9940f0c01))
+
+# [2.479.0](https://github.com/lightdash/lightdash/compare/2.478.0...2.479.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **composer:** line charts open sorted by x; x sort orders rows locally ([#30703](https://github.com/lightdash/lightdash/issues/30703)) ([c845a41](https://github.com/lightdash/lightdash/commit/c845a41fe7dcbdbadf961646741c74ebe5f6c899))
+
+
+### Features
+
+* track AI agent SQL approval decisions ([#30672](https://github.com/lightdash/lightdash/issues/30672)) ([6493308](https://github.com/lightdash/lightdash/commit/6493308470284c6366c1c8381f4597f2177f5919))
+
+# [2.478.0](https://github.com/lightdash/lightdash/compare/2.477.1...2.478.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** gate credential writes and project pins on the custom providers flag ([#30685](https://github.com/lightdash/lightdash/issues/30685)) ([07957b9](https://github.com/lightdash/lightdash/commit/07957b92640097fde5cb4899fddf573bdbf223be))
+
+
+### Features
+
+* **apps:** discard sandbox when clearing agent context ([#30668](https://github.com/lightdash/lightdash/issues/30668)) ([acad5d7](https://github.com/lightdash/lightdash/commit/acad5d7e4c27652550cd25c91d6a2e27907cdb97))
+* **filters:** parse "to date" current-period filters in dbt YAML ([#30653](https://github.com/lightdash/lightdash/issues/30653)) ([026e9ec](https://github.com/lightdash/lightdash/commit/026e9eccb4bdf3196a5c8bd15d40a60a66e4fbd6))
+
+## [2.477.1](https://github.com/lightdash/lightdash/compare/2.477.0...2.477.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* allow scoped access to recently deleted project content ([#30449](https://github.com/lightdash/lightdash/issues/30449)) ([4cb68d7](https://github.com/lightdash/lightdash/commit/4cb68d762c28576abf79f5982bdac922592cec17))
+* **frontend:** restore desktop hover cards and touch-only close buttons ([#30684](https://github.com/lightdash/lightdash/issues/30684)) ([226a0cb](https://github.com/lightdash/lightdash/commit/226a0cb1b4a75a344680d682ed287d47831d1166))
+* **scim:** allow colons in PATCH path filter values ([#30682](https://github.com/lightdash/lightdash/issues/30682)) ([e31ef92](https://github.com/lightdash/lightdash/commit/e31ef92a86f1ed7ddb376edc1b96e2fc990e42d8))
+
+# [2.477.0](https://github.com/lightdash/lightdash/compare/2.476.0...2.477.0) (2026-10-08)
+
+
+### Features
+
+* **ai-agent:** dashboard reads tell the agent each tile's explore so filters target tiles without reading every chart ([#30641](https://github.com/lightdash/lightdash/issues/30641)) ([a8d507f](https://github.com/lightdash/lightdash/commit/a8d507f27beb17876b5b392148a2a512214b91b7))
+
 # [2.476.0](https://github.com/lightdash/lightdash/compare/2.475.2...2.476.0) (2026-10-08)
 
 

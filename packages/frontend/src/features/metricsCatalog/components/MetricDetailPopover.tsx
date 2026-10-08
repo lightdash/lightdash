@@ -12,6 +12,7 @@ import {
     Button,
     Divider,
     Group,
+    HoverCard,
     Popover,
     CloseButton,
     UnstyledButton,
@@ -26,6 +27,7 @@ import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useCanViewEmbedCompiledSql from '../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { useCanHover } from '../../../hooks/useCanHover';
 import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';
@@ -267,6 +269,9 @@ export const MetricDetailPopover: FC<Props> = ({
     compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
+    // Mantine v8 HoverCard has no controlled mode, so remount it to close.
+    const [hoverCardKey, setHoverCardKey] = useState(0);
+    const canHover = useCanHover();
     const getUiString = useUiStrings();
 
     const { data: metric, isLoading } = useMetric({
@@ -275,6 +280,51 @@ export const MetricDetailPopover: FC<Props> = ({
         metricName,
         enabled: opened,
     });
+
+    const renderContent = (onExplore: () => void) => (
+        <>
+            {isLoading && (
+                <Group justify="center" p="md">
+                    <Loader size="sm" />
+                </Group>
+            )}
+            {metric && (
+                <MetricDetailContent
+                    metric={metric}
+                    tableName={tableName}
+                    metricName={metricName}
+                    showExploreButton={showExploreButton}
+                    projectUuid={projectUuid}
+                    compiledQueryConfig={compiledQueryConfig}
+                    isOpen={opened}
+                    onExplore={onExplore}
+                />
+            )}
+        </>
+    );
+
+    if (canHover) {
+        return (
+            <HoverCard
+                key={hoverCardKey}
+                position="bottom-start"
+                width={compiledQueryConfig ? 432 : 332}
+                withArrow
+                offset={8}
+                openDelay={300}
+                closeDelay={200}
+                onOpen={() => setOpened(true)}
+                onClose={() => setOpened(false)}
+            >
+                <HoverCard.Target>
+                    <Box className={classes.target}>{children}</Box>
+                </HoverCard.Target>
+                <HoverCard.Dropdown>
+                    {renderContent(() => setHoverCardKey((key) => key + 1))}
+                </HoverCard.Dropdown>
+            </HoverCard>
+        );
+    }
 
     return (
         <Popover
@@ -308,27 +358,11 @@ export const MetricDetailPopover: FC<Props> = ({
                 <Group justify="flex-end" className={classes.closeRow}>
                     <CloseButton
                         aria-label={getUiString('metrics.closeDetails')}
-                        size={44}
+                        mod="touch-dismiss"
                         onClick={() => setOpened(false)}
                     />
                 </Group>
-                {isLoading && (
-                    <Group justify="center" p="md">
-                        <Loader size="sm" />
-                    </Group>
-                )}
-                {metric && (
-                    <MetricDetailContent
-                        metric={metric}
-                        tableName={tableName}
-                        metricName={metricName}
-                        showExploreButton={showExploreButton}
-                        projectUuid={projectUuid}
-                        compiledQueryConfig={compiledQueryConfig}
-                        isOpen={opened}
-                        onExplore={() => setOpened(false)}
-                    />
-                )}
+                {renderContent(() => setOpened(false))}
             </Popover.Dropdown>
         </Popover>
     );

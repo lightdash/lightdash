@@ -103,7 +103,6 @@ describe('walkthrough catalogue', () => {
         'view:EmbedAiAgent',
         'view:EmbedAiAgentDebug',
         'view:EmbedCompiledSql',
-        'manage:DeletedContent',
     ])('keeps %s visible as coming soon', (scope) => {
         const module = buildLearnCatalogue().find((m) => m.scope === scope)!;
         expect(module).toMatchObject({
@@ -147,12 +146,29 @@ describe('walkthrough catalogue', () => {
         expect(card.minRole).toBe(ProjectMemberRole.INTERACTIVE_VIEWER);
     });
 
+    it('reaches Recently deleted through project settings and restores the chart', () => {
+        const tour = SCOPE_TOURS['manage:DeletedContent'];
+        expect(tour.steps.map((step) => step.target)).toEqual(
+            expect.arrayContaining([
+                '[data-tour-nav="settings"]',
+                '[data-tour-nav="project-settings"]',
+                '[data-tour-nav="recently-deleted"]',
+            ]),
+        );
+        expect(tour.steps.at(-1)?.body).toContain('original space');
+        expect(
+            buildLearnCatalogue().find(
+                (m) => m.scope === 'manage:DeletedContent',
+            ),
+        ).toMatchObject({ available: true, stepCount: tour.steps.length });
+    });
+
     it('offers only walkthroughs as available scope modules', () => {
         const modules = buildLearnCatalogue();
         const scopes = modules.filter((m) => m.kind === 'scope');
         // 48 walkthroughs, three of them copies of a lesson shown once.
-        expect(scopes.filter((m) => m.available)).toHaveLength(45);
-        expect(scopes.filter((m) => !m.available)).toHaveLength(21);
+        expect(scopes.filter((m) => m.available)).toHaveLength(46);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(20);
         expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
             SANDBOX_LESSONS.length,
         );

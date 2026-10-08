@@ -1774,6 +1774,22 @@ export type DocumentViewEvent = BaseTrack & {
     };
 };
 
+export type DocumentMovedEvent = BaseTrack & {
+    event: 'document.moved';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        /** Null when a personal Document was saved to a Space. */
+        sourceSpaceId: string | null;
+        targetSpaceId: string;
+        source: DocumentChangeSource;
+        aiPromptId?: string;
+        aiThreadId?: string;
+    };
+};
+
 export type DocumentRestoredEvent = BaseTrack & {
     event: 'document.restored';
     userId: string;
@@ -2353,6 +2369,8 @@ export type DataAppThreadClearedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         threadNumber: number;
+        // null when the app had no sandbox to destroy
+        sandboxDestroyed: boolean | null;
     };
 };
 
@@ -3227,6 +3245,26 @@ export type AiAgentThreadRenamedEvent = BaseTrack & {
         agentId: string;
         threadId: string;
         titleLength: number;
+    };
+};
+
+/** One row per SQL approval outcome: the first recorded decision per tool call, or a timeout. */
+export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
+    event: 'ai_agent.sql_approval_decided';
+    // Decider, or the asked user on timeout; anonymousId when absent.
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        toolCallId: string;
+        toolName: 'runSql' | 'runComposerQueries';
+        decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
+        source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
+        isAutoApproved: boolean;
+        isThreadAutoApproval: boolean;
     };
 };
 
@@ -4704,6 +4742,7 @@ type TypedEvent =
     | AiAgentThreadDeletedEvent
     | AiAgentThreadPinnedEvent
     | AiAgentThreadRenamedEvent
+    | AiAgentSqlApprovalDecidedEvent
     | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
@@ -4717,6 +4756,7 @@ type TypedEvent =
     | DocumentUpdatedEvent
     | DocumentOwnerAssignedEvent
     | DocumentDeletedEvent
+    | DocumentMovedEvent
     | DocumentRestoredEvent
     | DocumentViewEvent
     | AiAgentSkillCreatedEvent

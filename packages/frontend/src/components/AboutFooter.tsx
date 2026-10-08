@@ -199,7 +199,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 color="blue"
                                 icon={<IconInfoCircle size={17} />}
                             >
-                                <Text c="blue">
+                                <Text>
                                     The version v
                                     {healthState.data?.latest.version} is now
                                     available. Please follow the instructions in

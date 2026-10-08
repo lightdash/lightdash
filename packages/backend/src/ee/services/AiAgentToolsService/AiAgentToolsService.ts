@@ -101,7 +101,9 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
+import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
@@ -166,6 +168,7 @@ import {
     formatWarehouseTableScopeError,
     isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
+import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import type {
     AppGenerateService,
     DataAppReadSource,
@@ -364,6 +367,7 @@ type AiAgentToolsServiceDependencies = {
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
+    aiAgentModel: Pick<AiAgentModel, 'findToolResultsByToolCallIds'>;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
@@ -436,6 +440,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
+
+    private readonly aiAgentModel: AiAgentToolsServiceDependencies['aiAgentModel'];
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -532,6 +538,7 @@ export class AiAgentToolsService extends BaseService {
         aiAgentContentValidation,
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
+        aiAgentModel,
         featureFlagService,
         previewDeploySetupService,
         shareService,
@@ -567,6 +574,7 @@ export class AiAgentToolsService extends BaseService {
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
+        this.aiAgentModel = aiAgentModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
@@ -3801,23 +3809,55 @@ export class AiAgentToolsService extends BaseService {
                 if (!context.agentUuid) {
                     return [];
                 }
-                const [documents, deepResearchRuns] = await Promise.all([
-                    this.aiAgentDocumentModel.findAllForAgent({
-                        organizationUuid: context.organizationUuid,
-                        agentUuid: context.agentUuid,
-                        projectUuid: context.projectUuid,
-                    }),
-                    context.threadUuid
-                        ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
-                              {
-                                  aiThreadUuid: context.threadUuid,
-                                  organizationUuid: context.organizationUuid,
-                                  projectUuid: context.projectUuid,
-                                  createdByUserUuid: context.user.userUuid,
-                              },
-                          )
-                        : [],
-                ]);
+                const [documents, deepResearchRuns, researchDocuments] =
+                    await Promise.all([
+                        this.aiAgentDocumentModel.findAllForAgent({
+                            organizationUuid: context.organizationUuid,
+                            agentUuid: context.agentUuid,
+                            projectUuid: context.projectUuid,
+                        }),
+                        context.threadUuid
+                            ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
+                                  {
+                                      aiThreadUuid: context.threadUuid,
+                                      organizationUuid:
+                                          context.organizationUuid,
+                                      projectUuid: context.projectUuid,
+                                      createdByUserUuid: context.user.userUuid,
+                                  },
+                              )
+                            : [],
+                        this.findThreadResearchDocuments(context),
+                    ]);
+                const publishedResearchDocuments: AiAgentDocumentSummary[] =
+                    researchDocuments.map(({ run, document }) => ({
+                        uuid: run.ai_deep_research_run_uuid,
+                        organizationUuid: run.organization_uuid,
+                        projectUuid: run.project_uuid,
+                        name: document.name,
+                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
+                        mimeType: 'text/markdown',
+                        contentSizeBytes: Buffer.byteLength(
+                            getDocumentSummaryMarkdown(
+                                document.version.content,
+                            ),
+                        ),
+                        alwaysIncludeInContext: false,
+                        summary: {
+                            description:
+                                'Deep Research report from this conversation, published as a Document.',
+                            definedTerms: [],
+                            relatedExploreNames: [],
+                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
+                            relevance: 'high',
+                            warning: null,
+                        },
+                        agentAccess: [],
+                        createdByUserUuid: run.created_by_user_uuid,
+                        updatedByUserUuid: null,
+                        createdAt: run.created_at,
+                        updatedAt: document.updatedAt,
+                    }));
                 const deepResearchDocuments: AiAgentDocumentSummary[] =
                     deepResearchRuns.map((run) => ({
                         uuid: run.ai_deep_research_run_uuid,
@@ -3845,7 +3885,11 @@ export class AiAgentToolsService extends BaseService {
                         updatedAt: run.updated_at,
                     }));
 
-                return [...documents, ...deepResearchDocuments];
+                return [
+                    ...documents,
+                    ...deepResearchDocuments,
+                    ...publishedResearchDocuments,
+                ];
             },
         );
     }
@@ -3894,12 +3938,77 @@ export class AiAgentToolsService extends BaseService {
                             content: run.result_markdown,
                         };
                     }
+                    const published = (
+                        await this.findThreadResearchDocuments(context)
+                    ).find(
+                        ({ run: researchRun }) =>
+                            researchRun.ai_deep_research_run_uuid ===
+                            args.documentUuid,
+                    );
+                    if (published) {
+                        return {
+                            uuid: published.run.ai_deep_research_run_uuid,
+                            name: published.document.name,
+                            mimeType: 'text/markdown',
+                            content: getDocumentSummaryMarkdown(
+                                published.document.version.content,
+                            ),
+                        };
+                    }
                 }
                 throw new NotFoundError(
                     `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
                 );
             },
         );
+    }
+
+    /** Deep Research reports from this thread that the user can read as Documents. */
+    private async findThreadResearchDocuments(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<Array<{ run: DbAiDeepResearchRun; document: Document }>> {
+        const { account } = context;
+        // Personal Documents are only readable by the registered user who made them.
+        if (!context.threadUuid || account?.user.type !== 'registered') {
+            return [];
+        }
+        assertRegisteredAccount(account);
+        const runs = await this.aiDeepResearchRunModel.findByThreadScoped({
+            aiThreadUuid: context.threadUuid,
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+            createdByUserUuid: context.user.userUuid,
+        });
+        const references = await findAiDeepResearchRunDocuments(
+            this.aiAgentModel,
+            runs,
+        );
+        const published = await Promise.all(
+            runs.map(async (run) => {
+                const reference = references.get(run.ai_deep_research_run_uuid);
+                if (!reference) {
+                    return null;
+                }
+                try {
+                    const document = await this.documentService.get(
+                        account,
+                        context.projectUuid,
+                        reference.documentUuid,
+                    );
+                    return { run, document };
+                } catch (error) {
+                    // Deleted, or no longer readable by this user.
+                    if (
+                        error instanceof NotFoundError ||
+                        error instanceof ForbiddenError
+                    ) {
+                        return null;
+                    }
+                    throw error;
+                }
+            }),
+        );
+        return published.filter((entry) => entry !== null);
     }
 
     private getSavedChartForRuntime(
@@ -4569,6 +4678,8 @@ export class AiAgentToolsService extends BaseService {
                 }),
             },
             AiAgentToolsService.documentChange(context),
+            // Like AI chart and dashboard creates, a taken slug gets a suffix.
+            { uniqueSlug: true },
         );
         return this.documentContentResult(context, document);
     }
@@ -4748,11 +4859,15 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         const space = await this.resolveDocumentSpace(context, spaceSlug);
-        await this.documentService.moveToSpace(context.account, {
-            projectUuid: context.projectUuid,
-            itemUuid: document.documentUuid,
-            targetSpaceUuid: space.uuid,
-        });
+        await this.documentService.moveToSpace(
+            context.account,
+            {
+                projectUuid: context.projectUuid,
+                itemUuid: document.documentUuid,
+                targetSpaceUuid: space.uuid,
+            },
+            { change: AiAgentToolsService.documentChange(context) },
+        );
         return this.documentService.get(
             context.account,
             context.projectUuid,

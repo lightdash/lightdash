@@ -204,6 +204,7 @@ const Settings: FC = () => {
         projectError,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,
+        projectSettingsAccessError,
     } = context;
 
     const routes = useMemo<RouteObject[]>(() => {
@@ -514,7 +515,7 @@ const Settings: FC = () => {
             project &&
             organization &&
             !organization.needsProject &&
-            projectSettingsAccess !== 'none'
+            projectSettingsAccess.type !== 'none'
         ) {
             allowedRoutes.push({
                 path: '/projectManagement/:projectUuid/*',
@@ -524,9 +525,7 @@ const Settings: FC = () => {
                             externalSourcesEnabled={
                                 externalSourcesFlag?.enabled ?? false
                             }
-                            learnerCopyOnly={
-                                projectSettingsAccess === 'learnerCopy'
-                            }
+                            projectSettingsAccess={projectSettingsAccess}
                         />
                     </TrackPage>
                 ),
@@ -1015,13 +1014,28 @@ const Settings: FC = () => {
         isAiCreditsLoading &&
         Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
 
+    // The project settings access check (a training copy's upstream, the
+    // spaces a member can create in) gates only the project's own settings
+    // routes; the sidebar entry simply appears once it resolves elsewhere.
+    const isProjectSettingsRoute = Boolean(
+        matchPath(
+            '/generalSettings/projectManagement/:projectUuid/*',
+            location.pathname,
+        ),
+    );
+    const isAwaitingProjectSettingsRoute =
+        isProjectSettingsAccessLoading && isProjectSettingsRoute;
+    const projectSettingsRouteError = isProjectSettingsRoute
+        ? projectSettingsAccessError
+        : null;
+
     if (
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        isProjectSettingsAccessLoading ||
+        isAwaitingProjectSettingsRoute ||
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
@@ -1030,14 +1044,21 @@ const Settings: FC = () => {
         return <PageSpinner />;
     }
 
-    if (userError || healthError || organizationError || projectError) {
+    if (
+        userError ||
+        healthError ||
+        organizationError ||
+        projectError ||
+        projectSettingsRouteError
+    ) {
         return (
             <ErrorState
                 error={
                     userError?.error ||
                     healthError?.error ||
                     organizationError?.error ||
-                    projectError?.error
+                    projectError?.error ||
+                    projectSettingsRouteError?.error
                 }
             />
         );

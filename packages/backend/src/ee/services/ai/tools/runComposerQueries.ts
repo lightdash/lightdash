@@ -36,6 +36,7 @@ import type {
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
+import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;
@@ -45,6 +46,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerPipelines: ListThreadComposerPipelinesFn;
     maxQueryLimit: number;
@@ -122,6 +124,7 @@ export const getRunComposerQueries = ({
     getPrompt,
     waitForSqlApproval,
     recordSqlApproval,
+    trackSqlApprovalTimeout,
     createOrUpdateArtifact,
     listThreadComposerPipelines,
     maxQueryLimit,
@@ -192,11 +195,12 @@ export const getRunComposerQueries = ({
                         );
                     }
                     if (autoApproveSql) {
-                        await recordSqlApproval(
+                        await recordSqlApproval({
                             toolCallId,
-                            'approved',
-                            autoApproveSqlUserUuid,
-                        );
+                            toolName: 'runComposerQueries',
+                            decidedByUserUuid: autoApproveSqlUserUuid,
+                            source: 'auto_approve',
+                        });
                     } else {
                         await updateProgress('Awaiting approval to run SQL...');
                         const decision = await waitForSqlApproval(toolCallId);
@@ -208,6 +212,13 @@ export const getRunComposerQueries = ({
                         }
                         if (decision === 'timeout') {
                             sqlApprovalTimedOut = true;
+                            const prompt = await getPrompt();
+                            trackSqlApprovalTimeout({
+                                toolCallId,
+                                toolName: 'runComposerQueries',
+                                promptedUserUuid: prompt.createdByUserUuid,
+                                source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                            });
                             return failure(
                                 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
                                 'timeout',

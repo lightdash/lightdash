@@ -6240,6 +6240,22 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "DashboardTileChartQuery": {
+                "properties": {
+                    "fieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldIds", "exploreName"],
+                "type": "object",
+                "description": "What the tile's chart queries, so dashboard filters can be targeted per tile without opening each chart."
+            },
             "DashboardChartTileAsCode": {
                 "allOf": [
                     {
@@ -6254,6 +6270,15 @@
                                     },
                                     {
                                         "properties": {
+                                            "chartQuery": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/DashboardTileChartQuery"
+                                                    }
+                                                ],
+                                                "nullable": true,
+                                                "description": "Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project."
+                                            },
                                             "chartSlug": {
                                                 "type": "string",
                                                 "nullable": true
@@ -11132,6 +11157,20 @@
             "SemanticChartAsCode": {
                 "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
+            "DocumentSemanticChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["semantic"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "MergeChartAsCode": {
                 "allOf": [
                     {
@@ -11148,35 +11187,27 @@
                     }
                 ]
             },
+            "DocumentMergeChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/MergeChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["merge"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "DocumentChartContent": {
                 "anyOf": [
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SemanticChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["semantic"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentSemanticChartContent"
                     },
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/MergeChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["merge"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentMergeChartContent"
                     }
                 ]
             },
@@ -27680,6 +27711,11 @@
             },
             "AiModelOption": {
                 "properties": {
+                    "supersededBy": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Current same-provider model that replaces a deprecated one; null unless it is in this list"
+                    },
                     "deprecated": {
                         "type": "boolean"
                     },
@@ -27709,6 +27745,7 @@
                     }
                 },
                 "required": [
+                    "supersededBy",
                     "deprecated",
                     "supportsReasoning",
                     "default",
@@ -40369,6 +40406,22 @@
                     "internal_error"
                 ]
             },
+            "AiDeepResearchRunDocument": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "name", "documentUuid"],
+                "type": "object",
+                "description": "The Document a run published its report to."
+            },
             "AiDeepResearchLimits": {
                 "properties": {
                     "deadlineMs": {
@@ -40807,6 +40860,15 @@
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
                     },
+                    "document": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchRunDocument"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null until the report is published as a Document."
+                    },
                     "isReportExpired": {
                         "type": "boolean"
                     },
@@ -40870,6 +40932,7 @@
                     "metrics",
                     "executionContextSnapshot",
                     "budget",
+                    "document",
                     "isReportExpired",
                     "reportExpiredAt",
                     "reportExpiresAt",
@@ -69886,7 +69949,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.476.0",
+        "version": "2.490.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

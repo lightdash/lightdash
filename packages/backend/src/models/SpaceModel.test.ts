@@ -147,11 +147,18 @@ describe('SpaceModel restore', () => {
         tracker.on.select(SpaceTableName).responseOnce([deletedSpaceRow]);
         tracker.on.select(SpaceTableName).responseOnce([]);
         tracker.on.update(SpaceTableName).responseOnce(1);
-        tracker.on.update('documents').responseOnce(2);
+        tracker.on.update('documents').responseOnce([
+            { document_uuid: 'document-1', project_uuid: 'project' },
+            { document_uuid: 'document-2', project_uuid: 'project' },
+        ]);
 
-        await model.restore('deleted-space-uuid');
+        await expect(model.restore('deleted-space-uuid')).resolves.toEqual([
+            { documentUuid: 'document-1', projectUuid: 'project' },
+            { documentUuid: 'document-2', projectUuid: 'project' },
+        ]);
 
         expect(tracker.history.update).toHaveLength(2);
+        expect(tracker.history.update[1].sql).toContain('returning');
         expect(tracker.history.update[0].bindings).toContain(
             'deleted-space-uuid',
         );

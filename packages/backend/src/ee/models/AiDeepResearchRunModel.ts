@@ -68,6 +68,7 @@ type CreateAiDeepResearchRun = {
 export type AiDeepResearchRunContextRow = Pick<
     DbAiDeepResearchRun,
     | 'ai_deep_research_run_uuid'
+    | 'prompt_uuid'
     | 'prompt'
     | 'status'
     | 'created_at'
@@ -638,6 +639,7 @@ export class AiDeepResearchRunModel {
         )
             .select(
                 'ai_deep_research_run_uuid',
+                'prompt_uuid',
                 'prompt',
                 'status',
                 'created_at',
@@ -859,7 +861,7 @@ export class AiDeepResearchRunModel {
     private async markWithReport(
         aiDeepResearchRunUuid: string,
         status: 'completed' | 'partially_completed',
-        resultMarkdown: string,
+        reportMarkdown: string | null,
         terminalReason: AiDeepResearchTerminalReason | null,
         failureStage: AiDeepResearchFailureStage | null,
         adjustments?: AiDeepResearchReportAdjustment,
@@ -876,10 +878,11 @@ export class AiDeepResearchRunModel {
             if (!currentRun) {
                 return false;
             }
+            // The report itself lives in its Document; only its counts are kept.
             const metrics = await AiDeepResearchRunModel.getTerminalMetrics(
                 transaction,
                 currentRun.prompt_uuid,
-                resultMarkdown,
+                reportMarkdown,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -891,12 +894,6 @@ export class AiDeepResearchRunModel {
                     status,
                     terminal_reason: terminalReason,
                     failure_stage: failureStage,
-                    result_markdown: resultMarkdown,
-                    report_expires_at: transaction.raw(
-                        "now() + (? * interval '1 day')",
-                        [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
-                    ) as unknown as Date,
-                    report_expired_at: null,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -940,39 +937,22 @@ export class AiDeepResearchRunModel {
 
     async markCompleted(
         aiDeepResearchRunUuid: string,
-        resultMarkdown: string,
+        reportMarkdown: string | null,
         adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'completed',
-            resultMarkdown,
+            reportMarkdown,
             null,
             null,
             adjustments,
         );
     }
 
-    async checkpointReport(
-        aiDeepResearchRunUuid: string,
-        resultMarkdown: string,
-    ): Promise<boolean> {
-        const updated = await this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
-            .where('status', 'running')
-            .whereNull('cancellation_requested_at')
-            .update({
-                result_markdown: resultMarkdown,
-                updated_at: this.database.fn.now() as unknown as Date,
-            });
-        return updated > 0;
-    }
-
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
-        resultMarkdown: string,
+        reportMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason,
         failureStage: AiDeepResearchFailureStage,
         adjustments?: AiDeepResearchReportAdjustment,
@@ -980,7 +960,7 @@ export class AiDeepResearchRunModel {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
-            resultMarkdown,
+            reportMarkdown,
             terminalReason,
             failureStage,
             adjustments,
@@ -1258,6 +1238,23 @@ export class AiDeepResearchRunModel {
             .orderBy('created_at', 'asc')
             .orderBy('ai_deep_research_event_uuid', 'asc')
             .limit(args.limit + 1);
+    }
+
+    async findStaleRunningRuns(
+        thresholdMinutes: number,
+    ): Promise<DbAiDeepResearchRun[]> {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('status', 'running')
+            .whereNull('cancellation_requested_at')
+            .andWhere(
+                'updated_at',
+                '<',
+                this.database.raw("now() - (? * interval '1 minute')", [
+                    thresholdMinutes,
+                ]),
+            );
     }
 
     async markStaleRunsAsFailed(

@@ -701,6 +701,7 @@ describe('MCP Document runtime', () => {
                 content: { markdown, charts: {} },
             },
             { source: 'mcp' },
+            { uniqueSlug: true },
         );
     });
 
@@ -925,6 +926,7 @@ describe('MCP Document runtime', () => {
                 projectUuid,
                 expect.objectContaining({ spaceUuid: undefined }),
                 { source: 'mcp' },
+                { uniqueSlug: true },
             );
         });
 
@@ -975,11 +977,15 @@ describe('MCP Document runtime', () => {
                     spaceSlug: 'Reports',
                 }),
             ).resolves.toMatchObject({ content: { spaceSlug: 'reports' } });
-            expect(documentService.moveToSpace).toHaveBeenCalledWith(account, {
-                projectUuid,
-                itemUuid: personal.documentUuid,
-                targetSpaceUuid: spaceUuid,
-            });
+            expect(documentService.moveToSpace).toHaveBeenCalledWith(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: personal.documentUuid,
+                    targetSpaceUuid: spaceUuid,
+                },
+                { change: { source: 'mcp' } },
+            );
             expect(documentService.updateMetadata).not.toHaveBeenCalled();
         });
 

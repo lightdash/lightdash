@@ -84,6 +84,7 @@ type FieldMeta = {
     fieldType: 'dimension' | 'metric' | 'table_calculation';
     type: string;
     label?: string;
+    displayName?: string;
     format?: string;
     round?: number;
     compact?: string;
@@ -745,7 +746,7 @@ function mapApiRowsToQueryResult({
         const colMeta = columns[fieldId];
         return {
             name,
-            label: fieldMeta?.label ?? name,
+            label: fieldMeta?.label ?? fieldMeta?.displayName ?? name,
             type: mapColumnType(colMeta?.type ?? fieldMeta?.type ?? 'string'),
         };
     });
@@ -833,8 +834,19 @@ export function createApiTransport(
 
             // Build a mapping from qualified → short field names
             // so app code uses row.driver_name, not row.fct_race_results_driver_name
-            const allShort = [...query.dimensions, ...query.metrics];
-            const allQualified = [...qualifiedDims, ...qualifiedMetrics];
+            const tableCalculationNames = query.tableCalculations.map(
+                (calculation) => calculation.name,
+            );
+            const allShort = [
+                ...query.dimensions,
+                ...query.metrics,
+                ...tableCalculationNames,
+            ];
+            const allQualified = [
+                ...qualifiedDims,
+                ...qualifiedMetrics,
+                ...tableCalculationNames,
+            ];
             const qualifiedToShort = new Map<string, string>();
             for (let i = 0; i < allShort.length; i++) {
                 qualifiedToShort.set(allQualified[i], allShort[i]);

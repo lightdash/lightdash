@@ -12,10 +12,7 @@
 
 .eyebrow {
     letter-spacing: 0.08em;
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-ldGray-7);
 }
 
 .runMeta {
@@ -35,17 +32,11 @@
 .metaSeparator {
     width: 3px;
     height: 3px;
-    background-color: light-dark(
-        var(--mantine-color-ldGray-4),
-        var(--mantine-color-ldGray-2)
-    );
+    background-color: var(--mantine-color-ldGray-4);
 }
 
 .metaText {
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-dimmed);
 }
 
 .stopButton {
@@ -61,17 +52,11 @@
     height: 7px;
     flex: none;
     border-radius: var(--mantine-radius-xl);
-    background-color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-1)
-    );
+    background-color: var(--mantine-color-ldGray-6);
 }
 
 .metrics {
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-ldGray-9);
 }
 
 .answer {
@@ -97,10 +82,7 @@
 }
 
 .activityButton {
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-ldGray-7);
 }
 
 .activityChevron {
@@ -141,10 +123,7 @@
 }
 
 .eventTime {
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-2)
-    );
+    color: var(--mantine-color-dimmed);
     font: 400 var(--mantine-font-size-xs) / 1.5
         var(--mantine-font-family-monospace);
     font-variant-numeric: tabular-nums;
@@ -163,14 +142,8 @@
 }
 
 .timelineItem[data-current='true'] .timelineNode {
-    border-color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-1)
-    );
-    background: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-1)
-    );
+    border-color: var(--mantine-color-ldGray-9);
+    background: var(--mantine-color-ldGray-9);
 }
 
 .eventLabel {

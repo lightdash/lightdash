@@ -44,6 +44,8 @@ export type CreateDocument = {
     spaceUuid: string | null;
     name: string;
     slug?: string;
+    /** Treats slug as a base for a new unique slug instead of requiring it exactly. */
+    uniqueSlug?: boolean;
     description: string;
     content: DocumentContent;
     createdByUserUuid: string | null;
@@ -676,15 +678,16 @@ export class DocumentModel {
                 input.spaceUuid === null
                     ? null
                     : await findSpaceId(input.spaceUuid);
+            const exactSlug = input.uniqueSlug ? undefined : input.slug;
             const slug =
-                input.slug ??
+                exactSlug ??
                 (await generateUniqueSlugScopedToProject(
                     transaction,
                     input.projectUuid,
                     DocumentsTableName,
-                    input.name,
+                    input.slug ?? input.name,
                 ));
-            if (input.slug !== undefined) {
+            if (exactSlug !== undefined) {
                 await acquireProjectSlugLock(
                     transaction,
                     input.projectUuid,

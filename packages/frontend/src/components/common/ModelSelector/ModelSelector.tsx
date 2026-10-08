@@ -12,6 +12,7 @@ import {
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import { RetiredModelBadge } from './RetiredModelBadge';
 import {
     filterDeprecatedModelsForPicker,
     getModelGroupLabel,
@@ -161,9 +162,14 @@ export const ModelSelector: FC<Props> = ({
                                             }
                                         >
                                             <Stack gap={0}>
-                                                <Text size="sm" fw={500}>
-                                                    {model.displayName}
-                                                </Text>
+                                                <Group gap={6} wrap="nowrap">
+                                                    <Text size="sm" fw={500}>
+                                                        {model.displayName}
+                                                    </Text>
+                                                    {model.deprecated && (
+                                                        <RetiredModelBadge />
+                                                    )}
+                                                </Group>
                                                 {model.description && (
                                                     <Text size="xs" c="dimmed">
                                                         {model.description}

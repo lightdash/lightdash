@@ -319,8 +319,8 @@ export default function AppPreviewTest() {
             {isFullscreen && (
                 <ActionIcon
                     className={classes.exitFullscreen}
+                    mod="touch-target"
                     variant="default"
-                    size={44}
                     onClick={handleToggleFullscreen}
                     aria-label="Exit fullscreen"
                 >

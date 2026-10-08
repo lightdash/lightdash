@@ -25,8 +25,12 @@ import { ExternalSourcesSettingsPanel } from '../../features/externalSources/com
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
+import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { LEARNER_COPY_SETTINGS_PAGE } from '../../hooks/settings/projectSettingsAccess';
+import {
+    type LimitedProjectSettingsPage,
+    type ProjectSettingsAccess,
+} from '../../hooks/settings/projectSettingsAccess';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -84,14 +88,15 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
 
 const ProjectSettings: FC<{
     externalSourcesEnabled: boolean;
-    /** A learner's training copy: the Validator only, every other page redirects to it. */
-    learnerCopyOnly?: boolean;
-}> = ({ externalSourcesEnabled, learnerCopyOnly = false }) => {
+    projectSettingsAccess: Exclude<ProjectSettingsAccess, { type: 'none' }>;
+}> = ({ externalSourcesEnabled, projectSettingsAccess }) => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
     const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
+    // A learner copy has no project list to go back to.
+    const { isTrainingCopy } = useIsTrainingCopy(project);
 
     const { data: organization } = useOrganization();
 
@@ -162,17 +167,33 @@ const ProjectSettings: FC<{
         if (!projectUuid) {
             return [];
         }
-        if (learnerCopyOnly) {
+        const limitedRoutes: Record<LimitedProjectSettingsPage, RouteObject> = {
+            validator: {
+                path: '/validator',
+                element: <SettingsValidator projectUuid={projectUuid} />,
+            },
+            recentlyDeleted: {
+                path: '/recentlyDeleted',
+                element: (
+                    <ProjectSettingsPage
+                        title="Recently deleted"
+                        description="Review and restore recently deleted project content."
+                    >
+                        <RecentlyDeletedPage projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
+            },
+        };
+        if (projectSettingsAccess.type === 'limited') {
             return [
-                {
-                    path: `/${LEARNER_COPY_SETTINGS_PAGE}`,
-                    element: <SettingsValidator projectUuid={projectUuid} />,
-                },
+                ...projectSettingsAccess.pages.map(
+                    (page) => limitedRoutes[page],
+                ),
                 {
                     path: '*',
                     element: (
                         <Navigate
-                            to={`/generalSettings/projectManagement/${projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`}
+                            to={`/generalSettings/projectManagement/${projectUuid}/${projectSettingsAccess.defaultPage}`}
                             replace
                         />
                     ),
@@ -269,10 +290,7 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            {
-                path: `/validator`,
-                element: <SettingsValidator projectUuid={projectUuid} />,
-            },
+            limitedRoutes.validator,
             {
                 path: `/verifiedContent`,
                 element: (
@@ -323,23 +341,7 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            ...(isSoftDeleteEnabled
-                ? [
-                      {
-                          path: `/recentlyDeleted`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Recently deleted"
-                                  description="Review and restore recently deleted project content."
-                              >
-                                  <RecentlyDeletedPage
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
+            ...(isSoftDeleteEnabled ? [limitedRoutes.recentlyDeleted] : []),
             {
                 path: `/parameters`,
                 element: (
@@ -580,7 +582,7 @@ const ProjectSettings: FC<{
         ];
     }, [
         projectUuid,
-        learnerCopyOnly,
+        projectSettingsAccess,
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
@@ -649,8 +651,7 @@ const ProjectSettings: FC<{
                 <SettingsPageContainer>
                     <PageBreadcrumbs
                         items={[
-                            // A learner copy has no project list to go back to.
-                            ...(learnerCopyOnly
+                            ...(isTrainingCopy
                                 ? []
                                 : [
                                       {

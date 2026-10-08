@@ -38,6 +38,11 @@ import {
     SCHEMA_YML,
 } from './GitIntegrationService.mock';
 
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    warehouseSqlBuilderFromType: vi.fn(() => warehouseClientMock),
+}));
+
 vi.mock('../../clients/bitbucket/Bitbucket', async () => ({
     ...(await vi.importActual<
         typeof import('../../clients/bitbucket/Bitbucket')
@@ -111,9 +116,6 @@ const setup = () => {
         findExploreContainingTable: vi.fn().mockResolvedValue(EXPLORE),
         ...singleRouteProjectModelMethods,
         getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
-        getWarehouseClientFromCredentials: vi
-            .fn()
-            .mockReturnValue(warehouseClientMock),
     };
     const sources = { getSources: vi.fn().mockResolvedValue([]) };
     const pullRequests = { create: vi.fn().mockResolvedValue(undefined) };

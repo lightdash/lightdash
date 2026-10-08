@@ -564,7 +564,7 @@ const SlackSettingsPanel: FC = () => {
                             {organizationHasSlack &&
                                 !slackInstallation.hasRequiredScopes && (
                                     <Alert
-                                        color="yellow"
+                                        color="orange"
                                         icon={
                                             <MantineIcon
                                                 icon={IconAlertCircle}

@@ -14,12 +14,21 @@ import {
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
-import { AiOrganizationProviderCredentialModel } from '../../models/AiOrganizationProviderCredentialModel';
+import {
+    AiOrganizationProviderCredentialModel,
+    type AiProviderCredentialResolution,
+} from '../../models/AiOrganizationProviderCredentialModel';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
-import { getFastModelForAccessibleKey, OrgModelOverrides } from './models';
+import {
+    getAvailableModels,
+    getFastModelForAccessibleKey,
+    getOrgModelCatalogue,
+    ModelCatalogue,
+    OrgModelOverrides,
+} from './models';
 import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
@@ -239,6 +248,17 @@ export type AiConfigScope = {
     credentialUuid: string | null;
 };
 
+export type OrgModelCatalogue = {
+    copilotConfig: ResolvedCopilotConfig;
+    overrides: OrgModelOverrides;
+    catalogue: ModelCatalogue;
+};
+
+const NO_ORG_MODEL_OVERRIDES: OrgModelOverrides = {
+    modelVisibility: null,
+    keyAccessibleModelIds: null,
+};
+
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
@@ -313,24 +333,40 @@ export class OrgAiCopilotConfigResolver {
             onUnreadable?: 'fail-closed' | 'tolerate-unreadable';
         },
     ): Promise<AiOrgProviderApiKeys | null> {
-        const resolveSelected = () => {
+        // `pin` records that the credential was deliberately selected (an
+        // agent or project pin) rather than inherited from the organization
+        // default — pins fail closed where the default may degrade.
+        const resolveSelected = async (): Promise<{
+            resolution: AiProviderCredentialResolution;
+            pin: 'agent' | 'project' | null;
+        }> => {
             if (credentialUuid) {
-                return this.aiOrganizationProviderCredentialModel.findDecrypted(
-                    organizationUuid,
-                    credentialUuid,
-                );
+                return {
+                    resolution:
+                        await this.aiOrganizationProviderCredentialModel.findDecrypted(
+                            organizationUuid,
+                            credentialUuid,
+                        ),
+                    pin: 'agent',
+                };
             }
             if (projectUuid) {
-                return this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
-                    organizationUuid,
-                    projectUuid,
-                );
+                const { resolution, fromProjectPin } =
+                    await this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
+                        organizationUuid,
+                        projectUuid,
+                    );
+                return { resolution, pin: fromProjectPin ? 'project' : null };
             }
-            return this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
-                organizationUuid,
-            );
+            return {
+                resolution:
+                    await this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                        organizationUuid,
+                    ),
+                pin: null,
+            };
         };
-        const [legacyKeys, resolution] = await Promise.all([
+        const [legacyKeys, { resolution, pin }] = await Promise.all([
             this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             ),
@@ -366,18 +402,21 @@ export class OrgAiCopilotConfigResolver {
                       bedrock: resolution.credential.config,
                   };
 
-        // An agent pin must never be silently discarded: with the org flag
-        // off, falling through to the instance provider would process the
-        // pinned agent's content out of region. Pin writes are rejected while
-        // the flag is off, so this only fires when the flag was turned off
-        // after the pin was saved — degrade to "unavailable", never reroute.
-        if (credentialUuid && resolution.status === 'ok') {
+        // A pin must never be silently discarded: with the org flag off,
+        // falling through to the instance provider would process the pinned
+        // agent's or project's content out of region. Pin writes are rejected
+        // while the flag is off, so this only fires when the flag was turned
+        // off after the pin was saved — degrade to "unavailable", never
+        // reroute.
+        if (pin && resolution.status === 'ok') {
             if (await this.isCustomProvidersEnabled(organizationUuid)) {
                 return keys;
             }
             if (onUnreadable === 'fail-closed') {
                 throw new MissingConfigError(
-                    'This agent is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin; AI features are unavailable for this agent until then.',
+                    pin === 'agent'
+                        ? 'This agent is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin; AI features are unavailable for this agent until then.'
+                        : 'This project is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin in the project settings; AI features are unavailable for this project until then.',
                 );
             }
             return this.withCustomProvidersIfEnabled(
@@ -521,16 +560,19 @@ export class OrgAiCopilotConfigResolver {
     async getOrgModelOverrides(
         organizationUuid: string | null | undefined,
     ): Promise<OrgModelOverrides> {
-        const none: OrgModelOverrides = {
-            modelVisibility: null,
-            keyAccessibleModelIds: null,
-        };
-        if (!organizationUuid) return none;
+        if (!organizationUuid) return NO_ORG_MODEL_OVERRIDES;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
             projectUuid: null,
             onUnreadable: 'tolerate-unreadable',
         });
-        if (!orgKeys) return none;
+        if (!orgKeys) return NO_ORG_MODEL_OVERRIDES;
+        return this.buildOrgModelOverrides(organizationUuid, orgKeys);
+    }
+
+    private async buildOrgModelOverrides(
+        organizationUuid: string,
+        orgKeys: AiOrgProviderApiKeys,
+    ): Promise<OrgModelOverrides> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
@@ -555,6 +597,61 @@ export class OrgAiCopilotConfigResolver {
                 settings?.modelVisibility ?? null,
             ),
             keyAccessibleModelIds,
+        };
+    }
+
+    /**
+     * The copilot config that serves a prompt together with the model
+     * catalogue the org may pick from, resolving the org's provider keys once.
+     * Fails closed like `getCopilotConfig`.
+     */
+    async getOrgModelCatalogue(
+        scope: AiConfigScope,
+    ): Promise<OrgModelCatalogue> {
+        return this.resolveOrgModelCatalogue(scope, 'fail-closed');
+    }
+
+    /** Display-only counterpart, see `getCopilotConfigForDisplay`. */
+    async getOrgModelCatalogueForDisplay(
+        organizationUuid: string | null | undefined,
+    ): Promise<OrgModelCatalogue> {
+        return this.resolveOrgModelCatalogue(
+            { organizationUuid, projectUuid: null, credentialUuid: null },
+            'tolerate-unreadable',
+        );
+    }
+
+    private async resolveOrgModelCatalogue(
+        { organizationUuid, projectUuid, credentialUuid }: AiConfigScope,
+        onUnreadable: 'fail-closed' | 'tolerate-unreadable',
+    ): Promise<OrgModelCatalogue> {
+        const base = this.lightdashConfig.ai.copilot;
+        const orgKeys = organizationUuid
+            ? await this.resolveOrgProviderKeys(organizationUuid, {
+                  projectUuid,
+                  credentialUuid,
+                  onUnreadable,
+              })
+            : null;
+        const resolved =
+            organizationUuid && orgKeys
+                ? {
+                      copilotConfig: overlayOrgProviderApiKeys(base, orgKeys),
+                      overrides: await this.buildOrgModelOverrides(
+                          organizationUuid,
+                          orgKeys,
+                      ),
+                  }
+                : {
+                      copilotConfig: { ...base, byoProviders: [] },
+                      overrides: NO_ORG_MODEL_OVERRIDES,
+                  };
+        return {
+            ...resolved,
+            catalogue: getOrgModelCatalogue(
+                getAvailableModels(resolved.copilotConfig),
+                resolved.overrides,
+            ),
         };
     }
 

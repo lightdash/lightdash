@@ -45,9 +45,11 @@ import {
     UnexpectedServerError,
     UUID,
     VizColumn,
+    WarehouseSqlBuilder,
     Writeback,
     WritebackColumn,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -513,12 +515,17 @@ Affected charts:
         return byModel;
     }
 
-    private async getWarehouseSqlBuilder(projectUuid: UUID) {
-        return this.projectModel.getWarehouseClientFromCredentials(
+    private async getWarehouseSqlBuilder(
+        projectUuid: UUID,
+    ): Promise<WarehouseSqlBuilder> {
+        const credentials =
             await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
                 { kind: 'original' },
-            ),
+            );
+        return warehouseSqlBuilderFromType(
+            credentials.type,
+            credentials.startOfWeek,
         );
     }
 

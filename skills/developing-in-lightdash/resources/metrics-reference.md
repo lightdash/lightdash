@@ -191,6 +191,8 @@ metrics:
 - Multiple values: `["value1", "value2"]`
 - Null checks: `"null"`, `"!null"`
 - Date intervals: `"inThePast N days"`, `"inTheNext N months"` (supports: `days`, `weeks`, `months`, `years`)
+- Current period: `"inTheCurrent month"`, `"notInTheCurrent quarter"` (supports: `day`, `week`, `month`, `quarter`, `year`)
+- Current period to date: `"inTheCurrent month to date"`, `"inTheCurrent month to date excluding today"` (supports: `week`, `month`, `quarter`, `year`)
 
 **Date filter examples:**
 
@@ -205,9 +207,24 @@ metrics:
     type: count
     filters:
       - renewal_date: "inTheNext 7 days"
+
+  orders_this_month:
+    type: count
+    filters:
+      - created_at: "inTheCurrent month"
+
+  orders_month_to_date:
+    type: count
+    filters:
+      - created_at: "inTheCurrent month to date"
+
+  orders_month_to_date_full_days:
+    type: count
+    filters:
+      - created_at: "inTheCurrent month to date excluding today"
 ```
 
-**Important:** `inTheCurrent` is NOT a valid operator in metric definition filters. It is only available in chart and dashboard filters. If you need current-period logic in a metric, use custom SQL with date truncation instead.
+`inTheCurrent month` covers the whole calendar month, including future-dated rows. Add `to date` to end the range at today, and `excluding today` to end it at yesterday so the current partial day is left out. The `to date` suffix is only valid for `week`, `month`, `quarter` and `year`.
 
 ### Show Underlying Values
 

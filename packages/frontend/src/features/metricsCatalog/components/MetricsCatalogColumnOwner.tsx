@@ -1,16 +1,19 @@
 import { interpolateUiString, type CatalogField } from '@lightdash/common';
 import {
+    Box,
     CloseButton,
     Group,
     Popover,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { useCanHover } from '../../../hooks/useCanHover';
 import classes from './MetricsCatalogColumnOwner.module.css';
 
 type Props = {
@@ -20,6 +23,7 @@ type Props = {
 export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
     const owner = row.original.owner;
     const [opened, setOpened] = useState(false);
+    const canHover = useCanHover();
     const getUiString = useUiStrings();
 
     if (!owner) {
@@ -36,6 +40,29 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
     }
 
     const displayName = `${owner.firstName} ${owner.lastName}`;
+
+    const ownerLabel = (
+        <Group gap="two" wrap="nowrap" maw="200px">
+            <LightdashUserAvatar
+                size={16}
+                name={displayName}
+                userUuid={owner.userUuid}
+            />
+            <Text fz="sm" fw={600} truncate>
+                {displayName}
+            </Text>
+        </Group>
+    );
+
+    if (canHover) {
+        return (
+            <Tooltip label={owner.email} openDelay={300}>
+                <Box px="xs" className={classes.hoverTrigger}>
+                    {ownerLabel}
+                </Box>
+            </Tooltip>
+        );
+    }
 
     return (
         <Popover
@@ -58,16 +85,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
                     )}
                     onClick={() => setOpened((value) => !value)}
                 >
-                    <Group gap="two" wrap="nowrap" maw="200px">
-                        <LightdashUserAvatar
-                            size={16}
-                            name={displayName}
-                            userUuid={owner.userUuid}
-                        />
-                        <Text fz="sm" fw={600} truncate>
-                            {displayName}
-                        </Text>
-                    </Group>
+                    {ownerLabel}
                 </UnstyledButton>
             </Popover.Target>
             <Popover.Dropdown className={classes.dropdown}>
@@ -77,7 +95,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
                             {displayName}
                         </Text>
                         <CloseButton
-                            size={44}
+                            mod="touch-dismiss"
                             aria-label={getUiString('page.closeDetails')}
                             onClick={() => setOpened(false)}
                         />

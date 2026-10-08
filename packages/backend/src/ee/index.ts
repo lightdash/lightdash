@@ -416,6 +416,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         asyncQueryService: repository.getAsyncQueryService(),
                         queryHistoryModel: models.getQueryHistoryModel(),
                         userModel: models.getUserModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        documentService: repository.getDocumentService(),
                         executor: (run, executionContext) =>
                             executorHolder.execute!(run, executionContext),
                     });
@@ -722,6 +724,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     aiDeepResearchRunModel:
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),

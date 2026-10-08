@@ -246,7 +246,7 @@ export const DashboardTileComments: FC<
                     </Text>
                     <CloseButton
                         aria-label={getUiString('comments.close')}
-                        size={44}
+                        mod="touch-dismiss"
                         onClick={() => setOpenedComments(false)}
                     />
                 </Group>

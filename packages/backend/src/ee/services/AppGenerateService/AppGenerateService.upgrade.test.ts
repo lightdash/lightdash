@@ -78,6 +78,7 @@ function buildService(
         getVersionsWithDependencies: vi.fn().mockResolvedValue([]),
         createVersion: vi.fn().mockResolvedValue({ version: 5 }),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
+        clearSandboxUuidIfCurrent: vi.fn().mockResolvedValue(undefined),
     };
 
     const schedulerClient = {
@@ -491,7 +492,10 @@ describe('prepareUpgradeColdStart', () => {
         expect(manager.destroy).toHaveBeenCalledWith({
             sandboxUuid: 'sandbox-registry-uuid',
         });
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-registry-uuid',
+        );
     });
 
     it('still destroys and clears when the old sandbox cannot be resumed', async () => {
@@ -503,7 +507,10 @@ describe('prepareUpgradeColdStart', () => {
         expect(manager.destroy).toHaveBeenCalledWith({
             sandboxUuid: 'sandbox-registry-uuid',
         });
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-registry-uuid',
+        );
     });
 
     it('is a no-op when the app has no sandbox', async () => {
@@ -513,6 +520,6 @@ describe('prepareUpgradeColdStart', () => {
 
         expect(tar).toBeNull();
         expect(manager.destroy).not.toHaveBeenCalled();
-        expect(appModel.updateSandboxUuid).not.toHaveBeenCalled();
+        expect(appModel.clearSandboxUuidIfCurrent).not.toHaveBeenCalled();
     });
 });

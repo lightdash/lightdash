@@ -129,6 +129,10 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import {
+    buildSqlApprovalDecidedEvent,
+    type TrackSqlApprovalTimeoutFn,
+} from '../tools/sqlApprovals';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
@@ -150,6 +154,7 @@ import {
     syntheticTextTransform,
 } from '../utils/GeneratedResponseBlocks';
 import { renderMemoryBlock } from '../utils/memoryBlock';
+import { getAiAccessRefusalFromToolFinish } from '../utils/slackAiAccessRefusals';
 import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
 import {
     isErrorToolResult,
@@ -1072,6 +1077,19 @@ const getMcpToolResultErrorText = (output: unknown): string | null => {
     return typeof text === 'string' ? text.slice(0, 500) : 'MCP tool error';
 };
 
+const notifyAiAccessRefusal = (
+    dependencies: AiAgentDependencies,
+    event: OnToolCallFinishEvent,
+) => {
+    const refusal = getAiAccessRefusalFromToolFinish(event);
+    if (refusal === null) return;
+    try {
+        dependencies.onAiAccessRefusal?.(refusal);
+    } catch (error) {
+        Logger.warn('Failed to notify AI access refusal', error);
+    }
+};
+
 // Mirrors McpService.recordToolCall for the opposite direction: a Lightdash
 // agent calling a connected external MCP server
 const recordExternalMcpToolCall = (
@@ -1892,6 +1910,27 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
+    const trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn = ({
+        toolCallId,
+        toolName,
+        promptedUserUuid,
+        source,
+    }) => {
+        dependencies.trackEvent(
+            buildSqlApprovalDecidedEvent({
+                organizationUuid: args.organizationId,
+                projectUuid: args.agentSettings.projectUuid,
+                agentUuid: args.agentSettings.uuid,
+                threadUuid: args.threadUuid,
+                toolCallId,
+                toolName,
+                decision: 'timed_out',
+                source,
+                userUuid: promptedUserUuid,
+            }),
+        );
+    };
+
     // Composer queries supersede the standalone runSql tool: a single `sql`
     // node is the direct equivalent, and exposing both lets the model shadow
     // the composer path with raw runSql calls.
@@ -1908,6 +1947,7 @@ export const getAgentTools = (
                   waitForSqlApproval: dependencies.waitForSqlApproval,
                   recordSqlApproval: dependencies.recordSqlApproval,
                   isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  trackSqlApprovalTimeout,
                   storeToolResults: dependencies.storeToolResults,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                   maxQueryLimit: args.runSqlMaxLimit,
@@ -1930,6 +1970,7 @@ export const getAgentTools = (
               getPrompt: dependencies.getPrompt,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              trackSqlApprovalTimeout,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerPipelines:
                   dependencies.listThreadComposerPipelines,
@@ -2967,6 +3008,7 @@ export const generateAgentResponse = async ({
                 );
             },
             experimental_onToolCallFinish: (event) => {
+                notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
                     event.toolCall.toolCallId,
@@ -3396,6 +3438,7 @@ export const streamAgentResponse = async ({
             allowSystemInMessages: true,
             messages,
             experimental_onToolCallFinish: (event) => {
+                notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
             onChunk: (event) => {

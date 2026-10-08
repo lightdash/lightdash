@@ -610,6 +610,7 @@ export const useDeepResearchReport = (
                       sourceCount: null,
                       resultMarkdown: runQuery.data.resultMarkdown,
                       isReportExpired: runQuery.data.isReportExpired,
+                      document: runQuery.data.document,
                   }
                 : undefined,
         [runQuery.data],

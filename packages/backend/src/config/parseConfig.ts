@@ -2027,6 +2027,9 @@ export type LightdashConfig = {
         ingestLeaseMs: number;
         garbageCollectionBatchSize: number;
     };
+    warehouseClient: {
+        releaseSshTunnelOnScopeExit: boolean;
+    };
     motherduckInstanceCache: {
         enabled: boolean;
         projectUuids: string[];
@@ -2119,6 +2122,11 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     /** Coding agent invoked by the data-app generation pipeline. */
     dataAppCodingAgent: 'claude' | 'codex';
+    dataAppGatewayBaseUrls: {
+        anthropic: string | null;
+        bedrock: string | null;
+        openai: string | null;
+    };
     lightdashOrigin: string;
     cdnOrigin: string | null;
     /**
@@ -2689,6 +2697,26 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     return {
         enabled,
         dataAppCodingAgent,
+        dataAppGatewayBaseUrls: {
+            anthropic: process.env.DATA_APPS_ANTHROPIC_BASE_URL
+                ? normalizeAnthropicGatewayBaseUrl(
+                      process.env.DATA_APPS_ANTHROPIC_BASE_URL,
+                      'DATA_APPS_ANTHROPIC_BASE_URL',
+                  )
+                : null,
+            bedrock: process.env.DATA_APPS_BEDROCK_BASE_URL
+                ? normalizeLlmGatewayBaseUrl(
+                      process.env.DATA_APPS_BEDROCK_BASE_URL,
+                      'DATA_APPS_BEDROCK_BASE_URL',
+                  )
+                : null,
+            openai: process.env.DATA_APPS_OPENAI_BASE_URL
+                ? normalizeLlmGatewayBaseUrl(
+                      process.env.DATA_APPS_OPENAI_BASE_URL,
+                      'DATA_APPS_OPENAI_BASE_URL',
+                  )
+                : null,
+        },
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
@@ -4076,6 +4104,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GC_BATCH_SIZE',
                 ) ?? 100,
+        },
+        warehouseClient: {
+            releaseSshTunnelOnScopeExit:
+                process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED !== 'false',
         },
         motherduckInstanceCache,
         usageEvents: {

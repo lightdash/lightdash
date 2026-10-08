@@ -339,6 +339,7 @@ describe('seedPlaygroundContent', () => {
             prompt: {
                 createdByUserUuid: 'user-uuid',
                 prompt: 'Why did returns rise?',
+                modelConfig: null,
             },
         });
         expect(updateThreadTitle).toHaveBeenCalledExactlyOnceWith({

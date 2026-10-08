@@ -678,6 +678,21 @@ describe('mobile minimum supported versions', () => {
     });
 });
 
+describe('scoped SSH tunnel release', () => {
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            expected,
+        );
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -2745,6 +2760,56 @@ describe('APPS_CODING_AGENT', () => {
         process.env.APPS_CODING_AGENT = 'cursor';
         expect(() => parseConfig()).toThrowError(ParseError);
     });
+});
+
+describe('Data Apps gateway URLs', () => {
+    test('normalizes sandbox URLs without changing the shared provider URLs', () => {
+        process.env.ANTHROPIC_API_KEY = 'test-key';
+        process.env.ANTHROPIC_BASE_URL = 'https://mesh.example/anthropic';
+        process.env.BEDROCK_API_KEY = 'test-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL = 'https://mesh.example/bedrock';
+        process.env.OPENAI_API_KEY = 'test-key';
+        process.env.OPENAI_BASE_URL = 'https://mesh.example/openai/v1';
+        process.env.DATA_APPS_ANTHROPIC_BASE_URL =
+            ' https://private.example/anthropic/v1/ ';
+        process.env.DATA_APPS_BEDROCK_BASE_URL =
+            ' https://private.example/bedrock/ ';
+        process.env.DATA_APPS_OPENAI_BASE_URL =
+            ' https://private.example/openai/v1/ ';
+
+        const config = parseConfig();
+        expect(config.appRuntime.dataAppGatewayBaseUrls).toEqual({
+            anthropic: 'https://private.example/anthropic',
+            bedrock: 'https://private.example/bedrock',
+            openai: 'https://private.example/openai/v1',
+        });
+        expect(config.ai.copilot.providers.anthropic?.baseUrl).toBe(
+            process.env.ANTHROPIC_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.bedrock?.baseUrl).toBe(
+            process.env.BEDROCK_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.openai?.baseUrl).toBe(
+            process.env.OPENAI_BASE_URL,
+        );
+    });
+
+    test.each([
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'gateway.internal'],
+        ['DATA_APPS_BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://user:secret@gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://gateway.internal?token=secret'],
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'https://gateway.internal#fragment'],
+    ])(
+        'rejects invalid %s even without provider credentials',
+        (name, value) => {
+            process.env[name] = value;
+            expect(() => parseConfig()).toThrow(
+                `environment variable "${name}"`,
+            );
+        },
+    );
 });
 
 describe('ai copilot key management config', () => {

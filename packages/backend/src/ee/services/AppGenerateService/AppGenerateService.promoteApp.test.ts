@@ -277,6 +277,14 @@ async function buildScenario() {
             if (!app) throw new Error('App not found');
             app.sandbox_id = sandboxUuid;
         },
+        clearSandboxUuidIfCurrent: async (
+            appUuid: string,
+            sandboxUuid: string,
+        ) => {
+            const app = apps.get(appUuid);
+            if (!app) throw new Error('App not found');
+            if (app.sandbox_id === sandboxUuid) app.sandbox_id = null;
+        },
         syncPromotedApp: async () => undefined,
         updateStatusMessage: async () => undefined,
         touchVersionIfInProgress: async () => undefined,

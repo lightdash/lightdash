@@ -159,6 +159,7 @@ export const adaptDeepResearchRun = ({
         projectUuid: run.projectUuid,
         agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
+        promptUuid: run.promptUuid,
         question: registration.question,
         status: run.status,
         terminalReason: run.terminalReason,
@@ -172,15 +173,18 @@ export const adaptDeepResearchRun = ({
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
-        findingCount: run.resultMarkdown
-            ? countDeepResearchFindings(run.resultMarkdown)
-            : 0,
+        findingCount:
+            run.metrics.findingsCount ??
+            (run.resultMarkdown
+                ? countDeepResearchFindings(run.resultMarkdown)
+                : 0),
         actionRequired: null,
         latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
         reportExpiresAt: run.reportExpiresAt,
         reportExpiredAt: run.reportExpiredAt,
         isReportExpired: run.isReportExpired,
+        document: run.document,
         errorMessage: run.errorMessage,
     };
 };

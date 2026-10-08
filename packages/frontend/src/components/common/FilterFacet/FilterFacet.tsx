@@ -323,7 +323,7 @@ const FilterFacet = ({
                         {label}
                     </Text>
                     <CloseButton
-                        size={44}
+                        mod="touch-dismiss"
                         aria-label={interpolateUiString(
                             getUiString('filters.closeFacet'),
                             { filter: label },

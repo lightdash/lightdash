@@ -103,6 +103,7 @@ EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
 ALLOW_MISSING_MIGRATIONS = "true"
+SOFT_DELETE_ENABLED = "true"           # every cloud instance runs with it; Recently deleted needs it
 # Postgres wire-protocol server for the semantic layer: setting the port
 # starts the listener and renders the project settings page. No TLS certs in
 # a preview, and the port stays private to the environment.
