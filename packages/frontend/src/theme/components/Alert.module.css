@@ -7,8 +7,8 @@
     margin-inline-end: var(--mantine-spacing-sm);
     justify-content: center;
     border-radius: var(--mantine-radius-md);
-    background-color: color-mix(in srgb, var(--alert-color) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--alert-color) 12%, transparent);
+    background-color: color-mix(in srgb, var(--alert-color) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alert-color) 8%, transparent);
 }
 
 .body {
