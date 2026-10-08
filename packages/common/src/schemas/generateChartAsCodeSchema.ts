@@ -9,7 +9,7 @@ type JsonValue =
     | JsonValue[]
     | { [key: string]: JsonValue };
 
-type JsonObject = { [key: string]: JsonValue };
+export type JsonObject = { [key: string]: JsonValue };
 
 type SwaggerDoc = {
     components?: {
@@ -20,6 +20,7 @@ type SwaggerDoc = {
 const SCHEMA_REF_PREFIX = '#/components/schemas/';
 const DEFS_REF_PREFIX = '#/$defs/';
 const CHART_SCHEMA_NAME = 'ChartAsCode';
+const SQL_CHART_SCHEMA_NAME = 'SqlChartAsCode';
 
 export const getRepoRoot = (): string =>
     path.resolve(__dirname, '../../../../');
@@ -442,28 +443,31 @@ const recoverNestedDescriptions = (
     return root;
 };
 
-export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
-    const components = swagger.components?.schemas;
-    if (!components) {
-        throw new Error('Missing `components.schemas` in swagger document');
-    }
-
-    const chartSchema = components[CHART_SCHEMA_NAME];
-    if (!chartSchema) {
+const getComponent = (
+    components: Record<string, JsonObject>,
+    schemaName: string,
+): JsonObject => {
+    const schema = components[schemaName];
+    if (!schema) {
         throw new Error(
-            `Missing \`components.schemas.${CHART_SCHEMA_NAME}\` in swagger document`,
+            `Missing \`components.schemas.${schemaName}\` in swagger document`,
         );
     }
+    return schema;
+};
 
-    const rootSchema = resolveTopLevelAllOf(chartSchema, components);
-    const refsToVisit = [...collectComponentRefs(rootSchema)];
+const collectTransitiveRefs = (
+    roots: JsonObject[],
+    components: Record<string, JsonObject>,
+): string[] => {
+    const refsToVisit = roots.flatMap((root) => [
+        ...collectComponentRefs(root),
+    ]);
     const visited = new Set<string>();
 
     while (refsToVisit.length > 0) {
         const schemaName = refsToVisit.pop();
-        if (!schemaName || visited.has(schemaName)) {
-            // no-op
-        } else {
+        if (schemaName && !visited.has(schemaName)) {
             visited.add(schemaName);
 
             const component = components[schemaName];
@@ -479,36 +483,115 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         }
     }
 
-    const defs = [...visited]
-        .sort((left, right) => left.localeCompare(right))
-        .reduce<Record<string, JsonObject>>((acc, schemaName) => {
-            acc[schemaName] = convertOpenApiToDraft07(
-                components[schemaName],
-            ) as JsonObject;
-            return acc;
-        }, {});
+    return [...visited].sort((left, right) => left.localeCompare(right));
+};
 
+const buildSemanticChartRoot = (
+    components: Record<string, JsonObject>,
+): { swaggerRoot: JsonObject; root: JsonObject } => {
+    const swaggerRoot = resolveTopLevelAllOf(
+        getComponent(components, CHART_SCHEMA_NAME),
+        components,
+    );
     const rootWithDescriptions = recoverNestedDescriptions(
-        rootSchema,
+        swaggerRoot,
         components,
     );
     const convertedRoot = convertOpenApiToDraft07(
         rootWithDescriptions,
     ) as JsonObject;
-    const rootWithCompatibility = overlayCompatibilityRules(convertedRoot);
-    const rootWithChartConfig = maybeOverlayDiscriminatedChartConfig(
-        rootWithCompatibility,
+    const root = maybeOverlayDiscriminatedChartConfig(
+        overlayCompatibilityRules(convertedRoot),
         components,
     );
+    return { swaggerRoot, root };
+};
 
+const buildSqlChartRoot = (
+    components: Record<string, JsonObject>,
+): { swaggerRoot: JsonObject; root: JsonObject } => {
+    const swaggerRoot = resolveTopLevelAllOf(
+        getComponent(components, SQL_CHART_SCHEMA_NAME),
+        components,
+    );
+    const root = overlayCompatibilityRules(
+        convertOpenApiToDraft07(swaggerRoot) as JsonObject,
+    );
+    return { swaggerRoot, root };
+};
+
+/**
+ * A file is a SQL chart when it says so, or, without a contentType, when it
+ * carries `sql` and no `tableName`. Mirrors `isSqlChartContent`.
+ */
+const SQL_CHART_CONDITION: JsonObject = {
+    anyOf: [
+        {
+            required: ['contentType'],
+            properties: { contentType: { const: 'sql_chart' } },
+        },
+        {
+            required: ['sql'],
+            not: {
+                anyOf: [
+                    { required: ['contentType'] },
+                    { required: ['tableName'] },
+                ],
+            },
+        },
+    ],
+};
+
+export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
+    const components = swagger.components?.schemas;
+    if (!components) {
+        throw new Error('Missing `components.schemas` in swagger document');
+    }
+
+    const chart = buildSemanticChartRoot(components);
+    const sqlChart = buildSqlChartRoot(components);
+
+    const defs = collectTransitiveRefs(
+        [chart.swaggerRoot, sqlChart.swaggerRoot],
+        components,
+    ).reduce<Record<string, JsonObject>>((acc, schemaName) => {
+        acc[schemaName] = convertOpenApiToDraft07(
+            components[schemaName],
+        ) as JsonObject;
+        return acc;
+    }, {});
+    [CHART_SCHEMA_NAME, SQL_CHART_SCHEMA_NAME].forEach((schemaName) => {
+        if (defs[schemaName]) {
+            throw new Error(`$defs already contains ${schemaName}`);
+        }
+    });
+
+    // if/then/else rather than oneOf: validators report errors from the
+    // matching chart shape only, instead of both shapes at once.
     return {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://schemas.lightdash.com/lightdash/chart-as-code.json',
         title: 'Lightdash Chart as Code',
         description:
-            'Schema for defining Lightdash charts in YAML format for version control',
-        ...rootWithChartConfig,
-        $defs: defs,
+            'Schema for defining Lightdash charts (semantic layer charts and SQL charts) in YAML format for version control',
+        type: 'object',
+        if: SQL_CHART_CONDITION,
+        // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+        then: { $ref: `${DEFS_REF_PREFIX}${SQL_CHART_SCHEMA_NAME}` },
+        else: { $ref: `${DEFS_REF_PREFIX}${CHART_SCHEMA_NAME}` },
+        $defs: {
+            ...defs,
+            [CHART_SCHEMA_NAME]: {
+                ...chart.root,
+                description:
+                    'A semantic layer chart: queries an explore with tableName and metricQuery',
+            },
+            [SQL_CHART_SCHEMA_NAME]: {
+                ...sqlChart.root,
+                description:
+                    'A SQL chart: runs the sql query and visualizes its results',
+            },
+        },
     };
 };
 

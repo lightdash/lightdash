@@ -17,7 +17,6 @@ import { ajv } from '../ajv';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import {
     classifyContentFilePath,
-    isSqlChartContent,
     type ContentFileClassification,
     type ContentFileType,
 } from './contentAsCode/fileDiscovery';
@@ -213,7 +212,9 @@ function validateAsCodeSchema({
         return {
             filePath,
             valid: false,
-            errors: validate.errors,
+            // The chart schema picks a SQL chart or semantic layer chart shape
+            // with if/then/else; the wrapper error repeats the shape's errors.
+            errors: validate.errors.filter((error) => error.keyword !== 'if'),
             fileContent,
             locationMap,
             type,
@@ -385,9 +386,6 @@ function validateFile(
         }
 
         if (uploadType) {
-            if (uploadType === 'chart' && isSqlChartContent(dataObj)) {
-                return { filePath, valid: true, type: 'chart' };
-            }
             return validateAsCodeSchema({
                 data,
                 fileContent,

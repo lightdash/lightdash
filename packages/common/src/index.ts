@@ -100,7 +100,7 @@ export * from './pivot/pivotColumnName';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
-export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
+export * from './schemas/chartAsCodeSchema';
 export * from './types/document';
 export * from './utils/document';
 export * from './utils/documentMarkdown';
