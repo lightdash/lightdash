@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.481.0",
-  "previousVersion": "2.480.0",
-  "releaseDate": "2026-10-08T11:45:38.919Z",
+  "version": "2.481.1",
+  "previousVersion": "2.481.0",
+  "releaseDate": "2026-10-08T12:06:28.432Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261007120000_seed_ai_credit_rate_card_haiku_5_5.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_credit_rate_card"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

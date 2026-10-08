@@ -1,3 +1,10 @@
+## [2.481.1](https://github.com/lightdash/lightdash/compare/2.481.0...2.481.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** remove the empty space under the Ask AI input ([#30712](https://github.com/lightdash/lightdash/issues/30712)) ([451a6af](https://github.com/lightdash/lightdash/commit/451a6af8b8d8cf6ba4941a4b31d2fe8f5de83345))
+
 # [2.481.0](https://github.com/lightdash/lightdash/compare/2.480.0...2.481.0) (2026-10-08)
 
 
