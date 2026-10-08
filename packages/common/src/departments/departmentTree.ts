@@ -257,7 +257,7 @@ export const getResidualHeadcount = (
         directMemberCount,
     );
 
-export const rollUpByDepartment = <T>(
+export const rollUpByDepartment = <T extends { userUuid: string }>(
     nodes: DepartmentTreeNode[],
     direct: Map<string, T[]>,
 ): Map<string, T[]> => {
@@ -306,10 +306,19 @@ export const rollUpByDepartment = <T>(
             ].flatMap((uuid) => direct.get(uuid) ?? []),
         );
     });
+    // A person counted in several departments below is listed once, first occurrence kept
+    const dedupe = (people: T[]): T[] => {
+        const seen = new Set<string>();
+        return people.filter((person) => {
+            if (seen.has(person.userUuid)) return false;
+            seen.add(person.userUuid);
+            return true;
+        });
+    };
     return new Map(
         nodes.map((n) => [
             n.departmentUuid,
-            rolled.get(n.departmentUuid) ?? [],
+            dedupe(rolled.get(n.departmentUuid) ?? []),
         ]),
     );
 };

@@ -255,16 +255,44 @@ describe('getResidualHeadcount', () => {
 });
 
 describe('rollUpByDepartment', () => {
-    it('gives a parent its own items plus all descendants', () => {
+    const person = (userUuid: string, countedIn = '') => ({
+        userUuid,
+        countedIn,
+    });
+    const userUuids = (people: { userUuid: string }[] | undefined) =>
+        people?.map((p) => p.userUuid);
+
+    it('gives a parent its own people plus all descendants', () => {
         const direct = new Map([
-            ['ops', ['a']],
-            ['north', ['b']],
-            ['depots', ['c']],
+            ['ops', [person('a')]],
+            ['north', [person('b')]],
+            ['depots', [person('c')]],
         ]);
         const rolled = rollUpByDepartment(nodes, direct);
-        expect(rolled.get('ops')?.sort()).toEqual(['a', 'b', 'c']);
-        expect(rolled.get('stores')).toEqual(['b']);
+        expect(userUuids(rolled.get('ops'))?.sort()).toEqual(['a', 'b', 'c']);
+        expect(userUuids(rolled.get('stores'))).toEqual(['b']);
         expect(rolled.get('finance')).toEqual([]);
+    });
+    it('lists a person once per department, keeping the first occurrence in order', () => {
+        const direct = new Map([
+            ['ops', [person('a', 'ops')]],
+            ['stores', [person('b', 'stores')]],
+            ['depots', [person('b', 'depots'), person('d', 'depots')]],
+            ['north', [person('a', 'north'), person('c', 'north')]],
+        ]);
+        const rolled = rollUpByDepartment(nodes, direct);
+        // Own people first, then descendants breadth first: stores, depots, north
+        expect(rolled.get('ops')).toEqual([
+            person('a', 'ops'),
+            person('b', 'stores'),
+            person('d', 'depots'),
+            person('c', 'north'),
+        ]);
+        expect(rolled.get('stores')).toEqual([
+            person('b', 'stores'),
+            person('a', 'north'),
+            person('c', 'north'),
+        ]);
     });
 });
 

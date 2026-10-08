@@ -26,6 +26,15 @@ const departments = [
     { departmentUuid: 'marketing', parentDepartmentUuid: null },
 ];
 
+// The organization as one root above every top-level department
+const organizationTree = [
+    { departmentUuid: 'organization', parentDepartmentUuid: null },
+    ...departments.map((d) => ({
+        ...d,
+        parentDepartmentUuid: d.parentDepartmentUuid ?? 'organization',
+    })),
+];
+
 const link = (
     departmentUuid: string,
     groupName = `${departmentUuid} group`,
@@ -302,11 +311,37 @@ describe('counting resolved members', () => {
         const direct = getDirectMembersByDepartment(membership);
         expect(userUuidsIn(direct, 'marketing')).toEqual(['both', 'm']);
         expect(userUuidsIn(direct, 'sales')).toEqual(['both', 's']);
-        // The organization counts the union of counted people
-        const counted = new Set(
-            [...direct.values()].flat().map((m) => m.userUuid),
+        expect(
+            userUuidsIn(
+                rollUpByDepartment(organizationTree, direct),
+                'organization',
+            )?.sort(),
+        ).toEqual(['both', 'm', 's']);
+    });
+    it('a person counted in two sibling departments is once in the parent roll-up and once in the organization total', () => {
+        const direct = getDirectMembersByDepartment(
+            resolveDepartmentMembership(
+                [
+                    row({
+                        userUuid: 'p',
+                        groupLinks: [link('stores'), link('depots')],
+                    }),
+                    row({ userUuid: 'q', groupLinks: [link('north')] }),
+                ],
+                departments,
+            ),
         );
-        expect([...counted].sort()).toEqual(['both', 'm', 's']);
+        expect(userUuidsIn(direct, 'stores')).toEqual(['p']);
+        expect(userUuidsIn(direct, 'depots')).toEqual(['p']);
+        expect(
+            userUuidsIn(rollUpByDepartment(departments, direct), 'ops'),
+        ).toEqual(['p', 'q']);
+        expect(
+            userUuidsIn(
+                rollUpByDepartment(organizationTree, direct),
+                'organization',
+            ),
+        ).toEqual(['p', 'q']);
     });
     it('clearing the primary, or losing its department, restores counting in every placement', () => {
         const placedIn = {
@@ -414,15 +449,15 @@ describe('resolution on very deep and very wide trees', () => {
         const resolved = resolveDepartmentMembership(rows, chain);
         expect(resolved).toHaveLength(SIZE);
         resolved.forEach((member) =>
-            expect(member.resolution).toMatchObject({
+            expect(member).toMatchObject({
                 kind: 'assigned',
-                departmentUuid: 'd4999',
+                countedDepartmentUuids: ['d4999'],
             }),
         );
     });
 
-    it('reports a conflict between siblings on a 5,000-wide level', () => {
-        const [conflict, single] = resolveDepartmentMembership(
+    it('shares a person between siblings on a 5,000-wide level', () => {
+        const [shared, single] = resolveDepartmentMembership(
             [
                 row({
                     groupLinks: [link('c4999'), link('c0001'), link('root')],
@@ -434,13 +469,13 @@ describe('resolution on very deep and very wide trees', () => {
             ],
             wide,
         );
-        expect(conflict.resolution).toEqual({
-            kind: 'conflict',
-            departmentUuids: ['c0001', 'c4999'],
+        expect(shared).toMatchObject({
+            kind: 'shared',
+            countedDepartmentUuids: ['c0001', 'c4999'],
         });
-        expect(single.resolution).toMatchObject({
+        expect(single).toMatchObject({
             kind: 'assigned',
-            departmentUuid: 'c0042',
+            countedDepartmentUuids: ['c0042'],
         });
     });
 });
