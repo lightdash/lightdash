@@ -32,19 +32,27 @@ never called a filter. User-facing copy says *tile*, never *chart*.
 ## Provider contract (`useControlsSidebar`)
 
 - `open(id)` snapshots the dashboard filters and edits a saved filter control.
-- `openNew()` opens a placeholder with no mapping; it cannot be applied and
+- `openNew()` opens a placeholder with no mapping; it cannot be kept and
   never reaches the bar. `addFirstField(field)` turns it into a filter control.
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
-- `cancel()` restores the snapshot; `apply()` keeps the edits. Saving to the
-  server stays with the dashboard's own Save. Pure helpers: `sidebarState.ts`.
+- `close()` keeps the edits: they already live in the dashboard draft. It
+  discards instead when the control cannot be kept (`canKeepFilterRule`: no
+  field, or new with no label; a new parameter control with no label), and it
+  turns off a default value that was switched on but left empty.
+- `discard()` restores the snapshot taken when the control was opened. Saving
+  to the server stays with the dashboard's own Save. Pure helpers:
+  `sidebarState.ts`.
 
 ## Editor
 
 - `EditorShell` is the one chrome for the sidebar: title, subtitle, More actions
-  menu, Cancel, an `aboveTabs` slot for the label, a tab strip (shown when there
-  is more than one tab), body and a right-aligned footer. Add chrome there.
+  menu, a Close X, an `aboveTabs` slot for the label, a tab strip (shown when
+  there is more than one tab), body and a footer. The X and "Done" both call
+  `close`; the quiet discard action ("Discard control" for a new one, "Discard
+  changes" once an existing one has changed) calls `discard`. The footer status
+  says what closing would drop. Add chrome there.
 - `ControlSidebar` edits the control from `useControlsSidebar`. A placeholder is
-  titled "New control" and cannot be applied until it has a field.
+  titled "New control" and cannot be kept until it has a field.
 - `FieldsAndTiles` shows the inline `FieldPicker` for a placeholder, and
   otherwise one `FieldRow` per field of the filter plus "Add a field". `FieldPicker` is one searchable dropdown with
   time grains folded into one row per field (`fieldGrains.ts`).
@@ -60,8 +68,8 @@ never called a filter. User-facing copy says *tile*, never *chart*.
   `lockedTabUuids` (the dashboard uuid is the key when there are no tabs).
 - Settings is disabled for a placeholder ("Pick a field first"). The tab id
   stays `settings`.
-- Apply is blocked while `isDefaultValueIncomplete(rule)`; the inline error
-  shows only after an Apply attempt.
+- Nothing blocks closing. While `isDefaultValueIncomplete(rule)` a hint says
+  the default is left off, and `close()` writes `disabled: true`.
 - `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
   hidden while the sidebar is open.
 

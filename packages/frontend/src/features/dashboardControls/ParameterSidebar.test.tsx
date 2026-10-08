@@ -87,8 +87,8 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue> = {}) => {
         updateFilter: vi.fn(),
         removeFilter: vi.fn(),
         removeFilterById: vi.fn(),
-        cancel: vi.fn(),
-        apply: vi.fn(),
+        discard: vi.fn(),
+        close: vi.fn(),
         isDirty: false,
         editingControl: makeControl(),
         isNewControl: false,
@@ -157,8 +157,10 @@ describe('ParameterSidebar', () => {
         expect(
             screen.getByText('Parameter · 1 of 2 tiles'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Not applied yet')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
     });
 
@@ -174,9 +176,9 @@ describe('ParameterSidebar', () => {
         ).toBeInTheDocument();
     });
 
-    it('blocks a new control until it has a label and suggests one', () => {
+    it('asks a new control for a label and suggests one', () => {
         const control = makeControl({ label: '' });
-        const { apply, updateControl } = setSidebar({
+        const { close, updateControl } = setSidebar({
             editingControl: control,
             isNewControl: true,
             isDirty: true,
@@ -189,8 +191,12 @@ describe('ParameterSidebar', () => {
         expect(
             screen.getByText('1 parameter · sets 2 of 3 tiles'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Add a label to apply')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(
+            screen.getByText('Add a label to keep this control'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Discard control' }),
+        ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'More actions' }),
         ).not.toBeInTheDocument();
@@ -200,7 +206,7 @@ describe('ParameterSidebar', () => {
             screen.queryByText('Add a label so viewers know what this sets'),
         ).not.toBeInTheDocument();
         fireEvent.keyDown(input, { key: 'Enter' });
-        expect(apply).not.toHaveBeenCalled();
+        expect(close).not.toHaveBeenCalled();
         expect(
             screen.getByText('Add a label so viewers know what this sets'),
         ).toBeInTheDocument();
@@ -215,10 +221,11 @@ describe('ParameterSidebar', () => {
         });
     });
 
-    it('writes the label and applies or cancels', () => {
+    it('writes the label, keeps on Done or the X and discards', () => {
         const control = makeControl();
-        const { apply, cancel, updateControl } = setSidebar({
+        const { close, discard, updateControl } = setSidebar({
             editingControl: control,
+            isDirty: true,
         });
         renderWithProviders(<ParameterSidebar />);
 
@@ -229,10 +236,11 @@ describe('ParameterSidebar', () => {
             ...control,
             label: 'Area',
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(apply).toHaveBeenCalledTimes(1);
-        fireEvent.click(screen.getByText('Cancel'));
-        expect(cancel).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        expect(close).toHaveBeenCalledTimes(2);
+        fireEvent.click(screen.getByText('Discard changes'));
+        expect(discard).toHaveBeenCalledTimes(1);
     });
 
     it('removes a parameter only when the control holds several', async () => {

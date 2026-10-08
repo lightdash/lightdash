@@ -39,12 +39,7 @@ vi.mock('./ParameterSidebar', () => ({
 }));
 
 vi.mock('./FilterSettings', () => ({
-    FilterSettings: ({ attemptedApply }: { attemptedApply: boolean }) => (
-        <div
-            data-testid="filter-settings"
-            data-attempted-apply={attemptedApply}
-        />
-    ),
+    FilterSettings: () => <div data-testid="filter-settings" />,
 }));
 
 const FIELD_ID = 'orders_status';
@@ -103,8 +98,8 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         updateFilter: vi.fn(),
         removeFilter: vi.fn(),
         removeFilterById: vi.fn(),
-        cancel: vi.fn(),
-        apply: vi.fn(),
+        discard: vi.fn(),
+        close: vi.fn(),
         isDirty: true,
         editingControl: null,
         isNewControl: false,
@@ -199,7 +194,7 @@ describe('ControlSidebar', () => {
     it('renders nothing when no control is being edited', () => {
         setSidebar({ editing: null, editingRule: null });
         renderWithProviders(<ControlSidebar />);
-        expect(screen.queryByText('Apply')).not.toBeInTheDocument();
+        expect(screen.queryByText('Done')).not.toBeInTheDocument();
     });
 
     it('renders the parameter editor when a parameter control is edited', () => {
@@ -218,8 +213,8 @@ describe('ControlSidebar', () => {
         expect(screen.queryByText('Fields and tiles')).not.toBeInTheDocument();
     });
 
-    it('blocks Apply on a placeholder until it has a field', () => {
-        setSidebar({
+    it('says a placeholder needs a field to be kept', () => {
+        const { close } = setSidebar({
             isPlaceholder: true,
             editingRule: makeRule({
                 target: { fieldId: '', tableName: '' },
@@ -230,8 +225,14 @@ describe('ControlSidebar', () => {
         expect(screen.getByText('New control')).toBeInTheDocument();
         expect(screen.getByText('No mapping yet')).toBeInTheDocument();
         expect(screen.getByLabelText(/^Label/)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
-        expect(screen.getByText('Add a field to apply')).toBeInTheDocument();
+        expect(
+            screen.getByText('Add a field to keep this control'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Discard control' }),
+        ).toBeInTheDocument();
+        fireEvent.keyDown(screen.getByLabelText(/^Label/), { key: 'Enter' });
+        expect(close).not.toHaveBeenCalled();
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
@@ -280,40 +281,47 @@ describe('ControlSidebar', () => {
         expect(setActiveSection).toHaveBeenCalledWith('fields');
     });
 
-    it('blocks Apply while the default value is missing', () => {
-        const { apply } = setSidebar({
+    it('says an existing filter with no field keeps its saved fields', () => {
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            editingRule: makeRule({
+                label: 'Order status',
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByText('Add a field to keep these changes'),
+        ).toBeInTheDocument();
+    });
+
+    it('closes with a missing default value and says it stays off', () => {
+        const { close } = setSidebar({
             activeSection: 'settings',
             editingRule: makeRule({ label: 'Order status', values: [] }),
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
         expect(
-            screen.getByText('Choose a default value or turn it off'),
+            screen.getByText(
+                'No default value chosen, so the default stays off',
+            ),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Not applied yet')).not.toBeInTheDocument();
-        expect(screen.getByTestId('filter-settings')).toHaveAttribute(
-            'data-attempted-apply',
-            'false',
-        );
-
-        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
-            key: 'Enter',
-        });
-        expect(apply).not.toHaveBeenCalled();
-        expect(screen.getByTestId('filter-settings')).toHaveAttribute(
-            'data-attempted-apply',
-            'true',
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
     });
 
-    it('does not block a filter with no default value', () => {
+    it('says nothing in the footer for a filter that can be kept', () => {
         setSidebar({
+            isNew: false,
             editingRule: makeRule({ label: 'Order status', disabled: true }),
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        expect(screen.queryByText(/to keep/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/stays off/)).not.toBeInTheDocument();
     });
 
     it('asks a new filter for a label and suggests the field name', () => {
@@ -322,8 +330,9 @@ describe('ControlSidebar', () => {
 
         expect(screen.getByText('New filter')).toBeInTheDocument();
         expect(screen.getByLabelText(/^Filter label/)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
-        expect(screen.getByText('Add a label to apply')).toBeInTheDocument();
+        expect(
+            screen.getByText('Add a label to keep this control'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Suggestions')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Status' }));
@@ -333,8 +342,8 @@ describe('ControlSidebar', () => {
         });
     });
 
-    it('shows the label error only after an Apply attempt', () => {
-        const { apply } = setSidebar({});
+    it('shows the label error when Enter is pressed with no label', () => {
+        const { close } = setSidebar({});
         renderWithProviders(<ControlSidebar />);
         const error = 'Add a label so viewers know what this filters';
 
@@ -343,30 +352,53 @@ describe('ControlSidebar', () => {
             key: 'Enter',
         });
         expect(screen.getByText(error)).toBeInTheDocument();
-        expect(apply).not.toHaveBeenCalled();
+        expect(close).not.toHaveBeenCalled();
     });
 
-    it('applies a new filter that has a label', () => {
-        const { apply, cancel } = setSidebar({
+    it('keeps a new filter that has a label on Done, Enter and the X', () => {
+        const { close, discard } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByText('Not applied yet')).toBeInTheDocument();
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
-        const applyButton = screen.getByRole('button', { name: 'Apply' });
-        expect(applyButton).toBeEnabled();
-        fireEvent.click(applyButton);
-        expect(apply).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
 
         fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
             key: 'Enter',
         });
-        expect(apply).toHaveBeenCalledTimes(2);
+        expect(close).toHaveBeenCalledTimes(2);
 
-        fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0]);
-        fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[1]);
-        expect(cancel).toHaveBeenCalledTimes(2);
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        expect(close).toHaveBeenCalledTimes(3);
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard control' }),
+        );
+        expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers Discard changes only once an existing filter has changed', () => {
+        const { discard } = setSidebar({
+            isNew: false,
+            isDirty: false,
+            editingRule: makeRule({ label: 'Order status' }),
+        });
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+        expect(screen.queryByText('Discard changes')).not.toBeInTheDocument();
+
+        setSidebar({
+            isNew: false,
+            isDirty: true,
+            discard,
+            editingRule: makeRule({ label: 'Order status' }),
+        });
+        rerender(<ControlSidebar />);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        );
+        expect(discard).toHaveBeenCalledTimes(1);
     });
 
     it('titles an existing filter with its label and removes it on the second click', async () => {
@@ -380,8 +412,7 @@ describe('ControlSidebar', () => {
         expect(
             screen.getByRole('heading', { name: 'Order status' }),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Not applied yet')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
 
         fireEvent.click(screen.getByLabelText('More actions'));
         fireEvent.click(await screen.findByText('Remove filter'));

@@ -73,3 +73,10 @@ export const isDefaultValueIncomplete = (rule: DashboardFilterRule) =>
     !rule.disabled &&
     isWithValueFilter(rule.operator) &&
     (rule.values ?? []).length === 0;
+
+// A control with no field, or a new one with no label, cannot be kept
+export const canKeepFilterRule = (
+    rule: DashboardFilterRule,
+    isNew: boolean,
+): boolean =>
+    !isPlaceholderRule(rule) && (!isNew || (rule.label ?? '').trim() !== '');

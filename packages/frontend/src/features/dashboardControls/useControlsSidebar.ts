@@ -11,9 +11,9 @@ export type ControlsSidebarSection = 'fields' | 'settings';
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
-    /** The edited control was started with Add and is not applied yet. */
+    /** The edited control was started with Add in this sidebar session. */
     isNew: boolean;
-    /** The edited control has no mapping yet, so it cannot be applied. */
+    /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
     isSidebarOpen: boolean;
@@ -26,7 +26,8 @@ export type ControlsSidebarContextValue = {
     addFirstField: (field: DashboardFilterableField) => void;
     /**
      * Removes every field of the edited filter, turning it back into a
-     * placeholder that keeps its label and settings. Cancel restores it.
+     * placeholder that keeps its label and settings. It cannot be kept
+     * that way: closing restores the filter.
      */
     clearFields: () => void;
     /** Field whose tiles are outlined after a click on its row. */
@@ -48,13 +49,16 @@ export type ControlsSidebarContextValue = {
     removeFilter: () => void;
     removeFilterById: (filterId: string) => void;
     /** Restores the dashboard filters as they were when the sidebar opened. */
-    cancel: () => void;
-    /** Keeps the edits; saving stays with the dashboard's own Save. */
-    apply: () => void;
+    discard: () => void;
+    /**
+     * Closes and keeps the edits; saving stays with the dashboard's own Save.
+     * A control with no field, or a new one with no label, is discarded.
+     */
+    close: () => void;
     isDirty: boolean;
     /** The parameter control being edited, or null. */
     editingControl: DashboardParameterControl | null;
-    /** The edited parameter control was just created and is not applied yet. */
+    /** The edited parameter control was created in this sidebar session. */
     isNewControl: boolean;
     openControl: (controlId: string) => void;
     /** Turns the placeholder into a parameter control on the given parameter. */

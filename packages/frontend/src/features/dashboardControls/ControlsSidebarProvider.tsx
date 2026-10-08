@@ -23,7 +23,9 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getLinkKey } from './linkCandidates';
 import { getFilterFields } from './peers';
 import {
+    canKeepFilterRule,
     findFilterRule,
+    isDefaultValueIncomplete,
     isFilterRuleDirty,
     PLACEHOLDER_TARGET,
     removeFilterRule,
@@ -94,7 +96,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         fieldIds: string[];
     } | null>(null);
 
-    const close = useCallback(() => {
+    const reset = useCallback(() => {
         setState(null);
         setControlState(null);
         setPlaceholder(null);
@@ -296,8 +298,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             );
             setHaveFiltersChanged(true);
         }
-        close();
-    }, [state, setDashboardFilters, setHaveFiltersChanged, close]);
+        reset();
+    }, [state, setDashboardFilters, setHaveFiltersChanged, reset]);
 
     const editingControl = useMemo(
         () =>
@@ -398,10 +400,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 (control) => control.id !== controlState.controlId,
             ),
         );
-        close();
-    }, [controlState, setParameterControls, close]);
+        reset();
+    }, [controlState, setParameterControls, reset]);
 
-    const cancel = useCallback(() => {
+    const discard = useCallback(() => {
         if (controlState !== null) {
             const before = controlState.snapshot.parameterControls.find(
                 (control) => control.id === controlState.controlId,
@@ -413,13 +415,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 ]),
             ]);
             setParameterControls(controlState.snapshot.parameterControls);
-            close();
+            reset();
             return;
         }
         if (state === null) return;
         setDashboardFilters(state.snapshot.dashboardFilters);
         setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
-        close();
+        reset();
     }, [
         state,
         controlState,
@@ -428,7 +430,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setParameterControls,
         setDashboardFilters,
         setHaveFiltersChanged,
-        close,
+        reset,
     ]);
 
     const isControlDirty = useMemo(() => {
@@ -450,20 +452,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const isPlaceholder = state !== null && placeholder !== null;
 
-    const apply = useCallback(() => {
-        if (isPlaceholder) return;
-        close();
-    }, [isPlaceholder, close]);
-
     // The dashboard's own Save or Cancel ends the edit; nothing is restored
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
     useEffect(() => {
         if (!isEditMode) {
-            close();
+            reset();
             setDismissedLinks([]);
         }
-    }, [isEditMode, close]);
+    }, [isEditMode, reset]);
 
     const newTileUuids = useMemo(() => {
         if (!savedTiles || !dashboardTiles) return [];
@@ -498,6 +495,38 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         );
         return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
     }, [state, waiting, editingRule]);
+
+    // Keeps the edits, which already live in the dashboard draft
+    const close = useCallback(() => {
+        if (controlState !== null) {
+            const isUnlabelled = (editingControl?.label ?? '').trim() === '';
+            if (controlState.isNew && isUnlabelled) discard();
+            else reset();
+            return;
+        }
+        if (state === null) return;
+        if (
+            editingRule === null ||
+            !canKeepFilterRule(editingRule, state.isNew)
+        ) {
+            discard();
+            return;
+        }
+        if (isDefaultValueIncomplete(editingRule)) {
+            setDashboardFilters((filters) =>
+                replaceFilterRule(filters, { ...editingRule, disabled: true }),
+            );
+        }
+        reset();
+    }, [
+        state,
+        controlState,
+        editingControl,
+        editingRule,
+        discard,
+        reset,
+        setDashboardFilters,
+    ]);
 
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
@@ -534,8 +563,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             updateFilter,
             removeFilter,
             removeFilterById,
-            cancel,
-            apply,
+            discard,
+            close,
             isDirty:
                 isControlDirty ||
                 (state !== null &&
@@ -563,8 +592,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             updateFilter,
             removeFilter,
             removeFilterById,
-            cancel,
-            apply,
+            discard,
+            close,
             dashboardFilters,
             controlState,
             editingControl,

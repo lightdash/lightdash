@@ -16,16 +16,10 @@ import { ViewerControls } from './ViewerControls';
 type Props = {
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
-    attemptedApply: boolean;
     onChange: (next: DashboardFilterRule) => void;
 };
 
-export const FilterSettings: FC<Props> = ({
-    rule,
-    field,
-    attemptedApply,
-    onChange,
-}) => {
+export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
@@ -61,7 +55,6 @@ export const FilterSettings: FC<Props> = ({
                             filterType={filterType}
                             field={field}
                             filterRule={rule}
-                            attemptedApply={attemptedApply}
                             onChange={onChange}
                         />
                     </Stack>

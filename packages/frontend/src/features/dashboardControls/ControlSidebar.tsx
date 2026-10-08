@@ -29,14 +29,13 @@ export const ControlSidebar: FC = () => {
         activeSection,
         setActiveSection,
         updateFilter,
-        cancel,
-        apply,
+        discard,
+        close,
         isDirty,
     } = useControlsSidebar();
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
-    const [attemptedApply, setAttemptedApply] = useState(false);
     const labelInputRef = useRef<HTMLInputElement>(null);
     const labelErrorId = useId();
     const handleRemoveClick = useCallback(() => {
@@ -124,15 +123,21 @@ export const ControlSidebar: FC = () => {
             : 'New filter'
         : filterRule.label || 'Filter';
     const needsLabel = isNew && !hasLabel;
-    const blocker = isPlaceholder
-        ? 'Add a field to apply'
+    // Closing keeps the edits, so the footer says what closing would drop
+    const footerStatus = isPlaceholder
+        ? isNew
+            ? 'Add a field to keep this control'
+            : 'Add a field to keep these changes'
         : needsLabel
-          ? 'Add a label to apply'
+          ? 'Add a label to keep this control'
           : isDefaultValueIncomplete(filterRule)
-            ? 'Choose a default value or turn it off'
+            ? 'No default value chosen, so the default stays off'
             : null;
-    const canApply = blocker === null;
-    const footerStatus = blocker ?? (isDirty ? 'Not applied yet' : null);
+    const discardLabel = isNew
+        ? 'Discard control'
+        : isDirty
+          ? 'Discard changes'
+          : null;
     const fieldCount = getFilterFields(filterRule).length;
     const tabReach =
         dashboardTabs.length > 1
@@ -153,7 +158,9 @@ export const ControlSidebar: FC = () => {
             subtitle={subtitle}
             menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
-            onCancel={cancel}
+            onClose={close}
+            discardLabel={discardLabel}
+            onDiscard={discard}
             tabs={[
                 {
                     value: 'fields',
@@ -173,9 +180,6 @@ export const ControlSidebar: FC = () => {
                     setActiveSection(value);
             }}
             footerStatus={footerStatus}
-            primaryLabel="Apply"
-            primaryDisabled={!canApply}
-            onPrimary={apply}
             aboveTabs={
                 <>
                     <TextInput
@@ -205,12 +209,8 @@ export const ControlSidebar: FC = () => {
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
-                            if (canApply) {
-                                apply();
-                                return;
-                            }
-                            setAttemptedApply(true);
-                            if (!hasLabel) showLabelError();
+                            if (needsLabel) showLabelError();
+                            else if (!isPlaceholder) close();
                         }}
                     />
                     {isNew && !hasLabel && fieldLabel !== null && (
@@ -240,7 +240,6 @@ export const ControlSidebar: FC = () => {
                 <FilterSettings
                     rule={filterRule}
                     field={field}
-                    attemptedApply={attemptedApply}
                     onChange={updateFilter}
                 />
             ) : (

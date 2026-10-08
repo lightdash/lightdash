@@ -29,14 +29,14 @@ type Props = {
     subtitle: string | null;
     menu?: ReactNode;
     onMenuClose?: () => void;
-    onCancel: () => void;
+    onClose: () => void;
+    /** Null hides the action: there is nothing to discard. */
+    discardLabel: string | null;
+    onDiscard: () => void;
     tabs: EditorTab[];
     activeTab: string;
     onTabChange: (value: string) => void;
     footerStatus: string | null;
-    primaryLabel: string;
-    primaryDisabled: boolean;
-    onPrimary: () => void;
     aboveTabs: ReactNode;
     children: ReactNode;
 };
@@ -46,14 +46,13 @@ export const EditorShell: FC<Props> = ({
     subtitle,
     menu,
     onMenuClose,
-    onCancel,
+    onClose,
+    discardLabel,
+    onDiscard,
     tabs,
     activeTab,
     onTabChange,
     footerStatus,
-    primaryLabel,
-    primaryDisabled,
-    onPrimary,
     aboveTabs,
     children,
 }) => (
@@ -90,12 +89,12 @@ export const EditorShell: FC<Props> = ({
                         <Menu.Dropdown>{menu}</Menu.Dropdown>
                     </Menu>
                 )}
-                <Tooltip label="Cancel">
+                <Tooltip label="Close">
                     <ActionIcon
                         variant="subtle"
                         color="gray"
-                        aria-label="Cancel"
-                        onClick={onCancel}
+                        aria-label="Close"
+                        onClick={onClose}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -160,13 +159,21 @@ export const EditorShell: FC<Props> = ({
                     {footerStatus}
                 </Text>
             )}
-            <Group justify="flex-end" gap="xs">
-                <Button variant="default" onClick={onCancel}>
-                    Cancel
-                </Button>
-                <Button disabled={primaryDisabled} onClick={onPrimary}>
-                    {primaryLabel}
-                </Button>
+            <Group
+                justify={discardLabel === null ? 'flex-end' : 'space-between'}
+                gap="xs"
+            >
+                {discardLabel !== null && (
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="compact-sm"
+                        onClick={onDiscard}
+                    >
+                        {discardLabel}
+                    </Button>
+                )}
+                <Button onClick={onClose}>Done</Button>
             </Group>
         </Stack>
     </Box>

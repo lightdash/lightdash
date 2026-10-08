@@ -47,8 +47,8 @@ export const ParameterSidebar: FC = () => {
         setHighlightedFieldId,
         hoveredFieldId,
         setHoveredFieldId,
-        cancel,
-        apply,
+        discard,
+        close,
         isDirty,
     } = useControlsSidebar();
     const [removeArmed, setRemoveArmed] = useState(false);
@@ -107,8 +107,12 @@ export const ParameterSidebar: FC = () => {
               );
     const hasFreeKeys = freeKeys.length > 0;
     const hasLabel = control.label.trim() !== '';
-    const blocker = isNewControl && !hasLabel ? 'Add a label to apply' : null;
-    const canApply = blocker === null;
+    const needsLabel = isNewControl && !hasLabel;
+    const discardLabel = isNewControl
+        ? 'Discard control'
+        : isDirty
+          ? 'Discard changes'
+          : null;
     const suggestion =
         firstKey === undefined
             ? null
@@ -151,7 +155,9 @@ export const ParameterSidebar: FC = () => {
                 )
             }
             onMenuClose={() => setRemoveArmed(false)}
-            onCancel={cancel}
+            onClose={close}
+            discardLabel={discardLabel}
+            onDiscard={discard}
             tabs={[
                 {
                     value: 'fields',
@@ -165,10 +171,9 @@ export const ParameterSidebar: FC = () => {
                 if (next === 'fields' || next === 'settings')
                     setActiveSection(next);
             }}
-            footerStatus={blocker ?? (isDirty ? 'Not applied yet' : null)}
-            primaryLabel="Apply"
-            primaryDisabled={!canApply}
-            onPrimary={apply}
+            footerStatus={
+                needsLabel ? 'Add a label to keep this control' : null
+            }
             aboveTabs={
                 <>
                     <TextInput
@@ -198,8 +203,8 @@ export const ParameterSidebar: FC = () => {
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
-                            if (canApply) {
-                                apply();
+                            if (!needsLabel) {
+                                close();
                                 return;
                             }
                             setLabelError(true);

@@ -8,7 +8,7 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Input, Select, Stack, Switch, Text } from '@mantine/core';
+import { Box, Select, Stack, Switch, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../components/common/Filters/FilterInputs/utils';
@@ -21,7 +21,6 @@ type Props = {
     field: DashboardFilterableField | null;
     filterRule: DashboardFilterRule;
     onChange: (next: DashboardFilterRule) => void;
-    attemptedApply: boolean;
 };
 
 // Operator and default value, as in the shipped FilterSettings minus the label
@@ -30,7 +29,6 @@ export const FilterValueSettings: FC<Props> = ({
     field,
     filterRule,
     onChange,
-    attemptedApply,
 }) => {
     const getUiString = useUiStrings();
     const item = field ?? undefined;
@@ -118,10 +116,10 @@ export const FilterValueSettings: FC<Props> = ({
                             onChange(next as DashboardFilterRule)
                         }
                     />
-                    {isMissingValue && attemptedApply && (
-                        <Input.Error>
-                            Choose a default value or turn it off
-                        </Input.Error>
+                    {isMissingValue && (
+                        <Text size="xs" c="dimmed">
+                            Choose a value, or the default is left off.
+                        </Text>
                     )}
                     {hasRequirement && (filterRule.values ?? []).length > 0 && (
                         <Text size="xs" c="dimmed">

@@ -14,7 +14,7 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
 }));
 
 const NOTE = /Not set: each tile keeps its own values/;
-const ERROR = 'Choose a default value or turn it off';
+const HINT = 'Choose a value, or the default is left off.';
 
 const makeRule = (
     overrides: Partial<DashboardFilterRule>,
@@ -27,14 +27,13 @@ const makeRule = (
     ...overrides,
 });
 
-const renderSettings = (rule: DashboardFilterRule, attemptedApply = false) => {
+const renderSettings = (rule: DashboardFilterRule) => {
     const onChange = vi.fn();
     renderWithProviders(
         <FilterValueSettings
             filterType={FilterType.STRING}
             field={null}
             filterRule={rule}
-            attemptedApply={attemptedApply}
             onChange={onChange}
         />,
     );
@@ -75,19 +74,14 @@ describe('FilterValueSettings', () => {
         expect(screen.getByTestId('value-input')).toBeInTheDocument();
     });
 
-    it('shows the missing value error only after an Apply attempt', () => {
+    it('says the default is left off while it has no value', () => {
         renderSettings(makeRule({}));
-        expect(screen.queryByText(ERROR)).not.toBeInTheDocument();
+        expect(screen.getByText(HINT)).toBeInTheDocument();
     });
 
-    it('shows the missing value error after an Apply attempt', () => {
-        renderSettings(makeRule({}), true);
-        expect(screen.getByText(ERROR)).toBeInTheDocument();
-    });
-
-    it('keeps the error away from a rule that has a value', () => {
-        renderSettings(makeRule({ values: ['done'] }), true);
-        expect(screen.queryByText(ERROR)).not.toBeInTheDocument();
+    it('keeps the hint away from a rule that has a value', () => {
+        renderSettings(makeRule({ values: ['done'] }));
+        expect(screen.queryByText(HINT)).not.toBeInTheDocument();
     });
 
     it('has no default switch for a required filter', () => {
