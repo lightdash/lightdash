@@ -6,6 +6,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    QuerySurface,
     type Document,
     type RegisteredAccount,
     type SessionUser,
@@ -141,6 +142,7 @@ const setup = (spaceAccess: string[] | null = null) => {
         projectUuid,
         organizationUuid: document.organizationUuid,
         source: 'mcp',
+        querySurface: QuerySurface.MCP,
         catalogSearchContext: CatalogSearchContext.MCP,
         defaultQueryExecutionContext:
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,

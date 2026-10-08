@@ -52,9 +52,13 @@ export type AiAccessEvaluation =
 
 export const queryEvaluationFromContext = (
     context: QueryExecutionContext | undefined,
+    querySurface?: QuerySurface,
 ): AiAccessEvaluation =>
     context && isAiAccessQueryContext(context)
-        ? { kind: 'query', surface: querySurfaceFromContext(context) }
+        ? {
+              kind: 'query',
+              surface: querySurface ?? querySurfaceFromContext(context),
+          }
         : { kind: 'diagnostic' };
 
 export type ResolvePlanArgs = {

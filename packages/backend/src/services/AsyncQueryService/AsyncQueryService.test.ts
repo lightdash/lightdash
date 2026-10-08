@@ -4067,6 +4067,9 @@ describe('AsyncQueryService', () => {
     describe('agent refusal counting across execution and result reads', () => {
         const setupRefusal = () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            Object.assign(service.projectModel, {
+                getAgentSqlScope: vi.fn().mockResolvedValue(null),
+            });
             const credentials: CreateWarehouseCredentials = {
                 type: WarehouseTypes.SNOWFLAKE,
                 account: 'account',
@@ -4177,6 +4180,130 @@ describe('AsyncQueryService', () => {
                 expect(
                     analytics.track.mock.calls.map(([event]) => event.event),
                 ).toEqual(['query.refused', 'agent_identity.expired']);
+            },
+        );
+
+        test.each([QuerySurface.SLACK, QuerySurface.API])(
+            'reports %s from a refused AI SQL submission',
+            async (querySurface) => {
+                const { service, analytics } = setupRefusal();
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: 'select 1',
+                        context: QueryExecutionContext.AI,
+                        querySurface,
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+                });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => ({
+                        event: event.event,
+                        surface: event.properties.surface,
+                    })),
+                ).toEqual([
+                    { event: 'query.refused', surface: querySurface },
+                    { event: 'agent_identity.expired', surface: querySurface },
+                ]);
+            },
+        );
+
+        test.each([
+            [QuerySurface.SLACK, QueryExecutionContext.AI, QuerySurface.SLACK],
+            [QuerySurface.API, QueryExecutionContext.AI, QuerySurface.API],
+            [undefined, QueryExecutionContext.AI, QuerySurface.APP],
+            [undefined, QueryExecutionContext.MCP_RUN_SQL, QuerySurface.MCP],
+        ] as const)(
+            'dispatches stored surface %s for %s as %s',
+            async (querySurface, context, expectedSurface) => {
+                const {
+                    service,
+                    analytics,
+                    markErrored,
+                    history: previous,
+                } = setupRefusal();
+                const queued = {
+                    ...previous,
+                    status: QueryHistoryStatus.QUEUED,
+                    createdAt: new Date(),
+                    createdByActorType: 'session' as const,
+                    context,
+                };
+                const created = await service['createQueryHistory'](
+                    sessionAccount,
+                    {
+                        projectUuid,
+                        organizationUuid: executionArgs.organizationUuid,
+                        context,
+                        fields: {},
+                        compiledSql: 'select 1',
+                        usedParameters: null,
+                        metricQuery: metricQueryMock,
+                        cacheKey: 'unchanged',
+                        pivotConfiguration: null,
+                        originalColumns: null,
+                        requestParameters: {
+                            context,
+                            sql: 'select 1',
+                            queryUsage: {
+                                querySurface: QuerySurface.CLI,
+                            } as never,
+                        },
+                    },
+                    undefined,
+                    undefined,
+                    querySurface,
+                );
+                expect(created.queryUsage.querySurface).toBe(querySurface);
+                const stored = vi
+                    .mocked(service.queryHistoryModel.create)
+                    .mock.calls.at(-1)![1];
+                expect(stored.cacheKey).toBe('unchanged');
+                const history = {
+                    ...queued,
+                    ...stored,
+                    requestParameters:
+                        querySurface === undefined
+                            ? { context, sql: 'select 1' }
+                            : stored.requestParameters,
+                };
+                vi.mocked(
+                    service.queryHistoryModel.getByQueryUuid,
+                ).mockResolvedValue(history);
+                await expect(
+                    service.runAsyncWarehouseQueryFromHistory(
+                        queued.queryUuid,
+                        'worker',
+                    ),
+                ).resolves.toBe(true);
+                expect(markErrored).toHaveBeenCalledOnce();
+                expect(
+                    analytics.track.mock.calls.map(([event]) => ({
+                        event: event.event,
+                        surface: event.properties.surface,
+                    })),
+                ).toEqual([
+                    { event: 'query.refused', surface: expectedSurface },
+                    {
+                        event: 'agent_identity.expired',
+                        surface: expectedSurface,
+                    },
+                ]);
+                vi.mocked(
+                    service.queryHistoryModel.getByQueryUuid,
+                ).mockResolvedValue({
+                    ...history,
+                    status: QueryHistoryStatus.ERROR,
+                });
+                await expect(
+                    service.runAsyncWarehouseQueryFromHistory(
+                        queued.queryUuid,
+                        'worker',
+                    ),
+                ).resolves.toBe(false);
+                expect(analytics.track).toHaveBeenCalledTimes(2);
             },
         );
 

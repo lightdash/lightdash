@@ -28,6 +28,7 @@ import {
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     sleep,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,
@@ -85,6 +86,7 @@ import { prepareChartAsCode } from '../ai/utils/chartAsCode';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { canStartDeepResearch } from '../AiAgentService/dataAppThreadPolicy';
+import { querySurfaceFromPrompt } from '../AiAgentService/querySurface';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
@@ -1191,12 +1193,18 @@ export class AiDeepResearchService extends BaseService {
             args.aiDeepResearchRunUuid,
         );
         const chart = await this.getRunChart(run, args.chartKey);
+        const prompt = await this.aiAgentModel.findWebAppPrompt(
+            run.prompt_uuid,
+        );
 
         const query = await this.asyncQueryService.executeAsyncMetricQuery({
             account: args.account,
             projectUuid: args.projectUuid,
             metricQuery: chart.metricQuery,
             context: QueryExecutionContext.AI,
+            querySurface: prompt
+                ? querySurfaceFromPrompt(prompt)
+                : QuerySurface.APP,
             pivotConfiguration: this.getChartPivotConfiguration(chart),
         });
 

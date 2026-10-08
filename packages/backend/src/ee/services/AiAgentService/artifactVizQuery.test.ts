@@ -86,6 +86,8 @@ const redactedQuery = {
 
 const buildService = () => {
     const aiAgentModel = {
+        findSlackPrompt: vi.fn().mockResolvedValue(undefined),
+        findWebAppPrompt: vi.fn().mockResolvedValue(undefined),
         getAgent: vi.fn().mockResolvedValue({
             uuid: 'agent-uuid',
             name: 'Agent',

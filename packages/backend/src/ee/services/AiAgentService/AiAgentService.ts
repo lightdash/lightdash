@@ -151,6 +151,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
@@ -599,6 +600,7 @@ import {
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
 } from './promptInputRequestClassifier';
+import { querySurfaceFromPrompt } from './querySurface';
 import {
     deliverSlackArtifactImages,
     type SlackArtifactDeliveryRuntime,
@@ -3270,6 +3272,7 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
+                QuerySurface.APP,
             );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
@@ -3575,12 +3578,23 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    private async getArtifactQuerySurface(
+        promptUuid: string | null,
+    ): Promise<QuerySurface> {
+        if (promptUuid === null) return QuerySurface.APP;
+        const prompt =
+            (await this.aiAgentModel.findSlackPrompt(promptUuid)) ??
+            (await this.aiAgentModel.findWebAppPrompt(promptUuid));
+        return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
+    }
+
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
         parameters: ParametersValuesMap | null,
+        querySurface: QuerySurface,
         // Set for custom chart type answers (built from the artifact
         // envelope): pivot derivation follows the type's schema instead of
         // the builtin groupBy path.
@@ -3651,6 +3665,7 @@ export class AiAgentService extends BaseService {
                 projectUuid,
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
+                querySurface,
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
                 userAttributeOverrides,
@@ -3693,6 +3708,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
+        querySurface: QuerySurface,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
@@ -3705,6 +3721,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             mergeQuery,
             context: QueryExecutionContext.AI,
+            querySurface,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
             userAttributeOverrides,
@@ -9151,6 +9168,7 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
                 parsed,
+                await this.getArtifactQuerySurface(artifact.promptUuid),
                 runtimeOptions?.userAttributeOverrides,
             );
             this.analytics.track({
@@ -9205,6 +9223,9 @@ export class AiAgentService extends BaseService {
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
                 context: QueryExecutionContext.AI,
+                querySurface: await this.getArtifactQuerySurface(
+                    artifact.promptUuid,
+                ),
             });
 
             this.analytics.track({
@@ -9262,6 +9283,7 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.metricQuery,
             artifactChartConfig.config,
             parsedVizConfig.parameters,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             customChartType,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -9402,6 +9424,7 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.metricQuery,
             chartConfig,
             parsedVizConfig.parameters,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             undefined,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -12315,6 +12338,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            querySurface: querySurfaceFromPrompt(prompt),
             tags: runtimeAgentSettings.tags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
@@ -13240,6 +13264,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId,
         prompt,
         scope,
+        querySurface,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -13247,6 +13272,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId: string;
         prompt: string;
         scope: AndFilterGroup | undefined;
+        querySurface: QuerySurface;
     }): Promise<string[]> {
         const search = (term: string, limit: number) =>
             this.projectService
@@ -13262,6 +13288,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     undefined,
                     undefined,
                     QueryExecutionContext.AI,
+                    querySurface,
                 )
                 .then(({ results }) =>
                     results.filter(
@@ -13409,6 +13436,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 exploreName: explore.name,
                                 fieldId: candidateFieldId,
                                 prompt: prompt.prompt,
+                                querySurface: querySurfaceFromPrompt(prompt),
                                 scope: getValueSearchScope(
                                     artifact,
                                     candidateFieldId,
@@ -14216,6 +14244,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: true,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
             agentUuid: agent.uuid,

@@ -213,6 +213,7 @@ import {
     ProjectSummary,
     ProjectType,
     QueryExecutionContext,
+    QuerySurface,
     RedshiftAuthenticationType,
     RegisteredAccount,
     ReplaceableCustomFields,
@@ -11221,6 +11222,7 @@ export class ProjectService
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
         context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
+        querySurface?: QuerySurface,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12746,6 +12748,7 @@ export class ProjectService
         user: SessionUser,
         projectUuid: string,
         context?: QueryExecutionContext,
+        querySurface?: QuerySurface,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12794,7 +12797,7 @@ export class ProjectService
         }
         const { warehouseCredentials: credentials } =
             await this.getWarehouseCredentialsWithConnection({
-                evaluation: queryEvaluationFromContext(context),
+                evaluation: queryEvaluationFromContext(context, querySurface),
                 context,
                 projectUuid,
                 binding: { kind: 'connection', warehouseConnectionUuid: null },
@@ -12837,6 +12840,7 @@ export class ProjectService
         tableName?: string,
         schemaName?: string,
         databaseName?: string,
+        querySurface?: QuerySurface,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);

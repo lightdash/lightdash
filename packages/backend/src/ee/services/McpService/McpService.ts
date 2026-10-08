@@ -78,6 +78,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
@@ -1033,6 +1034,7 @@ export class McpService extends BaseService {
             organizationUuid,
             projectUuid,
             source: 'mcp',
+            querySurface: QuerySurface.MCP,
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext:
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
