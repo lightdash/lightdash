@@ -1,3 +1,10 @@
+## [2.479.1](https://github.com/lightdash/lightdash/compare/2.479.0...2.479.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **documents:** suffix a taken slug when AI creates a Document ([#30706](https://github.com/lightdash/lightdash/issues/30706)) ([f9e996b](https://github.com/lightdash/lightdash/commit/f9e996b1803c1ba469014b0e12daa1a9940f0c01))
+
 # [2.479.0](https://github.com/lightdash/lightdash/compare/2.478.0...2.479.0) (2026-10-08)
 
 
