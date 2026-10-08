@@ -1,4 +1,8 @@
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import {
+    AgentIdentityConnectFailureReason,
+    ForbiddenError,
+    ParameterError,
+} from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
@@ -55,14 +59,22 @@ export const snowflakeAiPassportStrategy = !(
               _profile: unknown,
               done: VerifyCallback,
           ) => {
+              const verification: NonNullable<
+                  Express.Request['agentConnectVerification']
+              > = { failureReason: null };
+              req.agentConnectVerification = verification;
               try {
                   if (!lightdashConfig.license.licenseKey) {
+                      verification.failureReason =
+                          AgentIdentityConnectFailureReason.LICENSE_REQUIRED;
                       throw new ForbiddenError(
                           'Enterprise license required for Snowflake AI sign-in',
                       );
                   }
                   const { user } = req;
                   if (!user?.organizationUuid) {
+                      verification.failureReason =
+                          AgentIdentityConnectFailureReason.ORGANIZATION_REQUIRED;
                       throw new ForbiddenError(
                           'An organization sign-in is required',
                       );
@@ -72,20 +84,32 @@ export const snowflakeAiPassportStrategy = !(
                       organizationUuid: user.organizationUuid,
                   });
                   if (!refreshToken) {
+                      verification.failureReason =
+                          AgentIdentityConnectFailureReason.NO_REFRESH_TOKEN;
                       throw new ParameterError(
                           'Snowflake did not return a refresh token. Please try signing in again.',
                       );
                   }
                   const account = getSnowflakeAiAccount();
+                  if (!account) {
+                      verification.failureReason =
+                          AgentIdentityConnectFailureReason.NOT_CONFIGURED;
+                  }
                   const agentSession = account
                       ? await snowflakeAiSessionCheck
                             .check(account, accessToken, {
                                 accessUrl: new URL(config.tokenEndpoint!)
                                     .origin,
                             })
-                            .catch(() => null)
+                            .catch(() => {
+                                verification.failureReason =
+                                    AgentIdentityConnectFailureReason.SESSION_CHECK_FAILED;
+                                return null;
+                            })
                       : null;
                   if (!agentSession?.agentActivated) {
+                      verification.failureReason ??=
+                          AgentIdentityConnectFailureReason.NOT_AGENT_SESSION;
                       throw new ForbiddenError(
                           SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
                       );
@@ -108,7 +132,12 @@ export const snowflakeAiPassportStrategy = !(
                           user,
                           refreshToken,
                           expiresAt,
-                      );
+                      )
+                      .catch((error: unknown) => {
+                          verification.failureReason =
+                              AgentIdentityConnectFailureReason.CREDENTIAL_SAVE_FAILED;
+                          throw error;
+                      });
                   done(null, user);
               } catch (error) {
                   done(error);

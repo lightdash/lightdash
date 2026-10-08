@@ -1,5 +1,6 @@
 import {
     Account,
+    AgentIdentityConnectFailureReason,
     Project,
     ServiceAccount,
     SessionUser,
@@ -11,6 +12,9 @@ declare global {
     namespace Express {
         interface Request {
             services: ServiceRepository;
+            agentConnectVerification?: {
+                failureReason: AgentIdentityConnectFailureReason | null;
+            };
             serviceAccount?: Pick<ServiceAccount, 'organizationUuid' | 'uuid'>;
             // SCIM request-log attribution when auth resolved a token but rejected it
             scimLogAttribution?: {

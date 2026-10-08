@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_TAG,
     AI_PRINCIPAL_QUERY_TAG,
@@ -29,7 +30,11 @@ import {
     type QuerySurface,
     type SessionUser,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { validate as isUuid } from 'uuid';
+import {
+    LightdashAnalytics,
+    type AgentIdentityConnectProperties,
+} from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -44,6 +49,11 @@ import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
+
+export type AgentConnectAttempt = Omit<
+    AgentIdentityConnectProperties,
+    'warehouseType'
+>;
 
 export type AiAccessEvaluation =
     | { kind: 'query'; surface: QuerySurface }
@@ -269,6 +279,64 @@ export class AiAccessService extends BaseService {
             throw new ForbiddenError();
         }
         return organizationUuid;
+    }
+
+    async getConnectProjectId(
+        account: Account | null,
+        project: unknown,
+        organizationId: string,
+    ): Promise<string | null> {
+        if (!account || typeof project !== 'string' || !isUuid(project)) {
+            return null;
+        }
+        try {
+            const projectOrganizationId = await this.authorizeProject(
+                account,
+                project,
+                'view',
+            );
+            return projectOrganizationId === organizationId ? project : null;
+        } catch {
+            return null;
+        }
+    }
+
+    trackConnectStarted(attempt: AgentConnectAttempt): void {
+        trackSafely(() =>
+            this.analytics.track({
+                userId: attempt.userId,
+                event: 'agent_identity.connect_started',
+                properties: {
+                    ...attempt,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+            }),
+        );
+    }
+
+    trackConnectOutcome(
+        attempt: AgentConnectAttempt,
+        failureReason: AgentIdentityConnectFailureReason | null,
+    ): void {
+        const properties: AgentIdentityConnectProperties = {
+            ...attempt,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        trackSafely(() =>
+            this.analytics.track(
+                failureReason === null
+                    ? {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connected',
+                          properties: { ...properties, failureReason: null },
+                      }
+                    : {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connect_failed',
+                          properties: { ...properties, failureReason },
+                      },
+            ),
+        );
     }
 
     private async loadConnection(
