@@ -2184,7 +2184,7 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             coderService: { upsertDashboard },
-            aiAgentContentValidation: { validateContent: vi.fn() },
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
         });
         const runtime = service.createRuntime(
             makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
@@ -2390,9 +2390,7 @@ describe('AiAgentToolsService', () => {
 
             const created = await runtime.createContent({
                 type: 'sql_chart',
-                content: makeSqlChartContent({
-                    connection: 'secondary',
-                }) as never,
+                content: makeSqlChartContent() as never,
                 approveSql,
             });
 
@@ -2480,6 +2478,27 @@ describe('AiAgentToolsService', () => {
                 }),
             ).rejects.toThrow(
                 'Edited SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a SQL chart body that picks a connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent({
+                        connection: 'secondary',
+                        tableName: 'orders',
+                    }) as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'Edited SQL chart is invalid:\n- /connection is not allowed: SQL charts always run on the primary connection\n- / has unexpected property "tableName"',
             );
             expect(approveSql).not.toHaveBeenCalled();
             expect(upsertSqlChart).not.toHaveBeenCalled();
