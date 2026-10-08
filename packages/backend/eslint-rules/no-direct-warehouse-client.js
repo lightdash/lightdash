@@ -27,6 +27,7 @@ module.exports = {
     },
     create(context) {
         const importedNames = new Map();
+        const declarators = [];
         const expressions = [];
 
         const isWarehouseSource = (node) =>
@@ -61,6 +62,9 @@ module.exports = {
         };
 
         const isWarehouseInitializer = (node) => {
+            if (node?.type === 'Identifier') {
+                return importedName(node) === '*';
+            }
             if (node?.type === 'AwaitExpression') {
                 return (
                     node.argument.type === 'ImportExpression' &&
@@ -75,6 +79,34 @@ module.exports = {
                 node.arguments.length === 1 &&
                 isWarehouseSource(node.arguments[0])
             );
+        };
+
+        const trackDeclarator = (node) => {
+            if (
+                node.id.type === 'Identifier' &&
+                node.init?.type === 'MemberExpression' &&
+                node.init.object.type === 'Identifier' &&
+                importedName(node.init.object) === '*'
+            ) {
+                const name = staticName(node.init.property, node.init.computed);
+                if (name !== null) importedNames.set(node.id, name);
+            } else if (isWarehouseInitializer(node.init)) {
+                if (node.id.type === 'Identifier') {
+                    importedNames.set(node.id, '*');
+                } else if (node.id.type === 'ObjectPattern') {
+                    for (const property of node.id.properties) {
+                        if (
+                            property.type === 'Property' &&
+                            property.value.type === 'Identifier'
+                        ) {
+                            importedNames.set(
+                                property.value,
+                                staticName(property.key, property.computed),
+                            );
+                        }
+                    }
+                }
+            }
         };
 
         const isBanned = (callee, bannedNames) => {
@@ -110,27 +142,18 @@ module.exports = {
                 }
             },
             VariableDeclarator(node) {
-                if (!isWarehouseInitializer(node.init)) return;
-                if (node.id.type === 'Identifier') {
-                    importedNames.set(node.id, '*');
-                } else if (node.id.type === 'ObjectPattern') {
-                    for (const property of node.id.properties) {
-                        if (
-                            property.type === 'Property' &&
-                            property.value.type === 'Identifier'
-                        ) {
-                            importedNames.set(
-                                property.value,
-                                staticName(property.key, property.computed),
-                            );
-                        }
-                    }
-                }
+                if (node.init) declarators.push(node);
             },
             'CallExpression, NewExpression': (node) => {
                 expressions.push(node);
             },
             'Program:exit': () => {
+                let previousSize;
+                do {
+                    previousSize = importedNames.size;
+                    declarators.forEach(trackDeclarator);
+                } while (importedNames.size > previousSize);
+
                 for (const node of expressions) {
                     const { callee } = node;
                     const isFactoryHelper =

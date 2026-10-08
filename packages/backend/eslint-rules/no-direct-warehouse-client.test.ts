@@ -62,6 +62,114 @@ const reportedLines = (source: string[]) => {
 };
 
 describe('no-direct-warehouse-client in oxlint', () => {
+    it.each([
+        [
+            'namespace destructure with alias',
+            'const { PostgresWarehouseClient: Pg } = warehouses;',
+            'new Pg();',
+        ],
+        [
+            'namespace destructure without alias',
+            'const { PostgresWarehouseClient } = warehouses;',
+            'new PostgresWarehouseClient();',
+        ],
+        [
+            'constructor member alias',
+            'const ctor = warehouses.PostgresWarehouseClient;',
+            'new ctor();',
+        ],
+        [
+            'factory string-literal member alias',
+            "const build = warehouses['warehouseClientFromCredentials'];",
+            'build();',
+        ],
+        ['namespace alias', 'const ns2 = warehouses;', 'new ns2.SshTunnel();'],
+        [
+            'two-step namespace chain',
+            'const a = warehouses; const { PostgresWarehouseClient: Pg } = a;',
+            'new Pg();',
+        ],
+    ])('reports %s', (_name, binding, call) => {
+        expect(
+            reportedLines([
+                "import * as warehouses from '@lightdash/warehouses';",
+                binding,
+                call,
+            ]),
+        ).toEqual([3]);
+    });
+
+    it('reports rebinding from a require namespace', () => {
+        expect(
+            reportedLines([
+                "const warehouses = require('@lightdash/warehouses');",
+                'const { PostgresWarehouseClient: Pg } = warehouses;',
+                'const build = warehouses.warehouseClientFromCredentials;',
+                'new Pg();',
+                'build();',
+            ]),
+        ).toEqual([4, 5]);
+    });
+
+    it('resolves namespace imports declared after rebinding', () => {
+        expect(
+            reportedLines([
+                'const { PostgresWarehouseClient: Pg } = warehouses;',
+                'new Pg();',
+                "import * as warehouses from '@lightdash/warehouses';",
+            ]),
+        ).toEqual([2]);
+    });
+
+    it('resolves namespace chains with dependencies later in source order', () => {
+        expect(
+            reportedLines([
+                'function create() {',
+                'const { PostgresWarehouseClient: Pg } = a;',
+                'new Pg();',
+                '}',
+                'const a = warehouses;',
+                "const warehouses = require('@lightdash/warehouses');",
+                'create();',
+            ]),
+        ).toEqual([3]);
+    });
+
+    it('allows DuckDB rebound from a warehouse namespace', () => {
+        expect(
+            reportedLines([
+                "import * as warehouses from '@lightdash/warehouses';",
+                'const { DuckdbWarehouseClient: D } = warehouses;',
+                'new D();',
+            ]),
+        ).toEqual([]);
+    });
+
+    it('allows destructuring from unrelated namespaces', () => {
+        expect(
+            reportedLines([
+                "import * as warehouses from './local';",
+                'const { PostgresWarehouseClient: Pg } = warehouses;',
+                'new Pg();',
+            ]),
+        ).toEqual([]);
+    });
+
+    it('allows rebinding from a shadowed namespace parameter', () => {
+        expect(
+            reportedLines([
+                "import * as warehouses from '@lightdash/warehouses';",
+                'function local(warehouses) {',
+                'const { PostgresWarehouseClient: Pg } = warehouses;',
+                'const ctor = warehouses.PostgresWarehouseClient;',
+                "const build = warehouses['warehouseClientFromCredentials'];",
+                'const ns2 = warehouses;',
+                'new Pg(); new ctor(); build(); new ns2.SshTunnel();',
+                '}',
+            ]),
+        ).toEqual([]);
+    });
+
     it('reports the four alias and namespace review cases', () => {
         expect(
             reportedLines([
