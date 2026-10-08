@@ -1231,8 +1231,11 @@ const PivotTable: FC<PivotTableProps> = ({
         [data, hideMetricNames, hidePivotDimensionNames],
     );
     const lastHeaderRow = headerRows.at(-1);
+    const lastValueHeaderRow = headerRows.findLast(
+        (row) => row.values.length > 0,
+    );
     // A merged header spans several columns, so it cannot resize just one
-    const canResizeDataHeaders = lastHeaderRow?.values.every(
+    const canResizeDataHeaders = lastValueHeaderRow?.values.every(
         (value) => value.type === 'label' || value.colSpan === 1,
     );
 
@@ -1544,7 +1547,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? field.description
                                     : undefined;
 
-                            const isLastHeaderRow = headerRow === lastHeaderRow;
+                            const isLastHeaderRow =
+                                headerRow === lastValueHeaderRow;
 
                             // Look up saved width for this data column
                             const colInfo =
@@ -1717,6 +1721,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ? undefined
                                             : headerValue.colSpan
                                     }
+                                    rowSpan={headerRow.valueRowSpan}
                                     w={effectiveWidth}
                                     miw={effectiveWidth}
                                     maw={effectiveWidth}
@@ -1762,6 +1767,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                           <Table.CellHead
                                               key={`header-total-${headerRow.index}-${headerColIndex}`}
                                               isMinimal={isMinimal}
+                                              rowSpan={headerRow.valueRowSpan}
                                               withBoldFont
                                               withMinimalWidth={
                                                   !hasCustomWidths
@@ -1775,6 +1781,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                           <Table.Cell
                                               key={`header-total-${headerRow.index}-${headerColIndex}`}
                                               isMinimal={isMinimal}
+                                              rowSpan={headerRow.valueRowSpan}
                                               withMinimalWidth={
                                                   !hasCustomWidths
                                               }

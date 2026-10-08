@@ -64,6 +64,7 @@ describe('getVisiblePivotHeaderRows', () => {
                 {
                     index: 0,
                     values: pivot.headerValues[0],
+                    valueRowSpan: 1,
                     titleFields: [
                         { fieldId: 'sale_date', direction: 'header' },
                     ],
@@ -90,24 +91,44 @@ describe('getVisiblePivotHeaderRows', () => {
         },
     );
 
-    it.each([false, true])(
-        'preserves row-axis headings when removing the metric row (hidePivotDimensionNames=%s)',
-        (hidePivotDimensionNames) => {
-            const rows = getVisiblePivotHeaderRows(
-                {
-                    ...data,
-                    titleFields: [
-                        [{ fieldId: 'sale_date', direction: 'header' }],
-                        [{ fieldId: 'region', direction: 'index' }],
-                    ],
-                },
-                { hideMetricNames: true, hidePivotDimensionNames },
-            );
-            expect(rows[0].titleFields).toEqual([
-                { fieldId: 'region', direction: 'index' },
-            ]);
-        },
-    );
+    const withRowAxisHeading = {
+        ...data,
+        titleFields: [
+            [{ fieldId: 'sale_date', direction: 'header' as const }],
+            [{ fieldId: 'region', direction: 'index' as const }],
+        ],
+    };
+
+    it('keeps the dimension name and the row-axis heading when only metric names are hidden', () => {
+        const rows = getVisiblePivotHeaderRows(withRowAxisHeading, {
+            hideMetricNames: true,
+        });
+        // the heading keeps its own row, and the dimension values span it
+        expect(rows).toHaveLength(2);
+        expect(rows[0].titleFields).toEqual([
+            { fieldId: 'sale_date', direction: 'header' },
+        ]);
+        expect(rows[0].values).toEqual(data.headerValues[0]);
+        expect(rows[0].valueRowSpan).toBe(2);
+        expect(rows[0].rowTotalFields).toEqual([{}, {}]);
+        expect(rows[1].titleFields).toEqual([
+            { fieldId: 'region', direction: 'index' },
+        ]);
+        expect(rows[1].values).toEqual([]);
+        expect(rows[1].rowTotalFields).toBeUndefined();
+    });
+
+    it('collapses to one row with the row-axis heading when both are hidden', () => {
+        const rows = getVisiblePivotHeaderRows(withRowAxisHeading, {
+            hideMetricNames: true,
+            hidePivotDimensionNames: true,
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].titleFields).toEqual([
+            { fieldId: 'region', direction: 'index' },
+        ]);
+        expect(rows[0].valueRowSpan).toBe(1);
+    });
 
     it('keeps a header when no pivot dimension values remain', () => {
         const rows = getVisiblePivotHeaderRows(
