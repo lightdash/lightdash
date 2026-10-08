@@ -170,29 +170,6 @@ const collapseUnion = (
     return { ...schema, [key]: branches };
 };
 
-const METADATA_KEYWORDS = new Set([
-    'description',
-    'default',
-    'title',
-    'deprecated',
-    'examples',
-]);
-
-/**
- * Zod attaches metadata to a shared schema as `allOf: [{ $ref }]` plus
- * siblings. Once the target is inlined the wrapper is noise; merge it.
- */
-const unwrapSingleAllOf = (schema: JsonSchema): JsonSchema => {
-    const { allOf, ...rest } = schema;
-    if (!allOf || allOf.length !== 1) return schema;
-    const [only] = allOf;
-    if (!isJsonSchema(only) || only.$ref !== undefined) return schema;
-    if (!Object.keys(rest).every((key) => METADATA_KEYWORDS.has(key))) {
-        return schema;
-    }
-    return { ...only, ...rest };
-};
-
 /** Zod 4 emits these for every record and safe integer; they only cost tokens. */
 const dropNoiseKeywords = ({
     propertyNames,
@@ -341,7 +318,7 @@ export const normalizeJsonSchema = (schema: JsonSchema): JsonSchema => {
     }
 
     return collapseUnion(
-        collapseUnion(dropNoiseKeywords(unwrapSingleAllOf(result)), 'anyOf'),
+        collapseUnion(dropNoiseKeywords(result), 'anyOf'),
         'oneOf',
     );
 };
@@ -351,10 +328,9 @@ export const normalizeJsonSchema = (schema: JsonSchema): JsonSchema => {
  * compact encodings models were trained on, and descriptions sit on the
  * property rather than inside a union branch.
  */
-export const toLlmJsonSchema = (
-    schema: z.ZodType,
-    { reused = 'inline' }: { reused?: ReusedStrategy } = {},
-): JsonSchema =>
+export const toLlmJsonSchema = (schema: z.ZodType): JsonSchema =>
     normalizeJsonSchema(
-        inlineSmallDefinitions(toJsonSchema(schema, { io: 'input', reused })),
+        inlineSmallDefinitions(
+            toJsonSchema(schema, { io: 'input', reused: 'inline' }),
+        ),
     );
