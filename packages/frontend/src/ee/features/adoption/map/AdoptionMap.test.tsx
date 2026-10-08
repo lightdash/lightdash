@@ -766,6 +766,11 @@ describe('AdoptionMap', () => {
         expect(
             within(details).getByText('Without an account: 26 of 38 headcount'),
         ).toBeInTheDocument();
+        // The same number the legend gives its grey dots, on the same screen
+        const legend = screen.getByRole('list', { name: 'Legend' });
+        expect(
+            within(legend).getByText('No account').closest('li'),
+        ).toHaveTextContent(/^No account26$/);
         expect(within(details).queryByText(/^Excludes/)).toBeNull();
         // A department keeps its own numbers
         await userEvent.click(
@@ -798,6 +803,37 @@ describe('AdoptionMap', () => {
         expect(
             within(details).getByText(
                 "Excludes 4 accounts above their department's headcount",
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('names the people in departments without a headcount', () => {
+        // Placed 19 = headcount 10 - 0 without an account + 4 above it + 5 with no headcount
+        renderMap(
+            [d('Data', null, 10, 14, 6), d('Product', null, null, 5, 5)],
+            {
+                organization: metricsFixture(25, null, { activeCount30d: 11 }),
+            },
+        );
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(
+            within(details).getByText(
+                'Placed in a department: 19 of 25 on Lightdash',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText('Without an account: 0 of 10 headcount'),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText(
+                "Excludes 4 accounts above their department's headcount",
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText(
+                '5 people are in departments without a headcount',
             ),
         ).toBeInTheDocument();
     });
@@ -874,16 +910,16 @@ describe('AdoptionMap', () => {
 
     it("keeps a hovered circle's label while the pointer is on one of its people", async () => {
         // Small enough to name everyone, crowded enough that some labels have no room
-        const teams = Array.from({ length: 24 }, (_, index) =>
+        const teams = Array.from({ length: 40 }, (_, index) =>
             d(
                 `Team with a long descriptive name, number ${index}`,
                 'Hub',
-                5,
+                3,
                 3,
                 1,
             ),
         );
-        const hub = d('Hub', null, 120, 72, 24, {
+        const hub = d('Hub', null, 120, 120, 40, {
             directMetrics: metricsFixture(0, null),
         });
         loadMembers(

@@ -210,11 +210,11 @@ export const MapInspector: FC<Props> = ({
                         {overviewCopy.withoutAccount !== null && (
                             <Text fz="sm">{overviewCopy.withoutAccount}</Text>
                         )}
-                        {overviewCopy.caption !== null && (
-                            <Text fz="xs" c="dimmed">
-                                {overviewCopy.caption}
+                        {overviewCopy.captions.map((caption) => (
+                            <Text key={caption} fz="xs" c="dimmed">
+                                {caption}
                             </Text>
-                        )}
+                        ))}
                     </Stack>
                 )}
                 {department?.headcountBelowChildren && (

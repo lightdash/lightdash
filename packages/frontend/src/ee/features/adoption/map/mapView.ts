@@ -7,7 +7,7 @@ import {
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { formatLastActive } from '../utils/departmentDetail';
-import { formatCount } from '../utils/format';
+import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
 import {
     countBucketPeople,
     getDepartmentSize,
@@ -291,57 +291,52 @@ export type OrganizationOverview = {
     onLightdash: number;
     active30d: number;
     placed: number;
-    // Each top-level department against its own headcount, so placed = headcount - without + above
+    // The legend's "No account": headcount without an account in every circle drawn
     withoutAccount: number;
+    // The top-level departments' effective headcounts added up, or null when none has one
     headcount: number | null;
+    // What makes placed = headcount - without an account + these two: people placed beyond
+    // headcount, and people in top-level departments without one
     aboveHeadcount: number;
+    withoutHeadcount: number;
 };
 
+// Totals reads the circles of the whole organization, as the legend does
 export const getOrganizationOverview = (
     organization: AdoptionMetrics,
     departments: DepartmentWithMetrics[],
+    totals: ViewTotals,
 ): OrganizationOverview => {
     const topLevel = getVisibleDepartments(departments, null);
     const counted = topLevel.filter(
         (department) => department.effectiveHeadcount !== null,
     );
-    const sum = (
-        list: DepartmentWithMetrics[],
-        value: (department: DepartmentWithMetrics) => number,
-    ): number =>
-        list.reduce((total, department) => total + value(department), 0);
+    const headcount = counted.reduce(
+        (sum, department) => sum + (department.effectiveHeadcount ?? 0),
+        0,
+    );
+    const withoutHeadcount = topLevel
+        .filter((department) => department.effectiveHeadcount === null)
+        .reduce((sum, department) => sum + department.metrics.memberCount, 0);
+    const withoutAccount = Math.max(totals.people - totals.members, 0);
     return {
         onLightdash: organization.memberCount,
         active30d: organization.activeCount30d,
-        placed: sum(topLevel, (department) => department.metrics.memberCount),
-        withoutAccount: sum(counted, (department) =>
-            Math.max(
-                (department.effectiveHeadcount ?? 0) -
-                    department.metrics.memberCount,
-                0,
-            ),
+        placed: totals.members,
+        withoutAccount,
+        headcount: counted.length > 0 ? headcount : null,
+        aboveHeadcount: Math.max(
+            totals.members - headcount + withoutAccount - withoutHeadcount,
+            0,
         ),
-        headcount:
-            counted.length > 0
-                ? sum(
-                      counted,
-                      (department) => department.effectiveHeadcount ?? 0,
-                  )
-                : null,
-        aboveHeadcount: sum(counted, (department) =>
-            Math.max(
-                department.metrics.memberCount -
-                    (department.effectiveHeadcount ?? 0),
-                0,
-            ),
-        ),
+        withoutHeadcount,
     };
 };
 
 export type OrganizationOverviewCopy = {
     placed: string;
     withoutAccount: string | null;
-    caption: string | null;
+    captions: string[];
 };
 
 export const describeOrganizationOverview = (
@@ -349,15 +344,26 @@ export const describeOrganizationOverview = (
 ): OrganizationOverviewCopy => {
     const placed = `Placed in a department: ${formatCount(overview.placed)} of ${formatCount(overview.onLightdash)} on Lightdash`;
     if (overview.headcount === null) {
-        return { placed, withoutAccount: null, caption: null };
+        return { placed, withoutAccount: null, captions: [] };
     }
+    const { aboveHeadcount, withoutHeadcount } = overview;
     return {
         placed,
         withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
-        caption:
-            overview.aboveHeadcount > 0
-                ? `Excludes ${plural(overview.aboveHeadcount, 'account', 'accounts')} above their department's headcount`
-                : null,
+        captions: [
+            ...(aboveHeadcount > 0
+                ? [
+                      `Excludes ${plural(aboveHeadcount, 'account', 'accounts')} above their department's headcount`,
+                  ]
+                : []),
+            ...(withoutHeadcount > 0
+                ? [
+                      withoutHeadcount === 1
+                          ? '1 person is in a department without a headcount'
+                          : `${formatQuantity(withoutHeadcount, PEOPLE)} are in departments without a headcount`,
+                  ]
+                : []),
+        ],
     };
 };
 

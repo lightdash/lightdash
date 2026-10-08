@@ -45,6 +45,8 @@ const BASE_SPREAD = 1.08;
 const SPREAD_STEP = 1.12;
 const MAX_SPREAD_ATTEMPTS = 9;
 const MIN_SPREAD_SIZE_SHARE = 0.7;
+// Past that, spreading goes on only to make room for a top-level label still left out
+const MIN_SPREAD_SIZE_SHARE_TO_LABEL = 0.5;
 // A wide panel gets a wide arrangement, up to this ratio between the two directions
 const MAX_STRETCH_RATIO = 4;
 
@@ -59,7 +61,7 @@ const INSIDE_INSET_PX = 3;
 const OUTSIDE_EXTRA_WIDTH_PX = 80;
 // A sub-department is named on the map once it is drawn this large; smaller ones are named on hover
 const NESTED_LABEL_MIN_RADIUS_PX = 16;
-// A label under a circle moves down, away from its circle, in these steps to clear another label
+// A label outside a circle moves away from it, down from below or up from above, in these steps
 const NUDGE_STEP_PX = 8;
 const NUDGE_STEPS = 6;
 const NUDGE_OFFSETS = Array.from(
@@ -262,7 +264,7 @@ export const getCaptionVariants = (stats: CircleStats): string[] => {
 
 export type Box = { x: number; y: number; width: number; height: number };
 
-type LabelPlacement = 'inside' | 'below';
+type LabelPlacement = 'inside' | 'below' | 'above';
 
 export type CircleLabel = {
     id: string;
@@ -383,11 +385,11 @@ const getInsideBox = (
     return fits ? { x: x - halfWidth, y: top, ...size } : null;
 };
 
-const getBelowWidth = (circle: PackedCircle, zoom: number): number =>
+const getOutsideWidth = (circle: PackedCircle, zoom: number): number =>
     circle.r * zoom * 2 + OUTSIDE_EXTRA_WIDTH_PX;
 
 // Shortened to fit the width; null when even the numbers are too wide
-const getBelowText = (
+const getOutsideText = (
     circle: PackedCircle,
     text: LabelText,
     maxWidth: number,
@@ -424,10 +426,11 @@ const makeCandidate = (
     offset,
 });
 
-// Centred under the circle, slid sideways only as far as it takes to stay inside the drawing
-const getBelowCandidate = (
+// Centred under or over the circle, slid sideways only as far as it takes to stay inside the drawing
+const getOutsideCandidate = (
     circle: PackedCircle,
     text: LabelText,
+    side: 'below' | 'above',
     offset: number,
     zoom: number,
     area: Area,
@@ -439,17 +442,14 @@ const getBelowCandidate = (
         PANEL_INSET_PX,
         Math.min(centred, area.width * zoom - PANEL_INSET_PX - size.width),
     );
-    return makeCandidate(
-        circle,
-        text,
-        'below',
-        {
-            x,
-            y: (circle.y + circle.r) * zoom + LABEL_GAP_PX + offset,
-            ...size,
-        },
-        offset,
-    );
+    const y =
+        side === 'below'
+            ? (circle.y + circle.r) * zoom + LABEL_GAP_PX + offset
+            : (circle.y - circle.r) * zoom -
+              LABEL_GAP_PX -
+              size.height -
+              offset;
+    return makeCandidate(circle, text, side, { x, y, ...size }, offset);
 };
 
 // Every circle at the focused level has a name, and so does every sub-department below it;
@@ -488,34 +488,40 @@ const getCandidates = (
                   placement.isOverDots(circle),
               )
             : null;
-        const below = getBelowText(
+        const outside = getOutsideText(
             circle,
             text,
-            getBelowWidth(circle, zoom),
+            getOutsideWidth(circle, zoom),
             measure,
         );
+        // Under the circle first; over it only when nothing under it is clear
+        const outsideCandidates =
+            outside === null
+                ? []
+                : (['below', 'above'] as const).flatMap((side) =>
+                      NUDGE_OFFSETS.map((offset) =>
+                          getOutsideCandidate(
+                              circle,
+                              outside,
+                              side,
+                              offset,
+                              zoom,
+                              area,
+                              measure,
+                          ),
+                      ),
+                  );
         return [
             ...(insideBox === null
                 ? []
                 : [makeCandidate(circle, text, 'inside', insideBox, 0)]),
-            ...(below === null
-                ? []
-                : NUDGE_OFFSETS.map((offset) =>
-                      getBelowCandidate(
-                          circle,
-                          below,
-                          offset,
-                          zoom,
-                          area,
-                          measure,
-                      ),
-                  )),
+            ...outsideCandidates,
         ].filter((candidate) => placement.staysInGroup(circle, candidate.box));
     });
 };
 
-// Each label goes inside its circle when it fits, otherwise under it, moved down to clear the labels
-// already placed. It never sits on another department's circle; one with no such spot is left out
+// Each label goes inside its circle when it fits, otherwise under it or, failing that, over it, moved
+// away from it to clear other labels. It never sits on another department's circle, or is left out
 const placeAllLabels = (
     circles: PackedCircle[],
     info: Map<string, CircleInfo>,
@@ -586,7 +592,10 @@ const placeAllLabels = (
             const halfWidth = Math.min(circle.r * zoom, box.width / 2);
             const gap: Box = {
                 x: circle.x * zoom - halfWidth,
-                y: (circle.y + circle.r) * zoom + LABEL_GAP_PX,
+                y:
+                    candidate.placement === 'above'
+                        ? box.y + box.height
+                        : (circle.y + circle.r) * zoom + LABEL_GAP_PX,
                 width: halfWidth * 2,
                 height: candidate.offset,
             };
@@ -644,17 +653,18 @@ const placeAllLabels = (
                         ? null
                         : makeCandidate(circle, text, 'inside', box, 0);
                 }
-                const below = getBelowText(
+                const outside = getOutsideText(
                     circle,
                     text,
-                    getBelowWidth(circle, zoom),
+                    getOutsideWidth(circle, zoom),
                     measure,
                 );
-                return below === null || below.name !== circle.name
+                return outside === null || outside.name !== circle.name
                     ? null
-                    : getBelowCandidate(
+                    : getOutsideCandidate(
                           circle,
-                          below,
+                          outside,
+                          current.placement,
                           current.offset,
                           zoom,
                           area,
@@ -683,8 +693,8 @@ export const placeLabels = (
         ({ offset, ...label }) => label,
     );
 
-// A label left out for want of room shows under its circle while the circle is hovered, in full
-// unless it is wider than the drawing
+// A label left out for want of room shows while its circle is hovered, in full unless it is wider
+// than the drawing: under the circle, or over it when under is off the drawing or on the zoom buttons
 export const getHoverLabel = (
     circle: PackedCircle,
     info: Map<string, CircleInfo>,
@@ -696,33 +706,37 @@ export const getHoverLabel = (
     if (!stats || !isNamed(circle)) return null;
     const maxWidth = area.width * zoom - PANEL_INSET_PX * 2;
     const text = getFirstTexts(circle, stats)
-        .map((each) => getBelowText(circle, each, maxWidth, measure))
+        .map((each) => getOutsideText(circle, each, maxWidth, measure))
         .find((each): each is LabelText => each !== null);
     if (!text) return null;
-    const { offset, ...candidate } = getBelowCandidate(
-        circle,
-        text,
-        0,
-        zoom,
-        area,
-        measure,
+    const reserved = zoom === 1 ? [getControlsBox(area)] : [];
+    const fits = ({ box }: Candidate): boolean =>
+        box.y >= PANEL_INSET_PX &&
+        box.y + box.height <= area.height * zoom - PANEL_INSET_PX &&
+        !reserved.some((taken) => boxesOverlap(taken, box));
+    const [below, above] = (['below', 'above'] as const).map((side) =>
+        getOutsideCandidate(circle, text, side, 0, zoom, area, measure),
     );
+    const { offset, ...candidate } =
+        fits(below) || !fits(above) ? below : above;
     return { id: circle.id, ...candidate };
 };
 
-// How far the top-level labels fall short: one left out counts twice one without its numbers
-const countUnlabelled = (
+type Shortfall = { missing: number; withoutNumbers: number };
+
+// The top-level labels left out, and those placed without their line of numbers
+const countShortfall = (
     circles: PackedCircle[],
     labels: PlacedLabel[],
-): number => {
+): Shortfall => {
     const byId = new Map(labels.map((label) => [label.id, label]));
-    return circles
-        .filter((circle) => circle.depth === 1)
-        .reduce((shortfall, circle) => {
-            const label = byId.get(circle.id);
-            if (!label) return shortfall + 2;
-            return shortfall + (label.detail === null ? 1 : 0);
-        }, 0);
+    const tops = circles.filter((circle) => circle.depth === 1);
+    return {
+        missing: tops.filter((circle) => !byId.has(circle.id)).length,
+        withoutNumbers: tops.filter(
+            (circle) => byId.get(circle.id)?.detail === null,
+        ).length,
+    };
 };
 
 // Fills the panel, spreading the circles further apart until every top-level label has room.
@@ -742,7 +756,7 @@ export const layoutMap = ({
 }): PackedCircle[] => {
     const largest = (circles: PackedCircle[]): number =>
         circles.reduce((max, circle) => Math.max(max, circle.r), 0);
-    let best: { circles: PackedCircle[]; unlabelled: number } | null = null;
+    let best: (Shortfall & { circles: PackedCircle[] }) | null = null;
     let firstSize = 0;
     for (let attempt = 0; attempt < MAX_SPREAD_ATTEMPTS; attempt += 1) {
         const circles = nameLoneBucket(
@@ -750,15 +764,27 @@ export const layoutMap = ({
             focusName,
         );
         if (attempt === 0) firstSize = largest(circles);
-        else if (largest(circles) < firstSize * MIN_SPREAD_SIZE_SHARE) break;
-        const unlabelled = countUnlabelled(
+        const share = largest(circles) / firstSize;
+        const isPastFloor = share < MIN_SPREAD_SIZE_SHARE;
+        if (
+            share < MIN_SPREAD_SIZE_SHARE_TO_LABEL ||
+            (isPastFloor && best !== null && best.missing === 0)
+        ) {
+            break;
+        }
+        const shortfall = countShortfall(
             circles,
             placeAllLabels(circles, describe(circles), 1, area, measure),
         );
-        if (best === null || unlabelled < best.unlabelled) {
-            best = { circles, unlabelled };
-        }
-        if (unlabelled === 0) break;
+        // Fewer labels left out wins, then fewer without numbers; past the floor only the first counts
+        const isBetter =
+            best === null ||
+            shortfall.missing < best.missing ||
+            (!isPastFloor &&
+                shortfall.missing === best.missing &&
+                shortfall.withoutNumbers < best.withoutNumbers);
+        if (isBetter) best = { circles, ...shortfall };
+        if (shortfall.missing === 0 && shortfall.withoutNumbers === 0) break;
     }
     return best?.circles ?? [];
 };

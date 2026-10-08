@@ -17,6 +17,7 @@ import {
     fitToArea,
     getCaptionVariants,
     getControlsBox,
+    getHoverLabel,
     getTopLevelGroups,
     getLabelLines,
     layoutMap,
@@ -476,14 +477,19 @@ describe('placeLabels on the seeded organization', () => {
             ).toEqual([...expected].sort((a, b) => a.id.localeCompare(b.id)));
         });
     });
-    it('leaves a label out rather than put it on the zoom buttons', () => {
-        // The only spots under this circle are on the buttons or past the bottom of the panel
+    it('puts a label above its circle rather than on the zoom buttons', () => {
+        // Every spot under this circle is on the buttons or past the bottom of the panel
         const corner = placedCircle('Corner department', 60, 470, 30);
         const controls = getControlsBox(PANEL);
         expect(
             boxesIntersect({ x: 0, y: 504, width: 172, height: 30 }, controls),
         ).toBe(true);
-        expect(placeOn([corner])).toEqual([]);
+        const [label] = placeOn([corner]);
+        expect(label).toMatchObject({ placement: 'above' });
+        expect(boxesIntersect(label.box, controls)).toBe(false);
+        expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+            470 - 30 - 4,
+        );
         // Zoomed in, the buttons no longer cover the same part of the map
         const zoomed = placeLabels(
             [corner],
@@ -496,6 +502,33 @@ describe('placeLabels on the seeded organization', () => {
             estimateTextWidth,
         );
         expect(zoomed).toHaveLength(1);
+        expect(zoomed[0].placement).toBe('below');
+    });
+    it('shows a hover label above its circle rather than on the zoom buttons', () => {
+        const corner = placedCircle('Corner department', 60, 470, 30);
+        const info = describeCircles(
+            [corner],
+            new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
+        );
+        const hover = getHoverLabel(corner, info, 1, PANEL, estimateTextWidth);
+        expect(hover?.placement).toBe('above');
+        expect(hover && boxesIntersect(hover.box, getControlsBox(PANEL))).toBe(
+            false,
+        );
+        // Away from the buttons it stays under the circle
+        const middle = placedCircle('Middle department', 380, 200, 30);
+        expect(
+            getHoverLabel(
+                middle,
+                describeCircles(
+                    [middle],
+                    new Map([[middle.id, d(middle.id, null, 10, 4, 1)]]),
+                ),
+                1,
+                PANEL,
+                estimateTextWidth,
+            )?.placement,
+        ).toBe('below');
     });
     it('leaves the people directly in a department unlabelled', () => {
         expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(
@@ -657,12 +690,39 @@ describe('placeLabels under small circles', () => {
         expect(boxTouchesCircle(second.box, right, 1, 0)).toBe(false);
         expect(second.box.x + second.box.width / 2).toBeCloseTo(360, 6);
     });
-    it("leaves a label out rather than put it on another department's circle or past it", () => {
-        // The only spots under Upper are on Lower's circle, or beyond it
+    it("puts a label above its circle when every spot under it is on another department's circle", () => {
+        // The spots under Upper are on Lower's circle, or beyond it
         const upper = placedCircle('Upper department', 300, 200, 16);
         const lower = placedCircle('Lower department', 300, 250, 16);
         const labels = placeOn([upper, lower]);
-        expect(labels.map((label) => label.id)).toEqual(['Lower department']);
+        expect(
+            labels
+                .map((label) => [label.id, label.placement])
+                .sort(([a], [b]) => a.localeCompare(b)),
+        ).toEqual([
+            ['Lower department', 'below'],
+            ['Upper department', 'above'],
+        ]);
+        const above = labels.find((label) => label.id === 'Upper department');
+        // Above the circle and moved, if at all, further up, away from it
+        expect(
+            (above?.box.y ?? 0) + (above?.box.height ?? 0),
+        ).toBeLessThanOrEqual(200 - 16 - 4 + 1e-9);
+        expectCleanLabels([upper, lower], labels, PANEL);
+    });
+    it("leaves a label out rather than put it on another department's circle or past it", () => {
+        // Middle is boxed in: Top above it and Bottom below it
+        const stack = [
+            placedCircle('Top department', 300, 150, 16),
+            placedCircle('Middle department', 300, 200, 16),
+            placedCircle('Bottom department', 300, 250, 16),
+        ];
+        const labels = placeOn(stack);
+        expect(labels.map((label) => label.id).sort()).toEqual([
+            'Bottom department',
+            'Top department',
+        ]);
+        expectCleanLabels(stack, labels, PANEL);
     });
     it('leaves a label out when no move clears the others', () => {
         const stack = Array.from({ length: 12 }, (_, index) =>

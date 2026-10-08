@@ -147,9 +147,13 @@ export const AdoptionMap: FC<Props> = ({
     const overview = useMemo(
         () =>
             focus === null
-                ? getOrganizationOverview(summary.organization, departments)
+                ? getOrganizationOverview(
+                      summary.organization,
+                      departments,
+                      totals,
+                  )
                 : null,
-        [focus, summary.organization, departments],
+        [focus, summary.organization, departments, totals],
     );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
