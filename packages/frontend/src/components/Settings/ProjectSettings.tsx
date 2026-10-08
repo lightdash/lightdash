@@ -25,6 +25,7 @@ import { ExternalSourcesSettingsPanel } from '../../features/externalSources/com
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
+import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import {
     type LimitedProjectSettingsPage,
@@ -94,6 +95,8 @@ const ProjectSettings: FC<{
 
     const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
+    // A learner copy has no project list to go back to.
+    const { isTrainingCopy } = useIsTrainingCopy(project);
 
     const { data: organization } = useOrganization();
 
@@ -648,7 +651,7 @@ const ProjectSettings: FC<{
                 <SettingsPageContainer>
                     <PageBreadcrumbs
                         items={[
-                            ...(projectSettingsAccess.type === 'limited'
+                            ...(isTrainingCopy
                                 ? []
                                 : [
                                       {

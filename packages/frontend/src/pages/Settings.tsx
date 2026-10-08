@@ -1014,13 +1014,28 @@ const Settings: FC = () => {
         isAiCreditsLoading &&
         Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
 
+    // The project settings access check (a training copy's upstream, the
+    // spaces a member can create in) gates only the project's own settings
+    // routes; the sidebar entry simply appears once it resolves elsewhere.
+    const isProjectSettingsRoute = Boolean(
+        matchPath(
+            '/generalSettings/projectManagement/:projectUuid/*',
+            location.pathname,
+        ),
+    );
+    const isAwaitingProjectSettingsRoute =
+        isProjectSettingsAccessLoading && isProjectSettingsRoute;
+    const projectSettingsRouteError = isProjectSettingsRoute
+        ? projectSettingsAccessError
+        : null;
+
     if (
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        isProjectSettingsAccessLoading ||
+        isAwaitingProjectSettingsRoute ||
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
@@ -1034,7 +1049,7 @@ const Settings: FC = () => {
         healthError ||
         organizationError ||
         projectError ||
-        projectSettingsAccessError
+        projectSettingsRouteError
     ) {
         return (
             <ErrorState
@@ -1043,7 +1058,7 @@ const Settings: FC = () => {
                     healthError?.error ||
                     organizationError?.error ||
                     projectError?.error ||
-                    projectSettingsAccessError?.error
+                    projectSettingsRouteError?.error
                 }
             />
         );

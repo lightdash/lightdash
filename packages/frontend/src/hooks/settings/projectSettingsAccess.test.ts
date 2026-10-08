@@ -1,7 +1,10 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
-import { type MemberAbility } from '@lightdash/common';
+import { SpaceMemberRole, type MemberAbility } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getProjectSettingsAccess } from './projectSettingsAccess';
+import {
+    getProjectSettingsAccess,
+    mayCreateContent,
+} from './projectSettingsAccess';
 
 const project = { organizationUuid: 'org', projectUuid: 'copy' };
 
@@ -147,4 +150,83 @@ describe('getProjectSettingsAccess', () => {
             ).toEqual(noAccess);
         },
     );
+});
+
+describe('mayCreateContent', () => {
+    const userUuid = 'user';
+    const spaceEdited = (role: SpaceMemberRole | SpaceMemberRole[]) => ({
+        access: {
+            $elemMatch: {
+                userUuid,
+                role: Array.isArray(role) ? { $in: role } : role,
+            },
+        },
+    });
+    const withRules = (rules: [string, string, Record<string, unknown>?][]) => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        rules.forEach(([action, subject, conditions]) =>
+            builder.can(action as never, subject as never, {
+                ...project,
+                ...conditions,
+            }),
+        );
+        return builder.build();
+    };
+    const may = (ability: MemberAbility) =>
+        mayCreateContent({ ability, userUuid, project });
+
+    it('is false for a viewer, who holds no create rule', () => {
+        expect(
+            may(
+                withRules([
+                    ['view', 'SavedChart'],
+                    ['view', 'Dashboard'],
+                ]),
+            ),
+        ).toBe(false);
+    });
+
+    it('is true for an interactive viewer, whose content rules need a space they edit', () => {
+        expect(
+            may(
+                withRules([
+                    [
+                        'manage',
+                        'SavedChart',
+                        spaceEdited(SpaceMemberRole.EDITOR),
+                    ],
+                ]),
+            ),
+        ).toBe(true);
+    });
+
+    it('is true for an editor, whose content rules accept an editor or admin space role', () => {
+        expect(
+            may(
+                withRules([
+                    [
+                        'manage',
+                        'Dashboard',
+                        spaceEdited([
+                            SpaceMemberRole.EDITOR,
+                            SpaceMemberRole.ADMIN,
+                        ]),
+                    ],
+                ]),
+            ),
+        ).toBe(true);
+    });
+
+    it('is true for an unconditional create rule', () => {
+        expect(may(withRules([['create', 'Document']]))).toBe(true);
+    });
+
+    it('ignores a rule held in another project', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        builder.can('create', 'SavedChart', {
+            organizationUuid: 'org',
+            projectUuid: 'elsewhere',
+        });
+        expect(may(builder.build())).toBe(false);
+    });
 });

@@ -4,7 +4,10 @@ import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import useApp from '../../providers/App/useApp';
 import useCreateInAnySpaceAccess from '../user/useCreateInAnySpaceAccess';
 import { useSpaceSummaries } from '../useSpaces';
-import { getProjectSettingsAccess } from './projectSettingsAccess';
+import {
+    getProjectSettingsAccess,
+    mayCreateContent,
+} from './projectSettingsAccess';
 
 export const useProjectSettingsAccess = (project: Project | undefined) => {
     const { user, health } = useApp();
@@ -18,6 +21,9 @@ export const useProjectSettingsAccess = (project: Project | undefined) => {
         isSoftDeleteEnabled,
         canCreateContentInAnySpace: false,
     });
+    // The spaces are fetched only when they can change the answer: not for
+    // full access, not once `manage:DeletedContent` has opened the page,
+    // and not for a member who could not create content in any space.
     const shouldCheckSpaces =
         !!user.data &&
         !!project &&
@@ -26,7 +32,12 @@ export const useProjectSettingsAccess = (project: Project | undefined) => {
         !(
             directAccess.type === 'limited' &&
             directAccess.pages.includes('recentlyDeleted')
-        );
+        ) &&
+        mayCreateContent({
+            ability: user.data.ability,
+            userUuid: user.data.userUuid,
+            project,
+        });
     const options = { enabled: shouldCheckSpaces };
     const canCreateCharts = useCreateInAnySpaceAccess(
         project?.projectUuid,

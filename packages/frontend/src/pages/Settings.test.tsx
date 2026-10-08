@@ -33,6 +33,8 @@ const renderSettings = (
     page: string,
     abilityRules: LightdashUserWithAbilityRules['abilityRules'],
     isSoftDeleteEnabled = true,
+    // A settings page outside the project's own; `page` is under it otherwise.
+    initialPath = `${base}/${page}`,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -92,7 +94,7 @@ const renderSettings = (
 
     return renderWithProviders(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={[`${base}/${page}`]}>
+            <MemoryRouter initialEntries={[initialPath]}>
                 <Location />
                 <SettingsMenu />
                 <Routes>
@@ -175,7 +177,12 @@ describe('limited project settings routes', () => {
     );
 
     it('preserves the recovery URL and shows an error when space access cannot be checked', async () => {
+        // The navbar menu and the settings page each observe the spaces
+        // query, and the page's observer refetches once the first attempt
+        // has failed: a single-use interceptor would turn that second
+        // request into a transport failure with a different message.
         nock(BASE_API_URL)
+            .persist()
             .get(`/api/v1/projects/${projectUuid}/spaces`)
             .reply(503, {
                 status: 'error',
@@ -200,8 +207,8 @@ describe('limited project settings routes', () => {
         ).toHaveTextContent(`${base}/recentlyDeleted`);
     });
 
-    it('shows no project settings entry to a Viewer', async () => {
-        nock(BASE_API_URL)
+    it('shows no project settings entry to a Viewer, without fetching the spaces', async () => {
+        const spaces = nock(BASE_API_URL)
             .get(`/api/v1/projects/${projectUuid}/spaces`)
             .reply(200, { status: 'ok', results: [] });
         renderSettings('recentlyDeleted', [viewProject]);
@@ -214,6 +221,39 @@ describe('limited project settings routes', () => {
         expect(screen.queryByTestId('settings-menu')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('link', { name: 'Recently deleted' }),
+        ).not.toBeInTheDocument();
+        // A viewer holds no create rule, so the spaces never decide anything.
+        expect(spaces.isDone()).toBe(false);
+        nock.cleanAll();
+    });
+
+    it('keeps other settings pages open while the space check fails', async () => {
+        nock(BASE_API_URL)
+            .persist()
+            .get(`/api/v1/projects/${projectUuid}/spaces`)
+            .reply(503, {
+                status: 'error',
+                error: {
+                    statusCode: 503,
+                    name: 'ServiceUnavailableError',
+                    message: 'Unable to check space access',
+                },
+            });
+        renderSettings(
+            'profile',
+            [
+                viewProject,
+                { action: 'create', subject: 'SavedChart', conditions: scope },
+            ],
+            true,
+            '/generalSettings/profile',
+        );
+
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Unable to check space access'),
         ).not.toBeInTheDocument();
     });
 

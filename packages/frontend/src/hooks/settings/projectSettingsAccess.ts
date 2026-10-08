@@ -1,6 +1,36 @@
 import { subject } from '@casl/ability';
-import { type Project } from '@lightdash/common';
+import { SpaceMemberRole, type Project } from '@lightdash/common';
 import { type UserWithAbility } from '../user/useUser';
+
+const CONTENT_SUBJECTS = ['SavedChart', 'Dashboard', 'Document'] as const;
+
+/**
+ * Whether the user holds any rule that could let them create content in
+ * this project: tried against a space they would edit, since the roles
+ * that create content (editors, interactive viewers, custom roles with a
+ * `@space` scope) are gated on space access. Viewers hold no such rule,
+ * so nothing is fetched on their behalf; for everyone else the project's
+ * real spaces decide (`useCreateInAnySpaceAccess`).
+ */
+export const mayCreateContent = ({
+    ability,
+    userUuid,
+    project,
+}: {
+    ability: UserWithAbility['ability'];
+    userUuid: string;
+    project: Pick<Project, 'organizationUuid' | 'projectUuid'>;
+}): boolean =>
+    CONTENT_SUBJECTS.some((contentSubject) =>
+        ability.can(
+            'create',
+            subject(contentSubject, {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+                access: [{ userUuid, role: SpaceMemberRole.EDITOR }],
+            }),
+        ),
+    );
 
 export type LimitedProjectSettingsPage = 'validator' | 'recentlyDeleted';
 
