@@ -116,6 +116,7 @@ const formSchema = z.object({
     enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
+    providerCredentialUuid: z.string().nullable(),
     version: z.number(),
     threadRetentionHours: z
         .number()
@@ -189,6 +190,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableSqlMode: true,
             adminOnly: false,
             modelConfig: null,
+            providerCredentialUuid: null,
             version: 2, // INFO: Default to v2 for now
             threadRetentionHours: null,
         },
@@ -225,6 +227,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 enableSqlMode: agent.enableSqlMode ?? true,
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
+                providerCredentialUuid: agent.providerCredentialUuid ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
                 threadRetentionHours: agent.threadRetentionHours ?? null,
             };
