@@ -290,6 +290,7 @@ describe('getOrganizationOverview', () => {
             headcount: 78,
             aboveHeadcount: 0,
             withoutHeadcount: 5,
+            hasHeadcountBelowSubDepartments: false,
         });
         expectLinesAddUp(tree);
     });
@@ -315,7 +316,10 @@ describe('getOrganizationOverview', () => {
         });
         // A headcount entered below the sub-departments' total, and people placed directly in a parent
         const uneven = [
-            d('People', null, 120, 61, 36, 0),
+            {
+                ...d('People', null, 120, 61, 36, 0),
+                headcountBelowChildren: true,
+            },
             d('Partners', 'People', 40, 18, 10),
             d('Learning', 'People', 20, 9, 6),
             d('Operations', 'People', 30, 15, 9),
@@ -329,7 +333,9 @@ describe('getOrganizationOverview', () => {
             withoutAccount: 64,
             headcount: 220,
             aboveHeadcount: 17,
+            hasHeadcountBelowSubDepartments: true,
         });
+        expect(overview(crowded).hasHeadcountBelowSubDepartments).toBe(false);
         [tree, over, crowded, uneven].forEach(expectLinesAddUp);
     });
     it('counts the people in top-level departments without a headcount on their own', () => {
@@ -365,6 +371,7 @@ describe('describeOrganizationOverview', () => {
         headcount: 5582,
         aboveHeadcount: 0,
         withoutHeadcount: 0,
+        hasHeadcountBelowSubDepartments: false,
     };
     it('says how many are placed and how many in headcount have no account', () => {
         expect(describeOrganizationOverview(base)).toEqual({
@@ -372,6 +379,26 @@ describe('describeOrganizationOverview', () => {
             withoutAccount: 'Without an account: 3,837 of 5,582 headcount',
             captions: [],
         });
+    });
+    it('says when part of what the headcount leaves out is a headcount below the sub-departments', () => {
+        expect(
+            describeOrganizationOverview({
+                ...base,
+                aboveHeadcount: 18,
+                hasHeadcountBelowSubDepartments: true,
+            }).captions,
+        ).toEqual([
+            "Excludes 18 people counted above their department's headcount or below its sub-departments' total",
+        ]);
+        expect(
+            describeOrganizationOverview({
+                ...base,
+                aboveHeadcount: 1,
+                hasHeadcountBelowSubDepartments: true,
+            }).captions,
+        ).toEqual([
+            "Excludes 1 person counted above their department's headcount or below its sub-departments' total",
+        ]);
     });
     it('says how many accounts the headcount leaves out', () => {
         expect(

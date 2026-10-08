@@ -299,6 +299,8 @@ export type OrganizationOverview = {
     // headcount, and people in top-level departments without one
     aboveHeadcount: number;
     withoutHeadcount: number;
+    // A headcount entered below its sub-departments' total also counts towards aboveHeadcount
+    hasHeadcountBelowSubDepartments: boolean;
 };
 
 // Totals reads the circles of the whole organization, as the legend does
@@ -330,6 +332,9 @@ export const getOrganizationOverview = (
             0,
         ),
         withoutHeadcount,
+        hasHeadcountBelowSubDepartments: departments.some(
+            (department) => department.headcountBelowChildren,
+        ),
     };
 };
 
@@ -347,15 +352,14 @@ export const describeOrganizationOverview = (
         return { placed, withoutAccount: null, captions: [] };
     }
     const { aboveHeadcount, withoutHeadcount } = overview;
+    const excluded = overview.hasHeadcountBelowSubDepartments
+        ? `Excludes ${plural(aboveHeadcount, 'person', 'people')} counted above their department's headcount or below its sub-departments' total`
+        : `Excludes ${plural(aboveHeadcount, 'account', 'accounts')} above their department's headcount`;
     return {
         placed,
         withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
         captions: [
-            ...(aboveHeadcount > 0
-                ? [
-                      `Excludes ${plural(aboveHeadcount, 'account', 'accounts')} above their department's headcount`,
-                  ]
-                : []),
+            ...(aboveHeadcount > 0 ? [excluded] : []),
             ...(withoutHeadcount > 0
                 ? [
                       withoutHeadcount === 1

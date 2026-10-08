@@ -273,6 +273,33 @@ describe('fitToArea', () => {
             6,
         );
     });
+    it('keeps circles at 70 % of their size or more when shrinking further still leaves labels out', () => {
+        // Thirty departments with long names in one panel: some labels never find room
+        const flat = Array.from({ length: 30 }, (_, index) =>
+            d(
+                `A department with a long name, number ${index}`,
+                null,
+                40 + index * 9,
+                10,
+                4,
+            ),
+        );
+        const first = Math.max(
+            ...fitToArea(buildPackInput(flat, null), PANEL).map(
+                (circle) => circle.r,
+            ),
+        );
+        const { circles, labels } = build(flat);
+        const labelled = new Set(labels.map((label) => label.id));
+        expect(
+            circles.some(
+                (circle) => circle.depth === 1 && !labelled.has(circle.id),
+            ),
+        ).toBe(true);
+        expect(
+            Math.max(...circles.map((circle) => circle.r)),
+        ).toBeGreaterThanOrEqual(first * 0.7 - 1e-9);
+    });
     it('draws nothing for an empty tree', () => {
         expect(fitToArea(buildPackInput([], null), PANEL)).toEqual([]);
     });
@@ -675,7 +702,8 @@ describe('placeLabels under small circles', () => {
         expect(label.box.width).toBeLessThanOrEqual(16 * 2 + 80);
     });
     it('moves a label down, away from its own circle, to clear another label', () => {
-        const left = placedCircle('Customer operations', 300, 200, 16);
+        // The first label reaches under the second circle's label, but not under the circle itself
+        const left = placedCircle('Customer operations', 280, 200, 16);
         const right = placedCircle('Revenue operations', 360, 200, 16);
         const labels = placeOn([left, right]);
         expect(labels.map((label) => label.id)).toEqual([
@@ -686,9 +714,30 @@ describe('placeLabels under small circles', () => {
         expect(boxesIntersect(first.box, second.box)).toBe(false);
         // The first keeps its spot right under its circle; the second moves further down, never across its own
         expect(first.box.y).toBeCloseTo(200 + 16 + 4, 6);
+        expect(second.placement).toBe('below');
         expect(second.box.y).toBeGreaterThan(200 + 16 + 4);
         expect(boxTouchesCircle(second.box, right, 1, 0)).toBe(false);
         expect(second.box.x + second.box.width / 2).toBeCloseTo(360, 6);
+    });
+    it('never moves a label past another label that sits between it and its circle', () => {
+        // Here the first label reaches under the second circle, so the second cannot move down past it
+        const left = placedCircle('Customer operations', 300, 200, 16);
+        const right = placedCircle('Revenue operations', 360, 200, 16);
+        const labels = placeOn([left, right]);
+        const second = labels.find(
+            (label) => label.id === 'Revenue operations',
+        );
+        expect(second?.placement).toBe('above');
+        expectCleanLabels([left, right], labels, PANEL);
+    });
+    it('tries the shorter wording under a circle before any wording over it', () => {
+        // The name and its numbers would touch the circle below; the name alone fits
+        const named = placedCircle('Wording department', 300, 200, 16);
+        const below = placedCircle('Below', 300, 255, 10);
+        const label = placeOn([named, below]).find(
+            (each) => each.id === 'Wording department',
+        );
+        expect(label).toMatchObject({ placement: 'below', detail: null });
     });
     it("puts a label above its circle when every spot under it is on another department's circle", () => {
         // The spots under Upper are on Lower's circle, or beyond it

@@ -45,7 +45,7 @@ const BASE_SPREAD = 1.08;
 const SPREAD_STEP = 1.12;
 const MAX_SPREAD_ATTEMPTS = 9;
 const MIN_SPREAD_SIZE_SHARE = 0.7;
-// Past that, spreading goes on only to make room for a top-level label still left out
+// Past that, spreading goes on only for an arrangement that leaves no top-level label out
 const MIN_SPREAD_SIZE_SHARE_TO_LABEL = 0.5;
 // A wide panel gets a wide arrangement, up to this ratio between the two directions
 const MAX_STRETCH_RATIO = 4;
@@ -479,7 +479,7 @@ const getCandidates = (
     placement: Placement,
 ): Candidate[] => {
     const { zoom, area, measure } = placement;
-    return texts.flatMap((text) => {
+    const byText = texts.map((text) => {
         const insideBox = placement.canGoInside(circle)
             ? getInsideBox(
                   circle,
@@ -494,30 +494,35 @@ const getCandidates = (
             getOutsideWidth(circle, zoom),
             measure,
         );
-        // Under the circle first; over it only when nothing under it is clear
-        const outsideCandidates =
+        const outsideOn = (side: 'below' | 'above') =>
             outside === null
                 ? []
-                : (['below', 'above'] as const).flatMap((side) =>
-                      NUDGE_OFFSETS.map((offset) =>
-                          getOutsideCandidate(
-                              circle,
-                              outside,
-                              side,
-                              offset,
-                              zoom,
-                              area,
-                              measure,
-                          ),
+                : NUDGE_OFFSETS.map((offset) =>
+                      getOutsideCandidate(
+                          circle,
+                          outside,
+                          side,
+                          offset,
+                          zoom,
+                          area,
+                          measure,
                       ),
                   );
-        return [
-            ...(insideBox === null
-                ? []
-                : [makeCandidate(circle, text, 'inside', insideBox, 0)]),
-            ...outsideCandidates,
-        ].filter((candidate) => placement.staysInGroup(circle, candidate.box));
+        return {
+            insideOrBelow: [
+                ...(insideBox === null
+                    ? []
+                    : [makeCandidate(circle, text, 'inside', insideBox, 0)]),
+                ...outsideOn('below'),
+            ],
+            above: outsideOn('above'),
+        };
     });
+    // Every wording inside or under the circle comes before any wording over it
+    return [
+        ...byText.flatMap((candidates) => candidates.insideOrBelow),
+        ...byText.flatMap((candidates) => candidates.above),
+    ].filter((candidate) => placement.staysInGroup(circle, candidate.box));
 };
 
 // Each label goes inside its circle when it fits, otherwise under it or, failing that, over it, moved
@@ -585,7 +590,8 @@ const placeAllLabels = (
             !placed.some(
                 (label) => label.id !== ownId && boxesOverlap(label.box, box),
             ),
-        // Nothing unrelated under the label, nor between a moved label and its own circle
+        // Nothing unrelated under the label, and no circle or other label between a moved label
+        // and its own circle
         isClear: (circle, candidate) => {
             const own = related.get(circle.id);
             const { box } = candidate;
@@ -599,12 +605,21 @@ const placeAllLabels = (
                 width: halfWidth * 2,
                 height: candidate.offset,
             };
-            return !circles.some(
-                (other) =>
-                    !own?.has(other.id) &&
-                    (boxTouchesCircle(box, other, zoom) ||
-                        (candidate.offset > 0 &&
-                            boxTouchesCircle(gap, other, zoom))),
+            const isGapTaken =
+                candidate.offset > 0 &&
+                placed.some(
+                    (label) =>
+                        label.id !== circle.id && boxesOverlap(label.box, gap),
+                );
+            return (
+                !isGapTaken &&
+                !circles.some(
+                    (other) =>
+                        !own?.has(other.id) &&
+                        (boxTouchesCircle(box, other, zoom) ||
+                            (candidate.offset > 0 &&
+                                boxTouchesCircle(gap, other, zoom))),
+                )
             );
         },
     };
@@ -776,15 +791,21 @@ export const layoutMap = ({
             circles,
             placeAllLabels(circles, describe(circles), 1, area, measure),
         );
-        // Fewer labels left out wins, then fewer without numbers; past the floor only the first counts
-        const isBetter =
-            best === null ||
-            shortfall.missing < best.missing ||
-            (!isPastFloor &&
-                shortfall.missing === best.missing &&
-                shortfall.withoutNumbers < best.withoutNumbers);
+        // Fewer labels left out wins, then fewer without numbers. Smaller than the usual floor, an
+        // arrangement is taken only when it leaves no top-level label out
+        const isBetter = isPastFloor
+            ? shortfall.missing === 0
+            : best === null ||
+              shortfall.missing < best.missing ||
+              (shortfall.missing === best.missing &&
+                  shortfall.withoutNumbers < best.withoutNumbers);
         if (isBetter) best = { circles, ...shortfall };
-        if (shortfall.missing === 0 && shortfall.withoutNumbers === 0) break;
+        if (
+            shortfall.missing === 0 &&
+            (isPastFloor || shortfall.withoutNumbers === 0)
+        ) {
+            break;
+        }
     }
     return best?.circles ?? [];
 };
