@@ -1,4 +1,8 @@
-import { type AnyType } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    type AnyType,
+} from '@lightdash/common';
 import {
     APICallError,
     asSchema,
@@ -3510,3 +3514,137 @@ describe('getDocumentNudgeOutcome', () => {
         });
     });
 });
+
+describe.each(['generate', 'stream'] as const)(
+    'AI access refusal callback in %s mode',
+    (mode) => {
+        const captureFinish = async (
+            callback: AiAgentDependencies['onAiAccessRefusal'],
+        ) => {
+            const dependencies = new Proxy(
+                buildAgentDependencies(vi.fn().mockResolvedValue(undefined)),
+                {
+                    get: (target, property) =>
+                        property === 'onAiAccessRefusal'
+                            ? callback
+                            : Reflect.get(target, property),
+                },
+            );
+            Object.assign(dependencies, {
+                consumePromptSteers: async () => [],
+            });
+            let options: AnyType;
+            if (mode === 'generate') {
+                vi.mocked(generateText).mockImplementationOnce((async (
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {
+                        text: 'Answer',
+                        steps: [{ usage: { totalTokens: 1 } }],
+                        finalStep: { usage: { totalTokens: 1 } },
+                        usage: { totalTokens: 1 },
+                        finishReason: 'stop',
+                    };
+                }) as AnyType);
+                await generateAgentResponse({
+                    args: buildAgentArgs(),
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                });
+            } else {
+                vi.mocked(streamText).mockImplementationOnce(((
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {};
+                }) as AnyType);
+                await streamAgentResponse({
+                    args: buildAgentArgs(),
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                });
+            }
+            return (
+                toolOutput:
+                    | { type: 'tool-result'; output: unknown }
+                    | { type: 'tool-error'; error: unknown },
+            ) =>
+                options.experimental_onToolCallFinish({
+                    stepNumber: 0,
+                    messages: [],
+                    toolCall: {
+                        toolCallId: 'call-1',
+                        toolName: 'runQuery',
+                        input: {},
+                    },
+                    toolOutput: {
+                        toolCallId: 'call-1',
+                        toolName: 'runQuery',
+                        input: {},
+                        ...toolOutput,
+                    },
+                    toolExecutionMs: 1,
+                });
+        };
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+            { connectUrl: 'https://example.com/connect' },
+        );
+
+        it('reports a returned structured refusal synchronously', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({
+                type: 'tool-result',
+                output: {
+                    result: 'Unrelated model text',
+                    structuredContent: { refusal: error.refusal },
+                },
+            });
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+
+        it('reports a thrown access refusal synchronously', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({ type: 'tool-error', error });
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+
+        it('ignores ordinary errors, text-only refusals and invalid structured content', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({ type: 'tool-error', error: new Error(error.message) });
+            finish({
+                type: 'tool-result',
+                output: { result: JSON.stringify(error.refusal) },
+            });
+            finish({
+                type: 'tool-result',
+                output: {
+                    structuredContent: { refusal: { message: error.message } },
+                },
+            });
+            finish({
+                type: 'tool-result',
+                output: { structuredContent: { refusal: null } },
+            });
+            expect(callback).not.toHaveBeenCalled();
+        });
+
+        it('allows an absent callback', async () => {
+            const finish = await captureFinish(undefined);
+            expect(() => finish({ type: 'tool-error', error })).not.toThrow();
+        });
+
+        it('keeps the tool loop running if the callback throws', async () => {
+            const callback = vi.fn(() => {
+                throw new Error('Callback failed');
+            });
+            const finish = await captureFinish(callback);
+            expect(() => finish({ type: 'tool-error', error })).not.toThrow();
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+    },
+);

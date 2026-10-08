@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusal,
+    AiAccessRefusalAction,
     AiAgent,
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
@@ -29,6 +31,67 @@ import {
     deduplicateSlackArtifacts,
     getLegacySlackArtifactImage,
 } from './slackArtifactIdentity';
+
+const isEligibleSlackAiAccessRefusal = (refusal: AiAccessRefusal): boolean =>
+    (refusal.action === AiAccessRefusalAction.SIGN_IN &&
+        typeof refusal.connectUrl === 'string' &&
+        refusal.connectUrl.trim().length > 0) ||
+    (refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
+        typeof refusal.settingsUrl === 'string' &&
+        refusal.settingsUrl.trim().length > 0);
+
+export const selectSlackAiAccessRefusal = (
+    current: AiAccessRefusal | null,
+    incoming: AiAccessRefusal,
+): AiAccessRefusal | null => {
+    if (!isEligibleSlackAiAccessRefusal(incoming)) return current;
+    if (
+        current === null ||
+        (current.action === AiAccessRefusalAction.ASK_ADMIN &&
+            incoming.action === AiAccessRefusalAction.SIGN_IN)
+    ) {
+        return incoming;
+    }
+    return current;
+};
+
+export const getAiAccessRefusalBlocks = (
+    refusal: AiAccessRefusal | null,
+    siteUrl: string,
+): KnownBlock[] => {
+    if (refusal === null || !isEligibleSlackAiAccessRefusal(refusal)) return [];
+    const isSignIn = refusal.action === AiAccessRefusalAction.SIGN_IN;
+    const refusalUrl = isSignIn ? refusal.connectUrl : refusal.settingsUrl;
+    if (refusalUrl === null) return [];
+    const url =
+        !isSignIn && !URL.canParse(refusalUrl)
+            ? new URL(refusalUrl, siteUrl).href
+            : refusalUrl;
+    return [
+        {
+            type: 'section',
+            text: { type: 'plain_text', text: refusal.message },
+        },
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: isSignIn
+                        ? 'ai_access_connect'
+                        : 'ai_access_settings',
+                    text: {
+                        type: 'plain_text',
+                        text: isSignIn
+                            ? 'Connect agent'
+                            : 'Open agent settings',
+                    },
+                    url,
+                },
+            ],
+        },
+    ];
+};
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
 

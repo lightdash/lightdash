@@ -154,6 +154,7 @@ import {
     syntheticTextTransform,
 } from '../utils/GeneratedResponseBlocks';
 import { renderMemoryBlock } from '../utils/memoryBlock';
+import { getAiAccessRefusalFromToolFinish } from '../utils/slackAiAccessRefusals';
 import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
 import {
     isErrorToolResult,
@@ -1074,6 +1075,19 @@ const getMcpToolResultErrorText = (output: unknown): string | null => {
           )?.text
         : undefined;
     return typeof text === 'string' ? text.slice(0, 500) : 'MCP tool error';
+};
+
+const notifyAiAccessRefusal = (
+    dependencies: AiAgentDependencies,
+    event: OnToolCallFinishEvent,
+) => {
+    const refusal = getAiAccessRefusalFromToolFinish(event);
+    if (refusal === null) return;
+    try {
+        dependencies.onAiAccessRefusal?.(refusal);
+    } catch (error) {
+        Logger.warn('Failed to notify AI access refusal', error);
+    }
 };
 
 // Mirrors McpService.recordToolCall for the opposite direction: a Lightdash
@@ -2994,6 +3008,7 @@ export const generateAgentResponse = async ({
                 );
             },
             experimental_onToolCallFinish: (event) => {
+                notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
                     event.toolCall.toolCallId,
@@ -3423,6 +3438,7 @@ export const streamAgentResponse = async ({
             allowSystemInMessages: true,
             messages,
             experimental_onToolCallFinish: (event) => {
+                notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
             onChunk: (event) => {

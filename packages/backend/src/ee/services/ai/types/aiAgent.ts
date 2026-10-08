@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusal,
     AiAgent,
     AiAgentDocumentContext,
     AiDeepResearchBudget,
@@ -336,7 +337,10 @@ export type PerformanceMetrics = {
     ) => void;
 };
 
+export type OnAiAccessRefusal = (refusal: AiAccessRefusal) => void;
+
 export type AiAgentDependencies = {
+    onAiAccessRefusal?: OnAiAccessRefusal;
     chartExportArtifacts?: ArtifactChartExportAccess;
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
