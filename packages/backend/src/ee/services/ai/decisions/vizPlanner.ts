@@ -9,6 +9,7 @@ import {
     VizAggregationOptions,
     type AllVizChartConfig,
     type AnyType,
+    type ComposerChartKind,
     type ComposerVizKind,
     type ComposerVizPlan,
     type ResultColumn,
@@ -371,22 +372,26 @@ const getQuestions = (
 
 // A series split sums numeric values per x and series.
 const fieldConfig = (
+    kind: ComposerChartKind,
     x: ResultColumn | null,
     y: ResultColumn,
     groupBy: ResultColumn | null = null,
 ) =>
-    getComposerFieldConfig({
-        x,
-        y,
-        seriesSplit: groupBy
-            ? {
-                  groupBy,
-                  aggregation: isNumeric(y)
-                      ? VizAggregationOptions.SUM
-                      : VizAggregationOptions.ANY,
-              }
-            : null,
-    });
+    getComposerFieldConfig(
+        {
+            x,
+            y,
+            seriesSplit: groupBy
+                ? {
+                      groupBy,
+                      aggregation: isNumeric(y)
+                          ? VizAggregationOptions.SUM
+                          : VizAggregationOptions.ANY,
+                  }
+                : null,
+        },
+        kind,
+    );
 
 const resolveGroupBy = (
     answer: DecisionAnswers[string] | undefined,
@@ -464,7 +469,7 @@ export const getVizConfigFromAnswers = ({
     if (kind === 'big_number') {
         return buildComposerVizConfig({
             kind,
-            fieldConfig: fieldConfig(null, y),
+            fieldConfig: fieldConfig(kind, null, y),
         });
     }
 
@@ -489,7 +494,7 @@ export const getVizConfigFromAnswers = ({
               );
     return buildComposerVizConfig({
         kind,
-        fieldConfig: fieldConfig(x, y, groupBy),
+        fieldConfig: fieldConfig(kind, x, y, groupBy),
     });
 };
 

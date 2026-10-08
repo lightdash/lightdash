@@ -30,6 +30,7 @@ const build = (kind: Parameters<typeof buildComposerChartSpec>[0]['kind']) =>
         rows,
         x: kind === 'big_number' ? null : status,
         y: [n],
+        sort: null,
         colors,
     });
 
@@ -75,6 +76,7 @@ describe('buildComposerChartSpec', () => {
             rows: [rows[0]],
             x: null,
             y: [n],
+            sort: null,
             colors,
         });
         expect(spec).toEqual({
@@ -96,6 +98,7 @@ describe('buildComposerChartSpec with two values', () => {
             ],
             x: status,
             y: [n, m],
+            sort: null,
             colors,
         });
         if (spec.kind !== 'echarts') throw new Error('expected ECharts');

@@ -5,10 +5,12 @@ import { ChartKind } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import {
     getColumnAxisType,
+    SortByDirection,
     VizAggregationOptions,
     type AllVizChartConfig,
     type PivotChartData,
     type PivotChartLayout,
+    type VizSortBy,
 } from '../../visualizations/types';
 
 /** How a displayed node result renders: the table or a chart kind. */
@@ -266,29 +268,41 @@ export const getComposerVizPlan = ({
     return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
 };
 
-/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
-export const getComposerFieldConfig = ({
-    x,
-    y,
-    seriesSplit,
-}: ComposerVizAxes): PivotChartLayout => ({
-    x: x
-        ? { reference: x.reference, type: getColumnAxisType(x.type) }
-        : undefined,
-    y: [
-        {
-            reference: y.reference,
-            aggregation: seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
-        },
-    ],
-    groupBy: seriesSplit ? [{ reference: seriesSplit.groupBy.reference }] : [],
-});
+/**
+ * The x sort a kind opens with: a line always reads left to right, and a bar
+ * over dates reads in time. Categorical bars and pies keep the query order.
+ */
+export const getComposerDefaultSort = (
+    kind: ComposerChartKind,
+    x: ResultColumn | null,
+): VizSortBy[] | undefined =>
+    x && (kind === 'line' || (kind === 'bar' && isTemporal(x)))
+        ? [{ reference: x.reference, direction: SortByDirection.ASC }]
+        : undefined;
 
-/** Field config for the pivoted re-run of a series split; null without one. */
-export const getComposerSeriesSplitLayout = (
-    axes: ComposerVizAxes,
-): PivotChartLayout | null =>
-    axes.x && axes.seriesSplit ? getComposerFieldConfig(axes) : null;
+/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
+export const getComposerFieldConfig = (
+    { x, y, seriesSplit }: ComposerVizAxes,
+    kind: ComposerChartKind,
+): PivotChartLayout => {
+    const sortBy = getComposerDefaultSort(kind, x);
+    return {
+        x: x
+            ? { reference: x.reference, type: getColumnAxisType(x.type) }
+            : undefined,
+        y: [
+            {
+                reference: y.reference,
+                aggregation:
+                    seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
+            },
+        ],
+        groupBy: seriesSplit
+            ? [{ reference: seriesSplit.groupBy.reference }]
+            : [],
+        ...(sortBy ? { sortBy } : {}),
+    };
+};
 
 export const buildComposerVizConfig = ({
     kind,
@@ -332,15 +346,47 @@ export const buildComposerVizConfig = ({
     }
 };
 
+const isMissing = (value: unknown) => value === null || value === undefined;
+
+const compareValues = (a: unknown, b: unknown, temporal: boolean) => {
+    if (temporal) {
+        const [ta, tb] = [a, b].map((v) =>
+            v instanceof Date ? v.getTime() : Date.parse(String(v)),
+        );
+        if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
+    }
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b));
+};
+
+/** Rows ordered by x; nulls last either way. */
+const sortRowsByX = (
+    rows: RawResultRow[],
+    x: ResultColumn,
+    direction: SortByDirection,
+): RawResultRow[] => {
+    const sign = direction === SortByDirection.ASC ? 1 : -1;
+    const temporal = isTemporal(x);
+    return [...rows].sort((a, b) => {
+        const [va, vb] = [a[x.reference], b[x.reference]];
+        if (isMissing(va) || isMissing(vb))
+            return Number(isMissing(va)) - Number(isMissing(vb));
+        return sign * compareValues(va, vb, temporal);
+    });
+};
+
 /** Chart data straight from the fetched rows: x as the index (none for a big number), each y as a value. No aggregation, no server call. */
 export const buildComposerChartData = ({
     rows,
     x,
     y,
+    sort,
 }: {
     rows: RawResultRow[];
     x: ResultColumn | null;
     y: ResultColumn[];
+    /** Order of the x axis; null keeps the rows as they come. */
+    sort: SortByDirection | null;
 }): {
     data: PivotChartData;
     layout: PivotChartLayout;
@@ -348,11 +394,12 @@ export const buildComposerChartData = ({
     const index = x
         ? { reference: x.reference, type: getColumnAxisType(x.type) }
         : undefined;
+    const ordered = x && sort ? sortRowsByX(rows, x, sort) : rows;
     return {
         data: {
             queryUuid: undefined,
             fileUrl: undefined,
-            results: rows.map((row) =>
+            results: ordered.map((row) =>
                 Object.fromEntries(
                     [...(x ? [x] : []), ...y].map((column) => [
                         column.reference,

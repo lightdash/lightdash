@@ -3,13 +3,14 @@ import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import { type RawResultRow, type ResultColumn } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import {
+    SortByDirection,
     VizAggregationOptions,
     VizIndexType,
     type AllVizChartConfig,
 } from '../../visualizations/types';
 import {
     buildComposerChartData,
-    getComposerSeriesSplitLayout,
+    getComposerFieldConfig,
     getComposerVizPlan,
 } from './composerViz';
 
@@ -395,7 +396,7 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
                 },
             });
             expect(result.axes.bar).toEqual(result.axes.line);
-            expect(getComposerSeriesSplitLayout(result.axes.line!)).toEqual({
+            expect(getComposerFieldConfig(result.axes.line!, 'line')).toEqual({
                 x: { reference: 'month', type: VizIndexType.TIME },
                 y: [
                     {
@@ -404,6 +405,9 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
                     },
                 ],
                 groupBy: [{ reference: 'region' }],
+                sortBy: [
+                    { reference: 'month', direction: SortByDirection.ASC },
+                ],
             });
         });
 
@@ -423,12 +427,14 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
                 },
                 display: undefined,
             });
-            expect(getComposerSeriesSplitLayout(result.axes.line!)?.y).toEqual([
-                {
-                    reference: 'revenue',
-                    aggregation: VizAggregationOptions.MAX,
-                },
-            ]);
+            expect(getComposerFieldConfig(result.axes.line!, 'line').y).toEqual(
+                [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.MAX,
+                    },
+                ],
+            );
         });
 
         test('a stored groupBy whose column is gone falls back to the column-type default', () => {
@@ -444,8 +450,61 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
                 }),
             );
             expect(result.defaultKind).toBe('table');
-            expect(getComposerSeriesSplitLayout(result.axes.line!)).toBeNull();
+            expect(result.axes.line?.seriesSplit).toBeNull();
         });
+    });
+});
+
+describe('getComposerFieldConfig', () => {
+    const axes = (x: ResultColumn | null) => ({
+        x,
+        y: column('n', DimensionType.NUMBER),
+        seriesSplit: null,
+    });
+    const asc = (reference: string) => [
+        { reference, direction: SortByDirection.ASC },
+    ];
+
+    test('a line opens sorted by x ascending whatever the x type', () => {
+        expect(
+            getComposerFieldConfig(
+                axes(column('status', DimensionType.STRING)),
+                'line',
+            ).sortBy,
+        ).toEqual(asc('status'));
+    });
+
+    test('a bar opens sorted only over a date or timestamp x', () => {
+        expect(
+            getComposerFieldConfig(
+                axes(column('day', DimensionType.DATE)),
+                'bar',
+            ).sortBy,
+        ).toEqual(asc('day'));
+        expect(
+            getComposerFieldConfig(
+                axes(column('at', DimensionType.TIMESTAMP)),
+                'bar',
+            ).sortBy,
+        ).toEqual(asc('at'));
+        expect(
+            getComposerFieldConfig(
+                axes(column('status', DimensionType.STRING)),
+                'bar',
+            ),
+        ).not.toHaveProperty('sortBy');
+    });
+
+    test('a pie and a big number keep the query order', () => {
+        expect(
+            getComposerFieldConfig(
+                axes(column('status', DimensionType.STRING)),
+                'pie',
+            ),
+        ).not.toHaveProperty('sortBy');
+        expect(
+            getComposerFieldConfig(axes(null), 'big_number'),
+        ).not.toHaveProperty('sortBy');
     });
 });
 
@@ -458,6 +517,7 @@ describe('buildComposerChartData', () => {
             ],
             x: column('day', DimensionType.DATE),
             y: [column('n', DimensionType.NUMBER)],
+            sort: null,
         });
         expect(data.results).toEqual([
             { day: '2024-01-01', n: 3 },
@@ -477,6 +537,7 @@ describe('buildComposerChartData', () => {
             rows: [{ n: 3, status: 'a' }],
             x: null,
             y: [column('n', DimensionType.NUMBER)],
+            sort: null,
         });
         expect(data.results).toEqual([{ n: 3 }]);
         expect(data.indexColumn).toBeUndefined();
@@ -492,6 +553,7 @@ describe('buildComposerChartData', () => {
                 column('n', DimensionType.NUMBER),
                 column('m', DimensionType.NUMBER),
             ],
+            sort: null,
         });
         expect(data.results).toEqual([{ status: 'a', n: 3, m: 4 }]);
         expect(data.valuesColumns.map((c) => c.pivotColumnName)).toEqual([
@@ -500,5 +562,38 @@ describe('buildComposerChartData', () => {
         ]);
         expect(data.columnCount).toBe(3);
         expect(layout.y.map((y) => y.reference)).toEqual(['n', 'm']);
+    });
+
+    test('a sort orders the rows by x, dates by time and nulls last', () => {
+        const rows = [
+            { day: '2024-02-01', n: 1 },
+            { day: null, n: 2 },
+            { day: '2024-01-15', n: 3 },
+            { day: '2024-01-02', n: 4 },
+        ];
+        const x = column('day', DimensionType.DATE);
+        const y = [column('n', DimensionType.NUMBER)];
+        const order = (sort: SortByDirection | null) =>
+            buildComposerChartData({ rows, x, y, sort }).data.results.map(
+                (row) => row.n,
+            );
+        expect(order(SortByDirection.ASC)).toEqual([4, 3, 1, 2]);
+        expect(order(SortByDirection.DESC)).toEqual([1, 3, 4, 2]);
+        expect(order(null)).toEqual([1, 2, 3, 4]);
+    });
+
+    test('a numeric x sorts by value, not by text', () => {
+        const rows = [
+            { rank: 10, n: 1 },
+            { rank: 9, n: 2 },
+            { rank: 100, n: 3 },
+        ];
+        const { data } = buildComposerChartData({
+            rows,
+            x: column('rank', DimensionType.NUMBER),
+            y: [column('n', DimensionType.NUMBER)],
+            sort: SortByDirection.ASC,
+        });
+        expect(data.results.map((row) => row.rank)).toEqual([9, 10, 100]);
     });
 });
