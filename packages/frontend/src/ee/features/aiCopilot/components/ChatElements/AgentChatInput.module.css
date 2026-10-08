@@ -37,10 +37,9 @@
     min-width: 0;
 }
 
-@media (max-width: 48em) {
-    .toolbarSelectors {
-        overflow: hidden;
-    }
+/* Compact follows the agent's container width, not the viewport */
+.toolbarSelectors[data-compact='true'] {
+    overflow: hidden;
 }
 
 .controlsReveal {

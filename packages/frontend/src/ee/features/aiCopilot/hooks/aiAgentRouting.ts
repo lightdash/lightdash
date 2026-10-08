@@ -1,12 +1,8 @@
-export const isEmbedAiAgentRoute = () =>
-    typeof window !== 'undefined' &&
-    window.location.pathname.startsWith('/embed/');
-
 export const getAiAgentApiBase = (projectUuid: string) =>
     `/projects/${projectUuid}/aiAgents`;
 
-export const getAiAgentPageBase = (projectUuid: string) =>
-    isEmbedAiAgentRoute()
+export const getAiAgentPageBase = (projectUuid: string, isEmbed: boolean) =>
+    isEmbed
         ? `/embed/${projectUuid}/ai-agents`
         : `/projects/${projectUuid}/ai-agents`;
 
@@ -14,7 +10,9 @@ export const getAiAgentThreadPath = (
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
-) => `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads/${threadUuid}`;
+    isEmbed: boolean,
+) =>
+    `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${threadUuid}`;
 
 /** Where an embedded AI agent opens a saved dashboard it references. */
 export const getEmbedAiAgentDashboardPath = (

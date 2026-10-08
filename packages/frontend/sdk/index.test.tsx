@@ -269,6 +269,66 @@ vi.mock('../src/pages/MetricsCatalog', async () => {
     };
 });
 
+vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
+    const { Outlet, useParams } = await import('react-router');
+    const { default: useIsEmbedded } =
+        await import('../src/ee/providers/Embed/useIsEmbedded');
+
+    return {
+        default: function MockAgentPage() {
+            const { agentUuid } = useParams();
+            const isEmbedded = useIsEmbedded();
+            return (
+                <div
+                    data-testid="agent-page"
+                    data-agent-uuid={agentUuid}
+                    data-embedded={String(isEmbedded)}
+                >
+                    <Outlet />
+                </div>
+            );
+        },
+    };
+});
+
+vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
+    const { useParams } = await import('react-router');
+    const { useEmitEmbedAiAgentThreadChange } =
+        await import('../src/ee/features/aiCopilot/hooks/embedAiAgentThreadChange');
+
+    return {
+        default: function MockAiAgentNewThreadPage() {
+            const { projectUuid, agentUuid } = useParams();
+            const emitThreadChange = useEmitEmbedAiAgentThreadChange();
+            return (
+                <button
+                    data-testid="agent-new-thread"
+                    onClick={() =>
+                        emitThreadChange({
+                            projectUuid: projectUuid!,
+                            agentUuid: agentUuid!,
+                            threadUuid: 'created-thread-uuid',
+                        })
+                    }
+                />
+            );
+        },
+    };
+});
+
+vi.mock('../src/ee/pages/AiAgents/AgentThreadPage', async () => {
+    const { useParams } = await import('react-router');
+
+    return {
+        default: function MockAgentThreadPage() {
+            const { threadUuid } = useParams();
+            return (
+                <div data-testid="agent-thread" data-thread-uuid={threadUuid} />
+            );
+        },
+    };
+});
+
 vi.mock('../src/hooks/health/useHealth', () => ({
     default: () => ({ data: undefined }),
 }));
@@ -955,6 +1015,157 @@ describe('SDK AI agent', () => {
             expect(onThreadChange).toHaveBeenCalledWith({
                 threadUuid: 'test-thread-uuid',
             });
+        });
+    });
+});
+
+describe('SDK native AI agent', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJhaUFnZW50IiwicHJvamVjdFV1aWQiOiJ0ZXN0LXByb2plY3QtdXVpZCIsImFnZW50VXVpZCI6InRlc3QtYWdlbnQtdXVpZCJ9fQ.test';
+    const mockInstanceUrl = 'http://localhost:3000';
+
+    beforeEach(() => {
+        mockNavigate.mockClear();
+    });
+
+    afterEach(() => {
+        mockNavigate.mockClear();
+    });
+
+    it('renders the agent in the host page instead of an iframe', async () => {
+        const { container, findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const agentPage = await findByTestId('agent-page');
+        expect(agentPage.getAttribute('data-agent-uuid')).toBe(
+            'test-agent-uuid',
+        );
+        expect(agentPage.getAttribute('data-embedded')).toBe('true');
+        expect(await findByTestId('agent-new-thread')).toBeTruthy();
+        expect(container.querySelector('iframe')).toBeNull();
+    });
+
+    it('opens the thread passed by the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const thread = await findByTestId('agent-thread');
+        expect(thread.getAttribute('data-thread-uuid')).toBe(
+            'test-thread-uuid',
+        );
+    });
+
+    it('reports thread changes to onThreadChange', async () => {
+        const onThreadChange = vi.fn();
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onThreadChange={onThreadChange}
+                renderMode="native"
+            />,
+        );
+
+        fireEvent.click(await findByTestId('agent-new-thread'));
+
+        expect(onThreadChange).toHaveBeenCalledWith({
+            threadUuid: 'created-thread-uuid',
+        });
+    });
+
+    it.each(['iframe', 'native'] as const)(
+        'reports an invalid token to onError in %s mode',
+        async (renderMode) => {
+            const onError = vi.fn();
+            render(
+                <AiAgent
+                    token="not-a-jwt"
+                    instanceUrl={mockInstanceUrl}
+                    agentUuid="test-agent-uuid"
+                    renderMode={renderMode}
+                    onError={onError}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(onError).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        kind: 'invalid_token',
+                        fatal: true,
+                    }),
+                );
+            });
+        },
+    );
+
+    it('opens a new thread when the host clears threadUuid', async () => {
+        const { findByTestId, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-thread');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads',
+            );
+        });
+    });
+
+    it('follows a threadUuid change from the host', async () => {
+        const { findByTestId, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-new-thread');
+        expect(mockNavigate).not.toHaveBeenCalled();
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="other-thread-uuid"
+                renderMode="native"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads/other-thread-uuid',
+            );
         });
     });
 });

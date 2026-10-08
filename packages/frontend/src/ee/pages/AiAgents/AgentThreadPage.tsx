@@ -21,8 +21,7 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../features/aiCopilot/deepResearch/types';
-import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
-import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
+import { useEmitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
@@ -54,13 +53,15 @@ import {
 } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, promptUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
+    const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const { user } = useApp();
 
     const {
@@ -79,7 +80,14 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             agentUuid,
             threadUuid,
         });
-    }, [agentUuid, isEmbed, projectUuid, thread, threadUuid]);
+    }, [
+        agentUuid,
+        emitEmbedAiAgentThreadChange,
+        isEmbed,
+        projectUuid,
+        thread,
+        threadUuid,
+    ]);
 
     // Pull requests the coding agent has opened in this thread (its workstreams).
     const { data: workstreams } = useAiAgentThreadWorkstreams(

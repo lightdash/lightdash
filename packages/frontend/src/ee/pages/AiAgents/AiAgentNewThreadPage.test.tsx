@@ -10,9 +10,14 @@ import { PendingPromptProvider } from '../../features/aiCopilot/components/Pendi
 import { store } from '../../features/aiCopilot/store';
 import AiAgentNewThreadPage from './AiAgentNewThreadPage';
 
-const { composerProps, access } = vi.hoisted(() => ({
+const { composerProps, access, embed } = vi.hoisted(() => ({
     composerProps: vi.fn(),
     access: { isLoading: false, isError: false, disabled: false },
+    embed: { isEmbedded: false },
+}));
+
+vi.mock('../../providers/Embed/useIsEmbedded', () => ({
+    default: () => embed.isEmbedded,
 }));
 
 vi.mock('../../../features/aiAccess/useAiAccessGate', () => ({
@@ -115,7 +120,7 @@ const agent = {
 
 const renderPage = (isEmbed: boolean, agentCount: number) => {
     const path = `${isEmbed ? '/embed' : '/projects'}/project-1/ai-agents/${agent.uuid}/threads`;
-    window.history.replaceState(null, '', path);
+    embed.isEmbedded = isEmbed;
     const agents = Array.from({ length: agentCount }, (_, index) => ({
         ...agent,
         uuid: `agent-${index + 1}`,
@@ -152,7 +157,7 @@ const renderPage = (isEmbed: boolean, agentCount: number) => {
 
 describe('AiAgentNewThreadPage embed controls', () => {
     afterEach(() => {
-        window.history.replaceState(null, '', '/');
+        embed.isEmbedded = false;
         vi.clearAllMocks();
         access.isLoading = false;
         access.isError = false;

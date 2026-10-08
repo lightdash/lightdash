@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { getEmbedExploreSearch } from '../../embed/embedNavigation';
-import {
-    getEmbedAiAgentDashboardPath,
-    isEmbedAiAgentRoute,
-} from './aiAgentRouting';
+import { getEmbedAiAgentDashboardPath } from './aiAgentRouting';
 import { useChatBackUrl } from './useChatBackUrl';
 
 /**
@@ -18,7 +16,7 @@ export const useEmbedAiAgentDashboardOpener = (
     const navigate = useNavigate();
     const getBackUrl = useChatBackUrl();
     const { agentUuid } = useParams<{ agentUuid: string }>();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     const open = useCallback(
         (dashboardUuid: string, anchorId: string | null) => {

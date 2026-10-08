@@ -17,11 +17,11 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
@@ -48,7 +48,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
     }) => {
         const dispatch = useAiAgentStoreDispatch();
         const { breakpoints } = useMantineTheme();
-        const isMobile = useMediaQuery('(max-width: 768px)');
+        const isMobile = useAgentMaxWidth(768);
 
         if (!dashboardConfig?.visualizations) {
             return (

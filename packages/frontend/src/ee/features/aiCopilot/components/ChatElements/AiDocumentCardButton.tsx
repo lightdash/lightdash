@@ -4,7 +4,7 @@ import { type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDocument } from '../../../../../features/documents/useDocument';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -50,7 +50,7 @@ export const AiDocumentCardButton: FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const currentPreview = useAiAgentStoreSelector(selectPreview);
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     // Opens in the side panel like chart artifacts; modified clicks keep the link
     const openPreview = (event: MouseEvent<HTMLAnchorElement>) => {

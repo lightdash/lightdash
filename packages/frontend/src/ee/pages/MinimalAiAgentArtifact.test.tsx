@@ -60,8 +60,8 @@ vi.mock('../../hooks/useExplore', () => ({
     useExplore: mocks.useExplore,
 }));
 
-vi.mock('../features/aiCopilot/hooks/aiAgentRouting', () => ({
-    isEmbedAiAgentRoute: () => false,
+vi.mock('../providers/Embed/useIsEmbedded', () => ({
+    default: () => false,
 }));
 
 vi.mock('../../components/MetricQueryData/MetricQueryDataProvider', () => ({

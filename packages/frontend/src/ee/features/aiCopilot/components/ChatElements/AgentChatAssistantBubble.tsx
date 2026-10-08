@@ -47,7 +47,7 @@ import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon'
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -1069,8 +1069,9 @@ export const AssistantBubble: FC<Props> = memo(
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
         const ability = useAbilityContext();
+        const isEmbed = useIsEmbedded();
         const canViewDebugInfo =
-            !isEmbedAiAgentRoute() || ability.can('view', 'EmbedAiAgentDebug');
+            !isEmbed || ability.can('view', 'EmbedAiAgentDebug');
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug && canViewDebugInfo);
         const battle = useBattleMessage(message.uuid);
