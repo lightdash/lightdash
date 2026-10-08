@@ -25,16 +25,19 @@ const resolveOne = (
         new Set(row.groupLinks.map((l) => l.departmentUuid)),
     ).sort();
     // Most specific wins: drop any candidate that is an ancestor of another.
-    // A lone candidate is never its own ancestor, so it needs no walk
-    const mostSpecific =
-        candidates.length < 2
-            ? candidates
-            : candidates.filter(
-                  (c) =>
-                      !candidates.some(
-                          (other) => other !== c && ancestorsOf(other).has(c),
-                      ),
-              );
+    // One walk up from each candidate marks the candidates it passes, so the cost grows linearly
+    const candidateSet = new Set(candidates);
+    const coveredBy = new Map<string, string>();
+    if (candidates.length > 1) {
+        candidates.forEach((other) =>
+            ancestorsOf(other).forEach((ancestor) => {
+                if (ancestor !== other && candidateSet.has(ancestor)) {
+                    coveredBy.set(ancestor, other);
+                }
+            }),
+        );
+    }
+    const mostSpecific = candidates.filter((c) => !coveredBy.has(c));
     if (mostSpecific.length === 1) {
         const [departmentUuid] = mostSpecific;
         const [firstGroupName] = row.groupLinks

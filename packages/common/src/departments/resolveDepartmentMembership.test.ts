@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { type ResolvedMemberRow } from '../types/departments';
+import {
+    type DepartmentMembership,
+    type MembershipResolution,
+    type ResolvedMemberRow,
+} from '../types/departments';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
-import { rollUpByDepartment } from './departmentTree';
+import {
+    getAncestorUuids,
+    getParentMap,
+    rollUpByDepartment,
+    type DepartmentTreeNode,
+} from './departmentTree';
 import {
     getDirectMembersByDepartment,
     resolveDepartmentMembership,
@@ -200,5 +209,220 @@ describe('resolution on very deep and very wide trees', () => {
             kind: 'assigned',
             departmentUuid: 'c0042',
         });
+    });
+});
+
+// The pairwise version the one-pass collapse replaced, kept to prove they give the same answers
+const pairwiseResolveOne = (
+    member: ResolvedMemberRow,
+    ancestorsOf: (departmentUuid: string) => Set<string>,
+): MembershipResolution => {
+    if (member.explicitDepartmentUuid !== null) {
+        return {
+            kind: 'assigned',
+            departmentUuid: member.explicitDepartmentUuid,
+            source: 'explicit',
+            sourceGroupName: null,
+        };
+    }
+    const candidates = Array.from(
+        new Set(member.groupLinks.map((l) => l.departmentUuid)),
+    ).sort();
+    const mostSpecific =
+        candidates.length < 2
+            ? candidates
+            : candidates.filter(
+                  (c) =>
+                      !candidates.some(
+                          (other) => other !== c && ancestorsOf(other).has(c),
+                      ),
+              );
+    if (mostSpecific.length === 1) {
+        const [departmentUuid] = mostSpecific;
+        const [firstGroupName] = member.groupLinks
+            .filter((l) => l.departmentUuid === departmentUuid)
+            .map((l) => l.groupName)
+            .sort();
+        return {
+            kind: 'assigned',
+            departmentUuid,
+            source: 'group',
+            sourceGroupName: firstGroupName ?? null,
+        };
+    }
+    if (mostSpecific.length > 1) {
+        return { kind: 'conflict', departmentUuids: mostSpecific };
+    }
+    return { kind: 'unassigned' };
+};
+
+const pairwiseResolveDepartmentMembership = (
+    rows: ResolvedMemberRow[],
+    nodes: DepartmentTreeNode[],
+): DepartmentMembership[] => {
+    const parentMap = getParentMap(nodes);
+    const ancestorSets = new Map<string, Set<string>>();
+    const ancestorsOf = (departmentUuid: string): Set<string> => {
+        const known = ancestorSets.get(departmentUuid);
+        if (known) return known;
+        const ancestors = new Set(getAncestorUuids(departmentUuid, parentMap));
+        ancestorSets.set(departmentUuid, ancestors);
+        return ancestors;
+    };
+    return rows.map((member) => ({
+        userUuid: member.userUuid,
+        email: member.email,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        role: member.role,
+        resolution: pairwiseResolveOne(member, ancestorsOf),
+    }));
+};
+
+describe('one-pass collapse matches the pairwise one', () => {
+    // Small seeded generator, so a failure always reproduces
+    const random = (seed: number) => {
+        // Spread small seeds out, or the first draws would all be near zero
+        let state = (seed * 7919 + 104729) % 2147483647;
+        return () => {
+            // Park-Miller: the product stays below 2^53, so every step is exact
+            state = (state * 48271) % 2147483647;
+            return state / 2147483647;
+        };
+    };
+    const randomCase = (seed: number) => {
+        const next = random(seed);
+        const pick = <T>(items: T[]): T =>
+            items[Math.floor(next() * items.length)];
+        const size = 1 + Math.floor(next() * 25);
+        const uuids = Array.from({ length: size }, (_, i) => `n${i}`);
+        // Parents at random: top level, missing, or any department, which makes cycles and self-parents
+        const pickParent = (): string | null => {
+            const roll = next();
+            if (roll < 0.25) return null;
+            if (roll < 0.3) return 'gone';
+            return pick(uuids);
+        };
+        const tree: DepartmentTreeNode[] = uuids.map((departmentUuid) => ({
+            departmentUuid,
+            parentDepartmentUuid: pickParent(),
+        }));
+        // Links may name a department outside the tree, or one department through two groups
+        const targets = [...uuids, 'gone'];
+        const rows = Array.from(
+            { length: 1 + Math.floor(next() * 8) },
+            (_, i) =>
+                row({
+                    userUuid: `u${i}`,
+                    explicitDepartmentUuid:
+                        next() < 0.15 ? pick(targets) : null,
+                    groupLinks: Array.from(
+                        { length: Math.floor(next() * 7) },
+                        () => {
+                            const departmentUuid = pick(targets);
+                            return {
+                                departmentUuid,
+                                groupUuid: `g-${departmentUuid}`,
+                                groupName: pick(['A', 'B', 'C']),
+                            };
+                        },
+                    ),
+                }),
+        );
+        return { tree, rows };
+    };
+    const SEEDS = Array.from({ length: 400 }, (_, seed) => seed + 1);
+
+    it.each(SEEDS)('resolves random case %i the same way', (seed) => {
+        const { tree, rows } = randomCase(seed);
+        expect(resolveDepartmentMembership(rows, tree)).toEqual(
+            pairwiseResolveDepartmentMembership(rows, tree),
+        );
+    });
+
+    it('draws self-parents, longer cycles, conflicts and dropped ancestors among the cases', () => {
+        const seen = { selfParent: 0, cycle: 0, conflict: 0, dropped: 0 };
+        SEEDS.forEach((seed) => {
+            const { tree, rows } = randomCase(seed);
+            const parentMap = getParentMap(tree);
+            if (tree.some((n) => n.parentDepartmentUuid === n.departmentUuid)) {
+                seen.selfParent += 1;
+            }
+            // A walk that comes back to where it started after two or more steps
+            const isInLongerCycle = (start: string) => {
+                let current = parentMap.get(start) ?? null;
+                for (let step = 1; step <= tree.length; step += 1) {
+                    if (current === null) return false;
+                    if (current === start) return step > 1;
+                    current = parentMap.get(current) ?? null;
+                }
+                return false;
+            };
+            if (tree.some((n) => isInLongerCycle(n.departmentUuid))) {
+                seen.cycle += 1;
+            }
+            resolveDepartmentMembership(rows, tree).forEach(
+                ({ resolution }, i) => {
+                    if (rows[i].explicitDepartmentUuid !== null) return;
+                    const candidates = new Set(
+                        rows[i].groupLinks.map((l) => l.departmentUuid),
+                    ).size;
+                    const kept =
+                        resolution.kind === 'conflict'
+                            ? resolution.departmentUuids.length
+                            : Number(resolution.kind === 'assigned');
+                    if (resolution.kind === 'conflict') seen.conflict += 1;
+                    if (kept < candidates) seen.dropped += 1;
+                },
+            );
+        });
+        expect(seen.selfParent).toBeGreaterThan(0);
+        expect(seen.cycle).toBeGreaterThan(0);
+        expect(seen.conflict).toBeGreaterThan(0);
+        expect(seen.dropped).toBeGreaterThan(0);
+    });
+});
+
+describe('resolution when one person is in very many linked groups', () => {
+    it('resolves 300 people each in all 999 sub-departments of one root in under 200 ms', () => {
+        const subDepartments = Array.from(
+            { length: 999 },
+            (_, i) => `s${String(i).padStart(3, '0')}`,
+        );
+        const flat = [
+            { departmentUuid: 'root', parentDepartmentUuid: null },
+            ...subDepartments.map((departmentUuid) => ({
+                departmentUuid,
+                parentDepartmentUuid: 'root',
+            })),
+        ];
+        // One group per sub-department, and everyone in every group
+        const rows = Array.from({ length: 300 }, (_, i) =>
+            row({
+                userUuid: `u${i}`,
+                groupLinks: subDepartments.map((departmentUuid) =>
+                    link(departmentUuid),
+                ),
+            }),
+        );
+
+        // The fastest of five runs, so a busy machine does not fail it
+        const fastest = Math.min(
+            ...Array.from({ length: 5 }, () => {
+                const started = performance.now();
+                resolveDepartmentMembership(rows, flat);
+                return performance.now() - started;
+            }),
+        );
+        const resolved = resolveDepartmentMembership(rows, flat);
+
+        expect(fastest).toBeLessThan(200);
+        expect(resolved).toHaveLength(300);
+        resolved.forEach((member) =>
+            expect(member.resolution).toEqual({
+                kind: 'conflict',
+                departmentUuids: subDepartments,
+            }),
+        );
     });
 });
