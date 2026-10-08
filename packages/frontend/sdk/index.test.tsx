@@ -47,9 +47,21 @@ vi.mock('../src/ee/pages/EmbedChart', async () => {
 
     return {
         default: function MockEmbedChart() {
-            const { embedToken } = useEmbed();
+            const { embedToken, onExplore } = useEmbed();
             return (
-                <div data-testid="embed-chart-view" data-token={embedToken} />
+                <div data-testid="embed-chart-view" data-token={embedToken}>
+                    <button
+                        data-testid="chart-saved-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: {
+                                    uuid: 'test-chart-uuid',
+                                    tableName: 'payments',
+                                } as never,
+                            })
+                        }
+                    />
+                </div>
             );
         },
     };
@@ -515,6 +527,38 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         });
     });
 
+    it('opens saved tiles inside the SDK dashboard when the host has no onExplore', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('saved-chart-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'saved-chart-uuid',
+            );
+        });
+        expect(window.location.pathname).toBe('/test');
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'dashboard',
+        );
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
     it('should render drill-down explores inside the SDK dashboard', async () => {
         const { getByTestId } = render(
             <Dashboard
@@ -836,6 +880,53 @@ describe('SDK Chart edit mode', () => {
         fireEvent.click(getByTestId('explore-back'));
 
         expect(await findByTestId('embed-chart-edit')).toBeInTheDocument();
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
+    it('hands the saved chart to the host onExplore when provided', async () => {
+        const onExplore = vi.fn();
+        const { findByTestId, queryByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                onExplore={onExplore}
+            />,
+        );
+
+        fireEvent.click(await findByTestId('chart-saved-explore'));
+
+        await waitFor(() => {
+            expect(onExplore).toHaveBeenCalledWith({
+                chart: { uuid: 'test-chart-uuid', tableName: 'payments' },
+            });
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
+    it('opens the saved chart inside the SDK chart when the host has no onExplore', async () => {
+        const { findByTestId, getByTestId, queryByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+            />,
+        );
+
+        fireEvent.click(await findByTestId('chart-saved-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'test-chart-uuid',
+            );
+        });
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'chart',
+        );
+
+        fireEvent.click(getByTestId('explore-back'));
+
+        expect(await findByTestId('embed-chart-view')).toBeInTheDocument();
         expect(queryByTestId('embed-explore')).toBeNull();
     });
 
