@@ -1,3 +1,10 @@
+# [2.489.0](https://github.com/lightdash/lightdash/compare/2.488.1...2.489.0) (2026-10-08)
+
+
+### Features
+
+* **slack:** unfurl Document links with a title and preview image ([#30733](https://github.com/lightdash/lightdash/issues/30733)) ([d732aa5](https://github.com/lightdash/lightdash/commit/d732aa57dcb78c5eda78ec69edea7eb0ede65f4b))
+
 ## [2.488.1](https://github.com/lightdash/lightdash/compare/2.488.0...2.488.1) (2026-10-08)
 
 
