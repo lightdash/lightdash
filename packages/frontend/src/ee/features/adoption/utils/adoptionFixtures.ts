@@ -93,3 +93,39 @@ export const memberFixture = (
     dashboardViews30d: 0,
     ...over,
 });
+
+const seeded = (
+    name: string,
+    parentDepartmentUuid: string | null,
+    headcount: number | null,
+    members: number,
+    directMembers: number = members,
+): DepartmentWithMetrics =>
+    dept(name, parentDepartmentUuid, null, {
+        headcount,
+        effectiveHeadcount: headcount,
+        metrics: metricsFixture(
+            members,
+            headcount === null ? null : Math.round((100 * members) / headcount),
+            { activeCount30d: members, activeCount12w: members },
+        ),
+        directMetrics: metricsFixture(directMembers, null, {
+            activeCount30d: directMembers,
+            activeCount12w: directMembers,
+        }),
+    });
+
+// A small organization with nesting, a missing headcount and almost nobody on Lightdash yet
+export const seededOrganization = (): DepartmentWithMetrics[] => [
+    seeded('Operations', null, 40, 1, 0),
+    seeded('North', 'Operations', null, 1),
+    seeded('Stores', 'Operations', 22, 0),
+    seeded('Depots', 'Operations', 9, 0),
+    seeded('Supply chain', null, 80, 0),
+    seeded('Procurement', 'Supply chain', 30, 0),
+    seeded('Logistics', 'Supply chain', 50, 0),
+    seeded('Marketing', null, 40, 0),
+    seeded('Finance', null, 32, 0),
+    seeded('Data', null, 9, 1),
+    seeded('Product', null, null, 1),
+];

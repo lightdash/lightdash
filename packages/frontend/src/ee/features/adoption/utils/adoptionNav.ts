@@ -15,7 +15,7 @@ export const getDepartmentPath = (departmentUuid: string): string =>
 export type AdoptionView = 'map' | 'list';
 
 // The first entry is the default view
-export const ADOPTION_VIEWS: AdoptionView[] = ['list'];
+export const ADOPTION_VIEWS: AdoptionView[] = ['map', 'list'];
 
 export const ADOPTION_VIEW_LABELS: Record<AdoptionView, string> = {
     map: 'Map',
