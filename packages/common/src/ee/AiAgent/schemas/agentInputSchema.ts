@@ -8,7 +8,6 @@ export const createAgentInputSchema = <TSchema extends z.ZodType>(
 ): Schema<z.output<TSchema>> =>
     jsonSchema<z.output<TSchema>>(
         toLlmJsonSchema(inputSchema, {
-            reused: 'inline',
             resolveDefinitionName: resolveAgentDefinitionName,
         }),
         {
