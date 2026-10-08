@@ -132,3 +132,63 @@ describe('PromptComposer placeholder', () => {
         expect(placeholderOf()).toBe('Ask for a change…');
     });
 });
+
+describe('PromptComposer resize handle', () => {
+    const resizedHeight = (handle: HTMLElement) => {
+        const root = handle.parentElement as HTMLElement;
+        return root.hasAttribute('data-resized')
+            ? Number.parseFloat(
+                  root.style.getPropertyValue('--composer-editor-height'),
+              )
+            : null;
+    };
+    const getHandle = () =>
+        screen.getByRole('separator', { name: 'Resize composer' });
+
+    it('is only offered on the card composer', () => {
+        renderWithProviders(
+            <PromptComposer variant="inline" resizeHandle="top" />,
+        );
+        expect(screen.queryByRole('separator')).toBeNull();
+    });
+
+    it('a top handle grows the editor when moved up, and resets on double-click', () => {
+        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        const handle = getHandle();
+        expect(resizedHeight(handle)).toBeNull();
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp' });
+        const grown = resizedHeight(handle);
+        expect(grown).not.toBeNull();
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+        expect(resizedHeight(handle)).toBeGreaterThan(grown as number);
+
+        fireEvent.doubleClick(handle);
+        expect(resizedHeight(handle)).toBeNull();
+    });
+
+    it('a bottom handle grows the editor when moved down', () => {
+        renderWithProviders(<PromptComposer resizeHandle="bottom" />);
+        const handle = getHandle();
+
+        fireEvent.keyDown(handle, { key: 'ArrowDown' });
+        const grown = resizedHeight(handle);
+        expect(grown).not.toBeNull();
+
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        const grownMore = resizedHeight(handle);
+        expect(grownMore).toBeGreaterThan(grown as number);
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+        expect(resizedHeight(handle)).toBeLessThan(grownMore as number);
+    });
+
+    it('never shrinks below the minimum editor height', () => {
+        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        const handle = getHandle();
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        expect(resizedHeight(handle)).toBe(40);
+    });
+});

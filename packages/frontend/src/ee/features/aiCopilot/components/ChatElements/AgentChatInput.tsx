@@ -1661,6 +1661,7 @@ export const AgentChatInput = ({
                     fullWidth ? styles.minimalContainerFullWidth : ''
                 }`}
                 ref={rootRef}
+                data-layout="minimal"
             >
                 <AiAccessGate
                     projectUuid={projectUuid}
@@ -1724,6 +1725,7 @@ export const AgentChatInput = ({
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
             data-dense={dense}
+            data-layout="card"
         >
             <AiAccessGate
                 projectUuid={projectUuid}
@@ -1743,6 +1745,7 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="card"
                         size={dense ? 'sm' : 'lg'}
+                        resizeHandle={isThreadInput ? 'top' : 'bottom'}
                         className={styles.agentComposer}
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}

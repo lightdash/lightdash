@@ -720,6 +720,7 @@ const ExistingThreadPanel: FC<{
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
                         fullWidth
+                        dense
                         threadUuid={threadId}
                         models={modelOptions}
                         selectedModelId={selectedModelKey}
