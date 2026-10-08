@@ -1,8 +1,10 @@
 import { type DashboardFilterRule } from '@lightdash/common';
-import { Menu, TextInput } from '@mantine/core';
+import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
+import { getFieldDisplayLabel } from './fieldGrains';
+import { FieldsAndTiles } from './FieldsAndTiles';
 import {
     getFilterFields,
     getTabCounts,
@@ -21,6 +23,8 @@ type FilterEditorProps = {
 // Mounted with the filter id as key, so the label draft and the armed state
 // never carry over to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const discard = useControlsSidebarSelector((c) => c.discard);
@@ -44,6 +48,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             {removeArmed ? 'Click again to remove' : 'Remove filter'}
         </Menu.Item>
     );
+    const allFilterableFields = useDashboardContext(
+        (c) => c.allFilterableFields,
+    );
+
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
@@ -91,36 +99,57 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         filterableFieldsByTileUuid,
         sqlColumnsByTile,
     ]);
+    // No props, so one element: typing a label does not re-render the list
+    const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
+
     // A dimension or a metric, as the shipped bar resolves it
     const field = useFilterRuleField(filterRule);
+    const fieldLabel = field
+        ? getFieldDisplayLabel(field, allFilterableFields ?? [])
+        : null;
     const hasLabel = label.draft.trim() !== '';
     // What the bar shows for a filter with no label: its field's name, or
     // the column's for a SQL column filter
     const fallbackName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const title = hasLabel ? label.draft : (fallbackName ?? 'Filter');
-    const discardLabel = isDirty ? 'Discard changes' : null;
+    const title = isPlaceholder
+        ? 'New control'
+        : hasLabel
+          ? label.draft
+          : (fallbackName ?? 'Filter');
+    // Closing keeps the edits, so the footer says what closing would drop
+    const footerStatus = isPlaceholder
+        ? 'Add a field to keep this control'
+        : null;
+    const discardLabel = isNew
+        ? 'Discard control'
+        : isDirty
+          ? 'Discard changes'
+          : null;
     const fieldCount = getFilterFields(filterRule).length;
     const tabReach =
         dashboardTabs.length > 1
             ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
             : '';
-    const subtitle = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
+    const subtitle = isPlaceholder
+        ? 'No mapping yet'
+        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
 
     return (
         <EditorShell
             title={title}
             subtitle={subtitle}
-            menu={moreActions}
+            menu={isNew ? null : moreActions}
             onMenuClose={() => setRemoveArmed(false)}
             onClose={close}
             discardLabel={discardLabel}
             onDiscard={discard}
+            footerStatus={footerStatus}
             aboveTabs={
                 <>
                     <TextInput
-                        label="Filter label"
+                        label={isPlaceholder ? 'Label' : 'Filter label'}
                         // Left empty, the filter goes by its field's name
                         placeholder={fallbackName ?? 'What viewers will see'}
                         autoFocus
@@ -137,9 +166,26 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                             label.flush();
                         }}
                     />
+                    {isNew && !hasLabel && fieldLabel !== null && (
+                        <Group gap="xs">
+                            <Text fz="xs" c="dimmed">
+                                Suggestions
+                            </Text>
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                radius="xl"
+                                onClick={() => label.set(fieldLabel)}
+                            >
+                                {fieldLabel}
+                            </Button>
+                        </Group>
+                    )}
                 </>
             }
-        />
+        >
+            {fieldsAndTiles}
+        </EditorShell>
     );
 };
 

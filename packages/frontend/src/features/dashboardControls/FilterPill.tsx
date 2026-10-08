@@ -20,6 +20,8 @@ type Props = {
     isOrphaned: boolean;
     orphanedTooltip: string;
     isSelected: boolean;
+    /** A new control that has no label yet. */
+    isDraft: boolean;
     /** While open the pill is only a click target: no grip or X. */
     isSidebarOpen: boolean;
 };
@@ -31,6 +33,7 @@ export const FilterPill: FC<Props> = memo(
         isOrphaned,
         orphanedTooltip,
         isSelected,
+        isDraft,
         isSidebarOpen,
     }) => {
         const open = useControlsSidebarSelector((c) => c.open);
@@ -75,6 +78,7 @@ export const FilterPill: FC<Props> = memo(
                                 : '',
                             isOrphaned ? pillClasses.inactiveFilter : '',
                             isSelected ? classes.selectedPill : '',
+                            isDraft ? classes.draftPill : '',
                         ].join(' ')}
                         pr={truncated.hasMore ? 6 : undefined}
                         leftSection={

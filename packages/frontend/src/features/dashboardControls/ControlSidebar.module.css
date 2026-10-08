@@ -32,6 +32,12 @@
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
+/* Keyed by its text, so it arrives again when the message changes */
+.footerStatus {
+    animation: statusEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
 .done {
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
@@ -57,8 +63,20 @@
     }
 }
 
+@keyframes statusEnter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .root > * {
+    .root > *,
+    .footerStatus {
         animation: none;
     }
 

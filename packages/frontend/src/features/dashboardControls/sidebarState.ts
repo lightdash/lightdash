@@ -9,6 +9,11 @@ export type ControlsSidebarSnapshot = {
     haveFiltersChanged: boolean;
 };
 
+// A control with no mapping yet is a placeholder; it is never saved
+export const PLACEHOLDER_TARGET = { fieldId: '', tableName: '' };
+export const isPlaceholderRule = (rule: DashboardFilterRule): boolean =>
+    rule.target.fieldId === '';
+
 export const findFilterRule = (
     filters: DashboardFilters,
     filterId: string,
@@ -49,3 +54,6 @@ export const isFilterRuleDirty = (
 
 // Locks or unlocks the filter on one tab; lockKey is the tab uuid, or the
 // dashboard uuid when the dashboard has no tabs
+// A control with no field cannot be kept; a label is optional
+export const canKeepFilterRule = (rule: DashboardFilterRule): boolean =>
+    !isPlaceholderRule(rule);

@@ -8,3 +8,7 @@
     border-color: var(--mantine-color-ldGray-5);
     border-width: 1px;
 }
+
+.draftPill {
+    border-style: dashed;
+}

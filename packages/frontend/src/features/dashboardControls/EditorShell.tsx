@@ -23,7 +23,9 @@ type Props = {
     /** Null hides the action: there is nothing to discard. */
     discardLabel: string | null;
     onDiscard: () => void;
+    footerStatus: string | null;
     aboveTabs: ReactNode;
+    children: ReactNode;
 };
 
 export const EditorShell: FC<Props> = ({
@@ -34,7 +36,9 @@ export const EditorShell: FC<Props> = ({
     onClose,
     discardLabel,
     onDiscard,
+    footerStatus,
     aboveTabs,
+    children,
 }) => (
     <Box className={classes.root} data-controls-editor>
         <Group justify="space-between" wrap="nowrap" px="md" pt="md">
@@ -86,9 +90,21 @@ export const EditorShell: FC<Props> = ({
             {aboveTabs}
         </Stack>
 
-        <Stack gap="md" p="md" className={classes.body} />
+        <Stack gap="md" p="md" className={classes.body}>
+            {children}
+        </Stack>
 
         <Stack gap="xs" p="md" className={classes.footer}>
+            {footerStatus !== null && (
+                <Text
+                    key={footerStatus}
+                    fz="xs"
+                    c="dimmed"
+                    className={classes.footerStatus}
+                >
+                    {footerStatus}
+                </Text>
+            )}
             <Group
                 justify={discardLabel === null ? 'flex-end' : 'space-between'}
                 gap="xs"

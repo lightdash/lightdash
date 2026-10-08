@@ -1,4 +1,8 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import {
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+    type ResultColumn,
+} from '@lightdash/common';
 import {
     createContext,
     useContext,
@@ -8,9 +12,25 @@ import {
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
+    /** The edited control was started with Add in this sidebar session. */
+    isNew: boolean;
+    /** The edited control has no mapping yet, so it cannot be kept. */
+    isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
     isSidebarOpen: boolean;
     open: (filterId: string) => void;
+    /** Opens a placeholder control; the first mapping decides what it is. */
+    openNew: () => void;
+    /** Turns the placeholder into a filter control on the given field. */
+    addFirstField: (field: DashboardFilterableField) => void;
+    /**
+     * Turns the placeholder into a filter control on a SQL column, on every
+     * SQL chart tile that has it. `availableTileColumns` is keyed by tile.
+     */
+    addFirstSqlColumn: (
+        column: ResultColumn,
+        availableTileColumns: Record<string, ResultColumn[]>,
+    ) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /** Removes the edited filter and closes the sidebar. */
     removeFilter: () => void;
@@ -19,6 +39,7 @@ export type ControlsSidebarContextValue = {
     discard: () => void;
     /**
      * Closes and keeps the edits; saving stays with the dashboard's own Save.
+     * A control with no field is discarded.
      */
     close: () => void;
     isDirty: boolean;

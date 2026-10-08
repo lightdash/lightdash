@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 // Marks the editor root: Escape closes the editor only from inside it
-const EDITOR_ATTRIBUTE = 'data-controls-editor';
+export const EDITOR_ATTRIBUTE = 'data-controls-editor';
 // Marks an input that handles Escape itself while its list is closed
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
 
