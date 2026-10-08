@@ -1,12 +1,16 @@
+import { Ability } from '@casl/ability';
 import {
     DatabricksAuthenticationType,
     DbtProjectType,
+    ForbiddenError,
     ProjectType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateDatabricksCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type PossibleAbilities,
+    type SessionUser,
 } from '@lightdash/common';
 import {
     exchangeDatabricksOAuthCredentials,
@@ -96,6 +100,22 @@ const setup = (
     const projectModel = {
         ...singleRouteProjectModelMethods,
         getWithSensitiveFields: vi.fn(async () => project),
+        get: vi.fn(async (projectUuid: string) => ({
+            ...project,
+            projectUuid,
+            type:
+                projectUuid === 'preview-uuid'
+                    ? ProjectType.PREVIEW
+                    : ProjectType.DEFAULT,
+            organizationWarehouseCredentialsUuid: organizationUuid ?? undefined,
+        })),
+        createWithOptionalCredentials: vi.fn<
+            ProjectModel['createWithOptionalCredentials']
+        >(async () => 'preview-uuid'),
+        getPreviewExpirationSettings: vi.fn(async () => ({
+            defaultPreviewExpirationHours: 24,
+            maxPreviewExpirationHours: null,
+        })),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getProjectWarehouseConfig: vi.fn(async () => ({
             organizationWarehouseCredentialsUuid: organizationUuid,
@@ -124,7 +144,16 @@ const setup = (
         rotateRefreshToken: vi.fn(async () => undefined),
     };
     const userOAuthGrantsModel = { get: vi.fn() };
-    const userModel = { findSessionUserByUUID: vi.fn(async () => user) };
+    const creator: SessionUser = {
+        ...user,
+        organizationUuid: project.organizationUuid,
+        organizationName: 'organisation',
+        organizationCreatedAt: new Date('2026-01-01'),
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: ['view', 'create'] },
+        ]),
+    };
+    const userModel = { findSessionUserByUUID: vi.fn(async () => creator) };
     const service = new ProjectService({
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -136,12 +165,17 @@ const setup = (
         },
         projectModel,
         userModel,
+        analytics: { track: vi.fn() },
+        projectDbtSourcesModel: { copySources: vi.fn(async () => undefined) },
         userWarehouseCredentialsModel,
         organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         schedulerClient: { generateValidation: vi.fn() },
         featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
     } as unknown as ProjectServiceArguments);
+    vi.spyOn(service, 'copyUserAccessOnPreview').mockResolvedValue();
+    vi.spyOn(service, 'copyContentOnPreview').mockResolvedValue();
+    const create = vi.spyOn(service, 'createWithoutCompile');
     const save = vi
         .spyOn(service, 'saveExploresToCacheAndIndexCatalog')
         .mockResolvedValue('preview-uuid');
@@ -162,6 +196,8 @@ const setup = (
         organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         save,
+        create,
+        creator,
         resolve,
         scope,
         preview: (auth = webhookAuth) =>
@@ -327,6 +363,193 @@ const authCases = [
 ];
 
 describe('dbt Cloud preview credential resolution', () => {
+    describe.each([true, false])('first preview with switch %s', (enabled) => {
+        it.each([
+            DatabricksAuthenticationType.OAUTH_U2M,
+            DatabricksAuthenticationType.OAUTH_M2M,
+        ])(
+            'creates a %s preview without reusing a refresh token',
+            async (auth) => {
+                const f = setup(
+                    { ...databricks(auth), token: 'initial-access' },
+                    { enabled },
+                );
+                f.projectModel.getAllByOrganizationUuid.mockResolvedValue([]);
+                const usedTokens = new Set<string>();
+                vi.mocked(refreshDatabricksOAuthToken).mockImplementation(
+                    async (_host, _client, refreshToken) => {
+                        if (usedTokens.has(refreshToken)) {
+                            throw new Error(
+                                `Refresh token already used: ${refreshToken}`,
+                            );
+                        }
+                        usedTokens.add(refreshToken);
+                        return {
+                            accessToken: `access-${usedTokens.size}`,
+                            refreshToken: `refresh-${usedTokens.size}`,
+                            expiresIn: 3600,
+                        };
+                    },
+                );
+
+                await expect(f.preview()).resolves.toBe('preview-uuid');
+
+                expect(f.create).toHaveBeenCalledExactlyOnceWith(
+                    f.creator,
+                    expect.objectContaining({
+                        type: ProjectType.PREVIEW,
+                        upstreamProjectUuid: f.project.projectUuid,
+                        warehouseConnection: expect.objectContaining({
+                            database: 'compile_schema',
+                            schema: 'dbt_cloud_pr_34_12',
+                            catalog: 'compile_catalog',
+                            token: enabled ? 'access-1' : 'initial-access',
+                        }),
+                    }),
+                    expect.anything(),
+                    undefined,
+                    { mode: 'sync' },
+                );
+                expect(
+                    f.projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    f.creator.userUuid,
+                    f.project.organizationUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expect.objectContaining({
+                            token: enabled ? 'access-2' : 'access-1',
+                            schema: 'dbt_cloud_pr_34_12',
+                        }),
+                    }),
+                    expect.any(Date),
+                    undefined,
+                );
+                expect(f.resolve).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                expect(
+                    vi
+                        .mocked(refreshDatabricksOAuthToken)
+                        .mock.calls.map((call) => call[2]),
+                ).toEqual(
+                    enabled
+                        ? ['project-refresh', 'refresh-1']
+                        : ['project-refresh'],
+                );
+                expect(f.projectModel.rotateRefreshToken).toHaveBeenCalledTimes(
+                    enabled ? 1 : 0,
+                );
+                expect(
+                    warehouseClientFromCredentials,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        token: enabled ? 'access-1' : 'initial-access',
+                    }),
+                    expect.any(Object),
+                );
+                expect(f.save).toHaveBeenCalledWith(
+                    expect.objectContaining({ projectUuid: 'preview-uuid' }),
+                );
+                const lookupOrder =
+                    f.projectModel.getAllByOrganizationUuid.mock
+                        .invocationCallOrder[0];
+                const conversionOrder = vi.mocked(
+                    warehouseClientFromCredentials,
+                ).mock.invocationCallOrder[0];
+                if (enabled) {
+                    expect(lookupOrder).toBeLessThan(
+                        f.resolve.mock.invocationCallOrder[0],
+                    );
+                    expect(f.resolve.mock.invocationCallOrder[0]).toBeLessThan(
+                        conversionOrder,
+                    );
+                } else {
+                    expect(conversionOrder).toBeLessThan(lookupOrder);
+                }
+            },
+        );
+
+        it('rejects a creator without preview-create permission before refreshing', async () => {
+            const f = setup(
+                { ...databricks(), token: 'initial-access' },
+                { enabled },
+            );
+            f.projectModel.getAllByOrganizationUuid.mockResolvedValue([]);
+            f.creator.ability = new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'view' },
+            ]);
+
+            await expect(f.preview()).rejects.toBeInstanceOf(ForbiddenError);
+
+            expect(f.resolve).not.toHaveBeenCalled();
+            expect(refreshDatabricksOAuthToken).not.toHaveBeenCalled();
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+            expect(
+                f.userWarehouseCredentialsModel.rotateRefreshToken,
+            ).not.toHaveBeenCalled();
+            expect(
+                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
+            ).not.toHaveBeenCalled();
+            expect(
+                f.projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+            expect(warehouseClientFromCredentials).toHaveBeenCalledTimes(
+                enabled ? 0 : 1,
+            );
+        });
+
+        it('keeps an existing preview accessible without preview-create permission', async () => {
+            const f = setup(
+                { ...databricks(), token: 'initial-access' },
+                { enabled },
+            );
+            f.creator.ability = new Ability<PossibleAbilities>([]);
+
+            await expect(f.preview()).resolves.toBe('preview-uuid');
+
+            expect(f.create).not.toHaveBeenCalled();
+            expect(f.projectModel.get).not.toHaveBeenCalled();
+            expect(f.resolve).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            expect(refreshDatabricksOAuthToken).toHaveBeenCalledTimes(
+                enabled ? 1 : 0,
+            );
+        });
+    });
+
+    it('strips personal credential metadata before creating a U2M preview', async () => {
+        const f = setup({
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            refreshToken: undefined,
+        });
+        f.projectModel.getAllByOrganizationUuid.mockResolvedValue([]);
+        setUserFallback(f);
+
+        await expect(f.preview()).resolves.toBe('preview-uuid');
+
+        expect(f.create).toHaveBeenCalledOnce();
+        expect(
+            f.create.mock.calls[0][1].warehouseConnection,
+        ).not.toHaveProperty('userWarehouseCredentialsUuid');
+        expect(
+            f.projectModel.createWithOptionalCredentials,
+        ).toHaveBeenCalledOnce();
+        expect(
+            f.projectModel.createWithOptionalCredentials.mock.calls[0][2]
+                .warehouseConnection,
+        ).not.toHaveProperty('userWarehouseCredentialsUuid');
+        expect(
+            vi
+                .mocked(refreshDatabricksOAuthToken)
+                .mock.calls.map((call) => call[2]),
+        ).toEqual(['user-refresh', 'rotated-refresh']);
+        expect(
+            f.userWarehouseCredentialsModel.rotateRefreshToken,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'user-credential-uuid',
+            'user-refresh',
+            'rotated-refresh',
+        );
+    });
+
     it.each(authCases)(
         'webhook resolves $name before client construction',
         async ({ credentials, token, rotated, organizationUuid }) => {

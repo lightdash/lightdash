@@ -16639,7 +16639,6 @@ export class ProjectService
         runId: number,
         webhookAuth: { rawBody: Buffer | null; signature: string | null },
     ): Promise<string> {
-        // create preview project permissions are checked in `createWithoutCompile`
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
@@ -16718,28 +16717,78 @@ export class ProjectService
                 purpose: 'compile',
             },
         );
-        const warehouseRef: WarehouseClientRef = this.lightdashConfig
-            .warehouseClient.resolveDbtCloudPreviewCredentials
-            ? {
-                  kind: 'compile',
-                  projectUuid,
-                  credentials: (
-                      await this.warehouseClientFactory.resolveWarehouseCredentials(
-                          {
-                              kind: 'binding',
-                              projectUuid,
-                              binding: { kind: 'original' },
-                          },
-                          compileContext,
-                      )
-                  ).warehouseCredentials,
-              }
-            : {
-                  kind: 'bypass',
-                  mode: 'dbt_cloud_preview_webhook',
-                  projectUuid,
-                  credentials: project.warehouseConnection,
-              };
+        const resolveCredentials =
+            this.lightdashConfig.warehouseClient
+                .resolveDbtCloudPreviewCredentials;
+        const previewName = `preview_${jobId}_${prId}`;
+        const findPreview = async () => {
+            Logger.info(`Preview name: ${previewName}`);
+            Logger.info(`Find all project for: ${project.organizationUuid}`);
+            const allProjects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    project.organizationUuid,
+                );
+            return allProjects.find(
+                (p) => p.name === previewName && p.type === ProjectType.PREVIEW,
+            );
+        };
+        const createPreviewData = (
+            credentials: CreateWarehouseCredentials,
+        ): CreateProject => ({
+            name: previewName,
+            type: ProjectType.PREVIEW,
+            warehouseConnection: maybeOverrideWarehouseConnection(credentials, {
+                schema: `dbt_cloud_pr_${jobId}_${prId}`,
+            }),
+            dbtConnection: { type: DbtProjectType.NONE },
+            upstreamProjectUuid: projectUuid,
+            dbtVersion: project.dbtVersion,
+        });
+        let previewExists = resolveCredentials
+            ? await findPreview()
+            : undefined;
+        let previewData: CreateProject | null = null;
+        let warehouseRef: WarehouseClientRef;
+        if (resolveCredentials) {
+            if (!previewExists) {
+                previewData = createPreviewData(project.warehouseConnection);
+                await this.validateProjectCreationPermissions(
+                    user,
+                    previewData,
+                );
+            }
+            const { warehouseCredentials } =
+                await this.warehouseClientFactory.resolveWarehouseCredentials(
+                    {
+                        kind: 'binding',
+                        projectUuid,
+                        binding: { kind: 'original' },
+                    },
+                    compileContext,
+                );
+            if (previewData) {
+                const {
+                    userWarehouseCredentialsUuid: _userWarehouseCredentialsUuid,
+                    ...credentials
+                } = warehouseCredentials;
+                previewData.warehouseConnection =
+                    maybeOverrideWarehouseConnection(credentials, {
+                        schema: `dbt_cloud_pr_${jobId}_${prId}`,
+                    });
+            }
+            warehouseRef = {
+                kind: 'compile',
+                projectUuid,
+                credentials: warehouseCredentials,
+            };
+        } else {
+            warehouseRef = {
+                kind: 'bypass',
+                mode: 'dbt_cloud_preview_webhook',
+                projectUuid,
+                credentials: project.warehouseConnection,
+            };
+        }
         const { convertedExplores, exploreErrors } =
             await this.warehouseClientFactory.withWarehouseClient(
                 warehouseRef,
@@ -16774,39 +16823,17 @@ export class ProjectService
                 },
             );
         Logger.info(`Explore count: ${convertedExplores.length}`);
-        const previewName = `preview_${jobId}_${prId}`;
-        Logger.info(`Preview name: ${previewName}`);
-        Logger.info(`Find all project for: ${project.organizationUuid}`);
-        const allProjects = await this.projectModel.getAllByOrganizationUuid(
-            project.organizationUuid,
-        );
-        const previewExists = allProjects.find(
-            (p) => p.name === previewName && p.type === ProjectType.PREVIEW,
-        );
+        if (!resolveCredentials) {
+            previewExists = await findPreview();
+        }
         let projectToSetExplores: string;
         Logger.info(`Preview exists: ${previewExists}`);
         if (previewExists) {
             projectToSetExplores = previewExists.projectUuid;
         } else {
-            const previewData: CreateProject = {
-                name: previewName,
-                type: ProjectType.PREVIEW,
-                warehouseConnection: maybeOverrideWarehouseConnection(
-                    project.warehouseConnection,
-                    {
-                        schema: `dbt_cloud_pr_${jobId}_${prId}`,
-                    },
-                ),
-                dbtConnection: {
-                    type: DbtProjectType.NONE,
-                },
-                upstreamProjectUuid: projectUuid,
-                dbtVersion: project.dbtVersion,
-            };
-
             const newPreview = await this.createWithoutCompile(
                 user,
-                previewData,
+                previewData ?? createPreviewData(project.warehouseConnection),
                 RequestMethod.WEB_APP, // TODO: fix context
                 undefined,
                 { mode: 'sync' },

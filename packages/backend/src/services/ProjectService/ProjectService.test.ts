@@ -9898,13 +9898,21 @@ describe('ProjectService', () => {
                     });
                 const save = vi
                     .spyOn(configured, 'saveExploresToCacheAndIndexCatalog')
-                    .mockResolvedValueOnce('projectUuid');
-                projectModel.getAllByOrganizationUuid.mockImplementationOnce(
-                    async () => {
+                    .mockImplementationOnce(async () => {
                         expect(
                             vi.mocked(SshTunnel).mock.results.at(-1)?.value
                                 .disconnect,
                         ).toHaveBeenCalledOnce();
+                        return 'projectUuid';
+                    });
+                projectModel.getAllByOrganizationUuid.mockImplementationOnce(
+                    async () => {
+                        if (!enabled) {
+                            expect(
+                                vi.mocked(SshTunnel).mock.results.at(-1)?.value
+                                    .disconnect,
+                            ).toHaveBeenCalledOnce();
+                        }
                         return [
                             {
                                 ...projectWithSensitiveFields,
