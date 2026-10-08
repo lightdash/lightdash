@@ -4,36 +4,39 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../../../../api';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
-import { SqlApprovalCard } from './SqlApprovalCard';
+import { SqlRunToolCallDescription } from './descriptions/SqlRunToolCallDescription';
 
 vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
 const mockedLightdashApi = vi.mocked(lightdashApi);
 
-const target = {
+const approval = {
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     threadUuid: 'thread-1',
     toolCallId: 'tool-call-2',
 };
 
-const renderCard = () =>
+const renderDescription = () =>
     renderWithProviders(
         <Provider store={store}>
-            <SqlApprovalCard {...target} toolArgs={{ sql: 'select 1' }} />
+            <SqlRunToolCallDescription sql="select 1" approval={approval} />
         </Provider>,
     );
 
-describe('SqlApprovalCard', () => {
+describe('SqlRunToolCallDescription approval', () => {
     afterEach(() => {
         window.sessionStorage.clear();
         mockedLightdashApi.mockReset();
     });
 
-    it('shows the approval prompt when the thread is not auto-approved', () => {
-        renderCard();
+    it('shows approval actions under the SQL when the thread is not auto-approved', () => {
+        renderDescription();
 
         expect(
             screen.getByRole('button', { name: 'Approve' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Reject' }),
         ).toBeInTheDocument();
         expect(mockedLightdashApi).not.toHaveBeenCalled();
     });
@@ -45,7 +48,7 @@ describe('SqlApprovalCard', () => {
         );
         mockedLightdashApi.mockResolvedValue(undefined);
 
-        renderCard();
+        renderDescription();
 
         await waitFor(() =>
             expect(mockedLightdashApi).toHaveBeenCalledWith(

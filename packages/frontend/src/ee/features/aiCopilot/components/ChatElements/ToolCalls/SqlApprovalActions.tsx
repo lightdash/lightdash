@@ -1,11 +1,6 @@
 import { type ApiAiAgentSqlApprovalRequest } from '@lightdash/common';
-import { Button, Code, Group, Paper, Stack, Text } from '@mantine/core';
-import {
-    IconCheck,
-    IconShieldCheck,
-    IconTerminal2,
-    IconX,
-} from '@tabler/icons-react';
+import { Button, Group, Stack, Text } from '@mantine/core';
+import { IconCheck, IconShieldCheck, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useSessionStorage } from 'react-use';
 import { lightdashApi } from '../../../../../../api';
@@ -18,10 +13,6 @@ export type SqlApprovalTarget = {
     agentUuid: string;
     threadUuid: string;
     toolCallId: string;
-};
-
-type SqlApprovalCardProps = SqlApprovalTarget & {
-    toolArgs: { sql: string; limit?: number };
 };
 
 type SubmitState = 'idle' | 'approved' | 'rejected' | 'autoApproved';
@@ -158,55 +149,5 @@ export const SqlApprovalActions: FC<SqlApprovalActionsProps> = ({
                 </Button>
             </Group>
         </Stack>
-    );
-};
-
-export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
-    toolArgs,
-    ...target
-}) => {
-    const [autoApprove] = useSessionStorage<boolean>(
-        getAutoApproveKey(target.threadUuid),
-        false,
-    );
-
-    // Keep the actions mounted: they send the approval for this call.
-    if (autoApprove) {
-        return <SqlApprovalActions {...target} />;
-    }
-
-    return (
-        <Paper
-            radius="sm"
-            p="sm"
-            style={{
-                borderColor: 'var(--mantine-color-ldGray-3)',
-                background: 'var(--mantine-color-body)',
-            }}
-        >
-            <Stack gap="xs">
-                <Group gap="xs" align="center">
-                    <MantineIcon
-                        icon={IconTerminal2}
-                        size={14}
-                        color="indigo.5"
-                    />
-                    <Text size="xs" fw={500} c="ldGray.8">
-                        About to run SQL — approve to execute
-                    </Text>
-                </Group>
-                <Code
-                    block
-                    style={{
-                        fontSize: 11,
-                        maxHeight: 240,
-                        overflow: 'auto',
-                    }}
-                >
-                    {toolArgs.sql}
-                </Code>
-                <SqlApprovalActions size="xs" {...target} />
-            </Stack>
-        </Paper>
     );
 };

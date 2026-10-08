@@ -37,7 +37,7 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { type SqlApprovalTarget } from '../SqlApprovalCard';
+import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import type { ToolCallSummary } from '../utils/types';
 import {
     ComposerQueriesToolCallDescription,
@@ -92,15 +92,9 @@ export const ToolCallDescription: FC<{
      * persisted views, which render the pipeline without indicators.
      */
     composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
-    /** Approval target while a composer pipeline's SQL nodes await a decision. */
-    composerApproval?: SqlApprovalTarget;
-}> = ({
-    toolName,
-    toolCall,
-    toolResult,
-    composerNodeStatuses,
-    composerApproval,
-}) => {
+    /** Approval target while this call's SQL awaits the user's decision. */
+    approval?: SqlApprovalTarget;
+}> = ({ toolName, toolCall, toolResult, composerNodeStatuses, approval }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -236,6 +230,7 @@ export const ToolCallDescription: FC<{
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
+                    approval={approval}
                 />
             );
         case 'runComposerQueries':
@@ -245,7 +240,7 @@ export const ToolCallDescription: FC<{
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
                     nodeStatuses={composerNodeStatuses}
-                    approval={composerApproval}
+                    approval={approval}
                 />
             );
         case 'readContent':

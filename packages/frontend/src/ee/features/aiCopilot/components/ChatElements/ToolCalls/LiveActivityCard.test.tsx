@@ -197,7 +197,7 @@ describe('LiveActivityCard composer approval', () => {
                 <LiveActivityCard
                     isLive={false}
                     toolGroups={sqlPipeline}
-                    composerApproval={{
+                    approval={{
                         projectUuid: 'project',
                         agentUuid: 'agent',
                         threadUuid: 'thread',
@@ -232,6 +232,26 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: true })).toBeVisible();
+    });
+
+    it('renders the approval inline under the SQL with an awaiting status', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        projectUuid: 'project',
+                        agentUuid: 'agent',
+                        threadUuid: 'thread',
+                        pendingToolCallIds: ['sql-call'],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(screen.getByText('awaiting approval')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
     });
 
     it('keeps a user collapse when the stream ends', async () => {
