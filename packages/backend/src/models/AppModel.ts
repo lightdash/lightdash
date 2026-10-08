@@ -2251,6 +2251,16 @@ export class AppModel {
             .update({ sandbox_id: sandboxUuid });
     }
 
+    /** Nulls `sandbox_id` only while it still points at `sandboxUuid`, so a concurrent prompt's new sandbox is not unlinked. */
+    async clearSandboxUuidIfCurrent(
+        appId: string,
+        sandboxUuid: string,
+    ): Promise<void> {
+        await this.database(AppsTableName)
+            .where({ app_id: appId, sandbox_id: sandboxUuid })
+            .update({ sandbox_id: null });
+    }
+
     /**
      * Returns candidate dashboard UUIDs whose latest version contains a tile
      * referencing `appUuid`. Old versions are intentionally ignored.

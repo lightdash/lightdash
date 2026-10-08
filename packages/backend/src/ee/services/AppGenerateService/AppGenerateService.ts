@@ -3274,7 +3274,7 @@ export class AppGenerateService extends BaseService {
         return sessionTar;
     }
 
-    /** Returns whether the provider destroy succeeded; the reference is cleared either way. */
+    /** Returns whether the provider destroy succeeded. */
     private async destroySandboxAndClearReference(
         appUuid: string,
         sandboxUuid: string,
@@ -3287,10 +3287,10 @@ export class AppGenerateService extends BaseService {
             destroyed = true;
         } catch (error) {
             this.logger.warn(
-                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+                `App ${appUuid}: failed to destroy sandbox ${sandboxUuid}: ${getErrorMessage(error)}`,
             );
         }
-        await this.appModel.updateSandboxUuid(appUuid, null);
+        await this.appModel.clearSandboxUuidIfCurrent(appUuid, sandboxUuid);
         return destroyed;
     }
 
@@ -8326,7 +8326,7 @@ export class AppGenerateService extends BaseService {
     /**
      * Start a fresh thread on the app: the coding agent forgets the current
      * thread and its sandbox is destroyed, so the next prompt runs in a fresh
-     * one restored from the latest ready version. Versions are unchanged.
+     * one seeded from the latest ready version. Versions are unchanged.
      */
     async clearAgentContext(
         user: SessionUser,
@@ -8353,19 +8353,19 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const thread = await this.appModel.createThread({
-            appUuid,
-            origin: 'builder',
-            aiThreadUuid: null,
-            createdByUserUuid: user.userUuid,
-        });
-
         const sandboxDestroyed = app.sandbox_id
             ? await this.destroySandboxAndClearReference(
                   appUuid,
                   app.sandbox_id,
               )
             : null;
+
+        const thread = await this.appModel.createThread({
+            appUuid,
+            origin: 'builder',
+            aiThreadUuid: null,
+            createdByUserUuid: user.userUuid,
+        });
 
         this.analytics.track({
             event: 'data_app.thread.cleared',

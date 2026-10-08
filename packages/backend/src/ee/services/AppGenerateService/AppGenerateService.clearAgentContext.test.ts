@@ -42,7 +42,7 @@ function buildService(
             app_thread_uuid: 'thread-2',
             thread_number: 2,
         }),
-        updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
+        clearSandboxUuidIfCurrent: vi.fn().mockResolvedValue(undefined),
     };
     const analytics = { track: vi.fn() };
 
@@ -132,7 +132,10 @@ describe('clearAgentContext', () => {
         expect(sandboxManager.destroy).toHaveBeenCalledWith({
             sandboxUuid: 'sandbox-1',
         });
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-1',
+        );
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'data_app.thread.cleared',
@@ -151,7 +154,10 @@ describe('clearAgentContext', () => {
 
         await service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID);
 
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-1',
+        );
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 properties: expect.objectContaining({
@@ -167,7 +173,7 @@ describe('clearAgentContext', () => {
         await service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID);
 
         expect(sandboxManager.destroy).not.toHaveBeenCalled();
-        expect(appModel.updateSandboxUuid).not.toHaveBeenCalled();
+        expect(appModel.clearSandboxUuidIfCurrent).not.toHaveBeenCalled();
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 properties: expect.objectContaining({
@@ -177,8 +183,10 @@ describe('clearAgentContext', () => {
         );
     });
 
-    it('refuses while a version is building and starts no thread', async () => {
-        const { service, appModel } = buildService();
+    it('refuses while a version is building and leaves thread and sandbox alone', async () => {
+        const { service, appModel, sandboxManager } = buildService({
+            sandboxId: 'sandbox-1',
+        });
         appModel.getLatestVersion.mockResolvedValue({
             version: 4,
             status: 'generating',
@@ -188,6 +196,7 @@ describe('clearAgentContext', () => {
             service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID),
         ).rejects.toThrow('A version is already building for this app');
         expect(appModel.createThread).not.toHaveBeenCalled();
+        expect(sandboxManager.destroy).not.toHaveBeenCalled();
     });
 
     it('rejects a user without manage permission', async () => {
