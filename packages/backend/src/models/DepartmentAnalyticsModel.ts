@@ -1,8 +1,10 @@
 import {
+    QueryExecutionContext,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
 
@@ -21,6 +23,12 @@ type TopContentRow = {
 };
 
 const AI_TABLES = ['ai_prompt', 'ai_thread', 'ai_agent'];
+
+// Only queries a person ran count as activity; schedules, alerts, syncs, API, agent and MCP runs do not
+export const INTERACTIVE_QUERY_CONTEXTS: QueryExecutionContext[] =
+    Object.values(QueryExecutionContext).filter(
+        (context) => queryWorkloadOrigin(context) === 'interactive',
+    );
 
 const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
     id: row.id,
@@ -48,6 +56,7 @@ const activityUnion = (
         FROM query_history
         WHERE organization_uuid = ?
           AND created_by_user_uuid = ANY(?::uuid[])
+          AND context = ANY(?::text[])
           AND created_at >= ?
         UNION ALL
         SELECT user_uuid, timestamp AS at FROM analytics_chart_views
@@ -59,6 +68,7 @@ const activityUnion = (
     bindings: [
         organizationUuid,
         userUuids,
+        INTERACTIVE_QUERY_CONTEXTS,
         since,
         userUuids,
         since,
@@ -149,6 +159,7 @@ export class DepartmentAnalyticsModel {
                 FROM query_history
                 WHERE organization_uuid = ?
                   AND created_by_user_uuid = ANY(?::uuid[])
+                  AND context = ANY(?::text[])
                 GROUP BY created_by_user_uuid
             ),
             dv AS (
@@ -187,6 +198,7 @@ export class DepartmentAnalyticsModel {
                 since,
                 organizationUuid,
                 userUuids,
+                INTERACTIVE_QUERY_CONTEXTS,
                 since,
                 organizationUuid,
                 userUuids,
@@ -248,13 +260,20 @@ export class DepartmentAnalyticsModel {
             FROM query_history qh
             WHERE qh.organization_uuid = ?
               AND qh.created_by_user_uuid = ANY(?::uuid[])
+              AND qh.context = ANY(?::text[])
               AND qh.created_at >= ?
               AND qh.metric_query->>'exploreName' IS NOT NULL
             GROUP BY qh.project_uuid, qh.metric_query->>'exploreName'
             ORDER BY count DESC, name ASC
             LIMIT ?
             `,
-            [organizationUuid, userUuids, since, limit],
+            [
+                organizationUuid,
+                userUuids,
+                INTERACTIVE_QUERY_CONTEXTS,
+                since,
+                limit,
+            ],
         );
         return result.rows.map(toTopContentItem);
     }

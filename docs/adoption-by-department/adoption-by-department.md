@@ -61,13 +61,15 @@ A department has an ordered list of owners, each a user or a group. The first is
 
 Computed on each request in `DepartmentService` and `departmentMetrics.ts` from existing tables. There are no events and no scheduled jobs.
 
-| Metric        | Definition                                                                                                                                                                               |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Members       | People on Lightdash who resolve to the department or a descendant. Every non-internal organization member counts, including invited users who have never logged in and deactivated users |
-| Coverage      | Members divided by effective headcount, as a rounded percentage                                                                                                                          |
-| Active        | Members with a query (`query_history`) or a chart or dashboard view (`analytics_chart_views`, `analytics_dashboard_views`) in the last 30 days, divided by effective headcount           |
-| Role split    | Members by organization role. Member and viewer count as viewers, developer counts as editor                                                                                             |
-| Weekly active | Distinct active members per week for the last 12 weeks, oldest first                                                                                                                     |
+| Metric        | Definition                                                                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Members       | People on Lightdash who resolve to the department or a descendant. Every non-internal organization member counts, including invited users who have never logged in and deactivated users                                  |
+| Coverage      | Members divided by effective headcount, as a rounded percentage                                                                                                                                                           |
+| Active        | Members who ran a query themselves (`query_history`, interactive contexts only) or viewed a chart or dashboard (`analytics_chart_views`, `analytics_dashboard_views`) in the last 30 days, divided by effective headcount |
+| Role split    | Members by organization role. Member and viewer count as viewers, developer counts as editor                                                                                                                              |
+| Weekly active | Distinct active members per week for the last 12 weeks, oldest first                                                                                                                                                      |
+
+A query counts only when a person ran it. `DepartmentAnalyticsModel` keeps the `query_history` rows whose `context` the backend's `queryWorkloadOrigin` (`packages/backend/src/services/AsyncQueryService/queryUsage.ts`) classifies as interactive: explores, dashboards, saved charts, SQL runner and view underlying data. Scheduled deliveries, alerts, Google Sheets syncs, API and CLI runs, AI agent and MCP runs, and auto-refreshed dashboards do not make their owner active. The same filter applies to the per-person query count and to top explores.
 
 Percentages are of headcount and are null when there is no headcount or it is 0. They are not capped, so more accounts than headcount reads above 100. The page then shows counts.
 
@@ -125,6 +127,8 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 - Moving departments concurrently can store a cycle. The cycle check runs before the update with no per-organization lock, so two moves in opposite directions at the same moment can both pass.
 - Assigning people concurrently can leave a person with two explicit assignments, because the one-assignment rule is application code with no constraint behind it.
 - `analytics_chart_views` and `analytics_dashboard_views` have no organization column. Only the member-list activity (`getMemberActivity`) and the top-content lists join through content to the organization. Every other number, on the index and on the detail page (active tile, target progress, weekly chart), comes from the summary snapshot, which scopes those two tables by the user set only. A user who changed organization can carry earlier views into those numbers.
+- A scheduled delivery of a saved chart writes an `analytics_chart_views` row for the schedule's owner, and the row carries nothing that tells it apart from a person opening the chart. Those views still count as activity.
+- `query_history` does not record whether a query came from a data app or a schedule that reused an interactive context, so such a run still counts as a query.
 - Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.
 - The per-person last-active read scans all history rather than a window.
 - Invited users who have never logged in, and deactivated users, count as "on Lightdash". Users without a primary email are left out of the member rows altogether.

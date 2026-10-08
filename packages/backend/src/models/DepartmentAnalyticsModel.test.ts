@@ -1,7 +1,11 @@
+import { QueryExecutionContext } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { DepartmentAnalyticsModel } from './DepartmentAnalyticsModel';
+import {
+    DepartmentAnalyticsModel,
+    INTERACTIVE_QUERY_CONTEXTS,
+} from './DepartmentAnalyticsModel';
 
 describe('DepartmentAnalyticsModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -90,6 +94,69 @@ describe('DepartmentAnalyticsModel', () => {
         expect(query.sql).toMatch(/o\.organization_uuid = \$\d/);
         expect(query.sql).toMatch(/WHERE organization_uuid = \$\d/);
         expect(query.sql).toContain('JOIN organizations o');
+    });
+
+    describe('interactive query contexts', () => {
+        it('lists what a person runs and nothing a schedule, API client, agent or MCP runs', () => {
+            expect(INTERACTIVE_QUERY_CONTEXTS).toEqual(
+                expect.arrayContaining([
+                    QueryExecutionContext.EXPLORE,
+                    QueryExecutionContext.DASHBOARD,
+                    QueryExecutionContext.CHART,
+                    QueryExecutionContext.SQL_RUNNER,
+                ]),
+            );
+            [
+                QueryExecutionContext.SCHEDULED_DELIVERY,
+                QueryExecutionContext.SCHEDULED_CHART,
+                QueryExecutionContext.SCHEDULED_DASHBOARD,
+                QueryExecutionContext.ALERT,
+                QueryExecutionContext.GSHEETS,
+                QueryExecutionContext.API,
+                QueryExecutionContext.AI,
+                QueryExecutionContext.MCP_RUN_SQL,
+                QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+            ].forEach((context) =>
+                expect(INTERACTIVE_QUERY_CONTEXTS).not.toContain(context),
+            );
+        });
+
+        it('filters the activity read to interactive contexts', async () => {
+            tracker.on.any(/query_history/).responseOnce({ rows: [] });
+            await model.getActiveUserUuids('org', ['u1'], 30);
+            const [query] = tracker.history.all;
+            expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
+            expect(query.bindings).toContainEqual(INTERACTIVE_QUERY_CONTEXTS);
+        });
+
+        it('filters member activity to interactive contexts', async () => {
+            tracker.on.any(/unnest/).responseOnce({ rows: [] });
+            await model.getMemberActivity('org', ['u1'], 30);
+            const [query] = tracker.history.all;
+            expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
+            expect(query.bindings).toContainEqual(INTERACTIVE_QUERY_CONTEXTS);
+        });
+
+        it('filters top explores to interactive contexts', async () => {
+            tracker.on
+                .any(/analytics_dashboard_views/)
+                .responseOnce({ rows: [] });
+            tracker.on.any(/exploreName/).responseOnce({ rows: [] });
+            const withoutAi = Object.assign(
+                new DepartmentAnalyticsModel({ database }),
+                { hasAiTables: async () => false },
+            );
+            await withoutAi.getTopContent('org', ['u1'], 30, 5);
+            const explores = tracker.history.all.find((q) =>
+                /exploreName/.test(q.sql),
+            );
+            expect(explores?.sql).toMatch(
+                /qh\.context = ANY\(\$\d+::text\[\]\)/,
+            );
+            expect(explores?.bindings).toContainEqual(
+                INTERACTIVE_QUERY_CONTEXTS,
+            );
+        });
     });
 
     describe('getTopContent', () => {
