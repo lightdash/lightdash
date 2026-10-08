@@ -15,6 +15,8 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { agentConnectHandler } from './handlers/agentConnect';
+import { agentStatusHandler } from './handlers/agentStatus';
 import { appsBuildHandler } from './handlers/apps/build';
 import { createAppHandler } from './handlers/apps/createApp';
 import { appsPreviewHandler } from './handlers/apps/preview';
@@ -70,6 +72,14 @@ function parseIntArgument(value: string) {
         throw new InvalidArgumentError('Not a number.');
     }
     return parsedValue;
+}
+
+function parseOAuthPortArgument(value: string): number {
+    const port = parseInt(value, 10);
+    if (Number.isNaN(port) || port < 1 || port > 65535) {
+        throw new Error('Port must be a number between 1 and 65535');
+    }
+    return port;
 }
 
 function parseStartOfWeekArgument(value: string) {
@@ -263,17 +273,64 @@ ${styles.bold('Examples:')}
     .option(
         '--oauth-port <port>',
         'Port for the local OAuth callback server (default: random available port)',
-        (value: string) => {
-            const port = parseInt(value, 10);
-            if (Number.isNaN(port) || port < 1 || port > 65535) {
-                throw new Error('Port must be a number between 1 and 65535');
-            }
-            return port;
-        },
+        parseOAuthPortArgument,
         undefined,
     )
     .option('--verbose', undefined, false)
     .action(login);
+
+const agentProgram = program
+    .command('agent')
+    .description('Connect your agent to the warehouse and check its status');
+
+agentProgram
+    .command('connect')
+    .description('Connects your agent to the warehouse using browser sign-in')
+    .option(
+        '--project <project uuid or slug>',
+        'Specify the project',
+        parseProjectArgument,
+    )
+    .option(
+        '--oauth-port <port>',
+        'Port for the local callback server (default: LIGHTDASH_OAUTH_PORT or a random available port)',
+        parseOAuthPortArgument,
+    )
+    .option(
+        '--timeout <seconds>',
+        'Seconds to wait for the browser callback before polling for another 120 seconds',
+        Number,
+        180,
+    )
+    .option('--verbose', undefined, false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  lightdash agent connect
+  lightdash agent connect --project my-project --oauth-port 4321 --timeout 180
+`,
+    )
+    .action(agentConnectHandler);
+
+agentProgram
+    .command('status')
+    .description('Shows your agent connection status for a project')
+    .option(
+        '--project <project uuid or slug>',
+        'Specify the project',
+        parseProjectArgument,
+    )
+    .option('--verbose', undefined, false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  lightdash agent status
+  lightdash agent status --project my-project
+`,
+    )
+    .action(agentStatusHandler);
 
 // CONFIG
 const configProgram = program

@@ -197,7 +197,7 @@ export const checkSnowflakeAgentSession = async (
 export const checkSnowflakeAgentSessionWithToken = async (
     account: string,
     token: string,
-    options: { throwOnError?: boolean } = {},
+    options: { throwOnError?: boolean; accessUrl?: string } = {},
 ): Promise<SnowflakeAgentSessionCheck> => {
     let connection: Connection | null = null;
     try {
@@ -205,6 +205,9 @@ export const checkSnowflakeAgentSessionWithToken = async (
             account,
             authenticator: 'OAUTH',
             token,
+            ...(options.accessUrl?.length
+                ? { accessUrl: options.accessUrl }
+                : {}),
         });
         await Util.promisify(connection.connect.bind(connection))();
         const session = await checkSnowflakeAgentSession(connection, options);

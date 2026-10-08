@@ -21,10 +21,10 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
+        isAccessRequired: true,
         data: { refusal: state.refusal },
         isLoading: state.isLoading,
         isFetching: false,
-        isAccessRequired: true,
     }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
@@ -144,6 +144,7 @@ describe('LauncherPanel AI access', () => {
             action: AiAccessRefusalAction.SIGN_IN,
             message: 'Sign in to run agent queries.',
             settingsUrl: null,
+            connectUrl: null,
         };
     });
 

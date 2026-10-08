@@ -25,6 +25,7 @@ import {
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentitySettings,
     type QueryHistory,
+    type SessionUser,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -32,6 +33,7 @@ import { type OrganizationAgentIdentitySettingsModel } from '../../models/Organi
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
+import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
 import { describeAgentMarker } from './agentMarker';
@@ -60,11 +62,14 @@ type AiAccessServiceArguments = {
     queryHistoryModel: QueryHistoryModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     userModel: UserModel;
+    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     providerRegistry: AiCredentialProviderRegistry;
 };
 
 export class AiAccessService extends BaseService {
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
+
+    private readonly lightdashConfig: LightdashConfig;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -76,12 +81,16 @@ export class AiAccessService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+
     private readonly providerRegistry: AiCredentialProviderRegistry;
 
     constructor({
         organizationAgentIdentitySettingsModel,
+        lightdashConfig,
         featureFlagModel,
         userModel,
+        userWarehouseCredentialsModel,
         projectModel,
         queryHistoryModel,
         warehouseConnectionModel,
@@ -90,8 +99,10 @@ export class AiAccessService extends BaseService {
         super();
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
+        this.lightdashConfig = lightdashConfig;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
+        this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.projectModel = projectModel;
         this.queryHistoryModel = queryHistoryModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
@@ -104,6 +115,54 @@ export class AiAccessService extends BaseService {
         if (!(await this.isEnabled(user))) {
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
         }
+    }
+
+    async getAgentConnectPrompt(
+        user: SessionUser,
+    ): Promise<
+        | { required: true; reason: 'needs_sign_in' | 'sign_in_expired' }
+        | { required: false }
+    > {
+        const { organizationUuid, userUuid } = user;
+        if (
+            !organizationUuid ||
+            !(await this.isEnabled({ organizationUuid, userUuid }))
+        )
+            return { required: false };
+        const settings =
+            await this.organizationAgentIdentitySettingsModel.get(
+                organizationUuid,
+            );
+        if (!settings.requireVerifiedAgentSessions) return { required: false };
+        const projects =
+            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
+        const ability = this.createAuditedAbility(user);
+        const project = projects.find(
+            ({ projectUuid, warehouseType }) =>
+                warehouseType === WarehouseTypes.SNOWFLAKE &&
+                ability.can(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                ),
+        );
+        if (!project) return { required: false };
+        const provider = this.providerRegistry(WarehouseTypes.SNOWFLAKE);
+        if (!provider) return { required: false };
+        const connection =
+            await this.projectModel.getWarehouseCredentialsForBinding(
+                project.projectUuid,
+                { kind: 'connection', warehouseConnectionUuid: null },
+            );
+        const reason = await provider.missingPrerequisite({
+            connection,
+            person: { userUuid, email: user.email ?? '' },
+        });
+        if (
+            reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
+            reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+        )
+            return { required: true, reason };
+        return { required: false };
     }
 
     async getOrganizationSettings(
@@ -411,9 +470,22 @@ export class AiAccessService extends BaseService {
         return provider;
     }
 
-    private static withRefusalSettingsUrl(
+    private withRefusalUrls(
         error: AiAccessRefusedError,
+        projectUuid: string,
     ): AiAccessRefusedError {
+        if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
+            const connectUrl = new URL(
+                '/agent/connect',
+                this.lightdashConfig.siteUrl,
+            );
+            connectUrl.searchParams.set('project', projectUuid);
+            connectUrl.searchParams.set('redirect', '/agent-connected');
+            return new AiAccessRefusedError(error.refusal.reason, {
+                ...error.refusal,
+                connectUrl: connectUrl.href,
+            });
+        }
         if (
             error.refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
             (error.refusal.settingsUrl === null ||
@@ -500,8 +572,10 @@ export class AiAccessService extends BaseService {
             };
         } catch (error) {
             if (error instanceof AiAccessRefusedError) {
-                const refusalError =
-                    AiAccessService.withRefusalSettingsUrl(error);
+                const refusalError = this.withRefusalUrls(
+                    error,
+                    args.projectUuid,
+                );
                 this.logRefusal(args, refusalError);
                 throw refusalError;
             }
@@ -605,6 +679,7 @@ export class AiAccessService extends BaseService {
             enabled,
             principalKind: enabled ? 'person' : null,
             refusal: null,
+            expiresAt: null,
         };
         if (!required) return result;
         result.identity = 'connected_person';
@@ -623,9 +698,17 @@ export class AiAccessService extends BaseService {
             });
             if (missingPrerequisite !== null)
                 throw new AiAccessRefusedError(missingPrerequisite);
+            const credential =
+                await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                    {
+                        userUuid: args.userUuid,
+                        warehouseType: args.connection.type,
+                    },
+                );
+            result.expiresAt = credential?.expiresAt ?? null;
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = AiAccessService.withRefusalSettingsUrl(error);
+            const refusalError = this.withRefusalUrls(error, args.projectUuid);
             this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }

@@ -35,6 +35,7 @@ export type UserWarehouseCredentials = {
     name: string;
     createdAt: Date;
     updatedAt: Date;
+    expiresAt: Date | null;
     credentials:
         | Pick<
               CreateRedshiftCredentials,
@@ -59,7 +60,7 @@ export type UserWarehouseCredentials = {
 
 export type UserWarehouseCredentialsWithSecrets = Pick<
     UserWarehouseCredentials,
-    'uuid'
+    'uuid' | 'expiresAt'
 > & {
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>

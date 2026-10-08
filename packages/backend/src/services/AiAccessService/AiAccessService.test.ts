@@ -23,6 +23,7 @@ import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHist
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { sessionUser } from '../UserService.mock';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import {
     aiAgentMarkerMock,
@@ -108,6 +109,9 @@ const setup = () => {
     } satisfies AiCredentialProvider;
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const projects = {
+        getAllByOrganizationUuid: vi.fn(async () => [
+            { projectUuid: 'project', warehouseType: WarehouseTypes.SNOWFLAKE },
+        ]),
         getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
         getWarehouseCredentialsForBinding: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
@@ -133,10 +137,21 @@ const setup = () => {
             ) => settings,
         ),
     };
+    const credentials = {
+        findAiCredentialWithSecrets: vi.fn(async () => ({
+            uuid: 'agent-credential',
+            expiresAt: new Date('2030-01-01T00:00:00Z'),
+            credentials: { type: WarehouseTypes.SNOWFLAKE },
+        })),
+    };
     const service = new AiAccessService({
+        userWarehouseCredentialsModel:
+            credentials as unknown as UserWarehouseCredentialsModel,
         organizationAgentIdentitySettingsModel:
             organizationSettings as unknown as OrganizationAgentIdentitySettingsModel,
-        lightdashConfig: {} as LightdashConfig,
+        lightdashConfig: {
+            siteUrl: 'https://lightdash.example',
+        } as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,
         queryHistoryModel: historyModel as unknown as QueryHistoryModel,
@@ -152,6 +167,7 @@ const setup = () => {
     return {
         service,
         historyModel,
+        credentials,
         organizationSettings,
         provider,
         flags,
@@ -162,6 +178,150 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    describe('getAgentConnectPrompt', () => {
+        const user = {
+            ...sessionUser,
+            organizationUuid: 'org',
+            userUuid: 'user',
+            ability: viewer.user.ability,
+        };
+
+        test('skips users without an organisation', async () => {
+            const { service, flags } = setup();
+            expect(
+                await service.getAgentConnectPrompt({
+                    ...user,
+                    organizationUuid: undefined,
+                }),
+            ).toEqual({ required: false });
+            expect(flags.get).not.toHaveBeenCalled();
+        });
+
+        test('skips when the flag is off', async () => {
+            const { service, flags, organizationSettings, projects } = setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            expect(await service.getAgentConnectPrompt(user)).toEqual({
+                required: false,
+            });
+            expect(flags.get).toHaveBeenCalledWith({
+                user: { userUuid: 'user', organizationUuid: 'org' },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+            expect(organizationSettings.get).not.toHaveBeenCalled();
+            expect(projects.getAllByOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        test('skips when the organisation rule is off', async () => {
+            const { service, organizationSettings, projects } = setup();
+            organizationSettings.get.mockResolvedValue({
+                requireVerifiedAgentSessions: false,
+            });
+            expect(await service.getAgentConnectPrompt(user)).toEqual({
+                required: false,
+            });
+            expect(projects.getAllByOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            { allProjects: [] },
+            {
+                allProjects: [
+                    {
+                        projectUuid: 'project',
+                        warehouseType: WarehouseTypes.POSTGRES,
+                    },
+                ],
+            },
+        ])(
+            'skips when no project uses Snowflake: %j',
+            async ({ allProjects }) => {
+                const { service, projects, provider } = setup();
+                projects.getAllByOrganizationUuid.mockResolvedValue(
+                    allProjects,
+                );
+                expect(await service.getAgentConnectPrompt(user)).toEqual({
+                    required: false,
+                });
+                expect(provider.missingPrerequisite).not.toHaveBeenCalled();
+                expect(
+                    projects.getWarehouseCredentialsForBinding,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('skips inaccessible Snowflake projects', async () => {
+            const { service, provider } = setup();
+            expect(
+                await service.getAgentConnectPrompt({
+                    ...user,
+                    ability: new Ability<PossibleAbilities>([]),
+                }),
+            ).toEqual({ required: false });
+            expect(provider.missingPrerequisite).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ])('prompts a project viewer for %s', async (reason) => {
+            const { service, projects, provider, registry } = setup();
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                snowflake,
+            );
+            provider.missingPrerequisite.mockResolvedValue(reason);
+            expect(await service.getAgentConnectPrompt(user)).toEqual({
+                required: true,
+                reason,
+            });
+            expect(projects.getAllByOrganizationUuid).toHaveBeenCalledWith(
+                'org',
+            );
+            expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
+            expect(provider.missingPrerequisite).toHaveBeenCalledWith({
+                connection: snowflake,
+                person: { userUuid: 'user', email: user.email },
+            });
+        });
+
+        test.each([null, AiAccessRefusalReason.PRINCIPAL_FAILED])(
+            'skips when the provider reports %s',
+            async (reason) => {
+                const { service, provider } = setup();
+                provider.missingPrerequisite.mockResolvedValue(reason);
+                expect(await service.getAgentConnectPrompt(user)).toEqual({
+                    required: false,
+                });
+            },
+        );
+    });
+
+    test('returns stored expiry only for connected people', async () => {
+        const { service, flags, organizationSettings, credentials } = setup();
+        expect(
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            }),
+        ).toMatchObject({
+            identity: 'connected_person',
+            refusal: null,
+            expiresAt: new Date('2030-01-01T00:00:00Z'),
+        });
+        credentials.findAiCredentialWithSecrets.mockClear();
+        organizationSettings.get.mockResolvedValue({
+            requireVerifiedAgentSessions: false,
+        });
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            identity: 'marked_person',
+            expiresAt: null,
+        });
+        flags.get.mockResolvedValue({ enabled: false });
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            identity: null,
+            expiresAt: null,
+        });
+        expect(credentials.findAiCredentialWithSecrets).not.toHaveBeenCalled();
+    });
     test.each(['me', 'capabilities', 'marker'] as const)(
         'rejects %s when agent identity is off',
         async (route) => {
@@ -678,6 +838,65 @@ describe('AiAccessService', () => {
             projects.getWarehouseCredentialsForBinding,
         ).not.toHaveBeenCalled();
     });
+    test.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])('me returns the project connect link for %s', async (reason) => {
+        const { service, provider, projects } = setup();
+        projects.getWarehouseCredentialsForBinding.mockResolvedValue(snowflake);
+        provider.missingPrerequisite.mockResolvedValue(reason);
+        expect(
+            await service.getMyAccess(viewer, 'project', null),
+        ).toMatchObject({
+            requirementSource: 'organization',
+            expiresAt: null,
+            refusal: {
+                connectUrl:
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+            },
+        });
+    });
+
+    test.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])(
+        'resolvePlan includes the project connect link for %s',
+        async (reason) => {
+            const { service, provider } = setup();
+            provider.mint.mockRejectedValue(new AiAccessRefusedError(reason));
+            await expect(
+                service.resolvePlan({ ...args, connection: snowflake }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    connectUrl:
+                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                },
+            });
+        },
+    );
+
+    test.each(
+        Object.values(AiAccessRefusalReason).filter(
+            (reason) =>
+                reason !== AiAccessRefusalReason.NEEDS_SIGN_IN &&
+                reason !== AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ),
+    )('leaves the connect URL null for %s', async (reason) => {
+        const { service, provider } = setup();
+        provider.missingPrerequisite.mockResolvedValue(reason);
+        provider.mint.mockRejectedValue(new AiAccessRefusedError(reason));
+        expect(
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            }),
+        ).toMatchObject({ refusal: { reason, connectUrl: null } });
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({ refusal: { reason, connectUrl: null } });
+    });
+
     test('reports a missing agent connection without minting', async () => {
         const { service, provider } = setup();
         provider.missingPrerequisite.mockResolvedValue(
@@ -695,6 +914,8 @@ describe('AiAccessService', () => {
                 message:
                     'Connect your agent to the warehouse once so it can run as you.',
                 settingsUrl: null,
+                connectUrl:
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
             },
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
@@ -726,6 +947,7 @@ describe('AiAccessService', () => {
                 refusal: {
                     action: 'ask_admin',
                     settingsUrl: '/generalSettings/warehouseCredentials',
+                    connectUrl: null,
                 },
             });
         },
@@ -852,6 +1074,7 @@ describe('AiAccessService', () => {
                 reason: 'principal_failed',
                 action: 'ask_admin',
                 settingsUrl: '/generalSettings/warehouseCredentials',
+                connectUrl: null,
             },
         });
     });

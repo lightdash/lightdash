@@ -72,6 +72,8 @@ node ./packages/cli/dist/index.js preview --project-dir ./examples/full-jaffle-s
 
 **Main Commands:**
 - `login` - Authenticate with Lightdash instance
+- `agent connect` - Connect your agent to the warehouse through browser sign-in
+- `agent status` - Show your agent connection status
 - `compile` - Compile dbt models and generate Lightdash config
 - `generate` - Generate Lightdash YAML files
 - `validate` - Validate dbt project structure

@@ -1,4 +1,5 @@
 import {
+    formatDate,
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
@@ -17,6 +18,10 @@ export const AgentConnectionSection = ({
     const credential = credentials.find(
         ({ purpose }) => purpose === UserWarehouseCredentialPurpose.AI,
     );
+    const expired =
+        !!credential?.expiresAt &&
+        new Date(credential.expiresAt).getTime() <= Date.now();
+    const connected = !!credential && !expired;
     const login = useSnowflakeAiLoginPopup();
     const [isRemoving, setIsRemoving] = useState(false);
     return (
@@ -28,17 +33,23 @@ export const AgentConnectionSection = ({
                     warehouse.
                 </Text>
                 <Group gap="sm">
-                    {credential ? (
+                    {connected ? (
                         <Group gap="xs">
                             <MantineIcon
                                 icon={IconCheck}
                                 color="green"
                                 size={16}
                             />
-                            <Text fz="sm">Agent connected</Text>
+                            <Text fz="sm">
+                                Agent connected
+                                {credential.expiresAt
+                                    ? `, expires ${formatDate(credential.expiresAt)}`
+                                    : ''}
+                            </Text>
                         </Group>
                     ) : null}
-                    {credential ? (
+                    {expired && <Text fz="sm">Agent connection expired</Text>}
+                    {connected ? (
                         <Button
                             size="xs"
                             variant="default"
@@ -56,7 +67,7 @@ export const AgentConnectionSection = ({
                         </Button>
                     )}
                 </Group>
-                {!credential && login.error && (
+                {!connected && login.error && (
                     <Text c="red" fz="sm" role="alert">
                         {login.error.message}
                     </Text>

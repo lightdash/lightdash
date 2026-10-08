@@ -21,6 +21,13 @@ type RegisteredToolCallback = (
     extra: Record<string, unknown>,
 ) => Promise<unknown>;
 
+type ResourceCallback = (
+    uri: URL,
+    variables: Record<string, string>,
+    extra: Record<string, unknown>,
+) => Promise<unknown>;
+const mockRegisteredMcpResources = new Map<string, ResourceCallback>();
+
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 const mockRegisteredMcpToolInputSchemas = new Map<string, ZodRawShape>();
 
@@ -34,7 +41,10 @@ vi.mock('@sentry/node', () => ({
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('@modelcontextprotocol/sdk/server/mcp.js')
+    >()),
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
@@ -43,7 +53,17 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
                     registerCapabilities: vi.fn(),
                     setRequestHandler: vi.fn(),
                 },
-                registerResource: vi.fn(),
+                registerResource: vi.fn(
+                    (
+                        name: string,
+                        _template: unknown,
+                        _config: unknown,
+                        callback: ResourceCallback,
+                    ) => {
+                        mockRegisteredMcpResources.set(name, callback);
+                        return {};
+                    },
+                ),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(
                     (
@@ -245,6 +265,7 @@ const makeMcpService = ({
     artifactVerifiedContent = [],
     runtimeErrors = {},
     filterExpressionsEnabled = false,
+    agentIdentityEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -272,7 +293,9 @@ const makeMcpService = ({
         findFieldsByQuery?: Record<string, string>;
     };
     filterExpressionsEnabled?: boolean;
+    agentIdentityEnabled?: boolean;
 } = {}) => {
+    const aiAccessService = { getMyAccess: vi.fn() };
     const analytics = { track: vi.fn() };
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -569,6 +592,7 @@ const makeMcpService = ({
     };
 
     const service = new McpService({
+        aiAccessService,
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
@@ -606,6 +630,7 @@ const makeMcpService = ({
 
     // The constructor registers handlers fail-closed (run_sql off), so
     // re-register here with run_sql enabled — these tests exercise the tool.
+    mockRegisteredMcpResources.clear();
     mockRegisteredMcpTools.clear();
     mockRegisteredMcpToolInputSchemas.clear();
     service.setupHandlers(
@@ -613,10 +638,12 @@ const makeMcpService = ({
             runSqlEnabled: true,
             runMetricQueryEnabled: true,
             filterExpressionsEnabled,
+            agentIdentityEnabled,
         }),
     );
 
     return {
+        aiAccessService,
         analytics,
         aiAgentService,
         aiAgentToolsService,
@@ -713,6 +740,7 @@ describe('MCP catalogue audit', () => {
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,
+                                agentIdentityEnabled: false,
                             },
                         },
                     }),
@@ -2160,5 +2188,316 @@ it('returns an AI access refusal as an MCP tool error', async () => {
                 text: 'Error running metric query: Connect your agent to the warehouse once so it can run as you.',
             },
         ],
+    });
+});
+
+describe('agent connection over MCP', () => {
+    const connectUrl =
+        'https://lightdash.example/agent/connect?project=project-uuid&redirect=%2Fagent-connected';
+    const refusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        { connectUrl },
+    );
+
+    it('gates the tool and resource per request', () => {
+        for (const enabled of [true, false, true]) {
+            makeMcpService({ agentIdentityEnabled: enabled });
+            expect(mockRegisteredMcpTools.has(McpToolName.CONNECT_AGENT)).toBe(
+                enabled,
+            );
+            expect(mockRegisteredMcpResources.has('agent-status')).toBe(
+                enabled,
+            );
+        }
+    });
+
+    it.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])(
+        'returns %s from the tool and resource, then reports connected with expiry',
+        async (reason) => {
+            const signInRefusal = new AiAccessRefusedError(reason, {
+                connectUrl,
+            });
+            const { aiAccessService } = makeMcpService({
+                agentIdentityEnabled: true,
+            });
+            aiAccessService.getMyAccess.mockResolvedValue({
+                requirementSource: 'organization',
+                identity: 'connected_person',
+                refusal: signInRefusal.refusal,
+            });
+            const expected = {
+                status: 'needs_sign_in',
+                message: signInRefusal.message,
+                connectUrl,
+                expiresAt: null,
+            };
+            expect(
+                await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                ),
+            ).toMatchObject({
+                structuredContent: expected,
+                content: [
+                    {
+                        type: 'text',
+                        text: `needs_sign_in: ${signInRefusal.message} ${connectUrl}`,
+                    },
+                ],
+            });
+            const uri = new URL(
+                `lightdash://projects/${projectUuid}/agent-status`,
+            );
+            expect(
+                await mockRegisteredMcpResources.get('agent-status')!(
+                    uri,
+                    { projectUuid },
+                    extra,
+                ),
+            ).toEqual({
+                contents: [
+                    {
+                        uri: uri.href,
+                        mimeType: 'application/json',
+                        text: JSON.stringify(expected),
+                    },
+                ],
+            });
+            expect(aiAccessService.getMyAccess).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                null,
+            );
+            aiAccessService.getMyAccess.mockResolvedValue({
+                requirementSource: 'organization',
+                identity: 'connected_person',
+                refusal: null,
+                expiresAt: new Date('2030-01-01T00:00:00Z'),
+            });
+            expect(
+                await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                ),
+            ).toMatchObject({
+                structuredContent: {
+                    status: 'connected',
+                    connectUrl: null,
+                    expiresAt: '2030-01-01T00:00:00.000Z',
+                },
+            });
+            const connectedResource = await mockRegisteredMcpResources.get(
+                'agent-status',
+            )!(uri, { projectUuid }, extra);
+            expect(connectedResource).toMatchObject({
+                contents: [
+                    {
+                        text: JSON.stringify({
+                            status: 'connected',
+                            message:
+                                'Your agent is connected to the warehouse.',
+                            connectUrl: null,
+                            expiresAt: '2030-01-01T00:00:00.000Z',
+                        }),
+                    },
+                ],
+            });
+        },
+    );
+
+    it.each([
+        {
+            access: {
+                requirementSource: null,
+                identity: 'marked_person',
+                refusal: null,
+            },
+            status: 'not_required',
+        },
+        {
+            access: {
+                requirementSource: 'organization',
+                identity: 'connected_person',
+                refusal: new AiAccessRefusedError(
+                    AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                ).refusal,
+            },
+            status: 'unavailable',
+        },
+    ])('reports $status without a connect URL', async ({ access, status }) => {
+        const { aiAccessService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        aiAccessService.getMyAccess.mockResolvedValue(access);
+        expect(
+            await getToolCallback(McpToolName.CONNECT_AGENT)(
+                { projectUuid },
+                extra,
+            ),
+        ).toMatchObject({ structuredContent: { status, connectUrl: null } });
+    });
+
+    it('checks resource project access before reading agent status', async () => {
+        const { aiAccessService, projectService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        projectService.getProject.mockRejectedValue(
+            new NotFoundError('Project not found'),
+        );
+        await expect(
+            mockRegisteredMcpResources.get('agent-status')!(
+                new URL(`lightdash://projects/${projectUuid}/agent-status`),
+                { projectUuid },
+                extra,
+            ),
+        ).rejects.toThrow('Project not found');
+        expect(aiAccessService.getMyAccess).not.toHaveBeenCalled();
+    });
+
+    it('rejects a resource outside the pinned project', async () => {
+        const { aiAccessService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        const pinnedExtra = {
+            ...extra,
+            authInfo: {
+                ...extra.authInfo,
+                extra: {
+                    ...extra.authInfo.extra,
+                    headerProjectUuid: 'pinned-project',
+                },
+            },
+        };
+        await expect(
+            mockRegisteredMcpResources.get('agent-status')!(
+                new URL(`lightdash://projects/${projectUuid}/agent-status`),
+                { projectUuid },
+                pinnedExtra,
+            ),
+        ).rejects.toThrow();
+        expect(aiAccessService.getMyAccess).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        McpToolName.RUN_METRIC_QUERY,
+        McpToolName.GET_QUERY_RESULT,
+        McpToolName.RENDER_CHART,
+    ])('includes the connect link in %s refusals', async (name) => {
+        const { asyncQueryService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        asyncQueryService.executeAsyncMetricQuery.mockRejectedValue(refusal);
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(refusal);
+        const result = await getToolCallback(name)(
+            {
+                projectUuid,
+                queryUuid,
+                title: 'Orders',
+                description: 'Orders count',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_orders_count'],
+                    sorts: [],
+                    limit: 10,
+                    customMetrics: null,
+                    tableCalculations: null,
+                    filters: null,
+                },
+                chartConfig: null,
+            },
+            extra,
+        );
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `${refusal.message}\n\nConnect your agent (once per person): ${connectUrl}\nThen run the same call again.`,
+                },
+            ],
+        });
+        expect(result).not.toHaveProperty('structuredContent');
+    });
+
+    it('includes the connect link in field-value search refusals', async () => {
+        const { projectService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        projectService.searchFieldUniqueValues.mockRejectedValue(refusal);
+        const result = await getToolCallback(McpToolName.SEARCH_FIELD_VALUES)(
+            {
+                projectUuid,
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'complete',
+                filters: null,
+            },
+            extra,
+        );
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `${refusal.message}\n\nConnect your agent (once per person): ${connectUrl}\nThen run the same call again.`,
+                },
+            ],
+        });
+        expect(result).not.toHaveProperty('structuredContent');
+    });
+
+    it('ends a SQL refusal with the connect link', async () => {
+        const { asyncQueryService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        asyncQueryService.executeAsyncSqlQuery.mockRejectedValue(refusal);
+        expect(
+            await getToolCallback(McpToolName.RUN_SQL)(
+                { projectUuid, sql: 'select 1' },
+                extra,
+            ),
+        ).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `${refusal.message}\n\nConnect your agent (once per person): ${connectUrl}\nThen run the same call again.`,
+                },
+            ],
+        });
+    });
+
+    it('keeps the plain error text for a refusal without a link', async () => {
+        const { asyncQueryService } = makeMcpService({
+            agentIdentityEnabled: false,
+        });
+        const linkless = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        asyncQueryService.executeAsyncSqlQuery.mockRejectedValue(linkless);
+        expect(
+            await getToolCallback(McpToolName.RUN_SQL)(
+                { projectUuid, sql: 'select 1' },
+                extra,
+            ),
+        ).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `Error running SQL query: ${linkless.message}`,
+                },
+            ],
+        });
     });
 });

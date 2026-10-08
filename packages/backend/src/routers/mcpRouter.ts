@@ -388,6 +388,7 @@ mcpRouter.all(
                     filterExpressionsEnabled,
                     documentsEnabled,
                     dataAppBuildsEnabled,
+                    agentIdentityEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
@@ -402,6 +403,7 @@ mcpRouter.all(
                         req.user!,
                         pinnedProjectUuid,
                     ),
+                    mcpService.isAgentIdentityEnabled(req.user!),
                 ]);
                 const toolOptions: McpServerToolOptions = {
                     req: {
@@ -417,6 +419,7 @@ mcpRouter.all(
                         filterExpressionsEnabled,
                         documentsEnabled,
                         dataAppBuildsEnabled,
+                        agentIdentityEnabled,
                     },
                 };
                 const mcpServer = await mcpService.createServer(toolOptions);

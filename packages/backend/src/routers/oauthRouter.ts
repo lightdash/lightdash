@@ -163,6 +163,14 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     const clientName = await getOAuthService(req).getClientDisplayName(
         client_id as string,
     );
+    const prompt = await req.services
+        .getAiAccessService()
+        .getAgentConnectPrompt(req.user);
+    const authorizeUrl = new URL(
+        req.originalUrl || req.url,
+        getOAuthService(req).getSiteUrl(),
+    );
+    authorizeUrl.searchParams.delete('error');
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
@@ -178,6 +186,18 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 organizationName: req.user.organizationName ?? '',
             },
             loginUrl,
+            agentConnect: prompt.required
+                ? {
+                      url: `/api/v1/login/snowflake-ai?redirect=${encodeURIComponent(
+                          authorizeUrl.href,
+                      )}`,
+                      reason: prompt.reason,
+                      error:
+                          typeof req.query.error === 'string'
+                              ? req.query.error
+                              : null,
+                  }
+                : null,
             hiddenInputs: [
                 {
                     name: 'response_type',

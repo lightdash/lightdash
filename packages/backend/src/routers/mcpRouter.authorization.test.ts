@@ -67,6 +67,7 @@ const createMcpService = (documentsEnabled: boolean) =>
         isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
+        isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
     }) as McpService;

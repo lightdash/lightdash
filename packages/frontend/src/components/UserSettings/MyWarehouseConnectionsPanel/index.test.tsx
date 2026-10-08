@@ -81,6 +81,7 @@ describe('My warehouse connections agent sign-in', () => {
                 purpose: UserWarehouseCredentialPurpose.AI,
                 createdAt: new Date(),
                 updatedAt: new Date(),
+                expiresAt: null,
             },
         ];
         renderWithProviders(<MyWarehouseConnectionsPanel />);

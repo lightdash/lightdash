@@ -15,12 +15,33 @@ Options:
   -h, --help      display help for command
 
 Commands:
+  agent connect   connect your agent to the warehouse through browser sign-in
+  agent status    show your agent connection status
   version         output the version number
   [dbt_command]   runs dbt
   help [command]  display help for command
 ```
 
 eg: `ligthdash test` Runs `dbt test`
+
+## Agent connection
+
+Use your saved CLI login to connect your agent to the warehouse:
+
+```shell
+lightdash agent connect --project my-project
+lightdash agent status --project my-project
+```
+
+Both commands accept a project UUID or slug. If you omit `--project`, they use
+your saved project. Select one with `lightdash config set-project`.
+
+`agent connect` opens a browser and prints the sign-in link for manual use.
+Use `--oauth-port <port>` to choose the local callback port, or set
+`LIGHTDASH_OAUTH_PORT`. Otherwise, the CLI selects an available port.
+`--timeout <seconds>` defaults to 180. After that wait, the CLI checks the
+connection every 3 seconds for up to another 120 seconds. Both commands accept
+`--verbose` and exit with code 1 if the connection is refused or incomplete.
 
 ## Project validation
 

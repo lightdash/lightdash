@@ -36,6 +36,7 @@ const verify = (
             req: Express.Request,
             accessToken: string,
             refreshToken: string,
+            params: { refresh_token_expires_in?: unknown },
             profile: unknown,
             done: (error: unknown, user?: unknown) => void,
         ) => Promise<void>;
@@ -46,6 +47,7 @@ const callVerify = async (
     enabled: boolean,
     refreshToken: string,
     agentSession: boolean | 'error' = true,
+    seconds: unknown = undefined,
 ) => {
     const check = vi.spyOn(snowflakeAiSessionCheck, 'check');
     if (agentSession === 'error') {
@@ -57,7 +59,9 @@ const callVerify = async (
             activeRestrictedSessionScopes: agentSession ? 'READ' : null,
         });
     }
-    const upsertAiSnowflakeCredential = vi.fn(async () => undefined);
+    const upsertAiSnowflakeCredential = vi.fn<
+        (user: unknown, token: string, expiresAt: Date | null) => Promise<void>
+    >(async () => undefined);
     const get = vi.fn(
         async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
             id: featureFlagId,
@@ -76,13 +80,51 @@ const callVerify = async (
         },
     } as unknown as Express.Request;
     const done = vi.fn();
-    await verify(req, 'access-token', refreshToken, {}, done);
+    await verify(
+        req,
+        'access-token',
+        refreshToken,
+        { refresh_token_expires_in: seconds },
+        {},
+        done,
+    );
     const checkCalls = [...check.mock.calls];
     check.mockRestore();
     return { checkCalls, done, get, upsertAiSnowflakeCredential, user };
 };
 
 describe('Snowflake AI OAuth callback', () => {
+    it('exposes the six-argument callback that receives OAuth token params', () => {
+        expect(verify.length).toBe(6);
+    });
+
+    it.each([undefined, null, 0, -1, NaN, Infinity, '7776000'])(
+        'stores no expiry for an invalid lifetime %s',
+        async (seconds) => {
+            const result = await callVerify(
+                true,
+                'refresh-token',
+                true,
+                seconds,
+            );
+            expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+                result.user,
+                'refresh-token',
+                null,
+            );
+        },
+    );
+
+    it('stores the refresh-token expiry from a positive lifetime', async () => {
+        const before = Date.now();
+        const result = await callVerify(true, 'refresh-token', true, 7776000);
+        const expiresAt = result.upsertAiSnowflakeCredential.mock
+            .calls[0]?.[2] as Date;
+        expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7776000000);
+        expect(expiresAt.getTime()).toBeLessThanOrEqual(
+            Date.now() + 7776000000,
+        );
+    });
     it('exchanges a code only once for state issued to the same session', async () => {
         const strategy = Object.create(snowflakeAiPassportStrategy!);
         const exchange = vi.fn();
@@ -181,7 +223,14 @@ describe('Snowflake AI OAuth callback', () => {
         try {
             const result = await callVerify(true, 'refresh-token');
             expect(result.checkCalls).toEqual([
-                ['myorg-myaccount', 'access-token'],
+                [
+                    'myorg-myaccount',
+                    'access-token',
+                    {
+                        accessUrl:
+                            'https://myorg-myaccount.snowflakecomputing.com',
+                    },
+                ],
             ]);
             expect(result.upsertAiSnowflakeCredential).toHaveBeenCalled();
         } finally {
@@ -199,7 +248,15 @@ describe('Snowflake AI OAuth callback', () => {
         expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
             result.user,
             'refresh-token',
+            null,
         );
+        expect(result.checkCalls).toEqual([
+            [
+                'test-account',
+                'access-token',
+                { accessUrl: 'https://snowflake.example' },
+            ],
+        ]);
         expect(result.done).toHaveBeenCalledWith(null, result.user);
     });
 });

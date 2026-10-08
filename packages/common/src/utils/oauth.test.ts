@@ -2,6 +2,7 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     generateOAuthSuccessResponse,
+    getAgentConnectErrorMessage,
     isSafeRedirectScheme,
     parseScopeString,
 } from './oauth';
@@ -28,6 +29,7 @@ const authorizePage = () =>
         },
         loginUrl: '/login',
         hiddenInputs: [],
+        agentConnect: null,
     });
 
 describe('isSafeRedirectScheme', () => {
@@ -50,6 +52,23 @@ describe('isSafeRedirectScheme', () => {
         'not a URL',
     ])('rejects unsafe redirect URI %s', (redirectUri) => {
         expect(isSafeRedirectScheme(redirectUri)).toBe(false);
+    });
+});
+
+describe('agent connection error messages', () => {
+    it.each([
+        [
+            'not_agent_session',
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.',
+        ],
+        [
+            'no_refresh_token',
+            'Snowflake did not return a refresh token. Try again.',
+        ],
+        ['license_required', 'An enterprise licence is required.'],
+        ['unknown_error', 'The sign-in did not complete. Try again.'],
+    ])('maps %s to the consent error copy', (code, message) => {
+        expect(getAgentConnectErrorMessage(code)).toBe(message);
     });
 });
 

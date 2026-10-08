@@ -71,6 +71,7 @@ export enum AiAccessRefusalReason {
     RESULT_NOT_AGENT_PRODUCED = 'result_not_agent_produced',
     PRINCIPAL_FAILED = 'principal_failed',
     NEEDS_SIGN_IN = 'needs_sign_in',
+    SIGN_IN_EXPIRED = 'sign_in_expired',
     WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
     SERVICE_ACCOUNT = 'service_account',
     EMBED_NOT_SUPPORTED = 'embed_not_supported',
@@ -89,6 +90,7 @@ export type AiAccessRefusal = {
     message: string;
     action: AiAccessRefusalAction | null;
     settingsUrl: string | null;
+    connectUrl: string | null;
 };
 
 export const getAiAccessRefusalMessage = (
@@ -99,6 +101,8 @@ export const getAiAccessRefusalMessage = (
             return 'AI cannot use these results because your current agent connection did not produce them. Run the query again through your agent.';
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
             return 'The last check of your AI principal failed. Ask an admin to review it.';
+        case AiAccessRefusalReason.SIGN_IN_EXPIRED:
+            return 'Your agent connection expired. Connect again.';
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return 'Connect your agent to the warehouse once so it can run as you.';
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
@@ -118,6 +122,7 @@ export const getAiAccessRefusalAction = (
     reason: AiAccessRefusalReason,
 ): AiAccessRefusalAction | null => {
     switch (reason) {
+        case AiAccessRefusalReason.SIGN_IN_EXPIRED:
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return AiAccessRefusalAction.SIGN_IN;
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
@@ -158,6 +163,7 @@ export type AiAccessForUser = {
     enabled: boolean;
     principalKind: 'person' | null;
     refusal: AiAccessRefusal | null;
+    expiresAt: Date | null;
 };
 
 export type ApiAiWarehouseCapabilitiesResponse = {

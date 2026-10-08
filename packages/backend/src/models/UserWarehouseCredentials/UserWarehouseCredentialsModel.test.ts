@@ -48,6 +48,7 @@ const makeRow = (
     encrypted_credentials: Buffer.from(JSON.stringify(credentials)),
     created_at: new Date(),
     updated_at: new Date(),
+    expires_at: null,
     project_uuid: null,
     purpose: UserWarehouseCredentialPurpose.DEFAULT,
     project_name: null,
@@ -380,11 +381,21 @@ describe('UserWarehouseCredentialsModel', () => {
             const first = await model.upsertAiSnowflakeCredential(
                 'user-1',
                 'first-token',
+                new Date('2030-01-01T00:00:00Z'),
             );
             const second = await model.upsertAiSnowflakeCredential(
                 'user-1',
                 'second-token',
+                null,
             );
+            expect(builder.insert.mock.calls[0][0].expires_at).toEqual(
+                new Date('2030-01-01T00:00:00Z'),
+            );
+            expect(merge.mock.calls[0][0].expires_at).toEqual(
+                new Date('2030-01-01T00:00:00Z'),
+            );
+            expect(builder.insert.mock.calls[1][0].expires_at).toBeNull();
+            expect(merge.mock.calls[1][0].expires_at).toBeNull();
             expect(first).not.toBe(second);
             expect(first).toMatch(/^[a-f0-9-]{36}$/);
             expect(builder.insert).toHaveBeenCalledWith(
@@ -400,6 +411,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 authenticationType: SnowflakeAuthenticationType.SSO,
                 refreshToken: 'ai-refresh-token',
             });
+            row.expires_at = new Date('2030-01-01T00:00:00Z');
             const where = vi.fn();
             const builder = { where, first: vi.fn(async () => row) };
             where.mockReturnValue(builder);
@@ -413,6 +425,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 warehouseType: WarehouseTypes.SNOWFLAKE,
             });
             expect(result?.uuid).toBe('ai-credential');
+            expect(result?.expiresAt).toEqual(row.expires_at);
             expect(where).toHaveBeenCalledWith({
                 user_uuid: 'user-1',
                 warehouse_type: WarehouseTypes.SNOWFLAKE,

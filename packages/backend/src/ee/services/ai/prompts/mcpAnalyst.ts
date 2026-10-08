@@ -6,6 +6,12 @@ const FILTER_EXPRESSION_SKILL_REMINDER =
 const RUN_SQL_GUIDANCE = `- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
 `;
 
+const RUN_SQL_GUIDANCE_SHORT = `- Prefer \`run_metric_query\`; use \`run_sql\`, in the warehouse's SQL dialect, for ad-hoc queries, unmodeled joins or explicit raw SQL (500 rows by default, max 5000 via \`limit\`)
+`;
+
+const AGENT_CONNECT_RULE = `- If a query tool refuses with a connect link, show it, ask the person to open it once, then retry the same call
+`;
+
 const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
 `;
@@ -25,7 +31,9 @@ Rules:
 - If nothing matches, say so plainly
 `;
 
-const SQL_ONLY_PROMPT = `# Lightdash MCP — SQL Runner Mode
+const buildSqlOnlyPrompt = (
+    agentIdentityEnabled: boolean,
+): string => `# Lightdash MCP — SQL Runner Mode
 
 Governed metric execution (\`run_metric_query\`) is not available in this session, so the semantic layer cannot answer questions here. \`run_sql\` is the only way to execute queries.
 
@@ -42,13 +50,18 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 ## Rules
 
 - When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
-`;
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
     filterExpressionsEnabled: boolean,
     documentsEnabled: boolean,
-): string => `## Query Building Workflow
+    agentIdentityEnabled: boolean,
+): string => {
+    const runSqlGuidance = agentIdentityEnabled
+        ? RUN_SQL_GUIDANCE_SHORT
+        : RUN_SQL_GUIDANCE;
+    return `## Query Building Workflow
 
 ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
@@ -64,29 +77,33 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scop
 
 - \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
 - Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-`;
+${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
+};
 
 export const getMcpAnalystPrompt = ({
     runSqlEnabled,
     runMetricQueryEnabled,
     filterExpressionsEnabled,
     documentsEnabled,
+    agentIdentityEnabled = false,
 }: {
     runSqlEnabled: boolean;
     runMetricQueryEnabled: boolean;
     filterExpressionsEnabled: boolean;
     documentsEnabled: boolean;
+    agentIdentityEnabled?: boolean;
 }): string => {
     if (!runSqlEnabled && !runMetricQueryEnabled) {
         return CONTENT_ONLY_PROMPT;
     }
     if (!runMetricQueryEnabled) {
-        return SQL_ONLY_PROMPT;
+        return buildSqlOnlyPrompt(agentIdentityEnabled);
     }
     return buildMcpAnalystPrompt(
         runSqlEnabled,
         filterExpressionsEnabled,
         documentsEnabled,
+        agentIdentityEnabled,
     );
 };

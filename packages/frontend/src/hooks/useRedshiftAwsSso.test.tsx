@@ -69,6 +69,7 @@ describe('useRedshiftAwsSsoLoginPopup', () => {
             purpose: 'default' as UserWarehouseCredentials['purpose'],
             createdAt: new Date(),
             updatedAt: new Date(),
+            expiresAt: null,
             credentials: {
                 type: WarehouseTypes.REDSHIFT,
                 authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
