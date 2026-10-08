@@ -110,6 +110,8 @@ minimumReleaseAgeExclude:
   - scim-patch@0.9.3
   # Renovate security update: @modelcontextprotocol/sdk@1.31.0
   - "@modelcontextprotocol/sdk@1.31.0"
+  # Renovate security update: moment@2.31.0
+  - moment@2.31.0
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
