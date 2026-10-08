@@ -81,6 +81,8 @@ type PromptComposerSize = 'sm' | 'md' | 'lg';
 /** Tints the whole composer to signal a distinct mode (e.g. deep research). */
 type PromptComposerAccent = 'none' | 'indigo';
 
+export type PromptComposerResizeHandle = 'top' | 'bottom';
+
 type Props = {
     variant?: PromptComposerVariant;
     size?: PromptComposerSize;
@@ -113,9 +115,10 @@ type Props = {
     attachments?: ReactNode;
     toolbarLeft?: ReactNode;
     toolbarRight?: ReactNode;
-    /** Card only: a handle on the top edge lets the editor be dragged taller,
-     *  growing upwards so a bottom-anchored composer keeps its place. */
-    resizable?: boolean;
+    /** Card only: a drag handle on one edge that lets the editor grow away
+     *  from the opposite edge. `top` suits a composer docked at the bottom of
+     *  a thread, `bottom` a free-standing one. */
+    resizeHandle?: PromptComposerResizeHandle;
     className?: string;
 };
 
@@ -142,7 +145,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             attachments,
             toolbarLeft,
             toolbarRight,
-            resizable = false,
+            resizeHandle,
             className,
         },
         ref,
@@ -272,7 +275,8 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const [editorHeight, setEditorHeight] = useState<number | null>(null);
         const dragStartHeightRef = useRef<number | null>(null);
 
-        // The handle sits on the top edge, so dragging up grows the editor.
+        // Dragging the handle away from the opposite edge grows the editor.
+        const growSign = resizeHandle === 'top' ? -1 : 1;
         const { ref: resizeHandleRef } = useDrag(
             ({ first, movement: [, dy], event }) => {
                 const content = contentRef.current;
@@ -286,7 +290,9 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 }
                 const start = dragStartHeightRef.current;
                 if (start === null) return;
-                setEditorHeight(clampEditorHeight(start - dy, content));
+                setEditorHeight(
+                    clampEditorHeight(start + growSign * dy, content),
+                );
             },
         );
 
@@ -295,18 +301,18 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         ) => {
             const content = contentRef.current;
             if (!content) return;
-            const direction =
+            const movement =
                 event.key === 'ArrowUp'
-                    ? 1
+                    ? -1
                     : event.key === 'ArrowDown'
-                      ? -1
+                      ? 1
                       : 0;
-            if (direction === 0) return;
+            if (movement === 0) return;
             event.preventDefault();
             const step = RESIZE_KEYBOARD_STEP * (event.shiftKey ? 4 : 1);
             setEditorHeight(
                 clampEditorHeight(
-                    content.clientHeight + direction * step,
+                    content.clientHeight + growSign * movement * step,
                     content,
                 ),
             );
@@ -340,7 +346,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 }}
                 onMouseDown={onMouseDown}
             >
-                {!isInline && resizable && (
+                {!isInline && resizeHandle && (
                     <Box
                         ref={resizeHandleRef}
                         role="separator"
@@ -348,6 +354,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                         aria-orientation="horizontal"
                         tabIndex={0}
                         className={classes.resizeHandle}
+                        data-placement={resizeHandle}
                         onMouseDown={(event) => event.stopPropagation()}
                         onDoubleClick={() => setEditorHeight(null)}
                         onKeyDown={handleResizeKeyDown}

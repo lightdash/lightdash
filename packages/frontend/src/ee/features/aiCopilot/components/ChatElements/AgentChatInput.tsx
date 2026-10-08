@@ -1745,7 +1745,7 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="card"
                         size={dense ? 'sm' : 'lg'}
-                        resizable
+                        resizeHandle={isThreadInput ? 'top' : 'bottom'}
                         className={styles.agentComposer}
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}
