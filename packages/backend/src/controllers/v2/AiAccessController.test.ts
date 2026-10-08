@@ -23,6 +23,12 @@ const setup = (enabled: boolean) => {
     const service = new AiAccessService({
         analytics: analyticsMock,
         featureFlagModel: flags,
+        organizationAgentIdentityRulesModel: {
+            get: vi.fn(async () => ({
+                source: 'marked_person',
+                required: false,
+            })),
+        },
         projectModel: {
             getSummary: vi.fn(async () => ({
                 organizationUuid: account.organization.organizationUuid,
