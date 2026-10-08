@@ -7,6 +7,11 @@
     background-color: var(--mantine-color-default-hover);
 }
 
+.hoverTrigger {
+    width: fit-content;
+    cursor: default;
+}
+
 .dropdown {
     max-height: calc(100dvh - 24px);
     overflow: auto;

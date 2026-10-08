@@ -20,6 +20,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type TileExecutionInfoProps = {
     cacheMetadata: CacheMetadata;
@@ -87,7 +88,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         : IconClock;
 
     return (
-        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+        <TileHeaderPopover>
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
@@ -146,7 +147,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                     </ActionIcon>
                 )}
             </Popover.Target>
-        </Popover>
+        </TileHeaderPopover>
     );
 };
 

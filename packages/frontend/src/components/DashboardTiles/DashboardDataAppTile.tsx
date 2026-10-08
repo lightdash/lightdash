@@ -42,6 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import DashboardDataAppIframe from './DashboardDataAppIframe';
 import TileBase from './TileBase/index';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -81,7 +82,7 @@ const DashboardFiltersIndicator: FC<{
     } available to this Data App`;
 
     return (
-        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+        <TileHeaderPopover>
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
@@ -130,7 +131,7 @@ const DashboardFiltersIndicator: FC<{
                     <MantineIcon icon={IconFilter} />
                 </ActionIcon>
             </Popover.Target>
-        </Popover>
+        </TileHeaderPopover>
     );
 };
 

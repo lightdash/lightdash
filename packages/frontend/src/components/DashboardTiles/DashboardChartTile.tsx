@@ -196,6 +196,7 @@ import EmbeddedDashboardChartInteractions, {
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 import TileExecutionInfo from './TileExecutionInfo';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
@@ -1233,12 +1234,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             {/* Dashboard comments button only appears on hover if there are no comments yet */}
                             {tileHasComments ? undefined : dashboardComments}
                             {hasFiltersToShow && (
-                                <Popover
-                                    withArrow
-                                    position="bottom-end"
-                                    offset={4}
-                                    arrowOffset={10}
-                                >
+                                <TileHeaderPopover>
                                     <Popover.Dropdown
                                         maw="calc(100vw - 24px)"
                                         mah="calc(100dvh - 24px)"
@@ -1564,17 +1560,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </Popover.Target>
-                                </Popover>
+                                </TileHeaderPopover>
                             )}
                             {usedParametersValues &&
                                 Object.keys(usedParametersValues).length >
                                     0 && (
-                                    <Popover
-                                        withArrow
-                                        position="bottom-end"
-                                        offset={4}
-                                        arrowOffset={10}
-                                    >
+                                    <TileHeaderPopover>
                                         <Popover.Dropdown
                                             maw="calc(100vw - 24px)"
                                             mah="calc(100dvh - 24px)"
@@ -1652,7 +1643,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 />
                                             </ActionIcon>
                                         </Popover.Target>
-                                    </Popover>
+                                    </TileHeaderPopover>
                                 )}
                             <TileTimezoneInfo
                                 resolvedTimezone={resolvedTimezone}

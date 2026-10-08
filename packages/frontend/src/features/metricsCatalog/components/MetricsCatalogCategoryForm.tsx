@@ -298,7 +298,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         px="xs"
                     >
                         <CloseButton
-                            size={44}
+                            mod="touch-dismiss"
                             aria-label={getUiString('metrics.closeCategories')}
                             onClick={onClose}
                         />

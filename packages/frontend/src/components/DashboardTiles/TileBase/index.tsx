@@ -34,7 +34,7 @@ import {
     IconDotsVertical,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDashboard';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
@@ -48,6 +48,7 @@ import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
+import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { type TileBaseProps } from './types';
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -98,6 +99,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     });
     const [titleHovered, setTitleHovered] = useState(false);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
+    const [openHeaderPopovers, setOpenHeaderPopovers] = useState<
+        ReadonlySet<string>
+    >(() => new Set());
+    const setHeaderPopoverOpen = useCallback((id: string, open: boolean) => {
+        setOpenHeaderPopovers((prev) => {
+            if (prev.has(id) === open) return prev;
+            const next = new Set(prev);
+            if (open) next.add(id);
+            else next.delete(id);
+            return next;
+        });
+    }, []);
     const isPhoneLayout = useMediaQuery('(width < 32em)', undefined, {
         getInitialValueInEffect: false,
     });
@@ -133,6 +146,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const showHeaderActions =
         (containerHovered && !titleHovered && !chartHovered) ||
         isMenuOpen ||
+        openHeaderPopovers.size > 0 ||
         lockHeaderVisibility ||
         !!visibleHeaderElement;
     const menuItems = (
@@ -448,7 +462,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     {!minimal && !hideTitle && (
                         <ConnectionBadge name={connectionName} />
                     )}
-                    {headerActions}
+                    <TileHeaderPopoverContext.Provider
+                        value={setHeaderPopoverOpen}
+                    >
+                        {headerActions}
+                    </TileHeaderPopoverContext.Provider>
                 </Group>
 
                 <Flex
