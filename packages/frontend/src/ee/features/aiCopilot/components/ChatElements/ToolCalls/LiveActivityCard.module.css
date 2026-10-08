@@ -29,7 +29,11 @@
 
 /* Header + body sit above the shimmer pseudo-element. */
 .header,
-.history,
+.history {
+    position: relative;
+    z-index: 1;
+}
+
 @keyframes bentoShimmer {
     0% {
         background-position: -25% 0;
