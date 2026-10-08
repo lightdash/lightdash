@@ -477,6 +477,7 @@ import {
     type ScopedWarehouseConnection,
     type WarehouseClientRef,
     type WarehouseConnectionLease,
+    type WarehouseConnectionLeaseRef,
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import type {
     ResolvedWarehouseCredentials,
@@ -555,6 +556,14 @@ const manifestWithCompilationSelection = (
 };
 
 const gzipAsync = promisify(gzip);
+
+type TestProjectAdapterCredentials =
+    | { kind: 'submitted_resolved'; credentials: CreateWarehouseCredentials }
+    | {
+          kind: 'stored';
+          projectUuid: string;
+          credentials: CreateWarehouseCredentials;
+      };
 
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
@@ -5150,7 +5159,13 @@ export class ProjectService
                 JobStepType.TESTING_ADAPTOR,
                 async () => {
                     const tested = await this.testProjectAdapter(
-                        createProject,
+                        {
+                            ...createProject,
+                            warehouseConnection: {
+                                kind: 'submitted_resolved',
+                                credentials: createProject.warehouseConnection,
+                            },
+                        },
                         user,
                         'project_create',
                         method,
@@ -6142,7 +6157,11 @@ export class ProjectService
                     `Missing warehouseConnection details on project ${projectUuid}'}`,
                 );
             }
-            if (!updatedProject.organizationWarehouseCredentialsUuid) {
+            if (
+                !this.lightdashConfig.warehouseClient
+                    .resolveTestAndCompileCredentials &&
+                !updatedProject.organizationWarehouseCredentialsUuid
+            ) {
                 updatedProject.warehouseConnection =
                     await this.repairStalePreviewSsoCredentials(
                         projectUuid,
@@ -6150,6 +6169,7 @@ export class ProjectService
                     );
             }
 
+            const storedCredentials = updatedProject.warehouseConnection;
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
@@ -6166,7 +6186,14 @@ export class ProjectService
                 JobStepType.TESTING_ADAPTOR,
                 async () => {
                     const tested = await this.testProjectAdapter(
-                        updatedProject as UpdateProject,
+                        {
+                            ...updatedProject,
+                            warehouseConnection: {
+                                kind: 'stored',
+                                projectUuid,
+                                credentials: storedCredentials,
+                            },
+                        },
                         user,
                         'project_update',
                         method,
@@ -6482,7 +6509,9 @@ export class ProjectService
     }
 
     private async testProjectAdapter(
-        data: UpdateProject,
+        data: Omit<UpdateProject, 'warehouseConnection'> & {
+            warehouseConnection: TestProjectAdapterCredentials;
+        },
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         context: 'project_create' | 'project_update',
         method: RequestMethod,
@@ -6508,23 +6537,61 @@ export class ProjectService
             if (organizationUuid === undefined) {
                 throw new ForbiddenError('User is not part of an organization');
             }
+            const connectionContext = connectionContextFromUser(
+                { userUuid: user.userUuid },
+                { organizationUuid, queryContext: null, purpose: 'compile' },
+            );
+            const input = data.warehouseConnection;
+            let connectionRef: WarehouseConnectionLeaseRef;
+            switch (input.kind) {
+                case 'submitted_resolved':
+                    connectionRef = {
+                        kind: 'compile',
+                        projectUuid,
+                        credentials: input.credentials,
+                        tunnelOptions: this.connectionTestTunnelOptions(),
+                    };
+                    break;
+                case 'stored':
+                    if (
+                        this.lightdashConfig.warehouseClient
+                            .resolveTestAndCompileCredentials
+                    ) {
+                        const resolution =
+                            await this.warehouseClientFactory.resolveWarehouseCredentials(
+                                {
+                                    kind: 'binding',
+                                    projectUuid: input.projectUuid,
+                                    binding: { kind: 'original' },
+                                },
+                                connectionContext,
+                            );
+                        connectionRef = {
+                            kind: 'compile',
+                            projectUuid: input.projectUuid,
+                            credentials: resolution.warehouseCredentials,
+                            tunnelOptions: this.connectionTestTunnelOptions(),
+                        };
+                    } else {
+                        connectionRef = {
+                            kind: 'bypass',
+                            mode: 'test_and_compile',
+                            projectUuid: input.projectUuid,
+                            credentials: input.credentials,
+                            tunnelOptions: this.connectionTestTunnelOptions(),
+                        };
+                    }
+                    break;
+                default:
+                    return assertUnreachable(
+                        input,
+                        'Unknown test adapter credentials',
+                    );
+            }
             lease =
                 await this.warehouseClientFactory.acquireWarehouseConnection(
-                    {
-                        kind: 'bypass',
-                        mode: 'test_and_compile',
-                        projectUuid,
-                        credentials: data.warehouseConnection,
-                        tunnelOptions: this.connectionTestTunnelOptions(),
-                    },
-                    connectionContextFromUser(
-                        { userUuid: user.userUuid },
-                        {
-                            organizationUuid,
-                            queryContext: null,
-                            purpose: 'compile',
-                        },
-                    ),
+                    connectionRef,
+                    connectionContext,
                 );
             const dbtConnection = await this.resolveDbtConnectionInstallationId(
                 data.dbtConnection,
@@ -6565,7 +6632,7 @@ export class ProjectService
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
                 properties: {
-                    warehouseType: data.warehouseConnection.type,
+                    warehouseType: data.warehouseConnection.credentials.type,
                     result: 'success',
                     context,
                     method,
@@ -6601,7 +6668,7 @@ export class ProjectService
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
                 properties: {
-                    warehouseType: data.warehouseConnection.type,
+                    warehouseType: data.warehouseConnection.credentials.type,
                     result: 'failure',
                     errorType,
                     context,

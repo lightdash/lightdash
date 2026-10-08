@@ -139,6 +139,7 @@ const buildFixture = (
     releaseSshTunnelOnScopeExit = true,
     resolveDbtCloudPreviewCredentials = true,
     resolveTimezonePreviewCredentials = true,
+    resolveTestAndCompileCredentials = true,
 ) => {
     const projectModel = {
         getWarehouseClientFromCredentials: vi.fn<
@@ -195,6 +196,7 @@ const buildFixture = (
                 releaseSshTunnelOnScopeExit,
                 resolveDbtCloudPreviewCredentials,
                 resolveTimezonePreviewCredentials,
+                resolveTestAndCompileCredentials,
             },
         },
         projectModel: projectModel as unknown as ProjectModel,
@@ -1206,6 +1208,83 @@ describe('WarehouseClientFactory', () => {
         },
     );
 
+    test.each(['scope', 'lease'] as const)(
+        'rejects test-and-compile bypass before %s construction when resolution is enabled',
+        async (entry) => {
+            const { factory, projectModel } = buildFixture();
+            const ref = {
+                kind: 'bypass',
+                mode: 'test_and_compile',
+                projectUuid: null,
+                credentials,
+            } as const;
+            const action =
+                entry === 'scope'
+                    ? factory.withWarehouseClient(
+                          ref,
+                          contextFor(null, 'compile'),
+                          async () => undefined,
+                      )
+                    : factory.acquireWarehouseConnection(
+                          ref,
+                          contextFor(null, 'compile'),
+                      );
+            await expect(action).rejects.toThrow(UnexpectedServerError);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+            expect(SshTunnel).not.toHaveBeenCalled();
+        },
+    );
+
+    test('warns once when test-and-compile credential resolution is disabled', async () => {
+        const { factory, logger } = buildFixture(true, true, true, false);
+        await Promise.all(
+            [0, 1].map(async () => {
+                const lease = await factory.acquireWarehouseConnection(
+                    {
+                        kind: 'bypass',
+                        mode: 'test_and_compile',
+                        projectUuid: null,
+                        credentials,
+                    },
+                    contextFor(null, 'compile'),
+                );
+                await lease.release();
+            }),
+        );
+        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Test-and-compile credential resolution is disabled; using stored credentials without refresh',
+        );
+    });
+
+    test.each([null, 'project-uuid'])(
+        'compile lease for %s preserves tunnel probing without resolution or cache',
+        async (projectUuid) => {
+            const { factory, projectModel, credentialSource } = buildFixture();
+            const tunnelOptions = { staticIp: '192.0.2.1', probeForward: true };
+            const lease = await factory.acquireWarehouseConnection(
+                { kind: 'compile', projectUuid, credentials, tunnelOptions },
+                contextFor(null, 'compile'),
+            );
+            expect(SshTunnel).toHaveBeenCalledExactlyOnceWith(
+                credentials,
+                tunnelOptions,
+            );
+            expect(credentialSource.loadBase).not.toHaveBeenCalled();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                credentials,
+                expect.objectContaining({ maxOpenConnections: undefined }),
+            );
+            expect(factory.warehouseClients).toEqual({});
+            await lease.release();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
     test('rejects webhook bypass before construction when resolution is enabled', async () => {
         const { factory, projectModel, credentialSource } = buildFixture();
         const callback = vi.fn();
@@ -1265,7 +1344,7 @@ describe('WarehouseClientFactory', () => {
         '$kind refs skip credential resolution and AI planning',
         async (ref) => {
             const { factory, credentialSource, aiAccessService, logger } =
-                buildFixture(true, false, false);
+                buildFixture(true, false, false, false);
             await factory.withWarehouseClient(
                 ref,
                 contextFor(QueryExecutionContext.AI),
@@ -1298,7 +1377,12 @@ describe('WarehouseClientFactory', () => {
     ] as const)(
         '%s bypass calls build fresh clients without populating the cache',
         async (mode) => {
-            const { factory, projectModel } = buildFixture(true, false, false);
+            const { factory, projectModel } = buildFixture(
+                true,
+                false,
+                false,
+                false,
+            );
             const ref = {
                 kind: 'bypass',
                 mode,
@@ -1643,7 +1727,7 @@ describe('WarehouseClientFactory', () => {
     });
 
     test('derived clients retain AWS identity options without resolving again', async () => {
-        const { factory, projectModel } = buildFixture();
+        const { factory, projectModel } = buildFixture(true, true, true, false);
         const awsCredentials = async () => ({
             accessKeyId: 'access-key',
             secretAccessKey: 'secret-key',
@@ -1737,7 +1821,7 @@ describe('WarehouseClientFactory', () => {
     test.each([true, false])(
         'lease release is idempotent with scoped release %s',
         async (enabled) => {
-            const { factory } = buildFixture(enabled);
+            const { factory } = buildFixture(enabled, true, true, false);
             const lease = await factory.acquireWarehouseConnection(
                 {
                     kind: 'bypass',
@@ -1838,7 +1922,7 @@ describe('WarehouseClientFactory', () => {
     test.each([true, false])(
         'a failed lease tunnel connection releases with scoped release %s',
         async (enabled) => {
-            const { factory } = buildFixture(enabled);
+            const { factory } = buildFixture(enabled, true, true, false);
             connect.mockRejectedValueOnce(
                 new Error('tunnel connection failed'),
             );

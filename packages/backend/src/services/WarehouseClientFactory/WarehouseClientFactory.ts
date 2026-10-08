@@ -106,7 +106,8 @@ export type WarehouseClientRef =
       }
     | {
           kind: 'compile';
-          projectUuid: string;
+          projectUuid: string | null;
+          tunnelOptions?: SshTunnelOptions;
           credentials: CreateWarehouseCredentials;
           compileGroup?: WarehouseCompileGroup;
       }
@@ -191,6 +192,8 @@ export class WarehouseClientFactory {
 
     private readonly resolveTimezonePreviewCredentials: boolean;
 
+    private readonly resolveTestAndCompileCredentials: boolean;
+
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
         this.projectModel = deps.projectModel;
@@ -207,6 +210,14 @@ export class WarehouseClientFactory {
         this.resolveTimezonePreviewCredentials =
             deps.lightdashConfig?.warehouseClient
                 ?.resolveTimezonePreviewCredentials ?? true;
+        this.resolveTestAndCompileCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveTestAndCompileCredentials ?? true;
+        if (!this.resolveTestAndCompileCredentials) {
+            this.logger.warn(
+                'Test-and-compile credential resolution is disabled; using stored credentials without refresh',
+            );
+        }
         if (!this.resolveTimezonePreviewCredentials) {
             this.logger.warn(
                 'Timezone preview credential resolution is disabled; using raw credentials without refresh',
@@ -392,8 +403,17 @@ export class WarehouseClientFactory {
             }
             case 'compile':
                 warehouseCredentials = ref.credentials;
+                tunnelOptions = ref.tunnelOptions;
                 break;
             case 'bypass':
+                if (
+                    ref.mode === 'test_and_compile' &&
+                    this.resolveTestAndCompileCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'Test-and-compile credential bypass requires credential resolution to be disabled',
+                    );
+                }
                 if (
                     ref.mode === 'dbt_cloud_preview_webhook' &&
                     this.resolveDbtCloudPreviewCredentials

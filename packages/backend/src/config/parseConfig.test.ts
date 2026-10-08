@@ -807,6 +807,42 @@ describe('timezone preview credential resolution', () => {
     });
 });
 
+describe('test-and-compile credential resolution', () => {
+    const environment = { ...process.env };
+    beforeEach(() => {
+        delete process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED;
+    });
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        const config = parseConfig().warehouseClient;
+        expect(config.resolveTestAndCompileCredentials).toBe(expected);
+        expect(config.resolveCompileCredentials).toBe(true);
+        expect(config.resolveDbtCloudPreviewCredentials).toBe(true);
+        expect(config.resolveTimezonePreviewCredentials).toBe(true);
+        expect(config.releaseSshTunnelOnScopeExit).toBe(true);
+    });
+    it('stays enabled when other credential switches and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveTestAndCompileCredentials,
+        ).toBe(true);
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();

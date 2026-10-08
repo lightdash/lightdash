@@ -491,6 +491,7 @@ export const lightdashConfigMock: LightdashConfig = {
         resolveCompileCredentials: true,
         resolveDbtCloudPreviewCredentials: true,
         resolveTimezonePreviewCredentials: true,
+        resolveTestAndCompileCredentials: true,
     },
     motherduckInstanceCache: {
         enabled: false,
