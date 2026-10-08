@@ -182,7 +182,7 @@ export const buildAdoptionSnapshot = (
     );
     const departmentUuids = new Set(departments.map((d) => d.departmentUuid));
     // Everyone who counts in at least one department, once each
-    const counted = membership.filter((m) =>
+    const placed = membership.filter((m) =>
         m.countedDepartmentUuids.some((uuid) => departmentUuids.has(uuid)),
     );
     const headcounts = computeEffectiveHeadcounts(
@@ -207,8 +207,14 @@ export const buildAdoptionSnapshot = (
 
     return {
         summary: {
-            // The org row is a count baseline; there is no org-wide headcount
-            organization: metricsFor(counted, null),
+            // Everyone on Lightdash, a count baseline; there is no org-wide headcount
+            organization: metricsFor(membership, null),
+            placed: {
+                memberCount: placed.length,
+                activeCount30d: placed.filter((m) =>
+                    activeUserUuids.has(m.userUuid),
+                ).length,
+            },
             departments: departments.map((d) => {
                 const members = rolledMembers.get(d.departmentUuid) ?? [];
                 const direct = directMembers.get(d.departmentUuid) ?? [];

@@ -310,11 +310,11 @@ describe('buildAdoptionSnapshot', () => {
             atRisk: 1,
             lost: 1,
         });
-        // Everyone counted in a department, once each
+        // Everyone on Lightdash, placed or not: the unplaced person has no activity at all
         expect(split.summary.organization.activitySplit).toEqual({
             healthy: 1,
             atRisk: 3,
-            lost: 1,
+            lost: 2,
         });
     });
     it('rolls members and headcount up to the parent, with its own people on top of its sub-departments', () => {
@@ -468,12 +468,41 @@ describe('buildAdoptionSnapshot', () => {
             memberCount: 2,
             activeCount30d: 1,
         });
-        // Everyone who counts somewhere, once each: not the unassigned person
-        expect(snapshot.summary.organization.memberCount).toBe(5);
+        // Everyone on Lightdash once each; placed leaves out the unassigned person
+        expect(snapshot.summary.organization.memberCount).toBe(6);
         expect(snapshot.summary.organization.activeCount30d).toBe(3);
         expect(snapshot.summary.organization.weeklyActive[1].activeUsers).toBe(
             1,
         );
+        expect(snapshot.summary.placed).toEqual({
+            memberCount: 5,
+            activeCount30d: 3,
+        });
+    });
+    it('counts an unassigned person on Lightdash but not as placed, and a shared person once in both', () => {
+        const { summary } = buildAdoptionSnapshot({
+            departments: [
+                department('sales', null, null),
+                department('marketing', null, null),
+            ],
+            membership: [
+                member('both', OrganizationMemberRole.VIEWER, [
+                    'marketing',
+                    'sales',
+                ]),
+                member('seller', OrganizationMemberRole.VIEWER, ['sales']),
+                member('nobody', OrganizationMemberRole.VIEWER, []),
+            ],
+            lastActiveAt: activeYesterday(['both', 'nobody']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        });
+        expect(summary.organization).toMatchObject({
+            memberCount: 3,
+            activeCount30d: 2,
+        });
+        expect(summary.placed).toEqual({ memberCount: 2, activeCount30d: 1 });
     });
     it('counts a person with a primary only in that department', () => {
         expect(
@@ -514,6 +543,7 @@ describe('buildAdoptionSnapshot', () => {
         expect(parent?.metrics.activeCount30d).toBe(1);
         expect(parent?.metrics.weeklyActive[1].activeUsers).toBe(1);
         expect(split.summary.organization.memberCount).toBe(1);
+        expect(split.summary.placed.memberCount).toBe(1);
     });
     it('reports people in no department, and people in several without a primary', () => {
         expect(snapshot.summary.attention).toEqual({

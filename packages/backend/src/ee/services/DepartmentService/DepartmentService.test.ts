@@ -810,8 +810,9 @@ describe('DepartmentService.getSummary', () => {
             unassignedCount: 1,
             sharedCount: 0,
         });
-        // Only people who count somewhere make the organization total
-        expect(summary.organization.memberCount).toBe(1);
+        // Everyone on Lightdash is in the organization; only the person in a department is placed
+        expect(summary.organization.memberCount).toBe(2);
+        expect(summary.placed).toEqual({ memberCount: 1, activeCount30d: 1 });
     });
     it('counts a person explicitly in Marketing and in Sales through a group in both, and once in the organization', async () => {
         const marketing = { ...departmentFixture('marketing', null, 10) };
@@ -865,6 +866,7 @@ describe('DepartmentService.getSummary', () => {
             memberCount: 2,
             activeCount30d: 1,
         });
+        expect(summary.placed).toEqual({ memberCount: 2, activeCount30d: 1 });
         expect(summary.attention).toEqual({
             unassignedCount: 0,
             sharedCount: 1,
@@ -1669,6 +1671,7 @@ describe('DepartmentService.setPrimaryDepartment', () => {
             [FINANCE]: 0,
         });
         expect(after.organization.memberCount).toBe(1);
+        expect(after.placed.memberCount).toBe(1);
     });
     it('counts the person in every remaining department once their primary department is deleted', async () => {
         const { service, departmentModel } = buildService({

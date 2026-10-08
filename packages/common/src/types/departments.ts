@@ -85,7 +85,8 @@ export type DepartmentWithMetrics = Department & {
 };
 
 export type OrganizationAdoptionSummary = {
-    organization: AdoptionMetrics;
+    organization: AdoptionMetrics; // everyone on Lightdash, in a department or not
+    placed: { memberCount: number; activeCount30d: number }; // people who count in at least one department, once each
     departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
     attention: { unassignedCount: number; sharedCount: number }; // shared = 2+ placements, no primary
 };
