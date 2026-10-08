@@ -165,6 +165,8 @@ export type DuckdbParquetColumns = {
 
 /** Server-owned manifest. Never accept this configuration from project APIs. */
 export type DuckdbParquetSource = {
+    /** Trusted provider bytes for exact manifest URLs; staged privately per query. */
+    fileBuffers?: ReadonlyMap<string, Uint8Array>;
     scope: string;
     tables: { name: string; urls: string[]; columns?: DuckdbParquetColumns }[];
     /** Typed, empty lookups for snapshots which have not been published yet. */
@@ -1023,6 +1025,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
         querySql?: string,
+        parquetDirectory?: string,
     ): Promise<DuckdbBootstrapTiming> {
         const bootstrapStart = performance.now();
         const httpfsStart = performance.now();
@@ -1068,7 +1071,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         if (client.parquetConfig) {
-            await client.bootstrapParquetViews(db, querySql);
+            await client.bootstrapParquetViews(db, querySql, parquetDirectory);
         }
 
         if (client.ducklakeConfig) {
@@ -1140,11 +1143,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private async bootstrapParquetViews(
         db: DuckdbConnection,
         querySql?: string,
+        parquetDirectory?: string,
     ): Promise<void> {
         const references =
             await DuckdbWarehouseClient.getParquetQueryTables(querySql);
         const referencedTables = references ? new Set(references) : undefined;
-        const source = await this.parquetConfig!.resolveSource(references);
+        const resolved = await this.parquetConfig!.resolveSource(references);
+        const source = {
+            ...resolved,
+            tables: resolved.tables.map((table) => ({
+                ...table,
+                urls: [...table.urls],
+            })),
+        };
         const escape = DuckdbWarehouseClient.escapeDuckdbString;
         const literal = (value: string) => `'${escape(value)}'`;
         const scope = new URL(source.scope);
@@ -1264,6 +1275,52 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET enable_http_metadata_cache = true;');
         await db.run('SET enable_external_file_cache = true;');
         await db.run('SET parquet_metadata_cache = true;');
+        // Only validated manifest URLs can supply bytes. Each query owns a
+        // private directory; never allow the shared cache or another query's paths.
+        if (source.signedUrls && source.fileBuffers && parquetDirectory) {
+            let stagedBytes = 0;
+            for (const table of source.tables) {
+                const buffers = table.urls.map((url) =>
+                    source.fileBuffers!.get(url),
+                );
+                const size = buffers.reduce(
+                    (total, buffer) => total + (buffer?.byteLength ?? 0),
+                    0,
+                );
+                // DuckDB requires consistent Hive paths within each read_parquet.
+                // Never mix remote and local files in one table, including on failure.
+                if (
+                    buffers.every((buffer) => buffer) &&
+                    stagedBytes + size <= 8 * 1024 * 1024
+                ) {
+                    stagedBytes += size;
+                    const localPaths: string[] = [];
+                    try {
+                        for (let i = 0; i < table.urls.length; i += 1) {
+                            const localPath = path.join(
+                                parquetDirectory,
+                                decodeURIComponent(
+                                    new URL(table.urls[i]).pathname,
+                                ),
+                            );
+                            // eslint-disable-next-line no-await-in-loop
+                            await fs.mkdir(path.dirname(localPath), {
+                                recursive: true,
+                            });
+                            // eslint-disable-next-line no-await-in-loop
+                            await fs.writeFile(localPath, buffers[i]!, {
+                                mode: 0o600,
+                                flag: 'wx',
+                            });
+                            localPaths.push(localPath);
+                        }
+                        table.urls = localPaths;
+                    } catch {
+                        // Keep the entire table remote if temporary storage is unavailable.
+                    }
+                }
+            }
+        }
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
@@ -1991,12 +2048,21 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const connection = await instance.connect();
         const connectMs = performance.now() - connectStart;
 
+        let parquetDirectory: string | undefined;
         try {
+            if (this.parquetConfig) {
+                parquetDirectory = await fs
+                    .mkdtemp(
+                        path.join(os.tmpdir(), 'lightdash-analytics-query-'),
+                    )
+                    .catch(() => undefined);
+            }
             const bootstrapTiming =
                 await DuckdbWarehouseClient.bootstrapQuerySession(
                     connection,
                     this,
                     querySql,
+                    parquetDirectory,
                 );
 
             const queryStart = performance.now();
@@ -2020,6 +2086,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             connection.closeSync?.();
             connection.disconnectSync?.();
             instance.closeSync?.();
+            if (parquetDirectory)
+                await fs.rm(parquetDirectory, { recursive: true, force: true });
         }
     }
 

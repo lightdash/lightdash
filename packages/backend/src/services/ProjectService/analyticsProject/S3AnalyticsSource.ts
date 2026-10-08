@@ -17,6 +17,7 @@ import {
     createS3ClientFromConfig,
     type S3ConnectionConfig,
 } from '../../../clients/Aws/S3BaseClient';
+import { analyticsFileCache } from './AnalyticsFileCache';
 
 type S3AnalyticsSourceConfig = {
     storage: S3ConnectionConfig & { bucket: string };
@@ -75,6 +76,8 @@ export const createS3AnalyticsSourceResolver = ({
         const client = createS3ClientFromConfig(config);
         const urlSigner = createObjectUrlSigner(client, config);
         const tables = new Map<string, string[]>();
+        const fileBuffers = new Map<string, Buffer>();
+        let bufferedBytes = 0;
         let hasEvents = false;
         try {
             let continuationToken: string | undefined;
@@ -91,9 +94,18 @@ export const createS3AnalyticsSourceResolver = ({
                     }),
                     { abortSignal: AbortSignal.timeout(30_000) },
                 );
-                const files: { key: string; tableName: string }[] = [];
+                const files: {
+                    key: string;
+                    tableName: string;
+                    etag?: string;
+                    size?: number;
+                }[] = [];
                 // eslint-disable-next-line no-restricted-syntax
-                for (const { Key: key } of page.Contents ?? []) {
+                for (const {
+                    Key: key,
+                    ETag: etag,
+                    Size: size,
+                } of page.Contents ?? []) {
                     if (!key || !key.startsWith(prefix)) {
                         throw new Error('Unexpected analytics object scope');
                     }
@@ -128,7 +140,7 @@ export const createS3AnalyticsSourceResolver = ({
                                 'Analytics manifest exceeds file limit',
                             );
                         if (!requested || requested.has(tableName)) {
-                            files.push({ key, tableName });
+                            files.push({ key, tableName, etag, size });
                         }
                     }
                 }
@@ -140,14 +152,34 @@ export const createS3AnalyticsSourceResolver = ({
                     const signed = await Promise.allSettled(
                         files
                             .slice(i, i + SIGNING_CONCURRENCY)
-                            .map(async ({ key, tableName }) => ({
-                                tableName,
-                                url: await urlSigner.getSignedDownloadUrl(
-                                    bucket,
-                                    key,
-                                    SIGNED_URL_LIFETIME_SECONDS,
-                                ),
-                            })),
+                            // Reserve each buffer synchronously before any download awaits.
+                            // eslint-disable-next-line no-loop-func
+                            .map(async ({ key, tableName, etag, size }) => {
+                                // Bound retained buffers and temporary files per query too.
+                                const cacheable =
+                                    !!size &&
+                                    size <= 1024 * 1024 &&
+                                    bufferedBytes + size <= 8 * 1024 * 1024;
+                                if (cacheable) bufferedBytes += size!;
+                                const buffer = cacheable
+                                    ? await analyticsFileCache.get(
+                                          scope,
+                                          client,
+                                          bucket,
+                                          key,
+                                          etag,
+                                          size,
+                                      )
+                                    : undefined;
+                                const url =
+                                    await urlSigner.getSignedDownloadUrl(
+                                        bucket,
+                                        key,
+                                        SIGNED_URL_LIFETIME_SECONDS,
+                                    );
+                                if (buffer) fileBuffers.set(url, buffer);
+                                return { tableName, url };
+                            }),
                     );
                     for (const result of signed) {
                         if (result.status === 'rejected') {
@@ -198,6 +230,7 @@ export const createS3AnalyticsSourceResolver = ({
         return {
             scope,
             signedUrls: true,
+            ...(fileBuffers.size ? { fileBuffers } : {}),
             emptyTables: schemas.filter(({ name }) => !tables.has(name)),
             tables: [...tables].map(([name, urls]) => ({
                 name,
