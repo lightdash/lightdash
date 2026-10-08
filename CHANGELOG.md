@@ -1,3 +1,10 @@
+# [2.486.0](https://github.com/lightdash/lightdash/compare/2.485.0...2.486.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** answer Deep Research follow-ups from the published Document ([#30719](https://github.com/lightdash/lightdash/issues/30719)) ([2adb879](https://github.com/lightdash/lightdash/commit/2adb879035e7177d71ed95a220c1c03f23b89cbe)), closes [#30718](https://github.com/lightdash/lightdash/issues/30718) [#30718](https://github.com/lightdash/lightdash/issues/30718)
+
 # [2.485.0](https://github.com/lightdash/lightdash/compare/2.484.0...2.485.0) (2026-10-08)
 
 
