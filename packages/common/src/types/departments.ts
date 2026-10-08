@@ -185,7 +185,7 @@ export type DepartmentMember = {
     queries30d: number;
     dashboardViews30d: number;
     sharedWith: DepartmentRef[]; // the person's other placements
-    primaryDepartmentUuid: string | null;
+    primaryDepartmentUuid: string | null; // the effective primary, as on DepartmentMembership, not the stored value on ResolvedMemberRow
 };
 
 export type DepartmentDetail = {

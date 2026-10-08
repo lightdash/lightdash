@@ -528,14 +528,15 @@ describe('iterative walks match the recursive ones', () => {
             expect([...computeEffectiveHeadcounts(tree, memberCounts)]).toEqual(
                 [...recursiveEffectiveHeadcounts(tree, memberCounts)],
             );
+            // The second person comes from a small shared pool, so some count in several departments
             const direct = new Map(
                 tree
                     .filter((_, i) => i % 3 !== 0)
-                    .map((n) => [
+                    .map((n, i) => [
                         n.departmentUuid,
                         [
                             { userUuid: `${n.departmentUuid}-a` },
-                            { userUuid: `${n.departmentUuid}-b` },
+                            { userUuid: `p${i % 7}` },
                         ],
                     ]),
             );

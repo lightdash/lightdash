@@ -25,8 +25,8 @@ const getPlacements = (
     const linkedUuids = [
         ...new Set([...explicitUuids, ...firstGroupNames.keys()]),
     ];
-    // Most specific wins: drop any department that is an ancestor of another.
-    // A lone department is never its own ancestor, so it needs no walk
+    // Most specific wins: drop a strict ancestor of another placement; in a stored cycle
+    // each is the other's ancestor, so both stay. A lone department needs no walk
     const mostSpecific =
         linkedUuids.length < 2
             ? linkedUuids
@@ -34,7 +34,9 @@ const getPlacements = (
                   (uuid) =>
                       !linkedUuids.some(
                           (other) =>
-                              other !== uuid && ancestorsOf(other).has(uuid),
+                              other !== uuid &&
+                              ancestorsOf(other).has(uuid) &&
+                              !ancestorsOf(uuid).has(other),
                       ),
               );
     return mostSpecific.sort().map(

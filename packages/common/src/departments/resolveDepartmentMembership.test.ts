@@ -147,6 +147,20 @@ describe('resolveDepartmentMembership', () => {
             placements: [viaGroup('finance'), viaGroup('north')],
         });
     });
+    it('a stored cycle keeps both departments instead of leaving the person unassigned', () => {
+        const [member] = resolveDepartmentMembership(
+            [row({ explicitDepartmentUuids: ['a'], groupLinks: [link('b')] })],
+            [
+                { departmentUuid: 'a', parentDepartmentUuid: 'b' },
+                { departmentUuid: 'b', parentDepartmentUuid: 'a' },
+            ],
+        );
+        expect(member).toMatchObject({
+            kind: 'shared',
+            placements: [explicit('a'), viaGroup('b')],
+            countedDepartmentUuids: ['a', 'b'],
+        });
+    });
     it('explicit in two unrelated departments is shared', () => {
         expect(
             resolve({ explicitDepartmentUuids: ['marketing', 'finance'] }),
