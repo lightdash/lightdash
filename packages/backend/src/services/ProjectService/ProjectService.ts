@@ -929,11 +929,6 @@ export class ProjectService
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
-        if (!lightdashConfig.warehouseClient.resolveCompileCredentials) {
-            this.logger.warn(
-                'Compile credential resolution is disabled; using legacy refresh and rotation behaviour',
-            );
-        }
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
@@ -8140,19 +8135,15 @@ export class ProjectService
                 return sourceAdapter.getDbtManifest();
             },
             loadExtraCredentials: async (warehouseConnectionUuid) => {
-                const resolution =
-                    await this.warehouseClientFactory.resolveWarehouseCredentials(
-                        {
-                            kind: 'binding',
-                            projectUuid,
-                            binding: {
-                                kind: 'connection',
-                                warehouseConnectionUuid,
-                            },
-                        },
-                        compileContext,
-                    );
-                return resolution.warehouseCredentials;
+                const { userWarehouseCredentialsUuid, ...credentials } =
+                    await this.getExtraConnectionWarehouseCredentials({
+                        projectUuid,
+                        warehouseConnectionUuid,
+                        userId: userUuid,
+                        isRegisteredUser: true,
+                        purpose: 'compile',
+                    });
+                return credentials;
             },
             trackingParams,
             analytics: this.analytics,

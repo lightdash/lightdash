@@ -213,6 +213,14 @@ export class WarehouseClientFactory {
         this.resolveTestAndCompileCredentials =
             deps.lightdashConfig?.warehouseClient
                 ?.resolveTestAndCompileCredentials ?? true;
+        if (
+            deps.lightdashConfig?.warehouseClient?.resolveCompileCredentials ===
+            false
+        ) {
+            this.logger.warn(
+                'Compile credential resolution is disabled; using legacy refresh and rotation behaviour',
+            );
+        }
         if (!this.resolveTestAndCompileCredentials) {
             this.logger.warn(
                 'Test-and-compile credential resolution is disabled; using stored credentials without refresh',
