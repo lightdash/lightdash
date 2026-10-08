@@ -26351,7 +26351,7 @@
                 "type": "object",
                 "description": "Body of POST /api/v1/aiAgents/documents. Both scope fields are deprecated:\nscope now comes from the agent-scoped route path. Once they are removed this\nendpoint only creates organization level documents."
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -26462,6 +26462,10 @@
                         ],
                         "nullable": true
                     },
+                    "providerCredentialUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "threadRetentionHours": {
                         "type": "number",
                         "format": "double",
@@ -26492,13 +26496,14 @@
                     "enableSqlMode",
                     "adminOnly",
                     "modelConfig",
+                    "providerCredentialUuid",
                     "threadRetentionHours"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -27205,7 +27210,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -27316,6 +27321,10 @@
                         ],
                         "nullable": true
                     },
+                    "providerCredentialUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "threadRetentionHours": {
                         "type": "number",
                         "format": "double",
@@ -27346,13 +27355,14 @@
                     "enableSqlMode",
                     "adminOnly",
                     "modelConfig",
+                    "providerCredentialUuid",
                     "threadRetentionHours"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -28189,6 +28199,10 @@
                                 "format": "double",
                                 "nullable": true
                             },
+                            "providerCredentialUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "modelConfig": {
                                 "allOf": [
                                     {
@@ -28323,6 +28337,10 @@
                             "threadRetentionHours": {
                                 "type": "number",
                                 "format": "double",
+                                "nullable": true
+                            },
+                            "providerCredentialUuid": {
+                                "type": "string",
                                 "nullable": true
                             },
                             "mcpServerUuids": {
@@ -69868,7 +69886,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.474.0",
+        "version": "2.475.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

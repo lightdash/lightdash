@@ -1,3 +1,11 @@
+# [2.475.0](https://github.com/lightdash/lightdash/compare/2.474.0...2.475.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** agent settings selector for the credential pin ([#30625](https://github.com/lightdash/lightdash/issues/30625)) ([3bacc80](https://github.com/lightdash/lightdash/commit/3bacc80f10a04c5a5ae4d8123ddd97904f7e67f0))
+* **ai:** pin an AI agent to a specific Bedrock credential ([#30624](https://github.com/lightdash/lightdash/issues/30624)) ([34d8c9f](https://github.com/lightdash/lightdash/commit/34d8c9fd6eb541915eb92fa874daa0bd21d9e7ff))
+
 # [2.474.0](https://github.com/lightdash/lightdash/compare/2.473.1...2.474.0) (2026-10-08)
 
 
