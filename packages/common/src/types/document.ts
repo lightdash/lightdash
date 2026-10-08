@@ -24,9 +24,22 @@ export type MergeChartAsCode = SemanticChartAsCode & {
     merge: SavedMergeQuery;
 };
 
+// Named so the OpenAPI spec references each member by name: API diff tools
+// cannot pair anonymous union members, and report any change inside one as a
+// removed request subschema.
+export type DocumentSemanticChartContent = {
+    source: 'semantic';
+    chart: SemanticChartAsCode;
+};
+
+export type DocumentMergeChartContent = {
+    source: 'merge';
+    chart: MergeChartAsCode;
+};
+
 export type DocumentChartContent =
-    | { source: 'semantic'; chart: SemanticChartAsCode }
-    | { source: 'merge'; chart: MergeChartAsCode };
+    | DocumentSemanticChartContent
+    | DocumentMergeChartContent;
 
 /** Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …). */
 export type DocumentCharts = Record<string, DocumentChartContent>;
