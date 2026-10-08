@@ -69,6 +69,8 @@ Projects range from a handful of models to well over a thousand, so the director
 2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, parameters, and model-level filters.
 3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
 
+**Prefer modelled fields before defining custom metrics or dimensions.** Check the relevant model and joined-table fields by name, label, description, type, and `ai_hints`. Reuse a field when its business meaning, aggregation, grain, and filters match the request; do not recreate it just to change its label. The model context does not include field SQL, so do not claim SQL equivalence or guess a definition from its name. When no suitable field exists, custom SQL remains supported. Suggest modelling a reusable business definition as an optional follow-up, not a prerequisite for building the app.
+
 **Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
 ### Reading dbt YAML
@@ -272,7 +274,9 @@ which query produced it. One spread per query block is enough.
 
 ### Table calculations
 
-Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+Table calculations are computed columns evaluated in SQL over the aggregated query results. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+
+Use client-side arithmetic only when the returned inputs preserve the intended meaning. For a percentage of total, the denominator must cover the intended population: the SDK defaults to 500 rows, so summing a limited or paginated result gives a percentage of those rows, not necessarily the overall total. Use a SQL calculation or a separately queried total with matching filters when needed. Keep calculations in the query when server-side sorting, filtering, or exports depend on them.
 
 ```ts
 query('orders')
@@ -322,6 +326,10 @@ Each additional metric needs:
 **When to use additional metrics vs regular `.metrics()`:**
 - If the metric exists in the dbt YAML → use `.metrics(['metric_name'])`
 - If you need a custom aggregation not in the YAML → define it with `.additionalMetrics()` AND include its name in `.metrics()`
+
+### Custom SQL and viewer access
+
+Before using `.additionalMetrics()`, `.customDimensions()`, or `.tableCalculations()`, read `/app/references/custom-sql.md`. The build pipeline checks that custom SQL can be statically extracted and sends unresolved definitions back for repair. This lets registered viewers run the recorded SQL without granting SQL-authoring permissions; normal data-access checks still apply.
 
 ### Parameters
 
