@@ -18,7 +18,6 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
-    querySurfaceFromContext,
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
@@ -60,17 +59,6 @@ export type AiAccessEvaluation =
     | { kind: 'query'; surface: QuerySurface }
     | { kind: 'result_read' }
     | { kind: 'diagnostic' };
-
-export const queryEvaluationFromContext = (
-    context: QueryExecutionContext | undefined,
-    querySurface?: QuerySurface,
-): AiAccessEvaluation =>
-    context && isAiAccessQueryContext(context)
-        ? {
-              kind: 'query',
-              surface: querySurface ?? querySurfaceFromContext(context),
-          }
-        : { kind: 'diagnostic' };
 
 export type ResolvePlanArgs = {
     evaluation: AiAccessEvaluation;

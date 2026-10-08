@@ -4066,10 +4066,6 @@ describe('AsyncQueryService', () => {
 
     describe('agent refusal counting across execution and result reads', () => {
         const setupRefusal = () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            Object.assign(service.projectModel, {
-                getAgentSqlScope: vi.fn().mockResolvedValue(null),
-            });
             const credentials: CreateWarehouseCredentials = {
                 type: WarehouseTypes.SNOWFLAKE,
                 account: 'account',
@@ -4079,9 +4075,6 @@ describe('AsyncQueryService', () => {
                 warehouse: 'test',
                 schema: 'public',
             };
-            vi.mocked(
-                service.projectModel.getWarehouseCredentialsForProject,
-            ).mockResolvedValue(credentials);
             const analytics = { track: vi.fn() };
             const refusal = new AiAccessRefusedError(
                 AiAccessRefusalReason.SIGN_IN_EXPIRED,
@@ -4115,7 +4108,15 @@ describe('AsyncQueryService', () => {
                     }),
                 }),
             } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
-            service.aiAccessService = aiAccessService;
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                aiAccessService,
+            });
+            Object.assign(service.projectModel, {
+                getAgentSqlScope: vi.fn().mockResolvedValue(null),
+            });
+            vi.mocked(
+                service.projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValue(credentials);
             const resolve = vi.spyOn(aiAccessService, 'resolvePlan');
             const markErrored = vi
                 .fn<AsyncQueryService['markAsyncQueryErrored']>()
@@ -4158,7 +4159,10 @@ describe('AsyncQueryService', () => {
             async (context, surface) => {
                 const { service, analytics, resolve } = setupRefusal();
                 const dispatch = vi.spyOn(service, 'runAsyncWarehouseQuery');
-                const connect = vi.spyOn(service, '_getWarehouseClient');
+                const connect = vi.spyOn(
+                    service.warehouseClientFactory,
+                    'acquireUnscoped',
+                );
                 await expect(
                     service['prepareSqlChartAsyncQueryArgs']({
                         account: sessionAccount,

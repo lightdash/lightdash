@@ -39,6 +39,7 @@ import {
 import type { AiAccessService } from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
+    querySurfaceFromConnectionSurface,
     WarehouseCredentialKind,
     type ConnectionContext,
 } from './ConnectionContext';
@@ -216,6 +217,16 @@ export class WarehouseClientFactory {
                 );
             }
             aiPlan = await this.aiAccessService.resolvePlan({
+                evaluation:
+                    context.purpose === 'compile' ||
+                    context.aiAccess === 'diagnostic'
+                        ? { kind: 'diagnostic' }
+                        : {
+                              kind: 'query',
+                              surface: querySurfaceFromConnectionSurface(
+                                  context.actor.surface,
+                              ),
+                          },
                 projectUuid: base.projectUuid,
                 organizationUuid,
                 warehouseConnectionUuid: base.warehouseConnectionUuid,

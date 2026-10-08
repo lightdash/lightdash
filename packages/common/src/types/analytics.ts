@@ -1,4 +1,3 @@
-import assertUnreachable from '../utils/assertUnreachable';
 import { AI_AGENT_TAG } from './aiPrincipal';
 
 export type UserWithCount = {
@@ -198,19 +197,3 @@ export const withAgentMarkerTag = <
     isAiAccessQueryContext(tags.query_context)
         ? { ...tags, [AI_AGENT_TAG]: 'true' }
         : tags;
-
-export const querySurfaceFromContext = (
-    context: AiAccessQueryContext,
-): QuerySurface => {
-    switch (context) {
-        case QueryExecutionContext.MCP_RUN_METRIC_QUERY:
-        case QueryExecutionContext.MCP_RUN_SQL:
-        case QueryExecutionContext.MCP_SEARCH_FIELD_VALUES:
-            return QuerySurface.MCP;
-        case QueryExecutionContext.AI:
-        case QueryExecutionContext.DATA_APP_SAMPLE:
-            return QuerySurface.APP;
-        default:
-            return assertUnreachable(context, 'Unknown AI query context');
-    }
-};

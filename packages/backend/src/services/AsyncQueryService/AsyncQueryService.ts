@@ -274,7 +274,6 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
-import { queryEvaluationFromContext } from '../AiAccessService/AiAccessService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
@@ -306,6 +305,7 @@ import {
 import {
     connectionContextFromAccount,
     connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
@@ -3817,7 +3817,17 @@ export class AsyncQueryService extends ProjectService {
                 },
                 connectionContextFromUser(
                     { userUuid, isRegisteredUser, isServiceAccount },
-                    { organizationUuid, queryContext: queryTags.query_context },
+                    {
+                        organizationUuid,
+                        queryContext: queryTags.query_context,
+                        surface:
+                            queryUsage?.querySurface === undefined
+                                ? undefined
+                                : connectionSurfaceFromQuerySurface(
+                                      queryUsage.querySurface,
+                                      queryTags.query_context,
+                                  ),
+                    },
                 ),
                 async (connection) => {
                     const { warehouseClient, warehouseCredentials, aiPlan } =
@@ -5904,7 +5914,7 @@ export class AsyncQueryService extends ProjectService {
                         : undefined,
             }),
             this.getWarehouseCredentialsWithConnection({
-                evaluation: queryEvaluationFromContext(context, querySurface),
+                querySurface,
                 context,
                 projectUuid,
                 binding: {
@@ -6715,7 +6725,6 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            evaluation: queryEvaluationFromContext(context),
             context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -7059,7 +7068,7 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            evaluation: queryEvaluationFromContext(context, querySurface),
+            querySurface,
             context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -7853,7 +7862,7 @@ export class AsyncQueryService extends ProjectService {
             projectParameters,
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
-                evaluation: queryEvaluationFromContext(context, querySurface),
+                querySurface,
                 context,
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
@@ -8073,7 +8082,6 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            evaluation: queryEvaluationFromContext(context),
             projectUuid,
             binding: {
                 kind: 'query',
@@ -10897,6 +10905,13 @@ export class AsyncQueryService extends ProjectService {
                 connectionContextFromAccount(account, {
                     organizationUuid,
                     queryContext: context,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  context,
+                              ),
                 }),
                 async ({
                     warehouseClient,
@@ -11808,7 +11823,6 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            evaluation: queryEvaluationFromContext(context),
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,

@@ -923,7 +923,6 @@ describe('Multi-connection compile on the real schema', () => {
                         userId: user.userUuid,
                         isRegisteredUser: true,
                         purpose: 'compile',
-                        evaluation: { kind: 'diagnostic' },
                     },
                 ],
             ]);
