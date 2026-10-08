@@ -58,25 +58,64 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tile {
-    padding: var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-ldGray-0);
+/* The panel's title takes the room its subtitle leaves */
+.title {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
+.subtitle {
+    flex: none;
+    max-width: 50%;
+}
+
+/* The panel's bars and swatches: the map's active violet, then that violet as light as the map's
+   lighter violet dots. What is left of a bar is its track, the people without an account */
+.segment[data-part='active'],
+.swatch[data-part='active'] {
+    background-color: var(--mantine-color-violet-filled);
+}
+
+.segment[data-part='onLightdashNotActive'],
+.swatch[data-part='onLightdashNotActive'] {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-violet-filled) 45%,
+        var(--mantine-color-body)
+    );
+}
+
+/* The grey of the bars' own track, outlined in the grey of the map's rings for people without an account */
+.swatch[data-part='noAccount'] {
+    background-color: light-dark(
+        var(--mantine-color-gray-2),
+        var(--mantine-color-dark-4)
+    );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-3);
+}
+
+.swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+/* Every row sits on one grid, so the bars line up whatever the last column holds; the bars give up
+   width before the names do when a row asks for a headcount */
 .rows {
-    overflow: hidden;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
+    display: grid;
+    grid-template-columns: minmax(8rem, 1fr) minmax(3rem, 6rem) auto;
+    column-gap: var(--mantine-spacing-sm);
 }
 
 .row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto 3.5em;
-    gap: var(--mantine-spacing-sm);
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) 6rem 3rem;
+    grid-template-columns: subgrid;
     align-items: center;
-    width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) 0;
     border: 0;
     border-bottom: 1px solid var(--mantine-color-default-border);
     background: transparent;
@@ -86,12 +125,33 @@
     cursor: pointer;
 }
 
-.row:last-child {
-    border-bottom: 0;
-}
-
+/* The highlight reaches a little past the text on both sides */
 .row:hover {
     background: var(--mantine-color-default-hover);
+    box-shadow:
+        calc(var(--mantine-spacing-xs) * -1) 0 0
+            var(--mantine-color-default-hover),
+        var(--mantine-spacing-xs) 0 0 var(--mantine-color-default-hover);
+}
+
+.row:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.rowEnd {
+    white-space: nowrap;
+}
+
+/* The count stays whole when the department's name is cut short */
+.directLabel {
+    display: flex;
+    min-width: 0;
+}
+
+.directCount {
+    flex: none;
+    white-space: pre;
 }
 
 /* The people directly in the open department: a row with nothing to open */
@@ -101,6 +161,7 @@
 
 .directRow:hover {
     background: transparent;
+    box-shadow: none;
 }
 
 .selected {

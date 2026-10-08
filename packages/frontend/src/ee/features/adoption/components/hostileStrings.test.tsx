@@ -13,6 +13,10 @@ import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
 import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    getCoverageRows,
+    getDepartmentBreakdown,
+} from '../utils/peopleBreakdown';
 import { DepartmentDrawer } from './DepartmentDrawer';
 import { DepartmentsTable } from './DepartmentsTable';
 import { MembershipModal } from './MembershipModal';
@@ -230,9 +234,9 @@ describe('typed strings render as text', () => {
             <MemoryRouter>
                 <MapInspector
                     department={hostileDepartment}
-                    subDepartments={[child]}
-                    totals={{ people: 50, members: 5, active: 1 }}
-                    overview={null}
+                    parentName={PARENT}
+                    breakdown={getDepartmentBreakdown(hostileDepartment)}
+                    rows={getCoverageRows([child], [hostileDepartment, child])}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
                         departmentName: NAME,
@@ -244,10 +248,15 @@ describe('typed strings render as text', () => {
                 />
             </MemoryRouter>,
         );
+        // The title, the parent beside it, the person selected, the sub-department and the people directly in it
         expectLiteral(NAME);
-        expectLiteral(OWNER);
+        expectLiteral(PARENT);
         expectLiteral(PERSON);
         expectLiteral(CHILD);
+        expectLiteral(`Directly in ${NAME}`);
+        expect(screen.getByTitle(`Directly in ${NAME} · 5`)).toHaveTextContent(
+            `Directly in ${NAME} · 5`,
+        );
         expectNothingInjected();
     });
 

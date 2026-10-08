@@ -2,7 +2,6 @@ import {
     getAncestorUuids,
     getChildrenMap,
     getParentMap,
-    type AdoptionMetrics,
     type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
@@ -14,6 +13,7 @@ import {
     PEOPLE,
     SUB_DEPARTMENTS,
 } from '../utils/format';
+import { type PeopleBreakdown } from '../utils/peopleBreakdown';
 import {
     countBucketPeople,
     getDepartmentSize,
@@ -115,7 +115,7 @@ const getCircleDots = (
     };
 };
 
-// What the legend shows: how many dots of each kind are in view
+// How many dots of each kind are in view
 export const countDotKinds = (
     circles: PackedCircle[],
     colourBy: ColourBy,
@@ -138,6 +138,27 @@ export const countDotKinds = (
             (kind) => add(kind, 1),
         );
     });
+    return counts;
+};
+
+// What the legend counts: the same people as the panel beside the map. Coloured by activity it reads
+// the panel's numbers; otherwise the people on Lightdash are counted as drawn and the rest from the panel
+export const getLegendCounts = (
+    breakdown: PeopleBreakdown,
+    circles: PackedCircle[],
+    colourBy: ColourBy,
+    membersByDepartment: MembersByDepartment | null,
+    now: Date = new Date(),
+): Map<DotKind, number> => {
+    const counts =
+        colourBy === 'active'
+            ? new Map<DotKind, number>([
+                  ['active', breakdown.active],
+                  ['idle', breakdown.onLightdashNotActive],
+              ])
+            : countDotKinds(circles, colourBy, membersByDepartment, now);
+    // Dots leave out headcount entered on a department beyond its sub-departments, so this is the panel's too
+    counts.set('noAccount', breakdown.noAccount);
     return counts;
 };
 
@@ -294,73 +315,6 @@ export const getViewTotals = (circles: PackedCircle[]): ViewTotals =>
         { people: 0, members: 0, active: 0 },
     );
 
-export type OrganizationOverview = {
-    // The organization's own two numbers, for everyone on Lightdash
-    onLightdash: number;
-    active30d: number;
-    placed: number;
-    // The top-level departments' effective headcounts added up, or null when none has a headcount
-    headcount: number | null;
-    // Headcount minus accounts over the top-level departments, so placed = headcount - without an account
-    withoutAccount: number;
-    // People in top-level departments without a headcount, who count as their own headcount
-    withoutHeadcount: number;
-};
-
-// Totals reads the circles of the whole organization, which hold everyone placed
-export const getOrganizationOverview = (
-    organization: AdoptionMetrics,
-    departments: DepartmentWithMetrics[],
-    totals: ViewTotals,
-): OrganizationOverview => {
-    const topLevel = getVisibleDepartments(departments, null);
-    const sum = (count: (department: DepartmentWithMetrics) => number) =>
-        topLevel.reduce((total, department) => total + count(department), 0);
-    return {
-        onLightdash: organization.memberCount,
-        active30d: organization.activeCount30d,
-        placed: totals.members,
-        headcount: topLevel.some((department) => department.hasHeadcount)
-            ? sum((department) => department.effectiveHeadcount)
-            : null,
-        withoutAccount: sum(
-            (department) =>
-                department.effectiveHeadcount - department.metrics.memberCount,
-        ),
-        withoutHeadcount: sum((department) =>
-            department.hasHeadcount ? 0 : department.metrics.memberCount,
-        ),
-    };
-};
-
-export type OrganizationOverviewCopy = {
-    placed: string;
-    withoutAccount: string | null;
-    captions: string[];
-};
-
-export const describeOrganizationOverview = (
-    overview: OrganizationOverview,
-): OrganizationOverviewCopy => {
-    const placed = `Placed in a department: ${formatCount(overview.placed)} of ${formatCount(overview.onLightdash)} on Lightdash`;
-    if (overview.headcount === null) {
-        return { placed, withoutAccount: null, captions: [] };
-    }
-    const { withoutHeadcount } = overview;
-    return {
-        placed,
-        withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
-        captions:
-            withoutHeadcount > 0
-                ? [
-                      withoutHeadcount === 1
-                          ? '1 person is in a department without a headcount'
-                          : `${formatQuantity(withoutHeadcount, PEOPLE)} are in departments without a headcount`,
-                  ]
-                : [],
-    };
-};
-
 export const buildMapAriaLabel = ({
     scopeName,
     departmentCount,
@@ -415,24 +369,3 @@ export const nameLoneBucket = (
     focusName !== null && circles.length === 1 && circles[0].kind === 'own'
         ? [{ ...circles[0], name: focusName }]
         : circles;
-
-// Lowest coverage first; among equals the biggest department leads, and those without a headcount go last
-export const sortForInspector = (
-    departments: DepartmentWithMetrics[],
-): DepartmentWithMetrics[] =>
-    [...departments].sort((a, b) => {
-        if (a.hasHeadcount !== b.hasHeadcount) return a.hasHeadcount ? -1 : 1;
-        // Without a headcount everyone counted is on Lightdash, so only the name orders them
-        if (!a.hasHeadcount) return a.name.localeCompare(b.name);
-        const left = a.metrics.coveragePct;
-        const right = b.metrics.coveragePct;
-        if (left === null || right === null) {
-            if (left === right) return a.name.localeCompare(b.name);
-            return left === null ? 1 : -1;
-        }
-        return (
-            left - right ||
-            b.effectiveHeadcount - a.effectiveHeadcount ||
-            a.name.localeCompare(b.name)
-        );
-    });

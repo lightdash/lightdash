@@ -24,6 +24,11 @@ import {
     type KeyboardEvent,
 } from 'react';
 import { useDepartmentDetail } from '../../../hooks/useOrgDepartments';
+import {
+    getCoverageRows,
+    getDepartmentBreakdown,
+    getOrganizationBreakdown,
+} from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
 import { DepartmentMap } from './DepartmentMap';
 import {
@@ -42,10 +47,9 @@ import { COLOUR_BY_LABELS, COLOUR_BY_OPTIONS, isColourBy } from './mapStyles';
 import {
     buildDots,
     buildMapAriaLabel,
-    countDotKinds,
     describeCircles,
     getFocusTrail,
-    getOrganizationOverview,
+    getLegendCounts,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
@@ -142,16 +146,17 @@ export const AdoptionMap: FC<Props> = ({
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
     const totals = useMemo(() => getViewTotals(circles), [circles]);
-    const overview = useMemo(
+    // The panel and the legend under the map count the same people from the same numbers
+    const breakdown = useMemo(
         () =>
             focus === null
-                ? getOrganizationOverview(
-                      summary.organization,
-                      departments,
-                      totals,
-                  )
-                : null,
-        [focus, summary.organization, departments, totals],
+                ? getOrganizationBreakdown(departments)
+                : getDepartmentBreakdown(focus),
+        [focus, departments],
+    );
+    const rows = useMemo(
+        () => getCoverageRows(visibleDepartments, departments),
+        [visibleDepartments, departments],
     );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
@@ -191,8 +196,15 @@ export const AdoptionMap: FC<Props> = ({
         [showDots, circles, colourBy, membersByDepartment, now],
     );
     const legendCounts = useMemo(
-        () => countDotKinds(circles, colourBy, membersByDepartment, now),
-        [circles, colourBy, membersByDepartment, now],
+        () =>
+            getLegendCounts(
+                breakdown,
+                circles,
+                colourBy,
+                membersByDepartment,
+                now,
+            ),
+        [breakdown, circles, colourBy, membersByDepartment, now],
     );
 
     // Whether the last thing the person did in the map was a key press or a pointer press
@@ -420,9 +432,9 @@ export const AdoptionMap: FC<Props> = ({
                 </Paper>
                 <MapInspector
                     department={focus}
-                    subDepartments={visibleDepartments}
-                    totals={totals}
-                    overview={overview}
+                    parentName={trail[trail.length - 2]?.name ?? null}
+                    breakdown={breakdown}
+                    rows={rows}
                     member={selectedMember}
                     canManage={canManage}
                     onDepartmentClick={focusOn}

@@ -272,6 +272,13 @@ describe('AdoptionMap', () => {
                 departmentUuid: 'Finance',
                 departmentName: 'Finance',
             }),
+            memberFixture('alan', new Date().toISOString(), {
+                isActive30d: true,
+                firstName: 'Alan',
+                lastName: 'Turing',
+                departmentUuid: 'Finance',
+                departmentName: 'Finance',
+            }),
         ]);
         const { container } = renderMap();
         await userEvent.click(
@@ -281,7 +288,7 @@ describe('AdoptionMap', () => {
             [...container.querySelectorAll('svg[role="img"] text')].map(
                 (node) => node.textContent,
             ),
-        ).toEqual(expect.arrayContaining(['Ada', 'Grace']));
+        ).toEqual(expect.arrayContaining(['Ada', 'Grace', 'Alan']));
         // No department name at rest; on hover the department's one circle carries its own name
         expect(
             [...container.querySelectorAll('svg[role="img"] text')].map(
@@ -302,9 +309,9 @@ describe('AdoptionMap', () => {
         ).toEqual(['Finance', '3 of 8']);
         expect(screen.queryByText(/Directly in/)).toBeNull();
         expect(legendCounts()).toEqual([
-            { label: 'Active in 30 days', count: 1 },
+            { label: 'Active in 30 days', count: 2 },
             { label: 'Not active in 30 days', count: 1 },
-            { label: 'No account', count: 6 },
+            { label: 'No account', count: 5 },
         ]);
         await userEvent.click(
             screen.getByRole('button', { name: 'Grace Hopper' }),
@@ -381,14 +388,23 @@ describe('AdoptionMap', () => {
 
     it('draws the dots of a 6,000-headcount organization at the organization level, with no note about them', () => {
         const { container } = renderMap(deepOrganization);
-        const inView = legendCounts().reduce(
-            (sum, entry) => sum + entry.count,
-            0,
+        const drawing = screen.getByRole('img', {
+            name: /^Map of the organization/,
+        });
+        const inView = Number(
+            /, ([\d,]+) people,/
+                .exec(drawing.getAttribute('aria-label') ?? '')?.[1]
+                .replace(/,/g, ''),
         );
         expect(inView).toBeGreaterThan(4000);
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(inView);
+        // The legend counts every top-level headcount, including what is entered above sub-departments
+        expect(
+            legendCounts().reduce((sum, entry) => sum + entry.count, 0),
+        ).toBe(5582);
+        expect(inView).toBeLessThan(5582);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
         expect(screen.queryByText(/^Dots show/)).toBeNull();
         expect(screen.queryByText(/Open a department to see/)).toBeNull();
@@ -610,13 +626,13 @@ describe('AdoptionMap', () => {
             expect(document.activeElement).toHaveTextContent('Operations');
             await userEvent.keyboard('{Escape}');
             expect(
-                screen.getByRole('heading', { name: 'All departments' }),
+                screen.getByRole('heading', { name: 'Organization' }),
             ).toBeInTheDocument();
             expect(document.activeElement).toHaveTextContent('All departments');
             // Nothing above the organization
             await userEvent.keyboard('{Escape}');
             expect(
-                screen.getByRole('heading', { name: 'All departments' }),
+                screen.getByRole('heading', { name: 'Organization' }),
             ).toBeInTheDocument();
         });
 
@@ -665,7 +681,7 @@ describe('AdoptionMap', () => {
             screen.getByRole('button', { name: /^Stores,/ }).focus();
             await userEvent.keyboard('{Escape}');
             expect(
-                screen.getByRole('heading', { name: 'All departments' }),
+                screen.getByRole('heading', { name: 'Organization' }),
             ).toBeInTheDocument();
         });
     });
@@ -740,208 +756,359 @@ describe('AdoptionMap', () => {
         expect(viewport()).toBe(fitted);
     });
 
-    it('shows the same No account number in the inspector tile and the legend', async () => {
-        // Stores has more accounts than headcount, so netting across Ops would hide 5 of Depots' 10
-        const lopsided = [
-            d('Ops', null, 30, 25, 0, {
-                directMetrics: metricsFixture(0, null),
-            }),
-            d('Stores', 'Ops', 20, 25, 0),
-            d('Depots', 'Ops', 10, 0, 0),
+    describe('the panel beside the map', () => {
+        const details = () =>
+            screen.getByRole('complementary', { name: 'Details' });
+        // The legend under the panel's bar, one "label count" line per part
+        const panelLegend = () =>
+            within(details())
+                .getAllByText(
+                    /^(Active|On Lightdash, not active|No account) [\d,]+$/,
+                )
+                .map((node) => node.textContent);
+        // The share of a bar each coloured part takes; the rest is its track, the people without an account
+        const barShares = (bar: Element | null | undefined) =>
+            ['active', 'onLightdashNotActive'].map((part) =>
+                Number.parseFloat(
+                    bar
+                        ?.querySelector<HTMLElement>(`[data-part="${part}"]`)
+                        ?.style.getPropertyValue('--progress-section-size') ??
+                        'NaN',
+                ),
+            );
+        const mainBar = () =>
+            details().querySelector('[data-part="active"]')?.parentElement;
+        const rowsUnder = (label: 'Departments' | 'Sub-departments') => [
+            ...(within(details()).getByText(label).nextElementSibling
+                ?.children ?? []),
         ];
-        renderMap(lopsided);
-        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        const tile = within(details).getByText('No account').parentElement;
-        expect(tile).toHaveTextContent(/^No account10$/);
-        const legend = screen.getByRole('list', { name: 'Legend' });
-        expect(
-            within(legend).getByText('No account').closest('li'),
-        ).toHaveTextContent(/^No account10$/);
-    });
-
-    it("shows the organization's own numbers, then who is placed and who has no account", async () => {
-        renderMap(tree, {
-            organization: metricsFixture(1951, null, { activeCount30d: 1181 }),
-        });
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        // The organization's own two numbers, from the summary
-        expect(
-            within(details).getByText('On Lightdash').parentElement,
-        ).toHaveTextContent(/^On Lightdash1,951$/);
-        expect(
-            within(details).getByText('Active in 30 days').parentElement,
-        ).toHaveTextContent(/^Active in 30 days1,181$/);
-        // Placed: Stores 6, Depots 3 and Finance 3. Headcount: Ops 30 and Finance 8
-        expect(
-            within(details).getByText(
-                'Placed in a department: 12 of 1,951 on Lightdash',
-            ),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText('Without an account: 26 of 38 headcount'),
-        ).toBeInTheDocument();
-        // The same number the legend gives its grey dots, on the same screen
-        const legend = screen.getByRole('list', { name: 'Legend' });
-        expect(
-            within(legend).getByText('No account').closest('li'),
-        ).toHaveTextContent(/^No account26$/);
-        expect(within(details).queryByText(/^Excludes/)).toBeNull();
-        // A department keeps its own numbers
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Finance,/ }),
-        );
-        expect(
-            within(details).queryByText(/^Placed in a department/),
-        ).toBeNull();
-        expect(
-            within(details).getByText('On Lightdash').parentElement,
-        ).toHaveTextContent(/^On Lightdash3of 8$/);
-    });
-
-    it('names the people in departments without a headcount, who count as their own headcount', () => {
-        // Data's 10 counts its 14 people on Lightdash; Product has no headcount and counts its 5
-        renderMap(
-            [d('Data', null, 10, 14, 6), d('Product', null, null, 5, 5)],
-            {
-                organization: metricsFixture(25, null, { activeCount30d: 11 }),
-            },
-        );
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        expect(
-            within(details).getByText(
-                'Placed in a department: 19 of 25 on Lightdash',
-            ),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText('Without an account: 0 of 19 headcount'),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText(
-                '5 people are in departments without a headcount',
-            ),
-        ).toBeInTheDocument();
-        expect(within(details).queryByText(/^Excludes/)).toBeNull();
-    });
-
-    it('never shows coverage above 100%, in the inspector rows or for the department opened', async () => {
-        // A headcount of 8 entered for 9 people on Lightdash, all active, counts 9
-        const over = d('Data', null, 8, 9, 9, {
-            effectiveHeadcount: 9,
-            metrics: metricsFixture(9, 100, {
-                activeCount30d: 9,
-                activePct: 100,
-                roleSplit: {
-                    viewers: 6,
-                    interactiveViewers: 1,
-                    editors: 2,
-                    admins: 0,
-                },
-            }),
-        });
-        renderMap([over, d('Finance', null, 8, 3, 2)]);
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
+        const listed = (label: 'Departments' | 'Sub-departments') =>
+            rowsUnder(label).map((row) => row.textContent);
         const row = (name: string) =>
-            within(details)
+            within(details())
                 .getAllByRole('button')
                 .find((each) => each.textContent?.startsWith(name));
-        expect(row('Data')).toHaveTextContent(/^Data9 of 9100%$/);
-        expect(row('Finance')).toHaveTextContent(/^Finance3 of 838%$/);
-        await userEvent.click(screen.getByRole('button', { name: /^Data,/ }));
-        expect(
-            within(details).getByText('On Lightdash').parentElement,
-        ).toHaveTextContent(/^On Lightdash9of 9$/);
-        expect(
-            within(details).getByText('Active in 30 days').parentElement,
-        ).toHaveTextContent(/^Active in 30 days9100%$/);
-        expect(
-            within(details).queryByText(/More accounts than headcount/),
-        ).toBeNull();
-        expect(
-            within(details).getByText(
-                '6 viewers, 1 interactive viewer, 2 editors',
-            ),
-        ).toBeInTheDocument();
-    });
 
-    it('counts the people directly in a department on their own, on the map and in the inspector', async () => {
-        // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, 4 of them on Lightdash and 1 active
-        const { container } = renderMap([
-            d('Ops', null, 40, 13, 3, {
-                directMetrics: metricsFixture(4, null, { activeCount30d: 1 }),
-            }),
-            d('Stores', 'Ops', 20, 6, 2),
-            d('Depots', 'Ops', 10, 3, 0),
-        ]);
-        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
-        const direct = container.querySelector(
-            '[data-kind="direct"][data-circle="own:Ops"]',
-        );
-        expect(direct).not.toBeNull();
-        // Stores and Depots draw their headcount, the people directly in Ops only those on Lightdash
-        expect(
-            container.querySelectorAll('svg[role="img"] [data-dot]'),
-        ).toHaveLength(20 + 10 + 4);
-        if (direct) fireEvent.pointerOver(direct);
-        expect(
-            [
-                ...container.querySelectorAll(
-                    'svg[role="img"] [data-label="own:Ops"]',
+        it('sums the organization into one bar with the same numbers as the legend under the map', () => {
+            renderMap();
+            expect(
+                within(details()).getByRole('heading', {
+                    name: 'Organization',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                within(details()).getByText('All departments'),
+            ).toBeInTheDocument();
+            // Placed: Stores 6, Depots 3 and Finance 3, 6 of them active. Headcount: Ops 30 and Finance 8
+            expect(panelLegend()).toEqual([
+                'Active 6',
+                'On Lightdash, not active 6',
+                'No account 26',
+            ]);
+            expect(legendCounts()).toEqual([
+                { label: 'Active in 30 days', count: 6 },
+                { label: 'Not active in 30 days', count: 6 },
+                { label: 'No account', count: 26 },
+            ]);
+            const [active, notActive] = barShares(mainBar());
+            expect(active).toBeCloseTo((100 * 6) / 38);
+            expect(notActive).toBeCloseTo((100 * 6) / 38);
+        });
+
+        it('counts the people placed, not everyone on Lightdash, and nothing more than the bar', () => {
+            renderMap(tree, {
+                organization: metricsFixture(1951, null, {
+                    activeCount30d: 1181,
+                }),
+            });
+            expect(panelLegend()).toEqual([
+                'Active 6',
+                'On Lightdash, not active 6',
+                'No account 26',
+            ]);
+            expect(within(details()).queryByText(/1,951|1,181/)).toBeNull();
+            expect(
+                within(details()).queryByText(
+                    /Placed in a department|Without an account|^On Lightdash$|^Active in 30 days$|without a headcount/,
                 ),
-            ].map((node) => node.textContent),
-        ).toEqual(['Directly in Ops', '4 on Lightdash · 1 active']);
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
+            ).toBeNull();
+            expect(within(details()).queryByRole('link')).toBeNull();
         });
-        const directRow =
-            within(details).getByText('Directly in Ops').parentElement;
-        expect(directRow).toHaveTextContent(
-            /^Directly in Ops4 on Lightdash · 1 active–$/,
-        );
-        expect(directRow?.tagName).not.toBe('BUTTON');
+
+        it('lists the departments lowest coverage first, each with its own bar over its headcount', () => {
+            renderMap();
+            // Ops 9 of 30, Finance 3 of 8
+            expect(listed('Departments')).toEqual(['Ops30%', 'Finance38%']);
+            const [active, notActive] = barShares(row('Finance'));
+            expect(active).toBeCloseTo(25);
+            expect(notActive).toBeCloseTo(12.5);
+            expect(barShares(row('Ops'))).toEqual([
+                expect.closeTo((100 * 4) / 30),
+                expect.closeTo((100 * 5) / 30),
+            ]);
+        });
+
+        it('opens a department from its row, as a click on its circle does', async () => {
+            renderMap();
+            const finance = row('Finance');
+            expect(finance?.tagName).toBe('BUTTON');
+            if (finance) await userEvent.click(finance);
+            expect(
+                screen.getByText('Finance', { selector: '[aria-current]' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('img', { name: /^Map of Finance:/ }),
+            ).toBeInTheDocument();
+        });
+
+        it('opens a department from its row with the keyboard', async () => {
+            renderMap();
+            row('Finance')?.focus();
+            expect(document.activeElement).toBe(row('Finance'));
+            await userEvent.keyboard('{Enter}');
+            expect(
+                within(details()).getByRole('heading', { name: 'Finance' }),
+            ).toBeInTheDocument();
+        });
+
+        it("titles a department with its parent's name, or Department at the top level, and keeps its own numbers", async () => {
+            renderMap();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            expect(
+                within(details()).getByRole('heading', { name: 'Ops' }),
+            ).toBeInTheDocument();
+            expect(
+                within(details()).getByText('Department'),
+            ).toBeInTheDocument();
+            expect(panelLegend()).toEqual([
+                'Active 4',
+                'On Lightdash, not active 5',
+                'No account 21',
+            ]);
+            // Stores and Depots both 30%: the larger first
+            expect(listed('Sub-departments')).toEqual([
+                'Stores30%',
+                'Depots30%',
+            ]);
+            await userEvent.click(within(details()).getByText('Stores'));
+            expect(
+                within(details()).getByRole('heading', { name: 'Stores' }),
+            ).toBeInTheDocument();
+            expect(within(details()).getByText('Ops')).toBeInTheDocument();
+            expect(panelLegend()).toEqual([
+                'Active 4',
+                'On Lightdash, not active 2',
+                'No account 14',
+            ]);
+            expect(within(details()).queryByText('Sub-departments')).toBeNull();
+        });
+
+        it('lists the people directly in a department last, over themselves, with nothing to open', async () => {
+            // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, 4 of them on Lightdash and 1 active
+            const { container } = renderMap([
+                d('Ops', null, 40, 13, 3, {
+                    directMetrics: metricsFixture(4, null, {
+                        activeCount30d: 1,
+                    }),
+                }),
+                d('Stores', 'Ops', 20, 6, 2),
+                d('Depots', 'Ops', 10, 3, 0),
+            ]);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            // Stores and Depots draw their headcount, the people directly in Ops only those on Lightdash
+            expect(
+                container.querySelectorAll('svg[role="img"] [data-dot]'),
+            ).toHaveLength(20 + 10 + 4);
+            const direct = container.querySelector(
+                '[data-kind="direct"][data-circle="own:Ops"]',
+            );
+            expect(direct).not.toBeNull();
+            if (direct) fireEvent.pointerOver(direct);
+            expect(
+                [
+                    ...container.querySelectorAll(
+                        'svg[role="img"] [data-label="own:Ops"]',
+                    ),
+                ].map((node) => node.textContent),
+            ).toEqual(['Directly in Ops', '4 on Lightdash · 1 active']);
+            expect(listed('Sub-departments')).toEqual([
+                'Stores30%',
+                'Depots30%',
+                'Directly in Ops · 4',
+            ]);
+            const directRow = rowsUnder('Sub-departments').at(-1);
+            expect(directRow?.tagName).not.toBe('BUTTON');
+            expect(within(details()).getByTitle('Directly in Ops · 4')).toBe(
+                directRow?.firstElementChild,
+            );
+            expect(barShares(directRow)).toEqual([25, 75]);
+            // The department's own bar still counts its whole headcount
+            expect(panelLegend()).toEqual([
+                'Active 3',
+                'On Lightdash, not active 10',
+                'No account 27',
+            ]);
+        });
+
+        it('leaves out the people directly in a department without sub-departments, as they are the department', async () => {
+            renderMap();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Finance,/ }),
+            );
+            expect(within(details()).queryByText(/Directly in/)).toBeNull();
+            expect(within(details()).queryByText('Sub-departments')).toBeNull();
+        });
+
+        it('asks for a headcount where a department has none and no sub-departments, and sorts it with the zeros', async () => {
+            renderMap(seededOrganization());
+            expect(listed('Departments')).toEqual([
+                'Supply chain0%',
+                'Marketing0%',
+                'Finance0%',
+                'ProductAdd headcount',
+                'Operations3%',
+                'Data11%',
+            ]);
+            // Its one person is on Lightdash and active, so the bar is full
+            expect(barShares(row('Product'))).toEqual([100, 0]);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            );
+            expect(listed('Sub-departments')).toEqual([
+                'Stores0%',
+                'Depots0%',
+                'NorthAdd headcount',
+            ]);
+        });
+
+        it('shows the same numbers as the legend under the map where a headcount is below its sub-departments', async () => {
+            // Stores has more accounts than headcount, so it counts 25; Ops' own 30 is below the 35 of Stores and Depots
+            const lopsided = [
+                d('Ops', null, 30, 25, 0, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Stores', 'Ops', 20, 25, 0),
+                d('Depots', 'Ops', 10, 0, 0),
+            ];
+            const { container } = renderMap(lopsided);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            expect(panelLegend()).toEqual([
+                'Active 0',
+                'On Lightdash, not active 25',
+                'No account 5',
+            ]);
+            expect(legendCounts()).toEqual([
+                { label: 'Active in 30 days', count: 0 },
+                { label: 'Not active in 30 days', count: 25 },
+                { label: 'No account', count: 5 },
+            ]);
+            // The rings still draw Depots' 10: the legend reads the numbers, not the dots
+            expect(
+                container.querySelectorAll(
+                    'svg[role="img"] [data-dot="noAccount"]',
+                ),
+            ).toHaveLength(10);
+        });
+
+        it('shows the same numbers as the legend under the map where a headcount is above its sub-departments', () => {
+            // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, 4 of them on Lightdash
+            const { container } = renderMap([
+                d('Ops', null, 40, 13, 3, {
+                    directMetrics: metricsFixture(4, null, {
+                        activeCount30d: 1,
+                    }),
+                }),
+                d('Stores', 'Ops', 20, 6, 2),
+                d('Depots', 'Ops', 10, 3, 0),
+                d('Finance', null, 8, 3, 2),
+            ]);
+            expect(panelLegend()).toEqual([
+                'Active 5',
+                'On Lightdash, not active 11',
+                'No account 32',
+            ]);
+            expect(
+                legendCounts().find((entry) => entry.label === 'No account')
+                    ?.count,
+            ).toBe(32);
+            // Stores 14, Depots 7 and Finance 5 are drawn; the 6 in Ops' own headcount without an account are not
+            expect(
+                container.querySelectorAll(
+                    'svg[role="img"] [data-dot="noAccount"]',
+                ),
+            ).toHaveLength(26);
+        });
+
+        it('never shows coverage above 100%, in the rows or for the department opened', async () => {
+            // A headcount of 8 entered for 9 people on Lightdash, all active, counts 9
+            const over = d('Data', null, 8, 9, 9, {
+                effectiveHeadcount: 9,
+                metrics: metricsFixture(9, 100, {
+                    activeCount30d: 9,
+                    activePct: 100,
+                }),
+            });
+            renderMap([over, d('Finance', null, 8, 3, 2)]);
+            expect(listed('Departments')).toEqual(['Finance38%', 'Data100%']);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Data,/ }),
+            );
+            expect(panelLegend()).toEqual([
+                'Active 9',
+                'On Lightdash, not active 0',
+                'No account 0',
+            ]);
+            expect(barShares(mainBar())).toEqual([100, 0]);
+            expect(
+                within(details()).queryByText(/More accounts than headcount/),
+            ).toBeNull();
+        });
+
+        it('shows no tiles, owners, groups, roles, targets or captions for a department', async () => {
+            renderMap([
+                d('Finance', null, 8, 3, 2, {
+                    owners: [
+                        { type: 'user', uuid: 'owner', name: 'Ada Owner' },
+                    ],
+                    linkedGroups: [
+                        { groupUuid: 'group', name: 'Finance team' },
+                    ],
+                    targetActiveUsers: 6,
+                    targetDate: '2026-12-31',
+                    headcountBelowChildren: true,
+                }),
+                d('Legal', null, 60, 0, 0),
+            ]);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Finance,/ }),
+            );
+            expect(panelLegend()).toEqual([
+                'Active 2',
+                'On Lightdash, not active 1',
+                'No account 5',
+            ]);
+            expect(
+                within(details()).queryByText(
+                    /Ada Owner|Finance team|group|viewer|editor|admin|target|to go|Headcount is lower|^On Lightdash$|of 8/i,
+                ),
+            ).toBeNull();
+            expect(
+                within(details()).getByRole('link', { name: 'Open Finance' }),
+            ).toBeInTheDocument();
+        });
     });
 
-    it('shows no target in the inspector, even for a department with one', async () => {
-        renderMap([
-            d('Finance', null, 8, 3, 2, {
-                targetActiveUsers: 6,
-                targetDate: '2026-12-31',
-            }),
-            d('Legal', null, 60, 0, 0),
-        ]);
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Finance,/ }),
-        );
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        expect(within(details).getByText('On Lightdash')).toBeInTheDocument();
-        expect(within(details).queryByText(/target|to go/i)).toBeNull();
-    });
-
-    it('leaves the role split out of the inspector for a department with nobody on Lightdash', async () => {
-        renderMap([d('Legal', null, 60, 0, 0), d('Finance', null, 8, 3, 2)]);
-        await userEvent.click(screen.getByRole('button', { name: /^Legal,/ }));
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        expect(within(details).queryByText(/viewer|editor|admin/)).toBeNull();
-        expect(within(details).queryByText('No one yet')).toBeNull();
-    });
-
-    it('says the legend counts placed people where the panel counts everyone', async () => {
+    it('says the legend counts the people placed in a department across the organization', async () => {
         renderMap();
         const caption = 'Legend counts people placed in a department';
         expect(screen.getByText(caption)).toBeInTheDocument();
-        // Inside a department the legend and the panel count the same people
+        // Inside a department everyone counted is in it
         await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
         expect(screen.queryByText(caption)).toBeNull();
     });
@@ -1090,23 +1257,6 @@ describe('AdoptionMap', () => {
             }),
         );
         expect(shown()).toBeNull();
-    });
-
-    it('lists departments lowest coverage first, the biggest first among equals', () => {
-        renderMap(seededOrganization());
-        const rows = within(
-            screen.getByRole('complementary', { name: 'Details' }),
-        ).getAllByRole('button');
-        expect(rows.map((row) => row.textContent?.replace(/\d.*/, ''))).toEqual(
-            [
-                'Supply chain',
-                'Marketing',
-                'Finance',
-                'Operations',
-                'Data',
-                'Product',
-            ],
-        );
     });
 
     it('says when names could not be loaded, and nothing while they load', async () => {

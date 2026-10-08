@@ -9,7 +9,7 @@ import { DOT_LABELS, LEGEND_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
 type Props = {
     colourBy: ColourBy;
     counts: Map<DotKind, number>;
-    // The whole organization is in view, where the panel counts everyone on Lightdash
+    // The whole organization is in view, where only the people placed in a department are counted
     isOrganizationView: boolean;
     hasEmptyDepartment: boolean;
     hasDepartmentWithoutHeadcount: boolean;
