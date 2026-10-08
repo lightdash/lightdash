@@ -327,8 +327,10 @@ const registerOneLoginStrategyForOrg = (
 
 /**
  * Resolves the OneLogin strategy name for this request, registering the per-org
- * strategy dynamically. Returns undefined when neither a per-org DB config
- * matching the email domain nor an env-based fallback is available.
+ * strategy dynamically. Without an email hint (OneLogin portal tile launches
+ * send none) the org is inferred only when exactly one has OneLogin enabled.
+ * Returns undefined when neither a per-org DB config nor an env-based fallback
+ * is available.
  */
 const resolveOneLoginStrategyName = async (
     req: express.Request,
@@ -339,6 +341,16 @@ const resolveOneLoginStrategyName = async (
     if (email) {
         const method = await ssoService.findEnabledMethodForEmail(
             email,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        if (method) {
+            return registerOneLoginStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    } else {
+        const method = await ssoService.findSoleEnabledMethodForProvider(
             OrganizationSsoProvider.ONELOGIN,
         );
         if (method) {
@@ -623,7 +635,8 @@ apiV1Router.get(
             if (!strategyName) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'OneLogin SSO is not configured',
+                    message:
+                        'Could not determine which organization to sign in to with OneLogin. Start sign-in from the Lightdash login page.',
                 });
                 return;
             }
@@ -648,7 +661,8 @@ apiV1Router.get(
             if (!strategyName) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'OneLogin SSO is not configured',
+                    message:
+                        'Could not determine which organization to sign in to with OneLogin. Start sign-in from the Lightdash login page.',
                 });
                 return;
             }

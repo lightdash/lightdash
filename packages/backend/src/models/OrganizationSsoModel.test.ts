@@ -228,4 +228,30 @@ describe('OrganizationSsoModel', () => {
             expect(lowered).not.toContain('select *');
         });
     });
+
+    describe('findEnabledMethodsForProvider', () => {
+        it('restricts to enabled rows of the provider whose org has a verified domain', async () => {
+            tracker.on
+                .select(OrganizationSsoConfigurationsTableName)
+                .responseOnce([
+                    dbRow({ provider: OrganizationSsoProvider.ONELOGIN }),
+                ]);
+
+            const result = await model.findEnabledMethodsForProvider(
+                OrganizationSsoProvider.ONELOGIN,
+            );
+
+            const { sql, bindings } = tracker.history.select[0];
+            const lowered = sql.toLowerCase();
+            expect(bindings).toContain(OrganizationSsoProvider.ONELOGIN);
+            expect(bindings).toContain(true);
+            expect(lowered).toContain('exists');
+            expect(lowered).toContain('organization_domain_verifications');
+            expect(lowered).toContain('"verified_at" is not null');
+
+            expect(result).toEqual([
+                { organizationUuid: ORG_UUID, config: storedConfig },
+            ]);
+        });
+    });
 });

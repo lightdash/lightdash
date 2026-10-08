@@ -842,6 +842,23 @@ export class OrganizationSsoService extends BaseService {
         );
     }
 
+    /**
+     * Resolves a provider's per-org method when a login arrives with no email
+     * hint (e.g. launched from the IdP's app tile). Only succeeds when exactly
+     * one org has the provider enabled — the dedicated-instance case. With zero
+     * or several, the org cannot be inferred and the caller falls back to the
+     * hint-based flow.
+     */
+    async findSoleEnabledMethodForProvider<P extends OrganizationSsoProvider>(
+        provider: P,
+    ): Promise<OrganizationSsoConfigLookup<P> | undefined> {
+        const methods =
+            await this.organizationSsoModel.findEnabledMethodsForProvider(
+                provider,
+            );
+        return methods.length === 1 ? methods[0] : undefined;
+    }
+
     async findEnabledOktaMethodForIssuer(
         issuer: string,
     ): Promise<
