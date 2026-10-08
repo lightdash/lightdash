@@ -18,3 +18,4 @@ collisions with other contexts' or repo-wide meanings.
 - [External sources](./docs/external-sources/CONTEXT.md) — uploaded CSVs and connected Google Sheets ingested to typed parquet and queried as explores on the DuckDB engine
 - [Merge queries](./docs/merge-queries/CONTEXT.md) — joining the results of two explore queries on a shared key, executed as a composed query with the join running in DuckDB
 - [Composer queries](./docs/composer-queries/CONTEXT.md) — agent-authored pipelines of queries across sources, joined or transformed in DuckDB, shown as a chart artifact with the pipeline beside the result
+- [Adoption by department](./docs/adoption-by-department/CONTEXT.md) — an organization described as a tree of departments, with headcounts and owners, showing how many of each department are on Lightdash and active, so enablement goes where it is needed
