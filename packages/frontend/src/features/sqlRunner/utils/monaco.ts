@@ -1,4 +1,4 @@
-import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -6,9 +6,12 @@ import {
 } from '@popsql/monaco-sql-languages';
 import type { languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
-import type { SqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
-import type { WarehouseTableFieldWithContext } from '../hooks/useTableFields';
-import type { TablesBySchema } from '../hooks/useTables';
+import { analyzeCompletionContext } from './sqlCompletion/analyze';
+import {
+    getSqlSuggestions,
+    type SqlSuggestionData,
+    type SqlSuggestionKind,
+} from './sqlCompletion/suggest';
 
 export const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -66,10 +69,8 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
         });
     } else if (language in LanguageIdEnum) {
         setupLanguageFeatures(language as LanguageIdEnum, {
-            completionItems: {
-                enable: true,
-                triggerCharacters: [' ', '.'],
-            },
+            // Lightdash's context-aware provider replaces the generic one
+            completionItems: { enable: false },
         });
     }
 };
@@ -167,300 +168,61 @@ export const getLightdashMonacoTheme = (colorScheme: 'light' | 'dark') => {
 export const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
-    quoteChar: string,
-    tables: string[],
-    fields?: WarehouseTableFieldWithContext[],
-    settings?: SqlEditorPreferences,
-    availableParameters?: Record<
-        string,
-        {
-            label: string;
-            description?: string;
-            default?: ParameterValue;
-        }
-    >,
+    data: SqlSuggestionData,
 ) => {
-    return monaco.languages.registerCompletionItemProvider(language, {
-        provideCompletionItems: (model, position) => {
-            const wordUntilPosition = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: wordUntilPosition.startColumn,
-                endColumn: wordUntilPosition.endColumn,
-            };
-
-            const textUntilPosition = model.getValueInRange({
-                startLineNumber: position.lineNumber,
-                startColumn: 1,
-                endLineNumber: position.lineNumber,
-                endColumn: position.column,
-            });
-
-            const suggestions: languages.CompletionItem[] = [];
-
-            // Add parameter completions with simplified logic
-            if (availableParameters) {
-                // Don't show parameter completions for $word patterns (like $param, $metric, $ld)
-                // Only show for clean patterns: ${...}, ld.parameters, or plain $
-                const isDollarWord =
-                    /\$\w+$/.test(textUntilPosition) &&
-                    !/\$$/.test(textUntilPosition);
-                if (!isDollarWord) {
-                    // Only add parameter completions for clean patterns
-                    Object.keys(availableParameters).forEach((paramName) => {
-                        const paramConfig = availableParameters[paramName];
-
-                        // Use regex patterns to detect context and what to replace
-                        const parameterPattern =
-                            /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
-                        const ldPattern =
-                            /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
-                        // Pattern to detect any content inside ${} brackets
-                        const insideBracketsPattern = /\$\{([^}]*?)$/;
-
-                        const parameterMatch =
-                            textUntilPosition.match(parameterPattern);
-                        const ldMatch = textUntilPosition.match(ldPattern);
-                        const insideBracketsMatch = textUntilPosition.match(
-                            insideBracketsPattern,
-                        );
-
-                        let insertText: string;
-                        let customRange = range;
-
-                        if (parameterMatch) {
-                            // Inside ${} with ld prefix - replace from the start of the match
-                            const matchStart = textUntilPosition.lastIndexOf(
-                                parameterMatch[1],
-                            );
-                            insertText = `ld.parameters.${paramName}`;
-                            customRange = {
-                                startLineNumber: position.lineNumber,
-                                endLineNumber: position.lineNumber,
-                                startColumn: matchStart + 1,
-                                endColumn: position.column,
-                            };
-                        } else if (insideBracketsMatch) {
-                            // Inside ${} but not ld prefix - replace content inside brackets
-                            const matchStart = insideBracketsMatch.index! + 2; // +2 to skip "${
-                            insertText = `ld.parameters.${paramName}`;
-                            customRange = {
-                                startLineNumber: position.lineNumber,
-                                endLineNumber: position.lineNumber,
-                                startColumn: matchStart + 1,
-                                endColumn: position.column,
-                            };
-                        } else if (ldMatch) {
-                            // Outside ${} - wrap with ${} and replace from start of ld
-                            const matchStart = textUntilPosition.lastIndexOf(
-                                ldMatch[1],
-                            );
-                            insertText = `\${ld.parameters.${paramName}}`;
-                            customRange = {
-                                startLineNumber: position.lineNumber,
-                                endLineNumber: position.lineNumber,
-                                startColumn: matchStart + 1,
-                                endColumn: position.column,
-                            };
-                        } else {
-                            // Default case - be smart about existing $ prefix
-                            const hasDollarPrefix = /\$$/.test(
-                                textUntilPosition,
-                            );
-                            if (hasDollarPrefix) {
-                                // If line ends with $, just add the bracketed parameter
-                                insertText = `{ld.parameters.${paramName}}`;
-                            } else {
-                                // Otherwise add full parameter
-                                insertText = `\${ld.parameters.${paramName}}`;
-                            }
-                        }
-
-                        // Prioritize parameters when typing ld/parameters related text
-                        const isRelevantContext =
-                            parameterMatch ||
-                            insideBracketsMatch ||
-                            ldMatch ||
-                            /(?:^|\W)(?:ld|parameters|\$)/i.test(
-                                textUntilPosition,
-                            );
-                        const sortText = isRelevantContext
-                            ? `0_param_${paramName}`
-                            : `param_${paramName}`;
-
-                        suggestions.push({
-                            label: {
-                                label: `ld.parameters.${paramName}`,
-                                detail: paramConfig.description
-                                    ? ` - ${paramConfig.description}`
-                                    : '',
-                            },
-                            kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText,
-                            range: customRange,
-                            sortText,
-                            detail: `Parameter: ${
-                                paramConfig.label || paramName
-                            }`,
-                            documentation: paramConfig.description,
-                        });
-                    });
-                }
-            }
-
-            const formatFieldName = (fieldName: string): string => {
-                let formattedName = fieldName;
-
-                // Apply quote preference (only always or never)
-                // First apply case preference
-                if (settings?.casePreference === 'lowercase') {
-                    formattedName = formattedName.toLowerCase();
-                } else if (settings?.casePreference === 'uppercase') {
-                    formattedName = formattedName.toUpperCase();
-                }
-
-                // Then apply quote preference
-                if (!settings || settings?.quotePreference === 'always') {
-                    // Backtick warehouses expose nested columns as dotted
-                    // paths; quoting the whole path would name one identifier.
-                    const segments =
-                        quoteChar === '`'
-                            ? formattedName.split('.')
-                            : [formattedName];
-                    return segments
-                        .map((segment) => `${quoteChar}${segment}${quoteChar}`)
-                        .join('.');
-                }
-
-                return formattedName;
-            };
-
-            // Add field suggestions first (top priority)
-            if (fields && fields.length > 0) {
-                const fieldSuggestions: languages.CompletionItem[] = [];
-
-                fields.forEach((field) => {
-                    // Check if field has table context information
-                    const hasTableContext =
-                        'table' in field && 'schema' in field;
-                    const tableContext = hasTableContext
-                        ? ` from ${field.schema}.${field.table}`
-                        : '';
-
-                    const formattedFieldName = formatFieldName(field.name);
-                    const displayName =
-                        settings?.casePreference === 'lowercase'
-                            ? field.name.toLowerCase()
-                            : settings?.casePreference === 'uppercase'
-                              ? field.name.toUpperCase()
-                              : field.name;
-
-                    fieldSuggestions.push({
-                        label: `${displayName} (${field.type})${tableContext}`,
-                        kind: monaco.languages.CompletionItemKind.Field,
-                        insertText: formattedFieldName,
-                        range,
-                        sortText: `0${displayName}`, // High priority
-                        detail: `Column: ${field.type}${tableContext}`,
-                    });
-                });
-
-                // Deduplicate by label
-                const fieldMap = new Map();
-                fieldSuggestions.forEach((suggestion) => {
-                    fieldMap.set(suggestion.label, suggestion);
-                });
-                suggestions.push(...fieldMap.values());
-            }
-
-            // Add table suggestions (lower priority)
-            const tableSuggestions = tables.map((table) => {
-                const parts = table.split('.');
-                const typedParts = textUntilPosition.split('.');
-                const insertParts = parts.slice(typedParts.length - 1);
-
-                // Check if the last typed part is already quoted
-                const lastTypedPart = typedParts[typedParts.length - 1];
-                const isLastPartQuoted =
-                    lastTypedPart.startsWith(`${quoteChar}`) &&
-                    !lastTypedPart.endsWith(`${quoteChar}`);
-
-                let insertText = insertParts.join('.');
-                if (isLastPartQuoted) {
-                    // Remove the opening quote from the first part to insert
-                    insertText = insertText.replace(
-                        new RegExp(`^${quoteChar}`),
-                        '',
-                    );
-                }
-
-                return {
-                    label: table,
-                    kind: monaco.languages.CompletionItemKind.Class,
-                    insertText,
-                    range,
-                    sortText: `1${table}`, // Lower priority with '1' prefix
-                    detail: 'Table',
-                };
-            });
-            suggestions.push(...tableSuggestions);
-
-            return { suggestions };
-        },
-        triggerCharacters: ['.', '{'],
-    });
-};
-
-export const generateTableCompletions = (
-    quoteChar: string,
-    data: { database: string; tablesBySchema: TablesBySchema },
-    settings?: SqlEditorPreferences,
-) => {
-    if (!data) return;
-
-    const database = data.database;
-
-    // Helper function to format table names based on settings
-    const formatTableName = (
-        db: string,
-        schema: string,
-        table: string,
-    ): string => {
-        let formattedDb = db;
-        let formattedSchema = schema;
-        let formattedTable = table;
-
-        if (!settings) {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        // Apply case preference (only lowercase or uppercase)
-        if (settings.casePreference === 'lowercase') {
-            formattedDb = formattedDb.toLowerCase();
-            formattedSchema = formattedSchema.toLowerCase();
-            formattedTable = formattedTable.toLowerCase();
-        } else if (settings.casePreference === 'uppercase') {
-            formattedDb = formattedDb.toUpperCase();
-            formattedSchema = formattedSchema.toUpperCase();
-            formattedTable = formattedTable.toUpperCase();
-        }
-
-        // Apply quote preference (only always or never)
-        if (settings.quotePreference === 'always') {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        return `${formattedDb}.${formattedSchema}.${formattedTable}`;
+    const { CompletionItemKind, CompletionItemInsertTextRule } =
+        monaco.languages;
+    const kinds: Record<SqlSuggestionKind, languages.CompletionItemKind> = {
+        keyword: CompletionItemKind.Keyword,
+        function: CompletionItemKind.Function,
+        column: CompletionItemKind.Field,
+        table: CompletionItemKind.Class,
+        schema: CompletionItemKind.Module,
+        database: CompletionItemKind.Folder,
+        alias: CompletionItemKind.Variable,
+        parameter: CompletionItemKind.Variable,
     };
-
-    const tablesList = data.tablesBySchema
-        ?.map((s) =>
-            Object.keys(s.tables).map((t) =>
-                formatTableName(database, s.schema.toString(), t),
-            ),
-        )
-        .flat();
-
-    return tablesList;
+    return monaco.languages.registerCompletionItemProvider(language, {
+        triggerCharacters: ['.', '{', ' ', '$'],
+        provideCompletionItems: (model, position, completionContext) => {
+            const line = model.getLineContent(position.lineNumber);
+            const context = analyzeCompletionContext(
+                model.getValue(),
+                model.getOffsetAt(position),
+                data.quoteChar,
+            );
+            const suggestions = getSqlSuggestions({
+                context,
+                linePrefix: line.slice(0, position.column - 1),
+                nextChar: line.charAt(position.column - 1),
+                triggerCharacter: completionContext.triggerCharacter ?? null,
+                data,
+            });
+            return {
+                suggestions: suggestions.map(
+                    (item): languages.CompletionItem => ({
+                        label: {
+                            label: item.label,
+                            detail: item.detail ?? undefined,
+                            description: item.description ?? undefined,
+                        },
+                        kind: kinds[item.kind],
+                        insertText: item.insertText,
+                        insertTextRules: item.isSnippet
+                            ? CompletionItemInsertTextRule.InsertAsSnippet
+                            : undefined,
+                        filterText: item.filterText ?? undefined,
+                        sortText: item.sortText,
+                        documentation: item.documentation ?? undefined,
+                        range: {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: item.range.startColumn,
+                            endColumn: item.range.endColumn,
+                        },
+                    }),
+                ),
+            };
+        },
+    });
 };
