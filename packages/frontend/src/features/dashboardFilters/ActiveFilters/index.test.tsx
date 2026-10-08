@@ -244,3 +244,57 @@ describe('ActiveFilters saved filter on a hidden field', () => {
         ).toHaveBeenCalledWith(0, false);
     });
 });
+
+describe('ActiveFilters temporary filter on a hidden field', () => {
+    const savedFilter: DashboardFilterRule = {
+        id: 'saved-filter',
+        target: { fieldId: 'orders_region', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['emea'],
+        label: undefined,
+    };
+    const temporaryFilter: DashboardFilterRule = {
+        id: 'temporary-filter',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        label: undefined,
+    };
+
+    it('removes the temporary filter, not a saved one', () => {
+        setMetricFilterLocation('saved');
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardFilters: {
+                dimensions: [savedFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardTemporaryFilters: {
+                dimensions: [temporaryFilter],
+                metrics: [],
+            },
+            dashboardTabs: [],
+            filterableFieldsByTileUuid: { 'tile-1': [metricField] },
+            hiddenFilterableFieldIds: new Set(['orders_status']),
+        };
+        renderWithProviders(
+            <ActiveFilters
+                isEditMode
+                activeTabUuid={undefined}
+                openPopoverId={undefined}
+                onPopoverOpen={vi.fn()}
+                onPopoverClose={vi.fn()}
+            />,
+        );
+
+        const removeButtons = screen.getAllByRole('button', {
+            name: 'Remove filter',
+        });
+        removeButtons[removeButtons.length - 1].click();
+
+        expect(
+            mockDashboardContext.current.removeDimensionDashboardFilter,
+        ).toHaveBeenCalledWith(0, true);
+    });
+});
