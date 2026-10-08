@@ -33,11 +33,15 @@ type TopContentRow = {
 
 const AI_TABLES = ['ai_prompt', 'ai_thread', 'ai_agent'];
 
-// Only queries a person ran count as activity; schedules, alerts, syncs, API, agent and MCP runs do not
-export const INTERACTIVE_QUERY_CONTEXTS: QueryExecutionContext[] =
-    Object.values(QueryExecutionContext).filter(
-        (context) => queryWorkloadOrigin(context) === 'interactive',
-    );
+// Interactive contexts plus AI agent and MCP, since a person asking the agent or using MCP is adoption
+const COUNTED_CONTEXT_ORIGINS = ['interactive', 'agent', 'mcp'];
+
+// Only queries a person ran or asked for count as activity; schedules, alerts, syncs, API, CLI and embeds do not
+export const COUNTED_QUERY_CONTEXTS: QueryExecutionContext[] = Object.values(
+    QueryExecutionContext,
+).filter((context) =>
+    COUNTED_CONTEXT_ORIGINS.includes(queryWorkloadOrigin(context)),
+);
 
 const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
     id: row.id,
@@ -85,7 +89,7 @@ const activityUnion = (
     bindings: [
         organizationUuid,
         userUuids,
-        INTERACTIVE_QUERY_CONTEXTS,
+        COUNTED_QUERY_CONTEXTS,
         windows.activeSince,
         organizationUuid,
         userUuids,
@@ -222,7 +226,7 @@ export class DepartmentAnalyticsModel {
                 since,
                 organizationUuid,
                 userUuids,
-                INTERACTIVE_QUERY_CONTEXTS,
+                COUNTED_QUERY_CONTEXTS,
                 since,
                 organizationUuid,
                 userUuids,
@@ -293,13 +297,7 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, name ASC
             LIMIT ?
             `,
-            [
-                organizationUuid,
-                userUuids,
-                INTERACTIVE_QUERY_CONTEXTS,
-                since,
-                limit,
-            ],
+            [organizationUuid, userUuids, COUNTED_QUERY_CONTEXTS, since, limit],
         );
         return result.rows.map(toTopContentItem);
     }

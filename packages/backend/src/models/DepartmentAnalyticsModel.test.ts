@@ -3,8 +3,8 @@ import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
+    COUNTED_QUERY_CONTEXTS,
     DepartmentAnalyticsModel,
-    INTERACTIVE_QUERY_CONTEXTS,
 } from './DepartmentAnalyticsModel';
 
 describe('DepartmentAnalyticsModel', () => {
@@ -82,7 +82,7 @@ describe('DepartmentAnalyticsModel', () => {
         // The active flag and the query history read are bounded by 30 days
         expect(query.bindings.filter((b) => b === activeSince)).toHaveLength(2);
         const contexts = query.bindings.findIndex(
-            (b) => Array.isArray(b) && b === INTERACTIVE_QUERY_CONTEXTS,
+            (b) => Array.isArray(b) && b === COUNTED_QUERY_CONTEXTS,
         );
         expect(query.bindings[contexts + 1]).toBe(activeSince);
     });
@@ -178,48 +178,80 @@ describe('DepartmentAnalyticsModel', () => {
         expect(query.bindings.filter((b) => b === activeSince)).toHaveLength(3);
     });
 
-    describe('interactive query contexts', () => {
-        it('lists what a person runs and nothing a schedule, API client, agent or MCP runs', () => {
-            expect(INTERACTIVE_QUERY_CONTEXTS).toEqual(
-                expect.arrayContaining([
-                    QueryExecutionContext.EXPLORE,
-                    QueryExecutionContext.DASHBOARD,
-                    QueryExecutionContext.CHART,
-                    QueryExecutionContext.SQL_RUNNER,
-                ]),
-            );
-            [
-                QueryExecutionContext.SCHEDULED_DELIVERY,
-                QueryExecutionContext.SCHEDULED_CHART,
-                QueryExecutionContext.SCHEDULED_DASHBOARD,
-                QueryExecutionContext.ALERT,
-                QueryExecutionContext.GSHEETS,
-                QueryExecutionContext.API,
-                QueryExecutionContext.AI,
-                QueryExecutionContext.MCP_RUN_SQL,
-                QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
-            ].forEach((context) =>
-                expect(INTERACTIVE_QUERY_CONTEXTS).not.toContain(context),
+    describe('counted query contexts', () => {
+        const C = QueryExecutionContext;
+        // What a person does themselves, plus asking the AI agent or using MCP
+        const counted = [
+            C.DASHBOARD,
+            C.EXPLORE,
+            C.CHART,
+            C.CHART_HISTORY,
+            C.SQL_CHART,
+            C.SQL_RUNNER,
+            C.COMPOSE_SQL_RUNNER,
+            C.VIEW_UNDERLYING_DATA,
+            C.METRICS_EXPLORER,
+            C.AI,
+            C.MCP_RUN_METRIC_QUERY,
+            C.MCP_RUN_SQL,
+            C.MCP_SEARCH_FIELD_VALUES,
+        ];
+        // Everything else is deliberately left out; a new context must be added to one list
+        const notCounted = [
+            C.AUTOREFRESHED_DASHBOARD,
+            C.FILTER_AUTOCOMPLETE,
+            C.ALERT,
+            C.SCHEDULED_DELIVERY,
+            C.CSV,
+            C.GSHEETS,
+            C.GSHEETS_ADDON,
+            C.SCHEDULED_GSHEETS_CHART,
+            C.SCHEDULED_GSHEETS_DASHBOARD,
+            C.SCHEDULED_GSHEETS_SQL_CHART,
+            C.SCHEDULED_CHART,
+            C.SCHEDULED_DASHBOARD,
+            C.CALCULATE_TOTAL,
+            C.CALCULATE_SUBTOTAL,
+            C.EMBED,
+            C.API,
+            C.CLI,
+            C.PRE_AGGREGATE_MATERIALIZATION,
+            C.MULTI_SOURCE_QUERY,
+            C.DATA_APP_SAMPLE,
+            C.DESKTOP,
+        ];
+
+        it('counts exactly the listed contexts', () => {
+            expect([...COUNTED_QUERY_CONTEXTS].sort()).toEqual(
+                [...counted].sort(),
             );
         });
 
-        it('filters the activity read to interactive contexts', async () => {
+        it('decides every execution context on purpose', () => {
+            const decided = [...counted, ...notCounted];
+            expect(new Set(decided).size).toBe(decided.length);
+            expect([...decided].sort()).toEqual(
+                Object.values(QueryExecutionContext).sort(),
+            );
+        });
+
+        it('filters the activity read to counted contexts', async () => {
             tracker.on.any(/query_history/).responseOnce({ rows: [] });
             await model.getActivity('org', ['u1'], windows);
             const [query] = tracker.history.all;
             expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
-            expect(query.bindings).toContainEqual(INTERACTIVE_QUERY_CONTEXTS);
+            expect(query.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);
         });
 
-        it('filters member activity to interactive contexts', async () => {
+        it('filters member activity to counted contexts', async () => {
             tracker.on.any(/unnest/).responseOnce({ rows: [] });
             await model.getMemberActivity('org', ['u1'], activeSince);
             const [query] = tracker.history.all;
             expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
-            expect(query.bindings).toContainEqual(INTERACTIVE_QUERY_CONTEXTS);
+            expect(query.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);
         });
 
-        it('filters top explores to interactive contexts', async () => {
+        it('filters top explores to counted contexts', async () => {
             tracker.on
                 .any(/analytics_dashboard_views/)
                 .responseOnce({ rows: [] });
@@ -235,9 +267,7 @@ describe('DepartmentAnalyticsModel', () => {
             expect(explores?.sql).toMatch(
                 /qh\.context = ANY\(\$\d+::text\[\]\)/,
             );
-            expect(explores?.bindings).toContainEqual(
-                INTERACTIVE_QUERY_CONTEXTS,
-            );
+            expect(explores?.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);
         });
     });
 
