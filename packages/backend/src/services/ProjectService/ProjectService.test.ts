@@ -4347,6 +4347,7 @@ describe('ProjectService', () => {
                 uuid: 'personal-catalog-credentials',
                 credentials:
                     warehouseClientMock.credentials as CreatePostgresCredentials,
+                expiresAt: null,
             });
             const acquire = vi.spyOn(
                 configured.warehouseClientFactory,
@@ -4392,6 +4393,7 @@ describe('ProjectService', () => {
                 uuid: 'personal-catalog-credentials',
                 credentials:
                     warehouseClientMock.credentials as CreatePostgresCredentials,
+                expiresAt: null,
             });
             await expect(
                 configured.populateWarehouseTablesCache(user, projectUuid),
@@ -15780,6 +15782,7 @@ describe('AI principal credential routing', () => {
             ).mockResolvedValue({
                 uuid: 'personal-uuid',
                 credentials: { ...credentials, user: 'personal-user' },
+                expiresAt: null,
             });
             const legacy = await resolveCredentials(configured);
             const scoped =
