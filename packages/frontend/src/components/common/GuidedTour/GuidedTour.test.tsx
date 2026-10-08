@@ -6,6 +6,7 @@ import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
+import { cardLayout } from './cardLayout';
 import {
     GuidedTour,
     type GuidedTourStep,
@@ -785,6 +786,42 @@ describe('GuidedTour', () => {
                     await vi.advanceTimersByTimeAsync(200);
                 });
                 expect(scroll).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.restoreAllMocks();
+                vi.useRealTimers();
+            }
+        });
+
+        it('opens the card where the control is once it has moved during the opening', async () => {
+            scrolls();
+            try {
+                let top = 300;
+                mount(() => box(top));
+                // The ring glides to the control, then the card expands; the
+                // control moves (a scroll settling) while the card expands.
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(700);
+                });
+                top = 400;
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(1_500);
+                });
+                // The position lives on the box the card body sits in.
+                let positioned =
+                    document.querySelector<HTMLElement>('[data-tour-card]');
+                while (
+                    positioned &&
+                    !positioned.style.getPropertyValue('--tour-card-top')
+                ) {
+                    positioned = positioned.parentElement;
+                }
+                const expected = cardLayout(
+                    box(400),
+                    positioned?.offsetHeight ?? 0,
+                );
+                expect(
+                    positioned?.style.getPropertyValue('--tour-card-top'),
+                ).toBe(`${expected.top}px`);
             } finally {
                 vi.restoreAllMocks();
                 vi.useRealTimers();

@@ -211,10 +211,10 @@ const isInViewport = (el: Element) => {
 
 /**
  * Room a control needs between itself and the edge of the window or of the
- * scroller that clips it, so the ring is whole and the card has a side to
- * sit on. A short scroller gets a quarter of its height instead.
+ * scroller that clips it, so the ring around it is whole; the card finds
+ * its own side. A short scroller gets a quarter of its height instead.
  */
-const EDGE_MARGIN = 96;
+const EDGE_MARGIN = 16;
 
 /** In view, and not pressed against an edge. */
 const comfortablyInView = (el: Element) => {
@@ -841,6 +841,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 // released, so unmount clears whichever is still pending.
                 expandTimeoutRef.current = window.setTimeout(() => {
                     expandTimeoutRef.current = null;
+                    // The control can move while the card expands (a scroll
+                    // bringing it into view): open at where it is now, not
+                    // where the expansion started, or the card sits over it.
+                    setCardRect(latestRectRef.current);
                     setCardPhase('shown');
                 }, CARD_EXPAND_MS);
             }, GLIDE_MS);
