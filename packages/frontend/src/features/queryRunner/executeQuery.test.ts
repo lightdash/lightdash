@@ -70,6 +70,7 @@ describe('executeQuery', () => {
                 status: QueryHistoryStatus.READY,
                 queryUuid: 'test-query-uuid',
                 columns: { col1: { type: 'string' } },
+                metadata: { performance: { initialQueryExecutionMs: 120 } },
             } as never);
 
         vi.mocked(getResultsFromStream).mockResolvedValueOnce({
@@ -105,6 +106,7 @@ describe('executeQuery', () => {
                 status: QueryHistoryStatus.READY,
                 queryUuid: 'test-query-uuid',
                 columns: { col1: { type: 'string' } },
+                metadata: { performance: { initialQueryExecutionMs: 120 } },
             } as never);
 
         vi.mocked(getResultsFromStream).mockResolvedValueOnce({
@@ -140,6 +142,7 @@ describe('executeQuery', () => {
                 status: QueryHistoryStatus.READY,
                 queryUuid: 'test-query-uuid',
                 columns: { col1: { type: 'string' } },
+                metadata: { performance: { initialQueryExecutionMs: 120 } },
             } as never);
 
         vi.mocked(getResultsFromStream).mockResolvedValueOnce({

@@ -26,6 +26,7 @@ const serveReadyQuery = () => {
             status: QueryHistoryStatus.READY,
             queryUuid: 'query-uuid',
             columns: { amount: { type: 'number' } },
+            metadata: { performance: { initialQueryExecutionMs: 12 } },
         } as never);
     vi.mocked(getResultsFromStream).mockResolvedValueOnce([] as never);
 };

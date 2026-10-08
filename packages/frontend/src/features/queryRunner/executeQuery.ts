@@ -12,11 +12,31 @@ import { lightdashApi } from '../../api';
 import { getResultsFromStream } from '../../utils/request';
 import type { ResultsAndColumns } from '../sqlRunner/hooks/useSqlQueryRun';
 
+const throwIfAborted = (signal: AbortSignal | undefined) => {
+    if (signal?.aborted) {
+        throw new DOMException('Query cancelled', 'AbortError');
+    }
+};
+
+export const cancelAsyncQuery = async (
+    projectUuid: string,
+    queryUuid: string,
+): Promise<void> => {
+    await lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/query/${queryUuid}/cancel`,
+        version: 'v2',
+        method: 'POST',
+        body: undefined,
+    });
+};
+
 export const pollForResults = async (
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
+    signal?: AbortSignal,
 ): Promise<ApiGetAsyncQueryResults> => {
+    throwIfAborted(signal);
     const results = await lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}`,
         version: 'v2',
@@ -32,10 +52,17 @@ export const pollForResults = async (
         // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
         const nextBackoff = Math.min(backoffMs * 2, 1000);
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        return pollForResults(projectUuid, queryUuid, nextBackoff);
+        throwIfAborted(signal);
+        return pollForResults(projectUuid, queryUuid, nextBackoff, signal);
     }
 
     return results;
+};
+
+export type ExecuteSqlQueryOptions = {
+    signal?: AbortSignal;
+    // Fires once the warehouse has accepted the query, so it can be cancelled
+    onQueryStarted?: (queryUuid: string) => void;
 };
 
 export const executeSqlQuery = async (
@@ -45,7 +72,9 @@ export const executeSqlQuery = async (
     parameterValues?: ParametersValuesMap,
     invalidateCache?: boolean,
     warehouseConnectionUuid?: string | null,
+    options: ExecuteSqlQueryOptions = {},
 ): Promise<ResultsAndColumns> => {
+    throwIfAborted(options.signal);
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         url: `/projects/${projectUuid}/query/sql`,
         version: 'v2',
@@ -61,7 +90,13 @@ export const executeSqlQuery = async (
         }),
     });
 
-    const query = await pollForResults(projectUuid, response.queryUuid);
+    options.onQueryStarted?.(response.queryUuid);
+    const query = await pollForResults(
+        projectUuid,
+        response.queryUuid,
+        250,
+        options.signal,
+    );
 
     if (
         query.status === QueryHistoryStatus.ERROR ||
@@ -83,6 +118,7 @@ export const executeSqlQuery = async (
         fileUrl,
         results,
         columns: Object.values(query.columns),
+        durationMs: query.metadata.performance.initialQueryExecutionMs,
     };
 };
 

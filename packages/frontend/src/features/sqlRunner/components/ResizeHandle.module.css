@@ -1,15 +1,26 @@
+/* Slim canvas band with a grip, matching the editor/results splitter */
 .resizeHandle {
-    transition: background-color 0.2s ease-in-out;
-    cursor: row-resize;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    height: rem(9px);
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background-color: var(--ld-color-page);
+    cursor: row-resize;
 }
 
-.resizeHandle:hover {
-    background-color: var(--mantine-color-ldGray-2);
-}
-
-.resizeHandle[data-active] {
+.resizeHandle::before {
+    content: '';
+    width: rem(32px);
+    height: rem(3px);
+    border-radius: rem(2px);
     background-color: var(--mantine-color-ldGray-3);
+    transition: background-color 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle[data-active]::before {
+    background-color: var(--mantine-color-ldGray-5);
 }

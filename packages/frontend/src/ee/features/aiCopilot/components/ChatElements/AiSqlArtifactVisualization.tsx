@@ -150,7 +150,6 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 sql={sql}
                 limit={limit}
                 currentVizConfig={getAiArtifactTableConfig(columns)}
-                hasUnrunChanges={false}
                 connectionRequest={NO_CONNECTION_FIELD}
                 redirectOnSuccess={false}
                 onSaved={async ({ savedSqlUuid: newSavedSqlUuid }) => {

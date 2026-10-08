@@ -118,3 +118,12 @@
         border-radius: 0 0 8px 8px;
     }
 }
+
+.editorErrorLine {
+    background-color: var(--mantine-color-red-light);
+}
+
+.editorErrorSquiggle {
+    text-decoration: underline wavy var(--mantine-color-red-6);
+    text-underline-offset: rem(3px);
+}

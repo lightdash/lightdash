@@ -43,6 +43,15 @@ export const tableUnitId = ({ connectionId, database }: TableUnitKey) =>
     `${connectionId}/${database}`;
 
 export type WarehouseTreeRow =
+    | { type: 'section'; id: string; depth: number; label: string }
+    | {
+          type: 'recent';
+          id: string;
+          depth: number;
+          identity: TableIdentity;
+          partitionColumn: PartitionColumn | undefined;
+          tableType: WarehouseTableType | undefined;
+      }
     | {
           type: 'connection';
           id: string;
@@ -289,6 +298,50 @@ const schemaSourceFromUnit = (
         default:
             return assertUnreachable(state, 'Unknown table unit state');
     }
+};
+
+const RECENT_SECTION_ID = 'section:recent';
+export const ALL_SECTION_ID = 'section:all';
+
+// Recent tables of the active connection, headed by their own section. A
+// table whose database has loaded and no longer lists it is dropped.
+export const buildRecentWarehouseRows = ({
+    connectionId,
+    recentTables,
+    getUnitState,
+    allLabel,
+}: {
+    connectionId: string;
+    recentTables: { database: string; schema: string; table: string }[];
+    getUnitState: (unit: TableUnitKey) => TableUnitState;
+    allLabel: string;
+}): WarehouseTreeRow[] => {
+    const rows = recentTables.flatMap((ref): WarehouseTreeRow[] => {
+        const identity: TableIdentity = { connectionId, ...ref };
+        const state = getUnitState({ connectionId, database: ref.database });
+        if (state.status === 'error') return [];
+        const entry =
+            state.status === 'loaded'
+                ? state.catalog[ref.database]?.[ref.schema]?.[ref.table]
+                : undefined;
+        if (state.status === 'loaded' && !entry) return [];
+        return [
+            {
+                type: 'recent',
+                id: `recent:${tableRowId(identity)}`,
+                depth: 0,
+                identity,
+                partitionColumn: entry?.partitionColumn,
+                tableType: entry?.tableType,
+            },
+        ];
+    });
+    if (rows.length === 0) return [];
+    return [
+        { type: 'section', id: RECENT_SECTION_ID, depth: 0, label: 'Recent' },
+        ...rows,
+        { type: 'section', id: ALL_SECTION_ID, depth: 0, label: allLabel },
+    ];
 };
 
 export type BuildWarehouseTreeArgs = {

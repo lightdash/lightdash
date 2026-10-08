@@ -18,6 +18,7 @@ export type ResultsAndColumns = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     columns: VizColumn[];
+    durationMs: number | null;
 };
 
 type UseSqlQueryRunParams = {

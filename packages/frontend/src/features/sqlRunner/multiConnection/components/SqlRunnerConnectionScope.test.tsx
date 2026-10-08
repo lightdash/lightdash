@@ -286,6 +286,7 @@ describe('SqlRunnerConnectionScope', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
     });
