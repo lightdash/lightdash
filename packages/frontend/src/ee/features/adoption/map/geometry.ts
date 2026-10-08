@@ -24,6 +24,10 @@ const ROOMY_DOT_RADIUS = 11;
 const DENSE_DOT_RADIUS = 5;
 const ROOMY_COUNT = 20;
 const DENSE_COUNT = 150;
+// Up to this many people sit on a ring; at exactly this many one of them takes the centre
+const RING_WITH_CENTRE_COUNT = 7;
+// Centres are kept this multiple of a dot's diameter apart, so neighbours never touch
+const DOT_SPACING = 1.06;
 
 export type ColourBy = 'active' | 'role' | 'lastActive';
 
@@ -167,17 +171,78 @@ export const getDotRadius = (count: number, radius: number): number =>
               getDotRadiusCap(count),
           );
 
-// Dots plus their own radius sit inside the circle, with a margin at the edge
-export const layoutDots = (
-    count: number,
-    circleRadius: number,
-): { dotRadius: number; positions: { x: number; y: number }[] } => {
-    if (count <= 0) return { dotRadius: 0, positions: [] };
-    const usable = Math.max(circleRadius - DOT_MARGIN, 0);
-    const dotRadius = Math.min(getDotRadius(count, usable), usable / 2);
+type DotLayout = { dotRadius: number; positions: { x: number; y: number }[] };
+
+// A few people sit evenly on a ring, the first at the top; from seven up one takes the centre
+const layoutFewDots = (count: number, usable: number): DotLayout => {
+    if (count === 1) {
+        return {
+            dotRadius: Math.min(usable / 2, getDotRadiusCap(count)),
+            positions: [{ x: 0, y: 0 }],
+        };
+    }
+    const onRing = count === RING_WITH_CENTRE_COUNT ? count - 1 : count;
+    // Half the distance between ring neighbours, per unit of ring radius
+    const reach = Math.sin(Math.PI / onRing);
+    const dotRadius = Math.min(
+        (usable * reach) / (1 + reach) / DOT_SPACING,
+        getDotRadiusCap(count),
+    );
+    // Halfway out where there is room, never closer than the dots need nor past the edge
+    const ringRadius = Math.min(
+        Math.max(usable / 2, (dotRadius * DOT_SPACING) / reach),
+        usable - dotRadius,
+    );
+    const ring = Array.from({ length: onRing }, (_, index) => {
+        const angle = -Math.PI / 2 + (index * 2 * Math.PI) / onRing;
+        return {
+            x: ringRadius * Math.cos(angle),
+            y: ringRadius * Math.sin(angle),
+        };
+    });
     return {
         dotRadius,
-        positions: sunflowerPositions(count, Math.max(usable - dotRadius, 0)),
+        positions: onRing === count ? ring : [{ x: 0, y: 0 }, ...ring],
+    };
+};
+
+const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987];
+const sunflowerSpacings = new Map<number, number>();
+
+// The closest any two dots of a sunflower come, for a sunflower of radius 1.
+// A dot's nearest neighbours are a Fibonacci number of steps along the spiral.
+export const getSunflowerSpacing = (count: number): number => {
+    const known = sunflowerSpacings.get(count);
+    if (known !== undefined) return known;
+    const positions = sunflowerPositions(count, 1);
+    let closest = Number.POSITIVE_INFINITY;
+    positions.forEach((position, index) => {
+        FIBONACCI.forEach((step) => {
+            const other = positions[index + step];
+            if (!other) return;
+            closest = Math.min(
+                closest,
+                Math.hypot(position.x - other.x, position.y - other.y),
+            );
+        });
+    });
+    sunflowerSpacings.set(count, closest);
+    return closest;
+};
+
+// Dots never overlap and stay inside the circle with a margin at the edge: the radius is
+// worked out from how close the positions actually come, then held to the readable sizes
+export const layoutDots = (count: number, circleRadius: number): DotLayout => {
+    if (count <= 0) return { dotRadius: 0, positions: [] };
+    const usable = Math.max(circleRadius - DOT_MARGIN, 0);
+    if (count <= RING_WITH_CENTRE_COUNT) return layoutFewDots(count, usable);
+    // Positions spread to (usable - dotRadius), so the largest radius that fits solves for both
+    const spacing = getSunflowerSpacing(count);
+    const fitting = (usable * spacing) / (2 * DOT_SPACING + spacing);
+    const dotRadius = Math.min(fitting, getDotRadius(count, usable));
+    return {
+        dotRadius,
+        positions: sunflowerPositions(count, usable - dotRadius),
     };
 };
 
