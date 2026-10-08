@@ -3,7 +3,7 @@ import {
     AiAccessRefusalReason,
     type AiAccessForUser,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { rem, Text } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -112,6 +112,99 @@ describe('AiAccessGate', () => {
         localStorage.clear();
         flag.enabled = true;
         flag.isLoading = false;
+    });
+
+    describe.each([
+        { variant: 'card' as const, minHeight: 260 },
+        { variant: 'inline' as const, minHeight: 160 },
+    ])('$variant layout', ({ variant, minHeight }) => {
+        it('renders allowed children directly in the parent container', () => {
+            const { container } = renderWithProviders(
+                <AiAccessGate
+                    projectUuid="project-1"
+                    variant={variant}
+                    refusal={null}
+                    isLoading={false}
+                    isError={false}
+                    refetch={vi.fn()}
+                >
+                    <Composer />
+                    <Text>Suggestions</Text>
+                </AiAccessGate>,
+            );
+
+            expect(screen.getByText('Composer').parentElement).toBe(container);
+            expect(screen.getByText('Suggestions').parentElement).toBe(
+                container,
+            );
+        });
+
+        it('reserves the variant height on the loading placeholder', () => {
+            renderWithProviders(
+                <AiAccessGate
+                    projectUuid="project-1"
+                    variant={variant}
+                    refusal={undefined}
+                    isLoading
+                    isError={false}
+                    refetch={vi.fn()}
+                >
+                    <Composer />
+                </AiAccessGate>,
+            );
+
+            expect(
+                screen.getByTestId('ai-access-placeholder').style.minHeight,
+            ).toBe(rem(minHeight));
+        });
+
+        it.each(['refusal', 'error'] as const)(
+            'preserves the reserved height when loading resolves to %s',
+            (outcome) => {
+                const props = {
+                    projectUuid: 'project-1',
+                    variant,
+                    refetch: vi.fn(),
+                };
+                const { rerender } = renderWithProviders(
+                    <AiAccessGate
+                        {...props}
+                        refusal={undefined}
+                        isLoading
+                        isError={false}
+                    >
+                        <Composer />
+                    </AiAccessGate>,
+                );
+                const placeholderHeight = screen.getByTestId(
+                    'ai-access-placeholder',
+                ).style.minHeight;
+
+                rerender(
+                    <AiAccessGate
+                        {...props}
+                        refusal={outcome === 'refusal' ? refusal : undefined}
+                        isLoading={false}
+                        isError={outcome === 'error'}
+                    >
+                        <Composer />
+                    </AiAccessGate>,
+                );
+
+                const button = screen.getByRole('button', {
+                    name: outcome === 'refusal' ? 'Connect agent' : 'Try again',
+                });
+                const reservedSpace = button.closest(
+                    '.mantine-Paper-root',
+                )?.parentElement;
+                expect(reservedSpace?.style.minHeight).toBe(placeholderHeight);
+                expect(reservedSpace?.style.minHeight).toBe(rem(minHeight));
+                expect(
+                    screen.queryByTestId('ai-access-placeholder'),
+                ).not.toBeInTheDocument();
+                expect(screen.queryByText('Composer')).not.toBeInTheDocument();
+            },
+        );
     });
 
     it('holds an idle query without access data', () => {
