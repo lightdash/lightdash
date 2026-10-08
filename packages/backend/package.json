@@ -150,7 +150,7 @@
         "graphql": "16.8.1",
         "graphql-request": "5.2.0",
         "gray-matter": "4.0.3",
-        "handlebars": "4.7.9",
+        "handlebars": "4.7.10",
         "helmet": "7.1.0",
         "immer": "10.1.1",
         "ipaddr.js": "1.9.1",
