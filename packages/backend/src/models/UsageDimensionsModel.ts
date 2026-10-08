@@ -14,12 +14,17 @@ type SnapshotRow = { cursor: string; json: string };
 export class UsageDimensionsModel {
     constructor(private readonly database: Knex) {}
 
-    private async readPage<Row>(query: Knex.QueryBuilder): Promise<Row[]> {
+    private async readPage<Row>(
+        query: Knex.QueryBuilder,
+        statementTimeoutMs = 5000,
+    ): Promise<Row[]> {
         return this.database.transaction(async (trx) => {
             // Enforced by Postgres, including while Node is busy. Rollback releases
             // read locks on failure; no transaction is held across file/storage IO.
             await trx.raw('SET TRANSACTION READ ONLY');
-            await trx.raw("SET LOCAL statement_timeout = '5s'");
+            await trx.raw("SELECT set_config('statement_timeout', ?, true)", [
+                `${statementTimeoutMs}ms`,
+            ]);
             await trx.raw("SET LOCAL lock_timeout = '1s'");
             return query.transacting(trx);
         });
@@ -173,7 +178,10 @@ export class UsageDimensionsModel {
                             USAGE_DIMENSION_PAGE_SIZE,
                         );
                         // eslint-disable-next-line no-await-in-loop
-                        const rows: SnapshotRow[] = await this.readPage(page);
+                        const rows: SnapshotRow[] = await this.readPage(
+                            page,
+                            10000,
+                        );
                         if (rows.length === 0) break;
                         for (const row of rows) yield `${row.json}\n`;
                         cursor = rows[rows.length - 1].cursor;
