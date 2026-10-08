@@ -1,4 +1,4 @@
-import { ParameterError } from '@lightdash/common';
+import { AiAccessRefusedError, ParameterError } from '@lightdash/common';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { AgentContext } from '../utils/AgentContext';
@@ -6,7 +6,7 @@ import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { prepareChartAsCode, serializeChartAsCode } from '../utils/chartAsCode';
 import { yamlCodeBlock } from '../utils/GeneratedResponseBlocks';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorHandler, toolErrorOutput } from '../utils/toolErrorHandler';
 
 export const getExportChartAsCode = (
     agentContext: AgentContext,
@@ -95,6 +95,12 @@ export const getExportChartAsCode = (
                     metadata: { status: 'success' as const, deliveryToken },
                 };
             } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    return {
+                        ...toolErrorOutput(error, 'Could not export chart.'),
+                        metadata: { status: 'error' as const },
+                    };
+                }
                 return {
                     result: toolErrorHandler(error, 'Could not export chart.'),
                     metadata: { status: 'error' as const },

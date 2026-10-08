@@ -9,6 +9,7 @@ import {
     AI_THREAD_FILE_INLINE_BUDGET_BYTES,
     AI_THREAD_FILE_MOUNT_PATH,
     AI_USER_THREAD_CREATED_FROM,
+    AiAccessRefusal,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -479,6 +480,7 @@ import {
     type AiAgentRequestingUserRole,
     type AiDeepResearchExecutionRole,
     type AiDeepResearchStepUsage,
+    type OnAiAccessRefusal,
 } from '../ai/types/aiAgent';
 import {
     ClosePullRequestFn,
@@ -524,6 +526,7 @@ import {
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
+    getAiAccessRefusalBlocks,
     getChannelLinkAgentSelectionBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
@@ -536,6 +539,7 @@ import {
     getSqlArtifactCardBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -617,6 +621,13 @@ import {
     type AiUsageViewerAttribution,
 } from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
+
+type SlackAiAccessRefusalState = {
+    selected: AiAccessRefusal | null;
+    delivered: boolean;
+    select: OnAiAccessRefusal;
+    markDelivered: () => void;
+};
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -14361,6 +14372,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             prompt: SlackPrompt;
             stream: false;
+            onSlackAccessRefusal?: OnAiAccessRefusal;
             onSlackTableResults?: (
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
@@ -14387,6 +14399,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             canManageAgent: boolean;
             aiCreditCheck: AiCreditCheck | null;
+            onSlackAccessRefusal?: OnAiAccessRefusal;
             onSlackTableResults?: (
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
@@ -15556,6 +15569,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
 
         const dependencies: AiAgentDependencies = {
+            onAiAccessRefusal: options.onSlackAccessRefusal,
             recordMcpToolCall,
             listExplores,
             getExplore,
@@ -16333,11 +16347,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent,
         response,
         runtimeTableResults,
+        accessRefusal,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
         response: string;
+        accessRefusal: AiAccessRefusal | null;
         runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults>;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
@@ -16541,6 +16557,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
+            ...getAiAccessRefusalBlocks(
+                accessRefusal,
+                this.lightdashConfig.siteUrl,
+            ),
             ...feedbackBlocks,
             ...historyBlocks,
         ];
@@ -16585,6 +16605,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        accessRefusalState,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -16594,6 +16615,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             splitMarkdownIntoMessages(
@@ -16622,6 +16644,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ':scroll: This answer was too long to show in Slack.',
                 threadUrl,
             ),
+            ...getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            ),
         ];
         // Notification fallback only; keep it small.
         const notificationText = slackifiedMarkdown.slice(0, 3000);
@@ -16643,6 +16671,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     },
                 ],
             });
+            if (isLast(0)) {
+                accessRefusalState.markDelivered();
+            }
         } catch (error) {
             if (!isSlackMessageTooLongError(error)) throw error;
             await this.slackClient
@@ -16653,6 +16684,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     messageTs: streamTs,
                     chunks: [{ type: 'blocks', blocks: linkFallbackBlocks }],
                 })
+                .then(accessRefusalState.markDelivered)
                 .catch((e) =>
                     Logger.error(
                         'Failed to post Slack answer link fallback',
@@ -16677,6 +16709,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     unfurl_links: false,
                     ...(agentName ? { username: agentName } : {}),
                 });
+                if (isLast(index)) {
+                    accessRefusalState.markDelivered();
+                }
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
                 // eslint-disable-next-line no-await-in-loop
@@ -16690,6 +16725,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to post Slack answer link fallback',
@@ -16709,6 +16745,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        accessRefusalState,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -16717,6 +16754,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             splitMarkdownIntoMessages(
@@ -16745,6 +16783,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ':scroll: This answer was too long to show in Slack.',
                 threadUrl,
             ),
+            ...getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            ),
         ];
         // Notification fallback only; keep it small.
         const notificationText = slackifiedMarkdown.slice(0, 3000);
@@ -16766,6 +16810,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     unfurl_links: false,
                     ...(agentName ? { username: agentName } : {}),
                 });
+                if (isLast(index)) {
+                    accessRefusalState.markDelivered();
+                }
                 firstMessageTs = firstMessageTs ?? posted.ts;
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
@@ -16780,6 +16827,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to post Slack answer link fallback',
@@ -16920,6 +16968,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent,
         chatHistoryMessages,
         canManageAgent,
+        accessRefusalState,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
@@ -16927,8 +16976,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<boolean> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
+        const getAccessRefusalBlocks = () =>
+            getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            );
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
 
@@ -17359,6 +17416,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     threadMessages,
                     aiCreditCheck: { isEmbedViewer: false },
                     onSlackStepProgress: appendTaskUpdate,
+                    onSlackAccessRefusal: accessRefusalState.select,
                     onSlackTableResults: (results) => {
                         runtimeTableResults = results;
                     },
@@ -17420,12 +17478,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         chunks: [
                             {
                                 type: 'blocks',
-                                blocks: getMarkdownBlocks(
-                                    'No response generated.',
-                                ),
+                                blocks: [
+                                    ...getMarkdownBlocks(
+                                        'No response generated.',
+                                    ),
+                                    ...getAccessRefusalBlocks(),
+                                ],
                             },
                         ],
                     });
+                    accessRefusalState.markDelivered();
                     await persistCardResponseTs();
                 } else {
                     await this.slackClient.postMessage({
@@ -17433,10 +17495,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: 'No response generated.',
-                        blocks: getMarkdownBlocks('No response generated.'),
+                        blocks: [
+                            ...getMarkdownBlocks('No response generated.'),
+                            ...getAccessRefusalBlocks(),
+                        ],
                         ...(agent?.name ? { username: agent.name } : {}),
                     });
                 }
+                accessRefusalState.markDelivered();
                 return false;
             }
 
@@ -17447,6 +17513,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agent,
                 response,
                 runtimeTableResults,
+                accessRefusal: accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
             });
             const blocksFinishedAt = Date.now();
             const visibleResponse = stripSlackVisualizationSelection(response);
@@ -17471,6 +17540,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    accessRefusalState,
                 });
                 await persistCardResponseTs();
             } else {
@@ -17482,6 +17552,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    accessRefusalState,
                 });
             }
 
@@ -17567,10 +17638,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                             agent?.uuid,
                                         ),
                                     ),
+                                    ...getAccessRefusalBlocks(),
                                 ],
                             },
                         ],
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to finalize Slack stream after msg_too_long',
@@ -17613,10 +17686,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     text: `:warning: ${userFacingMessage}`,
                                 },
                             },
+                            ...getAccessRefusalBlocks(),
                         ],
                     },
                 ],
             });
+            accessRefusalState.markDelivered();
             await persistCardResponseTs();
             Logger.error('Failed to generate Slack agent response', error);
             return answerDelivered;
@@ -17642,6 +17717,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
         initialSlackPrompt: SlackPrompt,
     ): Promise<void> {
         const slackPrompt: SlackPrompt = initialSlackPrompt;
+        const accessRefusalState: SlackAiAccessRefusalState = {
+            selected: null,
+            delivered: false,
+            select: (refusal) => {
+                accessRefusalState.selected = selectSlackAiAccessRefusal(
+                    accessRefusalState.selected,
+                    refusal,
+                );
+            },
+            markDelivered: () => {
+                if (accessRefusalState.selected !== null) {
+                    accessRefusalState.delivered = true;
+                }
+            },
+        };
 
         // Resolved inside the try so it's available to the catch when a later
         // step fails; the catch tolerates it being undefined.
@@ -17722,6 +17812,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agent,
                 chatHistoryMessages,
                 canManageAgent,
+                accessRefusalState,
             });
             if (
                 replyDelivered &&
@@ -17762,6 +17853,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             text: `🔴 ${userFacingMessage}`,
                         },
                     },
+                    ...getAiAccessRefusalBlocks(
+                        accessRefusalState.delivered
+                            ? null
+                            : accessRefusalState.selected,
+                        this.lightdashConfig.siteUrl,
+                    ),
                     {
                         type: 'context',
                         elements: [
@@ -17781,6 +17878,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 username: agent?.name,
             });
 
+            accessRefusalState.markDelivered();
             Logger.error('Failed to generate response:', e);
             throw new Error('Failed to generate response');
         }
@@ -18010,6 +18108,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
     // eslint-disable-next-line class-methods-use-this
     public handleViewArtifact(app: App) {
+        app.action('ai_access_connect', async ({ ack }) => {
+            await ack();
+        });
+        app.action('ai_access_settings', async ({ ack }) => {
+            await ack();
+        });
         app.action('view_artifact', async ({ ack }) => {
             await ack();
             // TODO :: track analytics
