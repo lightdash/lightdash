@@ -5,12 +5,13 @@ import {
     type DashboardTile,
     type ParameterValue,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { ParameterSidebar } from './ParameterSidebar';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
+import { LABEL_COMMIT_DELAY } from './useLabelDraft';
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -21,6 +22,9 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -221,26 +225,122 @@ describe('ParameterSidebar', () => {
         });
     });
 
-    it('writes the label, keeps on Done or the X and discards', () => {
-        const control = makeControl();
-        const { close, discard, updateControl } = setSidebar({
-            editingControl: control,
-            isDirty: true,
-        });
+    it('keeps on Done or the X and discards', () => {
+        const { close, discard } = setSidebar({ isDirty: true });
         renderWithProviders(<ParameterSidebar />);
 
-        fireEvent.change(screen.getByPlaceholderText('What viewers will see'), {
-            target: { value: 'Area' },
-        });
-        expect(updateControl).toHaveBeenCalledWith({
-            ...control,
-            label: 'Area',
-        });
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(close).toHaveBeenCalledTimes(2);
         fireEvent.click(screen.getByText('Discard changes'));
         expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    describe('label draft', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        const labelInput = () =>
+            screen.getByPlaceholderText('What viewers will see');
+        const typeLabel = (value: string) =>
+            fireEvent.change(labelInput(), { target: { value } });
+
+        it('reacts to typing at once and writes the label after a pause', () => {
+            vi.useFakeTimers();
+            const control = makeControl();
+            const { updateControl } = setSidebar({ editingControl: control });
+            renderWithProviders(<ParameterSidebar />);
+
+            typeLabel('Ar');
+            typeLabel('Area');
+            expect(labelInput()).toHaveValue('Area');
+            expect(
+                screen.getByRole('heading', { name: 'Area' }),
+            ).toBeInTheDocument();
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY - 1);
+            });
+            expect(updateControl).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(updateControl).toHaveBeenCalledTimes(1);
+            expect(updateControl).toHaveBeenCalledWith({
+                ...control,
+                label: 'Area',
+            });
+        });
+
+        it('sends the typed label before Done closes', async () => {
+            const control = makeControl({ label: '' });
+            const { updateControl, close } = setSidebar({
+                editingControl: control,
+                isNewControl: true,
+            });
+            renderWithProviders(<ParameterSidebar />);
+
+            await userEvent.type(labelInput(), 'Area');
+            expect(
+                screen.queryByText('Add a label to keep this control'),
+            ).not.toBeInTheDocument();
+            await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(updateControl).toHaveBeenLastCalledWith({
+                ...control,
+                label: 'Area',
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(
+                vi.mocked(updateControl).mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
+        });
+
+        it('sends the typed label before Enter closes, once', () => {
+            vi.useFakeTimers();
+            const control = makeControl({ label: '' });
+            const { updateControl, close } = setSidebar({
+                editingControl: control,
+                isNewControl: true,
+            });
+            renderWithProviders(<ParameterSidebar />);
+
+            typeLabel('Area');
+            fireEvent.keyDown(labelInput(), { key: 'Enter' });
+
+            expect(updateControl).toHaveBeenCalledWith({
+                ...control,
+                label: 'Area',
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(
+                vi.mocked(updateControl).mock.invocationCallOrder[0],
+            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+            expect(updateControl).toHaveBeenCalledTimes(1);
+        });
+
+        it('starts over when another control is opened, with no late write', () => {
+            vi.useFakeTimers();
+            const first = setSidebar();
+            const { rerender } = renderWithProviders(<ParameterSidebar />);
+            typeLabel('Half typed');
+
+            const second = setSidebar({
+                editingControl: makeControl({ id: 'control-2', label: 'Area' }),
+            });
+            rerender(<ParameterSidebar />);
+
+            expect(labelInput()).toHaveValue('Area');
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+            expect(first.updateControl).not.toHaveBeenCalled();
+            expect(second.updateControl).not.toHaveBeenCalled();
+        });
     });
 
     it('removes a parameter only when the control holds several', async () => {

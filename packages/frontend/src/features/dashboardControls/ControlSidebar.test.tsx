@@ -4,11 +4,13 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { ControlSidebar } from './ControlSidebar';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
+import { LABEL_COMMIT_DELAY } from './useLabelDraft';
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -19,6 +21,9 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: vi.fn(() => mockSidebar.current),
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
@@ -399,6 +404,168 @@ describe('ControlSidebar', () => {
             screen.getByRole('button', { name: 'Discard changes' }),
         );
         expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    describe('label draft', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        const labelInput = () => screen.getByLabelText(/^Filter label/);
+        const typeLabel = (value: string) =>
+            fireEvent.change(labelInput(), { target: { value } });
+
+        it('reacts to typing at once and writes the label after a pause', () => {
+            vi.useFakeTimers();
+            const { updateFilter, editingRule } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('Or');
+            typeLabel('Order');
+            expect(labelInput()).toHaveValue('Order');
+            // The editor follows the draft, the dashboard does not
+            expect(
+                screen.queryByText('Add a label to keep this control'),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY - 1);
+            });
+            expect(updateFilter).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: 'Order',
+            });
+        });
+
+        it('titles an existing filter with the text being typed', () => {
+            setSidebar({
+                isNew: false,
+                editingRule: makeRule({ label: 'Order status' }),
+            });
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('Status of the order');
+            expect(
+                screen.getByRole('heading', { name: 'Status of the order' }),
+            ).toBeInTheDocument();
+        });
+
+        it('writes an emptied label as no label and shows the error on blur', () => {
+            const { updateFilter, editingRule } = setSidebar({
+                editingRule: makeRule({ label: 'Order status' }),
+            });
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('');
+            fireEvent.blur(labelInput());
+
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: undefined,
+            });
+            expect(
+                screen.getByText(
+                    'Add a label so viewers know what this filters',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('sends the typed label before Done closes', async () => {
+            const { updateFilter, close, editingRule } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            await userEvent.type(labelInput(), 'Order status');
+            await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(updateFilter).toHaveBeenLastCalledWith({
+                ...editingRule,
+                label: 'Order status',
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(
+                vi.mocked(updateFilter).mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
+        });
+
+        it('sends the typed label before Enter closes, once', () => {
+            vi.useFakeTimers();
+            const { updateFilter, close, editingRule } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('Order status');
+            fireEvent.keyDown(labelInput(), { key: 'Enter' });
+
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: 'Order status',
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(
+                vi.mocked(updateFilter).mock.invocationCallOrder[0],
+            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps the text in step with a suggestion and drops the pending write', () => {
+            vi.useFakeTimers();
+            const { updateFilter, editingRule } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel(' ');
+            fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+
+            expect(labelInput()).toHaveValue('Status');
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: 'Status',
+            });
+        });
+
+        it('starts over when another filter is opened, with no late write', () => {
+            vi.useFakeTimers();
+            const first = setSidebar({ isNew: false });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            typeLabel('Half typed');
+
+            const second = setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-2' },
+                editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
+            });
+            rerender(<ControlSidebar />);
+
+            expect(labelInput()).toHaveValue('Region');
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+            expect(first.updateFilter).not.toHaveBeenCalled();
+            expect(second.updateFilter).not.toHaveBeenCalled();
+        });
+
+        it('writes nothing after the editor is gone', () => {
+            vi.useFakeTimers();
+            const { updateFilter } = setSidebar({});
+            const { unmount } = renderWithProviders(<ControlSidebar />);
+            typeLabel('Half typed');
+
+            unmount();
+            vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            expect(updateFilter).not.toHaveBeenCalled();
+        });
     });
 
     it('titles an existing filter with its label and removes it on the second click', async () => {

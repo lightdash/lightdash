@@ -1,3 +1,4 @@
+import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useId, useMemo, useRef, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -13,26 +14,33 @@ import {
     isTileFilterable,
 } from './peers';
 import { isDefaultValueIncomplete } from './sidebarState';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useLabelDraft } from './useLabelDraft';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const LABEL_ERROR = 'Add a label so viewers know what this filters';
 
-export const ControlSidebar: FC = () => {
-    const {
-        editing,
-        editingControl,
-        isNew,
-        isPlaceholder,
-        editingRule,
-        removeFilter,
-        activeSection,
-        setActiveSection,
-        updateFilter,
-        discard,
-        close,
-        isDirty,
-    } = useControlsSidebar();
+type FilterEditorProps = {
+    rule: DashboardFilterRule;
+};
+
+// Mounted with the filter id as key, so the label draft and the armed and
+// error states never carry over to another control
+const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
+    const activeSection = useControlsSidebarSelector((c) => c.activeSection);
+    const setActiveSection = useControlsSidebarSelector(
+        (c) => c.setActiveSection,
+    );
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const isDirty = useControlsSidebarSelector((c) => c.isDirty);
+    const label = useLabelDraft(filterRule.label ?? '', (next) =>
+        updateFilter({ ...filterRule, label: next || undefined }),
+    );
     const [removeArmed, setRemoveArmed] = useState(false);
     const [labelError, setLabelError] = useState(false);
     const [labelTouched, setLabelTouched] = useState(false);
@@ -64,10 +72,9 @@ export const ControlSidebar: FC = () => {
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
 
     const reach = useMemo(() => {
-        if (editingRule === null) return null;
         const tiles = dashboardTiles ?? [];
         if (dashboardTabs.length === 0) {
             const applied = tiles.filter(
@@ -78,7 +85,7 @@ export const ControlSidebar: FC = () => {
                         sqlColumnsByTile,
                     ) &&
                     getTileField(
-                        editingRule,
+                        filterRule,
                         tile,
                         filterableFieldsByTileUuid,
                         sqlColumnsByTile,
@@ -88,7 +95,7 @@ export const ControlSidebar: FC = () => {
         }
         const counts = Object.values(
             getTabCounts(
-                editingRule,
+                filterRule,
                 tiles,
                 dashboardTabs,
                 filterableFieldsByTileUuid,
@@ -101,27 +108,25 @@ export const ControlSidebar: FC = () => {
             tabCount: counts.filter((count) => count.applied > 0).length,
         };
     }, [
-        editingRule,
+        filterRule,
         dashboardTiles,
         dashboardTabs,
         filterableFieldsByTileUuid,
         sqlColumnsByTile,
     ]);
-
-    if (editingControl !== null) return <ParameterSidebar />;
-    if (editing === null || editingRule === null || reach === null) return null;
-    const filterRule = editingRule;
+    // No props, so one element: typing a label does not re-render the list
+    const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
 
     const field = allFilterableFieldsMap[filterRule.target.fieldId] ?? null;
     const fieldLabel = field
         ? getFieldDisplayLabel(field, allFilterableFields ?? [])
         : null;
-    const hasLabel = (filterRule.label ?? '').trim() !== '';
+    const hasLabel = label.draft.trim() !== '';
     const title = isNew
         ? isPlaceholder
             ? 'New control'
             : 'New filter'
-        : filterRule.label || 'Filter';
+        : label.draft || 'Filter';
     const needsLabel = isNew && !hasLabel;
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
@@ -192,23 +197,23 @@ export const ControlSidebar: FC = () => {
                         error={labelError ? LABEL_ERROR : undefined}
                         errorProps={{ id: labelErrorId }}
                         placeholder="What viewers will see"
-                        value={filterRule.label ?? ''}
+                        value={label.draft}
                         onChange={(event) => {
                             if (event.currentTarget.value.trim() !== '') {
                                 setLabelError(false);
                             }
                             setLabelTouched(true);
-                            updateFilter({
-                                ...filterRule,
-                                label: event.currentTarget.value || undefined,
-                            });
+                            label.type(event.currentTarget.value);
                         }}
                         onBlur={() => {
+                            // Synchronous, so a click on Done closes with the label
+                            label.flush();
                             if (labelTouched && !hasLabel) setLabelError(true);
                         }}
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
+                            label.flush();
                             if (needsLabel) showLabelError();
                             else if (!isPlaceholder) close();
                         }}
@@ -222,12 +227,10 @@ export const ControlSidebar: FC = () => {
                                 size="compact-xs"
                                 variant="default"
                                 radius="xl"
-                                onClick={() =>
-                                    updateFilter({
-                                        ...filterRule,
-                                        label: fieldLabel,
-                                    })
-                                }
+                                onClick={() => {
+                                    setLabelError(false);
+                                    label.set(fieldLabel);
+                                }}
                             >
                                 {fieldLabel}
                             </Button>
@@ -243,8 +246,21 @@ export const ControlSidebar: FC = () => {
                     onChange={updateFilter}
                 />
             ) : (
-                <FieldsAndTiles />
+                fieldsAndTiles
             )}
         </EditorShell>
     );
+};
+
+export const ControlSidebar: FC = () => {
+    const filterId = useControlsSidebarSelector(
+        (c) => c.editing?.filterId ?? null,
+    );
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isEditingControl = useControlsSidebarSelector(
+        (c) => c.editingControl !== null,
+    );
+    if (isEditingControl) return <ParameterSidebar />;
+    if (filterId === null || editingRule === null) return null;
+    return <FilterEditor key={filterId} rule={editingRule} />;
 };

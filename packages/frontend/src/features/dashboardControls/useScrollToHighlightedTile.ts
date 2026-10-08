@@ -1,6 +1,10 @@
 import { useEffect, type RefObject } from 'react';
 
-const HIGHLIGHTED_OVERLAY = '[data-tile-uuid] [data-highlighted]';
+// A tile the control merely reaches is not a scroll target
+const HIGHLIGHTED_OVERLAY = [
+    "[data-tile-uuid] [data-highlighted='mapped']",
+    "[data-tile-uuid] [data-highlighted='available']",
+].join(', ');
 
 // At least half of the tile is on screen
 const isInViewport = (element: Element): boolean => {

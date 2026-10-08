@@ -5,8 +5,10 @@ import {
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import type * as LazySelectModule from './LazySelect';
 import { ParameterOverlays } from './ParameterOverlay';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -21,6 +23,9 @@ const mockContainers = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -33,6 +38,22 @@ vi.mock('./usePortalTargets', () => ({
               )
             : {},
 }));
+
+const renderCounts = vi.hoisted(() => ({
+    current: {} as Record<string, number>,
+}));
+// Passes through, counting how often each tile's card renders
+vi.mock('./LazySelect', async (importOriginal) => {
+    const actual = await importOriginal<typeof LazySelectModule>();
+    return {
+        LazySelect: (props: ComponentProps<typeof actual.LazySelect>) => {
+            // Every card has the same label here, so cards are told apart by value
+            const key = `${props.value}|${props.data.length}`;
+            renderCounts.current[key] = (renderCounts.current[key] ?? 0) + 1;
+            return <actual.LazySelect {...props} />;
+        },
+    };
+});
 
 const tile = (uuid: string, tabUuid: string) =>
     ({
@@ -73,7 +94,7 @@ const container = (tileUuid: string) =>
     mockContainers.current[tileUuid] as HTMLElement;
 const select = (tileUuid: string) =>
     within(container(tileUuid)).getByLabelText('Period on this tile', {
-        selector: 'input',
+        selector: 'button, input',
     });
 const lines = (tileUuid: string) =>
     [...container(tileUuid).querySelectorAll('p')].map(
@@ -88,7 +109,7 @@ const optionLabels = () =>
 const chooseOption = (label: string) =>
     userEvent.click(screen.getByRole('option', { name: label, hidden: true }));
 
-// Every select mounts its options, so option tests keep one tile on the tab
+// Option tests keep one tile on the tab
 const onlyTile = (only: DashboardTile) => {
     mockDashboardContext.current = {
         ...mockDashboardContext.current,
@@ -99,6 +120,7 @@ const onlyTile = (only: DashboardTile) => {
 describe('ParameterOverlays', () => {
     beforeEach(() => {
         updateControl.mockClear();
+        renderCounts.current = {};
         document.body.innerHTML = '';
         mockContainers.current = Object.fromEntries(
             allTiles.map((t) => {
@@ -132,8 +154,93 @@ describe('ParameterOverlays', () => {
         renderWithProviders(<ParameterOverlays />);
 
         expect(lines(single.uuid)).toEqual(['Set by', '2025-07-06 · default']);
-        expect(select(single.uuid)).toHaveValue('Start date');
-        expect(overlay(single.uuid)).not.toHaveAttribute('data-highlighted');
+        expect(select(single.uuid)).toHaveTextContent('Start date');
+    });
+
+    it('keeps the real select out of the DOM until the trigger is used', async () => {
+        renderWithProviders(<ParameterOverlays />);
+
+        const trigger = select(single.uuid);
+        expect(trigger.tagName).toBe('BUTTON');
+        expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+        expect(
+            screen.queryByRole('option', { hidden: true }),
+        ).not.toBeInTheDocument();
+
+        trigger.focus();
+        await userEvent.keyboard('{ArrowDown}');
+
+        const opened = select(single.uuid);
+        expect(opened.tagName).toBe('INPUT');
+        expect(opened).toHaveValue('Start date');
+        expect(opened).toHaveFocus();
+        expect(opened).toHaveAttribute('aria-expanded', 'true');
+        expect(optionLabels()).toEqual(['Start date', 'Not set']);
+        expect(select(both.uuid).tagName).toBe('BUTTON');
+    });
+
+    it('marks every tile the control sets while no parameter is active', () => {
+        setSidebar({ editingControl: control({ [both.uuid]: false }) });
+        renderWithProviders(<ParameterOverlays />);
+
+        expect(overlay(single.uuid)).toHaveAttribute(
+            'data-highlighted',
+            'reached',
+        );
+        // Uses the parameters, but switched off
+        expect(overlay(both.uuid)).not.toHaveAttribute('data-highlighted');
+        expect(overlay(unreferenced.uuid)).not.toHaveAttribute(
+            'data-highlighted',
+        );
+    });
+
+    it('re-renders only the tiles whose highlight changes with the active parameter', () => {
+        // single: value "start" of 2 options; both: "__all__" of 4
+        const renders = () => ({
+            single: renderCounts.current['start|2'] ?? 0,
+            both: renderCounts.current['__all__|4'] ?? 0,
+        });
+        setSidebar({ activeFieldId: 'end' });
+        const { rerender } = renderWithProviders(<ParameterOverlays />);
+        expect(renders()).toEqual({ single: 1, both: 1 });
+
+        // A parameter neither tile uses
+        setSidebar({ activeFieldId: 'other' });
+        rerender(<ParameterOverlays />);
+        expect(overlay(both.uuid)).not.toHaveAttribute('data-highlighted');
+        expect(renders()).toEqual({ single: 1, both: 2 });
+
+        // No active parameter: both go to "reached", so both render
+        setSidebar();
+        rerender(<ParameterOverlays />);
+        expect(renders()).toEqual({ single: 2, both: 3 });
+    });
+
+    it('re-renders only the tile whose mapping changes', async () => {
+        const { rerender } = renderWithProviders(<ParameterOverlays />);
+        expect(renderCounts.current).toEqual({ 'start|2': 1, '__all__|4': 1 });
+
+        const narrowed = control({ [both.uuid]: 'end' });
+        setSidebar({ editingControl: narrowed });
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            parameterControls: [narrowed],
+        };
+        rerender(<ParameterOverlays />);
+
+        expect(renderCounts.current).toEqual({
+            'start|2': 1,
+            '__all__|4': 1,
+            'end|4': 1,
+        });
+
+        // The handler is one stable function, yet it writes onto the latest control
+        await userEvent.click(select(single.uuid));
+        await chooseOption('Not set');
+        expect(updateControl.mock.calls[0][0].tileTargets).toEqual({
+            [both.uuid]: 'end',
+            [single.uuid]: false,
+        });
     });
 
     it('only covers the tiles on the active tab', () => {
@@ -176,7 +283,7 @@ describe('ParameterOverlays', () => {
         renderWithProviders(<ParameterOverlays />);
 
         expect(lines(single.uuid)[0]).toBe('Not set');
-        expect(select(single.uuid)).toHaveValue('Not set');
+        expect(select(single.uuid)).toHaveTextContent('Not set');
         await userEvent.click(select(single.uuid));
         await chooseOption('Start date');
 
@@ -187,7 +294,7 @@ describe('ParameterOverlays', () => {
         onlyTile(both);
         renderWithProviders(<ParameterOverlays />);
 
-        expect(select(both.uuid)).toHaveValue('All its parameters');
+        expect(select(both.uuid)).toHaveTextContent('All its parameters');
         expect(lines(both.uuid)).toEqual([
             'Set by',
             'Start date: 2025-07-06 · default',
@@ -258,7 +365,7 @@ describe('ParameterOverlays', () => {
 
         expect(lines(unreferenced.uuid)).toEqual([]);
         expect(
-            within(container(unreferenced.uuid)).queryByRole('textbox'),
+            within(container(unreferenced.uuid)).queryByRole('button'),
         ).not.toBeInTheDocument();
     });
 

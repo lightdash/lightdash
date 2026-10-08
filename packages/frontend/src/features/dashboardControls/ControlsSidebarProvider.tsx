@@ -4,6 +4,7 @@ import {
     isMetric,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardParameterControl,
     type ParametersValuesMap,
     type ParameterValue,
@@ -12,13 +13,18 @@ import isEqual from 'lodash/isEqual';
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
+    useRef,
     useState,
+    type Dispatch,
     type FC,
     type PropsWithChildren,
+    type SetStateAction,
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
+import { type DashboardContextType } from '../../providers/Dashboard/types';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getLinkKey } from './linkCandidates';
 import { getFilterFields } from './peers';
@@ -52,6 +58,48 @@ type ControlState = {
         parameterValues: ParametersValuesMap;
     };
 };
+
+// What the callbacks read. Kept in a ref so their identity never changes, and
+// written eagerly so two calls in one event (commit a label, then close) agree.
+type Latest = {
+    state: SidebarState | null;
+    controlState: ControlState | null;
+    placeholder: DashboardFilterRule | null;
+    dashboardFilters: DashboardFilters;
+    haveFiltersChanged: boolean;
+    parameterControls: DashboardParameterControl[];
+    parameterValues: ParametersValuesMap;
+    filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
+    setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
+    setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
+    setParameterControls: Dispatch<SetStateAction<DashboardParameterControl[]>>;
+    setParameter: (key: string, value: ParameterValue | null) => void;
+};
+
+const getEditingRule = ({
+    state,
+    placeholder,
+    dashboardFilters,
+}: Pick<
+    Latest,
+    'state' | 'placeholder' | 'dashboardFilters'
+>): DashboardFilterRule | null =>
+    state === null
+        ? null
+        : (placeholder ?? findFilterRule(dashboardFilters, state.filterId));
+
+const getEditingControl = ({
+    controlState,
+    parameterControls,
+}: Pick<
+    Latest,
+    'controlState' | 'parameterControls'
+>): DashboardParameterControl | null =>
+    controlState === null
+        ? null
+        : (parameterControls.find(
+              (control) => control.id === controlState.controlId,
+          ) ?? null);
 
 export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     children,
@@ -96,38 +144,109 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         fieldIds: string[];
     } | null>(null);
 
+    const rendered: Latest = {
+        state,
+        controlState,
+        placeholder,
+        dashboardFilters,
+        haveFiltersChanged,
+        parameterControls,
+        parameterValues,
+        filterableFieldsByTileUuid,
+        setDashboardFilters,
+        setHaveFiltersChanged,
+        setParameterControls,
+        setParameter,
+    };
+    const latest = useRef(rendered);
+    useLayoutEffect(() => {
+        latest.current = rendered;
+    });
+
+    const writeFilters = useCallback(
+        (update: (filters: DashboardFilters) => DashboardFilters) => {
+            latest.current.dashboardFilters = update(
+                latest.current.dashboardFilters,
+            );
+            latest.current.setDashboardFilters(update);
+        },
+        [],
+    );
+
+    const writeFiltersChanged = useCallback((changed: boolean) => {
+        latest.current.haveFiltersChanged = changed;
+        latest.current.setHaveFiltersChanged(changed);
+    }, []);
+
+    const writeControls = useCallback(
+        (
+            update: (
+                controls: DashboardParameterControl[],
+            ) => DashboardParameterControl[],
+        ) => {
+            latest.current.parameterControls = update(
+                latest.current.parameterControls,
+            );
+            latest.current.setParameterControls(update);
+        },
+        [],
+    );
+
+    const writePlaceholder = useCallback((next: DashboardFilterRule | null) => {
+        latest.current.placeholder = next;
+        setPlaceholder(next);
+    }, []);
+
+    const writeState = useCallback((next: SidebarState | null) => {
+        latest.current.state = next;
+        setState(next);
+    }, []);
+
+    const writeControlState = useCallback((next: ControlState | null) => {
+        latest.current.controlState = next;
+        setControlState(next);
+    }, []);
+
     const reset = useCallback(() => {
-        setState(null);
-        setControlState(null);
-        setPlaceholder(null);
+        writeState(null);
+        writeControlState(null);
+        writePlaceholder(null);
         setActiveSection('fields');
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
-    }, []);
+    }, [writeState, writeControlState, writePlaceholder]);
 
     // Opening another filter keeps the current edits (they only live in the
     // dashboard draft until Save) and starts a fresh snapshot for the new one.
     const open = useCallback(
         (filterId: string) => {
-            if (state !== null && (state.isNew || state.filterId === filterId))
+            const current = latest.current;
+            if (
+                current.state !== null &&
+                (current.state.isNew || current.state.filterId === filterId)
+            )
                 return;
-            if (controlState?.isNew) return;
-            setControlState(null);
-            setPlaceholder(null);
+            if (current.controlState?.isNew) return;
+            writeControlState(null);
+            writePlaceholder(null);
             setActiveSection('fields');
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
-            setState({
+            writeState({
                 filterId,
                 isNew: false,
-                snapshot: { dashboardFilters, haveFiltersChanged },
+                snapshot: {
+                    dashboardFilters: current.dashboardFilters,
+                    haveFiltersChanged: current.haveFiltersChanged,
+                },
             });
         },
-        [state, controlState, dashboardFilters, haveFiltersChanged],
+        [writeState, writeControlState, writePlaceholder],
     );
 
     const openNew = useCallback(() => {
-        if (state !== null || controlState !== null) return;
+        const current = latest.current;
+        if (current.state !== null || current.controlState !== null) return;
         const rule: DashboardFilterRule = {
             id: uuidv4(),
             target: PLACEHOLDER_TARGET,
@@ -137,103 +256,97 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             tileTargets: {},
             disabled: true,
         };
-        setPlaceholder(rule);
+        writePlaceholder(rule);
         setActiveSection('fields');
-        setState({
+        writeState({
             filterId: rule.id,
             isNew: true,
-            snapshot: { dashboardFilters, haveFiltersChanged },
+            snapshot: {
+                dashboardFilters: current.dashboardFilters,
+                haveFiltersChanged: current.haveFiltersChanged,
+            },
         });
-    }, [state, controlState, dashboardFilters, haveFiltersChanged]);
+    }, [writeState, writePlaceholder]);
 
     const addFirstField = useCallback(
         (field: DashboardFilterableField) => {
-            if (placeholder === null) return;
+            const current = latest.current;
+            if (current.placeholder === null) return;
             // Operator, values and tile targets come from the field; identity,
             // label and settings come from the placeholder
             const rule: DashboardFilterRule = {
                 ...createDashboardFilterRuleFromField({
                     field,
-                    availableTileFilters: filterableFieldsByTileUuid ?? {},
+                    availableTileFilters:
+                        current.filterableFieldsByTileUuid ?? {},
                     isTemporary: false,
                 }),
-                id: placeholder.id,
-                label: placeholder.label,
-                lockedTabUuids: placeholder.lockedTabUuids,
-                required: placeholder.required,
-                requiredGroupId: placeholder.requiredGroupId,
-                singleValue: placeholder.singleValue,
+                id: current.placeholder.id,
+                label: current.placeholder.label,
+                lockedTabUuids: current.placeholder.lockedTabUuids,
+                required: current.placeholder.required,
+                requiredGroupId: current.placeholder.requiredGroupId,
+                singleValue: current.placeholder.singleValue,
             };
-            setDashboardFilters((filters) =>
+            writeFilters((filters) =>
                 isMetric(field)
                     ? { ...filters, metrics: [...filters.metrics, rule] }
                     : { ...filters, dimensions: [...filters.dimensions, rule] },
             );
-            setHaveFiltersChanged(true);
-            setPlaceholder(null);
+            writeFiltersChanged(true);
+            writePlaceholder(null);
         },
-        [
-            placeholder,
-            filterableFieldsByTileUuid,
-            setDashboardFilters,
-            setHaveFiltersChanged,
-        ],
+        [writeFilters, writeFiltersChanged, writePlaceholder],
     );
 
     const updateFilter = useCallback(
         (next: DashboardFilterRule) => {
-            if (placeholder !== null && placeholder.id === next.id) {
-                setPlaceholder(next);
+            const current = latest.current;
+            if (
+                current.placeholder !== null &&
+                current.placeholder.id === next.id
+            ) {
+                writePlaceholder(next);
                 return;
             }
             // A field that just lost its last tile stays listed, waiting
-            const previous = findFilterRule(dashboardFilters, next.id);
+            const previous = findFilterRule(current.dashboardFilters, next.id);
             const kept = new Set(getFilterFields(next));
             const dropped = (
                 previous === null ? [] : getFilterFields(previous)
             ).filter((fieldId) => !kept.has(fieldId));
             if (dropped.length > 0) {
-                setWaiting((current) => ({
+                setWaiting((waitingNow) => ({
                     filterId: next.id,
                     fieldIds: [
                         ...new Set([
-                            ...(current?.filterId === next.id
-                                ? current.fieldIds
+                            ...(waitingNow?.filterId === next.id
+                                ? waitingNow.fieldIds
                                 : []),
                             ...dropped,
                         ]),
                     ],
                 }));
             }
-            setDashboardFilters((filters) => replaceFilterRule(filters, next));
-            setHaveFiltersChanged(true);
+            writeFilters((filters) => replaceFilterRule(filters, next));
+            writeFiltersChanged(true);
         },
-        [
-            placeholder,
-            dashboardFilters,
-            setDashboardFilters,
-            setHaveFiltersChanged,
-        ],
+        [writeFilters, writeFiltersChanged, writePlaceholder],
     );
 
-    const addWaitingField = useCallback(
-        (fieldId: string) => {
-            if (state === null) return;
-            const { filterId } = state;
-            setWaiting((current) => ({
-                filterId,
-                fieldIds: [
-                    ...new Set([
-                        ...(current?.filterId === filterId
-                            ? current.fieldIds
-                            : []),
-                        fieldId,
-                    ]),
-                ],
-            }));
-        },
-        [state],
-    );
+    const addWaitingField = useCallback((fieldId: string) => {
+        if (latest.current.state === null) return;
+        const { filterId } = latest.current.state;
+        setWaiting((current) => ({
+            filterId,
+            fieldIds: [
+                ...new Set([
+                    ...(current?.filterId === filterId ? current.fieldIds : []),
+                    fieldId,
+                ]),
+            ],
+        }));
+    }, []);
 
     const removeWaitingField = useCallback(
         (fieldId: string) =>
@@ -251,187 +364,173 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     const clearFields = useCallback(() => {
-        if (state === null || placeholder !== null) return;
-        const rule = findFilterRule(dashboardFilters, state.filterId);
+        const current = latest.current;
+        if (current.state === null || current.placeholder !== null) return;
+        const rule = findFilterRule(
+            current.dashboardFilters,
+            current.state.filterId,
+        );
         if (rule === null) return;
-        setPlaceholder({
+        writePlaceholder({
             ...rule,
             target: PLACEHOLDER_TARGET,
             tileTargets: {},
             values: [],
             disabled: true,
         });
-        setDashboardFilters((filters) => removeFilterRule(filters, rule.id));
-        setHaveFiltersChanged(true);
+        writeFilters((filters) => removeFilterRule(filters, rule.id));
+        writeFiltersChanged(true);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
-    }, [
-        state,
-        placeholder,
-        dashboardFilters,
-        setDashboardFilters,
-        setHaveFiltersChanged,
-    ]);
+    }, [writeFilters, writeFiltersChanged, writePlaceholder]);
 
     const removeFilterById = useCallback(
         (filterId: string) => {
-            setDashboardFilters((filters) =>
-                removeFilterRule(filters, filterId),
-            );
-            setHaveFiltersChanged(true);
+            writeFilters((filters) => removeFilterRule(filters, filterId));
+            writeFiltersChanged(true);
         },
-        [setDashboardFilters, setHaveFiltersChanged],
+        [writeFilters, writeFiltersChanged],
     );
 
     // Starts from the snapshot so the edits made in this session are not kept
     const removeFilter = useCallback(() => {
-        if (state === null) return;
-        if (state.isNew) {
-            setDashboardFilters(state.snapshot.dashboardFilters);
-            setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
+        const { state: editingState } = latest.current;
+        if (editingState === null) return;
+        const { snapshot, filterId } = editingState;
+        if (editingState.isNew) {
+            writeFilters(() => snapshot.dashboardFilters);
+            writeFiltersChanged(snapshot.haveFiltersChanged);
         } else {
-            setDashboardFilters(
-                removeFilterRule(
-                    state.snapshot.dashboardFilters,
-                    state.filterId,
-                ),
+            writeFilters(() =>
+                removeFilterRule(snapshot.dashboardFilters, filterId),
             );
-            setHaveFiltersChanged(true);
+            writeFiltersChanged(true);
         }
         reset();
-    }, [state, setDashboardFilters, setHaveFiltersChanged, reset]);
+    }, [writeFilters, writeFiltersChanged, reset]);
 
     const editingControl = useMemo(
-        () =>
-            controlState === null
-                ? null
-                : (parameterControls.find(
-                      (control) => control.id === controlState.controlId,
-                  ) ?? null),
+        () => getEditingControl({ controlState, parameterControls }),
         [controlState, parameterControls],
     );
 
     // Opening a control keeps the edits made to the filter open before it
     const openControl = useCallback(
         (controlId: string) => {
-            if (state?.isNew || controlState?.isNew) return;
-            if (controlState?.controlId === controlId) return;
-            setState(null);
-            setPlaceholder(null);
+            const current = latest.current;
+            if (current.state?.isNew || current.controlState?.isNew) return;
+            if (current.controlState?.controlId === controlId) return;
+            writeState(null);
+            writePlaceholder(null);
             setActiveSection('fields');
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
-            setControlState({
+            writeControlState({
                 controlId,
                 isNew: false,
-                snapshot: { parameterControls, parameterValues },
+                snapshot: {
+                    parameterControls: current.parameterControls,
+                    parameterValues: current.parameterValues,
+                },
             });
         },
-        [state, controlState, parameterControls, parameterValues],
+        [writeState, writeControlState, writePlaceholder],
     );
 
     const addParameterControl = useCallback(
         (parameterKey: string) => {
-            if (placeholder === null || controlState !== null) return;
+            const current = latest.current;
+            if (current.placeholder === null || current.controlState !== null)
+                return;
             const control: DashboardParameterControl = {
                 id: uuidv4(),
-                label: placeholder.label ?? '',
+                label: current.placeholder.label ?? '',
                 parameterKeys: [parameterKey],
                 tileTargets: {},
             };
-            setParameterControls((controls) => [...controls, control]);
-            setState(null);
-            setPlaceholder(null);
+            const snapshot = {
+                parameterControls: current.parameterControls,
+                parameterValues: current.parameterValues,
+            };
+            writeControls((controls) => [...controls, control]);
+            writeState(null);
+            writePlaceholder(null);
             setActiveSection('fields');
-            setControlState({
+            writeControlState({
                 controlId: control.id,
                 isNew: true,
-                snapshot: { parameterControls, parameterValues },
+                snapshot,
             });
         },
-        [
-            placeholder,
-            controlState,
-            parameterControls,
-            parameterValues,
-            setParameterControls,
-        ],
+        [writeControls, writeState, writeControlState, writePlaceholder],
     );
 
     const updateControl = useCallback(
         (next: DashboardParameterControl) =>
-            setParameterControls((controls) =>
+            writeControls((controls) =>
                 controls.map((control) =>
                     control.id === next.id ? next : control,
                 ),
             ),
-        [setParameterControls],
+        [writeControls],
     );
 
     const setControlValue = useCallback(
         (value: ParameterValue | null) =>
-            editingControl?.parameterKeys.forEach((key) =>
-                setParameter(key, value),
+            getEditingControl(latest.current)?.parameterKeys.forEach((key) =>
+                latest.current.setParameter(key, value),
             ),
-        [editingControl, setParameter],
+        [],
     );
 
     const removeControlById = useCallback(
         (controlId: string) =>
-            setParameterControls((controls) =>
+            writeControls((controls) =>
                 controls.filter((control) => control.id !== controlId),
             ),
-        [setParameterControls],
-    );
-
-    // Puts back the values the control's parameters had when it was opened
-    const restoreControlValues = useCallback(
-        (snapshot: ControlState['snapshot'], keys: string[]) =>
-            keys.forEach((key) =>
-                setParameter(key, snapshot.parameterValues[key] ?? null),
-            ),
-        [setParameter],
+        [writeControls],
     );
 
     const removeControl = useCallback(() => {
-        if (controlState === null) return;
-        setParameterControls(
-            controlState.snapshot.parameterControls.filter(
-                (control) => control.id !== controlState.controlId,
+        const { controlState: editingState } = latest.current;
+        if (editingState === null) return;
+        writeControls(() =>
+            editingState.snapshot.parameterControls.filter(
+                (control) => control.id !== editingState.controlId,
             ),
         );
         reset();
-    }, [controlState, setParameterControls, reset]);
+    }, [writeControls, reset]);
 
     const discard = useCallback(() => {
-        if (controlState !== null) {
-            const before = controlState.snapshot.parameterControls.find(
-                (control) => control.id === controlState.controlId,
+        const current = latest.current;
+        if (current.controlState !== null) {
+            const { snapshot, controlId } = current.controlState;
+            const before = snapshot.parameterControls.find(
+                (control) => control.id === controlId,
             );
-            restoreControlValues(controlState.snapshot, [
+            // Puts back the values the control's parameters had when it was opened
+            [
                 ...new Set([
-                    ...(editingControl?.parameterKeys ?? []),
+                    ...(getEditingControl(current)?.parameterKeys ?? []),
                     ...(before?.parameterKeys ?? []),
                 ]),
-            ]);
-            setParameterControls(controlState.snapshot.parameterControls);
+            ].forEach((key) =>
+                current.setParameter(
+                    key,
+                    snapshot.parameterValues[key] ?? null,
+                ),
+            );
+            writeControls(() => snapshot.parameterControls);
             reset();
             return;
         }
-        if (state === null) return;
-        setDashboardFilters(state.snapshot.dashboardFilters);
-        setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
+        if (current.state === null) return;
+        const { snapshot } = current.state;
+        writeFilters(() => snapshot.dashboardFilters);
+        writeFiltersChanged(snapshot.haveFiltersChanged);
         reset();
-    }, [
-        state,
-        controlState,
-        editingControl,
-        restoreControlValues,
-        setParameterControls,
-        setDashboardFilters,
-        setHaveFiltersChanged,
-        reset,
-    ]);
+    }, [writeControls, writeFilters, writeFiltersChanged, reset]);
 
     const isControlDirty = useMemo(() => {
         if (controlState === null || editingControl === null) return false;
@@ -480,11 +579,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     const editingRule = useMemo(
-        () =>
-            state === null
-                ? null
-                : (placeholder ??
-                  findFilterRule(dashboardFilters, state.filterId)),
+        () => getEditingRule({ state, placeholder, dashboardFilters }),
         [state, placeholder, dashboardFilters],
     );
 
@@ -498,39 +593,38 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     // Keeps the edits, which already live in the dashboard draft
     const close = useCallback(() => {
-        if (controlState !== null) {
-            const isUnlabelled = (editingControl?.label ?? '').trim() === '';
-            if (controlState.isNew && isUnlabelled) discard();
+        const current = latest.current;
+        if (current.controlState !== null) {
+            const isUnlabelled =
+                (getEditingControl(current)?.label ?? '').trim() === '';
+            if (current.controlState.isNew && isUnlabelled) discard();
             else reset();
             return;
         }
-        if (state === null) return;
-        if (
-            editingRule === null ||
-            !canKeepFilterRule(editingRule, state.isNew)
-        ) {
+        if (current.state === null) return;
+        const rule = getEditingRule(current);
+        if (rule === null || !canKeepFilterRule(rule, current.state.isNew)) {
             discard();
             return;
         }
-        if (isDefaultValueIncomplete(editingRule)) {
-            setDashboardFilters((filters) =>
-                replaceFilterRule(filters, { ...editingRule, disabled: true }),
+        if (isDefaultValueIncomplete(rule)) {
+            writeFilters((filters) =>
+                replaceFilterRule(filters, { ...rule, disabled: true }),
             );
         }
         reset();
-    }, [
-        state,
-        controlState,
-        editingControl,
-        editingRule,
-        discard,
-        reset,
-        setDashboardFilters,
-    ]);
+    }, [discard, reset, writeFilters]);
+
+    // Its own memo so a hover does not hand selectors a new object
+    const editingFilterId = state?.filterId ?? null;
+    const editing = useMemo(
+        () => (editingFilterId === null ? null : { filterId: editingFilterId }),
+        [editingFilterId],
+    );
 
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
-            editing: state === null ? null : { filterId: state.filterId },
+            editing,
             isNew: state?.isNew ?? false,
             isPlaceholder,
             editingRule,
@@ -577,6 +671,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         }),
         [
             state,
+            editing,
             isPlaceholder,
             editingRule,
             activeSection,

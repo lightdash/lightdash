@@ -1,3 +1,4 @@
+import { type DashboardParameterControl } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -30,13 +31,22 @@ import {
     getParameterLabel,
     removeControlKey,
 } from './parameterControls';
-import { useControlsSidebar } from './useControlsSidebar';
+import {
+    useControlsSidebar,
+    useControlsSidebarSelector,
+} from './useControlsSidebar';
+import { useLabelDraft } from './useLabelDraft';
 
 const LABEL_ERROR = 'Add a label so viewers know what this sets';
 
-export const ParameterSidebar: FC = () => {
+type ParameterEditorProps = {
+    control: DashboardParameterControl;
+};
+
+// Mounted with the control id as key, so the label draft and the armed and
+// error states never carry over to another control
+const ParameterEditor: FC<ParameterEditorProps> = ({ control }) => {
     const {
-        editingControl,
         isNewControl,
         updateControl,
         removeControl,
@@ -69,9 +79,9 @@ export const ParameterSidebar: FC = () => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-
-    if (editingControl === null) return null;
-    const control = editingControl;
+    const label = useLabelDraft(control.label, (next) =>
+        updateControl({ ...control, label: next }),
+    );
 
     const tiles = dashboardTiles ?? [];
     const { applied } = getControlCount(
@@ -106,7 +116,7 @@ export const ParameterSidebar: FC = () => {
                   tileParameterReferences,
               );
     const hasFreeKeys = freeKeys.length > 0;
-    const hasLabel = control.label.trim() !== '';
+    const hasLabel = label.draft.trim() !== '';
     const needsLabel = isNewControl && !hasLabel;
     const discardLabel = isNewControl
         ? 'Discard control'
@@ -132,7 +142,7 @@ export const ParameterSidebar: FC = () => {
             title={
                 isNewControl
                     ? 'New parameter control'
-                    : control.label || 'Parameter control'
+                    : label.draft || 'Parameter control'
             }
             subtitle={`${keyCount} ${keyCount === 1 ? 'parameter' : 'parameters'} · sets ${applied} of ${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'}${tabReach}`}
             menu={
@@ -186,23 +196,23 @@ export const ParameterSidebar: FC = () => {
                         error={labelError ? LABEL_ERROR : undefined}
                         errorProps={{ id: labelErrorId }}
                         placeholder="What viewers will see"
-                        value={control.label}
+                        value={label.draft}
                         onChange={(event) => {
                             if (event.currentTarget.value.trim() !== '') {
                                 setLabelError(false);
                             }
                             setLabelTouched(true);
-                            updateControl({
-                                ...control,
-                                label: event.currentTarget.value,
-                            });
+                            label.type(event.currentTarget.value);
                         }}
                         onBlur={() => {
+                            // Synchronous, so a click on Done closes with the label
+                            label.flush();
                             if (labelTouched && !hasLabel) setLabelError(true);
                         }}
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter') return;
                             event.preventDefault();
+                            label.flush();
                             if (!needsLabel) {
                                 close();
                                 return;
@@ -222,10 +232,7 @@ export const ParameterSidebar: FC = () => {
                                 radius="xl"
                                 onClick={() => {
                                     setLabelError(false);
-                                    updateControl({
-                                        ...control,
-                                        label: suggestion,
-                                    });
+                                    label.set(suggestion);
                                 }}
                             >
                                 {suggestion}
@@ -424,4 +431,10 @@ export const ParameterSidebar: FC = () => {
             )}
         </EditorShell>
     );
+};
+
+export const ParameterSidebar: FC = () => {
+    const control = useControlsSidebarSelector((c) => c.editingControl);
+    if (control === null) return null;
+    return <ParameterEditor key={control.id} control={control} />;
 };

@@ -9,11 +9,15 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
 import { useState, type FC, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
-import { useControlsSidebar } from './useControlsSidebar';
+import {
+    useControlsSidebar,
+    useControlsSidebarSelector,
+    type ControlsSidebarContextValue,
+} from './useControlsSidebar';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -343,6 +347,94 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    it('keeps a new filter whose label is written in the same event as close', () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        const added = result.current.editingRule;
+        if (!added) throw new Error('expected a filter');
+
+        // Enter in the label input: the pending label, then close, with no render between
+        act(() => {
+            result.current.updateFilter({ ...added, label: 'S' });
+            result.current.close();
+        });
+
+        expect(latest.filters.dimensions).toHaveLength(3);
+        expect(latest.filters.dimensions[2].label).toBe('S');
+        expect(result.current.isSidebarOpen).toBe(false);
+    });
+
+    it('keeps every callback stable across edits, hovers and other controls', () => {
+        const { result } = setup();
+        const callbacks = () =>
+            Object.fromEntries(
+                Object.entries(result.current).filter(
+                    ([, value]) => typeof value === 'function',
+                ),
+            );
+        const initial = callbacks();
+        expect(Object.keys(initial)).toHaveLength(21);
+
+        act(() => result.current.open('a'));
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.setHoveredFieldId('orders_a'));
+        act(() => result.current.setHighlightedFieldId('orders_a'));
+        act(() => result.current.openControl('c1'));
+        act(() =>
+            result.current.updateControl({ ...savedControl, label: 'P' }),
+        );
+        act(() => result.current.setControlValue('2026-06-01'));
+
+        const changed = Object.entries(callbacks())
+            .filter(([name, callback]) => callback !== initial[name])
+            .map(([name]) => name);
+        expect(changed).toEqual([]);
+    });
+
+    it('re-renders below a selector only when its slice changes', () => {
+        const renders = { whole: 0, sliced: 0 };
+        const sidebar: { current: ControlsSidebarContextValue | null } = {
+            current: null,
+        };
+        // A bailed-out consumer never reaches its children
+        const Probe: FC<{ name: 'whole' | 'sliced' }> = ({ name }) => {
+            renders[name] += 1;
+            return null;
+        };
+        const Whole: FC = () => {
+            sidebar.current = useControlsSidebar();
+            return <Probe name="whole" />;
+        };
+        const Sliced: FC = () => {
+            useControlsSidebarSelector((c) => c.editing);
+            useControlsSidebarSelector((c) => c.updateFilter);
+            return <Probe name="sliced" />;
+        };
+        render(
+            <Wrapper>
+                <Whole />
+                <Sliced />
+            </Wrapper>,
+        );
+        const current = () => {
+            if (sidebar.current === null) throw new Error('not rendered');
+            return sidebar.current;
+        };
+
+        act(() => current().open('a'));
+        const afterOpen = { ...renders };
+        expect(afterOpen.sliced).toBe(2);
+
+        act(() => current().setHoveredFieldId('orders_a'));
+        act(() => current().setHighlightedFieldId('orders_a'));
+        act(() => current().updateFilter({ ...rule('a', ['1']), label: 'A' }));
+        act(() => current().setActiveSection('settings'));
+
+        expect(renders.sliced).toBe(afterOpen.sliced);
+        expect(renders.whole).toBe(afterOpen.whole + 4);
+    });
+
     describe('parameter controls', () => {
         it('edits a control live and restores it and its value on cancel', () => {
             const { result } = setup();
@@ -396,6 +488,25 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.discard());
             expect(latest.controls).toEqual([savedControl]);
             expect(result.current.isSidebarOpen).toBe(false);
+        });
+
+        it('keeps a new control whose label is written in the same event as close', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addParameterControl('ship_date'));
+            const added = result.current.editingControl;
+            if (!added) throw new Error('expected a control');
+
+            act(() => {
+                result.current.updateControl({ ...added, label: 'Ship' });
+                result.current.close();
+            });
+
+            expect(latest.controls).toHaveLength(2);
+            expect(latest.controls[1].label).toBe('Ship');
+            expect(result.current.isSidebarOpen).toBe(false);
+
+            act(() => result.current.removeControlById(added.id));
         });
 
         it('removing a control keeps the values of its parameters', () => {

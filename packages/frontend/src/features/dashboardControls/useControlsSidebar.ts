@@ -4,7 +4,11 @@ import {
     type DashboardParameterControl,
     type ParameterValue,
 } from '@lightdash/common';
-import { createContext, useContext } from 'react';
+import {
+    createContext,
+    useContext,
+    useContextSelector,
+} from 'use-context-selector';
 
 export type ControlsSidebarSection = 'fields' | 'settings';
 
@@ -79,8 +83,9 @@ export type ControlsSidebarContextValue = {
 export const ControlsSidebarContext =
     createContext<ControlsSidebarContextValue | null>(null);
 
-export const useControlsSidebar = (): ControlsSidebarContextValue => {
-    const context = useContext(ControlsSidebarContext);
+const assertProvided = (
+    context: ControlsSidebarContextValue | null,
+): ControlsSidebarContextValue => {
     if (context === null) {
         throw new Error(
             'useControlsSidebar must be used within a ControlsSidebarProvider',
@@ -88,3 +93,15 @@ export const useControlsSidebar = (): ControlsSidebarContextValue => {
     }
     return context;
 };
+
+/** The whole value: re-renders on every change. Prefer the selector. */
+export const useControlsSidebar = (): ControlsSidebarContextValue =>
+    assertProvided(useContext(ControlsSidebarContext));
+
+/** Re-renders only when the selected slice changes. Callbacks are stable. */
+export const useControlsSidebarSelector = <Selected>(
+    selector: (value: ControlsSidebarContextValue) => Selected,
+): Selected =>
+    useContextSelector(ControlsSidebarContext, (context) =>
+        selector(assertProvided(context)),
+    );

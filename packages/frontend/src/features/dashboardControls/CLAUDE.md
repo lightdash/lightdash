@@ -31,6 +31,18 @@ never called a filter. User-facing copy says *tile*, never *chart*.
 
 ## Provider contract (`useControlsSidebar`)
 
+- The context is a `use-context-selector` context, like the dashboard's.
+  `useControlsSidebarSelector((c) => c.x)` re-renders its component's subtree
+  only when the selected value changes; use it in anything rendered per tile,
+  per pill or around the whole page. `useControlsSidebar()` returns the whole
+  value and re-renders on every change, hover included. A selector must return
+  a value that is stable for the same state (no new object or array).
+- Every callback in the value keeps one identity for the provider's life. They
+  read state through the `latest` ref in `ControlsSidebarProvider`, which is
+  synced after each render and written eagerly by the `write*` helpers, so two
+  calls in one event (`updateFilter` with a label, then `close`) agree. A new
+  callback reads `latest.current`, never render state, and writes through the
+  helpers.
 - `open(id)` snapshots the dashboard filters and edits a saved filter control.
 - `openNew()` opens a placeholder with no mapping; it cannot be kept and
   never reaches the bar. `addFirstField(field)` turns it into a filter control.
@@ -53,6 +65,12 @@ never called a filter. User-facing copy says *tile*, never *chart*.
   says what closing would drop. Add chrome there.
 - `ControlSidebar` edits the control from `useControlsSidebar`. A placeholder is
   titled "New control" and cannot be kept until it has a field.
+- The label is a local draft (`useLabelDraft`): the title, footer status and
+  label error follow the draft, and the control gets it after 300ms without
+  typing, on blur, on Enter and from a suggestion chip. Blur commits
+  synchronously, which is what lets "Done", the X and "Discard" see it. The
+  editor body is mounted with the control id as `key`, so the draft restarts
+  and a pending commit is dropped when another control opens.
 - `FieldsAndTiles` shows the inline `FieldPicker` for a placeholder, and
   otherwise one `FieldRow` per field of the filter plus "Add a field". `FieldPicker` is one searchable dropdown with
   time grains folded into one row per field (`fieldGrains.ts`).
@@ -93,18 +111,33 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   fields of the filter.
 - Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
-- Highlight has two states on a tile, set as `data-highlighted`: `mapped`
-  (the tile is on the active field: its dashed edit border becomes a solid
-  hairline in `--mantine-color-blue-5` with a soft blurred glow of the same
-  blue) and `available` (the tile offers the field but is on another one or on
-  none: the dashed border at full strength over a faint free-slot wash). The
-  hairline and glow live on the `.ring` child and the dashed border on
-  `.overlay::after`; both only change `opacity`. The highlighted sidebar row
+- Highlight has three states on a tile, set as `data-highlighted`. While a
+  field is active: `mapped` (the tile is on the active field: its dashed edit
+  border becomes a solid hairline in `--mantine-color-blue-5` with a soft
+  blurred glow of the same blue) and `available` (the tile offers the field
+  but is on another one or on none: the dashed border at full strength over a
+  faint free-slot wash). While no field is active: `reached` (the control
+  reaches the tile: a filter has a field or SQL column on it, a parameter
+  control sets a parameter on it). A tile the control cannot reach never gets
+  the attribute. Only `mapped` and `available` are scroll targets
+  (`useScrollToHighlightedTile`). The
+  hairline lives on the `.ring` child, the glow on `.ring::after` (so `reached`
+  is the hairline alone and `mapped` adds the glow) and the dashed border on
+  `.overlay::after`; all three only change `opacity`. The highlighted sidebar row
   and the pill being edited use the same blue. No ink:
   `--mantine-primary-color-filled` reads too heavy here.
 - A waiting field's row carries `data-waiting` and a dashed border.
 - A tab with a count badge keeps its natural width (`TabCounts.module.css`),
   so the tab strip scrolls instead of cutting the names.
+- The per-tile cards (`TileOverlay`, `ParameterOverlay`) are memoised with
+  `areTilePropsEqual` and read no context. The list component derives each
+  tile's props, the highlight string included, and passes primitives, stable
+  references and short lists compared by item, plus one stable `onSelect`.
+  Keep it that way: an object built per render, or the rule itself, as a prop
+  re-renders every tile on every edit.
+- The select on a card is `LazySelect`: a button that looks like the closed
+  select (same `aria-label`, `aria-haspopup="listbox"`) and mounts the Mantine
+  `Select`, focused and open, on click, Enter, Space or an arrow key.
 - `TileOverlays` portals a veil and a "Filtered by" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
@@ -172,8 +205,11 @@ Rules:
   position or `box-shadow`: these run once per tile. A shadow that has to
   appear sits on its own layer and that layer's opacity changes.
 - No React state, effects, refs, timers or context for motion. Things arrive
-  with a mount animation; a replay is a `key` on a small leaf element (counts,
-  the footer status, the `.confirm` line on a tile card). Closing is immediate.
+  with a mount animation; a replay is a `key` on a small leaf element (the
+  count in a sidebar row, the footer status, the `.confirm` line on a tile
+  card). Tab badges do not replay: they change on every hover. The editor's
+  content arrives, not its panel, so the page never shows through. Closing is
+  immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo
   `WAVE_BUCKETS`, and the stylesheet maps it to 20ms delay steps.
 - A row's press scales the name inside the button. A transform on the button
