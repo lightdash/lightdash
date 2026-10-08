@@ -5,31 +5,34 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Center,
     FileButton,
     Group,
     Paper,
+    Radio,
     ScrollArea,
+    SimpleGrid,
     Skeleton,
     Stack,
-    Switch,
-    Table,
     Text,
     Title,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconAlertTriangle,
     IconEye,
     IconFileText,
     IconFolderOpen,
+    IconMarkdown,
+    IconSparkles,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -45,7 +48,6 @@ import {
     useUpdateAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
-import { AiAgentIcon } from './AiAgentIcon';
 import { AiAgentKnowledgeDocumentModal } from './AiAgentKnowledgeDocumentModal';
 import styles from './AiAgentKnowledgeFilesSection.module.css';
 
@@ -69,10 +71,33 @@ const normalizeMimeType = (file: File): string => {
 const stripExtension = (filename: string): string =>
     filename.replace(/\.[^.]+$/, '');
 
+const getExtensionLabel = (filename: string, mimeType: string): string => {
+    const match = filename.match(/\.([^.]+)$/);
+    if (match) return match[1].toUpperCase();
+    return mimeType === 'text/markdown' ? 'MD' : 'TXT';
+};
+
+const formatUploadDate = (date: Date): string => {
+    const value = dayjs(date);
+    return value.isSame(dayjs(), 'year')
+        ? value.format('MMM D')
+        : value.format('MMM D, YYYY');
+};
+
 const hasAllowedExtension = (filename: string): boolean => {
     const name = filename.toLowerCase();
     return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
 };
+
+const needsAttention = (document: AiAgentDocumentSummary): boolean =>
+    !!document.summary.warning ||
+    document.summary.relevance === 'low' ||
+    document.summary.relevance === 'none';
+
+type UsageMode = 'retrieve' | 'always';
+
+const getUsageMode = (alwaysIncludeInContext: boolean): UsageMode =>
+    alwaysIncludeInContext ? 'always' : 'retrieve';
 
 type PendingUpload = {
     tempId: string;
@@ -117,6 +142,102 @@ const getPendingActionModalConfig = (
             );
     }
 };
+
+type FileRowProps = {
+    icon: typeof IconFileText;
+    name: string;
+    meta: ReactNode;
+    warning: boolean;
+    selected: boolean;
+    onSelect: () => void;
+};
+
+const FileRow = ({
+    icon,
+    name,
+    meta,
+    warning,
+    selected,
+    onSelect,
+}: FileRowProps) => (
+    <UnstyledButton
+        onClick={onSelect}
+        className={styles.fileRow}
+        data-selected={selected || undefined}
+        // Anchor for scope walkthroughs (data-tour-via), by name
+        data-tour-anchor="knowledge-document"
+        data-tour-hint="Choose a document"
+        data-tour-hint-named="Choose {value}"
+        data-tour-value={name}
+    >
+        <Group gap="sm" wrap="nowrap" align="flex-start">
+            <MantineIcon
+                icon={icon}
+                color="dimmed"
+                className={styles.fileIcon}
+            />
+            <Stack gap={2} miw={0} flex={1}>
+                <Group gap={6} wrap="nowrap">
+                    <Text size="sm" fw={500} truncate>
+                        {name}
+                    </Text>
+                    {warning && (
+                        <Tooltip label="This document may not be relevant to the project">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="orange"
+                                size="sm"
+                                className={styles.fileIcon}
+                            />
+                        </Tooltip>
+                    )}
+                </Group>
+                {meta}
+            </Stack>
+        </Group>
+    </UnstyledButton>
+);
+
+type UsageOptionProps = {
+    value: UsageMode;
+    title: string;
+    description: string;
+    disabled: boolean;
+    checked: boolean;
+};
+
+const UsageOption = ({
+    value,
+    title,
+    description,
+    disabled,
+    checked,
+    ...others
+}: UsageOptionProps & Record<`data-${string}`, string>) => (
+    <Radio.Card
+        value={value}
+        className={styles.usageCard}
+        disabled={disabled}
+        aria-label={`${title}: ${description}`}
+        {...others}
+    >
+        <Group gap="xs" wrap="nowrap" align="flex-start" p="sm">
+            <Radio.Indicator
+                size="xs"
+                checked={checked}
+                className={styles.usageIndicator}
+            />
+            <Stack gap={2}>
+                <Text size="xs" fw={500}>
+                    {title}
+                </Text>
+                <Text size="xs" c="dimmed">
+                    {description}
+                </Text>
+            </Stack>
+        </Group>
+    </Radio.Card>
+);
 
 type Props = {
     agentUuid: string;
@@ -243,6 +364,21 @@ export const AiAgentKnowledgeFilesSection = ({
         [createDocument, showToastError],
     );
 
+    const handleUsageChange = useCallback(
+        (document: AiAgentDocumentSummary, mode: UsageMode) => {
+            if (mode === getUsageMode(document.alwaysIncludeInContext)) return;
+            if (mode === 'always') {
+                setPendingAction({ type: 'enableFullContext', document });
+                return;
+            }
+            updateDocument.mutate({
+                documentUuid: document.uuid,
+                body: { alwaysIncludeInContext: false },
+            });
+        },
+        [updateDocument],
+    );
+
     const handleConfirmAction = useCallback(async () => {
         if (!pendingAction) return;
 
@@ -289,51 +425,41 @@ export const AiAgentKnowledgeFilesSection = ({
 
     const isEmpty =
         !isLoading && pendingUploads.length === 0 && documents.length === 0;
+    const fileCount = pendingUploads.length + documents.length;
+
+    const uploadButton = (
+        <FileButton onChange={handleFiles} accept={ACCEPT_ATTR} multiple>
+            {(props) => (
+                <Button
+                    {...props}
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconUpload} />}
+                >
+                    Upload
+                </Button>
+            )}
+        </FileButton>
+    );
 
     return (
         <Stack gap="md">
-            {(withHeading || !isEmpty) && (
-                <Group justify="space-between" align="flex-start">
-                    {withHeading && (
-                        <Box flex={1}>
-                            <Title order={6} c="ldGray.7" size="sm" fw={500}>
-                                Knowledge documents
-                            </Title>
-                            <Text c="dimmed" size="xs">
-                                Reference documents can be retrieved when
-                                relevant or always included in the agent
-                                context. A short summary is generated for each
-                                file.
-                            </Text>
-                        </Box>
-                    )}
-                    {!isEmpty && (
-                        <FileButton
-                            onChange={handleFiles}
-                            accept={ACCEPT_ATTR}
-                            multiple
-                        >
-                            {(props) => (
-                                <Button
-                                    {...props}
-                                    size="xs"
-                                    ml="auto"
-                                    leftSection={
-                                        <MantineIcon icon={IconUpload} />
-                                    }
-                                >
-                                    Upload
-                                </Button>
-                            )}
-                        </FileButton>
-                    )}
-                </Group>
+            {withHeading && (
+                <Box>
+                    <Title order={6} c="ldGray.7" size="sm" fw={500}>
+                        Knowledge documents
+                    </Title>
+                    <Text c="dimmed" size="xs">
+                        Reference documents can be retrieved when relevant or
+                        always included in the agent context. A short summary is
+                        generated for each file.
+                    </Text>
+                </Box>
             )}
 
             <Paper
                 p={0}
                 variant={isLoading || isEmpty ? 'dotted' : undefined}
-                {...(!isEmpty && { h: 400 })}
+                className={styles.panel}
             >
                 {isLoading ? (
                     <Center>
@@ -352,250 +478,179 @@ export const AiAgentKnowledgeFilesSection = ({
                             titleProps={{ order: 6 }}
                             title="No knowledge document yet"
                         >
-                            <FileButton
-                                onChange={handleFiles}
-                                accept={ACCEPT_ATTR}
-                                multiple
-                            >
-                                {(props) => (
-                                    <Button
-                                        {...props}
-                                        size="xs"
-                                        leftSection={
-                                            <MantineIcon icon={IconUpload} />
-                                        }
-                                    >
-                                        Upload
-                                    </Button>
-                                )}
-                            </FileButton>
+                            {uploadButton}
                         </EmptyState>
                     </Center>
                 ) : (
-                    <Group align="flex-start" wrap="nowrap" h="100%">
-                        <ScrollArea
-                            h="100%"
-                            type="hover"
-                            flex="1 1 70%"
-                            miw={0}
-                        >
-                            <Table stickyHeader highlightOnHover>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th
-                                            px="lg"
-                                            style={{
-                                                borderTopLeftRadius: '16px',
-                                            }}
-                                        >
-                                            <Text size="xs" c="dimmed" fw={600}>
-                                                NAME
-                                            </Text>
-                                        </Table.Th>
-                                        <Table.Th w={130} px="md">
-                                            <Text size="xs" c="dimmed" fw={600}>
-                                                CONTEXT
-                                            </Text>
-                                        </Table.Th>
-                                        <Table.Th w={100} ta="right" px="lg">
-                                            <Text size="xs" c="dimmed" fw={600}>
-                                                SIZE
-                                            </Text>
-                                        </Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {[
-                                        ...pendingUploads.map((pending) => ({
-                                            id: pending.tempId,
-                                            name: pending.name,
-                                            sizeBytes: pending.sizeBytes,
-                                            summary: (
-                                                <Skeleton visible radius="sm">
+                    <Group
+                        align="stretch"
+                        wrap="nowrap"
+                        gap={0}
+                        className={styles.layout}
+                    >
+                        <Box className={styles.listPane}>
+                            <Stack gap={0} className={styles.listPaneInner}>
+                                <Group
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    px="md"
+                                    py="sm"
+                                    className={styles.listHeader}
+                                >
+                                    <Text size="sm" c="dimmed">
+                                        {fileCount}{' '}
+                                        {fileCount === 1 ? 'file' : 'files'}
+                                    </Text>
+                                    {uploadButton}
+                                </Group>
+                                <ScrollArea flex={1} mih={0} type="hover">
+                                    <Stack gap={2} p="xs">
+                                        {pendingUploads.map((pending) => (
+                                            <FileRow
+                                                key={pending.tempId}
+                                                icon={IconFileText}
+                                                name={pending.name}
+                                                warning={false}
+                                                selected={
+                                                    pending.tempId ===
+                                                    effectiveSelectedId
+                                                }
+                                                onSelect={() =>
+                                                    setSelectedId(
+                                                        pending.tempId,
+                                                    )
+                                                }
+                                                meta={
+                                                    <Skeleton
+                                                        visible
+                                                        radius="sm"
+                                                    >
+                                                        <Text
+                                                            size="xs"
+                                                            c="dimmed"
+                                                        >
+                                                            Generating summary…
+                                                        </Text>
+                                                    </Skeleton>
+                                                }
+                                            />
+                                        ))}
+                                        {documents.map((doc) => (
+                                            <FileRow
+                                                key={doc.uuid}
+                                                icon={
+                                                    doc.mimeType ===
+                                                    'text/markdown'
+                                                        ? IconMarkdown
+                                                        : IconFileText
+                                                }
+                                                name={doc.name}
+                                                warning={needsAttention(doc)}
+                                                selected={
+                                                    doc.uuid ===
+                                                    effectiveSelectedId
+                                                }
+                                                onSelect={() =>
+                                                    setSelectedId(doc.uuid)
+                                                }
+                                                meta={
                                                     <Text
                                                         size="xs"
                                                         c="dimmed"
-                                                        lineClamp={1}
+                                                        truncate
+                                                        // Walkthrough: an agent's knowledge documents.
+                                                        // See scripts/scope-tours.
+                                                        data-tour-scope="manage:AiAgentDocument"
+                                                        data-tour-step="1"
+                                                        data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/edit"
+                                                        data-tour-label="Knowledge documents the agent can consult"
+                                                        data-tour-docs="agents/effective-analytics-with-agents.mdx#knowledge-documents:1"
+                                                        data-tour-return="none"
+                                                        data-tour-resultdocs="agents/effective-analytics-with-agents.mdx#always-include-in-context:p2:1"
                                                     >
-                                                        Generating summary…
-                                                    </Text>
-                                                </Skeleton>
-                                            ),
-                                            contextIndicator: (
-                                                <Text size="sm" c="dimmed">
-                                                    —
-                                                </Text>
-                                            ),
-                                        })),
-                                        ...documents.map((doc) => ({
-                                            id: doc.uuid,
-                                            name: doc.name,
-                                            sizeBytes: doc.contentSizeBytes,
-                                            summary: (
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    lineClamp={1}
-                                                >
-                                                    {doc.summary.description}
-                                                </Text>
-                                            ),
-                                            contextIndicator: (
-                                                <Badge
-                                                    size="xs"
-                                                    color={
-                                                        doc.alwaysIncludeInContext
-                                                            ? 'violet'
-                                                            : 'gray'
-                                                    }
-                                                    // Walkthrough: an agent's knowledge documents.
-                                                    // See scripts/scope-tours.
-                                                    data-tour-scope="manage:AiAgentDocument"
-                                                    data-tour-step="1"
-                                                    data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/edit"
-                                                    data-tour-label="Knowledge documents the agent can consult"
-                                                    data-tour-docs="agents/effective-analytics-with-agents.mdx#knowledge-documents:1"
-                                                    data-tour-return="none"
-                                                    data-tour-resultdocs="agents/effective-analytics-with-agents.mdx#always-include-in-context:p2:1"
-                                                >
-                                                    {doc.alwaysIncludeInContext
-                                                        ? 'Always included'
-                                                        : 'On demand'}
-                                                </Badge>
-                                            ),
-                                        })),
-                                    ].map((row) => {
-                                        const isSelected =
-                                            row.id === effectiveSelectedId;
-                                        return (
-                                            <Table.Tr
-                                                key={row.id}
-                                                bg={
-                                                    isSelected
-                                                        ? 'ldGray.0'
-                                                        : undefined
-                                                }
-                                            >
-                                                <Table.Td>
-                                                    <UnstyledButton
-                                                        onClick={() =>
-                                                            setSelectedId(
-                                                                row.id,
-                                                            )
-                                                        }
-                                                        w="100%"
-                                                        // Anchor for scope walkthroughs (data-tour-via), by name
-                                                        data-tour-anchor="knowledge-document"
-                                                        data-tour-hint="Choose a document"
-                                                        data-tour-hint-named="Choose {value}"
-                                                        data-tour-value={
-                                                            row.name
-                                                        }
-                                                    >
-                                                        <Group
-                                                            gap="sm"
-                                                            wrap="nowrap"
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconFileText
-                                                                }
-                                                                color="dimmed"
-                                                                className={
-                                                                    styles.fileIcon
-                                                                }
-                                                            />
-                                                            <Stack
-                                                                gap={2}
-                                                                miw={0}
-                                                                flex={1}
-                                                            >
-                                                                <Text
-                                                                    size="sm"
-                                                                    fw={500}
-                                                                    truncate
-                                                                >
-                                                                    {row.name}
-                                                                </Text>
-                                                                {row.summary}
-                                                            </Stack>
-                                                        </Group>
-                                                    </UnstyledButton>
-                                                </Table.Td>
-                                                <Table.Td px="md">
-                                                    {row.contextIndicator}
-                                                </Table.Td>
-                                                <Table.Td ta="right" pr="md">
-                                                    <Text size="sm" c="dimmed">
                                                         {formatFileSize(
-                                                            row.sizeBytes,
-                                                        )}
+                                                            doc.contentSizeBytes,
+                                                        )}{' '}
+                                                        ·{' '}
+                                                        {doc.alwaysIncludeInContext
+                                                            ? 'Always included'
+                                                            : 'When relevant'}
                                                     </Text>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        );
-                                    })}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea>
+                                                }
+                                            />
+                                        ))}
+                                    </Stack>
+                                </ScrollArea>
+                            </Stack>
+                        </Box>
+
                         {(selectedPending || selectedDocument) && (
-                            <Paper
-                                m="-md"
-                                mr="-xxs"
-                                p="md"
-                                bg="ldGray.0"
-                                style={{
-                                    flex: '1 1 30%',
-                                    alignSelf: 'stretch',
-                                }}
+                            <ScrollArea
+                                h={480}
+                                type="hover"
+                                className={styles.detailPane}
                             >
-                                <Stack gap="sm" h="100%">
+                                <Stack gap="md" p="lg">
                                     <Group
                                         justify="space-between"
+                                        align="flex-start"
                                         wrap="nowrap"
                                     >
                                         <Stack gap={2} miw={0}>
-                                            <Text size="sm" fw={600} truncate>
+                                            <Title order={5} lineClamp={1}>
                                                 {selectedPending
                                                     ? selectedPending.name
                                                     : selectedDocument!.name}
-                                            </Text>
+                                            </Title>
                                             <Text size="xs" c="dimmed">
-                                                {formatFileSize(
-                                                    selectedPending
-                                                        ? selectedPending.sizeBytes
-                                                        : selectedDocument!
-                                                              .contentSizeBytes,
-                                                )}
+                                                {selectedPending
+                                                    ? formatFileSize(
+                                                          selectedPending.sizeBytes,
+                                                      )
+                                                    : [
+                                                          getExtensionLabel(
+                                                              selectedDocument!
+                                                                  .originalFilename,
+                                                              selectedDocument!
+                                                                  .mimeType,
+                                                          ),
+                                                          formatFileSize(
+                                                              selectedDocument!
+                                                                  .contentSizeBytes,
+                                                          ),
+                                                          `Uploaded ${formatUploadDate(
+                                                              selectedDocument!
+                                                                  .createdAt,
+                                                          )}`,
+                                                      ].join(' · ')}
                                             </Text>
                                         </Stack>
                                         {selectedDocument && (
-                                            <Group gap={4} wrap="nowrap">
-                                                <Tooltip
-                                                    label="View and edit document"
-                                                    position="left"
-                                                >
-                                                    <ActionIcon
-                                                        onClick={() =>
-                                                            setViewingDocument(
-                                                                selectedDocument,
-                                                            )
-                                                        }
-                                                        // Anchor for scope walkthroughs (data-tour-via)
-                                                        data-tour-anchor="knowledge-document-open"
-                                                        data-tour-hint="Open the document"
-                                                    >
+                                            <Group gap="xs" wrap="nowrap">
+                                                <Button
+                                                    variant="default"
+                                                    size="xs"
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={IconEye}
                                                         />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                                <Tooltip
-                                                    label="Delete document"
-                                                    position="left"
+                                                    }
+                                                    onClick={() =>
+                                                        setViewingDocument(
+                                                            selectedDocument,
+                                                        )
+                                                    }
+                                                    // Anchor for scope walkthroughs (data-tour-via)
+                                                    data-tour-anchor="knowledge-document-open"
+                                                    data-tour-hint="Open the document"
                                                 >
+                                                    Preview
+                                                </Button>
+                                                <Tooltip label="Delete document">
                                                     <ActionIcon
-                                                        color="red"
+                                                        variant="default"
+                                                        size="input-xs"
+                                                        aria-label="Delete document"
                                                         loading={
                                                             deleteDocument.isLoading &&
                                                             deleteDocument.variables ===
@@ -611,6 +666,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     >
                                                         <MantineIcon
                                                             icon={IconTrash}
+                                                            color="red"
                                                         />
                                                     </ActionIcon>
                                                 </Tooltip>
@@ -618,122 +674,125 @@ export const AiAgentKnowledgeFilesSection = ({
                                         )}
                                     </Group>
 
-                                    {selectedDocument && (
-                                        <Switch
-                                            size="xs"
-                                            label="Always include in context"
-                                            // Walkthrough: an agent's knowledge documents. The
-                                            // markers sit on the wrapper because Mantine hands
-                                            // other props to the hidden input. See scripts/scope-tours.
-                                            wrapperProps={{
-                                                'data-tour-scope':
-                                                    'manage:AiAgentDocument',
-                                                'data-tour-step': '2',
-                                                'data-tour-route':
-                                                    '/projects/:projectUuid/ai-agents/:agentUuid/edit',
-                                                'data-tour-label':
-                                                    'Turn on Always include in context',
-                                                'data-tour-title':
-                                                    'Always include a knowledge document in context',
-                                                'data-tour-interactive': 'true',
-                                                'data-tour-covers':
-                                                    'view:AiAgentDocument',
-                                                'data-tour-via':
-                                                    '[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"] >> [data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"] >> [data-tour-anchor="agent-settings"] >> [data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"] >> [data-tour-anchor="knowledge-document-open"] >> [data-tour-anchor="modal-close"]',
-                                                'data-tour-then':
-                                                    '[data-tour-anchor="modal-confirm"]',
-                                                'data-tour-docs':
-                                                    'agents/effective-analytics-with-agents.mdx#always-include-in-context:1',
-                                            }}
-                                            description="Adds the full document to every session. Uses more tokens."
-                                            checked={
-                                                selectedDocument.alwaysIncludeInContext
-                                            }
-                                            disabled={updateDocument.isLoading}
-                                            onChange={(event) => {
-                                                if (
-                                                    event.currentTarget.checked
-                                                ) {
-                                                    setPendingAction({
-                                                        type: 'enableFullContext',
-                                                        document:
-                                                            selectedDocument,
-                                                    });
-                                                    return;
-                                                }
-                                                updateDocument.mutate({
-                                                    documentUuid:
-                                                        selectedDocument.uuid,
-                                                    body: {
-                                                        alwaysIncludeInContext: false,
-                                                    },
-                                                });
-                                            }}
-                                        />
-                                    )}
-
-                                    <Group gap={6}>
-                                        <AiAgentIcon size={14} />
-                                        <Text
-                                            size="xs"
-                                            c="dimmed"
-                                            tt="uppercase"
-                                            fw={600}
-                                        >
-                                            {selectedPending
-                                                ? 'Generating summary'
-                                                : 'AI summary'}
-                                        </Text>
-                                    </Group>
-
-                                    {selectedPending ? (
-                                        <Skeleton visible radius="sm">
-                                            <Text size="sm">
-                                                Generating a short summary so
-                                                the agent knows when to
-                                                reference this document. This
-                                                usually takes a few seconds.
-                                            </Text>
-                                        </Skeleton>
-                                    ) : (
-                                        <>
-                                            <ScrollArea
-                                                flex={1}
-                                                mih={0}
-                                                offsetScrollbars
+                                    <Stack gap="xs">
+                                        <Group gap={6}>
+                                            <MantineIcon
+                                                icon={IconSparkles}
+                                                color="indigo"
+                                                size="sm"
+                                            />
+                                            <Text
+                                                size="xs"
+                                                c="indigo"
+                                                tt="uppercase"
+                                                fw={600}
                                             >
-                                                <Text
-                                                    key={selectedDocument!.uuid}
-                                                    size="sm"
-                                                    className={
-                                                        styles.summaryReveal
-                                                    }
-                                                    // Walkthrough: a look at the summary once the
-                                                    // document is chosen. See scripts/scope-tours.
-                                                    data-tour-scope="manage:AiAgentDocument"
-                                                    data-tour-look="1"
-                                                    data-tour-after='[data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"]'
-                                                    data-tour-label="Read the summary the agent sees"
-                                                    data-tour-docs="agents/effective-analytics-with-agents.mdx#how-they-work:2-3"
-                                                >
-                                                    {
-                                                        selectedDocument!
-                                                            .summary.description
-                                                    }
+                                                {selectedPending
+                                                    ? 'Generating summary'
+                                                    : 'AI summary'}
+                                            </Text>
+                                        </Group>
+
+                                        {selectedPending ? (
+                                            <Skeleton visible radius="sm">
+                                                <Text size="xs">
+                                                    Generating a short summary
+                                                    so the agent knows when to
+                                                    reference this document.
+                                                    This usually takes a few
+                                                    seconds.
                                                 </Text>
-                                            </ScrollArea>
-                                            {selectedDocument && (
-                                                <AiAgentDocumentRelevanceCard
-                                                    summary={
-                                                        selectedDocument!
-                                                            .summary
+                                            </Skeleton>
+                                        ) : (
+                                            <Text
+                                                key={selectedDocument!.uuid}
+                                                size="xs"
+                                                className={styles.summaryReveal}
+                                                // Walkthrough: a look at the summary once the
+                                                // document is chosen. See scripts/scope-tours.
+                                                data-tour-scope="manage:AiAgentDocument"
+                                                data-tour-look="1"
+                                                data-tour-after='[data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"]'
+                                                data-tour-label="Read the summary the agent sees"
+                                                data-tour-docs="agents/effective-analytics-with-agents.mdx#how-they-work:2-3"
+                                            >
+                                                {
+                                                    selectedDocument!.summary
+                                                        .description
+                                                }
+                                            </Text>
+                                        )}
+                                    </Stack>
+
+                                    {selectedDocument && (
+                                        <>
+                                            <AiAgentDocumentRelevanceCard
+                                                summary={
+                                                    selectedDocument.summary
+                                                }
+                                            />
+
+                                            <Stack gap="xs">
+                                                <Text size="xs" fw={500}>
+                                                    How the agent uses it
+                                                </Text>
+                                                <Radio.Group
+                                                    aria-label="How the agent uses this document"
+                                                    value={getUsageMode(
+                                                        selectedDocument.alwaysIncludeInContext,
+                                                    )}
+                                                    onChange={(value) =>
+                                                        handleUsageChange(
+                                                            selectedDocument,
+                                                            value as UsageMode,
+                                                        )
                                                     }
-                                                />
-                                            )}
+                                                >
+                                                    <SimpleGrid
+                                                        cols={2}
+                                                        spacing="sm"
+                                                    >
+                                                        <UsageOption
+                                                            value="retrieve"
+                                                            title="Retrieve when relevant"
+                                                            description="Searched only when a question needs it."
+                                                            disabled={
+                                                                updateDocument.isLoading
+                                                            }
+                                                            checked={
+                                                                !selectedDocument.alwaysIncludeInContext
+                                                            }
+                                                        />
+                                                        <UsageOption
+                                                            value="always"
+                                                            title="Always include"
+                                                            description="Full document added to every session. Uses more tokens."
+                                                            disabled={
+                                                                updateDocument.isLoading
+                                                            }
+                                                            checked={
+                                                                selectedDocument.alwaysIncludeInContext
+                                                            }
+                                                            // Walkthrough: an agent's knowledge documents.
+                                                            // See scripts/scope-tours.
+                                                            data-tour-scope="manage:AiAgentDocument"
+                                                            data-tour-step="2"
+                                                            data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/edit"
+                                                            data-tour-label="Choose Always include"
+                                                            data-tour-title="Always include a knowledge document in context"
+                                                            data-tour-interactive="true"
+                                                            data-tour-covers="view:AiAgentDocument"
+                                                            data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"] >> [data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"] >> [data-tour-anchor="agent-settings"] >> [data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"] >> [data-tour-anchor="knowledge-document-open"] >> [data-tour-anchor="modal-close"]'
+                                                            data-tour-then='[data-tour-anchor="modal-confirm"]'
+                                                            data-tour-docs="agents/effective-analytics-with-agents.mdx#always-include-in-context:1"
+                                                        />
+                                                    </SimpleGrid>
+                                                </Radio.Group>
+                                            </Stack>
                                         </>
                                     )}
                                 </Stack>
-                            </Paper>
+                            </ScrollArea>
                         )}
                     </Group>
                 )}

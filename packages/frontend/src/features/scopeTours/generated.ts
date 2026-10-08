@@ -3899,7 +3899,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid/edit',
-                title: 'Turn on Always include in context',
+                title: 'Choose Always include',
                 body: "For documents the agent should apply to every question — not just the ones where the summary happens to match — flip the **Always include in context** toggle in the document's settings panel.",
                 interactive: true,
                 advanceOnTargetClick: true,
@@ -6163,7 +6163,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid/edit',
-                title: 'Turn on Always include in context',
+                title: 'Choose Always include',
                 body: "For documents the agent should apply to every question — not just the ones where the summary happens to match — flip the **Always include in context** toggle in the document's settings panel.",
                 interactive: true,
                 advanceOnTargetClick: true,
