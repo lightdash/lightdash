@@ -976,6 +976,9 @@ export class CartesianChartDataModel {
                 nameTextStyle: getAxisTitleStyle(),
                 axisLabel: {
                     ...getAxisLabelStyle(),
+                    // Time axes emit month-boundary ticks on top of regular
+                    // ones; the shared formatter makes those labels collide
+                    hideOverlap: true,
                     ...(xAxisType === VizIndexType.TIME && effectiveDateFormat
                         ? {
                               formatter: (value: string | number) =>
