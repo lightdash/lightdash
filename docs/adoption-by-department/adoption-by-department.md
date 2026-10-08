@@ -134,7 +134,7 @@ Code is under `packages/frontend/src/ee/`:
 - `features/adoption/map/` draws the map: departments as nested circles, people as dots coloured by activity, role or last activity. Layout and geometry are pure modules with tests.
 - `features/adoption/components/` and `utils/` hold the list, drawer, tiles, charts and helpers.
 
-Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the flag is on and the user has `view`.
+The sidebar entry and the routes are added only when the instance has a valid enterprise licence (`health.license.valid`), the flag is on and the user has `view`. One helper, `canAccessOrganizationAdoption` in `packages/frontend/src/hooks/settings/organizationAdoptionAccess.ts`, decides both, so an unlicensed instance with the flag on shows no entry.
 
 ## Known limits
 

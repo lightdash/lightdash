@@ -59,6 +59,7 @@ import {
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
+import { canAccessOrganizationAdoption } from './organizationAdoptionAccess';
 import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import {
     type SettingsContext,
@@ -745,13 +746,12 @@ export const useSettingsNavigation = (
         }
 
         if (
-            isOrganizationAdoptionEnabled &&
-            ability?.can(
-                'view',
-                subject('OrganizationAdoption', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
+            canAccessOrganizationAdoption({
+                isLicenseValid: health?.license?.valid === true,
+                isOrganizationAdoptionEnabled,
+                organization,
+                ability,
+            })
         ) {
             organizationItems.push({
                 label: 'Adoption',
