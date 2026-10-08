@@ -4,11 +4,13 @@ import {
     NotFoundError,
     ParameterError,
     truncateForMessage,
+    wouldCreateCycle,
     type CreateDepartment,
     type Department,
     type DepartmentGroupLink,
     type DepartmentOwner,
     type DepartmentOwnerInput,
+    type DepartmentTreeNode,
     type OrganizationMemberRole,
     type ResolvedMemberRow,
     type UpdateDepartment,
@@ -27,6 +29,9 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { UserTableName } from '../database/entities/users';
 
 const UNIQUE_VIOLATION = '23505';
+// Transaction-scoped, so it is released on commit or rollback
+const ORGANIZATION_LOCK_SQL =
+    'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))';
 
 type Deps = { database: Knex };
 
@@ -204,50 +209,45 @@ export class DepartmentModel {
         return department;
     }
 
-    private async assertParentInOrg(
+    // Every department write in an organization takes this lock first, so the checks and the write
+    // of one cannot interleave with another's (two moves storing a cycle, for example)
+    private async inOrganizationLock<T>(
         organizationUuid: string,
-        parentDepartmentUuid: string,
-    ): Promise<void> {
-        const [row] = await this.database(DepartmentTableName)
-            .where({
-                organization_uuid: organizationUuid,
-                department_uuid: parentDepartmentUuid,
-            })
-            .select('department_uuid');
-        if (!row) {
-            throw new ParameterError(
-                `Department ${parentDepartmentUuid} is not in this organization`,
-            );
-        }
+        write: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw(ORGANIZATION_LOCK_SQL, [
+                `organization-departments:${organizationUuid}`,
+            ]);
+            return write(trx);
+        });
     }
 
-    // Walks up from the new parent; reaching the moved department means a cycle
-    private async assertNoCycle(
+    private static async getTree(
         organizationUuid: string,
-        departmentUuid: string,
-        newParentUuid: string,
-    ): Promise<void> {
-        const result = await this.database.raw<{
-            rows: { department_uuid: string }[];
-        }>(
-            `
-            WITH RECURSIVE ancestors AS (
-                SELECT department_uuid, parent_department_uuid
-                FROM organization_departments
-                WHERE department_uuid = ? AND organization_uuid = ?
-                UNION
-                SELECT d.department_uuid, d.parent_department_uuid
-                FROM organization_departments d
-                JOIN ancestors a ON d.department_uuid = a.parent_department_uuid
-                WHERE d.organization_uuid = ?
-            )
-            SELECT department_uuid FROM ancestors WHERE department_uuid = ? LIMIT 1
-            `,
-            [newParentUuid, organizationUuid, organizationUuid, departmentUuid],
-        );
-        if (result.rows.length > 0) {
+        db: Knex,
+    ): Promise<DepartmentTreeNode[]> {
+        const rows = await db(DepartmentTableName)
+            .where('organization_uuid', organizationUuid)
+            .select<
+                {
+                    department_uuid: string;
+                    parent_department_uuid: string | null;
+                }[]
+            >('department_uuid', 'parent_department_uuid');
+        return rows.map((row) => ({
+            departmentUuid: row.department_uuid,
+            parentDepartmentUuid: row.parent_department_uuid,
+        }));
+    }
+
+    private static assertParentInTree(
+        tree: DepartmentTreeNode[],
+        parentDepartmentUuid: string,
+    ): void {
+        if (!tree.some((n) => n.departmentUuid === parentDepartmentUuid)) {
             throw new ParameterError(
-                'A department cannot sit under itself or one of its sub-departments',
+                `Department ${parentDepartmentUuid} is not in this organization`,
             );
         }
     }
@@ -257,37 +257,40 @@ export class DepartmentModel {
         data: CreateDepartment,
         updatedByUserUuid: string,
     ): Promise<Department> {
-        if (data.parentDepartmentUuid !== null) {
-            await this.assertParentInOrg(
-                organizationUuid,
-                data.parentDepartmentUuid,
-            );
-        }
-        try {
-            const [created] = await this.database(DepartmentTableName)
-                .insert({
-                    organization_uuid: organizationUuid,
-                    parent_department_uuid: data.parentDepartmentUuid,
-                    name: data.name.trim(),
-                    headcount: data.headcount,
-                    headcount_note: normalizeNote(data.headcountNote),
-                    target_active_users: data.targetActiveUsers,
-                    target_date: data.targetDate,
-                    updated_by_user_uuid: updatedByUserUuid,
-                })
-                .returning('department_uuid');
-            return await this.getByUuid(
-                organizationUuid,
-                created.department_uuid,
-            );
-        } catch (e) {
-            if (isUniqueViolation(e)) {
-                throw new AlreadyExistsError(
-                    `A department named "${truncateForMessage(data.name.trim())}" already exists`,
-                );
-            }
-            throw e;
-        }
+        const departmentUuid = await this.inOrganizationLock(
+            organizationUuid,
+            async (trx) => {
+                if (data.parentDepartmentUuid !== null) {
+                    DepartmentModel.assertParentInTree(
+                        await DepartmentModel.getTree(organizationUuid, trx),
+                        data.parentDepartmentUuid,
+                    );
+                }
+                try {
+                    const [created] = await trx(DepartmentTableName)
+                        .insert({
+                            organization_uuid: organizationUuid,
+                            parent_department_uuid: data.parentDepartmentUuid,
+                            name: data.name.trim(),
+                            headcount: data.headcount,
+                            headcount_note: normalizeNote(data.headcountNote),
+                            target_active_users: data.targetActiveUsers,
+                            target_date: data.targetDate,
+                            updated_by_user_uuid: updatedByUserUuid,
+                        })
+                        .returning('department_uuid');
+                    return created.department_uuid;
+                } catch (e) {
+                    if (isUniqueViolation(e)) {
+                        throw new AlreadyExistsError(
+                            `A department named "${truncateForMessage(data.name.trim())}" already exists`,
+                        );
+                    }
+                    throw e;
+                }
+            },
+        );
+        return this.getByUuid(organizationUuid, departmentUuid);
     }
 
     async update(
@@ -296,48 +299,62 @@ export class DepartmentModel {
         data: UpdateDepartment,
         updatedByUserUuid: string,
     ): Promise<Department> {
-        await this.getRow(organizationUuid, departmentUuid);
         const parent = data.parentDepartmentUuid;
-        if (parent !== undefined && parent !== null) {
-            await this.assertParentInOrg(organizationUuid, parent);
-            await this.assertNoCycle(organizationUuid, departmentUuid, parent);
-        }
-        try {
-            await this.database(DepartmentTableName)
-                .where({
-                    organization_uuid: organizationUuid,
-                    department_uuid: departmentUuid,
-                })
-                .update({
-                    ...(data.name !== undefined
-                        ? { name: data.name.trim() }
-                        : {}),
-                    ...(parent !== undefined
-                        ? { parent_department_uuid: parent }
-                        : {}),
-                    ...(data.headcount !== undefined
-                        ? { headcount: data.headcount }
-                        : {}),
-                    ...(data.headcountNote !== undefined
-                        ? { headcount_note: normalizeNote(data.headcountNote) }
-                        : {}),
-                    ...(data.targetActiveUsers !== undefined
-                        ? { target_active_users: data.targetActiveUsers }
-                        : {}),
-                    ...(data.targetDate !== undefined
-                        ? { target_date: data.targetDate }
-                        : {}),
-                    updated_by_user_uuid: updatedByUserUuid,
-                    updated_at: new Date(),
-                });
-        } catch (e) {
-            if (isUniqueViolation(e)) {
-                throw new AlreadyExistsError(
-                    `A department named "${truncateForMessage(data.name?.trim() ?? '')}" already exists`,
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await this.getRow(organizationUuid, departmentUuid, trx);
+            if (parent !== undefined && parent !== null) {
+                const tree = await DepartmentModel.getTree(
+                    organizationUuid,
+                    trx,
                 );
+                DepartmentModel.assertParentInTree(tree, parent);
+                if (wouldCreateCycle(tree, departmentUuid, parent)) {
+                    throw new ParameterError(
+                        'A department cannot sit under itself or one of its sub-departments',
+                    );
+                }
             }
-            throw e;
-        }
+            try {
+                await trx(DepartmentTableName)
+                    .where({
+                        organization_uuid: organizationUuid,
+                        department_uuid: departmentUuid,
+                    })
+                    .update({
+                        ...(data.name !== undefined
+                            ? { name: data.name.trim() }
+                            : {}),
+                        ...(parent !== undefined
+                            ? { parent_department_uuid: parent }
+                            : {}),
+                        ...(data.headcount !== undefined
+                            ? { headcount: data.headcount }
+                            : {}),
+                        ...(data.headcountNote !== undefined
+                            ? {
+                                  headcount_note: normalizeNote(
+                                      data.headcountNote,
+                                  ),
+                              }
+                            : {}),
+                        ...(data.targetActiveUsers !== undefined
+                            ? { target_active_users: data.targetActiveUsers }
+                            : {}),
+                        ...(data.targetDate !== undefined
+                            ? { target_date: data.targetDate }
+                            : {}),
+                        updated_by_user_uuid: updatedByUserUuid,
+                        updated_at: new Date(),
+                    });
+            } catch (e) {
+                if (isUniqueViolation(e)) {
+                    throw new AlreadyExistsError(
+                        `A department named "${truncateForMessage(data.name?.trim() ?? '')}" already exists`,
+                    );
+                }
+                throw e;
+            }
+        });
         return this.getByUuid(organizationUuid, departmentUuid);
     }
 
@@ -345,7 +362,7 @@ export class DepartmentModel {
         organizationUuid: string,
         departmentUuid: string,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
             const row = await this.getRow(
                 organizationUuid,
                 departmentUuid,
@@ -367,12 +384,13 @@ export class DepartmentModel {
         });
     }
 
-    private async assertGroupsInOrg(
+    private static async assertGroupsInOrg(
         organizationUuid: string,
         groupUuids: string[],
+        db: Knex,
     ): Promise<void> {
         if (groupUuids.length === 0) return;
-        const found = await this.database(GroupTableName)
+        const found = await db(GroupTableName)
             .innerJoin(
                 OrganizationTableName,
                 `${GroupTableName}.organization_id`,
@@ -393,12 +411,13 @@ export class DepartmentModel {
         }
     }
 
-    private async assertUsersInOrg(
+    private static async assertUsersInOrg(
         organizationUuid: string,
         userUuids: string[],
+        db: Knex,
     ): Promise<void> {
         if (userUuids.length === 0) return;
-        const found = await this.database(OrganizationMembershipsTableName)
+        const found = await db(OrganizationMembershipsTableName)
             .innerJoin(
                 UserTableName,
                 `${OrganizationMembershipsTableName}.user_id`,
@@ -431,9 +450,13 @@ export class DepartmentModel {
         groupUuids: string[],
     ): Promise<Department> {
         const unique = Array.from(new Set(groupUuids));
-        await this.assertGroupsInOrg(organizationUuid, unique);
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertGroupsInOrg(
+                organizationUuid,
+                unique,
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
             // A group maps to one department, so take it from any other
             await trx(DepartmentLinkTableName)
                 .where('link_type', 'group')
@@ -461,9 +484,13 @@ export class DepartmentModel {
         userUuids: string[],
     ): Promise<Department> {
         const unique = Array.from(new Set(userUuids));
-        await this.assertUsersInOrg(organizationUuid, unique);
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertUsersInOrg(
+                organizationUuid,
+                unique,
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
             // One explicit assignment per user per org
             const orgDepartments = trx(DepartmentTableName)
                 .select('department_uuid')
@@ -499,16 +526,18 @@ export class DepartmentModel {
             seen.add(key);
             return true;
         });
-        await this.assertUsersInOrg(
-            organizationUuid,
-            unique.filter((o) => o.type === 'user').map((o) => o.uuid),
-        );
-        await this.assertGroupsInOrg(
-            organizationUuid,
-            unique.filter((o) => o.type === 'group').map((o) => o.uuid),
-        );
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertUsersInOrg(
+                organizationUuid,
+                unique.filter((o) => o.type === 'user').map((o) => o.uuid),
+                trx,
+            );
+            await DepartmentModel.assertGroupsInOrg(
+                organizationUuid,
+                unique.filter((o) => o.type === 'group').map((o) => o.uuid),
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
             await trx(DepartmentOwnerTableName)
                 .where('department_uuid', departmentUuid)
                 .delete();

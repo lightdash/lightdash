@@ -35,7 +35,9 @@ Membership is never stored. It is resolved on every read.
 
 ### Tree
 
-Departments form a tree. A department with no parent is at the top. A department cannot be its own parent or sit under one of its descendants; `DepartmentModel.update` rejects both with a 400 using a recursive query. Deleting a department moves its sub-departments up one level, to the deleted department's parent. The foreign key is `ON DELETE SET NULL` only as a fallback.
+Departments form a tree. A department with no parent is at the top. A department cannot be its own parent or sit under one of its descendants; `DepartmentModel.update` rejects both with a 400. Deleting a department moves its sub-departments up one level, to the deleted department's parent. The foreign key is `ON DELETE SET NULL` only as a fallback.
+
+Every department write (create, edit, delete, and setting linked groups, assigned people or owners) runs in one transaction that first takes a per-organization advisory lock (`pg_advisory_xact_lock(hashtextextended('organization-departments:<organization uuid>', 0))`). The existence, parent and cycle checks then read the organization's tree inside that transaction, before the write. Writes in one organization therefore run one at a time, so two moves at the same moment cannot store a cycle and two assignments of the same person cannot both stand. The lock is released on commit or rollback, and writes in different organizations do not wait for each other.
 
 The tree helpers (ancestors, descendants, cycle check, effective headcount, roll-up) are pure functions in `packages/common/src/departments/departmentTree.ts`.
 
@@ -148,8 +150,7 @@ The sidebar entry and the routes are added only when the instance has a valid en
 
 ## Known limits
 
-- Moving departments concurrently can store a cycle. The cycle check runs before the update with no per-organization lock, so two moves in opposite directions at the same moment can both pass.
-- Assigning people concurrently can leave a person with two explicit assignments, because the one-assignment rule is application code with no constraint behind it.
+- The one-assignment-per-person rule is application code with no constraint behind it. It holds because every write goes through `DepartmentModel` under the per-organization lock; a row written to `department_members` by any other path would not be checked.
 - A scheduled chart or dashboard run still writes a chart view (and possibly a dashboard view) under its owner, and those rows carry nothing that tells a scheduled run from a person. The weekly trend is built from views only, so a weekly schedule makes its owner show as active every week, and it can keep them active in the 30-day count too.
 - `query_history` does not record whether a query came from a data app or a schedule that reused an interactive context, so such a run still counts as a query.
 - Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.

@@ -2,7 +2,7 @@
 import { AlreadyExistsError, ParameterError } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     DepartmentLinkTableName,
     DepartmentMemberTableName,
@@ -32,6 +32,11 @@ const departmentRow = (over: Record<string, unknown> = {}) => ({
 const SELECT_DEPARTMENTS = new RegExp(
     `^select .* from "${DepartmentTableName}"`,
 );
+// The organization's tree, read inside the write's transaction for the parent and cycle checks
+const SELECT_TREE = new RegExp(
+    `^select "department_uuid", "parent_department_uuid" from "${DepartmentTableName}"`,
+);
+const LOCK = /pg_advisory_xact_lock/;
 
 describe('DepartmentModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -39,6 +44,9 @@ describe('DepartmentModel', () => {
     let tracker: Tracker;
     beforeAll(() => {
         tracker = getTracker();
+    });
+    beforeEach(() => {
+        tracker.on.any(LOCK).response([]);
     });
     afterEach(() => {
         tracker.reset();
@@ -111,11 +119,13 @@ describe('DepartmentModel', () => {
     });
 
     it('rejects moving a department under its own descendant', async () => {
+        // dep ── child ── grandchild
+        tracker.on.select(SELECT_TREE).response([
+            { department_uuid: 'dep', parent_department_uuid: null },
+            { department_uuid: 'child', parent_department_uuid: 'dep' },
+            { department_uuid: 'grandchild', parent_department_uuid: 'child' },
+        ]);
         tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
-        // The walk up from the new parent reaches the department being moved
-        tracker.on
-            .any(/with recursive/i)
-            .response({ rows: [{ department_uuid: 'dep' }] });
         await expect(
             model.update(
                 'org',
@@ -433,6 +443,118 @@ describe('DepartmentModel', () => {
         expect(check?.sql).not.toContain('is_active');
         expect(check?.sql).not.toContain('is_verified');
         expect(tracker.history.insert).toHaveLength(1);
+    });
+
+    describe('the per-organization lock', () => {
+        const PARENT = 'parent';
+        const respondToEveryRead = () => {
+            tracker.on.select(SELECT_TREE).response([
+                { department_uuid: 'dep', parent_department_uuid: null },
+                { department_uuid: PARENT, parent_department_uuid: null },
+            ]);
+            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+            tracker.on
+                .select(/^select "groups"."group_uuid"/)
+                .response([{ group_uuid: 'g1' }]);
+            tracker.on
+                .select(OrganizationMembershipsTableName)
+                .response([{ user_uuid: 'u1' }]);
+            tracker.on.select(/from "department_/).response([]);
+            tracker.on.insert(/.*/).response([{ department_uuid: 'dep' }]);
+            tracker.on.update(/.*/).response(1);
+            tracker.on.delete(/.*/).response(1);
+        };
+        const newDepartment = {
+            name: 'Ops',
+            parentDepartmentUuid: PARENT,
+            headcount: null,
+            headcountNote: null,
+            targetActiveUsers: null,
+            targetDate: null,
+        };
+
+        it.each([
+            ['create', () => model.create('org', newDepartment, 'user')],
+            [
+                'update',
+                () =>
+                    model.update(
+                        'org',
+                        'dep',
+                        { parentDepartmentUuid: PARENT },
+                        'user',
+                    ),
+            ],
+            ['delete', () => model.delete('org', 'dep')],
+            ['setGroupLinks', () => model.setGroupLinks('org', 'dep', ['g1'])],
+            ['setMembers', () => model.setMembers('org', 'dep', ['u1'])],
+            [
+                'setOwners',
+                () =>
+                    model.setOwners('org', 'dep', [
+                        { type: 'user', uuid: 'u1' },
+                        { type: 'group', uuid: 'g1' },
+                    ]),
+            ],
+        ])(
+            '%s takes the organization lock first, then checks and writes in the same transaction',
+            async (_name, write) => {
+                respondToEveryRead();
+                await write();
+
+                expect(tracker.history.transactions).toHaveLength(1);
+                const [transaction] = tracker.history.transactions;
+                expect(transaction.state).toBe('committed');
+                const [lock, ...rest] = transaction.queries;
+                expect(lock.sql).toBe(
+                    'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+                );
+                expect(lock.bindings).toEqual(['organization-departments:org']);
+                // Nothing is written outside the locked transaction
+                [
+                    ...tracker.history.insert,
+                    ...tracker.history.update,
+                    ...tracker.history.delete,
+                ].forEach((query) => expect(rest).toContain(query));
+                expect(rest.length).toBeGreaterThan(0);
+            },
+        );
+
+        it('reads the tree for the parent and cycle checks inside the lock', async () => {
+            respondToEveryRead();
+            await model.update(
+                'org',
+                'dep',
+                { parentDepartmentUuid: PARENT },
+                'user',
+            );
+            const [transaction] = tracker.history.transactions;
+            const treeIndex = transaction.queries.findIndex((q) =>
+                SELECT_TREE.test(q.sql),
+            );
+            expect(treeIndex).toBeGreaterThan(0);
+            expect(transaction.queries[treeIndex].bindings).toEqual(['org']);
+        });
+
+        it('rolls back without writing when a check inside the lock fails', async () => {
+            tracker.on.select(SELECT_TREE).response([
+                { department_uuid: 'dep', parent_department_uuid: null },
+                { department_uuid: 'child', parent_department_uuid: 'dep' },
+            ]);
+            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+            await expect(
+                model.update(
+                    'org',
+                    'dep',
+                    { parentDepartmentUuid: 'child' },
+                    'user',
+                ),
+            ).rejects.toThrow(ParameterError);
+            const [transaction] = tracker.history.transactions;
+            expect(transaction.state).toBe('rolled back');
+            expect(LOCK.test(transaction.queries[0].sql)).toBe(true);
+            expect(tracker.history.update).toHaveLength(0);
+        });
     });
 
     it('maps resolved member rows and defaults missing group links to empty', async () => {
