@@ -97,7 +97,7 @@
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",

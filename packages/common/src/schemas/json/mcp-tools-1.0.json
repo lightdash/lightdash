@@ -78,6 +78,7 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "version",
                                     "contentType",
                                     "verified",
                                     "tiles",
@@ -163,6 +164,7 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "version",
                                     "contentType",
                                     "verified",
                                     "tableName",
@@ -383,15 +385,8 @@
                         "type": "string"
                     },
                     "verifiedOnly": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content."
+                        "description": "Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content.",
+                        "type": ["boolean", "null"]
                     }
                 },
                 "required": ["searchQueries"],
@@ -428,16 +423,9 @@
                         "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts."
                     },
                     "dashboardSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard."
+                        "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+                        "type": ["string", "null"]
                     },
                     "name": {
                         "description": "Display name for the app: a headline-short title, in title case, naming what the app shows (\"Revenue Overview\"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
@@ -466,16 +454,9 @@
                         "description": "Starter template the builder would use: \"dashboard\" for a dashboard-style app, \"slideshow\" for a slide show, \"pdf\" for a PDF report, \"custom\" for anything else. Omit when the user did not ask for one."
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build."
+                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["name", "prompt"],
@@ -572,26 +553,12 @@
                 "additionalProperties": false,
                 "properties": {
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Set once status is \"error\"; null otherwise."
+                        "description": "Set once status is \"error\"; null otherwise.",
+                        "type": ["string", "null"]
                     },
                     "prUrl": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "URL of the pull request opened from the agent changes, set once status is \"ready\"; null if the agent made no file changes or the run has not finished yet."
+                        "description": "URL of the pull request opened from the agent changes, set once status is \"ready\"; null if the agent made no file changes or the run has not finished yet.",
+                        "type": ["string", "null"]
                     },
                     "status": {
                         "description": "\"pending\" | a pipeline stage (e.g. \"sandbox\", \"agent\", \"pull_request\") | \"ready\" | \"error\" | \"cancelled\".",
@@ -697,14 +664,7 @@
                                                 "type": "string"
                                             },
                                             "description": {
-                                                "anyOf": [
-                                                    {
-                                                        "type": "string"
-                                                    },
-                                                    {
-                                                        "type": "null"
-                                                    }
-                                                ]
+                                                "type": ["string", "null"]
                                             },
                                             "name": {
                                                 "type": "string"
@@ -734,14 +694,7 @@
                                     "type": "array"
                                 },
                                 "expiresAt": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -840,15 +793,8 @@
                 "additionalProperties": false,
                 "properties": {
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Why the build failed. Set only when status is \"error\"."
+                        "description": "Why the build failed. Set only when status is \"error\".",
+                        "type": ["string", "null"]
                     },
                     "href": {
                         "description": "URL to open the app in Lightdash.",
@@ -1044,27 +990,13 @@
                                             "type": "string"
                                         },
                                         "description": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "exploreId": {
                                             "type": "string"
                                         },
                                         "hint": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "joinedTables": {
                                             "items": {
@@ -1112,13 +1044,9 @@
                                                         ]
                                                     },
                                                     "description": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
@@ -1134,13 +1062,9 @@
                                                         "anyOf": [
                                                             {
                                                                 "items": {
-                                                                    "anyOf": [
-                                                                        {
-                                                                            "type": "string"
-                                                                        },
-                                                                        {
-                                                                            "type": "number"
-                                                                        }
+                                                                    "type": [
+                                                                        "string",
+                                                                        "number"
                                                                     ]
                                                                 },
                                                                 "type": "array"
@@ -1285,44 +1209,16 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "caseSensitiveFilters": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "boolean"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["boolean", "null"]
                                         },
                                         "defaultTimeDimension": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "defaultTimeDimensionGranularity": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "description": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "exploreId": {
                                             "type": "string"
@@ -1337,27 +1233,13 @@
                                             "type": "string"
                                         },
                                         "hint": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "isFromJoinedTable": {
                                             "type": "boolean"
                                         },
                                         "joinedTableName": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "kind": {
                                             "enum": ["dimension", "metric"],
@@ -1525,14 +1407,7 @@
                                         "type": "array"
                                     },
                                     "sqlRunnerUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "status": {
                                         "const": "done",
@@ -1553,14 +1428,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "exploreUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "fields": {
                                         "additionalProperties": {},
@@ -1602,14 +1470,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "error": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "queryUuid": {
                                         "format": "uuid",
@@ -1675,15 +1536,8 @@
                         "type": "string"
                     },
                     "exploreName": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The explore the grep was scoped to, or null for all."
+                        "description": "The explore the grep was scoped to, or null for all.",
+                        "type": ["string", "null"]
                     },
                     "fuzzyMatches": {
                         "description": "Catalog-search near matches not already surfaced by the grep.",
@@ -1691,14 +1545,7 @@
                             "additionalProperties": false,
                             "properties": {
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "exploreName": {
                                     "type": "string"
@@ -1713,15 +1560,8 @@
                                     "type": "string"
                                 },
                                 "searchRank": {
-                                    "anyOf": [
-                                        {
-                                            "type": "number"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "Full-text search rank; higher is better."
+                                    "description": "Full-text search rank; higher is better.",
+                                    "type": ["number", "null"]
                                 },
                                 "usageInCharts": {
                                     "type": "number"
@@ -1777,15 +1617,8 @@
                                     "type": "array"
                                 },
                                 "metricAmbiguityNote": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "Warning when similarly named metrics could be confused."
+                                    "description": "Warning when similarly named metrics could be confused.",
+                                    "type": ["string", "null"]
                                 },
                                 "note": {
                                     "description": "The per-pattern summary line.",
@@ -1810,34 +1643,22 @@
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "defaultTimeDimension": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
-                                                            ],
-                                                            "description": "Time dimension the metric defaults to, if configured."
+                                                            "description": "Time dimension the metric defaults to, if configured.",
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
                                                         },
                                                         "defaultTimeDimensionGranularity": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         },
                                                         "description": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         },
                                                         "exploreLabel": {
@@ -1854,15 +1675,11 @@
                                                             "type": "string"
                                                         },
                                                         "hint": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
-                                                            ],
-                                                            "description": "The field aiHint, if any."
+                                                            "description": "The field aiHint, if any.",
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
                                                         },
                                                         "kind": {
                                                             "enum": [
@@ -2016,37 +1833,16 @@
                                     "type": "object"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "similarity": {
                                     "type": "number"
                                 },
                                 "title": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "verifiedQuestion": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 }
                             },
                             "required": [
@@ -2104,32 +1900,18 @@
                         "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts."
                     },
                     "dashboardSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard."
+                        "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+                        "type": ["string", "null"]
                     },
                     "prompt": {
                         "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
                         "type": "string"
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme."
+                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["appSlug", "prompt"],
@@ -2228,15 +2010,8 @@
                             "additionalProperties": false,
                             "properties": {
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "What it looks like."
+                                    "description": "What it looks like.",
+                                    "type": ["string", "null"]
                                 },
                                 "isDefault": {
                                     "description": "Whether this theme applies when themeSlug is omitted.",
@@ -2764,28 +2539,14 @@
                                 "type": "string"
                             },
                             "secondaryYAxisLabel": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "A helpful label for the secondary y-axis"
+                                "description": "A helpful label for the secondary y-axis",
+                                "type": ["string", "null"]
                             },
                             "secondaryYAxisMetric": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                                "type": ["string", "null"]
                             },
                             "stackBars": {
                                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -2860,14 +2621,7 @@
                                 ]
                             },
                             "exploreUrl": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ]
+                                "type": ["string", "null"]
                             },
                             "queryUuid": {
                                 "format": "uuid",
@@ -2939,14 +2693,7 @@
                 "additionalProperties": false,
                 "properties": {
                     "agentDescription": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
+                        "type": ["string", "null"]
                     },
                     "agentName": {
                         "type": "string"
@@ -2984,14 +2731,7 @@
                                     "type": "string"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -3013,14 +2753,7 @@
                         "type": "array"
                     },
                     "instruction": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
+                        "type": ["string", "null"]
                     },
                     "reasoning": {
                         "type": "string"
@@ -3080,26 +2813,12 @@
                         "type": "string"
                     },
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Why the run failed, or null on success. Only present on the completed result of a task-augmented call."
+                        "description": "Why the run failed, or null on success. Only present on the completed result of a task-augmented call.",
+                        "type": ["string", "null"]
                     },
                     "prUrl": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call."
+                        "description": "URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.",
+                        "type": ["string", "null"]
                     },
                     "status": {
                         "description": "Final run status. Only present on the completed result of a task-augmented call.",
@@ -3435,28 +3154,14 @@
                                 "type": "string"
                             },
                             "secondaryYAxisLabel": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "A helpful label for the secondary y-axis"
+                                "description": "A helpful label for the secondary y-axis",
+                                "type": ["string", "null"]
                             },
                             "secondaryYAxisMetric": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                                "type": ["string", "null"]
                             },
                             "stackBars": {
                                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -4242,9 +3947,17 @@
                                                                                                     "type": "string"
                                                                                                 },
                                                                                                 {
-                                                                                                    "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                                    "type": "string"
+                                                                                                    "anyOf": [
+                                                                                                        {
+                                                                                                            "format": "date-time",
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        }
+                                                                                                    ]
                                                                                                 }
                                                                                             ],
                                                                                             "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -4542,9 +4255,17 @@
                                                                                                     "type": "string"
                                                                                                 },
                                                                                                 {
-                                                                                                    "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                                    "type": "string"
+                                                                                                    "anyOf": [
+                                                                                                        {
+                                                                                                            "format": "date-time",
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        }
+                                                                                                    ]
                                                                                                 }
                                                                                             ],
                                                                                             "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -4610,9 +4331,17 @@
                                                                                                     "type": "string"
                                                                                                 },
                                                                                                 {
-                                                                                                    "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                                    "type": "string"
+                                                                                                    "anyOf": [
+                                                                                                        {
+                                                                                                            "format": "date-time",
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                                            "type": "string"
+                                                                                                        }
+                                                                                                    ]
                                                                                                 }
                                                                                             ],
                                                                                             "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -4728,7 +4457,8 @@
                                                 "kind",
                                                 "baseMetricId",
                                                 "timeDimensionId",
-                                                "granularity"
+                                                "granularity",
+                                                "periodOffset"
                                             ],
                                             "type": "object"
                                         }
@@ -5474,9 +5204,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -5774,9 +5512,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -5842,9 +5588,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -6593,9 +6347,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -6893,9 +6655,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -6961,9 +6731,17 @@
                                                                                 "type": "string"
                                                                             },
                                                                             {
-                                                                                "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                                "type": "string"
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "format": "date-time",
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    {
+                                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                ]
                                                                             }
                                                                         ],
                                                                         "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -7454,16 +7232,9 @@
                                             "type": "string"
                                         },
                                         "nullsFirst": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "boolean"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ],
                                             "default": null,
-                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default"
+                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
+                                            "type": ["boolean", "null"]
                                         }
                                     },
                                     "required": ["fieldId", "descending"],
@@ -7547,14 +7318,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "exploreUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "fields": {
                                         "additionalProperties": {},
@@ -7694,14 +7458,7 @@
                                         "type": "array"
                                     },
                                     "sqlRunnerUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "status": {
                                         "const": "done",
@@ -8500,9 +8257,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -8800,9 +8565,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -8868,9 +8641,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -9619,9 +9400,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -9919,9 +9708,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."
@@ -9987,9 +9784,17 @@
                                                                         "type": "string"
                                                                     },
                                                                     {
-                                                                        "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                                                                        "type": "string"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "format": "date-time",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                                                "type": "string"
+                                                                            },
+                                                                            {
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
                                                                     }
                                                                 ],
                                                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like \"last 2 weeks\" here."

@@ -335,6 +335,27 @@ describe('resolveFilterExpressionArgs', () => {
         ]);
     });
 
+    it('accepts minute-precision datetimes in filter expressions', async () => {
+        const data = await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: "orders_order_date equals='2025-01-01T06:15Z'",
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(data.persistedArgs.queryConfig.filters).toMatchObject({
+            dimensions: [
+                {
+                    fieldId: 'orders_order_date',
+                    values: ['2025-01-01T06:15Z'],
+                },
+            ],
+        });
+    });
+
     it('omits values in raw presence rules and preserves canonical transformed empty values', async () => {
         const data = await expectResolved(
             expressionArgs({
