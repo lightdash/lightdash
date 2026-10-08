@@ -20,6 +20,7 @@ import type {
     RunSqlJobFn,
     SendFileFn,
     StoreToolResultsFn,
+    TrackSqlApprovalTimeoutFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
@@ -44,6 +45,7 @@ type Dependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
@@ -133,6 +135,7 @@ export const getRunSql = ({
     waitForSqlApproval,
     recordSqlApproval,
     isThreadSqlAutoApproved,
+    trackSqlApprovalTimeout,
     storeToolResults,
     createOrUpdateArtifact,
     maxQueryLimit,
@@ -303,6 +306,12 @@ export const getRunSql = ({
                 }
                 if (decision === 'timeout') {
                     sqlApprovalTimedOut = true;
+                    trackSqlApprovalTimeout({
+                        toolCallId,
+                        toolName: 'runSql',
+                        promptedUserUuid: prompt.createdByUserUuid,
+                        source: isSlack ? 'slack' : 'web',
+                    });
                     await renderState({ kind: 'timeout', sql });
                     return await persistResumeResult(
                         nonSuccessOutput(

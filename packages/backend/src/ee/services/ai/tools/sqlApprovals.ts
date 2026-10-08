@@ -22,10 +22,20 @@ export const isSqlApprovalToolName = (
 ): toolName is SqlApprovalToolName =>
     toolName === 'runSql' || toolName === 'runComposerQueries';
 
-/** `approved_always` is "approve & don't ask again"; it is stored as `approved`. */
+/** `approved_always` is stored as `approved`; `timed_out` is tracked but never stored. */
 export type SqlApprovalDecisionKind = SqlApprovalDecidedProperties['decision'];
 
+export type StorableSqlApprovalDecisionKind = Exclude<
+    SqlApprovalDecisionKind,
+    'timed_out'
+>;
+
 export type SqlApprovalDecisionSource = SqlApprovalDecidedProperties['source'];
+
+export type SqlPromptedApprovalSource = Extract<
+    SqlApprovalDecisionSource,
+    'web' | 'slack'
+>;
 
 export type SqlAutoApprovalSource = Extract<
     SqlApprovalDecisionSource,
@@ -41,20 +51,25 @@ export type SqlApprovalDecisionRecord = {
     toolName: SqlApprovalToolName;
     decision: SqlApprovalDecisionKind;
     source: SqlApprovalDecisionSource;
-    decidedByUserUuid: string | null;
+    // The deciding user, or for timeouts the user who was asked.
+    userUuid: string | null;
+};
+
+export type StorableSqlApprovalDecisionRecord = SqlApprovalDecisionRecord & {
+    decision: StorableSqlApprovalDecisionKind;
 };
 
 export const toStoredSqlApprovalDecision = (
-    decision: SqlApprovalDecisionKind,
+    decision: StorableSqlApprovalDecisionKind,
 ): AiSqlApprovalDecision => (decision === 'rejected' ? 'rejected' : 'approved');
 
 export const buildSqlApprovalDecidedEvent = (
     record: SqlApprovalDecisionRecord,
 ): AiAgentSqlApprovalDecidedEvent => ({
     event: 'ai_agent.sql_approval_decided',
-    ...(record.decidedByUserUuid === null
+    ...(record.userUuid === null
         ? { anonymousId: LightdashAnalytics.anonymousId }
-        : { userId: record.decidedByUserUuid }),
+        : { userId: record.userUuid }),
     properties: {
         organizationId: record.organizationUuid,
         projectId: record.projectUuid,

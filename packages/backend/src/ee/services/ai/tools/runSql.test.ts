@@ -104,6 +104,7 @@ const makeTool = ({
         waitForSqlApproval,
         recordSqlApproval,
         isThreadSqlAutoApproved,
+        trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
@@ -260,6 +261,26 @@ describe('getRunSql', () => {
             sql: 'select 1 as answer',
             limit: 2000,
         });
+    });
+
+    it('tracks a timed-out approval against the prompted Slack user', async () => {
+        const waitForSqlApproval = vi.fn().mockResolvedValue('timeout');
+        const { tool, dependencies } = makeTool({
+            waitForSqlApproval,
+            prompt: makeSlackPrompt(),
+        });
+
+        await executeRunSql(tool);
+
+        expect(
+            dependencies.trackSqlApprovalTimeout,
+        ).toHaveBeenCalledExactlyOnceWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            promptedUserUuid: 'user-uuid',
+            source: 'slack',
+        });
+        expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
     });
 
     it('does not open another approval wait after approval times out', async () => {

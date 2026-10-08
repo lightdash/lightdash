@@ -26,6 +26,7 @@ import type {
     ListThreadComposerPipelinesFn,
     RecordSqlApprovalFn,
     RunComposerQueriesFn,
+    TrackSqlApprovalTimeoutFn,
     UpdateProgressFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
@@ -45,6 +46,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerPipelines: ListThreadComposerPipelinesFn;
     maxQueryLimit: number;
@@ -122,6 +124,7 @@ export const getRunComposerQueries = ({
     getPrompt,
     waitForSqlApproval,
     recordSqlApproval,
+    trackSqlApprovalTimeout,
     createOrUpdateArtifact,
     listThreadComposerPipelines,
     maxQueryLimit,
@@ -209,6 +212,13 @@ export const getRunComposerQueries = ({
                         }
                         if (decision === 'timeout') {
                             sqlApprovalTimedOut = true;
+                            const prompt = await getPrompt();
+                            trackSqlApprovalTimeout({
+                                toolCallId,
+                                toolName: 'runComposerQueries',
+                                promptedUserUuid: prompt.createdByUserUuid,
+                                source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                            });
                             return failure(
                                 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
                                 'timeout',

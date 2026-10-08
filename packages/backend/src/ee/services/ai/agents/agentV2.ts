@@ -1755,6 +1755,7 @@ export const getAgentTools = (
                   waitForSqlApproval: dependencies.waitForSqlApproval,
                   recordSqlApproval: dependencies.recordSqlApproval,
                   isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  trackSqlApprovalTimeout: dependencies.trackSqlApprovalTimeout,
                   storeToolResults: dependencies.storeToolResults,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                   maxQueryLimit: args.runSqlMaxLimit,
@@ -1777,6 +1778,7 @@ export const getAgentTools = (
               getPrompt: dependencies.getPrompt,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              trackSqlApprovalTimeout: dependencies.trackSqlApprovalTimeout,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerPipelines:
                   dependencies.listThreadComposerPipelines,

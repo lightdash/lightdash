@@ -156,6 +156,7 @@ const makeTool = ({
         getPrompt: vi.fn().mockResolvedValue(makePrompt()),
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
+        trackSqlApprovalTimeout: vi.fn(),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
@@ -400,6 +401,23 @@ describe('getRunComposerQueries', () => {
         expect(secondOutput.metadata?.status).toBe('timeout');
         expect(dependencies.waitForSqlApproval).toHaveBeenCalledTimes(1);
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('tracks a timed-out approval against the prompted web user', async () => {
+        const waitForSqlApproval = vi.fn().mockResolvedValue('timeout');
+        const { tool, dependencies } = makeTool({ waitForSqlApproval });
+
+        await executeTool(tool, makeArgs());
+
+        expect(
+            dependencies.trackSqlApprovalTimeout,
+        ).toHaveBeenCalledExactlyOnceWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runComposerQueries',
+            promptedUserUuid: 'user-uuid',
+            source: 'web',
+        });
+        expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
     });
 
     it('rejects non-SELECT sql nodes before approval', async () => {

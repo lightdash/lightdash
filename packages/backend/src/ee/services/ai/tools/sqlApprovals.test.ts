@@ -17,7 +17,7 @@ describe('buildSqlApprovalDecidedEvent', () => {
                 ...baseDecision,
                 decision: 'rejected',
                 source: 'web',
-                decidedByUserUuid: 'user-uuid',
+                userUuid: 'user-uuid',
             }),
         ).toEqual({
             event: 'ai_agent.sql_approval_decided',
@@ -43,7 +43,7 @@ describe('buildSqlApprovalDecidedEvent', () => {
             toolName: 'runComposerQueries',
             decision: 'approved',
             source: 'auto_approve',
-            decidedByUserUuid: 'user-uuid',
+            userUuid: 'user-uuid',
         });
 
         expect(event.userId).toBe('user-uuid');
@@ -60,7 +60,7 @@ describe('buildSqlApprovalDecidedEvent', () => {
             ...baseDecision,
             decision: 'approved',
             source: 'thread_auto_approve',
-            decidedByUserUuid: null,
+            userUuid: null,
         });
 
         expect(event.userId).toBeUndefined();
@@ -69,6 +69,23 @@ describe('buildSqlApprovalDecidedEvent', () => {
             source: 'thread_auto_approve',
             isAutoApproved: true,
             isThreadAutoApproval: true,
+        });
+    });
+
+    it('attributes a timed-out approval to the prompted user as a human decision', () => {
+        const event = buildSqlApprovalDecidedEvent({
+            ...baseDecision,
+            decision: 'timed_out',
+            source: 'slack',
+            userUuid: 'prompted-user-uuid',
+        });
+
+        expect(event.userId).toBe('prompted-user-uuid');
+        expect(event.properties).toMatchObject({
+            decision: 'timed_out',
+            source: 'slack',
+            isAutoApproved: false,
+            isThreadAutoApproval: false,
         });
     });
 });

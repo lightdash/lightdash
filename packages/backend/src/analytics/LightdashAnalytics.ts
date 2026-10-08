@@ -3230,10 +3230,10 @@ export type AiAgentThreadRenamedEvent = BaseTrack & {
     };
 };
 
-/** One row per recorded SQL approval decision; the first decision per tool call wins. */
+/** One row per SQL approval outcome: the first recorded decision per tool call, or a timeout. */
 export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
     event: 'ai_agent.sql_approval_decided';
-    // Absent when nobody decided (thread auto-approval); anonymousId is set instead.
+    // Decider, or the asked user on timeout; anonymousId when absent.
     userId?: string;
     anonymousId?: string;
     properties: {
@@ -3243,7 +3243,7 @@ export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
         threadId: string;
         toolCallId: string;
         toolName: 'runSql' | 'runComposerQueries';
-        decision: 'approved' | 'rejected' | 'approved_always';
+        decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
         source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
         isAutoApproved: boolean;
         isThreadAutoApproval: boolean;

@@ -459,7 +459,7 @@ import {
     buildSqlApprovalDecidedEvent,
     isSqlApprovalToolName,
     toStoredSqlApprovalDecision,
-    type SqlApprovalDecisionRecord,
+    type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
 import {
     AiAgentArgs,
@@ -4205,7 +4205,7 @@ export class AiAgentService extends BaseService {
             toolName,
             decision,
             source: 'web',
-            decidedByUserUuid: user.userUuid,
+            userUuid: user.userUuid,
         });
         this.enqueueMobilePushThreadReconciliation(threadUuid);
         if (!recorded) {
@@ -4224,12 +4224,12 @@ export class AiAgentService extends BaseService {
     }
 
     private async recordSqlApprovalDecision(
-        record: SqlApprovalDecisionRecord,
+        record: StorableSqlApprovalDecisionRecord,
     ): Promise<boolean> {
         const recorded = await this.aiAgentModel.recordSqlApproval(
             record.toolCallId,
             toStoredSqlApprovalDecision(record.decision),
-            record.decidedByUserUuid,
+            record.userUuid,
         );
         if (recorded) {
             this.analytics.track(buildSqlApprovalDecidedEvent(record));
@@ -15534,8 +15534,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     toolName,
                     decision: 'approved',
                     source,
-                    decidedByUserUuid,
+                    userUuid: decidedByUserUuid,
                 }),
+            trackSqlApprovalTimeout: ({
+                toolCallId,
+                toolName,
+                promptedUserUuid,
+                source,
+            }) =>
+                this.analytics.track(
+                    buildSqlApprovalDecidedEvent({
+                        organizationUuid: prompt.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        agentUuid: agentSettings.uuid,
+                        threadUuid: prompt.threadUuid,
+                        toolCallId,
+                        toolName,
+                        decision: 'timed_out',
+                        source,
+                        userUuid: promptedUserUuid,
+                    }),
+                ),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
             loadSkill: async (name, loadOptions) => {
@@ -17766,7 +17785,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return;
                 }
 
-                let decisionRecord: SqlApprovalDecisionRecord;
+                let decisionRecord: StorableSqlApprovalDecisionRecord;
                 try {
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -17823,7 +17842,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         toolName,
                         decision: rawDecision,
                         source: 'slack',
-                        decidedByUserUuid: decidedBy.userUuid,
+                        userUuid: decidedBy.userUuid,
                     };
                 } catch (error) {
                     Logger.warn(
