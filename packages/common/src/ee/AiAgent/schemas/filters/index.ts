@@ -24,12 +24,14 @@ const filterAndOrSchema = z
     .union([z.literal('and'), z.literal('or')])
     .describe('Type of filter group operation');
 
-export const filterRuleSchema = z.union([
-    booleanFilterSchema,
-    stringFilterSchema,
-    numberFilterSchema,
-    dateFilterSchema,
-]);
+export const filterRuleSchema = z
+    .union([
+        booleanFilterSchema,
+        stringFilterSchema,
+        numberFilterSchema,
+        dateFilterSchema,
+    ])
+    .meta({ id: 'FilterRule' });
 
 export type AiFilterRule = FilterRule<
     FilterOperator,
@@ -49,12 +51,14 @@ export const filterRuleSchemaTransformed = filterRuleSchema.transform(
     }),
 );
 
-export const filtersSchemaV2 = z.object({
-    type: filterAndOrSchema,
-    dimensions: z.array(filterRuleSchema).nullable(),
-    metrics: z.array(filterRuleSchema).nullable(),
-    tableCalculations: z.array(numberFilterSchema).nullable(),
-});
+export const filtersSchemaV2 = z
+    .object({
+        type: filterAndOrSchema,
+        dimensions: z.array(filterRuleSchema).nullable(),
+        metrics: z.array(filterRuleSchema).nullable(),
+        tableCalculations: z.array(numberFilterSchema).nullable(),
+    })
+    .meta({ id: 'Filters' });
 
 const filtersSchemaAndFilterRulesTransformed = z
     .object({

@@ -17,7 +17,8 @@ const dateOrDateTimeSchema = z
     .union([z.string().date(), z.string().datetime()])
     .describe(
         'ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.',
-    );
+    )
+    .meta({ id: 'DateFilterValue' });
 
 const commonDateFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
@@ -263,4 +264,4 @@ const dateFilterSchema = z.union([
         ),
 ]);
 
-export default dateFilterSchema;
+export default dateFilterSchema.meta({ id: 'DateFilterRule' });
