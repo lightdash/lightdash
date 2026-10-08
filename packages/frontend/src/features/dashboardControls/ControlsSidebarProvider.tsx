@@ -27,6 +27,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { getLinkKey } from './linkCandidates';
 import { getFilterFields, getTileField, setTileField } from './peers';
 import {
     canKeepFilterRule,
@@ -138,8 +139,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const { track } = useTracking();
+    const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
     // Lives here, never in the dashboard filters, until it gets a mapping
@@ -467,8 +470,26 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     useEffect(() => {
         if (!isEditMode) {
             reset();
+            setDismissedLinks([]);
         }
     }, [isEditMode, reset]);
+
+    const newTileUuids = useMemo(() => {
+        if (!savedTiles || !dashboardTiles) return [];
+        const saved = new Set(savedTiles.map((tile) => tile.uuid));
+        return dashboardTiles
+            .map((tile) => tile.uuid)
+            .filter((uuid) => !saved.has(uuid));
+    }, [savedTiles, dashboardTiles]);
+
+    const dismissLink = useCallback(
+        (tileUuid: string, ruleId: string) =>
+            setDismissedLinks((links) => [
+                ...links,
+                getLinkKey(tileUuid, ruleId),
+            ]),
+        [],
+    );
 
     const editingRule = useMemo(
         () => getEditingRule({ state, placeholder, dashboardFilters }),
@@ -559,6 +580,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isPlaceholder,
             editingRule,
             isSidebarOpen,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
             activeSection,
             setActiveSection,
             open,
@@ -613,6 +637,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             discard,
             close,
             dashboardFilters,
+            newTileUuids,
+            dismissedLinks,
+            dismissLink,
         ],
     );
 

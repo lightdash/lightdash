@@ -26,6 +26,7 @@ const mockDashboardContext = vi.hoisted(() => ({
 }));
 const mockParams = vi.hoisted(() => ({ current: { mode: 'edit' } }));
 const mockTiles = vi.hoisted(() => ({
+    saved: [{ uuid: 't1' }],
     current: [{ uuid: 't1' }],
 }));
 const mockFieldsByTile = vi.hoisted(() => ({
@@ -86,6 +87,7 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
+        dashboard: { tiles: mockTiles.saved },
         dashboardTiles: mockTiles.current,
     };
     latest.filters = dashboardFilters;
@@ -721,7 +723,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(16);
+        expect(Object.keys(initial)).toHaveLength(17);
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
         expect(initial).not.toHaveProperty('clearFields');
@@ -780,5 +782,23 @@ describe('ControlsSidebarProvider', () => {
 
         expect(renders.sliced).toBe(afterOpen.sliced);
         expect(renders.whole).toBe(afterOpen.whole + 4);
+    });
+
+    describe('link prompts', () => {
+        it('a tile is new until the dashboard that holds it is saved', () => {
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            const { result } = setup();
+            expect(result.current.newTileUuids).toEqual(['t2']);
+            mockTiles.current = [{ uuid: 't1' }];
+        });
+
+        it('remembers skipped prompts until edit mode ends', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.dismissLink('t2', 'a'));
+            expect(result.current.dismissedLinks).toEqual(['t2|a']);
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.dismissedLinks).toEqual([]);
+        });
     });
 });
