@@ -173,9 +173,11 @@ export const adaptDeepResearchRun = ({
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
-        findingCount: run.resultMarkdown
-            ? countDeepResearchFindings(run.resultMarkdown)
-            : 0,
+        findingCount:
+            run.metrics.findingsCount ??
+            (run.resultMarkdown
+                ? countDeepResearchFindings(run.resultMarkdown)
+                : 0),
         actionRequired: null,
         latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
