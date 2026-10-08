@@ -280,9 +280,8 @@ describe('typed strings render as text', () => {
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // Inside the department the sub-department's label is drawn whole, a label cut short still draws the
-        // markup as text while a title holds the whole name, and each person's dot is titled with the full name
-        // and labelled with the start of the first name
+        // Inside the department: the sub-department's label is whole, a cut label still draws the markup as text
+        // with the whole name in a title, and each dot is titled with the full name and labelled with the first name
         await userEvent.click(
             screen.getByRole('button', {
                 name: (accessibleName) => accessibleName.startsWith(`${NAME},`),
@@ -384,14 +383,15 @@ describe('typed strings render as text', () => {
         expectLiteral(EMAIL);
         expectLiteral(`Group ${GROUP}`);
 
-        // The note beside the headcount is cut short, and its tooltip gives it whole
+        // The note is shown in full beside the headcount, as text
         const note = screen.getByText(NOTE);
         expect(screen.getByText('Headcount').parentElement).toContainElement(
             note,
         );
-        expect(note).toHaveAttribute('data-truncate', 'end');
-        await userEvent.hover(note);
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(NOTE);
+        expect(note).not.toHaveAttribute('data-truncate');
+        // A dashboard name cut short gives the whole name in its tooltip, as text
+        await userEvent.hover(screen.getByText(DASHBOARD));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(DASHBOARD);
         expectNothingInjected();
     });
 

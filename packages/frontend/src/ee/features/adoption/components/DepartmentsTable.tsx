@@ -33,23 +33,19 @@ import {
     formatTarget,
     type DepartmentRow,
 } from '../utils/departmentRows';
-import { formatCount, formatQuantity, type Noun } from '../utils/format';
+import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
 import { ActivitySparkline } from './ActivitySparkline';
 import styles from './DepartmentsTable.module.css';
 
 const INDENT_PX = 24;
 const EXPANDER_WIDTH = 22;
 const EXPLANATION_MAX_WIDTH = 280;
-// Narrower tables leave out the role split; it stays on the department page and the map inspector
+// Narrower tables leave out the role split, which the department page header and the map inspector also show
 const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
 // Hover, keyboard focus and touch, as the headcount note used to be visible text
 const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
 const BELOW_CHILDREN_WARNING =
     'Headcount is lower than the total of its sub-departments';
-const SUB_DEPARTMENTS: Noun = {
-    one: 'sub-department',
-    other: 'sub-departments',
-};
 
 // Every cell keeps to one line: text that does not fit ends in an ellipsis and shows in full on hover
 const CellText: FC<

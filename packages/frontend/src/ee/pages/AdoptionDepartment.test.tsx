@@ -30,11 +30,6 @@ vi.mock('../features/adoption/components/WeeklyActiveChart', () => ({
         return <div data-testid="weekly-chart" />;
     },
 }));
-// jsdom has no layout, so a note is never measured as cut short on its own
-vi.mock('../../hooks/useIsTruncated', () => ({
-    useIsTruncated: () => ({ ref: { current: null }, isTruncated: true }),
-}));
-
 const WEEK_STARTS = ['2026-09-21', '2026-09-28', '2026-10-05'];
 const LONG_NOTE =
     'Headcount from the HR export of September 2026, contractors and interns excluded, reviewed by the people team';
@@ -43,6 +38,12 @@ const departmentDetail = (): DepartmentDetail => {
     const metrics = metricsFixture(191, 174, {
         activeCount30d: 85,
         activePct: 77,
+        roleSplit: {
+            viewers: 129,
+            interactiveViewers: 40,
+            editors: 20,
+            admins: 2,
+        },
         weeklyActive: WEEK_STARTS.map((weekStart, i) => ({
             weekStart,
             activeUsers: [50, 60, 40][i],
@@ -62,7 +63,10 @@ const departmentDetail = (): DepartmentDetail => {
             dept('Science', DEPARTMENT, null, {
                 headcount: 8,
                 effectiveHeadcount: 8,
-                metrics: metricsFixture(9, 113),
+                metrics: metricsFixture(9, 113, {
+                    activeCount30d: 9,
+                    activePct: 113,
+                }),
             }),
             dept('Engineering', DEPARTMENT, null, {
                 headcount: 34,
@@ -210,13 +214,19 @@ describe('AdoptionDepartment', () => {
                 within(tile).getByText('More accounts than headcount'),
             ).toBeVisible();
         });
-        it('explains coverage above 100% in the sub-department rows', () => {
+        it('explains coverage and activity above 100% in the sub-department rows', () => {
             renderPage();
             const science = screen.getByRole('row', { name: /Science/ });
-            expect(within(science).getByText('113% (9 of 8)')).toBeVisible();
-            expect(
-                within(science).getByText('More accounts than headcount'),
-            ).toBeVisible();
+            // Coverage and Active in 30 days, each with the counts behind it and the reason
+            const [coverage, active] = within(science)
+                .getAllByRole('cell')
+                .slice(1);
+            [coverage, active].forEach((cell) => {
+                expect(within(cell).getByText('113% (9 of 8)')).toBeVisible();
+                expect(
+                    within(cell).getByText('More accounts than headcount'),
+                ).toBeVisible();
+            });
             const engineering = screen.getByRole('row', {
                 name: /Engineering/,
             });
@@ -225,13 +235,80 @@ describe('AdoptionDepartment', () => {
                 within(engineering).queryByText('More accounts than headcount'),
             ).not.toBeInTheDocument();
         });
-        it('shows the headcount note in full on hover when it is cut short', async () => {
+        it('shows activity above the headcount with the counts behind it and says why', () => {
+            const busy = departmentDetail();
+            detail.mockReturnValue(
+                loaded({
+                    ...busy,
+                    department: {
+                        ...busy.department,
+                        metrics: {
+                            ...busy.department.metrics,
+                            activeCount30d: 120,
+                            activePct: 109,
+                        },
+                    },
+                }),
+            );
+            renderPage();
+            const tile = screen.getByRole('group', {
+                name: 'Active in 30 days',
+            });
+            expect(within(tile).getByText('109% (120 of 110)')).toBeVisible();
+            expect(
+                within(tile).getByText(
+                    'More accounts than headcount · 120 of the 191 with an account',
+                ),
+            ).toBeVisible();
+        });
+        it('shows the headcount note in full beside the headcount, with nothing to hover', async () => {
             renderPage();
             const note = screen.getByText(LONG_NOTE);
-            expect(note).toHaveAttribute('data-truncate', 'end');
+            expect(note).toBeVisible();
+            expect(note).not.toHaveAttribute('data-truncate');
+            expect(
+                screen.getByText('Headcount').parentElement,
+            ).toContainElement(note);
             await userEvent.hover(note);
-            expect(await screen.findByRole('tooltip')).toHaveTextContent(
-                LONG_NOTE,
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            await userEvent.hover(screen.getByText('110'));
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+        });
+        it('gives the role split after the headcount and the linked groups', () => {
+            renderPage();
+            const roles = screen.getByText('Roles');
+            expect(roles.parentElement).toHaveTextContent(
+                /^Roles129 viewers, 40 interactive viewers, 20 editors, 2 admins$/,
+            );
+            expect(
+                screen
+                    .getByText('Linked groups')
+                    .compareDocumentPosition(roles) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+        it('leaves roles nobody holds out of the role split', () => {
+            const few = departmentDetail();
+            detail.mockReturnValue(
+                loaded({
+                    ...few,
+                    department: {
+                        ...few.department,
+                        metrics: {
+                            ...few.department.metrics,
+                            roleSplit: {
+                                viewers: 1171,
+                                interactiveViewers: 0,
+                                editors: 1,
+                                admins: 0,
+                            },
+                        },
+                    },
+                }),
+            );
+            renderPage();
+            expect(screen.getByText('Roles').parentElement).toHaveTextContent(
+                /^Roles1,171 viewers, 1 editor$/,
             );
         });
         it('groups thousands in the header', () => {

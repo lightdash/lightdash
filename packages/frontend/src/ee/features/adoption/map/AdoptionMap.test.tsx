@@ -838,6 +838,57 @@ describe('AdoptionMap', () => {
         ).toBeInTheDocument();
     });
 
+    it('explains accounts above headcount in the inspector rows and for the department opened', async () => {
+        // Data has 9 accounts, all active, for a headcount of 8
+        const over = d('Data', null, 8, 9, 9, {
+            metrics: metricsFixture(9, 113, {
+                activeCount30d: 9,
+                activePct: 113,
+                roleSplit: {
+                    viewers: 6,
+                    interactiveViewers: 1,
+                    editors: 2,
+                    admins: 0,
+                },
+            }),
+        });
+        renderMap([over, d('Finance', null, 8, 3, 2)]);
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        const row = (name: string) =>
+            within(details)
+                .getAllByRole('button')
+                .find((each) => each.textContent?.startsWith(name));
+        expect(row('Data')).toHaveTextContent(
+            /^Data9 of 8113%More accounts than headcount$/,
+        );
+        expect(row('Finance')).toHaveTextContent(/^Finance3 of 838%$/);
+        await userEvent.click(screen.getByRole('button', { name: /^Data,/ }));
+        // Under the tiles: why coverage reads above 100%, then the role split
+        expect(
+            within(details).getByText('More accounts than headcount'),
+        ).toBeInTheDocument();
+        expect(
+            within(details).getByText('Active in 30 days').parentElement,
+        ).toHaveTextContent(/^Active in 30 days9113% \(9 of 8\)$/);
+        expect(
+            within(details).getByText(
+                '6 viewers, 1 interactive viewer, 2 editors',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves the role split out of the inspector for a department with nobody on Lightdash', async () => {
+        renderMap([d('Legal', null, 60, 0, 0), d('Finance', null, 8, 3, 2)]);
+        await userEvent.click(screen.getByRole('button', { name: /^Legal,/ }));
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(within(details).queryByText(/viewer|editor|admin/)).toBeNull();
+        expect(within(details).queryByText('No one yet')).toBeNull();
+    });
+
     it('says sizes compare within a department when sub-departments are drawn', async () => {
         renderMap();
         const note = 'Circles are to scale within their department';

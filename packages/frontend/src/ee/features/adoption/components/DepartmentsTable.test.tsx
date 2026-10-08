@@ -123,7 +123,7 @@ describe('DepartmentsTable', () => {
             await screen.findByRole('columnheader', { name: 'Roles' }),
         ).toBeInTheDocument();
         unmount();
-        // Below that it stays on the department page and the map inspector
+        // Below that the department page header and the map inspector still show it
         setTableWidth(1299);
         renderTable();
         await screen.findByRole('columnheader', { name: 'Target' });
@@ -189,7 +189,8 @@ describe('DepartmentsTable', () => {
     it('keeps every cell on one line, shortening long text with the full text in a title', async () => {
         setTableWidth(WIDE);
         const name = 'Customer Success Managers for Enterprise Accounts';
-        const roles = '493 viewers, 169 interactive, 165 editors, 7 admins';
+        const roles =
+            '493 viewers, 169 interactive viewers, 165 editors, 7 admins';
         const target = '300 by 30 Nov 2026';
         renderWithProviders(
             <MemoryRouter>

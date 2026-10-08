@@ -119,7 +119,7 @@ describe('formatters', () => {
                 editors: 1,
                 admins: 0,
             }),
-        ).toBe('5 viewers, 2 interactive, 1 editor');
+        ).toBe('5 viewers, 2 interactive viewers, 1 editor');
     });
     it('groups thousands in the role split', () => {
         expect(
@@ -129,7 +129,17 @@ describe('formatters', () => {
                 editors: 1,
                 admins: 2,
             }),
-        ).toBe('1,317 viewers, 1,200 interactive, 1 editor, 2 admins');
+        ).toBe('1,317 viewers, 1,200 interactive viewers, 1 editor, 2 admins');
+    });
+    it('names one interactive viewer in the singular and leaves out empty roles', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 0,
+                interactiveViewers: 1,
+                editors: 0,
+                admins: 3,
+            }),
+        ).toBe('1 interactive viewer, 3 admins');
     });
     it('shows the first owner and counts the rest', () => {
         expect(formatOwners([])).toBe('–');

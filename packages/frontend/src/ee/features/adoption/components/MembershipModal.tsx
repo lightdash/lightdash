@@ -178,11 +178,17 @@ export const MembershipModal: FC<Props> = ({
                                 disabled={visibleUuids.length === 0}
                                 onChange={toggleEveryoneShown}
                             />
-                            {selectedUuids.length > 0 && (
-                                <Text fz="sm" c="dimmed">
-                                    {selectionLabel}
-                                </Text>
-                            )}
+                            {/* Always present, so a screen reader announces each change to the count */}
+                            <Text
+                                fz="sm"
+                                c="dimmed"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                {selectedUuids.length > 0
+                                    ? selectionLabel
+                                    : null}
+                            </Text>
                         </Group>
                         <Select
                             label="Place selected in"

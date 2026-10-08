@@ -5,7 +5,7 @@ import {
     getParentMap,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
-import { formatCount } from '../utils/format';
+import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
 
 export type MapCard = {
     key: 'biggestGap' | 'furthestBehind' | 'seatsUnused' | 'unplaced';
@@ -34,9 +34,6 @@ const top = (
                 entry.department.name.localeCompare(best.department.name) < 0);
         return isBetter ? { ...entry, score: value } : best;
     }, null);
-
-const people = (count: number): string =>
-    `${formatCount(count)} ${count === 1 ? 'person' : 'people'}`;
 
 // The departments one level below the focus, and every department at or below that level.
 // A department without sub-departments is compared with itself.
@@ -115,7 +112,7 @@ export const computeMapCards = (
         ? {
               key: 'biggestGap',
               title: 'Biggest gap',
-              value: people(gap.score),
+              value: formatQuantity(gap.score, PEOPLE),
               detail: `${gap.label}: ${formatCount(gap.department.metrics.activeCount30d)} of ${formatCount(gap.department.effectiveHeadcount ?? 0)} active`,
               departmentUuid: gap.department.departmentUuid,
           }
@@ -170,7 +167,7 @@ export const computeMapCards = (
         {
             key: 'unplaced',
             title: 'Unplaced people',
-            value: people(unplaced),
+            value: formatQuantity(unplaced, PEOPLE),
             detail:
                 unplaced === 0
                     ? 'Everyone is placed'

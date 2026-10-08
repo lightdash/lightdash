@@ -4,6 +4,7 @@ import { type FC } from 'react';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { formatTopContentUsage } from '../utils/departmentDetail';
 import { type Noun } from '../utils/format';
+import styles from './TopContentList.module.css';
 
 type Props = {
     title: string;
@@ -28,16 +29,14 @@ export const TopContentList: FC<Props> = ({ title, noun, items }) => (
                     gap="sm"
                 >
                     {/* The name gives up width first; the count stays on one line */}
-                    <TruncatedText
-                        maxWidth="100%"
-                        style={{ flex: 1, minWidth: 0 }}
-                    >
+                    <TruncatedText maxWidth="100%" flex={1} miw={0}>
                         {item.name}
                     </TruncatedText>
                     <Text
                         fz="xs"
                         c="dimmed"
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                        flex="none"
+                        className={styles.usage}
                     >
                         {formatTopContentUsage(item, noun)}
                     </Text>

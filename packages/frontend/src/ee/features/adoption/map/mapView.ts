@@ -7,7 +7,14 @@ import {
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { formatLastActive } from '../utils/departmentDetail';
-import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
+import {
+    DEPARTMENTS,
+    formatCount,
+    formatQuantity,
+    PEOPLE,
+    SUB_DEPARTMENTS,
+    type Noun,
+} from '../utils/format';
 import {
     countBucketPeople,
     getDepartmentSize,
@@ -23,8 +30,7 @@ import {
 // First names are only readable when few people share the map
 export const NAME_LABEL_LIMIT = 150;
 
-const plural = (count: number, singular: string, many: string): string =>
-    `${formatCount(count)} ${count === 1 ? singular : many}`;
+const ACCOUNTS: Noun = { one: 'account', other: 'accounts' };
 
 // The departments one level below the focus: what the map and its cards compare
 export const getVisibleDepartments = (
@@ -233,7 +239,7 @@ const describeStats = (stats: CircleStats): string[] => {
     }
     if (stats.members === 0) {
         return [
-            plural(stats.headcount, 'person', 'people'),
+            formatQuantity(stats.headcount, PEOPLE),
             'nobody on Lightdash yet',
         ];
     }
@@ -255,13 +261,7 @@ export const describeCircles = (
             circle.name,
             ...describeStats(stats),
             ...(circle.childDepartmentCount > 0
-                ? [
-                      plural(
-                          circle.childDepartmentCount,
-                          'sub-department',
-                          'sub-departments',
-                      ),
-                  ]
+                ? [formatQuantity(circle.childDepartmentCount, SUB_DEPARTMENTS)]
                 : []),
             ...(circle.isAreaHonest ? [] : ['not to scale']),
         ];
@@ -353,8 +353,8 @@ export const describeOrganizationOverview = (
     }
     const { aboveHeadcount, withoutHeadcount } = overview;
     const excluded = overview.hasHeadcountBelowSubDepartments
-        ? `Excludes ${plural(aboveHeadcount, 'person', 'people')} counted above their department's headcount or below its sub-departments' total`
-        : `Excludes ${plural(aboveHeadcount, 'account', 'accounts')} above their department's headcount`;
+        ? `Excludes ${formatQuantity(aboveHeadcount, PEOPLE)} counted above their department's headcount or below its sub-departments' total`
+        : `Excludes ${formatQuantity(aboveHeadcount, ACCOUNTS)} above their department's headcount`;
     return {
         placed,
         withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
@@ -384,11 +384,11 @@ export const buildMapAriaLabel = ({
 }): string => {
     const departments =
         scopeName === null
-            ? plural(departmentCount, 'department', 'departments')
-            : plural(departmentCount, 'sub-department', 'sub-departments');
+            ? formatQuantity(departmentCount, DEPARTMENTS)
+            : formatQuantity(departmentCount, SUB_DEPARTMENTS);
     const numbers = [
         ...(departmentCount > 0 ? [departments] : []),
-        plural(totals.people, 'person', 'people'),
+        formatQuantity(totals.people, PEOPLE),
         `${formatCount(totals.members)} on Lightdash`,
         `${formatCount(totals.active)} active in the last 30 days`,
     ].join(', ');

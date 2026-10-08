@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { TopContentList } from './TopContentList';
+import styles from './TopContentList.module.css';
 
 const VIEWS = { one: 'view', other: 'views' };
 const QUERIES = { one: 'query', other: 'queries' };
@@ -26,11 +27,12 @@ describe('TopContentList', () => {
         );
         const count = screen.getByText('37,405 views · 92 people');
         // The count never wraps or gives up width; the name takes what is left
-        expect(count).toHaveStyle({ whiteSpace: 'nowrap', flexShrink: '0' });
+        expect(count).toHaveClass(styles.usage);
+        expect(count).toHaveStyle({ flexShrink: '0' });
         expect(count.parentElement).toHaveStyle('--group-wrap: nowrap');
         const name = screen.getByText(LONG_NAME);
         expect(name).toHaveAttribute('data-truncate', 'end');
-        expect(name).toHaveStyle({ minWidth: '0' });
+        expect(name).toHaveStyle({ minWidth: '0rem', flexGrow: '1' });
         expect(name.parentElement).toBe(count.parentElement);
     });
     it('uses the singular for one', () => {

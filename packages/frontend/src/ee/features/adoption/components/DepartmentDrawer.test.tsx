@@ -582,6 +582,44 @@ describe('DepartmentForm', () => {
             expect(screen.queryByRole('link')).not.toBeInTheDocument();
         });
 
+        it('groups thousands in the count of people in the department', () => {
+            const loaded = Array.from({ length: 1200 }, (_, index) =>
+                memberFixture(`m${index}`, null, {
+                    firstName: `Member${index}`,
+                }),
+            );
+            renderWithProviders(
+                <DepartmentForm
+                    department={departments[0]}
+                    departments={departments}
+                    members={loaded}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(
+                screen.getByText('1,200 people in this department'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Showing 50 of 1,200, everyone is listed under People on this page',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('counts one person in the singular', () => {
+            renderWithProviders(
+                <DepartmentForm
+                    department={departments[0]}
+                    departments={departments}
+                    members={[memberFixture('m0', null)]}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(
+                screen.getByText('1 person in this department'),
+            ).toBeInTheDocument();
+        });
+
         it('shows the first 50 resolved people with a link to the department page for the rest', () => {
             membership = Array.from({ length: 60 }, (_, index) => ({
                 ...person(`m${index}`, `Member${index}`),

@@ -74,6 +74,10 @@ export const formatShare = (pct: number | null, count: number): string => {
 };
 
 const VIEWERS: Noun = { one: 'viewer', other: 'viewers' };
+const INTERACTIVE_VIEWERS: Noun = {
+    one: 'interactive viewer',
+    other: 'interactive viewers',
+};
 const EDITORS: Noun = { one: 'editor', other: 'editors' };
 const ADMINS: Noun = { one: 'admin', other: 'admins' };
 
@@ -81,7 +85,7 @@ export const formatRoleSplit = (split: RoleSplit): string => {
     const parts = [
         split.viewers > 0 ? formatQuantity(split.viewers, VIEWERS) : null,
         split.interactiveViewers > 0
-            ? `${formatCount(split.interactiveViewers)} interactive`
+            ? formatQuantity(split.interactiveViewers, INTERACTIVE_VIEWERS)
             : null,
         split.editors > 0 ? formatQuantity(split.editors, EDITORS) : null,
         split.admins > 0 ? formatQuantity(split.admins, ADMINS) : null,

@@ -145,6 +145,22 @@ describe('MembershipModal', () => {
         ]);
     });
 
+    it('announces the number selected to screen readers as it changes', async () => {
+        renderModal();
+        // The live region is in place before the first change, so that change is announced
+        const count = screen.getByRole('status');
+        expect(count).toHaveAttribute('aria-live', 'polite');
+        expect(count).toBeEmptyDOMElement();
+        await userEvent.click(
+            screen.getByRole('checkbox', { name: 'Select Ann Test' }),
+        );
+        expect(count).toHaveTextContent('1 selected');
+        await userEvent.click(
+            screen.getByRole('checkbox', { name: 'Select Cat Test' }),
+        );
+        expect(count).toHaveTextContent('2 selected');
+    });
+
     it('keeps the selection when a save fails', async () => {
         // The request fails: the hook shows the error and the per-call success never runs
         mutate.mockImplementationOnce(() => undefined);

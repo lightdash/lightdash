@@ -56,7 +56,7 @@ import {
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
-import { formatCount } from '../utils/format';
+import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
 
 type FormValues = {
     name: string;
@@ -390,9 +390,7 @@ export const DepartmentForm: FC<FormProps> = ({
                     {department !== null && (
                         <Stack gap="xs">
                             <Text fz="sm" fw={500}>
-                                {resolvedMembers.length === 1
-                                    ? '1 person in this department'
-                                    : `${resolvedMembers.length} people in this department`}
+                                {`${formatQuantity(resolvedMembers.length, PEOPLE)} in this department`}
                             </Text>
                             <ScrollArea.Autosize mah={220}>
                                 <Stack gap="xs">

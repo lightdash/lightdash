@@ -7,15 +7,19 @@ import {
     type WeeklyActivePoint,
 } from '@lightdash/common';
 import { formatShare } from './departmentRows';
-import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
+import {
+    formatCount,
+    formatQuantity,
+    PEOPLE,
+    WEEKS,
+    type Noun,
+} from './format';
 
 export type MemberFilter =
     | 'all'
     | 'active30d'
     | 'inactive30d'
     | 'noRecordedActivity';
-
-const WEEKS: Noun = { one: 'week', other: 'weeks' };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
@@ -293,9 +297,9 @@ export const getActiveCaption = (
             ? 'No one has an account yet'
             : `${withAccount} ${activeCount === 1 ? 'was' : 'were'} active`;
     }
+    // Above the headcount the caption says why, as the coverage caption does
     const overall =
-        activeCount > headcount
-            ? `${formatQuantity(activeCount, PEOPLE)} active, more than the headcount of ${formatCount(headcount)}`
-            : `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
+        getCoverageNote(headcount, activeCount) ??
+        `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
     return withAccount === null ? overall : `${overall} · ${withAccount}`;
 };

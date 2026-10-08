@@ -17,9 +17,15 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
-import { getCoverageNote } from '../utils/departmentDetail';
-import { formatOwners } from '../utils/departmentRows';
-import { formatCount } from '../utils/format';
+import { formatCoverage, getCoverageNote } from '../utils/departmentDetail';
+import { formatOwners, formatRoleSplit } from '../utils/departmentRows';
+import {
+    DEPARTMENTS,
+    formatCount,
+    formatQuantity,
+    SUB_DEPARTMENTS,
+    type Noun,
+} from '../utils/format';
 import styles from './AdoptionMap.module.css';
 import {
     describeOrganizationOverview,
@@ -44,6 +50,8 @@ type Props = {
     onClearMember: () => void;
     onEdit: (department: DepartmentWithMetrics) => void;
 };
+
+const GROUPS: Noun = { one: 'group', other: 'groups' };
 
 type TileProps = {
     label: string;
@@ -82,6 +90,10 @@ const getDepartmentTiles = (
         targetActiveUsers === null
             ? 0
             : Math.max(targetActiveUsers - metrics.activeCount30d, 0);
+    // Above the headcount the share carries the counts behind it, as on the department page
+    const isActiveAboveHeadcount =
+        metrics.activePct !== null &&
+        getCoverageNote(effectiveHeadcount, metrics.activeCount30d) !== null;
     return [
         {
             label: 'On Lightdash',
@@ -94,7 +106,13 @@ const getDepartmentTiles = (
         {
             label: 'Active in 30 days',
             value: metrics.activeCount30d,
-            note: formatPct(metrics.activePct, metrics.activeCount30d),
+            note: isActiveAboveHeadcount
+                ? formatCoverage(
+                      metrics.activePct,
+                      metrics.activeCount30d,
+                      effectiveHeadcount,
+                  )
+                : formatPct(metrics.activePct, metrics.activeCount30d),
         },
         ...(effectiveHeadcount === null
             ? []
@@ -139,9 +157,6 @@ const getOrganizationTiles = (
               },
           ];
 
-const countOf = (count: number, singular: string): string =>
-    `${formatCount(count)} ${singular}${count === 1 ? '' : 's'}`;
-
 const getSummaryLine = (
     department: DepartmentWithMetrics | null,
     subDepartmentCount: number,
@@ -151,13 +166,13 @@ const getSummaryLine = (
             ? `Owner ${formatOwners(department.owners)}`
             : null,
         subDepartmentCount > 0
-            ? countOf(
+            ? formatQuantity(
                   subDepartmentCount,
-                  department === null ? 'department' : 'sub-department',
+                  department === null ? DEPARTMENTS : SUB_DEPARTMENTS,
               )
             : null,
         department !== null && department.linkedGroups.length > 0
-            ? countOf(department.linkedGroups.length, 'group')
+            ? formatQuantity(department.linkedGroups.length, GROUPS)
             : null,
     ].filter((part): part is string => part !== null);
     return parts.length > 0 ? parts.join(' · ') : null;
@@ -215,6 +230,11 @@ export const MapInspector: FC<Props> = ({
                 {coverageNote !== null && (
                     <Text fz="xs" c="dimmed">
                         {coverageNote}
+                    </Text>
+                )}
+                {department !== null && department.metrics.memberCount > 0 && (
+                    <Text fz="xs" c="dimmed">
+                        {formatRoleSplit(department.metrics.roleSplit)}
                     </Text>
                 )}
                 {overviewCopy !== null && (
@@ -278,40 +298,58 @@ export const MapInspector: FC<Props> = ({
                                 : 'Sub-departments, lowest coverage first'}
                         </Text>
                         <Box className={styles.rows}>
-                            {sortForInspector(subDepartments).map((child) => (
-                                <button
-                                    key={child.departmentUuid}
-                                    type="button"
-                                    className={styles.row}
-                                    onClick={() =>
-                                        onDepartmentClick(child.departmentUuid)
-                                    }
-                                >
-                                    <Text fz="sm" truncate>
-                                        {child.name}
-                                    </Text>
-                                    <Text
-                                        fz="xs"
-                                        c="dimmed"
-                                        className={styles.count}
+                            {sortForInspector(subDepartments).map((child) => {
+                                const note = getCoverageNote(
+                                    child.effectiveHeadcount,
+                                    child.metrics.memberCount,
+                                );
+                                return (
+                                    <button
+                                        key={child.departmentUuid}
+                                        type="button"
+                                        className={styles.row}
+                                        onClick={() =>
+                                            onDepartmentClick(
+                                                child.departmentUuid,
+                                            )
+                                        }
                                     >
-                                        {child.effectiveHeadcount === null
-                                            ? `${formatCount(child.metrics.memberCount)} on Lightdash`
-                                            : `${formatCount(child.metrics.memberCount)} of ${formatCount(child.effectiveHeadcount)}`}
-                                    </Text>
-                                    <Text
-                                        fz="sm"
-                                        fw={500}
-                                        ta="right"
-                                        className={styles.count}
-                                    >
-                                        {formatPct(
-                                            child.metrics.coveragePct,
-                                            child.metrics.memberCount,
-                                        ) ?? '–'}
-                                    </Text>
-                                </button>
-                            ))}
+                                        <Text fz="sm" truncate>
+                                            {child.name}
+                                        </Text>
+                                        <Text
+                                            fz="xs"
+                                            c="dimmed"
+                                            className={styles.count}
+                                        >
+                                            {child.effectiveHeadcount === null
+                                                ? `${formatCount(child.metrics.memberCount)} on Lightdash`
+                                                : `${formatCount(child.metrics.memberCount)} of ${formatCount(child.effectiveHeadcount)}`}
+                                        </Text>
+                                        <Text
+                                            fz="sm"
+                                            fw={500}
+                                            ta="right"
+                                            className={styles.count}
+                                        >
+                                            {formatPct(
+                                                child.metrics.coveragePct,
+                                                child.metrics.memberCount,
+                                            ) ?? '–'}
+                                        </Text>
+                                        {/* The counts beside the share are the ones behind it, so only the reason is added */}
+                                        {note !== null && (
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                className={styles.rowNote}
+                                            >
+                                                {note}
+                                            </Text>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </Box>
                     </Stack>
                 )}

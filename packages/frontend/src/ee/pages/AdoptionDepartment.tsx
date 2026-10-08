@@ -18,7 +18,6 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
-import TruncatedText from '../../components/common/TruncatedText';
 import useApp from '../../providers/App/useApp';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
 import { DepartmentMembersTable } from '../features/adoption/components/DepartmentMembersTable';
@@ -39,7 +38,7 @@ import {
     getWeeklyComparison,
 } from '../features/adoption/utils/departmentDetail';
 import {
-    formatShare,
+    formatRoleSplit,
     sortByCoverage,
 } from '../features/adoption/utils/departmentRows';
 import { formatCount, type Noun } from '../features/adoption/utils/format';
@@ -51,7 +50,6 @@ import {
 const VIEWS: Noun = { one: 'view', other: 'views' };
 const QUERIES: Noun = { one: 'query', other: 'queries' };
 const PROMPTS: Noun = { one: 'prompt', other: 'prompts' };
-const HEADCOUNT_NOTE_MAX_WIDTH = 280;
 
 const BackToAdoption: FC = () => (
     <Button component={Link} to={ADOPTION_PATH} variant="default">
@@ -215,15 +213,11 @@ const AdoptionDepartment: FC = () => {
                                 {`${formatCount(withoutAccount)} without an account`}
                             </Text>
                         )}
+                        {/* In full, wrapping when long, so it reads the same with a mouse, a keyboard or touch */}
                         {department.headcountNote !== null && (
-                            <TruncatedText
-                                maxWidth={HEADCOUNT_NOTE_MAX_WIDTH}
-                                fz="xs"
-                                c="dimmed"
-                                tooltipMaxWidth={HEADCOUNT_NOTE_MAX_WIDTH}
-                            >
+                            <Text fz="xs" c="dimmed">
                                 {department.headcountNote}
-                            </TruncatedText>
+                            </Text>
                         )}
                     </Group>
                     <Group gap="xs">
@@ -238,6 +232,14 @@ const AdoptionDepartment: FC = () => {
                                 {group.name}
                             </Badge>
                         ))}
+                    </Group>
+                    <Group gap="xs">
+                        <Text fz="sm" c="dimmed">
+                            Roles
+                        </Text>
+                        <Text fz="sm">
+                            {formatRoleSplit(metrics.roleSplit)}
+                        </Text>
                     </Group>
                 </Group>
                 {department.headcountBelowChildren && (
@@ -261,9 +263,10 @@ const AdoptionDepartment: FC = () => {
                     />
                     <StatTile
                         label="Active in 30 days"
-                        value={formatShare(
+                        value={formatCoverage(
                             metrics.activePct,
                             metrics.activeCount30d,
+                            department.effectiveHeadcount,
                         )}
                         detail={getActiveCaption(
                             department.effectiveHeadcount,
@@ -321,6 +324,10 @@ const AdoptionDepartment: FC = () => {
                                         child.effectiveHeadcount,
                                         child.metrics.memberCount,
                                     );
+                                    const activeNote = getCoverageNote(
+                                        child.effectiveHeadcount,
+                                        child.metrics.activeCount30d,
+                                    );
                                     return (
                                         <Table.Tr key={child.departmentUuid}>
                                             <Table.Td>
@@ -351,10 +358,18 @@ const AdoptionDepartment: FC = () => {
                                                 )}
                                             </Table.Td>
                                             <Table.Td>
-                                                {formatShare(
-                                                    child.metrics.activePct,
-                                                    child.metrics
-                                                        .activeCount30d,
+                                                <Text fz="sm">
+                                                    {formatCoverage(
+                                                        child.metrics.activePct,
+                                                        child.metrics
+                                                            .activeCount30d,
+                                                        child.effectiveHeadcount,
+                                                    )}
+                                                </Text>
+                                                {activeNote !== null && (
+                                                    <Text fz="xs" c="dimmed">
+                                                        {activeNote}
+                                                    </Text>
                                                 )}
                                             </Table.Td>
                                         </Table.Tr>

@@ -86,6 +86,11 @@
     cursor: pointer;
 }
 
+/* A caption under a row takes the row's whole width */
+.rowNote {
+    grid-column: 1 / -1;
+}
+
 .row:last-child {
     border-bottom: 0;
 }

@@ -471,7 +471,7 @@ describe('getActiveCaption', () => {
     });
     it('handles more accounts or activity than headcount', () => {
         expect(getActiveCaption(3, 5, 5)).toBe(
-            '5 people active, more than the headcount of 3 · 5 of the 5 with an account',
+            'More accounts than headcount · 5 of the 5 with an account',
         );
     });
     it('groups thousands', () => {
