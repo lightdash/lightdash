@@ -8,8 +8,8 @@ type PivotHeaders = Pick<
 type PivotHeaderRow = {
     index: number;
     values: PivotData['headerValues'][number];
-    /** Header rows the value and total cells of this row span */
-    valueRowSpan: number;
+    /** A dimension name shown as a group header across all value columns */
+    groupTitle?: { fieldId: string; colSpan: number };
     titleFields: PivotData['titleFields'][number];
     rowTotalFields:
         | NonNullable<PivotData['rowTotalFields']>[number]
@@ -29,7 +29,6 @@ export const getVisiblePivotHeaderRows = (
             // position in data.headerValues, which cell lookups still use
             index,
             values,
-            valueRowSpan: 1,
             titleFields: data.titleFields[index].map((field) =>
                 hidePivotDimensionNames && field?.direction === 'header'
                     ? null
@@ -46,31 +45,35 @@ export const getVisiblePivotHeaderRows = (
 
     const lastRow = rows.at(-1);
     if (hideMetricNames && lastRow && rows.length < data.headerValues.length) {
-        // The metric row also carried the row-axis headings and total labels
+        // The metric row also carried the row-axis headings and total labels,
+        // which move up to the last dimension row
         const rowAxisTitles = data.titleFields.at(-1) ?? [];
-        lastRow.rowTotalFields = data.rowTotalFields?.at(-1)?.map(() => ({}));
-
-        const sharesCellWithDimensionName = rowAxisTitles.some(
+        const totalLabels = data.rowTotalFields?.at(-1);
+        const displacedTitle = lastRow.titleFields.find(
             (title, index) =>
-                title?.direction === 'index' && lastRow.titleFields[index],
+                title && rowAxisTitles[index]?.direction === 'index',
         );
-        if (sharesCellWithDimensionName) {
-            // Both names stay: the headings keep their own row and the
-            // dimension values span it
-            lastRow.valueRowSpan = 2;
-            rows.push({
+
+        lastRow.titleFields = lastRow.titleFields.map((field, index) =>
+            rowAxisTitles[index]?.direction === 'index'
+                ? rowAxisTitles[index]
+                : field,
+        );
+        lastRow.rowTotalFields = totalLabels?.map(() => ({}));
+
+        if (displacedTitle) {
+            // A row-axis heading took the dimension name's cell, so the name
+            // becomes a group header above its values
+            rows.splice(-1, 0, {
                 index: data.headerValues.length - 1,
                 values: [],
-                valueRowSpan: 1,
-                titleFields: rowAxisTitles,
-                rowTotalFields: undefined,
+                groupTitle: {
+                    fieldId: displacedTitle.fieldId,
+                    colSpan: lastRow.values.length,
+                },
+                titleFields: lastRow.titleFields.map(() => null),
+                rowTotalFields: totalLabels?.map(() => null),
             });
-        } else {
-            lastRow.titleFields = lastRow.titleFields.map((field, index) =>
-                rowAxisTitles[index]?.direction === 'index'
-                    ? rowAxisTitles[index]
-                    : field,
-            );
         }
     }
     return rows;

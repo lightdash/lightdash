@@ -64,7 +64,6 @@ describe('getVisiblePivotHeaderRows', () => {
                 {
                     index: 0,
                     values: pivot.headerValues[0],
-                    valueRowSpan: 1,
                     titleFields: [
                         { fieldId: 'sale_date', direction: 'header' },
                     ],
@@ -99,23 +98,26 @@ describe('getVisiblePivotHeaderRows', () => {
         ],
     };
 
-    it('keeps the dimension name and the row-axis heading when only metric names are hidden', () => {
+    it('shows the dimension name as a group header when only metric names are hidden', () => {
         const rows = getVisiblePivotHeaderRows(withRowAxisHeading, {
             hideMetricNames: true,
         });
-        // the heading keeps its own row, and the dimension values span it
         expect(rows).toHaveLength(2);
-        expect(rows[0].titleFields).toEqual([
-            { fieldId: 'sale_date', direction: 'header' },
-        ]);
-        expect(rows[0].values).toEqual(data.headerValues[0]);
-        expect(rows[0].valueRowSpan).toBe(2);
-        expect(rows[0].rowTotalFields).toEqual([{}, {}]);
+        // the name spans the value columns, above the values
+        expect(rows[0].groupTitle).toEqual({
+            fieldId: 'sale_date',
+            colSpan: 2,
+        });
+        expect(rows[0].values).toEqual([]);
+        expect(rows[0].titleFields).toEqual([null]);
+        expect(rows[0].rowTotalFields).toEqual([null, null]);
+        // the row-axis heading sits beside the values
         expect(rows[1].titleFields).toEqual([
             { fieldId: 'region', direction: 'index' },
         ]);
-        expect(rows[1].values).toEqual([]);
-        expect(rows[1].rowTotalFields).toBeUndefined();
+        expect(rows[1].values).toEqual(data.headerValues[0]);
+        expect(rows[1].rowTotalFields).toEqual([{}, {}]);
+        expect(rows[1].groupTitle).toBeUndefined();
     });
 
     it('collapses to one row with the row-axis heading when both are hidden', () => {
@@ -127,7 +129,7 @@ describe('getVisiblePivotHeaderRows', () => {
         expect(rows[0].titleFields).toEqual([
             { fieldId: 'region', direction: 'index' },
         ]);
-        expect(rows[0].valueRowSpan).toBe(1);
+        expect(rows[0].groupTitle).toBeUndefined();
     });
 
     it('keeps a header when no pivot dimension values remain', () => {
