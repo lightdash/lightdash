@@ -48,10 +48,14 @@ describe('DepartmentAnalyticsModel', () => {
                     week_start: '2026-08-03',
                     is_active_30d: false,
                 },
+                // A person who only ran queries: active, but in no weekly bucket
+                { user_uuid: 'u3', week_start: null, is_active_30d: true },
             ],
         });
-        expect(await model.getActivity('org', ['u1', 'u2'], windows)).toEqual({
-            activeUserUuids: ['u1'],
+        expect(
+            await model.getActivity('org', ['u1', 'u2', 'u3'], windows),
+        ).toEqual({
+            activeUserUuids: ['u1', 'u3'],
             weeklyActivity: [
                 { userUuid: 'u1', weekStart: '2026-09-28' },
                 { userUuid: 'u1', weekStart: '2026-08-03' },
@@ -61,15 +65,26 @@ describe('DepartmentAnalyticsModel', () => {
         expect(tracker.history.all).toHaveLength(1);
     });
 
-    it('scans from the trend bound and flags activity from the 30-day bound', async () => {
+    it('builds the weekly buckets from views only and reads queries for 30 days', async () => {
         tracker.on.any(/query_history/).responseOnce({ rows: [] });
         await model.getActivity('org', ['u1', 'u2'], windows);
         const [query] = tracker.history.all;
         expect(query.sql).toMatch(/bool_or\(a\.at >= \$1\) AS is_active_30d/);
-        expect(query.bindings[0]).toBe(activeSince);
-        // Each of the three sources is bounded by the trend window
-        expect(query.bindings.filter((b) => b === trendSince)).toHaveLength(3);
-        expect(query.bindings.filter((b) => b === activeSince)).toHaveLength(1);
+        expect(query.sql).toMatch(
+            /CASE WHEN a\.is_view\s+THEN to_char\(date_trunc\('week', a\.at\), 'YYYY-MM-DD'\)\s+END AS week_start/,
+        );
+        expect(query.sql).toMatch(/qh\.created_at AS at, false AS is_view/);
+        expect(
+            query.sql.match(/v\.timestamp AS at, true AS is_view/g),
+        ).toHaveLength(2);
+        // The two view tables are bounded by the trend window
+        expect(query.bindings.filter((b) => b === trendSince)).toHaveLength(2);
+        // The active flag and the query history read are bounded by 30 days
+        expect(query.bindings.filter((b) => b === activeSince)).toHaveLength(2);
+        const contexts = query.bindings.findIndex(
+            (b) => Array.isArray(b) && b === INTERACTIVE_QUERY_CONTEXTS,
+        );
+        expect(query.bindings[contexts + 1]).toBe(activeSince);
     });
 
     it('limits every source of the activity read to the organization', async () => {

@@ -13,7 +13,7 @@ export type ActivityWindows = { activeSince: Date; trendSince: Date };
 
 export type ActivitySnapshot = {
     activeUserUuids: string[]; // active since activeSince
-    weeklyActivity: ActivityRow[]; // one row per person per UTC week since trendSince
+    weeklyActivity: ActivityRow[]; // chart and dashboard views only, per person per UTC week
 };
 
 export type MemberActivityRow = {
@@ -48,21 +48,22 @@ const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
 
 type Deps = { database: Knex };
 
-// The view tables have no organization column, so they are tied to it through the content viewed
+// The view tables have no organization column, so they are tied to it through the content viewed.
+// Queries are only kept for the instance's retention period, so they are read for the 30-day set alone.
 const activityUnion = (
     organizationUuid: string,
     userUuids: string[],
-    since: Date,
+    windows: ActivityWindows,
 ): { sql: string; bindings: Knex.RawBinding[] } => ({
     sql: `
-        SELECT qh.created_by_user_uuid AS user_uuid, qh.created_at AS at
+        SELECT qh.created_by_user_uuid AS user_uuid, qh.created_at AS at, false AS is_view
         FROM query_history qh
         WHERE qh.organization_uuid = ?
           AND qh.created_by_user_uuid = ANY(?::uuid[])
           AND qh.context = ANY(?::text[])
           AND qh.created_at >= ?
         UNION ALL
-        SELECT v.user_uuid, v.timestamp AS at
+        SELECT v.user_uuid, v.timestamp AS at, true AS is_view
         FROM analytics_chart_views v
         JOIN saved_queries sq ON sq.saved_query_uuid = v.chart_uuid
         JOIN projects p ON p.project_uuid = sq.project_uuid
@@ -71,7 +72,7 @@ const activityUnion = (
           AND v.user_uuid = ANY(?::uuid[])
           AND v.timestamp >= ?
         UNION ALL
-        SELECT v.user_uuid, v.timestamp AS at
+        SELECT v.user_uuid, v.timestamp AS at, true AS is_view
         FROM analytics_dashboard_views v
         JOIN dashboards d ON d.dashboard_uuid = v.dashboard_uuid
         JOIN spaces s ON s.space_id = d.space_id
@@ -85,13 +86,13 @@ const activityUnion = (
         organizationUuid,
         userUuids,
         INTERACTIVE_QUERY_CONTEXTS,
-        since,
+        windows.activeSince,
         organizationUuid,
         userUuids,
-        since,
+        windows.trendSince,
         organizationUuid,
         userUuids,
-        since,
+        windows.trendSince,
     ],
 });
 
@@ -104,7 +105,7 @@ export class DepartmentAnalyticsModel {
         this.database = database;
     }
 
-    // One scan of the union answers both the weekly buckets and the 30-day active set
+    // One scan answers both: weekly buckets from views only, the 30-day set from views and queries
     async getActivity(
         organizationUuid: string,
         userUuids: string[],
@@ -113,23 +114,21 @@ export class DepartmentAnalyticsModel {
         if (userUuids.length === 0) {
             return { activeUserUuids: [], weeklyActivity: [] };
         }
-        const union = activityUnion(
-            organizationUuid,
-            userUuids,
-            windows.trendSince,
-        );
+        const union = activityUnion(organizationUuid, userUuids, windows);
         const result = await this.database.raw<{
             rows: {
                 user_uuid: string;
-                week_start: string;
+                week_start: string | null; // null on rows that come from queries
                 is_active_30d: boolean;
             }[];
         }>(
             `SELECT a.user_uuid,
-                    to_char(date_trunc('week', a.at), 'YYYY-MM-DD') AS week_start,
+                    CASE WHEN a.is_view
+                         THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
+                    END AS week_start,
                     bool_or(a.at >= ?) AS is_active_30d
              FROM (${union.sql}) a
-             GROUP BY a.user_uuid, date_trunc('week', a.at)`,
+             GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
             [windows.activeSince, ...union.bindings],
         );
         return {
@@ -140,10 +139,11 @@ export class DepartmentAnalyticsModel {
                         .map((r) => r.user_uuid),
                 ),
             ),
-            weeklyActivity: result.rows.map((r) => ({
-                userUuid: r.user_uuid,
-                weekStart: r.week_start,
-            })),
+            weeklyActivity: result.rows.flatMap((r) =>
+                r.week_start === null
+                    ? []
+                    : [{ userUuid: r.user_uuid, weekStart: r.week_start }],
+            ),
         };
     }
 

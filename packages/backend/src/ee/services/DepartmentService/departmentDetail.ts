@@ -102,7 +102,7 @@ export const buildDepartmentMembers = (input: {
             },
         ];
     });
-    // Never active first, then longest inactive, then by name
+    // No recorded activity first, then longest inactive, then by name
     return built.sort((a, b) => {
         if (a.lastActiveAt === null && b.lastActiveAt !== null) return -1;
         if (a.lastActiveAt !== null && b.lastActiveAt === null) return 1;

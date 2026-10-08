@@ -20,12 +20,12 @@ const members = [
 const bodyRows = () => screen.getAllByRole('row').slice(1);
 
 describe('DepartmentMembersTable', () => {
-    it('lists never active first, then the least recently active', () => {
+    it('lists no recorded activity first, then the least recently active', () => {
         renderWithProviders(<DepartmentMembersTable members={members} />);
         const rows = bodyRows();
         expect(rows).toHaveLength(3);
         expect(within(rows[0]).getByText('never@example.com')).toBeVisible();
-        expect(within(rows[0]).getByText('Never')).toBeVisible();
+        expect(within(rows[0]).getByText('No recorded activity')).toBeVisible();
         expect(within(rows[0]).getByText('Via North')).toBeVisible();
         expect(within(rows[1]).getByText('stale@example.com')).toBeVisible();
         expect(within(rows[1]).getByText('Group ops-all')).toBeVisible();
@@ -33,9 +33,9 @@ describe('DepartmentMembersTable', () => {
         expect(within(rows[2]).getByText('Direct')).toBeVisible();
         expect(within(rows[2]).getByText('12')).toBeVisible();
     });
-    it('filters to people who were never active', async () => {
+    it('filters to people with no recorded activity', async () => {
         renderWithProviders(<DepartmentMembersTable members={members} />);
-        await userEvent.click(screen.getByText('Never active (1)'));
+        await userEvent.click(screen.getByText('No recorded activity (1)'));
         expect(bodyRows()).toHaveLength(1);
         expect(
             within(bodyRows()[0]).getByText('never@example.com'),
@@ -59,7 +59,7 @@ describe('DepartmentMembersTable', () => {
                 ]}
             />,
         );
-        await userEvent.click(screen.getByText('Never active (0)'));
+        await userEvent.click(screen.getByText('No recorded activity (0)'));
         expect(screen.getByText('Nobody matches this filter')).toBeVisible();
     });
     it('says so when no one has an account', () => {

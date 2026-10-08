@@ -67,13 +67,19 @@ Computed on each request in `DepartmentService` and `departmentMetrics.ts` from 
 | Coverage      | Members divided by effective headcount, as a rounded percentage                                                                                                                                                           |
 | Active        | Members who ran a query themselves (`query_history`, interactive contexts only) or viewed a chart or dashboard (`analytics_chart_views`, `analytics_dashboard_views`) in the last 30 days, divided by effective headcount |
 | Role split    | Members by organization role. Member and viewer count as viewers, developer counts as editor                                                                                                                              |
-| Weekly active | Distinct active members per week for the last 12 weeks, oldest first                                                                                                                                                      |
+| Weekly active | Distinct members with a chart or dashboard view in each of the last 12 weeks, oldest first. Queries are left out so that every week is counted the same way                                                               |
 
 A query counts only when a person ran it. `DepartmentAnalyticsModel` keeps the `query_history` rows whose `context` the backend's `queryWorkloadOrigin` (`packages/backend/src/services/AsyncQueryService/queryUsage.ts`) classifies as interactive: explores, dashboards, saved charts, SQL runner and view underlying data. Scheduled deliveries, alerts, Google Sheets syncs, API and CLI runs, AI agent and MCP runs, and auto-refreshed dashboards do not make their owner active. The same filter applies to the per-person query count and to top explores.
 
-Active has one definition, in SQL. The summary's 30-day count and weekly buckets come from a single query (`DepartmentAnalyticsModel.getActivity`), and the member list's `isActive30d` flag (`getMemberActivity`) uses the same sources and the same 30-day bound. The browser reads the flag for the member filters, the map's dot colours and the legend; it does not compare `lastActiveAt` to its own clock. The one exception is the map's "Active in 12 weeks" colouring, which still compares `lastActiveAt` to the clock for people who are not active in 30 days.
+Active has one definition, in SQL. The summary's 30-day count and weekly buckets come from a single query (`DepartmentAnalyticsModel.getActivity`, which scans views for 12 weeks and queries for 30 days), and the member list's `isActive30d` flag (`getMemberActivity`) uses the same sources and the same 30-day bound. The browser reads the flag for the member filters, the map's dot colours and the legend; it does not compare `lastActiveAt` to its own clock. The one exception is the map's "Active in 12 weeks" colouring, which still compares `lastActiveAt` to the clock for people who are not active in 30 days.
 
 Every activity read is limited to the organization. `query_history` has an organization column. `analytics_chart_views` and `analytics_dashboard_views` do not, so they are joined to the organization through the content viewed: chart to project, and dashboard to space to project. A view of content in another organization never counts.
+
+Query history is not kept for long. The instance deletes `query_history` rows older than `QUERY_HISTORY_RETENTION_DAYS` (32 days by default, on unless `QUERY_HISTORY_CLEANUP_ENABLED` is `false`), while the two view tables are kept. Three things follow:
+
+- The weekly trend counts chart and dashboard views only. A week 10 weeks back has no queries left to count, so counting queries in recent weeks would make them look busier than old ones. A person who only runs explores or SQL does not appear in the trend.
+- The 30-day active count uses views and the queries a person ran. If the instance keeps queries for fewer than 30 days, the count misses the queries already deleted and reads low.
+- `lastActiveAt` is the latest of a person's views and the queries still retained. Null means nothing is recorded, not that the person never used the product, so the page says "No recorded activity".
 
 Percentages are of headcount and are null when there is no headcount or it is 0. They are not capped, so more accounts than headcount reads above 100. The page then shows counts.
 
@@ -90,7 +96,7 @@ The department page (`getDetail`) adds:
 - Target progress: `targetActiveUsers` against current active members. `remaining` is never negative. `weeksLeft` is null with no target date, 0 on the target day, positive before it (rounded up, so a partial week counts) and negative once overdue.
 - The weekly trend against `orgAverage`, the mean across departments at the same depth in the tree.
 - Top content for the last 30 days, up to five each of dashboards, explores and AI agents, with use counts and distinct people.
-- A member list sorted never active first, then longest inactive. Each row has the person's last activity, whether they are active in 30 days (`isActive30d`), queries and dashboard views in 30 days, and where they resolved. `isDirect` says whether they resolved to this department or a descendant.
+- A member list sorted no recorded activity first, then longest inactive. Each row has the person's last activity, whether they are active in 30 days (`isActive30d`), queries and dashboard views in 30 days, and where they resolved. `isDirect` says whether they resolved to this department or a descendant.
 
 The AI agent read is guarded by a table check (`hasAiTables`) because `ai_prompt`, `ai_thread` and `ai_agent` come from enterprise migrations and do not exist on every instance. Without them the list is empty.
 
@@ -136,6 +142,9 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 - The per-person last-active read scans all history rather than a window.
 - Invited users who have never logged in, and deactivated users, count as "on Lightdash". Users without a primary email are left out of the member rows altogether.
 - The newest weekly bucket is the current, partial week, so it usually reads low.
+- The weekly trend counts chart and dashboard views, not queries, so people who only query are missing from it.
+- Queries are retained for a limited period set by the instance (`QUERY_HISTORY_RETENTION_DAYS`, 32 days by default). A retention below 30 days makes the 30-day active count, the per-person query count and top explores undercount.
+- "No recorded activity" covers both people who never used the product and people whose only activity was a query that has since been deleted.
 - Percentages on a department's `directMetrics` use that department's own headcount, not the effective one.
 - Dashboards in a trashed space can appear in top content. Only the dashboard's own `deleted_at` is checked.
 - Top content names are visible to anyone with the view scope, whatever their access to the space.

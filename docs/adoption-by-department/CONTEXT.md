@@ -81,7 +81,7 @@ _Avoid_: licensed, provisioned, seated
 ### Measures
 
 **Active**:
-Ran a query themselves, or viewed a chart or dashboard, in this organization in the last 30 days. Scheduled, API, agent and MCP runs do not count. Weekly counts use the same activity per UTC week.
+Ran a query themselves, or viewed a chart or dashboard, in this organization in the last 30 days. Scheduled, API, agent and MCP runs do not count.
 _Avoid_: engaged, retained, MAU
 
 **Coverage**:
@@ -101,7 +101,7 @@ Whole weeks to the target date, rounded up. Null with no date, 0 on the day, neg
 _Avoid_: days remaining, deadline
 
 **Weekly active**:
-Distinct active members per UTC week (Monday start) over the last 12 weeks.
+Distinct members with a chart or dashboard view per UTC week (Monday start) over the last 12 weeks. Queries are not counted here, because query history is only kept for about a month.
 _Avoid_: WAU, trend line
 
 **Org average**:
@@ -136,5 +136,5 @@ _Avoid_: alerts, issues, to-do
 ## Flagged ambiguities
 
 - The word "group" always means a Lightdash user group. A department is not a group, and linking a group to a department does not change the group.
-- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts per week. The map's "Active in 12 weeks" is a separate colouring, not the active measure.
+- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. The map's "Active in 12 weeks" is a separate colouring, not the active measure.
 - The code and API say `unassigned`. Do not introduce "unplaced" in code, docs or copy.

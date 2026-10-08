@@ -4,7 +4,7 @@ import {
     type DepartmentWeeklyActivePoint,
 } from '@lightdash/common';
 
-export type MemberFilter = 'all' | 'neverActive' | 'inactive30d';
+export type MemberFilter = 'all' | 'noRecordedActivity' | 'inactive30d';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
@@ -40,7 +40,7 @@ const matches = (member: DepartmentMember, filter: MemberFilter): boolean => {
     switch (filter) {
         case 'all':
             return true;
-        case 'neverActive':
+        case 'noRecordedActivity':
             return member.lastActiveAt === null;
         case 'inactive30d':
             return member.lastActiveAt !== null && !member.isActive30d;
@@ -58,11 +58,11 @@ export const countMembersByFilter = (
     members: DepartmentMember[],
 ): Record<MemberFilter, number> => ({
     all: members.length,
-    neverActive: filterMembers(members, 'neverActive').length,
+    noRecordedActivity: filterMembers(members, 'noRecordedActivity').length,
     inactive30d: filterMembers(members, 'inactive30d').length,
 });
 
-// Never active first, then the longest quiet; ties by email
+// No recorded activity first, then the longest quiet; ties by email
 export const sortMembers = (members: DepartmentMember[]): DepartmentMember[] =>
     [...members].sort((a, b) => {
         if (a.lastActiveAt === b.lastActiveAt) {
@@ -80,7 +80,8 @@ export const formatLastActive = (
     lastActiveAt: string | null,
     now: Date = new Date(),
 ): string => {
-    if (lastActiveAt === null) return 'Never';
+    // Query history is kept for a limited time, so a missing timestamp is not proof of never
+    if (lastActiveAt === null) return 'No recorded activity';
     const days = daysSince(lastActiveAt, now);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';

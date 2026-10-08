@@ -27,9 +27,9 @@ describe('filterMembers', () => {
     it('returns everyone for all', () => {
         expect(filterMembers(members, 'all')).toHaveLength(5);
     });
-    it('never active means no recorded activity at all', () => {
+    it('no recorded activity means no timestamp at all', () => {
         expect(
-            filterMembers(members, 'neverActive').map((m) => m.userUuid),
+            filterMembers(members, 'noRecordedActivity').map((m) => m.userUuid),
         ).toEqual(['never']);
     });
     it('inactive 30d means active once but not in the last 30 days', () => {
@@ -51,14 +51,14 @@ describe('filterMembers', () => {
     it('counts each filter', () => {
         expect(countMembersByFilter(members)).toEqual({
             all: 5,
-            neverActive: 1,
+            noRecordedActivity: 1,
             inactive30d: 2,
         });
     });
 });
 
 describe('sortMembers', () => {
-    it('puts never active first, then the least recently active', () => {
+    it('puts no recorded activity first, then the least recently active', () => {
         const shuffled = [
             members[4],
             members[1],
@@ -83,7 +83,7 @@ describe('sortMembers', () => {
 
 describe('formatLastActive', () => {
     it.each([
-        [null, 'Never'],
+        [null, 'No recorded activity'],
         ['2026-10-07T00:00:00Z', 'Today'],
         ['2026-10-07T08:00:00Z', 'Today'],
         ['2026-10-06T23:59:00Z', 'Yesterday'],

@@ -316,7 +316,7 @@ export const formatMemberActivity = (
     lastActiveAt: string | null,
     now: Date = new Date(),
 ): string => {
-    if (lastActiveAt === null) return 'Never active';
+    if (lastActiveAt === null) return 'No recorded activity';
     const when = formatLastActive(lastActiveAt, now);
     // Relative days read as part of the sentence; a date keeps its capitals
     return `Last active ${/^[A-Z][a-z]+$/.test(when) ? when.toLowerCase() : when}`;

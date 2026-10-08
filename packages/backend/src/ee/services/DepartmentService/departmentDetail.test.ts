@@ -179,7 +179,7 @@ describe('buildDepartmentMembers', () => {
         ],
     });
 
-    it('sorts never active first, then longest inactive', () => {
+    it('sorts no recorded activity first, then longest inactive', () => {
         expect(built.map((m) => m.userUuid)).toEqual([
             'never',
             'stale',

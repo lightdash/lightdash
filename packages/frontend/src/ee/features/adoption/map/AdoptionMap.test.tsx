@@ -294,7 +294,7 @@ describe('AdoptionMap', () => {
             screen.getByRole('button', { name: 'Grace Hopper' }),
         );
         expect(screen.getByText('grace@example.com')).toBeInTheDocument();
-        expect(screen.getByText('Never active')).toBeInTheDocument();
+        expect(screen.getByText('No recorded activity')).toBeInTheDocument();
         expect(container.querySelectorAll('[data-selected]')).toHaveLength(1);
     });
 
