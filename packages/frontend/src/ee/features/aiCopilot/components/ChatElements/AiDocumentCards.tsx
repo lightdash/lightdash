@@ -10,7 +10,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDocument } from '../../../../../features/documents/useDocument';
 import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import { useProjects } from '../../../../../hooks/useProjects';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
@@ -95,7 +95,7 @@ const AiDocumentCards: FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const currentPreview = useAiAgentStoreSelector(selectPreview);
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const projectRoute = useOptionalProjectRoute();
     const currentProjectRoute =
         projectRoute?.projectUuid === projectUuid ? projectRoute : null;

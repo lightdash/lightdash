@@ -5,16 +5,13 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { Box, Drawer, Group, Text, Tooltip } from '@mantine/core';
-import {
-    useDisclosure,
-    useMediaQuery,
-    type UseSplitterReturnValue,
-} from '@mantine/hooks';
+import { useDisclosure, type UseSplitterReturnValue } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import clsx from 'clsx';
 import {
     useCallback,
     useEffect,
@@ -27,6 +24,8 @@ import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     AI_AGENT_ARTIFACT_KEY,
     aiAgentArtifactVersionQuery,
@@ -91,6 +90,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
+    const { mode: embedMode } = useEmbed();
+    // In the SDK the agent lives in a box on the host page, so its drawers
+    // stay inside that box and leave the host's scroll alone
+    const isSdk = isEmbed && embedMode === 'sdk';
 
     // Thread routes and the battle route name the threads on screen.
     const { threadUuid, threadUuidA, threadUuidB } = useParams();
@@ -122,7 +125,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
           )
         : null;
     // Resolved on first render so the sidebar never flashes open on mobile
-    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+    const isMobile = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
     });
     const [
@@ -163,9 +166,11 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 
     return (
         <div
-            className={`${styles.workspace} ${
-                isEmbed ? styles.workspaceEmbed : ''
-            }`}
+            className={clsx(
+                styles.workspace,
+                isEmbed && styles.workspaceEmbed,
+                isSdk && styles.workspaceSdk,
+            )}
         >
             <ResizableSplitter
                 orientation="horizontal"
@@ -265,7 +270,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 >
                     <ErrorBoundary>
                         {(Header || (isMobile && Sidebar)) && (
-                            <Box className={styles.chatHeader}>
+                            <Box
+                                className={styles.chatHeader}
+                                data-compact={isMobile}
+                            >
                                 <Group gap="xs" wrap="nowrap" align="center">
                                     {isMobile && Sidebar && (
                                         <SidebarButton
@@ -319,6 +327,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 <Drawer
                     opened={isMobileSidebarOpened}
                     onClose={closeMobileSidebar}
+                    withinPortal={!isSdk}
+                    lockScroll={!isSdk}
                     closeButtonProps={{
                         'aria-label': 'Close threads',
                         size: 44,
@@ -331,6 +341,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         </Text>
                     }
                     classNames={{
+                        inner: isSdk ? styles.sdkDrawerInner : undefined,
                         content: styles.mobileSidebarContent,
                         header: styles.mobileSidebarHeader,
                         body: styles.mobileSidebarBody,
@@ -350,10 +361,15 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 <Drawer
                     opened={!!preview}
                     onClose={() => dispatch(clearPreview())}
+                    withinPortal={!isSdk}
+                    lockScroll={!isSdk}
                     size="75%"
                     position="bottom"
                     h="75%"
                     withCloseButton={false}
+                    classNames={{
+                        inner: isSdk ? styles.sdkDrawerInner : undefined,
+                    }}
                     transitionProps={{
                         transition: 'slide-up',
                         duration: 200,

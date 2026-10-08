@@ -21,6 +21,13 @@ type AiAgentExamplePageProps = {
     embedConfig: EmbedConfigState;
 };
 
+type AiAgentRenderMode = 'iframe' | 'native';
+
+const AI_AGENT_RENDER_MODES: { value: AiAgentRenderMode; label: string }[] = [
+    { value: 'iframe', label: 'Iframe (default)' },
+    { value: 'native', label: 'Native (beta)' },
+];
+
 type AiAgentPermissions = {
     debug: boolean;
     sql: boolean;
@@ -293,6 +300,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     );
     const defaultThreadUuid = aiAgentEmbedConfig.threadUuid ?? '';
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
+    const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
     const remountKey = `${selectedAiAgentEmbedUrl || embedConfig.remountKey}:${
         resumeThreadUuid || 'new'
@@ -384,6 +392,34 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             The agent and write-action scope come from the
                             configured AI-agent embed URL and JWT.
                         </p>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>Render mode</label>
+                            <div style={{ display: 'flex', gap: 16 }}>
+                                {AI_AGENT_RENDER_MODES.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="ai-agent-render-mode"
+                                            checked={
+                                                renderMode === option.value
+                                            }
+                                            onChange={() =>
+                                                setRenderMode(option.value)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                         <div style={{ marginBottom: 16 }}>
                             <label style={panelLabelStyle}>
                                 Answer permissions
@@ -490,7 +526,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                         {hasRequiredConfig ? (
                             <div style={dashboardContainerStyle}>
                                 <Lightdash.AiAgent
-                                    key={`${remountKey}:${agentUuid}`}
+                                    key={`${remountKey}:${agentUuid}:${renderMode}`}
                                     instanceUrl={instanceUrl}
                                     token={token}
                                     agentUuid={agentUuid}
@@ -498,6 +534,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                         resumeThreadUuid.trim() || undefined
                                     }
                                     onThreadChange={handleThreadChange}
+                                    renderMode={renderMode}
                                 />
                             </div>
                         ) : (

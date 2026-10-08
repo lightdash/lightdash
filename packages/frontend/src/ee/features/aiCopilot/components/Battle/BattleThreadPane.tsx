@@ -3,6 +3,7 @@ import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { useContext, useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentPageBase } from '../../hooks/aiAgentRouting';
 import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
@@ -55,6 +56,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
     thread,
     queuedCount,
 }) => {
+    const isEmbed = useIsEmbedded();
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
     const now = useTicking(isStreaming);
@@ -176,9 +178,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                 )}
                 <Anchor
                     component={Link}
-                    to={`${getAiAgentPageBase(
-                        projectUuid,
-                    )}/${agentUuid}/threads/${thread.uuid}`}
+                    to={`${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${thread.uuid}`}
                     size="xs"
                 >
                     Open

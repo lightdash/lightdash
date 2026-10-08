@@ -2,16 +2,16 @@ import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useStore } from 'react-redux';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../features/apps/hooks/useAppBuildPoller';
 import {
     getBuildOutcome,
     useBuildNotification,
 } from '../../../../../features/apps/hooks/useBuildNotification';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     getAiAgentThreadPath,
     getThreadUuidFromPathname,
-    isEmbedAiAgentRoute,
 } from '../../hooks/aiAgentRouting';
 import { getAiAgentThreadQueryKey } from '../../hooks/useProjectAiAgents';
 import { type AiAgentStoreState } from '../../store';
@@ -62,21 +62,33 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
     const dispatch = useAiAgentStoreDispatch();
     const store = useStore<AiAgentStoreState>();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const { projectUuid, agentUuid, threadUuid, appUuid } = watch;
-    const canNotify = !isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
+    const canNotify = !isEmbed;
     const landedReadyVersionRef = useRef<number | null>(null);
 
     const openThread = useCallback(() => {
-        if (getThreadUuidFromPathname(window.location.pathname) === threadUuid)
-            return;
-        void navigate(getAiAgentThreadPath(projectUuid, agentUuid, threadUuid));
+        if (getThreadUuidFromPathname(pathname) === threadUuid) return;
+        void navigate(
+            getAiAgentThreadPath(projectUuid, agentUuid, threadUuid, isEmbed),
+        );
         const version = landedReadyVersionRef.current;
         if (version === null) return;
         // Deferred so the outgoing thread's cleanup (clearPreview) runs first.
         setTimeout(() => {
             dispatch(setPreview(getLandedPreview(watch, version)));
         }, 0);
-    }, [navigate, dispatch, watch, projectUuid, agentUuid, threadUuid]);
+    }, [
+        navigate,
+        pathname,
+        dispatch,
+        watch,
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        isEmbed,
+    ]);
 
     // Requests permission on mount, i.e. when the watch starts.
     const notify = useBuildNotification({

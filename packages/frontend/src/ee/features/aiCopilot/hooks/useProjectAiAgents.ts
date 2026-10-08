@@ -59,16 +59,13 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
 import {
     type AiAgentToolCallHandler,
     type AiAgentToolResultHandler,
 } from '../types';
-import {
-    getAiAgentApiBase,
-    getAiAgentPageBase,
-    isEmbedAiAgentRoute,
-} from './aiAgentRouting';
+import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
@@ -110,6 +107,7 @@ export const useProjectAiAgents = ({
     options,
     redirectOnUnauthorized,
 }: UseProjectAiAgentsProps) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -131,7 +129,7 @@ export const useProjectAiAgents = ({
                 isAiAgentAuthorizationError(error.error)
             ) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`,
                 );
             }
         },
@@ -143,6 +141,7 @@ export const useProjectAiAgent = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -152,7 +151,7 @@ export const useProjectAiAgent = (
         onError: (error) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
@@ -544,6 +543,7 @@ export const useInfiniteAiAgentThreads = (
         ApiError
     >,
 ) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -565,7 +565,7 @@ export const useInfiniteAiAgentThreads = (
         onError: (error) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
@@ -592,6 +592,7 @@ const deleteAgentThread = async (
     });
 
 export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -610,7 +611,7 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
             // still-mounted thread query refetches the deleted thread and 404s
             if (threadUuid === activeThreadUuid) {
                 await navigate(
-                    `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads`,
                 );
             }
             queryClient.removeQueries({
@@ -818,6 +819,7 @@ export const useAiAgentThread = (
     threadUuid: string | null | undefined,
     options?: UseQueryOptions<ApiAiAgentThreadResponse['results'], ApiError>,
 ) => {
+    const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
     const navigate = useNavigate();
 
@@ -829,7 +831,7 @@ export const useAiAgentThread = (
         onError: (error) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
@@ -869,8 +871,9 @@ export const useAiAgentThreadWorkstreams = (
         ApiAiAgentThreadWorkstreamsResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
+) => {
+    const isEmbed = useIsEmbedded();
+    return useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             projectUuid,
@@ -881,9 +884,14 @@ export const useAiAgentThreadWorkstreams = (
         ],
         queryFn: () =>
             getAgentThreadWorkstreams(projectUuid, agentUuid!, threadUuid!),
-        enabled: !!agentUuid && !!threadUuid,
         ...options,
+        enabled:
+            !isEmbed &&
+            !!agentUuid &&
+            !!threadUuid &&
+            options?.enabled !== false,
     });
+};
 
 // Helper functions for thread creation
 
@@ -1020,12 +1028,15 @@ const toOptimisticContextItem = (
     }
 };
 
-const getOptimisticUserName = (user: UserWithAbility | undefined) => {
+const getOptimisticUserName = (
+    user: UserWithAbility | undefined,
+    isEmbed: boolean,
+) => {
     const name = [user?.firstName?.trim(), user?.lastName?.trim()]
         .filter(Boolean)
         .join(' ');
 
-    return name || user?.email || (isEmbedAiAgentRoute() ? '' : 'Unknown user');
+    return name || user?.email || (isEmbed ? '' : 'Unknown user');
 };
 
 const createOptimisticMessages = (
@@ -1034,6 +1045,7 @@ const createOptimisticMessages = (
     prompt: string,
     user: UserWithAbility | undefined,
     agent: AiAgent,
+    isEmbed: boolean,
     context: AiPromptContext = [],
     hidden = false,
     includeAssistantResponse = true,
@@ -1046,7 +1058,7 @@ const createOptimisticMessages = (
         message: prompt,
         createdAt: new Date().toISOString(),
         user: {
-            name: getOptimisticUserName(user),
+            name: getOptimisticUserName(user, isEmbed),
             uuid: user?.userUuid ?? 'unknown',
         },
         context,
@@ -1167,6 +1179,7 @@ export const useCreateAgentThreadMutation = (
         skipNavigation?: boolean;
     },
 ) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -1205,7 +1218,7 @@ export const useCreateAgentThreadMutation = (
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
-            if (!isEmbedAiAgentRoute()) {
+            if (!isEmbed) {
                 void generateThreadTitle({
                     agentUuid,
                     threadUuid: thread.uuid,
@@ -1240,6 +1253,7 @@ export const useCreateAgentThreadMutation = (
                             thread.firstMessage.message,
                             user!.data!,
                             agent,
+                            isEmbed,
                             // Prefer the caller's resolved metadata (name,
                             // chartKind) if provided so the pinned card
                             // renders correctly in the optimistic state.
@@ -1253,7 +1267,7 @@ export const useCreateAgentThreadMutation = (
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
-                            name: getOptimisticUserName(user?.data),
+                            name: getOptimisticUserName(user?.data, isEmbed),
                             uuid: user?.data?.userUuid ?? 'unknown',
                         },
                     } satisfies ApiAiAgentThreadResponse['results'];
@@ -1328,9 +1342,7 @@ export const useCreateAgentThreadMutation = (
 
             if (!options?.skipNavigation) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        projectUuid,
-                    )}/${agentUuid}/threads/${thread.uuid}`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${thread.uuid}`,
                     { viewTransition: true },
                 );
             }
@@ -1338,7 +1350,7 @@ export const useCreateAgentThreadMutation = (
         onError: ({ error }) => {
             if (isAiAgentAuthorizationError(error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
@@ -1373,6 +1385,7 @@ export const useCreateAgentThreadMessageMutation = (
         onToolResult?: AiAgentToolResultHandler;
     },
 ) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -1433,6 +1446,7 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.prompt,
                                 user!.data!,
                                 agent!,
+                                isEmbed,
                                 data.optimisticContext ??
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
@@ -1540,7 +1554,7 @@ export const useCreateAgentThreadMessageMutation = (
         onError: ({ error }) => {
             if (isAiAgentAuthorizationError(error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
@@ -2053,7 +2067,7 @@ export const useAiAgentArtifactVizQuery = (
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return useQuery<ApiAiAgentArtifactVizQuery, ApiError>({
         queryKey: [
@@ -2083,9 +2097,7 @@ export const useAiAgentArtifactVizQuery = (
         onError: (error: ApiError) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        activeProjectUuid ?? projectUuid,
-                    )}/not-authorized`,
+                    `${getAiAgentPageBase(activeProjectUuid ?? projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
@@ -2162,7 +2174,7 @@ export const useAiAgentDashboardChartVizQuery = (
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: getAiAgentDashboardChartVizQueryKey({
@@ -2185,9 +2197,7 @@ export const useAiAgentDashboardChartVizQuery = (
         onError: (error: ApiError) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        activeProjectUuid ?? projectUuid,
-                    )}/not-authorized`,
+                    `${getAiAgentPageBase(activeProjectUuid ?? projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({

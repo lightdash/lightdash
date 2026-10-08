@@ -23,7 +23,7 @@ import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAutho
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     clearPreview,
     type SavedChartPreviewData,
@@ -59,7 +59,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     const dispatch = useAiAgentStoreDispatch();
     const ability = useAbilityContext();
     const { content, onExplore } = useEmbed();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     const {
         data: savedChart,

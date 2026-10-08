@@ -99,12 +99,11 @@
     }
 }
 
-@media (max-width: 48em) {
-    .chatHeader {
-        min-height: rem(44px);
-        padding: rem(4px) var(--mantine-spacing-sm);
-        border-bottom: 0;
-    }
+/* Compact follows the agent's container width, not the viewport */
+.chatHeader[data-compact='true'] {
+    min-height: rem(44px);
+    padding: rem(4px) var(--mantine-spacing-sm);
+    border-bottom: 0;
 }
 
 .chatContent {
@@ -152,6 +151,18 @@
 /* Embed pages render without the app navbar */
 .workspaceEmbed {
     height: 100dvh;
+}
+
+/* SDK embeds fill the host's container, not the viewport. Layout
+   containment also makes the drawers' fixed overlays cover only this box. */
+.workspaceSdk {
+    height: 100%;
+    contain: layout;
+}
+
+/* Drawers rendered inside .workspaceSdk span the box, not their flex slot */
+.sdkDrawerInner {
+    inset: 0;
 }
 
 .floatingArtifactRegion {

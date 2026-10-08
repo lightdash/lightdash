@@ -16,12 +16,12 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     getAiArtifactChartSource,
     useAiArtifactCompiledSql,
@@ -58,7 +58,7 @@ export const AiChartVisualization: FC<Props> = ({
     showCloseButton = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    const isMobile = useAgentMaxWidth(768);
 
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);

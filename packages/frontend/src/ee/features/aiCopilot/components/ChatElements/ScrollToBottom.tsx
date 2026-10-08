@@ -48,10 +48,12 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
                 if (!nearBottom) return;
             }
 
-            const node = messagesEndRef.current;
-            if (!node) return;
+            const viewport = scrollAreaRef.current;
+            if (!viewport) return;
+            // Scroll only the chat viewport, never its ancestors: the agent can be
+            // embedded in a host page whose own scroll must not move
             let frame = requestAnimationFrame(() => {
-                node.scrollIntoView({ behavior });
+                viewport.scrollTo({ top: viewport.scrollHeight, behavior });
             });
             return () => cancelAnimationFrame(frame);
         },
