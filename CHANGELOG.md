@@ -1,3 +1,12 @@
+## [2.477.1](https://github.com/lightdash/lightdash/compare/2.477.0...2.477.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* allow scoped access to recently deleted project content ([#30449](https://github.com/lightdash/lightdash/issues/30449)) ([4cb68d7](https://github.com/lightdash/lightdash/commit/4cb68d762c28576abf79f5982bdac922592cec17))
+* **frontend:** restore desktop hover cards and touch-only close buttons ([#30684](https://github.com/lightdash/lightdash/issues/30684)) ([226a0cb](https://github.com/lightdash/lightdash/commit/226a0cb1b4a75a344680d682ed287d47831d1166))
+* **scim:** allow colons in PATCH path filter values ([#30682](https://github.com/lightdash/lightdash/issues/30682)) ([e31ef92](https://github.com/lightdash/lightdash/commit/e31ef92a86f1ed7ddb376edc1b96e2fc990e42d8))
+
 # [2.477.0](https://github.com/lightdash/lightdash/compare/2.476.0...2.477.0) (2026-10-08)
 
 
