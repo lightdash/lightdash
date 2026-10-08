@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     type Account,
+    type Authentication,
     type CreateDepartment,
     type MemberAbility,
 } from '@lightdash/common';
@@ -56,6 +57,30 @@ const buildAccount = (ability: MemberAbility): Account =>
         isServiceAccount: () => false,
         isSessionUser: () => true,
     }) as Account;
+
+// An API token account: the user's own organization and ability, a token instead of a session
+const buildTokenAccount = (
+    authentication: Authentication,
+    ability: MemberAbility,
+): Account =>
+    ({
+        ...buildAccount(ability),
+        authentication,
+        isSessionUser: () => false,
+        isServiceAccount: () => authentication.type === 'service-account',
+        isPatUser: () => authentication.type === 'pat',
+    }) as Account;
+
+const SERVICE_ACCOUNT: Authentication = {
+    type: 'service-account',
+    source: 'service-account-token',
+    serviceAccountUuid: 'service-account-uuid',
+    serviceAccountDescription: 'CI',
+};
+const PERSONAL_ACCESS_TOKEN: Authentication = {
+    type: 'pat',
+    source: 'personal-access-token',
+};
 
 const abilityWith = (
     ...grants: Array<['view' | 'manage', string]>
@@ -371,6 +396,61 @@ describe('DepartmentService snapshot cache', () => {
             'org-0',
         );
     });
+});
+
+describe('DepartmentService with API tokens', () => {
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'lets %s holding manage create a department in its own organization',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({ flag: true });
+            await service.create(
+                buildTokenAccount(
+                    authentication,
+                    abilityWith(['view', ORG], ['manage', ORG]),
+                ),
+                newDepartment,
+            );
+            expect(departmentModel.create).toHaveBeenCalledWith(
+                ORG,
+                newDepartment,
+                'user-uuid',
+                LIMITS,
+            );
+        },
+    );
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'refuses %s with view only, or manage on another organization, without touching the model',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({ flag: true });
+            await expect(
+                service.setMembers(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', ORG]),
+                    ),
+                    DEP,
+                    [USR],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.setMembers(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', 'other'], ['manage', 'other']),
+                    ),
+                    DEP,
+                    [USR],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(departmentModel.setMembers).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('DepartmentService.getMembership', () => {

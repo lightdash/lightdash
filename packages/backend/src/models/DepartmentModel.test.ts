@@ -1,5 +1,9 @@
 // packages/backend/src/models/DepartmentModel.test.ts
-import { AlreadyExistsError, ParameterError } from '@lightdash/common';
+import {
+    AlreadyExistsError,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -529,6 +533,114 @@ describe('DepartmentModel', () => {
             expect(
                 tracker.history.all.some((q) => ON_LIGHTDASH.test(q.sql)),
             ).toBe(false);
+        });
+    });
+
+    describe('organization scoping', () => {
+        // The department lookup every read and write starts from
+        const LOOKUP = /to_char\(target_date/;
+
+        it.each([
+            ['get', () => model.getByUuid('org', 'dep')],
+            [
+                'update',
+                () => model.update('org', 'dep', { name: 'x' }, 'user', LIMITS),
+            ],
+            ['delete', () => model.delete('org', 'dep')],
+            ['set groups', () => model.setGroupLinks('org', 'dep', ['g1'])],
+            ['set members', () => model.setMembers('org', 'dep', ['u1'])],
+            [
+                'set owners',
+                () =>
+                    model.setOwners('org', 'dep', [
+                        { type: 'group', uuid: 'g1' },
+                        { type: 'user', uuid: 'u1' },
+                    ]),
+            ],
+        ])(
+            '%s looks the department up within the organization, and a department it does not find is NotFoundError',
+            async (_name, call) => {
+                // Another organization's department is simply not returned
+                tracker.on.select(LOOKUP).response([]);
+                tracker.on
+                    .select(/^select "groups"."group_uuid"/)
+                    .response([{ group_uuid: 'g1' }]);
+                tracker.on
+                    .select(OrganizationMembershipsTableName)
+                    .response([{ user_uuid: 'u1' }]);
+
+                await expect(call()).rejects.toThrow(
+                    new NotFoundError('Department dep not found'),
+                );
+
+                const lookup = tracker.history.select.find((q) =>
+                    LOOKUP.test(q.sql),
+                );
+                expect(lookup?.sql).toMatch(
+                    /from "organization_departments" where "organization_uuid" = \$1 and "department_uuid" = \$2/,
+                );
+                expect(lookup?.bindings).toEqual(['org', 'dep']);
+                expect(tracker.history.insert).toHaveLength(0);
+                expect(tracker.history.update).toHaveLength(0);
+                expect(tracker.history.delete).toHaveLength(0);
+            },
+        );
+
+        it("lists only the organization's departments", async () => {
+            tracker.on.select(SELECT_DEPARTMENTS).response([]);
+            await model.listByOrganization('org');
+            const [list] = tracker.history.select;
+            expect(list.sql).toMatch(/where "organization_uuid" = \$1/);
+            expect(list.bindings).toEqual(['org']);
+        });
+
+        it('checks groups and people against the organization', async () => {
+            tracker.on
+                .select(/^select "groups"."group_uuid"/)
+                .response([{ group_uuid: 'g1' }]);
+            tracker.on
+                .select(OrganizationMembershipsTableName)
+                .response([{ user_uuid: 'u1' }]);
+            tracker.on.select(LOOKUP).response([]);
+            await model
+                .setOwners('org', 'dep', [
+                    { type: 'group', uuid: 'g1' },
+                    { type: 'user', uuid: 'u1' },
+                ])
+                .catch(() => undefined);
+            const groupCheck = tracker.history.select.find((q) =>
+                q.sql.startsWith('select "groups"."group_uuid"'),
+            );
+            const userCheck = tracker.history.select.find((q) =>
+                q.sql.includes(`from "${OrganizationMembershipsTableName}"`),
+            );
+            expect(groupCheck?.sql).toContain(
+                '"organizations"."organization_uuid" = $1',
+            );
+            expect(groupCheck?.bindings[0]).toBe('org');
+            expect(userCheck?.sql).toContain(
+                '"organizations"."organization_uuid" = $1',
+            );
+            expect(userCheck?.bindings[0]).toBe('org');
+        });
+
+        it("clears a person's other assignment only within the organization", async () => {
+            tracker.on
+                .select(OrganizationMembershipsTableName)
+                .response([{ user_uuid: 'u1' }]);
+            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+            tracker.on.select(/from "department_/).response([]);
+            tracker.on.delete(DepartmentMemberTableName).response(0);
+            tracker.on.insert(DepartmentMemberTableName).response([]);
+            tracker.on
+                .any(/is_active = true/)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            await model.setMembers('org', 'dep', ['u1']);
+            const [otherAssignments] = tracker.history.delete;
+            expect(otherAssignments.sql).toContain(
+                'where "department_uuid" in (select "department_uuid" from "organization_departments" where "organization_uuid" = $1)',
+            );
+            expect(otherAssignments.bindings).toEqual(['org', 'u1']);
         });
     });
 
