@@ -701,6 +701,7 @@ describe('MCP Document runtime', () => {
                 content: { markdown, charts: {} },
             },
             { source: 'mcp' },
+            { uniqueSlug: true },
         );
     });
 
@@ -925,6 +926,7 @@ describe('MCP Document runtime', () => {
                 projectUuid,
                 expect.objectContaining({ spaceUuid: undefined }),
                 { source: 'mcp' },
+                { uniqueSlug: true },
             );
         });
 

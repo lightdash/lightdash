@@ -315,6 +315,7 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         input: CreateDocumentRequest,
         change: DocumentChangeContext = API_CHANGE,
+        { uniqueSlug }: { uniqueSlug?: boolean } = {},
     ): Promise<Document> {
         const project = await this.assertProjectAccess(account, projectUuid);
         const context =
@@ -365,6 +366,7 @@ export class DocumentService extends BaseService {
         await this.validateCharts(account, projectUuid, content);
         const created = await this.dependencies.documentModel.create({
             ...input,
+            uniqueSlug,
             spaceUuid: input.spaceUuid ?? null,
             content,
             projectUuid,
