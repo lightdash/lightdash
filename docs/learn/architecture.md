@@ -41,10 +41,12 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
 ## What is possible
 
 A learner opens the Learn library from the icon beside notifications, picks a module and presses Start. Lightdash
-makes a fresh copy of the training project for them, opens the walkthrough on the page where it begins, and
-highlights the one control to click at each step. Typed steps offer a suggestion so the learner never has to
-invent input. The last step shows the result, then *Got it* opens a completion dialog and *Back to library*
-deletes the copy and returns to the library, where the module is marked done.
+opens their own copy of the training project (made the first time, kept for a day after each start, so what
+earlier modules built is still there), opens the walkthrough on the page where it begins, and highlights the one
+control to click at each step. Typed steps offer a suggestion so the learner never has to invent input. The last
+step shows the result, then *Got it* opens a completion dialog and *Back to library* returns to the library, where
+the module is marked done; the copy stays. *Start fresh* in the library's Filter menu removes it, so the next
+module begins from the seeded state.
 
 Inside their copy a trainee can do what a project admin can, minus anything that breaks the project or reaches
 outside it: explore, run SQL, save charts, dashboards and spaces, pin, comment, verify, categorise, export results,

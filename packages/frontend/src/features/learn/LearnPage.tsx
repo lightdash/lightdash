@@ -3,6 +3,7 @@ import { FeatureFlags, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
+    Group,
     Menu,
     TextInput,
     Tooltip,
@@ -16,9 +17,17 @@ import {
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
-import { type FC, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+    type FC,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -57,6 +66,7 @@ import { createLearnSearch } from './search';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
+import { useStartFresh } from './useStartFresh';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
 type CardState = 'ready' | 'started' | 'done';
@@ -155,6 +165,20 @@ const LearnPage: FC = () => {
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
     );
+    // The learner's own copy of the training project, kept across
+    // walkthroughs. Start fresh (in the Filter menu) removes it, so the next
+    // walkthrough begins from the seeded state.
+    const ownCopy =
+        trainingProject &&
+        projects?.find(
+            (project) =>
+                project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training' &&
+                project.upstreamProjectUuid === trainingProject.projectUuid &&
+                project.createdByUserUuid === user.data?.userUuid,
+        );
+    const [confirmingFresh, setConfirmingFresh] = useState(false);
+    const { mutate: startFresh, isLoading: startingFresh } = useStartFresh();
     // Before the org has enabled Learn (CS-257): admins get the button,
     // everyone else a pointer to an admin.
     const organizationUuid = user.data?.organizationUuid;
@@ -554,9 +578,60 @@ const LearnPage: FC = () => {
                             >
                                 Coming soon
                             </Menu.Item>
+                            {ownCopy && (
+                                <>
+                                    <Menu.Label>Your copy</Menu.Label>
+                                    <Menu.Item
+                                        onClick={() => setConfirmingFresh(true)}
+                                        aria-label="Start fresh"
+                                    >
+                                        Start fresh
+                                    </Menu.Item>
+                                </>
+                            )}
                         </Menu.Dropdown>
                     </Menu>
                 </Box>
+                {trainingProject && ownCopy && confirmingFresh && (
+                    <MantineModal
+                        opened
+                        onClose={() => setConfirmingFresh(false)}
+                        title="Start fresh?"
+                        role="alertdialog"
+                        size="md"
+                        description="Your copy and everything you built in it will be removed."
+                        footer={
+                            <Group justify="flex-end" w="100%">
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => setConfirmingFresh(false)}
+                                    disabled={startingFresh}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    color="red"
+                                    loading={startingFresh}
+                                    onClick={() =>
+                                        startFresh(
+                                            {
+                                                trainingProjectUuid:
+                                                    trainingProject.projectUuid,
+                                            },
+                                            {
+                                                onSuccess: () =>
+                                                    setConfirmingFresh(false),
+                                            },
+                                        )
+                                    }
+                                >
+                                    Start fresh
+                                </Button>
+                            </Group>
+                        }
+                    />
+                )}
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.

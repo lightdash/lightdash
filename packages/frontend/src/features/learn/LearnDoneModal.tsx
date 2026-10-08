@@ -11,9 +11,9 @@ import { useLearnAccess } from './useLearnAccess';
 type Props = {
     /** The module just finished. */
     scope: string;
-    /** Return to the library (the copy is put away behind the learner). */
+    /** Return to the library; the copy stays for the next walkthrough. */
     onBack: () => void;
-    /** Go straight into the next module, in a fresh copy made from here. */
+    /** Go straight into the next module, in this same copy. */
     onNext: (scope: string) => void;
     /** The next copy is being made; the choice has been taken. */
     opening?: boolean;
