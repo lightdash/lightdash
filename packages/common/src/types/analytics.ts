@@ -128,6 +128,14 @@ export type ApiDownloadActivity = {
     results: DownloadActivityResults;
 };
 
+export enum QuerySurface {
+    APP = 'app',
+    SLACK = 'slack',
+    MCP = 'mcp',
+    CLI = 'cli',
+    API = 'api',
+}
+
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',

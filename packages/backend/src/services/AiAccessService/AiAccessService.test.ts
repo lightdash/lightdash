@@ -12,6 +12,8 @@ import {
     type PossibleAbilities,
     type QueryHistory,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -134,7 +136,7 @@ const setup = () => {
             async (
                 _organizationUuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => settings,
+            ) => ({ settings, previousRequired: false }),
         ),
     };
     const credentials = {
@@ -144,7 +146,9 @@ const setup = () => {
             credentials: { type: WarehouseTypes.SNOWFLAKE },
         })),
     };
+    const analytics = { track: vi.fn() };
     const service = new AiAccessService({
+        analytics: analytics as unknown as LightdashAnalytics,
         userWarehouseCredentialsModel:
             credentials as unknown as UserWarehouseCredentialsModel,
         organizationAgentIdentitySettingsModel:
@@ -165,6 +169,7 @@ const setup = () => {
         providerRegistry: registry,
     });
     return {
+        analytics,
         service,
         historyModel,
         credentials,
@@ -178,6 +183,168 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    describe('updateOrganizationSettings', () => {
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Organization' },
+        ]);
+
+        test.each([
+            { previousRequired: false, required: true },
+            { previousRequired: true, required: false },
+        ])(
+            'tracks $previousRequired -> $required once',
+            async ({ previousRequired, required }) => {
+                const { service, organizationSettings, analytics } = setup();
+                const settings = { requireVerifiedAgentSessions: required };
+                organizationSettings.upsert.mockResolvedValue({
+                    settings,
+                    previousRequired,
+                });
+                await expect(
+                    service.updateOrganizationSettings(admin, settings),
+                ).resolves.toEqual(settings);
+                expect(
+                    organizationSettings.upsert,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    admin.organization.organizationUuid,
+                    settings,
+                );
+                expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                    userId: admin.user.id,
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: admin.organization.organizationUuid,
+                        userId: admin.user.id,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required,
+                        previousRequired,
+                    },
+                });
+                expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                    /email|token|sql/i,
+                );
+            },
+        );
+
+        test.each([false, true])(
+            'does not track an unchanged setting %s',
+            async (required) => {
+                const { service, organizationSettings, analytics } = setup();
+                const settings = { requireVerifiedAgentSessions: required };
+                organizationSettings.upsert.mockResolvedValue({
+                    settings,
+                    previousRequired: required,
+                });
+                await expect(
+                    service.updateOrganizationSettings(admin, settings),
+                ).resolves.toEqual(settings);
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
+
+        test('uses the saved value to decide whether the rule changed', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            const saved = { requireVerifiedAgentSessions: false };
+            organizationSettings.upsert.mockResolvedValue({
+                settings: saved,
+                previousRequired: false,
+            });
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).resolves.toEqual(saved);
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track denied access', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            await expect(
+                service.updateOrganizationSettings(viewer, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track a failed save', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            organizationSettings.upsert.mockRejectedValue(
+                new Error('save failed'),
+            );
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toThrow('save failed');
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not save or track with the flag off', async () => {
+            const { service, organizationSettings, analytics, flags } = setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('returns saved settings when tracking throws', async () => {
+            const { service, analytics } = setup();
+            analytics.track.mockImplementation(() => {
+                throw new Error('tracking failed');
+            });
+            const settings = { requireVerifiedAgentSessions: true };
+            await expect(
+                service.updateOrganizationSettings(admin, settings),
+            ).resolves.toEqual(settings);
+            expect(analytics.track).toHaveBeenCalledTimes(1);
+        });
+
+        test.each(['jwt', 'service-account'])(
+            'tracks a %s actor anonymously',
+            async (actorType) => {
+                const { service, analytics } = setup();
+                const anonymous =
+                    actorType === 'jwt'
+                        ? buildAccount({ accountType: 'jwt' })
+                        : fromServiceAccount(
+                              {
+                                  ...sessionUser,
+                                  serviceAccount: {
+                                      uuid: 'service-account-uuid',
+                                  },
+                              },
+                              'test',
+                          );
+                anonymous.organization = admin.organization;
+                anonymous.user.ability = admin.user.ability;
+                await service.updateOrganizationSettings(anonymous, {
+                    requireVerifiedAgentSessions: true,
+                });
+                expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: anonymous.organization.organizationUuid,
+                        userId: null,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required: true,
+                        previousRequired: false,
+                    },
+                });
+                expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                    /email|token|sql/i,
+                );
+            },
+        );
+    });
+
     describe('getAgentConnectPrompt', () => {
         const user = {
             ...sessionUser,

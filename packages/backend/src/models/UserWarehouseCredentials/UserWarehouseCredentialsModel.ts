@@ -40,6 +40,11 @@ import {
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
+type DeletedAiCredential = {
+    warehouseType: WarehouseTypes;
+    projectUuid: string | null;
+};
+
 type UserWarehouseCredentialsModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
@@ -275,15 +280,24 @@ export class UserWarehouseCredentialsModel {
         return created.user_warehouse_credentials_uuid;
     }
 
-    async deleteAiCredential(userUuid: string, uuid: string): Promise<boolean> {
-        const deleted = await this.database(UserWarehouseCredentialsTableName)
+    async deleteAiCredential(
+        userUuid: string,
+        uuid: string,
+    ): Promise<DeletedAiCredential | null> {
+        const [deleted] = await this.database(UserWarehouseCredentialsTableName)
             .where({
                 user_uuid: userUuid,
                 user_warehouse_credentials_uuid: uuid,
                 purpose: UserWarehouseCredentialPurpose.AI,
             })
-            .delete();
-        return deleted > 0;
+            .delete()
+            .returning(['warehouse_type', 'project_uuid']);
+        return deleted
+            ? {
+                  warehouseType: deleted.warehouse_type as WarehouseTypes,
+                  projectUuid: deleted.project_uuid,
+              }
+            : null;
     }
 
     /**

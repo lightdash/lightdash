@@ -27,6 +27,8 @@ import {
     type QueryHistory,
     type SessionUser,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
@@ -55,6 +57,7 @@ export type ResolvePlanArgs = {
 type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
 
 type AiAccessServiceArguments = {
+    analytics: LightdashAnalytics;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
@@ -67,6 +70,8 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -86,6 +91,7 @@ export class AiAccessService extends BaseService {
     private readonly providerRegistry: AiCredentialProviderRegistry;
 
     constructor({
+        analytics,
         organizationAgentIdentitySettingsModel,
         lightdashConfig,
         featureFlagModel,
@@ -97,6 +103,7 @@ export class AiAccessService extends BaseService {
         providerRegistry,
     }: AiAccessServiceArguments) {
         super();
+        this.analytics = analytics;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
         this.lightdashConfig = lightdashConfig;
@@ -196,10 +203,34 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return this.organizationAgentIdentitySettingsModel.upsert(
-            organizationUuid,
-            settings,
-        );
+        const { settings: savedSettings, previousRequired } =
+            await this.organizationAgentIdentitySettingsModel.upsert(
+                organizationUuid,
+                settings,
+            );
+        if (savedSettings.requireVerifiedAgentSessions !== previousRequired) {
+            const userId =
+                account.user.type === 'registered' &&
+                !account.isServiceAccount()
+                    ? account.user.id
+                    : null;
+            trackSafely(() =>
+                this.analytics.track({
+                    ...(userId !== null
+                        ? { userId }
+                        : { anonymousId: LightdashAnalytics.anonymousId }),
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: organizationUuid,
+                        userId,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required: savedSettings.requireVerifiedAgentSessions,
+                        previousRequired,
+                    },
+                }),
+            );
+        }
+        return savedSettings;
     }
 
     private async authorizeProject(

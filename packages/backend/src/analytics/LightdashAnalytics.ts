@@ -2,7 +2,10 @@
 import {
     Account,
     AdminNotificationType,
+    AgentIdentityConnectEntryPoint,
+    AgentIdentityConnectFailureReason,
     AI_WRITEBACK_STAGES,
+    AiAccessRefusalReason,
     AiAgentSkillVersionSource,
     AiCreditAllowanceAlertThreshold,
     AnyType,
@@ -31,6 +34,7 @@ import {
     ProjectMemberRole,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     RequestMethod,
     SchedulerFormat,
     SchedulerResourceType,
@@ -4582,7 +4586,100 @@ export type MobilePushNotificationEvent =
           };
       });
 
+type AgentIdentityTrack = BaseTrack &
+    (
+        | {
+              userId: string;
+              anonymousId?: never;
+          }
+        | {
+              userId?: never;
+              anonymousId: string;
+          }
+    );
+
+export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.rule_updated';
+    properties: {
+        organizationId: string;
+        userId: string | null;
+        warehouseType: WarehouseTypes.SNOWFLAKE;
+        required: boolean;
+        previousRequired: boolean;
+    };
+};
+
+export type AgentQueryRefusedProperties = {
+    organizationId: string;
+    projectId: string;
+    userId: string | null;
+    warehouseConnectionId: string | null;
+    surface: QuerySurface;
+    warehouseType: WarehouseTypes;
+    reason: AiAccessRefusalReason;
+};
+
+export type AgentQueryRefusedEvent = AgentIdentityTrack & {
+    event: 'query.refused';
+    properties: AgentQueryRefusedProperties;
+};
+
+export type AgentIdentityConnectProperties = {
+    organizationId: string;
+    userId: string;
+    projectId: string | null;
+    entryPoint: AgentIdentityConnectEntryPoint;
+    warehouseType: WarehouseTypes.SNOWFLAKE;
+    connectAttemptId: string;
+};
+
+export type AgentIdentityConnectStartedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connect_started';
+    properties: AgentIdentityConnectProperties;
+};
+
+export type AgentIdentityConnectedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connected';
+    properties: AgentIdentityConnectProperties & {
+        failureReason: null;
+    };
+};
+
+export type AgentIdentityConnectFailedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connect_failed';
+    properties: AgentIdentityConnectProperties & {
+        failureReason: AgentIdentityConnectFailureReason;
+    };
+};
+
+export type AgentIdentityDisconnectedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.disconnected';
+    properties: {
+        organizationId: string | null;
+        userId: string;
+        projectId: string | null;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+export type AgentIdentityExpiredEvent = AgentIdentityTrack & {
+    event: 'agent_identity.expired';
+    properties: Omit<AgentQueryRefusedProperties, 'reason'> & {
+        reason: AiAccessRefusalReason.SIGN_IN_EXPIRED;
+    };
+};
+
+type AgentIdentityEvent =
+    | AgentIdentityRuleUpdatedEvent
+    | AgentQueryRefusedEvent
+    | AgentIdentityConnectStartedEvent
+    | AgentIdentityConnectedEvent
+    | AgentIdentityConnectFailedEvent
+    | AgentIdentityDisconnectedEvent
+    | AgentIdentityExpiredEvent;
+
 type TypedEvent =
+    | AgentIdentityEvent
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent

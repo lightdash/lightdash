@@ -28,22 +28,44 @@ test.each([true, false])(
     },
 );
 
-test.each([true, false])(
-    'upserts and returns the stored setting %s',
-    async (enabled) => {
+test.each([
+    { previous: undefined, required: true, previousRequired: false },
+    { previous: undefined, required: false, previousRequired: false },
+    { previous: false, required: true, previousRequired: false },
+    { previous: true, required: false, previousRequired: true },
+    { previous: true, required: true, previousRequired: true },
+])(
+    'upserts $previous -> $required and returns the previous value',
+    async ({ previous, required, previousRequired }) => {
+        tracker.on
+            .select('organizations')
+            .response([{ organization_uuid: 'org' }]);
+        tracker.on
+            .select('organization_agent_identity_settings')
+            .response(
+                previous === undefined
+                    ? []
+                    : [{ require_verified_agent_sessions: previous }],
+            );
         tracker.on
             .insert('organization_agent_identity_settings')
-            .response([{ require_verified_agent_sessions: enabled }]);
+            .response([{ require_verified_agent_sessions: required }]);
         expect(
             await model.upsert('org', {
-                requireVerifiedAgentSessions: enabled,
+                requireVerifiedAgentSessions: required,
             }),
-        ).toEqual({ requireVerifiedAgentSessions: enabled });
+        ).toEqual({
+            settings: { requireVerifiedAgentSessions: required },
+            previousRequired,
+        });
+        expect(tracker.history.select[0].sql).toContain('for update');
+        expect(tracker.history.select[0].bindings).toContain('org');
+        expect(tracker.history.select[1].bindings).toContain('org');
         expect(tracker.history.insert[0].sql).toContain(
             'on conflict ("organization_uuid") do update',
         );
         expect(tracker.history.insert[0].sql).toContain('"updated_at"');
         expect(tracker.history.insert[0].bindings).toContain('org');
-        expect(tracker.history.insert[0].bindings).toContain(enabled);
+        expect(tracker.history.insert[0].bindings).toContain(required);
     },
 );
