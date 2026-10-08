@@ -48495,6 +48495,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                expiresAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
@@ -71044,6 +71052,7 @@ const models: TsoaRoute.Models = {
             'result_not_agent_produced',
             'principal_failed',
             'needs_sign_in',
+            'sign_in_expired',
             'warehouse_not_supported',
             'service_account',
             'embed_not_supported',
@@ -71060,6 +71069,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                connectUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 settingsUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -71093,6 +71110,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                expiresAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 refusal: {
                     dataType: 'union',
                     subSchemas: [

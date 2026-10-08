@@ -1,3 +1,10 @@
+# [2.473.0](https://github.com/lightdash/lightdash/compare/2.472.0...2.473.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** connect the agent from MCP clients through the web sign-in ([#30661](https://github.com/lightdash/lightdash/issues/30661)) ([9b8ec71](https://github.com/lightdash/lightdash/commit/9b8ec714bced9220e0c327a1cb01cb40f72562ec))
+
 # [2.472.0](https://github.com/lightdash/lightdash/compare/2.471.0...2.472.0) (2026-10-08)
 
 

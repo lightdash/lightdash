@@ -1,39 +1,24 @@
 {
   "schemaVersion": "2",
-  "version": "2.472.0",
-  "previousVersion": "2.471.0",
-  "releaseDate": "2026-10-08T05:57:16.645Z",
+  "version": "2.473.0",
+  "previousVersion": "2.472.0",
+  "releaseDate": "2026-10-08T06:34:14.034Z",
   "migrations": {
     "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
     "files": [
       {
-        "name": "20261005170000_add_user_warehouse_credential_purpose.ts",
+        "name": "20261007230117_add_user_warehouse_credential_expires_at.ts",
         "edition": "core",
         "tables": [
-          "pg_class",
-          "pg_index",
           "user_warehouse_credentials"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261007165605_add_organization_agent_identity_settings.ts",
-        "edition": "core",
-        "tables": [
-          "organization_agent_identity_settings",
-          "organizations"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
         }
       }
     ]
@@ -48,8 +33,10 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `sign_in_expired` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`"
+      ],
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,

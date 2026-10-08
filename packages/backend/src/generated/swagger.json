@@ -46921,6 +46921,11 @@
                             }
                         ]
                     },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -46945,6 +46950,7 @@
                 "required": [
                     "project",
                     "credentials",
+                    "expiresAt",
                     "updatedAt",
                     "createdAt",
                     "name",
@@ -69673,6 +69679,7 @@
                     "result_not_agent_produced",
                     "principal_failed",
                     "needs_sign_in",
+                    "sign_in_expired",
                     "warehouse_not_supported",
                     "service_account",
                     "embed_not_supported"
@@ -69685,6 +69692,10 @@
             },
             "AiAccessRefusal": {
                 "properties": {
+                    "connectUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "settingsUrl": {
                         "type": "string",
                         "nullable": true
@@ -69710,6 +69721,7 @@
                     }
                 },
                 "required": [
+                    "connectUrl",
                     "settingsUrl",
                     "action",
                     "message",
@@ -69720,6 +69732,11 @@
             },
             "AiAccessForUser": {
                 "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "refusal": {
                         "allOf": [
                             {
@@ -69763,6 +69780,7 @@
                     }
                 },
                 "required": [
+                    "expiresAt",
                     "refusal",
                     "principalKind",
                     "enabled",
@@ -69850,7 +69868,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.472.0",
+        "version": "2.473.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
