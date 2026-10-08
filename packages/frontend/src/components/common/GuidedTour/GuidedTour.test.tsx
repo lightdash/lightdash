@@ -696,6 +696,118 @@ describe('GuidedTour', () => {
     // chooser before the export form). While that control is on the page and
     // the target is not, the ring and the title move to it straight away;
     // once the target appears, the step is itself again.
+    describe('a control at the edge of the page', () => {
+        const box = (top: number, height = 32) =>
+            ({
+                top,
+                bottom: top + height,
+                left: 100,
+                right: 300,
+                width: 200,
+                height,
+                x: 100,
+                y: top,
+                toJSON: () => ({}),
+            }) as DOMRect;
+        // The control's box is answered by the prototype, so the very first
+        // measurement (made as the tour mounts) already sees it.
+        const mount = (rect: () => DOMRect) => {
+            vi.spyOn(
+                Element.prototype,
+                'getBoundingClientRect',
+            ).mockImplementation(function measure(this: Element) {
+                return this.hasAttribute('data-edge') ? rect() : box(0, 0);
+            });
+            renderWithProviders(
+                <>
+                    <button type="button" data-edge>
+                        Recently deleted
+                    </button>
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '[data-edge]',
+                                title: 'Open Recently deleted',
+                                body: '',
+                                interactive: true,
+                                advanceOnTargetClick: true,
+                            },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                    />
+                </>,
+            );
+        };
+        const scrolls = () =>
+            vi
+                .spyOn(Element.prototype, 'scrollIntoView')
+                .mockImplementation(() => {});
+        beforeEach(() => {
+            vi.useFakeTimers({
+                toFake: [
+                    'setTimeout',
+                    'clearTimeout',
+                    'requestAnimationFrame',
+                    'cancelAnimationFrame',
+                ],
+            });
+        });
+
+        it('scrolls a control pressed against the bottom of the window to the middle', async () => {
+            const scroll = scrolls();
+            try {
+                mount(() => box(window.innerHeight - 32));
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(200);
+                });
+                expect(scroll).toHaveBeenCalledWith(
+                    expect.objectContaining({ block: 'center' }),
+                );
+                expect(scroll.mock.calls.length).toBeLessThanOrEqual(2);
+            } finally {
+                vi.restoreAllMocks();
+                vi.useRealTimers();
+            }
+        });
+
+        it('leaves a control with room around it where it is, and scrolls once layout pushes it out', async () => {
+            const scroll = scrolls();
+            try {
+                let top = 300;
+                mount(() => box(top));
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(200);
+                });
+                expect(scroll).not.toHaveBeenCalled();
+                top = window.innerHeight + 40;
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(200);
+                });
+                expect(scroll).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.restoreAllMocks();
+                vi.useRealTimers();
+            }
+        });
+
+        it('tries a control nothing brings into view once, not every frame', async () => {
+            const scroll = scrolls();
+            try {
+                mount(() => box(window.innerHeight + 400));
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(2_000);
+                });
+                // Once per mount of the measuring loop, never per frame.
+                expect(scroll.mock.calls.length).toBeGreaterThanOrEqual(1);
+                expect(scroll.mock.calls.length).toBeLessThanOrEqual(2);
+            } finally {
+                vi.restoreAllMocks();
+                vi.useRealTimers();
+            }
+        });
+    });
+
     describe('detour', () => {
         const detourSteps: GuidedTourStep[] = [
             {
