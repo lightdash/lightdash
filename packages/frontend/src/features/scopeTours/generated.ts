@@ -3899,7 +3899,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid/edit',
-                title: 'Turn on Always include in context',
+                title: 'Choose Always include',
                 body: "For documents the agent should apply to every question — not just the ones where the summary happens to match — flip the **Always include in context** toggle in the document's settings panel.",
                 interactive: true,
                 advanceOnTargetClick: true,
@@ -4118,7 +4118,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="create:AiDeepResearch"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/ai-agents/deep-research/:runUuid',
                 title: 'See the result',
-                body: 'Select **Open full report** from a completed or partially completed run card. Reports include a contents rail on larger screens so you can jump between findings.',
+                body: 'Select the Document card on a completed or partially completed run. The report opens in the side panel; use the open link to view it full page.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -6163,7 +6163,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid/edit',
-                title: 'Turn on Always include in context',
+                title: 'Choose Always include',
                 body: "For documents the agent should apply to every question — not just the ones where the summary happens to match — flip the **Always include in context** toggle in the document's settings panel.",
                 interactive: true,
                 advanceOnTargetClick: true,
