@@ -53,7 +53,10 @@ import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import { getModelKey } from '../../../../components/common/ModelSelector/utils';
+import {
+    renderModelSelectOption,
+    toModelSelectItem,
+} from '../../../../components/common/ModelSelector/modelSelectOption';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
@@ -660,10 +663,10 @@ export const AiAgentFormSetup = ({
                                 }
                                 placeholder={organizationDefaultModelLabel}
                                 clearable
-                                data={visibleModelOptions.map((model) => ({
-                                    value: getModelKey(model),
-                                    label: model.displayName,
-                                }))}
+                                data={visibleModelOptions.map(
+                                    toModelSelectItem,
+                                )}
+                                renderOption={renderModelSelectOption}
                                 onChange={(modelKey) => {
                                     const model = getModelOptionByKey(
                                         modelOptions,

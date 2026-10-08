@@ -15,7 +15,10 @@ import {
 import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
-import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
+import {
+    renderModelSelectOption,
+    toModelSelectItem,
+} from '../../../../../../components/common/ModelSelector/modelSelectOption';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import {
@@ -241,11 +244,9 @@ export const AiGeneralSettingsPage = () => {
                                         placeholder={systemDefaultModelLabel}
                                         clearable
                                         data={visibleDefaultModelOptions.map(
-                                            (model) => ({
-                                                value: getModelKey(model),
-                                                label: model.displayName,
-                                            }),
+                                            toModelSelectItem,
                                         )}
+                                        renderOption={renderModelSelectOption}
                                         onChange={(modelKey) => {
                                             const model = getModelOptionByKey(
                                                 defaultModelOptions,

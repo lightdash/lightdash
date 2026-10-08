@@ -26,8 +26,7 @@ export const DeprecatedModelNotice: FC<Props> = ({
                 </Text>
                 <Button
                     size="compact-xs"
-                    variant="light"
-                    color="yellow"
+                    variant="default"
                     disabled={disabled}
                     onClick={() => onSwitch(replacement.modelConfig)}
                 >
