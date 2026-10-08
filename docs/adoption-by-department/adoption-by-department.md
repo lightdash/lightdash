@@ -16,7 +16,7 @@ The routes are hidden from the generated API docs while the feature is under dev
 
 ## Data model
 
-One migration (`packages/backend/src/database/migrations/20261007201524_create_organization_departments.ts`) creates four tables:
+One migration (`packages/backend/src/database/migrations/20261008120000_create_organization_departments.ts`) creates four tables:
 
 | Table                      | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
