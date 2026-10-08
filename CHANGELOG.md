@@ -1,3 +1,15 @@
+# [2.479.0](https://github.com/lightdash/lightdash/compare/2.478.0...2.479.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **composer:** line charts open sorted by x; x sort orders rows locally ([#30703](https://github.com/lightdash/lightdash/issues/30703)) ([c845a41](https://github.com/lightdash/lightdash/commit/c845a41fe7dcbdbadf961646741c74ebe5f6c899))
+
+
+### Features
+
+* track AI agent SQL approval decisions ([#30672](https://github.com/lightdash/lightdash/issues/30672)) ([6493308](https://github.com/lightdash/lightdash/commit/6493308470284c6366c1c8381f4597f2177f5919))
+
 # [2.478.0](https://github.com/lightdash/lightdash/compare/2.477.1...2.478.0) (2026-10-08)
 
 
