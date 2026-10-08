@@ -1,3 +1,12 @@
+## [2.475.2](https://github.com/lightdash/lightdash/compare/2.475.1...2.475.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep loaded skills and recent reads when clearing tool results ([#30635](https://github.com/lightdash/lightdash/issues/30635)) ([a16ba88](https://github.com/lightdash/lightdash/commit/a16ba88f9dffba054fecbec0c9f7405865fb8300))
+* **ai-agent:** keep the latest read of each content item while clearing other tool results ([#30647](https://github.com/lightdash/lightdash/issues/30647)) ([f583502](https://github.com/lightdash/lightdash/commit/f583502c03ad23cc2820149832e10c9e469f224a))
+* **mcp:** link to manual client setup ([#30584](https://github.com/lightdash/lightdash/issues/30584)) ([0b9c556](https://github.com/lightdash/lightdash/commit/0b9c556c3616d24e5be5f51d7ed69add821d2fce))
+
 ## [2.475.1](https://github.com/lightdash/lightdash/compare/2.475.0...2.475.1) (2026-10-08)
 
 
