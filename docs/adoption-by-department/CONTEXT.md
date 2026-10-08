@@ -104,9 +104,9 @@ _Avoid_: days remaining, deadline
 Distinct members with a chart or dashboard view per UTC week (Monday start) over the last 12 weeks. Queries are not counted here, because query history is only kept for about a month.
 _Avoid_: WAU, trend line
 
-**Org average**:
-On a department's trend, the mean weekly active count across departments at the same depth in the tree.
-_Avoid_: benchmark, baseline, peer average
+**At the organization's rate**:
+The dashed line on a department's trend: the organization's weekly active share applied to this department's people on Lightdash, so a 96 %-active department of 70 and a 5 %-active department of 2,000 are each compared with the same rate. The API's `orgAverage` (the mean across departments at the same depth) is no longer drawn.
+_Avoid_: average department, benchmark, baseline, peer average
 
 **Top content**:
 The dashboards, explores and AI agents a department's members used most in the last 30 days.
