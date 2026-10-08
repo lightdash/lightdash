@@ -93,6 +93,13 @@
     display: none;
 }
 
+/* Dimmed status row under the thread composer: active modes left, model right. */
+.statusRow {
+    margin-top: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-sm);
+    min-height: 20px;
+}
+
 /* Minimal mode styles for existing threads */
 .minimalContainer {
     position: relative;

@@ -16,7 +16,6 @@ import {
 import {
     ActionIcon,
     Box,
-    Button,
     FileButton,
     Group,
     Menu,
@@ -289,6 +288,8 @@ interface AgentChatInputProps {
     footerNotice?: ReactNode;
     // Battle threads fix fast decisions per side, so the toggle would do nothing there.
     showFastMode?: boolean;
+    // Thread model shown in the status row under the inline composer.
+    threadModelName?: string | null;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -356,6 +357,7 @@ export const AgentChatInput = ({
     dense = false,
     footerNotice,
     showFastMode = true,
+    threadModelName,
 }: AgentChatInputProps) => {
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
@@ -590,6 +592,11 @@ export const AgentChatInput = ({
         selectedAgent &&
         projectUuid &&
         agents.length > 0
+    );
+    const showModelSelectorControl = Boolean(
+        (showModelSelector || onExtendedThinkingChange) &&
+        models &&
+        onModelChange,
     );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
@@ -838,6 +845,10 @@ export const AgentChatInput = ({
         fastMode.available &&
         !disabled &&
         !isEmbedAiAgentRoute();
+    const showFastModeInModelSelector =
+        showFastModeControl && !isMinimalMode && showModelSelectorControl;
+    const showFastModeInComposerMenu =
+        showFastModeControl && !showFastModeInModelSelector;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -917,6 +928,7 @@ export const AgentChatInput = ({
         showSqlModeControl ||
         showAttachControl ||
         showDeepResearchInComposerMenu ||
+        showFastModeInComposerMenu ||
         showThemeControl,
     );
 
@@ -1292,6 +1304,7 @@ export const AgentChatInput = ({
                             )}
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu ||
+                                showFastModeInComposerMenu ||
                                 showThemeControl) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
@@ -1327,10 +1340,44 @@ export const AgentChatInput = ({
                         </Menu.Item>
                     )}
                     {showDeepResearchInComposerMenu && deepResearchMenuItem}
+                    {showFastModeInComposerMenu && (
+                        <Menu.Item
+                            aria-label={
+                                fastMode.enabled
+                                    ? 'Disable Fast mode'
+                                    : 'Enable Fast mode'
+                            }
+                            closeMenuOnClick={false}
+                            onClick={() =>
+                                fastMode.setEnabled(!fastMode.enabled)
+                            }
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconBolt}
+                                    size={14}
+                                    color={
+                                        fastMode.enabled ? 'blue.6' : 'ldGray.6'
+                                    }
+                                />
+                            }
+                            rightSection={
+                                fastMode.enabled ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size={14}
+                                        color="blue.6"
+                                    />
+                                ) : null
+                            }
+                        >
+                            Fast
+                        </Menu.Item>
+                    )}
                     {showThemeControl && (
                         <>
                             {(showSqlModeControl ||
-                                showDeepResearchInComposerMenu) && (
+                                showDeepResearchInComposerMenu ||
+                                showFastModeInComposerMenu) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
                             <ComposerThemeMenuEntry
@@ -1346,29 +1393,96 @@ export const AgentChatInput = ({
         );
     };
 
-    const renderFastModeButton = () =>
-        showFastModeControl ? (
-            <Tooltip
-                label="Jev picks the quickest way to answer, so simple questions come back faster"
-                multiline
-                w={240}
-                position="top"
-                openDelay={300}
+    const showStatusRow = threadModelName !== undefined && !disabled;
+
+    const renderStatusRow = () => {
+        if (!showStatusRow) return null;
+        const showFastStatus = showFastModeControl;
+        return (
+            <Group
+                className={styles.statusRow}
+                justify="space-between"
+                align="center"
+                gap="sm"
+                wrap="nowrap"
             >
-                <Button
-                    variant={fastMode.enabled ? 'light' : 'subtle'}
-                    color={fastMode.enabled ? 'indigo' : 'gray'}
-                    c={fastMode.enabled ? undefined : 'dimmed'}
-                    size="compact-xs"
-                    radius="xl"
-                    aria-pressed={fastMode.enabled}
-                    onClick={() => fastMode.setEnabled(!fastMode.enabled)}
-                    leftSection={<MantineIcon icon={IconBolt} size={14} />}
-                >
-                    Fast
-                </Button>
-            </Tooltip>
-        ) : null;
+                <Group gap="sm" align="center" wrap="nowrap">
+                    {footerNotice}
+                    {sqlMode && (
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconTerminal2}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text size="xs" c="dimmed">
+                                SQL Runner
+                            </Text>
+                        </Group>
+                    )}
+                    {composerMode === 'deep_research' && (
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconTelescope}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text size="xs" c="dimmed">
+                                Deep research
+                            </Text>
+                        </Group>
+                    )}
+                </Group>
+                {(threadModelName || showFastStatus) && (
+                    <Group gap={4} align="center" wrap="nowrap">
+                        {showFastStatus && (
+                            <Tooltip
+                                label="Jev picks the quickest way to answer, so simple questions come back faster"
+                                multiline
+                                w={240}
+                                position="top"
+                                openDelay={300}
+                            >
+                                <ActionIcon
+                                    size="xs"
+                                    variant="transparent"
+                                    aria-label={
+                                        fastMode.enabled
+                                            ? 'Disable Fast mode'
+                                            : 'Enable Fast mode'
+                                    }
+                                    aria-pressed={fastMode.enabled}
+                                    onClick={() =>
+                                        fastMode.setEnabled(!fastMode.enabled)
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconBolt}
+                                        size={14}
+                                        color={
+                                            fastMode.enabled
+                                                ? 'blue.6'
+                                                : 'dimmed'
+                                        }
+                                        fill={
+                                            fastMode.enabled
+                                                ? 'blue.6'
+                                                : undefined
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        {threadModelName && (
+                            <Text size="xs" c="dimmed" fw={500}>
+                                {threadModelName}
+                            </Text>
+                        )}
+                    </Group>
+                )}
+            </Group>
+        );
+    };
 
     const renderThemeButton = () =>
         showThemeButton ? (
@@ -1524,7 +1638,6 @@ export const AgentChatInput = ({
                                 toolbarLeft={
                                     <Group gap={4} align="center" wrap="nowrap">
                                         {renderComposerActionsMenu()}
-                                        {renderFastModeButton()}
                                         {renderThemeButton()}
                                     </Group>
                                 }
@@ -1550,9 +1663,14 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {!disabled && footerNotice && (
-                    <Box className={styles.footerNotice}>{footerNotice}</Box>
-                )}
+                {showStatusRow
+                    ? renderStatusRow()
+                    : !disabled &&
+                      footerNotice && (
+                          <Box className={styles.footerNotice}>
+                              {footerNotice}
+                          </Box>
+                      )}
             </Box>
         );
     }
@@ -1589,7 +1707,6 @@ export const AgentChatInput = ({
                         toolbarLeft={
                             <Group gap="xs" align="center" wrap="nowrap">
                                 {renderComposerActionsMenu()}
-                                {renderFastModeButton()}
                                 {renderThemeButton()}
                             </Group>
                         }
@@ -1618,8 +1735,7 @@ export const AgentChatInput = ({
                                         </Box>
                                     )}
 
-                                    {(showModelSelector ||
-                                        onExtendedThinkingChange) &&
+                                    {showModelSelectorControl &&
                                         models &&
                                         onModelChange && (
                                             <Box className={styles.modelGroup}>
@@ -1638,6 +1754,16 @@ export const AgentChatInput = ({
                                                     }
                                                     onReasoningChange={
                                                         onExtendedThinkingChange
+                                                    }
+                                                    fastModeEnabled={
+                                                        showFastModeInModelSelector
+                                                            ? fastMode.enabled
+                                                            : undefined
+                                                    }
+                                                    onFastModeChange={
+                                                        showFastModeInModelSelector
+                                                            ? fastMode.setEnabled
+                                                            : undefined
                                                     }
                                                 />
                                             </Box>

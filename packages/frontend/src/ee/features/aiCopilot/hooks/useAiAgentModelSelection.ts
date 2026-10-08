@@ -49,7 +49,7 @@ const getSystemDefaultModelOption = (
     modelOptions: AiModelOption[] | undefined,
 ) => modelOptions?.find((model) => model.default);
 
-const getDefaultModelSelection = (
+export const getDefaultModelSelection = (
     modelOptions: AiModelOption[] | undefined,
     modelConfig: AiAgentModelConfig | null | undefined,
 ) => {

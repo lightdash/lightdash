@@ -28,9 +28,11 @@ import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
 } from '../../features/aiCopilot/hooks/useAiAgentAdmin';
+import { getDefaultModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -203,8 +205,25 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { data: availableModels } = useModelOptions({
         projectUuid,
         agentUuid,
-        options: { enabled: !!threadModelConfig },
     });
+    const { data: aiOrganizationSettings } = useAiOrganizationSettings();
+    // Status row: the model the thread runs on, falling back the way a new
+    // thread would (agent config, then org default, then system default).
+    const threadModelName = useMemo(
+        () =>
+            getDefaultModelSelection(
+                availableModels,
+                threadModelConfig ??
+                    agent.modelConfig ??
+                    aiOrganizationSettings?.defaultAiAgentModelConfig,
+            )?.model.displayName ?? null,
+        [
+            agent.modelConfig,
+            aiOrganizationSettings?.defaultAiAgentModelConfig,
+            availableModels,
+            threadModelConfig,
+        ],
+    );
 
     const isThreadModelUnavailable =
         !!threadModelConfig &&
@@ -444,6 +463,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         threadUuid={threadUuid}
+                        threadModelName={threadModelName}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]
