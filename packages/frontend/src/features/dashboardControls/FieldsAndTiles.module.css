@@ -1,0 +1,6 @@
+.hint {
+    padding: var(--mantine-spacing-xs);
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-0);
+}

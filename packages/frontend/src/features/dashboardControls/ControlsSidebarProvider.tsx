@@ -1,6 +1,12 @@
 import {
+    createDashboardFilterRuleFromField,
+    createDashboardFilterRuleFromSqlColumn,
+    FilterOperator,
+    isMetric,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type ResultColumn,
 } from '@lightdash/common';
 import {
     useCallback,
@@ -15,10 +21,17 @@ import {
     type SetStateAction,
 } from 'react';
 import { useParams } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
+import { type DashboardContextType } from '../../providers/Dashboard/types';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { type TrackingContextType } from '../../providers/Tracking/types';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import {
+    canKeepFilterRule,
     findFilterRule,
     isFilterRuleDirty,
+    PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
     type ControlsSidebarSnapshot,
@@ -27,10 +40,28 @@ import {
     ControlsSidebarContext,
     type ControlsSidebarContextValue,
 } from './useControlsSidebar';
-import { useEditorDismiss } from './useEditorDismiss';
+import { EDITOR_ATTRIBUTE, useEditorDismiss } from './useEditorDismiss';
+
+// The bar's "Add", and the pill of the control being edited: the pressed
+// button nearest to "Add" that is not in the editor or on a tile
+const ADD_SELECTOR =
+    '[data-filter-actions] > button[data-dashboard-filter-control]';
+const EDITED_PILL_SELECTOR = 'button[aria-pressed="true"]';
+const NOT_A_PILL_SELECTOR = `[${EDITOR_ATTRIBUTE}], [data-tile-uuid]`;
+
+const findEditedPill = (
+    scope: Element | null = document.querySelector(ADD_SELECTOR),
+): HTMLElement | null => {
+    if (scope === null) return null;
+    const pill = [
+        ...scope.querySelectorAll<HTMLElement>(EDITED_PILL_SELECTOR),
+    ].find((button) => button.closest(NOT_A_PILL_SELECTOR) === null);
+    return pill ?? findEditedPill(scope.parentElement);
+};
 
 type SidebarState = {
     filterId: string;
+    isNew: boolean;
     snapshot: ControlsSidebarSnapshot;
 };
 
@@ -38,17 +69,55 @@ type SidebarState = {
 // written eagerly so two calls in one event (commit a label, then close) agree.
 type Latest = {
     state: SidebarState | null;
+    placeholder: DashboardFilterRule | null;
     dashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
+    filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
+    track: TrackingContextType['track'];
 };
 
 const getEditingRule = ({
     state,
+    placeholder,
     dashboardFilters,
-}: Pick<Latest, 'state' | 'dashboardFilters'>): DashboardFilterRule | null =>
-    state === null ? null : findFilterRule(dashboardFilters, state.filterId);
+}: Pick<
+    Latest,
+    'state' | 'placeholder' | 'dashboardFilters'
+>): DashboardFilterRule | null =>
+    state === null
+        ? null
+        : (placeholder ?? findFilterRule(dashboardFilters, state.filterId));
+
+// Operator, values and tile targets come from the field or SQL column;
+// identity, label and settings come from the placeholder
+const adoptPlaceholder = (
+    placeholder: DashboardFilterRule,
+    created: DashboardFilterRule,
+): DashboardFilterRule => ({
+    ...created,
+    id: placeholder.id,
+    label: placeholder.label,
+    lockedTabUuids: placeholder.lockedTabUuids,
+    required: placeholder.required,
+    requiredGroupId: placeholder.requiredGroupId,
+    singleValue: placeholder.singleValue,
+});
+
+const getFirstFieldRule = (
+    placeholder: DashboardFilterRule,
+    field: DashboardFilterableField,
+    filterableFieldsByTileUuid: Latest['filterableFieldsByTileUuid'],
+): DashboardFilterRule =>
+    adoptPlaceholder(
+        placeholder,
+        createDashboardFilterRuleFromField({
+            field,
+            availableTileFilters: filterableFieldsByTileUuid ?? {},
+            isTemporary: false,
+        }),
+    );
 
 export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     children,
@@ -61,15 +130,26 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const { track } = useTracking();
 
     const [state, setState] = useState<SidebarState | null>(null);
+    // Lives here, never in the dashboard filters, until it gets a mapping
+    const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
+        null,
+    );
 
     const rendered: Latest = {
         state,
+        placeholder,
         dashboardFilters,
         haveFiltersChanged,
+        filterableFieldsByTileUuid,
         setDashboardFilters,
         setHaveFiltersChanged,
+        track,
     };
     const latest = useRef(rendered);
     useLayoutEffect(() => {
@@ -91,6 +171,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         latest.current.setHaveFiltersChanged(changed);
     }, []);
 
+    const writePlaceholder = useCallback((next: DashboardFilterRule | null) => {
+        latest.current.placeholder = next;
+        setPlaceholder(next);
+    }, []);
+
     const writeState = useCallback((next: SidebarState | null) => {
         latest.current.state = next;
         setState(next);
@@ -98,7 +183,18 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const reset = useCallback(() => {
         writeState(null);
-    }, [writeState]);
+        writePlaceholder(null);
+    }, [writeState, writePlaceholder]);
+
+    // Where focus goes once the editor is gone: the pill when it is still
+    // there, else "Add". Null while nothing asked for it
+    const focusReturn = useRef<{ pill: HTMLElement | null } | null>(null);
+    const rememberFocusReturn = useCallback(() => {
+        // A control with no field yet was never on the bar
+        focusReturn.current = {
+            pill: latest.current.placeholder === null ? findEditedPill() : null,
+        };
+    }, []);
 
     // Opening another filter keeps the current edits (they only live in the
     // dashboard draft until Save) and starts a fresh snapshot for the new one.
@@ -106,23 +202,113 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (filterId: string) => {
             const current = latest.current;
             if (current.state?.filterId === filterId) return;
+            focusReturn.current = null;
+            writePlaceholder(null);
             writeState({
                 filterId,
+                isNew: false,
                 snapshot: {
                     dashboardFilters: current.dashboardFilters,
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
             });
         },
-        [writeState],
+        [writeState, writePlaceholder],
+    );
+
+    const openPlaceholder = useCallback(() => {
+        const current = latest.current;
+        const rule: DashboardFilterRule = {
+            id: uuidv4(),
+            target: PLACEHOLDER_TARGET,
+            operator: FilterOperator.EQUALS,
+            values: [],
+            label: undefined,
+            tileTargets: {},
+            disabled: true,
+        };
+        focusReturn.current = null;
+        writePlaceholder(rule);
+        writeState({
+            filterId: rule.id,
+            isNew: true,
+            snapshot: {
+                dashboardFilters: current.dashboardFilters,
+                haveFiltersChanged: current.haveFiltersChanged,
+            },
+        });
+    }, [writeState, writePlaceholder]);
+
+    // The moment a filter is created, which is what the shipped bar tracks
+    const writeFirstRule = useCallback(
+        (rule: DashboardFilterRule, group: 'dimensions' | 'metrics') => {
+            latest.current.track({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'edit' },
+            });
+            writeFilters((filters) => ({
+                ...filters,
+                [group]: [...filters[group], rule],
+            }));
+            writeFiltersChanged(true);
+            writePlaceholder(null);
+        },
+        [writeFilters, writeFiltersChanged, writePlaceholder],
+    );
+
+    const addFirstField = useCallback(
+        (field: DashboardFilterableField) => {
+            const current = latest.current;
+            if (current.placeholder === null) return;
+            writeFirstRule(
+                getFirstFieldRule(
+                    current.placeholder,
+                    field,
+                    current.filterableFieldsByTileUuid,
+                ),
+                isMetric(field) ? 'metrics' : 'dimensions',
+            );
+        },
+        [writeFirstRule],
+    );
+
+    // Lands on every SQL chart tile that has the column, as "Add filter" does
+    const addFirstSqlColumn = useCallback(
+        (
+            column: ResultColumn,
+            availableTileColumns: Record<string, ResultColumn[]>,
+        ) => {
+            const current = latest.current;
+            if (current.placeholder === null) return;
+            writeFirstRule(
+                adoptPlaceholder(
+                    current.placeholder,
+                    createDashboardFilterRuleFromSqlColumn({
+                        column,
+                        availableTileColumns,
+                        isTemporary: false,
+                    }),
+                ),
+                'dimensions',
+            );
+        },
+        [writeFirstRule],
     );
 
     const updateFilter = useCallback(
         (next: DashboardFilterRule) => {
+            const current = latest.current;
+            if (
+                current.placeholder !== null &&
+                current.placeholder.id === next.id
+            ) {
+                writePlaceholder(next);
+                return;
+            }
             writeFilters((filters) => replaceFilterRule(filters, next));
             writeFiltersChanged(true);
         },
-        [writeFilters, writeFiltersChanged],
+        [writeFilters, writeFiltersChanged, writePlaceholder],
     );
 
     const removeFilterById = useCallback(
@@ -137,22 +323,31 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const removeFilter = useCallback(() => {
         const { state: editingState } = latest.current;
         if (editingState === null) return;
+        rememberFocusReturn();
         const { snapshot, filterId } = editingState;
-        writeFilters(() =>
-            removeFilterRule(snapshot.dashboardFilters, filterId),
-        );
-        writeFiltersChanged(true);
+        if (editingState.isNew) {
+            writeFilters(() => snapshot.dashboardFilters);
+            writeFiltersChanged(snapshot.haveFiltersChanged);
+        } else {
+            writeFilters(() =>
+                removeFilterRule(snapshot.dashboardFilters, filterId),
+            );
+            writeFiltersChanged(true);
+        }
         reset();
-    }, [writeFilters, writeFiltersChanged, reset]);
+    }, [writeFilters, writeFiltersChanged, reset, rememberFocusReturn]);
 
     const discard = useCallback(() => {
         const current = latest.current;
         if (current.state === null) return;
+        rememberFocusReturn();
         const { snapshot } = current.state;
         writeFilters(() => snapshot.dashboardFilters);
         writeFiltersChanged(snapshot.haveFiltersChanged);
         reset();
-    }, [writeFilters, writeFiltersChanged, reset]);
+    }, [writeFilters, writeFiltersChanged, reset, rememberFocusReturn]);
+
+    const isPlaceholder = state !== null && placeholder !== null;
 
     // The dashboard's own Save or Cancel ends the edit; nothing is restored
     const { mode } = useParams<{ mode?: string }>();
@@ -164,8 +359,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     }, [isEditMode, reset]);
 
     const editingRule = useMemo(
-        () => getEditingRule({ state, dashboardFilters }),
-        [state, dashboardFilters],
+        () => getEditingRule({ state, placeholder, dashboardFilters }),
+        [state, placeholder, dashboardFilters],
     );
 
     // Keeps the edits, which already live in the dashboard draft
@@ -173,18 +368,37 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         const current = latest.current;
         if (current.state === null) return;
         const rule = getEditingRule(current);
-        if (rule === null) {
+        if (rule === null || !canKeepFilterRule(rule)) {
             discard();
             return;
         }
+        rememberFocusReturn();
         reset();
-    }, [discard, reset]);
+    }, [discard, reset, rememberFocusReturn]);
+
+    // A new control is closed first, as "Done" would: kept when it can be,
+    // dropped otherwise. Edits to an existing control are simply kept
+    const closeNew = useCallback(() => {
+        const current = latest.current;
+        if (current.state?.isNew) close();
+    }, [close]);
+
+    // Whatever is being edited is closed first, as "Done" would. A new
+    // control with no field yet stays as it is, label included
+    const openNew = useCallback(() => {
+        const { state: editingState, placeholder: editingPlaceholder } =
+            latest.current;
+        if (editingState?.isNew && editingPlaceholder !== null) return;
+        close();
+        openPlaceholder();
+    }, [close, openPlaceholder]);
 
     const open = useCallback(
         (filterId: string) => {
+            closeNew();
             openExisting(filterId);
         },
-        [openExisting],
+        [closeNew, openExisting],
     );
 
     const isSidebarOpen = state !== null;
@@ -192,6 +406,17 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         isOpen: isSidebarOpen,
         close,
     });
+
+    // Focus is a DOM matter: it moves once the editor has left the page
+    useEffect(() => {
+        if (isSidebarOpen || focusReturn.current === null) return;
+        const { pill } = focusReturn.current;
+        focusReturn.current = null;
+        (pill?.isConnected
+            ? pill
+            : document.querySelector<HTMLElement>(ADD_SELECTOR)
+        )?.focus();
+    }, [isSidebarOpen]);
 
     // Its own memo so a hover does not hand selectors a new object
     const editingFilterId = state?.filterId ?? null;
@@ -203,9 +428,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
             editing,
+            isNew: state?.isNew ?? false,
+            isPlaceholder,
             editingRule,
             isSidebarOpen,
             open,
+            openNew,
+            addFirstField,
+            addFirstSqlColumn,
             updateFilter,
             removeFilter,
             removeFilterById,
@@ -213,18 +443,23 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             close,
             isDirty:
                 state !== null &&
-                isFilterRuleDirty(
-                    state.snapshot.dashboardFilters,
-                    dashboardFilters,
-                    state.filterId,
-                ),
+                (isPlaceholder ||
+                    isFilterRuleDirty(
+                        state.snapshot.dashboardFilters,
+                        dashboardFilters,
+                        state.filterId,
+                    )),
         }),
         [
             state,
             isSidebarOpen,
             editing,
+            isPlaceholder,
             editingRule,
             open,
+            openNew,
+            addFirstField,
+            addFirstSqlColumn,
             updateFilter,
             removeFilter,
             removeFilterById,
