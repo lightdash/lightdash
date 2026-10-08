@@ -1,7 +1,6 @@
 import {
     createContentToolDefinition,
     documentAsCodeSchema,
-    getSqlApprovalSql,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
@@ -123,7 +122,7 @@ export const getCreateContent = ({
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
-        approveSql: ApproveSqlFn,
+        approveSqlFor: (chart: SqlChartAsCode) => ApproveSqlFn,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -134,14 +133,16 @@ export const getCreateContent = ({
                         artifacts,
                     ),
                 };
-            case 'sql_chart':
+            case 'sql_chart': {
+                const sqlChart = toolSqlChartAsCodeSchema.parse(
+                    args.content,
+                ) as SqlChartAsCode;
                 return {
                     type: 'sql_chart',
-                    content: toolSqlChartAsCodeSchema.parse(
-                        args.content,
-                    ) as SqlChartAsCode,
-                    approveSql,
+                    content: sqlChart,
+                    approveSql: approveSqlFor(sqlChart),
                 };
+            }
             default:
                 return args as Parameters<CreateContentFn>[0];
         }
@@ -166,13 +167,14 @@ export const getCreateContent = ({
                           needsApproval: true,
                       })
                     : null;
-            const approveSql: ApproveSqlFn = sqlChartApproval
-                ? () =>
-                      sqlChartApproval.approveSql({
-                          sql: getSqlApprovalSql(args),
-                          heading: getSqlChartApprovalHeading(content.name),
-                      })
-                : approveClientSql;
+            const approveSqlFor = (chart: SqlChartAsCode): ApproveSqlFn =>
+                sqlChartApproval
+                    ? () =>
+                          sqlChartApproval.approveSql({
+                              sql: chart.sql,
+                              heading: getSqlChartApprovalHeading(chart.name),
+                          })
+                    : approveClientSql;
 
             const run = async (): Promise<ExecuteCreateContentResult> => {
                 try {
@@ -187,7 +189,7 @@ export const getCreateContent = ({
                         return failure(SQL_CHART_DISABLED_RESULT);
                     }
                     const result = await createContent(
-                        await getCreateArgs(args, approveSql),
+                        await getCreateArgs(args, approveSqlFor),
                     );
                     const created = toCreatedContent(
                         result,

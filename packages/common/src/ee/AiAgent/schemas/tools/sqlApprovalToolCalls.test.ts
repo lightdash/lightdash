@@ -28,6 +28,13 @@ describe('getSqlApprovalSql', () => {
                 content: { sql: 'select 2' },
             }),
         ).toBe('select 2');
-        expect(getSqlApprovalSql(null)).toBe('');
+    });
+
+    it('returns null when the arguments carry no SQL', () => {
+        expect(getSqlApprovalSql(null)).toBeNull();
+        expect(getSqlApprovalSql({ type: 'sql_chart' })).toBeNull();
+        expect(
+            getSqlApprovalSql({ type: 'sql_chart', content: { name: 'x' } }),
+        ).toBeNull();
     });
 });

@@ -8725,11 +8725,15 @@ export class AiAgentModel {
 
         for (const row of rows) {
             if (isNativeSqlApprovalToolCall(row.tool_name, row.tool_args)) {
-                return {
-                    toolCallId: row.tool_call_id,
-                    toolName: row.tool_name,
-                    sql: getSqlApprovalSql(row.tool_args),
-                };
+                // A call without SQL has nothing to approve, so no card.
+                const sql = getSqlApprovalSql(row.tool_args);
+                if (sql !== null) {
+                    return {
+                        toolCallId: row.tool_call_id,
+                        toolName: row.tool_name,
+                        sql,
+                    };
+                }
             }
         }
         return null;

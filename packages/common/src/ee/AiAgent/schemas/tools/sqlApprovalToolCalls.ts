@@ -37,9 +37,9 @@ export const isSqlApprovalToolCall = (
     }
 };
 
-/** The SQL a pending approval asks the user to accept. */
-export const getSqlApprovalSql = (toolArgs: unknown): string => {
-    if (typeof toolArgs !== 'object' || toolArgs === null) return '';
+/** The SQL a pending approval asks the user to accept; null when the call carries none. */
+export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
+    if (typeof toolArgs !== 'object' || toolArgs === null) return null;
     if ('sql' in toolArgs && typeof toolArgs.sql === 'string') {
         return toolArgs.sql;
     }
@@ -52,5 +52,5 @@ export const getSqlApprovalSql = (toolArgs: unknown): string => {
     ) {
         return toolArgs.content.sql;
     }
-    return '';
+    return null;
 };
