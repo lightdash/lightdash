@@ -26,6 +26,7 @@ export const CURRICULUM: string[] = [
     'manage:PinnedItems',
     'manage:ContentVerification',
     'manage:VerifiedContent',
+    'manage:DeletedContent',
     'manage:Explore',
     'manage:CustomFields',
     'manage:SqlRunner',
