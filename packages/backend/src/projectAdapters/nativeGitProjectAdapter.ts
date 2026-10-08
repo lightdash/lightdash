@@ -18,7 +18,7 @@ import fs from 'fs';
 import fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import {
     createGitCredentialFiles,
     type GitCredentialFiles,
@@ -30,7 +30,7 @@ import {
     DEFAULT_GITHUB_HOST_DOMAIN,
     normalizeCredentialHost,
 } from '../utils/credentialDestination';
-import { GitRepository } from './gitRepository';
+import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
 
 export class NativeGitProjectAdapter implements ProjectAdapter {
     readonly dbtProjectDir: string;
@@ -100,10 +100,13 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         this.dbtProjectDir = path.join(this.localRepositoryDir, subPath);
         this.warehouseClient = warehouseClient;
         this.checkout = new GitRepository(
-            simpleGit({ unsafe: { allowUnsafeConfigPaths: true } }).env(
-                'GIT_CONFIG_GLOBAL',
-                this.credentials.configPath,
-            ),
+            simpleGit({
+                allowEnvironment: [
+                    ...GIT_REPOSITORY_ENVIRONMENT,
+                    'GIT_CONFIG_GLOBAL',
+                ],
+                unsafe: { allowUnsafeConfigPaths: true },
+            }).env('GIT_CONFIG_GLOBAL', this.credentials.configPath),
             this.localRepositoryDir,
             `https://${host}/${repository}.git`,
             repository,

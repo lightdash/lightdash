@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import path from 'path';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import { getInstallationToken } from '../clients/github/Github';
 import { DbtCliClient } from '../dbt/dbtCliClient';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
