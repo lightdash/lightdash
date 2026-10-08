@@ -26,32 +26,132 @@ module.exports = {
         schema: [],
     },
     create(context) {
+        const importedNames = new Map();
+        const expressions = [];
+
+        const isWarehouseSource = (node) =>
+            node?.type === 'Literal' &&
+            typeof node.value === 'string' &&
+            (node.value === '@lightdash/warehouses' ||
+                node.value.startsWith('@lightdash/warehouses/'));
+
+        const staticName = (node, computed = false) => {
+            if (!computed && node.type === 'Identifier') return node.name;
+            return node.type === 'Literal' && typeof node.value === 'string'
+                ? node.value
+                : null;
+        };
+
+        const resolveVariable = (identifier) => {
+            let scope = context.sourceCode.getScope(identifier);
+            while (scope) {
+                const variable = scope.set.get(identifier.name);
+                if (variable) return variable;
+                scope = scope.upper;
+            }
+            return null;
+        };
+
+        const importedName = (identifier) => {
+            if (importedNames.size === 0) return undefined;
+            const variable = resolveVariable(identifier);
+            return variable?.identifiers
+                .map((binding) => importedNames.get(binding))
+                .find((name) => name !== undefined);
+        };
+
+        const isWarehouseInitializer = (node) => {
+            if (node?.type === 'AwaitExpression') {
+                return (
+                    node.argument.type === 'ImportExpression' &&
+                    isWarehouseSource(node.argument.source)
+                );
+            }
+            return (
+                node?.type === 'CallExpression' &&
+                node.callee.type === 'Identifier' &&
+                node.callee.name === 'require' &&
+                !resolveVariable(node.callee) &&
+                node.arguments.length === 1 &&
+                isWarehouseSource(node.arguments[0])
+            );
+        };
+
+        const isBanned = (callee, bannedNames) => {
+            if (callee.type === 'Identifier') {
+                return (
+                    bannedNames.has(callee.name) ||
+                    bannedNames.has(importedName(callee))
+                );
+            }
+            return (
+                callee.type === 'MemberExpression' &&
+                callee.object.type === 'Identifier' &&
+                importedName(callee.object) === '*' &&
+                bannedNames.has(staticName(callee.property, callee.computed))
+            );
+        };
+
         return {
-            CallExpression(node) {
-                const { callee } = node;
-                if (
-                    (callee.type === 'Identifier' &&
-                        factoryFunctions.has(callee.name)) ||
-                    (callee.type === 'MemberExpression' &&
-                        callee.property.type === 'Identifier' &&
-                        callee.property.name ===
-                            'getWarehouseClientFromCredentials')
-                ) {
-                    context.report({
-                        node,
-                        messageId: 'noDirectWarehouseClient',
-                    });
+            ImportDeclaration(node) {
+                if (!isWarehouseSource(node.source)) return;
+                for (const specifier of node.specifiers) {
+                    if (specifier.type === 'ImportSpecifier') {
+                        importedNames.set(
+                            specifier.local,
+                            staticName(specifier.imported),
+                        );
+                    } else if (
+                        specifier.type === 'ImportNamespaceSpecifier' ||
+                        specifier.type === 'ImportDefaultSpecifier'
+                    ) {
+                        importedNames.set(specifier.local, '*');
+                    }
                 }
             },
-            NewExpression(node) {
-                if (
-                    node.callee.type === 'Identifier' &&
-                    warehouseConstructors.has(node.callee.name)
-                ) {
-                    context.report({
-                        node,
-                        messageId: 'noDirectWarehouseClient',
-                    });
+            VariableDeclarator(node) {
+                if (!isWarehouseInitializer(node.init)) return;
+                if (node.id.type === 'Identifier') {
+                    importedNames.set(node.id, '*');
+                } else if (node.id.type === 'ObjectPattern') {
+                    for (const property of node.id.properties) {
+                        if (
+                            property.type === 'Property' &&
+                            property.value.type === 'Identifier'
+                        ) {
+                            importedNames.set(
+                                property.value,
+                                staticName(property.key, property.computed),
+                            );
+                        }
+                    }
+                }
+            },
+            'CallExpression, NewExpression': (node) => {
+                expressions.push(node);
+            },
+            'Program:exit': () => {
+                for (const node of expressions) {
+                    const { callee } = node;
+                    const isFactoryHelper =
+                        node.type === 'CallExpression' &&
+                        callee.type === 'MemberExpression' &&
+                        staticName(callee.property, callee.computed) ===
+                            'getWarehouseClientFromCredentials';
+                    if (
+                        isFactoryHelper ||
+                        isBanned(
+                            callee,
+                            node.type === 'NewExpression'
+                                ? warehouseConstructors
+                                : factoryFunctions,
+                        )
+                    ) {
+                        context.report({
+                            node,
+                            messageId: 'noDirectWarehouseClient',
+                        });
+                    }
                 }
             },
         };

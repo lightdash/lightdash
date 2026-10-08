@@ -50,6 +50,8 @@ The backend logs one warning per factory when scoped release is disabled. Restar
 - `**/*.mock.ts`: mock fixtures can provide clients without the production factory.
 - `src/database/migrations/__tests__/**`: migration integration fixtures build real clients to prepare and check warehouse state.
 
+The rule also tracks aliased named imports, namespace and default imports, CommonJS `require` bindings and awaited dynamic imports from `@lightdash/warehouses` and its deep paths. Member access with a string literal key is covered. `pnpm -F backend test eslint-rules/no-direct-warehouse-client.test.ts` runs the rule under oxlint.
+
 ## Out of scope
 
 The DuckDB engines for results files, local analytics and pre-aggregates are not warehouse connections and are built directly.
