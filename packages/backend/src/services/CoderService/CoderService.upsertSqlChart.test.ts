@@ -329,7 +329,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 PROJECT_UUID,
                 expect.objectContaining({ slug: sqlChartAsCode.slug }),
                 undefined,
-                'unique',
+                { slugMode: 'unique' },
             );
             expect(changes.charts[0].data).toMatchObject({
                 uuid: 'new-uuid',
@@ -491,6 +491,7 @@ describe('CoderService.upsertSqlChart - connections', () => {
                 PROJECT_UUID,
                 expect.objectContaining({ slug: sqlChartAsCode.slug }),
                 { kind: 'connection', warehouseConnectionUuid },
+                { slugMode: 'exact' },
             );
         },
     );
@@ -582,6 +583,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
             'user-uuid',
             PROJECT_UUID,
             expect.objectContaining({ slug: sqlChartAsCode.slug }),
+            undefined,
+            { slugMode: 'exact' },
         );
     });
 

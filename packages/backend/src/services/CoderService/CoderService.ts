@@ -4440,29 +4440,13 @@ export class CoderService extends BaseService {
                 spaceUuid: space.uuid,
                 slug: sqlChartAsCode.slug, // Force the slug from the YAML file
             };
-            let created: { savedSqlUuid: string; slug: string };
-            if (mode === 'create') {
-                created = await this.savedSqlModel.create(
-                    user.userUuid,
-                    projectUuid,
-                    sqlChartToCreate,
-                    binding,
-                    'unique',
-                );
-            } else if (binding === undefined) {
-                created = await this.savedSqlModel.create(
-                    user.userUuid,
-                    projectUuid,
-                    sqlChartToCreate,
-                );
-            } else {
-                created = await this.savedSqlModel.create(
-                    user.userUuid,
-                    projectUuid,
-                    sqlChartToCreate,
-                    binding,
-                );
-            }
+            const created = await this.savedSqlModel.create(
+                user.userUuid,
+                projectUuid,
+                sqlChartToCreate,
+                binding,
+                { slugMode: mode === 'create' ? 'unique' : 'exact' },
+            );
             const { savedSqlUuid, slug: createdSlug } = created;
 
             this.logger.info(
