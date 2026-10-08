@@ -70,6 +70,10 @@ import type {
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
+import type {
+    SqlApprovalToolName,
+    SqlAutoApprovalSource,
+} from '../tools/sqlApprovals';
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;
@@ -734,11 +738,13 @@ export type WaitForSqlApprovalFn = (
     timeoutMs?: number,
 ) => Promise<'approved' | 'rejected' | 'timeout'>;
 
-export type RecordSqlApprovalFn = (
-    toolCallId: string,
-    decision: 'approved' | 'rejected',
-    decidedByUserUuid: string | null,
-) => Promise<boolean>;
+/** Records an automatic approval; human decisions are recorded by the service. */
+export type RecordSqlApprovalFn = (args: {
+    toolCallId: string;
+    toolName: SqlApprovalToolName;
+    decidedByUserUuid: string | null;
+    source: SqlAutoApprovalSource;
+}) => Promise<boolean>;
 
 export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,

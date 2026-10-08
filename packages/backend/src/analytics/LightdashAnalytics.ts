@@ -3230,6 +3230,26 @@ export type AiAgentThreadRenamedEvent = BaseTrack & {
     };
 };
 
+/** One row per recorded SQL approval decision; the first decision per tool call wins. */
+export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
+    event: 'ai_agent.sql_approval_decided';
+    // Absent when nobody decided (thread auto-approval); anonymousId is set instead.
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        toolCallId: string;
+        toolName: 'runSql' | 'runComposerQueries';
+        decision: 'approved' | 'rejected' | 'approved_always';
+        source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
+        isAutoApproved: boolean;
+        isThreadAutoApproval: boolean;
+    };
+};
+
 export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
     event: 'ai_agent.threads_retention_cleaned';
     anonymousId: string;
@@ -4698,6 +4718,7 @@ type TypedEvent =
     | AiAgentThreadDeletedEvent
     | AiAgentThreadPinnedEvent
     | AiAgentThreadRenamedEvent
+    | AiAgentSqlApprovalDecidedEvent
     | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent

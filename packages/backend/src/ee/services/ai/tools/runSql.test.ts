@@ -14,6 +14,7 @@ type MakeToolOptions = {
     autoApproveSqlUserUuid?: string | null;
     waitForSqlApproval?: import('vitest').Mock;
     recordSqlApproval?: import('vitest').Mock;
+    isThreadSqlAutoApproved?: import('vitest').Mock;
     maxQueryLimit?: number;
     enableDataAccess?: boolean;
     slackLinksOnly?: boolean;
@@ -75,6 +76,7 @@ const makeTool = ({
     autoApproveSqlUserUuid = null,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     recordSqlApproval = vi.fn().mockResolvedValue(true),
+    isThreadSqlAutoApproved = vi.fn().mockResolvedValue(false),
     maxQueryLimit = 5000,
     enableDataAccess = true,
     slackLinksOnly = false,
@@ -101,7 +103,7 @@ const makeTool = ({
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval,
-        isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
+        isThreadSqlAutoApproved,
         storeToolResults: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
@@ -129,11 +131,12 @@ describe('getRunSql', () => {
 
         const output = await executeRunSql(tool);
 
-        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith(
-            'tool-call-1',
-            'approved',
-            'user-uuid',
-        );
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            decidedByUserUuid: 'user-uuid',
+            source: 'auto_approve',
+        });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runSqlJob).toHaveBeenCalledWith({
             sql: 'select 1 as answer',
@@ -142,6 +145,24 @@ describe('getRunSql', () => {
         expect(dependencies.updateProgress).not.toHaveBeenCalledWith(
             'Awaiting approval to run SQL...',
         );
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('records a thread auto-approval once a Slack thread chose "don\'t ask again"', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+            isThreadSqlAutoApproved: vi.fn().mockResolvedValue(true),
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            decidedByUserUuid: null,
+            source: 'thread_auto_approve',
+        });
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
     });
 

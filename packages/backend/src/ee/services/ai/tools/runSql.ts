@@ -265,11 +265,16 @@ export const getRunSql = ({
                     if (isSlack) {
                         await renderState({ kind: 'approved', sql });
                     }
-                    const recorded = await recordSqlApproval(
+                    const recorded = await recordSqlApproval({
                         toolCallId,
-                        'approved',
-                        autoApproveSql ? autoApproveSqlUserUuid : null,
-                    );
+                        toolName: 'runSql',
+                        decidedByUserUuid: autoApproveSql
+                            ? autoApproveSqlUserUuid
+                            : null,
+                        source: autoApproveSql
+                            ? 'auto_approve'
+                            : 'thread_auto_approve',
+                    });
                     // A pre-existing decision means this is a resume (the button
                     // recorded it), so onStepFinish won't persist the result.
                     if (!recorded) {

@@ -192,11 +192,12 @@ export const getRunComposerQueries = ({
                         );
                     }
                     if (autoApproveSql) {
-                        await recordSqlApproval(
+                        await recordSqlApproval({
                             toolCallId,
-                            'approved',
-                            autoApproveSqlUserUuid,
-                        );
+                            toolName: 'runComposerQueries',
+                            decidedByUserUuid: autoApproveSqlUserUuid,
+                            source: 'auto_approve',
+                        });
                     } else {
                         await updateProgress('Awaiting approval to run SQL...');
                         const decision = await waitForSqlApproval(toolCallId);

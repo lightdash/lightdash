@@ -369,11 +369,12 @@ describe('getRunComposerQueries', () => {
 
         await executeTool(tool, makeArgs());
 
-        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith(
-            'tool-call-1',
-            'approved',
-            'user-uuid',
-        );
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runComposerQueries',
+            decidedByUserUuid: 'user-uuid',
+            source: 'auto_approve',
+        });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
     });
 
