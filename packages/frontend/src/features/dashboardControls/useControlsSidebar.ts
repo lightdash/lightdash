@@ -32,6 +32,23 @@ export type ControlsSidebarContextValue = {
         availableTileColumns: Record<string, ResultColumn[]>,
     ) => void;
     /**
+     * Like `addFirstField`, started from a tile: the filter is on that tile
+     * only, and every other tile it would reach is left out.
+     */
+    addFirstFieldOnTile: (
+        field: DashboardFilterableField,
+        tileUuid: string,
+    ) => void;
+    /** Field whose tiles are outlined after a click on its row. */
+    highlightedFieldId: string | null;
+    setHighlightedFieldId: (fieldId: string | null) => void;
+    /** Unclicks the field and drops its hover, so every tile shows again. */
+    clearHighlightedField: () => void;
+    hoveredFieldId: string | null;
+    setHoveredFieldId: (fieldId: string | null) => void;
+    /** The hovered field wins over the clicked one. */
+    activeFieldId: string | null;
+    /**
      * Fields listed on the edited filter that are on no tile yet. They only
      * live while the sidebar is open: a field is saved through a tile.
      */

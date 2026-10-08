@@ -14,7 +14,7 @@ import { useState, type FC, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
-import { getFieldCount, type FieldsByTile } from './peers';
+import { getFieldCount, getTileField, type FieldsByTile } from './peers';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -291,6 +291,12 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.close());
         expect(mockTrack).toHaveBeenCalledTimes(1);
 
+        mockFieldsByTile.current = { t1: [statusField] };
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
+        expect(mockTrack).toHaveBeenCalledTimes(2);
+
+        act(() => result.current.close());
         act(() => result.current.openNew());
         act(() =>
             result.current.addFirstSqlColumn(
@@ -298,7 +304,7 @@ describe('ControlsSidebarProvider', () => {
                 {},
             ),
         );
-        expect(mockTrack).toHaveBeenCalledTimes(2);
+        expect(mockTrack).toHaveBeenCalledTimes(3);
         expect(mockTrack).toHaveBeenLastCalledWith(event);
     });
 
@@ -335,6 +341,47 @@ describe('ControlsSidebarProvider', () => {
             };
         });
 
+        it('picked on a tile filters that tile only, keeping id and label', () => {
+            const { result, placeholder } = start();
+
+            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
+
+            expect(result.current.isPlaceholder).toBe(false);
+            expect(result.current.isNew).toBe(true);
+            const added = latest.filters.dimensions[2];
+            expect(added.id).toBe(placeholder.id);
+            expect(added.label).toBe('S');
+            expect(added.target.fieldId).toBe('orders_status');
+            // The clicked tile follows the default; t3 does not offer the field
+            expect(added.tileTargets).toEqual({ t1: false, t4: false });
+            expect(
+                tiles
+                    .filter(
+                        (tile) =>
+                            getTileField(
+                                added,
+                                tile,
+                                mockFieldsByTile.current as FieldsByTile,
+                            ) !== null,
+                    )
+                    .map((tile) => tile.uuid),
+            ).toEqual(['t2']);
+            // What the sidebar row reads: "1 of 3 tiles", "Apply to all 3"
+            expect(
+                getFieldCount(
+                    added,
+                    'orders_status',
+                    tiles,
+                    mockFieldsByTile.current as FieldsByTile,
+                ),
+            ).toEqual({ applied: 1, possible: 3 });
+            expect(latest.changed).toBe(true);
+
+            act(() => result.current.discard());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+        });
+
         it('picked in the sidebar filters every tile that offers it', () => {
             const { result } = start();
 
@@ -350,6 +397,17 @@ describe('ControlsSidebarProvider', () => {
                     mockFieldsByTile.current as FieldsByTile,
                 ),
             ).toEqual({ applied: 3, possible: 3 });
+        });
+
+        it('picked on a tile does nothing once the control has a field', () => {
+            const { result } = start();
+            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
+            act(() => result.current.addFirstFieldOnTile(regionField, 't3'));
+
+            expect(latest.filters.dimensions).toHaveLength(3);
+            expect(latest.filters.dimensions[2].target.fieldId).toBe(
+                'orders_status',
+            );
         });
     });
 
@@ -383,11 +441,14 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.setHighlightedFieldId('orders_a'));
+        act(() => result.current.setHoveredFieldId('orders_a'));
 
         act(() => result.current.openNew());
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe('a');
+        expect(result.current.activeFieldId).toBeNull();
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
 
         // The snapshot is the dashboard with the kept edit
@@ -568,6 +629,35 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.waitingFieldIds).toEqual([]);
     });
 
+    it('the hovered field wins over the highlighted one', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.setHighlightedFieldId('x'));
+        expect(result.current.activeFieldId).toBe('x');
+        act(() => result.current.setHoveredFieldId('y'));
+        expect(result.current.activeFieldId).toBe('y');
+        act(() => result.current.close());
+        expect(result.current.activeFieldId).toBeNull();
+    });
+
+    it('unclicking a field drops its hover too, and leaves another hover alone', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        // The pointer is still on the card that was clicked
+        act(() => result.current.setHoveredFieldId('x'));
+        act(() => result.current.setHighlightedFieldId('x'));
+        act(() => result.current.clearHighlightedField());
+        expect(result.current.highlightedFieldId).toBeNull();
+        expect(result.current.hoveredFieldId).toBeNull();
+        expect(result.current.activeFieldId).toBeNull();
+
+        act(() => result.current.setHighlightedFieldId('x'));
+        act(() => result.current.setHoveredFieldId('y'));
+        act(() => result.current.clearHighlightedField());
+        expect(result.current.highlightedFieldId).toBeNull();
+        expect(result.current.hoveredFieldId).toBe('y');
+    });
+
     it('closes when the dashboard leaves edit mode', () => {
         const { result, rerender } = setup();
         act(() => result.current.open('a'));
@@ -594,7 +684,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isSidebarOpen).toBe(false);
     });
 
-    it('keeps every callback stable across edits and other controls', () => {
+    it('keeps every callback stable across edits, hovers and other controls', () => {
         const { result } = setup();
         const callbacks = () =>
             Object.fromEntries(
@@ -603,12 +693,17 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(11);
+        expect(Object.keys(initial)).toHaveLength(15);
         expect(initial).toHaveProperty('addFirstSqlColumn');
+        expect(initial).toHaveProperty('clearHighlightedField');
         expect(initial).not.toHaveProperty('clearFields');
+        expect(initial).toHaveProperty('addFirstFieldOnTile');
 
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.setHoveredFieldId('orders_a'));
+        act(() => result.current.setHighlightedFieldId('orders_a'));
+        act(() => result.current.clearHighlightedField());
 
         const changed = Object.entries(callbacks())
             .filter(([name, callback]) => callback !== initial[name])
@@ -650,9 +745,11 @@ describe('ControlsSidebarProvider', () => {
         const afterOpen = { ...renders };
         expect(afterOpen.sliced).toBe(2);
 
+        act(() => current().setHoveredFieldId('orders_a'));
+        act(() => current().setHighlightedFieldId('orders_a'));
         act(() => current().updateFilter({ ...rule('a', ['1']), label: 'A' }));
 
         expect(renders.sliced).toBe(afterOpen.sliced);
-        expect(renders.whole).toBe(afterOpen.whole + 1);
+        expect(renders.whole).toBe(afterOpen.whole + 3);
     });
 });

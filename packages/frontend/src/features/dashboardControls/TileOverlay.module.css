@@ -1,0 +1,198 @@
+/* Square on purpose: it has to catch the pointer in the tile's corners too */
+.overlay {
+    --controls-ease: ease-in-out;
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+    --controls-duration-state: 0.15s;
+    --controls-wave-step: 20ms;
+
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-xs);
+    cursor: default;
+}
+
+/* The veil, strong enough that the card is what the eye lands on. It has the
+   tile card's corner so the ring traces it, and its inset line paints out the
+   tile's own dashed edit border */
+.overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-xs);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-body);
+    background-color: color-mix(in srgb, var(--ld-color-page) 82%, transparent);
+    animation: fadeIn var(--controls-duration-state) var(--controls-ease);
+}
+
+/* Holds the two blue layers, which fade on their own. Blue on a tile always
+   means the control filters or sets it. Only opacity changes */
+.ring {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.ring::before,
+.ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-xs);
+    opacity: 0;
+    transition: opacity var(--controls-duration-state) var(--controls-ease);
+    animation: ringEnter var(--controls-duration-state) var(--controls-ease);
+}
+
+/* Filtered or set, and on the active field when there is one: a filled slot.
+   A solid hairline in the edit border's blue over a faint blue wash */
+.ring::before {
+    background-color: light-dark(
+        color-mix(in srgb, var(--mantine-color-blue-light) 35%, transparent),
+        color-mix(in srgb, var(--mantine-color-blue-light) 50%, transparent)
+    );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+}
+
+.overlay[data-highlighted='mapped'] > .ring::before {
+    opacity: 1;
+}
+
+/* Filtered or set, but not through the active field: the same blue, dashed,
+   with no fill */
+.ring::after {
+    border: 1px dashed var(--mantine-color-blue-5);
+}
+
+.overlay[data-highlighted='other'] > .ring::after {
+    opacity: 1;
+}
+
+/* Not filtered or set, but could be: an empty slot. A neutral dashed outline
+   with no fill */
+.overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px dashed var(--mantine-color-ldGray-4);
+    border-radius: var(--mantine-radius-xs);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--controls-duration-state) var(--controls-ease);
+}
+
+.overlay[data-highlighted='available']::after {
+    opacity: 1;
+}
+
+.unfilterable::before {
+    background-color: color-mix(in srgb, var(--ld-color-page) 94%, transparent);
+}
+
+/* A veiled tile cannot be dragged, resized or hovered */
+[data-tile-uuid]:has(> .overlay) > :not(.overlay) {
+    pointer-events: none;
+}
+
+[data-tile-uuid]:has(> .overlay) > :global(.react-resizable-handle) {
+    display: none;
+}
+
+/* Above the wash, so the card keeps its own surface */
+.card {
+    position: relative;
+    z-index: 1;
+    width: 280px;
+    max-width: 90%;
+    animation: cardEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive) backwards;
+}
+
+/* One short wave across the tiles: six buckets, 20ms apart */
+.overlay[data-wave='1'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 1);
+}
+
+.overlay[data-wave='2'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 2);
+}
+
+.overlay[data-wave='3'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 3);
+}
+
+.overlay[data-wave='4'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 4);
+}
+
+.overlay[data-wave='5'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 5);
+}
+
+/* Replays when the tile's choice changes: it is keyed by that choice */
+.confirm {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    opacity: 0;
+    pointer-events: none;
+    animation: fadeOut var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* No end value: a blue layer fades in to whatever its state asks for */
+@keyframes ringEnter {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay::before,
+    .ring::before,
+    .ring::after,
+    .card,
+    .confirm {
+        animation: none;
+    }
+
+    .ring::before,
+    .ring::after,
+    .overlay::after {
+        transition: none;
+    }
+}

@@ -27,7 +27,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { getFilterFields } from './peers';
+import { getFilterFields, getTileField, setTileField } from './peers';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -74,6 +74,8 @@ type Latest = {
     dashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
+    dashboardTiles: DashboardContextType['dashboardTiles'];
+    highlightedFieldId: string | null;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
@@ -134,6 +136,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const { track } = useTracking();
 
     const [state, setState] = useState<SidebarState | null>(null);
@@ -141,6 +144,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
     );
+    const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
+        null,
+    );
+    const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
     // Keyed by filter so a stale entry never leaks into another filter
     const [waiting, setWaiting] = useState<{
         filterId: string;
@@ -153,6 +160,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         dashboardFilters,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
+        dashboardTiles,
+        highlightedFieldId,
         setDashboardFilters,
         setHaveFiltersChanged,
         track,
@@ -190,8 +199,19 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const reset = useCallback(() => {
         writeState(null);
         writePlaceholder(null);
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
         setWaiting(null);
     }, [writeState, writePlaceholder]);
+
+    // Unclicks the field and drops its hover, so the tiles go back at once
+    const clearHighlightedField = useCallback(() => {
+        const clicked = latest.current.highlightedFieldId;
+        if (clicked === null) return;
+        latest.current.highlightedFieldId = null;
+        setHighlightedFieldId(null);
+        setHoveredFieldId((hovered) => (hovered === clicked ? null : hovered));
+    }, []);
 
     // Where focus goes once the editor is gone: the pill when it is still
     // there, else "Add". Null while nothing asked for it
@@ -211,6 +231,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             if (current.state?.filterId === filterId) return;
             focusReturn.current = null;
             writePlaceholder(null);
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
             writeState({
                 filterId,
                 isNew: false,
@@ -236,6 +258,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         };
         focusReturn.current = null;
         writePlaceholder(rule);
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
         writeState({
             filterId: rule.id,
             isNew: true,
@@ -298,6 +322,32 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 ),
                 'dimensions',
             );
+        },
+        [writeFirstRule],
+    );
+
+    const addFirstFieldOnTile = useCallback(
+        (field: DashboardFilterableField, tileUuid: string) => {
+            const current = latest.current;
+            if (current.placeholder === null) return;
+            const fieldsByTile = current.filterableFieldsByTileUuid;
+            const base = getFirstFieldRule(
+                current.placeholder,
+                field,
+                fieldsByTile,
+            );
+            // Every tile the rule would filter is left out, except the clicked
+            // one, which is put on the field when the default does not do it
+            const rule = (current.dashboardTiles ?? []).reduce(
+                (next, tile) =>
+                    tile.uuid === tileUuid
+                        ? setTileField(next, tile, base.target, fieldsByTile)
+                        : getTileField(next, tile, fieldsByTile) === null
+                          ? next
+                          : setTileField(next, tile, null, fieldsByTile),
+                base,
+            );
+            writeFirstRule(rule, isMetric(field) ? 'metrics' : 'dimensions');
         },
         [writeFirstRule],
     );
@@ -467,6 +517,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const isSidebarOpen = state !== null;
     useEditorDismiss({
         isOpen: isSidebarOpen,
+        isFieldClicked: highlightedFieldId !== null,
+        clearField: clearHighlightedField,
         close,
     });
 
@@ -499,9 +551,16 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
+            addFirstFieldOnTile,
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,
+            highlightedFieldId,
+            setHighlightedFieldId,
+            clearHighlightedField,
+            hoveredFieldId,
+            setHoveredFieldId,
+            activeFieldId: hoveredFieldId ?? highlightedFieldId,
             updateFilter,
             removeFilter,
             removeFilterById,
@@ -526,9 +585,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
+            addFirstFieldOnTile,
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,
+            highlightedFieldId,
+            clearHighlightedField,
+            hoveredFieldId,
             updateFilter,
             removeFilter,
             removeFilterById,
