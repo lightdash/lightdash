@@ -1,5 +1,5 @@
 import { type DepartmentWithMetrics } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     dept,
     metricsFixture,
@@ -20,14 +20,15 @@ import {
     getHoverLabel,
     getTopLevelGroups,
     getLabelLines,
+    LABELS_AT_REST,
     layoutMap,
     placeLabels,
     type Area,
     type Box,
     type CircleLabel,
 } from './mapLayout';
-import { describeCircles } from './mapView';
-import { deepOrganization } from './organizationFixtures';
+import { describeCircles, nameLoneBucket } from './mapView';
+import { deepOrganization, flatOrganization } from './organizationFixtures';
 
 const d = (
     name: string,
@@ -66,13 +67,10 @@ const build = (
         describe,
         measure: estimateTextWidth,
     });
-    const labels = placeLabels(
-        circles,
-        describe(circles),
-        zoom,
-        area,
-        estimateTextWidth,
-    );
+    // Labels at rest are placed only while they are turned on
+    const labels = LABELS_AT_REST
+        ? placeLabels(circles, describe(circles), zoom, area, estimateTextWidth)
+        : [];
     const find = (id: string) => {
         const circle = circles.find((each) => each.id === id);
         if (!circle) throw new Error(`No circle ${id}`);
@@ -299,6 +297,53 @@ describe('fitToArea', () => {
             6,
         );
     });
+    it('draws nothing for an empty tree', () => {
+        expect(fitToArea(buildPackInput([], null), PANEL)).toEqual([]);
+    });
+});
+
+describe('layoutMap', () => {
+    it('draws no labels at rest, so it makes no room for them and the circles keep the size the pack gives them', () => {
+        expect(LABELS_AT_REST).toBe(false);
+        [
+            {
+                departments: deepOrganization,
+                area: { width: 360, height: 560 },
+            },
+            { departments: flatOrganization, area: PANEL },
+            { departments: seededOrganization(), area: PANEL },
+        ].forEach(({ departments, area }) => {
+            const input = buildPackInput(departments, null);
+            const describe = vi.fn(() => new Map());
+            const measure = vi.fn(estimateTextWidth);
+            const circles = layoutMap({
+                input,
+                area,
+                focusName: null,
+                describe,
+                measure,
+            });
+            // Nothing is described or measured for labels, and nothing is spread apart for them
+            expect(describe).not.toHaveBeenCalled();
+            expect(measure).not.toHaveBeenCalled();
+            expect(circles).toEqual(fitToArea(input, area));
+        });
+        // A department without sub-departments still carries its own name
+        const lone = buildPackInput(seededOrganization(), 'Finance');
+        expect(
+            layoutMap({
+                input: lone,
+                area: PANEL,
+                focusName: 'Finance',
+                describe: () => new Map(),
+                measure: estimateTextWidth,
+            }),
+        ).toEqual(nameLoneBucket(fitToArea(lone, PANEL), 'Finance'));
+    });
+});
+
+// Labels at rest are off; these keep the placement engine covered for when they are turned back on
+describe.skipIf(!LABELS_AT_REST)('layoutMap with labels at rest', () => {
     it('keeps circles at 70 % of their size or more when shrinking further still leaves labels out', () => {
         // Thirty departments with long names in one panel: some labels never find room
         const flat = Array.from({ length: 30 }, (_, index) =>
@@ -325,9 +370,6 @@ describe('fitToArea', () => {
         expect(
             Math.max(...circles.map((circle) => circle.r)),
         ).toBeGreaterThanOrEqual(first * 0.7 - 1e-9);
-    });
-    it('draws nothing for an empty tree', () => {
-        expect(fitToArea(buildPackInput([], null), PANEL)).toEqual([]);
     });
 });
 
@@ -427,210 +469,192 @@ describe('getCaptionVariants', () => {
     });
 });
 
-describe('placeLabels on the seeded organization', () => {
-    const { circles, labels } = build(seededOrganization());
-    const find = (id: string) => labels.find((label) => label.id === id);
-    const topLevel = [
-        'Operations',
-        'Supply chain',
-        'Marketing',
-        'Finance',
-        'Data',
-        'Product',
-    ];
+describe.skipIf(!LABELS_AT_REST)(
+    'placeLabels on the seeded organization',
+    () => {
+        const { circles, labels } = build(seededOrganization());
+        const find = (id: string) => labels.find((label) => label.id === id);
+        const topLevel = [
+            'Operations',
+            'Supply chain',
+            'Marketing',
+            'Finance',
+            'Data',
+            'Product',
+        ];
 
-    it('gives every top-level department its full name and a line of numbers', () => {
-        topLevel.forEach((id) => {
-            expect(find(id)?.name).toBe(id);
-            expect(find(id)?.detail).not.toBeNull();
-        });
-        expect(find('Product')?.detail).toMatch(/no headcount/i);
-        expect(find('Finance')?.detail).toMatch(/^32/);
-    });
-    it('never overlaps another label', () => {
-        expectCleanLabels(circles, labels, PANEL);
-    });
-    it("keeps every top-level label off other departments' circles", () => {
-        const groups = getTopLevelGroups(circles);
-        labels
-            .filter((label) => !label.isNested)
-            .forEach((label) => {
-                const own =
-                    groups.find((group) => group.anchor.id === label.id)
-                        ?.circles ?? [];
-                circles
-                    .filter((circle) => !own.includes(circle))
-                    .forEach((circle) => {
-                        expect(boxTouchesCircle(label.box, circle, 1, 0)).toBe(
-                            false,
-                        );
-                    });
-            });
-    });
-    it('names a sub-department once it is drawn large enough to point at, and leaves smaller ones to hover', () => {
-        const nested = circles.filter(
-            (circle) => circle.depth > 1 && circle.kind === 'department',
-        );
-        expect(nested.some((circle) => circle.r >= 16)).toBe(true);
-        expect(nested.some((circle) => circle.r < 16)).toBe(true);
-        nested.forEach((circle) => {
-            expect(find(circle.id) !== undefined).toBe(circle.r >= 16);
-        });
-    });
-    it('does not shorten a name that has room', () => {
-        expect(find('Procurement')?.name).toMatch(/^Procurement( · 30)?$/);
-        expect(find('Logistics')?.name).toMatch(/^Logistics( · 50)?$/);
-        labels.forEach((label) => expect(label.name).not.toContain('…'));
-    });
-    it.each([
-        [760, 560],
-        [1100, 560],
-    ])(
-        'keeps labels off the zoom buttons and inside a %ix%i panel',
-        (width, height) => {
-            const area = { width, height };
-            const fitted = build(seededOrganization(), area);
-            const controls = getControlsBox(area);
-            expect(controls).toEqual({
-                x: 0,
-                y: height - 46,
-                width: 172,
-                height: 46,
-            });
-            expect(fitted.labels.length).toBeGreaterThanOrEqual(10);
-            fitted.labels.forEach((label) => {
-                expect(boxesIntersect(label.box, controls)).toBe(false);
-                expect(label.box.x).toBeGreaterThanOrEqual(6);
-                expect(label.box.y).toBeGreaterThanOrEqual(6);
-                expect(label.box.x + label.box.width).toBeLessThanOrEqual(
-                    width - 6,
-                );
-                expect(label.box.y + label.box.height).toBeLessThanOrEqual(
-                    height - 6,
-                );
-            });
+        it('gives every top-level department its full name and a line of numbers', () => {
             topLevel.forEach((id) => {
-                const label = fitted.labels.find((each) => each.id === id);
-                expect(label?.name).toBe(id);
-                expect(label?.detail).not.toBeNull();
+                expect(find(id)?.name).toBe(id);
+                expect(find(id)?.detail).not.toBeNull();
             });
-            expectCleanLabels(fitted.circles, fitted.labels, area);
-        },
-    );
-    it('places the same labels whatever order the departments arrive in', () => {
-        const seededTree = seededOrganization();
-        const expected = labels.map((label) => ({ ...label }));
-        [
-            [...seededTree].reverse(),
-            [...seededTree.slice(4), ...seededTree.slice(0, 4)],
-        ].forEach((order) => {
-            const reordered = build(order).labels;
-            expect(
-                [...reordered].sort((a, b) => a.id.localeCompare(b.id)),
-            ).toEqual([...expected].sort((a, b) => a.id.localeCompare(b.id)));
+            expect(find('Product')?.detail).toMatch(/no headcount/i);
+            expect(find('Finance')?.detail).toMatch(/^32/);
         });
-    });
-    it('puts a label above its circle rather than on the zoom buttons', () => {
-        // Every spot under this circle is on the buttons or past the bottom of the panel
-        const corner = placedCircle('Corner department', 60, 470, 30);
-        const controls = getControlsBox(PANEL);
-        expect(
-            boxesIntersect({ x: 0, y: 504, width: 172, height: 30 }, controls),
-        ).toBe(true);
-        const [label] = placeOn([corner]);
-        expect(label).toMatchObject({ placement: 'above' });
-        expect(boxesIntersect(label.box, controls)).toBe(false);
-        expect(label.box.y + label.box.height).toBeLessThanOrEqual(
-            470 - 30 - 4,
+        it('never overlaps another label', () => {
+            expectCleanLabels(circles, labels, PANEL);
+        });
+        it("keeps every top-level label off other departments' circles", () => {
+            const groups = getTopLevelGroups(circles);
+            labels
+                .filter((label) => !label.isNested)
+                .forEach((label) => {
+                    const own =
+                        groups.find((group) => group.anchor.id === label.id)
+                            ?.circles ?? [];
+                    circles
+                        .filter((circle) => !own.includes(circle))
+                        .forEach((circle) => {
+                            expect(
+                                boxTouchesCircle(label.box, circle, 1, 0),
+                            ).toBe(false);
+                        });
+                });
+        });
+        it('names a sub-department once it is drawn large enough to point at, and leaves smaller ones to hover', () => {
+            const nested = circles.filter(
+                (circle) => circle.depth > 1 && circle.kind === 'department',
+            );
+            expect(nested.some((circle) => circle.r >= 16)).toBe(true);
+            expect(nested.some((circle) => circle.r < 16)).toBe(true);
+            nested.forEach((circle) => {
+                expect(find(circle.id) !== undefined).toBe(circle.r >= 16);
+            });
+        });
+        it('does not shorten a name that has room', () => {
+            expect(find('Procurement')?.name).toMatch(/^Procurement( · 30)?$/);
+            expect(find('Logistics')?.name).toMatch(/^Logistics( · 50)?$/);
+            labels.forEach((label) => expect(label.name).not.toContain('…'));
+        });
+        it.each([
+            [760, 560],
+            [1100, 560],
+        ])(
+            'keeps labels off the zoom buttons and inside a %ix%i panel',
+            (width, height) => {
+                const area = { width, height };
+                const fitted = build(seededOrganization(), area);
+                const controls = getControlsBox(area);
+                expect(controls).toEqual({
+                    x: 0,
+                    y: height - 46,
+                    width: 172,
+                    height: 46,
+                });
+                expect(fitted.labels.length).toBeGreaterThanOrEqual(10);
+                fitted.labels.forEach((label) => {
+                    expect(boxesIntersect(label.box, controls)).toBe(false);
+                    expect(label.box.x).toBeGreaterThanOrEqual(6);
+                    expect(label.box.y).toBeGreaterThanOrEqual(6);
+                    expect(label.box.x + label.box.width).toBeLessThanOrEqual(
+                        width - 6,
+                    );
+                    expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+                        height - 6,
+                    );
+                });
+                topLevel.forEach((id) => {
+                    const label = fitted.labels.find((each) => each.id === id);
+                    expect(label?.name).toBe(id);
+                    expect(label?.detail).not.toBeNull();
+                });
+                expectCleanLabels(fitted.circles, fitted.labels, area);
+            },
         );
-        // Zoomed in, the buttons no longer cover the same part of the map
-        const zoomed = placeLabels(
-            [corner],
-            describeCircles(
-                [corner],
-                new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
-            ),
-            2,
-            PANEL,
-            estimateTextWidth,
-        );
-        expect(zoomed).toHaveLength(1);
-        expect(zoomed[0].placement).toBe('below');
-    });
-    it('shows a hover label above its circle rather than on the zoom buttons', () => {
-        const corner = placedCircle('Corner department', 60, 470, 30);
-        const info = describeCircles(
-            [corner],
-            new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
-        );
-        const hover = getHoverLabel(corner, info, 1, PANEL, estimateTextWidth);
-        expect(hover?.placement).toBe('above');
-        expect(hover && boxesIntersect(hover.box, getControlsBox(PANEL))).toBe(
-            false,
-        );
-        // Away from the buttons it stays under the circle
-        const middle = placedCircle('Middle department', 380, 200, 30);
-        expect(
-            getHoverLabel(
-                middle,
-                describeCircles(
-                    [middle],
-                    new Map([[middle.id, d(middle.id, null, 10, 4, 1)]]),
+        it('places the same labels whatever order the departments arrive in', () => {
+            const seededTree = seededOrganization();
+            const expected = labels.map((label) => ({ ...label }));
+            [
+                [...seededTree].reverse(),
+                [...seededTree.slice(4), ...seededTree.slice(0, 4)],
+            ].forEach((order) => {
+                const reordered = build(order).labels;
+                expect(
+                    [...reordered].sort((a, b) => a.id.localeCompare(b.id)),
+                ).toEqual(
+                    [...expected].sort((a, b) => a.id.localeCompare(b.id)),
+                );
+            });
+        });
+        it('puts a label above its circle rather than on the zoom buttons', () => {
+            // Every spot under this circle is on the buttons or past the bottom of the panel
+            const corner = placedCircle('Corner department', 60, 470, 30);
+            const controls = getControlsBox(PANEL);
+            expect(
+                boxesIntersect(
+                    { x: 0, y: 504, width: 172, height: 30 },
+                    controls,
                 ),
-                1,
+            ).toBe(true);
+            const [label] = placeOn([corner]);
+            expect(label).toMatchObject({ placement: 'above' });
+            expect(boxesIntersect(label.box, controls)).toBe(false);
+            expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+                470 - 30 - 4,
+            );
+            // Zoomed in, the buttons no longer cover the same part of the map
+            const zoomed = placeLabels(
+                [corner],
+                describeCircles(
+                    [corner],
+                    new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
+                ),
+                2,
                 PANEL,
                 estimateTextWidth,
-            )?.placement,
-        ).toBe('below');
-    });
-    it('never puts a label further than 48 px from its circle', () => {
-        // The panel of a 420 px window, where a label once moved 52 px down from its circle
-        const area = { width: 394, height: 560 };
-        const drawn = build(deepOrganization, area);
-        const executive = drawn.labels.find(
-            (label) => label.id === 'Executive Office',
-        );
-        expect(executive).toBeDefined();
-        drawn.labels.forEach((label) => {
-            const circle = drawn.find(label.id);
-            if (label.placement === 'below') {
-                expect(label.box.y - (circle.y + circle.r)).toBeLessThanOrEqual(
-                    48,
-                );
-            }
-            if (label.placement === 'above') {
-                expect(
-                    circle.y - circle.r - (label.box.y + label.box.height),
-                ).toBeLessThanOrEqual(48);
-            }
+            );
+            expect(zoomed).toHaveLength(1);
+            expect(zoomed[0].placement).toBe('below');
         });
-    });
-    it('leaves the people directly in a department unlabelled', () => {
-        expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(
-            true,
-        );
-        expect(find('own:Operations')).toBeUndefined();
-    });
-    it('stays clean in a wide panel, a narrow one and inside a department', () => {
-        [
-            { width: 1100, height: 560 },
-            { width: 420, height: 560 },
-        ].forEach((area) => {
-            const narrow = build(seededOrganization(), area);
-            expectCleanLabels(narrow.circles, narrow.labels, area);
+        it('never puts a label further than 48 px from its circle', () => {
+            // The panel of a 420 px window, where a label once moved 52 px down from its circle
+            const area = { width: 394, height: 560 };
+            const drawn = build(deepOrganization, area);
+            const executive = drawn.labels.find(
+                (label) => label.id === 'Executive Office',
+            );
+            expect(executive).toBeDefined();
+            drawn.labels.forEach((label) => {
+                const circle = drawn.find(label.id);
+                if (label.placement === 'below') {
+                    expect(
+                        label.box.y - (circle.y + circle.r),
+                    ).toBeLessThanOrEqual(48);
+                }
+                if (label.placement === 'above') {
+                    expect(
+                        circle.y - circle.r - (label.box.y + label.box.height),
+                    ).toBeLessThanOrEqual(48);
+                }
+            });
         });
-        const inside = build(seededOrganization(), PANEL, 'Operations');
-        expectCleanLabels(inside.circles, inside.labels, PANEL);
-        expect(
-            inside.labels.find((label) => label.id === 'Stores')?.detail,
-        ).not.toBeNull();
-    });
-    it('stays clean when zoomed in', () => {
-        const zoomed = build(seededOrganization(), PANEL, null, 3);
-        expectCleanLabels(zoomed.circles, zoomed.labels, PANEL, 3);
-        expect(zoomed.labels.length).toBeGreaterThanOrEqual(labels.length);
-    });
-});
+        it('leaves the people directly in a department unlabelled', () => {
+            expect(
+                circles.some((circle) => circle.id === 'own:Operations'),
+            ).toBe(true);
+            expect(find('own:Operations')).toBeUndefined();
+        });
+        it('stays clean in a wide panel, a narrow one and inside a department', () => {
+            [
+                { width: 1100, height: 560 },
+                { width: 420, height: 560 },
+            ].forEach((area) => {
+                const narrow = build(seededOrganization(), area);
+                expectCleanLabels(narrow.circles, narrow.labels, area);
+            });
+            const inside = build(seededOrganization(), PANEL, 'Operations');
+            expectCleanLabels(inside.circles, inside.labels, PANEL);
+            expect(
+                inside.labels.find((label) => label.id === 'Stores')?.detail,
+            ).not.toBeNull();
+        });
+        it('stays clean when zoomed in', () => {
+            const zoomed = build(seededOrganization(), PANEL, null, 3);
+            expectCleanLabels(zoomed.circles, zoomed.labels, PANEL, 3);
+            expect(zoomed.labels.length).toBeGreaterThanOrEqual(labels.length);
+        });
+    },
+);
 
 // One level down in a large organization: Supply chain's own sub-departments sit inside it
 const operations = [
@@ -685,7 +709,7 @@ const placeOn = (circles: PackedCircle[], area: Area = PANEL) =>
         estimateTextWidth,
     );
 
-describe('placeLabels at the focused level', () => {
+describe.skipIf(!LABELS_AT_REST)('placeLabels at the focused level', () => {
     const { circles, labels } = build(operations, PANEL, 'Operations');
     const labelOf = (id: string) => labels.find((label) => label.id === id);
 
@@ -764,7 +788,7 @@ describe('placeLabels at the focused level', () => {
     });
 });
 
-describe('placeLabels over people', () => {
+describe.skipIf(!LABELS_AT_REST)('placeLabels over people', () => {
     // More than 150 people, so first names are not drawn and a label may go over the dots
     const crowded = (
         id: string,
@@ -793,7 +817,7 @@ describe('placeLabels over people', () => {
     });
 });
 
-describe('placeLabels by headcount', () => {
+describe.skipIf(!LABELS_AT_REST)('placeLabels by headcount', () => {
     const sized = (
         id: string,
         x: number,
@@ -830,7 +854,7 @@ describe('placeLabels by headcount', () => {
     });
 });
 
-describe('placeLabels under small circles', () => {
+describe.skipIf(!LABELS_AT_REST)('placeLabels under small circles', () => {
     it("shortens a label to the circle's width plus 80 pixels", () => {
         const long = 'Procurement operations and vendor management';
         const [label] = placeOn([placedCircle(long, 300, 200, 16)]);
@@ -922,7 +946,7 @@ describe('placeLabels under small circles', () => {
     });
 });
 
-describe('placeLabels on a crowded map', () => {
+describe.skipIf(!LABELS_AT_REST)('placeLabels on a crowded map', () => {
     const { circles, labels } = build(crowd);
     it('leaves labels out rather than overlapping another label or circle', () => {
         expectCleanLabels(circles, labels, PANEL);
@@ -936,6 +960,125 @@ describe('placeLabels on a crowded map', () => {
             'Huge',
             'Tiny',
         ]);
+    });
+});
+
+describe('getHoverLabel', () => {
+    it('shows a hover label above its circle rather than on the zoom buttons', () => {
+        const corner = placedCircle('Corner department', 60, 470, 30);
+        const info = describeCircles(
+            [corner],
+            new Map([[corner.id, d(corner.id, null, 10, 4, 1)]]),
+        );
+        const hover = getHoverLabel(corner, info, 1, PANEL, estimateTextWidth);
+        expect(hover?.placement).toBe('above');
+        expect(hover && boxesIntersect(hover.box, getControlsBox(PANEL))).toBe(
+            false,
+        );
+        // Away from the buttons it stays under the circle
+        const middle = placedCircle('Middle department', 380, 200, 30);
+        expect(
+            getHoverLabel(
+                middle,
+                describeCircles(
+                    [middle],
+                    new Map([[middle.id, d(middle.id, null, 10, 4, 1)]]),
+                ),
+                1,
+                PANEL,
+                estimateTextWidth,
+            )?.placement,
+        ).toBe('below');
+    });
+    it('names a department with its numbers, and a sub-department with its count, in full', () => {
+        const { circles } = build(seededOrganization());
+        const info = describeCircles(
+            circles,
+            new Map(
+                seededOrganization().map((each) => [each.departmentUuid, each]),
+            ),
+        );
+        const hoverOf = (id: string) => {
+            const circle = circles.find((each) => each.id === id);
+            if (!circle) throw new Error(`No circle ${id}`);
+            return getHoverLabel(circle, info, 1, PANEL, estimateTextWidth);
+        };
+        expect(hoverOf('Operations')).toMatchObject({
+            name: 'Operations',
+            detail: '1 of 40',
+            isNested: false,
+        });
+        expect(hoverOf('Product')).toMatchObject({
+            name: 'Product',
+            detail: 'No headcount',
+        });
+        expect(hoverOf('Stores')).toMatchObject({
+            name: 'Stores · 22',
+            detail: null,
+            isNested: true,
+        });
+        // The people directly in a department have no name of their own
+        expect(hoverOf('own:Operations')).toBeNull();
+    });
+    it("quotes a department's headcount, not the people drawn, for a circle of its own people", () => {
+        const data = [
+            d('Data', null, 110, 191, 85, 84),
+            d('Analytics', 'Data', 64, 63, 29),
+            d('Engineering', 'Data', 34, 33, 10),
+            d('Science', 'Data', 12, 11, 3),
+            d('Governance', null, 8, 9, 9),
+        ];
+        const byUuid = new Map(data.map((each) => [each.departmentUuid, each]));
+        const hoverIn = (focus: string, id: string) => {
+            const { circles } = build(data, PANEL, focus);
+            const circle = circles.find((each) => each.id === id);
+            if (!circle) throw new Error(`No circle ${id}`);
+            return getHoverLabel(
+                circle,
+                describeCircles(circles, byUuid),
+                1,
+                PANEL,
+                estimateTextWidth,
+            );
+        };
+        // A department without sub-departments, with more accounts than headcount
+        expect(hoverIn('Governance', 'own:Governance')).toMatchObject({
+            name: 'Governance',
+            detail: '9 of 8',
+        });
+        // The people directly in a department whose headcount is entered on itself
+        expect(hoverIn('Data', 'own:Data')).toMatchObject({
+            name: 'Directly in Data',
+            detail: '84 of 110',
+        });
+    });
+    it('moves a label under a circle as tall as the drawing right of the zoom buttons', () => {
+        // No room over the circle, and under it the label would reach the buttons
+        const area = { width: 940, height: 560 };
+        const tall = placedCircle(
+            'A department with a long name',
+            239,
+            265,
+            227,
+        );
+        const hover = getHoverLabel(
+            tall,
+            describeCircles(
+                [tall],
+                new Map([[tall.id, d(tall.id, null, 10, 4, 1)]]),
+            ),
+            1,
+            area,
+            estimateTextWidth,
+        );
+        const controls = getControlsBox(area);
+        expect(hover).toMatchObject({
+            placement: 'below',
+            name: 'A department with a long name',
+        });
+        expect(hover?.box.y).toBeCloseTo(265 + 227 + 4, 6);
+        expect(hover?.box.x).toBeGreaterThan(controls.x + controls.width);
+        expect(hover && boxesIntersect(hover.box, controls)).toBe(false);
     });
 });
 

@@ -1000,3 +1000,76 @@ describe('dots never overlap', () => {
         expect(layoutDots(2, MIN_CIRCLE_RADIUS).dotRadius).toBeGreaterThan(4);
     });
 });
+
+describe('dots for 20,000 people in view', () => {
+    type Point = { x: number; y: number };
+    // The closest two points nearer than `cell`, found through a grid of that size; Infinity when none are
+    const closestWithin = (positions: Point[], cell: number): number => {
+        const key = (column: number, row: number) => `${column}:${row}`;
+        const grid = new Map<string, Point[]>();
+        positions.forEach((point) => {
+            const at = key(
+                Math.floor(point.x / cell),
+                Math.floor(point.y / cell),
+            );
+            grid.set(at, [...(grid.get(at) ?? []), point]);
+        });
+        let closest = Number.POSITIVE_INFINITY;
+        positions.forEach((point) => {
+            const column = Math.floor(point.x / cell);
+            const row = Math.floor(point.y / cell);
+            [-1, 0, 1].forEach((dx) =>
+                [-1, 0, 1].forEach((dy) =>
+                    (grid.get(key(column + dx, row + dy)) ?? []).forEach(
+                        (other) => {
+                            if (other === point) return;
+                            closest = Math.min(
+                                closest,
+                                Math.hypot(
+                                    point.x - other.x,
+                                    point.y - other.y,
+                                ),
+                            );
+                        },
+                    ),
+                ),
+            );
+        });
+        return closest;
+    };
+
+    it('keeps 20,000 dots in one circle apart and inside it', () => {
+        const radius = 270;
+        const { dotRadius, positions } = layoutDots(SVG_DOT_LIMIT, radius);
+        expect(positions).toHaveLength(SVG_DOT_LIMIT);
+        expect(dotRadius).toBeGreaterThan(0);
+        expect(
+            positions.every(
+                (position) =>
+                    Math.hypot(position.x, position.y) + dotRadius <=
+                    radius - 2 + 1e-9,
+            ),
+        ).toBe(true);
+        expect(closestWithin(positions, dotRadius * 2)).toBeGreaterThanOrEqual(
+            dotRadius * 2,
+        );
+    });
+    it('lays out the dots of 20,000 people across an organization in under 50 ms', () => {
+        // Forty departments of different sizes, so no spacing is already known
+        const departments = Array.from({ length: 40 }, (_, index) =>
+            d(`Department ${index}`, null, 480 + index, 300, 300, 150),
+        );
+        departments.push(d('Rest', null, 20, 5, 5, 2));
+        const circles = layoutPack(buildPackInput(departments, null), 720);
+        expect(countPeople(circles)).toBe(SVG_DOT_LIMIT);
+        const start = performance.now();
+        const drawn = circles.reduce((sum, circle) => {
+            if (circle.people === null) return sum;
+            const kinds = expandDots(getDotSegments(circle.people, 'active'));
+            return sum + layoutDots(kinds.length, circle.r).positions.length;
+        }, 0);
+        const elapsed = performance.now() - start;
+        expect(drawn).toBe(SVG_DOT_LIMIT);
+        expect(elapsed).toBeLessThan(50);
+    });
+});

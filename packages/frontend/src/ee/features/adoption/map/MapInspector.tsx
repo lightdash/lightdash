@@ -138,7 +138,7 @@ const getDepartmentTiles = (
     ];
 };
 
-// The same two numbers as the page header
+// The organization's own numbers, for everyone on Lightdash
 const getOrganizationTiles = (
     overview: OrganizationOverview | null,
 ): TileProps[] =>

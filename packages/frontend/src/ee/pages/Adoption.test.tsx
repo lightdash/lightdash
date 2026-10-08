@@ -46,21 +46,15 @@ describe('Adoption', () => {
         summary.mockReset();
     });
 
-    it('groups thousands in the organization numbers under the title', () => {
+    it('keeps the title and description and leaves the organization numbers to the map panel', () => {
         renderPage(organizationSummary(1951, 1181));
+        expect(screen.getByRole('heading', { name: 'Adoption' })).toBeVisible();
         expect(
             screen.getByText(
-                '1,951 people on Lightdash · 1,181 active in the last 30 days',
+                "See how each department is adopting Lightdash, including the ones that haven't started",
             ),
         ).toBeVisible();
-    });
-
-    it('counts one person in the singular', () => {
-        renderPage(organizationSummary(1, 1));
-        expect(
-            screen.getByText(
-                '1 person on Lightdash · 1 active in the last 30 days',
-            ),
-        ).toBeVisible();
+        expect(screen.queryByText(/1,951|1,181/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/on Lightdash/)).not.toBeInTheDocument();
     });
 });

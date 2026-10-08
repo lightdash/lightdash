@@ -10,8 +10,8 @@ import { packEnclose, packSiblings } from 'd3-hierarchy';
 
 export const MAP_SIZE = 720;
 export const MIN_CIRCLE_RADIUS = 14;
-// Above this many dots SVG gets slow; canvas rendering is a follow-up
-export const SVG_DOT_LIMIT = 5000;
+// Above this many people in view the dots are hidden, as SVG gets slow; canvas rendering is a follow-up
+export const SVG_DOT_LIMIT = 20000;
 
 // Gap between neighbouring circles and inside a parent's edge, in pack units
 const CIRCLE_PADDING = 8;

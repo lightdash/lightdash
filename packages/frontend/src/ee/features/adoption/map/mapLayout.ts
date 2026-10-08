@@ -16,6 +16,10 @@ import {
     type CircleStats,
 } from './mapView';
 
+// Department names show on hover and keyboard focus only. True draws them at rest again, and
+// brings back the spreading that makes room for them
+export const LABELS_AT_REST: boolean = false;
+
 export type Area = { width: number; height: number };
 export type TextRole = 'name' | 'detail' | 'nested';
 // Width in pixels of a label line as it will be drawn
@@ -747,8 +751,8 @@ export const placeLabels = (
         ({ offset, ...label }) => label,
     );
 
-// A label left out for want of room shows while its circle is hovered, in full unless it is wider
-// than the drawing: under the circle, or over it when under is off the drawing or on the zoom buttons
+// A circle's label shows while it is hovered or its control has focus, in full unless it is wider than
+// the drawing: under the circle, or over it when under is off the drawing or on the zoom buttons
 export const getHoverLabel = (
     circle: PackedCircle,
     info: Map<string, CircleInfo>,
@@ -767,12 +771,21 @@ export const getHoverLabel = (
     const fits = ({ box }: Candidate): boolean =>
         box.y >= PANEL_INSET_PX &&
         box.y + box.height <= area.height * zoom - PANEL_INSET_PX &&
+        box.x + box.width <= area.width * zoom - PANEL_INSET_PX &&
         !reserved.some((taken) => boxesOverlap(taken, box));
     const [below, above] = (['below', 'above'] as const).map((side) =>
         getOutsideCandidate(circle, text, side, 0, zoom, area, measure),
     );
+    // A circle with no room over it keeps its label under it, moved right of the zoom buttons
+    const pastControls = reserved.map((taken) => ({
+        ...below,
+        box: {
+            ...below.box,
+            x: Math.max(below.box.x, taken.x + taken.width + CLEARANCE_PX),
+        },
+    }));
     const { offset, ...candidate } =
-        fits(below) || !fits(above) ? below : above;
+        [below, above, ...pastControls].find(fits) ?? below;
     return { id: circle.id, ...candidate };
 };
 
@@ -793,8 +806,8 @@ const countShortfall = (
     };
 };
 
-// Fills the panel, spreading the circles further apart until every top-level label has room.
-// Spreading shrinks the circles, so it stops before they lose too much of their size.
+// Fills the panel. With labels at rest it spreads the circles apart until every top-level label has
+// room; spreading shrinks the circles, so it stops before they lose too much of their size
 export const layoutMap = ({
     input,
     area,
@@ -808,6 +821,9 @@ export const layoutMap = ({
     describe: (circles: PackedCircle[]) => Map<string, CircleInfo>;
     measure: TextMeasurer;
 }): PackedCircle[] => {
+    // Names show on hover only, so the circles keep the size the pack gives them
+    if (!LABELS_AT_REST)
+        return nameLoneBucket(fitToArea(input, area), focusName);
     const largest = (circles: PackedCircle[]): number =>
         circles.reduce((max, circle) => Math.max(max, circle.r), 0);
     let best: (Shortfall & { circles: PackedCircle[] }) | null = null;

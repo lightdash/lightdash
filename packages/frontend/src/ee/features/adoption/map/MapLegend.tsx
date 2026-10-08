@@ -9,7 +9,7 @@ import { DOT_LABELS, LEGEND_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
 type Props = {
     colourBy: ColourBy;
     counts: Map<DotKind, number>;
-    // The whole organization is in view, where the page header and the panel count everyone on Lightdash
+    // The whole organization is in view, where the panel counts everyone on Lightdash
     isOrganizationView: boolean;
     hasEmptyDepartment: boolean;
     hasDepartmentWithoutHeadcount: boolean;
@@ -89,11 +89,11 @@ export const MapLegend: FC<Props> = ({
                 Legend counts people placed in a department
             </Text>
         )}
-        <Text fz="xs" c="dimmed">
-            {areDotsHidden
-                ? `Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`
-                : 'Dots show how many people are active, not who they are. Open a department to see its people'}
-        </Text>
+        {areDotsHidden && (
+            <Text fz="xs" c="dimmed">
+                {`Dots are hidden above ${formatCount(dotLimit)} people`}
+            </Text>
+        )}
         {hasSubDepartments && (
             <Text fz="xs" c="dimmed">
                 Circles are to scale within their department

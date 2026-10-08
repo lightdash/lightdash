@@ -109,13 +109,6 @@
     margin-top: auto;
 }
 
-.card {
-    width: 100%;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-}
-
 /* Receives focus after the map changes level, so the outline belongs to the keyboard only */
 .crumb:focus:not(:focus-visible) {
     outline: none;

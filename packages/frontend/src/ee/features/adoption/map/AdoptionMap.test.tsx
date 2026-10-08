@@ -16,6 +16,7 @@ import {
 } from '../utils/adoptionFixtures';
 import { AdoptionMap } from './AdoptionMap';
 import { estimateTextWidth } from './mapLayout';
+import { deepOrganization } from './organizationFixtures';
 
 // Only the network hook is replaced; the layout and geometry are the real ones
 const useDepartmentDetail = vi.fn();
@@ -102,11 +103,14 @@ const departmentControls = () =>
 const legendCounts = () =>
     within(screen.getByRole('list', { name: 'Legend' }))
         .getAllByRole('listitem')
-        .map((item) => {
+        .flatMap((item) => {
             const [label, count] = within(item)
                 .getAllByText(/.+/)
                 .map((node) => node.textContent ?? '');
-            return { label, count: Number(count.replace(/,/g, '')) };
+            // The rings for departments with nobody or no headcount carry no count
+            return count === undefined
+                ? []
+                : [{ label, count: Number(count.replace(/,/g, '')) }];
         });
 
 describe('AdoptionMap', () => {
@@ -131,7 +135,7 @@ describe('AdoptionMap', () => {
         renderMap();
         expect(
             screen.getByRole('img', {
-                name: /^Map of the organization: 2 departments, 38 people, 12 on Lightdash, 6 active in the last 30 days\./,
+                name: /^Map of the organization: 2 departments, 38 people, 12 on Lightdash placed in a department, 6 active in the last 30 days\./,
             }),
         ).toBeInTheDocument();
     });
@@ -238,24 +242,15 @@ describe('AdoptionMap', () => {
         expect(screen.queryByRole('button', { name: /^Ops,/ })).toBeNull();
     });
 
-    it('ranks the cards among the departments at the current level only', async () => {
+    it('shows no cards under the map', () => {
         renderMap();
-        // Ops rolls up its children, so it leads at the top level
-        expect(screen.getByText('Ops: 4 of 30 active')).toBeInTheDocument();
-        expect(screen.queryByText(/^Stores:/)).toBeNull();
-        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
-        expect(screen.getByText('Stores: 4 of 20 active')).toBeInTheDocument();
-        expect(screen.queryByText(/^Ops:/)).toBeNull();
-        expect(screen.queryByText(/^Finance:/)).toBeNull();
         [
             'Biggest gap',
             'Furthest behind',
             'Most seats unused',
             'Unplaced people',
-        ].forEach((title) =>
-            expect(screen.getByText(title)).toBeInTheDocument(),
-        );
-        expect(screen.getByText('3 people')).toBeInTheDocument();
+        ].forEach((title) => expect(screen.queryByText(title)).toBeNull());
+        expect(screen.queryByText(/: \d+ of \d+ active$/)).toBeNull();
     });
 
     it('names people inside a small department and inspects the one selected', async () => {
@@ -283,12 +278,24 @@ describe('AdoptionMap', () => {
                 (node) => node.textContent,
             ),
         ).toEqual(expect.arrayContaining(['Ada', 'Grace']));
-        // The department's one circle carries its own name
+        // No department name at rest; on hover the department's one circle carries its own name
         expect(
             [...container.querySelectorAll('svg[role="img"] text')].map(
                 (node) => node.textContent,
             ),
-        ).toContain('Finance');
+        ).not.toContain('Finance');
+        const circle = container.querySelector(
+            '[data-kind][data-circle="own:Finance"]',
+        );
+        expect(circle).not.toBeNull();
+        if (circle) fireEvent.pointerOver(circle);
+        expect(
+            [
+                ...container.querySelectorAll(
+                    'svg[role="img"] [data-label="own:Finance"]',
+                ),
+            ].map((node) => node.textContent),
+        ).toEqual(['Finance', '3 of 8']);
         expect(screen.queryByText(/Directly in/)).toBeNull();
         expect(legendCounts()).toEqual([
             { label: 'Active in 30 days', count: 1 },
@@ -338,9 +345,9 @@ describe('AdoptionMap', () => {
         expect(useDepartmentDetail).toHaveBeenLastCalledWith('Field');
     });
 
-    it('hides person dots above 5,000 people and says so', () => {
+    it('hides person dots above 20,000 people and says so', () => {
         const { container } = renderMap([
-            d('Everyone', null, 5001, 10, 5),
+            d('Everyone', null, 19997, 10, 5),
             d('Few', null, 4, 2, 1),
         ]);
         expect(
@@ -348,13 +355,11 @@ describe('AdoptionMap', () => {
         ).toHaveLength(0);
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
-            screen.getByText(
-                'Dots are hidden above 5,000 people. Open a department to see its people',
-            ),
+            screen.getByText('Dots are hidden above 20,000 people'),
         ).toBeInTheDocument();
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
-        ).toBe(5005);
+        ).toBe(20001);
         expect(
             screen.getByRole('img', {
                 name: /Each circle is a department sized by headcount\. The List view/,
@@ -362,17 +367,27 @@ describe('AdoptionMap', () => {
         ).toBeInTheDocument();
     });
 
-    it('still draws dots at exactly 5,000 people', () => {
-        const { container } = renderMap([d('Everyone', null, 5000, 10, 5)]);
+    it('still draws dots at exactly 20,000 people', () => {
+        const { container } = renderMap([d('Everyone', null, 20000, 10, 5)]);
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
-        ).toHaveLength(5000);
+        ).toHaveLength(20000);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
+    });
+
+    it('draws the dots of a 6,000-headcount organization at the organization level, with no note about them', () => {
+        const { container } = renderMap(deepOrganization);
+        const inView = legendCounts().reduce(
+            (sum, entry) => sum + entry.count,
+            0,
+        );
+        expect(inView).toBeGreaterThan(5000);
         expect(
-            screen.getByText(
-                'Dots show how many people are active, not who they are. Open a department to see its people',
-            ),
-        ).toBeInTheDocument();
+            container.querySelectorAll('svg[role="img"] [data-dot]'),
+        ).toHaveLength(inView);
+        expect(screen.queryByText(/Dots are hidden/)).toBeNull();
+        expect(screen.queryByText(/^Dots show/)).toBeNull();
+        expect(screen.queryByText(/Open a department to see/)).toBeNull();
     });
 
     it('says when small circles are not to scale', () => {
@@ -488,17 +503,14 @@ describe('AdoptionMap', () => {
                     .map((control) => control.textContent?.replace(/,.*/, ''))
                     .sort(),
             ).toEqual(['Depots', 'North', 'Stores']);
-            // The cards now compare the sub-departments of Operations
-            expect(
-                screen.getByText('Stores: 0 of 22 active'),
-            ).toBeInTheDocument();
-            expect(screen.queryByText(/^Supply chain:/)).toBeNull();
         };
 
         it('starts on the whole organization', () => {
             renderMap(seededOrganization());
             expect(
-                screen.getByText('Supply chain: 0 of 80 active'),
+                screen.getByRole('img', {
+                    name: /^Map of the organization: 6 departments/,
+                }),
             ).toBeInTheDocument();
             expect(
                 screen.getByText('All departments', {
@@ -606,9 +618,11 @@ describe('AdoptionMap', () => {
         it('leaves focus where it was when a department is opened with the pointer', async () => {
             const { container } = renderMap(seededOrganization());
             const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
-            // A card under the map: moving focus to the breadcrumb would scroll the page up
+            // A row in the panel beside the map: moving focus to the breadcrumb would scroll the page up
             await userEvent.click(
-                screen.getByText('Supply chain: 0 of 80 active'),
+                within(
+                    screen.getByRole('complementary', { name: 'Details' }),
+                ).getByText('Supply chain'),
             );
             expect(
                 screen.getByRole('heading', { name: 'Supply chain' }),
@@ -750,7 +764,7 @@ describe('AdoptionMap', () => {
         const details = screen.getByRole('complementary', {
             name: 'Details',
         });
-        // The same two numbers as the page header, from the summary's organization
+        // The organization's own two numbers, from the summary
         expect(
             within(details).getByText('On Lightdash').parentElement,
         ).toHaveTextContent(/^On Lightdash1,951$/);
@@ -919,23 +933,8 @@ describe('AdoptionMap', () => {
         });
     });
 
-    it('names the path of a sub-department in the cards', () => {
-        renderMap([
-            d('Ops', null, 30, 9, 4, {
-                directMetrics: metricsFixture(0, null),
-            }),
-            d('Stores', 'Ops', 20, 6, 4, { targetActiveUsers: 15 }),
-            d('Depots', 'Ops', 10, 3, 0),
-            d('Finance', null, 8, 3, 2, { targetActiveUsers: 3 }),
-        ]);
-        expect(screen.getByText('11 short')).toBeInTheDocument();
-        expect(
-            screen.getByText('Ops / Stores: 4 of 15 target'),
-        ).toBeInTheDocument();
-    });
-
-    it('shows a label it had no room for when its circle is hovered', () => {
-        // Forty long names in one panel: some labels have nowhere to go
+    it("draws no department names at rest and shows a circle's name and numbers while it is hovered", () => {
+        // Forty long names in one small panel
         const crowd = Array.from({ length: 40 }, (_, index) =>
             d(
                 `A department with a long name, number ${index}`,
@@ -946,30 +945,50 @@ describe('AdoptionMap', () => {
             ),
         );
         const { container } = renderMap(crowd);
-        const unlabelled = [
+        expect(
+            container.querySelector('svg[role="img"] [data-label]'),
+        ).toBeNull();
+        expect(container.querySelector('svg[role="img"] text')).toBeNull();
+        const circles = [
             ...container.querySelectorAll<SVGCircleElement>(
                 'svg[role="img"] [data-department]',
             ),
-        ].filter(
-            (circle) =>
-                container.querySelector(
-                    `[data-label="${circle.dataset.department}"]`,
-                ) === null,
-        );
-        expect(unlabelled.length).toBeGreaterThan(0);
-        const [circle] = unlabelled;
+        ];
+        expect(circles).toHaveLength(40);
+        const [circle] = circles;
         const id = circle.dataset.department ?? '';
         fireEvent.pointerOver(circle);
-        const shown = container.querySelectorAll(`[data-label="${id}"]`);
-        expect(shown.length).toBeGreaterThan(0);
-        // In full, even where a label under the circle would have been shortened
-        expect(shown[0].textContent).toBe(id);
+        const shown = [
+            ...container.querySelectorAll(`[data-label="${id}"]`),
+        ].map((node) => node.textContent);
+        // In full, with its numbers on the line under it
+        expect(shown).toEqual([id, expect.stringMatching(/^3 of \d+$/)]);
         fireEvent.pointerLeave(circle);
         expect(container.querySelector(`[data-label="${id}"]`)).toBeNull();
     });
 
+    it("shows a department's name and numbers while its control has keyboard focus", () => {
+        const { container } = renderMap();
+        expect(
+            container.querySelector('svg[role="img"] [data-label]'),
+        ).toBeNull();
+        const control = screen.getByRole('button', { name: /^Finance,/ });
+        fireEvent.focus(control);
+        expect(
+            [
+                ...container.querySelectorAll(
+                    'svg[role="img"] [data-label="Finance"]',
+                ),
+            ].map((node) => node.textContent),
+        ).toEqual(['Finance', '3 of 8']);
+        fireEvent.blur(control);
+        expect(
+            container.querySelector('svg[role="img"] [data-label]'),
+        ).toBeNull();
+    });
+
     it("keeps a hovered circle's label while the pointer is on one of its people", async () => {
-        // Small enough to name everyone, crowded enough that some labels have no room
+        // Small enough to name everyone
         const teams = Array.from({ length: 40 }, (_, index) =>
             d(
                 `Team with a long descriptive name, number ${index}`,
@@ -1082,7 +1101,7 @@ describe('AdoptionMap', () => {
     });
 
     it('does not ask for names when the view is too large to draw people', async () => {
-        renderMap([d('Everyone', null, 5001, 10, 5), d('Few', null, 4, 2, 1)]);
+        renderMap([d('Everyone', null, 20001, 10, 5), d('Few', null, 4, 2, 1)]);
         await userEvent.click(
             screen.getByRole('button', { name: /^Everyone,/ }),
         );

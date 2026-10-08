@@ -1,10 +1,11 @@
+import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { dept, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentMap } from './DepartmentMap';
 import styles from './DepartmentMap.module.css';
 import { type PackedCircle } from './geometry';
-import { estimateTextWidth, placeLabels } from './mapLayout';
+import { estimateTextWidth, LABELS_AT_REST, placeLabels } from './mapLayout';
 import { describeCircles } from './mapView';
 
 const AREA = { width: 760, height: 560 };
@@ -28,16 +29,26 @@ const circleOfPeople = (r: number): PackedCircle => ({
     isAreaHonest: true,
 });
 
-const draw = (circle: PackedCircle) => {
+const SERVICE = dept('Service', null, null, {
+    headcount: 300,
+    effectiveHeadcount: 300,
+    metrics: metricsFixture(200, 67, { activeCount30d: 120 }),
+});
+
+const draw = (
+    circles: PackedCircle[],
+    highlightedUuid: string | null = null,
+) => {
     const info = describeCircles(
-        [circle],
+        circles,
         new Map([
+            [SERVICE.departmentUuid, SERVICE],
             [
-                circle.id,
-                dept(circle.id, null, null, {
-                    headcount: 300,
-                    effectiveHeadcount: 300,
-                    metrics: metricsFixture(200, 67),
+                'Ops',
+                dept('Ops', null, null, {
+                    headcount: 40,
+                    effectiveHeadcount: 40,
+                    metrics: metricsFixture(12, 30, { activeCount30d: 5 }),
                 }),
             ],
         ]),
@@ -46,27 +57,83 @@ const draw = (circle: PackedCircle) => {
         <DepartmentMap
             width={AREA.width}
             height={AREA.height}
-            circles={[circle]}
+            circles={circles}
             info={info}
             dots={[]}
             showNames={false}
             ariaLabel="Map"
             measureText={estimateTextWidth}
             layoutKey="root"
-            highlightedUuid={null}
+            highlightedUuid={highlightedUuid}
             selectedUserUuid={null}
             onDepartmentClick={vi.fn()}
             onPersonClick={vi.fn()}
         />,
     );
-    const [label] = placeLabels([circle], info, 1, AREA, estimateTextWidth);
-    return { container, label };
+    const textOf = (id: string) =>
+        [...container.querySelectorAll(`[data-label="${id}"]`)].map(
+            (node) => node.textContent,
+        );
+    return { container, info, textOf };
 };
 
 describe('DepartmentMap labels', () => {
+    it('draws no label at rest, and a name with its numbers while its circle is hovered', () => {
+        const { container, textOf } = draw([circleOfPeople(120)]);
+        expect(container.querySelector('[data-label]')).toBeNull();
+        expect(container.querySelector('[data-label-backing]')).toBeNull();
+        expect(container.querySelectorAll('svg text')).toHaveLength(0);
+        const circle = container.querySelector('[data-circle="Service"]');
+        if (circle) fireEvent.pointerOver(circle);
+        expect(textOf('Service')).toEqual(['Service', '200 of 300']);
+        if (circle) fireEvent.pointerOut(circle, { relatedTarget: null });
+        expect(container.querySelector('[data-label]')).toBeNull();
+    });
+    it("shows a department's label while its control has keyboard focus", () => {
+        const { textOf } = draw([circleOfPeople(120)], 'Service');
+        expect(textOf('Service')).toEqual(['Service', '200 of 300']);
+    });
+    it('names the people directly in a department after the department around them', () => {
+        const ops: PackedCircle = {
+            ...circleOfPeople(200),
+            id: 'Ops',
+            departmentUuid: 'Ops',
+            name: 'Ops',
+            size: 40,
+            people: null,
+            childDepartmentCount: 1,
+        };
+        const own: PackedCircle = {
+            ...circleOfPeople(60),
+            id: 'own:Ops',
+            kind: 'own',
+            departmentUuid: 'Ops',
+            name: 'Directly in Ops',
+            size: 10,
+            people: { metrics: metricsFixture(4, null), headcount: 10 },
+            depth: 2,
+            parentId: 'Ops',
+        };
+        const { container, textOf } = draw([ops, own]);
+        const people = container.querySelector('[data-circle="own:Ops"]');
+        if (people) fireEvent.pointerOver(people);
+        expect(textOf('Ops')).toEqual(['Ops', '12 of 40']);
+        expect(container.querySelector('[data-label="own:Ops"]')).toBeNull();
+    });
+});
+
+// Labels at rest are off; these keep their drawing covered for when they are turned back on
+describe.skipIf(!LABELS_AT_REST)('DepartmentMap labels at rest', () => {
+    const drawAtRest = (r: number) => {
+        const circle = circleOfPeople(r);
+        const { container, info } = draw([circle]);
+        const [label] = placeLabels([circle], info, 1, AREA, estimateTextWidth);
+        return { container, label };
+    };
+
     it('draws a label that has to sit over people on a light backing 2 px larger all round', () => {
         // The circle fills the panel from top to bottom, so the label can only go inside it
-        const { container, label } = draw(circleOfPeople(278));
+        const { container, label } = drawAtRest(278);
         expect(label.hasBacking).toBe(true);
         const backing = container.querySelector(
             '[data-label-backing="Service"]',
@@ -106,7 +173,7 @@ describe('DepartmentMap labels', () => {
         }
     });
     it('draws a label under its circle with no backing', () => {
-        const { container, label } = draw(circleOfPeople(120));
+        const { container, label } = drawAtRest(120);
         expect(label).toMatchObject({ placement: 'below', hasBacking: false });
         expect(
             container.querySelector('[data-label="Service"]'),

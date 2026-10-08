@@ -32,7 +32,7 @@ export const NAME_LABEL_LIMIT = 150;
 
 const ACCOUNTS: Noun = { one: 'account', other: 'accounts' };
 
-// The departments one level below the focus: what the map and its cards compare
+// The departments one level below the focus: what the map compares
 export const getVisibleDepartments = (
     departments: DepartmentWithMetrics[],
     focusUuid: string | null,
@@ -201,19 +201,21 @@ const getCircleStats = (
     circle: PackedCircle,
     byUuid: Map<string, DepartmentWithMetrics>,
 ): CircleStats | null => {
-    // A bucket of people carries its own numbers; a parent circle reads its rolled-up ones
+    const department =
+        circle.departmentUuid === null
+            ? undefined
+            : byUuid.get(circle.departmentUuid);
+    // A bucket of people carries its own counts, against its department's headcount as the inspector gives it
+    // rather than the people drawn. A parent circle reads its rolled-up numbers
     if (circle.kind === 'own' && circle.people !== null) {
         return {
             people: countBucketPeople(circle.people),
             members: circle.people.metrics.memberCount,
             active: circle.people.metrics.activeCount30d,
-            headcount: circle.people.headcount,
+            headcount:
+                department?.effectiveHeadcount ?? circle.people.headcount,
         };
     }
-    const department =
-        circle.departmentUuid === null
-            ? undefined
-            : byUuid.get(circle.departmentUuid);
     if (!department) return null;
     return {
         people: Math.max(
@@ -287,7 +289,7 @@ export const getViewTotals = (circles: PackedCircle[]): ViewTotals =>
     );
 
 export type OrganizationOverview = {
-    // The page header's two numbers, for everyone on Lightdash
+    // The organization's own two numbers, for everyone on Lightdash
     onLightdash: number;
     active30d: number;
     placed: number;
@@ -389,7 +391,10 @@ export const buildMapAriaLabel = ({
     const numbers = [
         ...(departmentCount > 0 ? [departments] : []),
         formatQuantity(totals.people, PEOPLE),
-        `${formatCount(totals.members)} on Lightdash`,
+        // Across the organization only the people placed in a department are on the map
+        scopeName === null
+            ? `${formatCount(totals.members)} on Lightdash placed in a department`
+            : `${formatCount(totals.members)} on Lightdash`,
         `${formatCount(totals.active)} active in the last 30 days`,
     ].join(', ');
     const encoding = areDotsHidden

@@ -194,8 +194,8 @@ describe('dot and name thresholds', () => {
         expect(shouldLoadPeople(150)).toBe(true);
         expect(shouldLoadPeople(151)).toBe(false);
     });
-    it('keeps the dot limit at 5,000', () => {
-        expect(SVG_DOT_LIMIT).toBe(5000);
+    it('draws dots for up to 20,000 people in view', () => {
+        expect(SVG_DOT_LIMIT).toBe(20000);
     });
 });
 
@@ -240,6 +240,45 @@ describe('describeCircles', () => {
         expect(described.get('Tiny')?.description).toMatch(/, not to scale$/);
         expect(described.get('Huge')?.description).not.toMatch(/not to scale/);
     });
+    describe("a circle drawn from a department's own people", () => {
+        const data = [
+            d('Data', null, 110, 191, 85, 84),
+            d('Analytics', 'Data', 64, 63, 29),
+            d('Engineering', 'Data', 34, 33, 10),
+            d('Science', 'Data', 12, 11, 3),
+            d('Governance', null, 8, 9, 9),
+            d('Product', null, null, 5, 5),
+        ];
+        const describeView = (focus: string | null) =>
+            describeCircles(
+                nameLoneBucket(layout(focus, data), focus),
+                new Map(data.map((each) => [each.departmentUuid, each])),
+            );
+
+        it('gives a department without sub-departments its own headcount, not the people drawn', () => {
+            const info = describeView('Governance');
+            expect(info.get('own:Governance')?.stats.headcount).toBe(8);
+            expect(info.get('own:Governance')?.description).toBe(
+                'Governance, 9 of 8 on Lightdash, 9 active in the last 30 days',
+            );
+        });
+        it('gives the people directly in a department the headcount of the department around them', () => {
+            // Data's 110 is entered on Data itself and its sub-departments add up to all of it
+            [describeView('Data'), describeView(null)].forEach((info) => {
+                expect(info.get('own:Data')?.stats.headcount).toBe(110);
+                expect(info.get('own:Data')?.description).toBe(
+                    'Directly in Data, 84 of 110 on Lightdash, 0 active in the last 30 days',
+                );
+            });
+        });
+        it('says there is no headcount when the department has none', () => {
+            expect(
+                describeView('Product').get('own:Product')?.description,
+            ).toBe(
+                'Product, 5 on Lightdash, 5 active in the last 30 days, no headcount set',
+            );
+        });
+    });
 });
 
 describe('getOrganizationOverview', () => {
@@ -269,7 +308,7 @@ describe('getOrganizationOverview', () => {
         );
     };
 
-    it('repeats the organization numbers from the page header', () => {
+    it("gives the organization's own numbers for everyone on Lightdash", () => {
         expect(overview(tree)).toMatchObject({
             onLightdash: 1951,
             active30d: 1181,
@@ -453,7 +492,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: false,
             }),
         ).toBe(
-            'Map of the organization: 4 departments, 83 people, 17 on Lightdash, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person. The List view has the same numbers as a table',
+            'Map of the organization: 4 departments, 83 people, 17 on Lightdash placed in a department, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person. The List view has the same numbers as a table',
         );
     });
     it('names the focused department and its sub-departments', () => {
@@ -495,7 +534,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: true,
             }),
         ).toBe(
-            'Map of the organization: 1 department, 6,000 people, 10 on Lightdash, 5 active in the last 30 days. Each circle is a department sized by headcount. The List view has the same numbers as a table',
+            'Map of the organization: 1 department, 6,000 people, 10 on Lightdash placed in a department, 5 active in the last 30 days. Each circle is a department sized by headcount. The List view has the same numbers as a table',
         );
     });
 });

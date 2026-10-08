@@ -270,8 +270,8 @@ describe('typed strings render as text', () => {
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // Names this long find no room on the drawing at rest, so each circle's label is drawn whole while it is
-        // hovered
+        // No name is drawn at rest; each circle's label is drawn whole while it is hovered
+        expect(drawn('[data-label]')).toHaveLength(0);
         hover('child');
         expect(drawnText('[data-label="child"]')).toEqual([`${CHILD} · 10`]);
         expectSvgTextOnly();
@@ -280,19 +280,23 @@ describe('typed strings render as text', () => {
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // Inside the department: the sub-department's label is whole, a cut label still draws the markup as text
-        // with the whole name in a title, and each dot is titled with the full name and labelled with the first name
+        // Inside the department: the hovered labels are whole, the circles are titled with the whole name, and
+        // each dot is titled with the full name and labelled with the first name, cut short
         await userEvent.click(
             screen.getByRole('button', {
                 name: (accessibleName) => accessibleName.startsWith(`${NAME},`),
             }),
         );
+        hover('child');
         expect(drawnText('[data-label="child"]')).toContain(CHILD);
-        expect(
-            drawnText('text').some(
-                (text) => text.endsWith('…') && text.includes('"><img'),
-            ),
-        ).toBe(true);
+        const people = container.querySelector(
+            'svg[role="img"] [data-kind][data-circle="own:hostile"]',
+        );
+        expect(people).not.toBeNull();
+        if (people) fireEvent.pointerOver(people);
+        expect(drawnText('[data-label="own:hostile"]')).toContain(
+            `Directly in ${NAME}`,
+        );
         expect(drawnText('title').some((title) => title.includes(NAME))).toBe(
             true,
         );

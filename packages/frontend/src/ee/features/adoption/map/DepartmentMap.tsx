@@ -27,6 +27,7 @@ import {
     getHoverLabel,
     getTopLevelGroups,
     getLabelLines,
+    LABELS_AT_REST,
     placeLabels,
     TEXT_FONTS,
     type CircleLabel,
@@ -349,11 +350,15 @@ export const DepartmentMap: FC<Props> = ({
         () => new Map(circles.map((circle) => [circle.id, circle])),
         [circles],
     );
+    // Nothing is placed at rest unless labels at rest are turned back on
     const labels = useMemo(
-        () => placeLabels(circles, info, k, { width, height }, measureText),
+        () =>
+            LABELS_AT_REST
+                ? placeLabels(circles, info, k, { width, height }, measureText)
+                : [],
         [circles, info, k, width, height, measureText],
     );
-    // A label left out for want of room shows while its circle is hovered or its control has focus
+    // A circle's label shows while it is hovered or its control has focus
     const shownId =
         hoveredId ??
         circles.find(
@@ -363,7 +368,12 @@ export const DepartmentMap: FC<Props> = ({
         )?.id ??
         null;
     const hoverLabels = useMemo(() => {
-        const circle = circles.find((each) => each.id === shownId);
+        const shown = shownId === null ? undefined : circlesById.get(shownId);
+        // The people directly in a department are named by the department drawn around them
+        const circle =
+            shown?.kind === 'own' && shown.parentId !== null
+                ? circlesById.get(shown.parentId)
+                : shown;
         if (!circle || labels.some((label) => label.id === circle.id)) {
             return [];
         }
@@ -375,7 +385,7 @@ export const DepartmentMap: FC<Props> = ({
             measureText,
         );
         return label === null ? [] : [label];
-    }, [shownId, circles, labels, info, k, width, height, measureText]);
+    }, [shownId, circlesById, labels, info, k, width, height, measureText]);
 
     const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
         pressRef.current = { x: event.clientX, y: event.clientY };

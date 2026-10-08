@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { type DepartmentWithMetrics } from '@lightdash/common';
-import { Button, Group, SegmentedControl, Stack, Text } from '@mantine/core';
+import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
 import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
@@ -21,11 +21,6 @@ import {
     parseAdoptionView,
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
-import {
-    formatCount,
-    formatQuantity,
-    PEOPLE,
-} from '../features/adoption/utils/format';
 import {
     getViewStorageKey,
     readStoredView,
@@ -164,9 +159,6 @@ const Adoption: FC = () => {
             )}
             {summary.data && departments.length > 0 && (
                 <Stack gap="md">
-                    <Text fz="sm" c="dimmed">
-                        {`${formatQuantity(summary.data.organization.memberCount, PEOPLE)} on Lightdash · ${formatCount(summary.data.organization.activeCount30d)} active in the last 30 days`}
-                    </Text>
                     <AttentionStrip
                         conflictCount={summary.data.attention.conflictCount}
                         unassignedCount={summary.data.attention.unassignedCount}

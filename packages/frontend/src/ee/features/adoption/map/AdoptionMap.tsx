@@ -35,8 +35,6 @@ import {
     type ColourBy,
     type PackedCircle,
 } from './geometry';
-import { MapCardGrid } from './MapCardGrid';
-import { computeMapCards } from './mapCards';
 import { MapInspector } from './MapInspector';
 import { estimateTextWidth, layoutMap, type TextMeasurer } from './mapLayout';
 import { MapLegend } from './MapLegend';
@@ -195,10 +193,6 @@ export const AdoptionMap: FC<Props> = ({
     const legendCounts = useMemo(
         () => countDotKinds(circles, colourBy, membersByDepartment, now),
         [circles, colourBy, membersByDepartment, now],
-    );
-    const cards = useMemo(
-        () => computeMapCards(departments, focusedUuid, summary.attention),
-        [departments, focusedUuid, summary.attention],
     );
 
     // Whether the last thing the person did in the map was a key press or a pointer press
@@ -436,8 +430,6 @@ export const AdoptionMap: FC<Props> = ({
                     onEdit={onEdit}
                 />
             </Box>
-
-            <MapCardGrid cards={cards} onDepartmentClick={focusOn} />
         </Stack>
     );
 };
