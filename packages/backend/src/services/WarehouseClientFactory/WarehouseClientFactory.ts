@@ -174,6 +174,8 @@ export class WarehouseClientFactory {
 
     private readonly logger: typeof Logger;
 
+    private readonly releaseSshTunnelOnScopeExit: boolean;
+
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
         this.projectModel = deps.projectModel;
@@ -181,7 +183,10 @@ export class WarehouseClientFactory {
         this.aiAccessService = deps.aiAccessService;
         this.credentialSource = deps.credentialSource;
         this.logger = deps.logger;
-        if (!this.lightdashConfig.warehouseClient.releaseSshTunnelOnScopeExit) {
+        this.releaseSshTunnelOnScopeExit =
+            deps.lightdashConfig?.warehouseClient
+                ?.releaseSshTunnelOnScopeExit ?? true;
+        if (!this.releaseSshTunnelOnScopeExit) {
             this.logger.warn('Scoped SSH tunnel release is disabled');
         }
     }
@@ -419,8 +424,7 @@ export class WarehouseClientFactory {
                 );
             },
             release: () => {
-                releasePromise ??= this.lightdashConfig.warehouseClient
-                    .releaseSshTunnelOnScopeExit
+                releasePromise ??= this.releaseSshTunnelOnScopeExit
                     ? sshTunnel.disconnect()
                     : Promise.resolve();
                 return releasePromise;
