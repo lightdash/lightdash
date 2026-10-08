@@ -14,7 +14,10 @@ import {
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
-import { AiOrganizationProviderCredentialModel } from '../../models/AiOrganizationProviderCredentialModel';
+import {
+    AiOrganizationProviderCredentialModel,
+    type AiProviderCredentialResolution,
+} from '../../models/AiOrganizationProviderCredentialModel';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
@@ -313,24 +316,40 @@ export class OrgAiCopilotConfigResolver {
             onUnreadable?: 'fail-closed' | 'tolerate-unreadable';
         },
     ): Promise<AiOrgProviderApiKeys | null> {
-        const resolveSelected = () => {
+        // `pin` records that the credential was deliberately selected (an
+        // agent or project pin) rather than inherited from the organization
+        // default — pins fail closed where the default may degrade.
+        const resolveSelected = async (): Promise<{
+            resolution: AiProviderCredentialResolution;
+            pin: 'agent' | 'project' | null;
+        }> => {
             if (credentialUuid) {
-                return this.aiOrganizationProviderCredentialModel.findDecrypted(
-                    organizationUuid,
-                    credentialUuid,
-                );
+                return {
+                    resolution:
+                        await this.aiOrganizationProviderCredentialModel.findDecrypted(
+                            organizationUuid,
+                            credentialUuid,
+                        ),
+                    pin: 'agent',
+                };
             }
             if (projectUuid) {
-                return this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
-                    organizationUuid,
-                    projectUuid,
-                );
+                const { resolution, fromProjectPin } =
+                    await this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
+                        organizationUuid,
+                        projectUuid,
+                    );
+                return { resolution, pin: fromProjectPin ? 'project' : null };
             }
-            return this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
-                organizationUuid,
-            );
+            return {
+                resolution:
+                    await this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                        organizationUuid,
+                    ),
+                pin: null,
+            };
         };
-        const [legacyKeys, resolution] = await Promise.all([
+        const [legacyKeys, { resolution, pin }] = await Promise.all([
             this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             ),
@@ -366,18 +385,21 @@ export class OrgAiCopilotConfigResolver {
                       bedrock: resolution.credential.config,
                   };
 
-        // An agent pin must never be silently discarded: with the org flag
-        // off, falling through to the instance provider would process the
-        // pinned agent's content out of region. Pin writes are rejected while
-        // the flag is off, so this only fires when the flag was turned off
-        // after the pin was saved — degrade to "unavailable", never reroute.
-        if (credentialUuid && resolution.status === 'ok') {
+        // A pin must never be silently discarded: with the org flag off,
+        // falling through to the instance provider would process the pinned
+        // agent's or project's content out of region. Pin writes are rejected
+        // while the flag is off, so this only fires when the flag was turned
+        // off after the pin was saved — degrade to "unavailable", never
+        // reroute.
+        if (pin && resolution.status === 'ok') {
             if (await this.isCustomProvidersEnabled(organizationUuid)) {
                 return keys;
             }
             if (onUnreadable === 'fail-closed') {
                 throw new MissingConfigError(
-                    'This agent is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin; AI features are unavailable for this agent until then.',
+                    pin === 'agent'
+                        ? 'This agent is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin; AI features are unavailable for this agent until then.'
+                        : 'This project is pinned to an AI provider credential, but custom AI providers are not enabled for this organization. Enable them or clear the pin in the project settings; AI features are unavailable for this project until then.',
                 );
             }
             return this.withCustomProvidersIfEnabled(
