@@ -12,6 +12,7 @@ import {
     buildDeepResearchVizConfig,
     ConflictError,
     derivePivotConfigurationFromChart,
+    FeatureFlags,
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
@@ -59,6 +60,7 @@ import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryH
 import { type UserModel } from '../../../models/UserModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
     type DbAiDeepResearchAnalyticsOutbox,
     type DbAiDeepResearchEvent,
@@ -329,6 +331,7 @@ type Dependencies = {
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+    featureFlagService: Pick<FeatureFlagService, 'get'>;
     executor?: AiDeepResearchExecutor;
 };
 
@@ -580,6 +583,8 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
 
+    private readonly featureFlagService: Dependencies['featureFlagService'];
+
     constructor({
         analytics,
         aiDeepResearchRunModel,
@@ -591,6 +596,7 @@ export class AiDeepResearchService extends BaseService {
         asyncQueryService,
         queryHistoryModel,
         userModel,
+        featureFlagService,
         executor,
     }: Dependencies) {
         super();
@@ -604,6 +610,7 @@ export class AiDeepResearchService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.queryHistoryModel = queryHistoryModel;
         this.userModel = userModel;
+        this.featureFlagService = featureFlagService;
         this.executor = executor;
     }
 
@@ -825,6 +832,14 @@ export class AiDeepResearchService extends BaseService {
         await this.assertCanCreateRun(args.user, args.projectUuid);
         if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
             throw new ForbiddenError('AI Copilot is not enabled');
+        }
+        // Deep Research output is a Document, so it needs Documents enabled.
+        const documentsFlag = await this.featureFlagService.get({
+            user: args.user,
+            featureFlagId: FeatureFlags.Documents,
+        });
+        if (!documentsFlag.enabled) {
+            throw new ForbiddenError('Documents are not enabled');
         }
         // Checked once here; the run's later steps are never interrupted.
         await this.aiAgentService.assertAgentCreditsAvailable(args.user, {

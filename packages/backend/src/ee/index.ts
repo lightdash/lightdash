@@ -416,6 +416,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         asyncQueryService: repository.getAsyncQueryService(),
                         queryHistoryModel: models.getQueryHistoryModel(),
                         userModel: models.getUserModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
                         executor: (run, executionContext) =>
                             executorHolder.execute!(run, executionContext),
                     });

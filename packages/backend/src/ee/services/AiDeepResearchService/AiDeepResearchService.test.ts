@@ -7,6 +7,7 @@ import {
     AiResultType,
     AnyType,
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -251,6 +252,7 @@ const buildService = (
         schedulerClient?: Record<string, unknown>;
         asyncQueryService?: Record<string, unknown>;
         queryHistoryModel?: Record<string, unknown>;
+        featureFlagService?: Record<string, unknown>;
         executor?: AnyType;
     } = {},
 ) => {
@@ -355,6 +357,10 @@ const buildService = (
     const analytics = {
         track: vi.fn(),
     };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ id: 'documents', enabled: true }),
+        ...overrides.featureFlagService,
+    };
     const service = new AiDeepResearchService({
         analytics: analytics as AnyType,
         aiDeepResearchRunModel: model as AnyType,
@@ -370,6 +376,7 @@ const buildService = (
                 .fn()
                 .mockResolvedValue(userWithProjectAccess()),
         },
+        featureFlagService,
         executor,
     });
     return {
@@ -384,6 +391,7 @@ const buildService = (
         queryHistoryModel,
         executor,
         analytics,
+        featureFlagService,
     };
 };
 
@@ -762,6 +770,27 @@ describe('AiDeepResearchService', () => {
                     ...validCreateRunArgs(),
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation when Documents are not enabled', async () => {
+            const { service, model, featureFlagService } = buildService({
+                featureFlagService: {
+                    get: vi
+                        .fn()
+                        .mockResolvedValue({ id: 'documents', enabled: false }),
+                },
+            });
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                }),
+            ).rejects.toThrow('Documents are not enabled');
+            expect(featureFlagService.get).toHaveBeenCalledWith({
+                user: expect.objectContaining({ userUuid: 'user-1' }),
+                featureFlagId: FeatureFlags.Documents,
+            });
             expect(model.create).not.toHaveBeenCalled();
         });
 
