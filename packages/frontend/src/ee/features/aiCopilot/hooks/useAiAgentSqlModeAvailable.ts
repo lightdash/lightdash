@@ -13,9 +13,7 @@ export const useAiAgentSqlModeAvailable = (
     const { user } = useApp();
     const isEmbed = useIsEmbedded();
 
-    if (isEmbed) return false;
-
-    if (!projectUuid || !user.data) return false;
+    if (isEmbed || !projectUuid || !user.data) return false;
 
     return (
         user.data.ability.can(
