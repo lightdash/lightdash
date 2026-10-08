@@ -331,6 +331,21 @@
                         "chartName": {
                             "type": ["string", "null"]
                         },
+                        "chartQuery": {
+                            "anyOf": [
+                                {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/$defs/DashboardTileChartQuery"
+                                        }
+                                    ],
+                                    "description": "Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project."
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
                         "chartSlug": {
                             "type": ["string", "null"]
                         },
@@ -922,6 +937,22 @@
                 }
             },
             "required": ["w", "h", "y", "x", "type"],
+            "type": "object"
+        },
+        "DashboardTileChartQuery": {
+            "description": "What the tile's chart queries, so dashboard filters can be targeted per tile without opening each chart.",
+            "properties": {
+                "exploreName": {
+                    "type": "string"
+                },
+                "fieldIds": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["fieldIds", "exploreName"],
             "type": "object"
         },
         "DashboardTileTarget": {

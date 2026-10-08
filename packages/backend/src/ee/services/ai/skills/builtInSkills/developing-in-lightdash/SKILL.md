@@ -59,6 +59,24 @@ Rules:
 4. Call `editContent` with that patch.
 5. Re-read if needed to verify the final state.
 
+To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `/filters/dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
+
+```json
+{
+    "label": "Order date",
+    "operator": "inThePast",
+    "settings": { "completed": false, "unitOfTime": "days" },
+    "values": [90],
+    "target": { "fieldId": "orders_order_date_day", "tableName": "orders" },
+    "tileTargets": {
+        "events-per-day": {
+            "fieldId": "events_date_day",
+            "tableName": "events"
+        }
+    }
+}
+```
+
 ### Edit Charts and Dashboard Tiles
 
 1. Call `readContent` for the chart slug.

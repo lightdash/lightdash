@@ -3,6 +3,7 @@ import {
     ChartKind,
     ContentType,
     ContentVerificationInfo,
+    DashboardChartSummary,
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
@@ -41,7 +42,11 @@ import {
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import {
+    latestSavedChartVersionColumnSql,
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
@@ -602,7 +607,7 @@ export class SearchModel {
         pageSize: number,
     ): Promise<{
         dashboardName: string;
-        charts: DashboardSearchResult['charts'];
+        charts: DashboardChartSummary[];
         pagination: {
             page: number;
             pageSize: number;
@@ -656,6 +661,11 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { viewsCount: `${SavedChartsTableName}.views_count` },
+                {
+                    exploreName: this.database.raw(
+                        latestSavedChartVersionColumnSql('explore_name'),
+                    ),
+                },
             )
             .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
             .where((builder) => {
@@ -713,6 +723,11 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { viewsCount: `${SavedChartsTableName}.views_count` },
+                {
+                    exploreName: this.database.raw(
+                        latestSavedChartVersionColumnSql('explore_name'),
+                    ),
+                },
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .where((builder) => {
@@ -741,6 +756,7 @@ export class SearchModel {
             description: string;
             chartType: ChartKind;
             viewsCount: number;
+            exploreName: string;
         };
 
         const chartsQuery = this.database
@@ -771,6 +787,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.viewsCount,
+                exploreName: chart.exploreName,
                 verification: chartVerificationMap.get(chart.uuid) ?? null,
             })),
             pagination: {

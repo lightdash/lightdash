@@ -14,7 +14,7 @@ Usage tips:
 - Use this tool after "findContent" to drill into a specific dashboard's charts.
 - Requires a dashboardUuid, which you can get from "findContent" results. Also pass the dashboardName for display purposes.
 - Results are paginated — use the page parameter to get more results if needed.
-- Each chart includes its name, description, type, and view count.`;
+- Each chart includes its name, description, type, view count, and the explore it queries (exploreName), so dashboard filters can be targeted per tile without reading each chart.`;
 
 export const toolGetDashboardChartsArgsSchema = createToolSchema()
     .extend({
@@ -42,6 +42,11 @@ const dashboardChartSchema = z.object({
     description: z.string().nullable(),
     chartType: z.enum(ChartKind),
     viewsCount: z.number(),
+    exploreName: z
+        .string()
+        .describe(
+            'Explore the chart queries; a dashboard filter applies to this chart when its target field belongs to this explore.',
+        ),
     verification: z
         .object({
             verifiedBy: z

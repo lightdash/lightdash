@@ -17,6 +17,7 @@ import {
     CustomBinDimension,
     CustomDimensionType,
     CustomSqlDimension,
+    DashboardTileChartQuery,
     DBFieldTypes,
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
@@ -97,6 +98,7 @@ import {
     DbSavedChartVersionField,
     DbSavedChartVersionSort,
     InsertChart,
+    latestSavedChartVersionColumnSql,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
     SavedChartCustomSqlDimensionsTableName,
@@ -2993,6 +2995,47 @@ export class SavedChartModel {
             });
         return Object.fromEntries(
             charts.map((chart) => [chart.uuid, chart.slug]),
+        );
+    }
+
+    /** Latest-version explore and field ids keyed by chart slug; deleted charts are omitted. */
+    async getLatestVersionQueriesBySlugs(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<Record<string, DashboardTileChartQuery>> {
+        if (slugs.length === 0) return {};
+        const rows = await this.database(SavedChartsTableName)
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .whereIn(`${SavedChartsTableName}.slug`, slugs)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereRaw(
+                `${SavedChartVersionsTableName}.saved_queries_version_id = ${latestSavedChartVersionColumnSql(
+                    'saved_queries_version_id',
+                )}`,
+            )
+            .select<
+                { slug: string; explore_name: string; field_ids: string[] }[]
+            >(
+                `${SavedChartsTableName}.slug`,
+                `${SavedChartVersionsTableName}.explore_name`,
+                this.database.raw(
+                    `COALESCE((
+                        SELECT ARRAY_AGG(svf.name ORDER BY svf.name)
+                        FROM ${SavedChartVersionFieldsTableName} svf
+                        WHERE svf.saved_queries_version_id = ${SavedChartVersionsTableName}.saved_queries_version_id
+                    ), '{}') AS field_ids`,
+                ),
+            );
+        return Object.fromEntries(
+            rows.map((row) => [
+                row.slug,
+                { exploreName: row.explore_name, fieldIds: row.field_ids },
+            ]),
         );
     }
 

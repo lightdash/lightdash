@@ -1488,7 +1488,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Data apps are read-only and returned without code.",
+      "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {

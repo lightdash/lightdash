@@ -47,12 +47,22 @@ type DashboardTileAsCodeBase = {
     tabUuid?: DashboardTile['tabUuid'];
 };
 
+/** What the tile's chart queries, so dashboard filters can be targeted per tile without opening each chart. */
+export type DashboardTileChartQuery = {
+    exploreName: string;
+    fieldIds: string[];
+};
+
 export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.SAVED_CHART;
     properties: Pick<
         DashboardChartTileProperties['properties'],
         'title' | 'hideTitle' | 'chartName'
-    > & { chartSlug: string | null };
+    > & {
+        chartSlug: string | null;
+        /** Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project. */
+        chartQuery?: DashboardTileChartQuery | null;
+    };
 };
 
 export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
