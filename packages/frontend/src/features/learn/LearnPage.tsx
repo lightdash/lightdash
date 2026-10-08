@@ -14,6 +14,7 @@ import {
     IconFilter,
     IconLayoutGrid,
     IconPlayerPlay,
+    IconRotate,
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
@@ -166,8 +167,8 @@ const LearnPage: FC = () => {
         (project) => project.type === ProjectType.TRAINING,
     );
     // The learner's own copy of the training project, kept across
-    // walkthroughs. Start fresh (in the Filter menu) removes it, so the next
-    // walkthrough begins from the seeded state.
+    // walkthroughs. Start fresh (a button in the toolbar) removes it, so the
+    // next walkthrough begins from the seeded state.
     const ownCopy =
         trainingProject &&
         projects?.find(
@@ -578,19 +579,29 @@ const LearnPage: FC = () => {
                             >
                                 Coming soon
                             </Menu.Item>
-                            {ownCopy && (
-                                <>
-                                    <Menu.Label>Your copy</Menu.Label>
-                                    <Menu.Item
-                                        onClick={() => setConfirmingFresh(true)}
-                                        aria-label="Start fresh"
-                                    >
-                                        Start fresh
-                                    </Menu.Item>
-                                </>
-                            )}
                         </Menu.Dropdown>
                     </Menu>
+                    {ownCopy && (
+                        <Tooltip
+                            label="Remove your copy of the training project; the next lesson starts from the beginning"
+                            withArrow
+                            multiline
+                            w={260}
+                        >
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="compact-sm"
+                                leftSection={
+                                    <MantineIcon icon={IconRotate} size={14} />
+                                }
+                                onClick={() => setConfirmingFresh(true)}
+                                data-learn-start-fresh
+                            >
+                                Start fresh
+                            </Button>
+                        </Tooltip>
+                    )}
                 </Box>
                 {trainingProject && ownCopy && confirmingFresh && (
                     <MantineModal
