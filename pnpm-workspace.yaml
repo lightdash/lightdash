@@ -159,3 +159,5 @@ packageExtensions:
     peerDependenciesMeta:
       ai:
         optional: true
+patchedDependencies:
+  scim-patch@0.9.3: patches/scim-patch@0.9.3.patch

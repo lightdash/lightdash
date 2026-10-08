@@ -1392,6 +1392,48 @@ describe('ScimService', () => {
             },
         );
 
+        test.each([
+            'roles[value eq "project-1-uuid:admin"]',
+            `${ScimSchemaType.USER}:roles[value eq "project-1-uuid:admin"]`,
+        ])(
+            'should remove a project role using a value filter path %s',
+            async (path) => {
+                const { rolesModel, userModel } = ScimServiceArgumentsMock;
+                vi.mocked(userModel.getUserProjectRoles).mockResolvedValueOnce([
+                    {
+                        projectUuid: 'project-1-uuid',
+                        role: 'admin',
+                        roleUuid: undefined,
+                    },
+                    {
+                        projectUuid: 'project-2-uuid',
+                        role: 'viewer',
+                        roleUuid: undefined,
+                    },
+                ] as Awaited<ReturnType<typeof userModel.getUserProjectRoles>>);
+
+                await service.patchUser({
+                    account: mockScimAccount,
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                    patchOp: {
+                        schemas: [ScimSchemaType.PATCH],
+                        Operations: [{ op: 'remove', path }],
+                    },
+                });
+
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).toHaveBeenCalledWith(
+                    mockUser.organizationUuid,
+                    mockUser.userUuid,
+                    mockUser.role,
+                    [{ projectUuid: 'project-2-uuid', roleId: 'viewer' }],
+                    true,
+                );
+            },
+        );
+
         test('should replace the organization role with a custom role', async () => {
             const { rolesModel } = ScimServiceArgumentsMock;
 
