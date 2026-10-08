@@ -115,7 +115,12 @@ export const createS3AnalyticsSourceResolver = ({
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
                     if (tableName) {
-                        if (match || userActivity || dimension === 'content')
+                        if (
+                            match ||
+                            userActivity ||
+                            dimension === 'content' ||
+                            dimension === 'people'
+                        )
                             hasEvents = true;
                         fileCount += 1;
                         if (fileCount > MAX_FILES)

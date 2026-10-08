@@ -27,6 +27,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Direct field references in captured semantic queries, with one row per query, field and role. Use this Explore to find which metrics and dimensions are queried. Counts are distinct and cannot be summed across fields or roles; SQL-only and older queries may have no field details.',
     data_app_reach:
         'Recorded app HTML loads by app, user, date and viewing surface. Includes previews and reloads; filter View context to choose surfaces. A load does not confirm successful rendering or human attention. Identified embed loads have no known viewer.',
+    people_adoption:
+        'Current organization members, including people with no observed activity. Compare eligible membership with confirmed human activity over the last 1, 7 or 30 closed UTC days. Uses current membership, not historical eligibility; incomplete capture does not prove inactivity.',
     lightdash_users:
         'User names from the latest available organization snapshot, joined to recorded user identifiers. Names are current snapshot values, not a history of names or membership.',
     lightdash_charts:

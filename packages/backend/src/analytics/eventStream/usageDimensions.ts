@@ -1,4 +1,5 @@
 import { contentInventoryColumns } from './contentInventory';
+import { peopleMembershipColumns } from './peopleMembership';
 import type { CompactedStreamColumn } from './types';
 
 export const usageDimensionNames = [
@@ -7,6 +8,7 @@ export const usageDimensionNames = [
     'users',
     'agents',
     'content',
+    'people',
 ] as const;
 export type UsageDimensionName = (typeof usageDimensionNames)[number];
 
@@ -15,6 +17,7 @@ export const usageDimensionSchemas: Record<
     CompactedStreamColumn[]
 > = {
     content: contentInventoryColumns,
+    people: peopleMembershipColumns,
     charts: [
         { name: 'org_id', type: 'VARCHAR' },
         { name: 'chart_id', type: 'VARCHAR' },
