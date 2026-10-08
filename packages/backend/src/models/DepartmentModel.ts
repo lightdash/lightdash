@@ -1,6 +1,9 @@
 // packages/backend/src/models/DepartmentModel.ts
 import {
     AlreadyExistsError,
+    getAncestorUuids,
+    getBranchHeight,
+    getParentMap,
     NotFoundError,
     ParameterError,
     truncateForMessage,
@@ -34,6 +37,13 @@ const ORGANIZATION_LOCK_SQL =
     'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))';
 
 type Deps = { database: Knex };
+
+// Set by the service; checked inside the organization lock so concurrent writes cannot pass them
+export type DepartmentTreeLimits = {
+    maxDepartments: number;
+    // A top-level department is at depth 1
+    maxDepth: number;
+};
 
 type DepartmentRow = Omit<DbDepartment, 'target_date'> & {
     target_date: string | null;
@@ -252,18 +262,51 @@ export class DepartmentModel {
         }
     }
 
+    // A branch of the given height placed under the parent must stay within the depth limit
+    private static assertDepthUnderParent(
+        tree: DepartmentTreeNode[],
+        parentDepartmentUuid: string,
+        branchHeight: number,
+        limits: DepartmentTreeLimits,
+    ): void {
+        const parentDepth =
+            getAncestorUuids(parentDepartmentUuid, getParentMap(tree)).length +
+            1;
+        if (parentDepth + branchHeight > limits.maxDepth) {
+            throw new ParameterError(
+                `Departments can be nested at most ${limits.maxDepth} levels deep`,
+            );
+        }
+    }
+
     async create(
         organizationUuid: string,
         data: CreateDepartment,
         updatedByUserUuid: string,
+        limits: DepartmentTreeLimits,
     ): Promise<Department> {
         const departmentUuid = await this.inOrganizationLock(
             organizationUuid,
             async (trx) => {
+                const tree = await DepartmentModel.getTree(
+                    organizationUuid,
+                    trx,
+                );
+                if (tree.length >= limits.maxDepartments) {
+                    throw new ParameterError(
+                        `An organization can have at most ${limits.maxDepartments.toLocaleString('en-US')} departments`,
+                    );
+                }
                 if (data.parentDepartmentUuid !== null) {
                     DepartmentModel.assertParentInTree(
-                        await DepartmentModel.getTree(organizationUuid, trx),
+                        tree,
                         data.parentDepartmentUuid,
+                    );
+                    DepartmentModel.assertDepthUnderParent(
+                        tree,
+                        data.parentDepartmentUuid,
+                        1,
+                        limits,
                     );
                 }
                 try {
@@ -298,6 +341,7 @@ export class DepartmentModel {
         departmentUuid: string,
         data: UpdateDepartment,
         updatedByUserUuid: string,
+        limits: DepartmentTreeLimits,
     ): Promise<Department> {
         const parent = data.parentDepartmentUuid;
         await this.inOrganizationLock(organizationUuid, async (trx) => {
@@ -313,6 +357,13 @@ export class DepartmentModel {
                         'A department cannot sit under itself or one of its sub-departments',
                     );
                 }
+                // The department moves with its whole branch, so the branch's deepest level counts
+                DepartmentModel.assertDepthUnderParent(
+                    tree,
+                    parent,
+                    getBranchHeight(departmentUuid, tree),
+                    limits,
+                );
             }
             try {
                 await trx(DepartmentTableName)

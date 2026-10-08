@@ -47,6 +47,7 @@ import {
     getResolvedMembers,
     getResolvedMembersFromDetail,
     HEADCOUNT_NOTE_MAX_LENGTH,
+    MAX_OWNERS,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
     TARGET_DATE_MAX,
@@ -326,6 +327,7 @@ export const DepartmentForm: FC<FormProps> = ({
                         placeholder="Add a person or group"
                         data={ownerOptions}
                         limit={PICKER_LIMIT}
+                        maxValues={MAX_OWNERS}
                         searchable
                         clearable
                         {...form.getInputProps('owners')}

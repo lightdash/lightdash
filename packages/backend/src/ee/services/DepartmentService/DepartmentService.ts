@@ -27,7 +27,10 @@ import {
     type ActivityWindows,
     type DepartmentAnalyticsModel,
 } from '../../../models/DepartmentAnalyticsModel';
-import { type DepartmentModel } from '../../../models/DepartmentModel';
+import {
+    type DepartmentModel,
+    type DepartmentTreeLimits,
+} from '../../../models/DepartmentModel';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
@@ -58,6 +61,13 @@ const NAME_MAX_LENGTH = 255;
 const MAX_LIST_LENGTH = 5000;
 const TARGET_YEAR_MIN = 1900;
 const TARGET_YEAR_MAX = 2200;
+const MAX_OWNERS = 20;
+
+// Bounds that keep the tree walks, the responses and the map small enough to stay fast
+export const DEPARTMENT_TREE_LIMITS: DepartmentTreeLimits = {
+    maxDepartments: 1000,
+    maxDepth: 10,
+};
 
 const daysBefore = (now: Date, days: number): Date => {
     const since = new Date(now);
@@ -210,7 +220,7 @@ const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
             `Owners can hold at most ${MAX_LIST_LENGTH} entries`,
         );
     }
-    return owners.map((o) => {
+    const valid = owners.map((o): DepartmentOwnerInput => {
         if (o.type !== 'user' && o.type !== 'group') {
             throw new ParameterError(
                 `Owner type must be user or group: ${truncateForMessage(o.type)}`,
@@ -218,6 +228,13 @@ const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
         }
         return { type: o.type, uuid: toUuid(o.uuid, 'Owner') };
     });
+    // Counted once each, as they are stored
+    if (new Set(valid.map((o) => `${o.type}:${o.uuid}`)).size > MAX_OWNERS) {
+        throw new ParameterError(
+            `A department can have at most ${MAX_OWNERS} owners`,
+        );
+    }
+    return valid;
 };
 
 export class DepartmentService extends BaseService {
@@ -392,6 +409,7 @@ export class DepartmentService extends BaseService {
             organizationUuid,
             normalizeCreate(data),
             userUuid,
+            DEPARTMENT_TREE_LIMITS,
         );
     }
 
@@ -411,6 +429,7 @@ export class DepartmentService extends BaseService {
             departmentUuid,
             normalizeUpdate(data),
             userUuid,
+            DEPARTMENT_TREE_LIMITS,
         );
     }
 

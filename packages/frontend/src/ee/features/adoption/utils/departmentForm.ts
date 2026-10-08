@@ -11,6 +11,8 @@ import {
 
 export const NAME_MAX_LENGTH = 255;
 export const HEADCOUNT_NOTE_MAX_LENGTH = 500;
+// The server refuses more owners than this
+export const MAX_OWNERS = 20;
 export const MAX_WHOLE_NUMBER = 2147483647;
 // The server accepts target dates in these years only
 export const TARGET_DATE_MIN = new Date(1900, 0, 1);

@@ -37,6 +37,7 @@ const SELECT_TREE = new RegExp(
     `^select "department_uuid", "parent_department_uuid" from "${DepartmentTableName}"`,
 );
 const LOCK = /pg_advisory_xact_lock/;
+const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
 
 describe('DepartmentModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -132,6 +133,7 @@ describe('DepartmentModel', () => {
                 'dep',
                 { parentDepartmentUuid: 'grandchild' },
                 'user',
+                LIMITS,
             ),
         ).rejects.toThrow(
             new ParameterError(
@@ -145,7 +147,13 @@ describe('DepartmentModel', () => {
         tracker.on.select(SELECT_DEPARTMENTS).responseOnce([departmentRow()]);
         tracker.on.select(SELECT_DEPARTMENTS).responseOnce([]);
         await expect(
-            model.update('org', 'dep', { parentDepartmentUuid: 'p9' }, 'user'),
+            model.update(
+                'org',
+                'dep',
+                { parentDepartmentUuid: 'p9' },
+                'user',
+                LIMITS,
+            ),
         ).rejects.toThrow(
             new ParameterError('Department p9 is not in this organization'),
         );
@@ -254,6 +262,7 @@ describe('DepartmentModel', () => {
                     targetDate: null,
                 },
                 'user',
+                LIMITS,
             ),
         ).rejects.toThrow(
             new ParameterError('Department p9 is not in this organization'),
@@ -262,6 +271,7 @@ describe('DepartmentModel', () => {
     });
 
     it('maps a duplicate name to AlreadyExistsError', async () => {
+        tracker.on.select(SELECT_TREE).response([]);
         tracker.on
             .insert(DepartmentTableName)
             .simulateError(
@@ -279,6 +289,7 @@ describe('DepartmentModel', () => {
                     targetDate: '2026-03-31',
                 },
                 'user',
+                LIMITS,
             ),
         ).rejects.toThrow(
             new AlreadyExistsError(
@@ -299,6 +310,7 @@ describe('DepartmentModel', () => {
         );
 
         it('is rejected on create with AlreadyExistsError', async () => {
+            tracker.on.select(SELECT_TREE).response([]);
             tracker.on
                 .insert(DepartmentTableName)
                 .simulateError(caseOnlyDuplicate);
@@ -314,6 +326,7 @@ describe('DepartmentModel', () => {
                         targetDate: null,
                     },
                     'user',
+                    LIMITS,
                 ),
             ).rejects.toThrow(
                 new AlreadyExistsError(
@@ -330,7 +343,13 @@ describe('DepartmentModel', () => {
                 .update(DepartmentTableName)
                 .simulateError(caseOnlyDuplicate);
             await expect(
-                model.update('org', 'dep', { name: 'OPERATIONS' }, 'user'),
+                model.update(
+                    'org',
+                    'dep',
+                    { name: 'OPERATIONS' },
+                    'user',
+                    LIMITS,
+                ),
             ).rejects.toThrow(
                 new AlreadyExistsError(
                     'A department named "OPERATIONS" already exists',
@@ -445,6 +464,116 @@ describe('DepartmentModel', () => {
         expect(tracker.history.insert).toHaveLength(1);
     });
 
+    describe('department and depth limits', () => {
+        // d1 at the top, each next one under the previous: d<n> sits at depth n
+        const chain = (length: number) =>
+            Array.from({ length }, (_, i) => ({
+                department_uuid: `d${i + 1}`,
+                parent_department_uuid: i === 0 ? null : `d${i}`,
+            }));
+        const create = (parentDepartmentUuid: string | null) =>
+            model.create(
+                'org',
+                {
+                    name: 'New',
+                    parentDepartmentUuid,
+                    headcount: null,
+                    headcountNote: null,
+                    targetActiveUsers: null,
+                    targetDate: null,
+                },
+                'user',
+                LIMITS,
+            );
+        const respondToReadBack = () => {
+            tracker.on
+                .insert(DepartmentTableName)
+                .response([{ department_uuid: 'new' }]);
+            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
+            tracker.on.select(/from "department_/).response([]);
+        };
+
+        it('refuses a department past the organization limit, inside the lock', async () => {
+            tracker.on.select(SELECT_TREE).response(
+                Array.from({ length: 1000 }, (_, i) => ({
+                    department_uuid: `x${i}`,
+                    parent_department_uuid: null,
+                })),
+            );
+            await expect(create(null)).rejects.toThrow(
+                new ParameterError(
+                    'An organization can have at most 1,000 departments',
+                ),
+            );
+            expect(tracker.history.insert).toHaveLength(0);
+            const [transaction] = tracker.history.transactions;
+            expect(transaction.state).toBe('rolled back');
+            expect(
+                transaction.queries.some((q) => SELECT_TREE.test(q.sql)),
+            ).toBe(true);
+        });
+        it('allows the 1,000th department', async () => {
+            tracker.on.select(SELECT_TREE).response(
+                Array.from({ length: 999 }, (_, i) => ({
+                    department_uuid: `x${i}`,
+                    parent_department_uuid: null,
+                })),
+            );
+            respondToReadBack();
+            await create(null);
+            expect(tracker.history.insert).toHaveLength(1);
+        });
+        it('allows a department at depth 10 and refuses one at depth 11', async () => {
+            tracker.on.select(SELECT_TREE).response(chain(10));
+            respondToReadBack();
+            await create('d9');
+            await expect(create('d10')).rejects.toThrow(
+                new ParameterError(
+                    'Departments can be nested at most 10 levels deep',
+                ),
+            );
+            expect(tracker.history.insert).toHaveLength(1);
+        });
+        it('counts the whole branch when a department moves', async () => {
+            // b1 ── b2 ── b3 is a branch three levels high; d7 sits at depth 7, d8 at depth 8
+            tracker.on
+                .select(SELECT_TREE)
+                .response([
+                    ...chain(8),
+                    { department_uuid: 'b1', parent_department_uuid: null },
+                    { department_uuid: 'b2', parent_department_uuid: 'b1' },
+                    { department_uuid: 'b3', parent_department_uuid: 'b2' },
+                ]);
+            tracker.on
+                .select(SELECT_DEPARTMENTS)
+                .response([departmentRow({ department_uuid: 'b1' })]);
+            tracker.on.select(/from "department_/).response([]);
+            tracker.on.update(DepartmentTableName).response(1);
+            await expect(
+                model.update(
+                    'org',
+                    'b1',
+                    { parentDepartmentUuid: 'd8' },
+                    'user',
+                    LIMITS,
+                ),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'Departments can be nested at most 10 levels deep',
+                ),
+            );
+            expect(tracker.history.update).toHaveLength(0);
+            await model.update(
+                'org',
+                'b1',
+                { parentDepartmentUuid: 'd7' },
+                'user',
+                LIMITS,
+            );
+            expect(tracker.history.update).toHaveLength(1);
+        });
+    });
+
     describe('the per-organization lock', () => {
         const PARENT = 'parent';
         const respondToEveryRead = () => {
@@ -474,7 +603,10 @@ describe('DepartmentModel', () => {
         };
 
         it.each([
-            ['create', () => model.create('org', newDepartment, 'user')],
+            [
+                'create',
+                () => model.create('org', newDepartment, 'user', LIMITS),
+            ],
             [
                 'update',
                 () =>
@@ -483,6 +615,7 @@ describe('DepartmentModel', () => {
                         'dep',
                         { parentDepartmentUuid: PARENT },
                         'user',
+                        LIMITS,
                     ),
             ],
             ['delete', () => model.delete('org', 'dep')],
@@ -527,6 +660,7 @@ describe('DepartmentModel', () => {
                 'dep',
                 { parentDepartmentUuid: PARENT },
                 'user',
+                LIMITS,
             );
             const [transaction] = tracker.history.transactions;
             const treeIndex = transaction.queries.findIndex((q) =>
@@ -548,6 +682,7 @@ describe('DepartmentModel', () => {
                     'dep',
                     { parentDepartmentUuid: 'child' },
                     'user',
+                    LIMITS,
                 ),
             ).rejects.toThrow(ParameterError);
             const [transaction] = tracker.history.transactions;

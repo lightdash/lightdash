@@ -67,6 +67,9 @@ const abilityWith = (
     return builder.build();
 };
 
+// The limits every create and move is checked against, inside the model's organization lock
+const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
+
 const newDepartment: CreateDepartment = {
     name: 'Finance',
     parentDepartmentUuid: null,
@@ -208,12 +211,14 @@ describe('DepartmentService gating', () => {
             ORG,
             newDepartment,
             'user-uuid',
+            LIMITS,
         );
         expect(departmentModel.update).toHaveBeenCalledWith(
             ORG,
             DEP,
             { name: 'x' },
             'user-uuid',
+            LIMITS,
         );
         expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, DEP, [
             { type: 'group', uuid: GRP },
@@ -359,6 +364,33 @@ describe('DepartmentService input validation', () => {
         const { service, departmentModel } = buildService({ flag: true });
         await service.setMembers(manager(), DEP, Array(5000).fill(USR));
         expect(departmentModel.setMembers).toHaveBeenCalled();
+    });
+    const ownerUuid = (i: number) =>
+        `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+    it('refuses more than 20 owners without calling the model', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await expect(
+            service.setOwners(
+                manager(),
+                DEP,
+                Array.from({ length: 21 }, (_, i) => ({
+                    type: 'user' as const,
+                    uuid: ownerUuid(i),
+                })),
+            ),
+        ).rejects.toThrow(
+            new ParameterError('A department can have at most 20 owners'),
+        );
+        expect(departmentModel.setOwners).not.toHaveBeenCalled();
+    });
+    it('accepts 20 owners, counting a repeated owner once', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const twenty = Array.from({ length: 20 }, (_, i) => ({
+            type: 'user' as const,
+            uuid: ownerUuid(i),
+        }));
+        await service.setOwners(manager(), DEP, [...twenty, twenty[0]]);
+        expect(departmentModel.setOwners).toHaveBeenCalled();
     });
 });
 
@@ -594,6 +626,7 @@ describe('DepartmentService input normalisation', () => {
                 parentDepartmentUuid: LOWER,
             },
             'user-uuid',
+            LIMITS,
         );
     });
     it('lower-cases every uuid from the path and the body on writes', async () => {
@@ -614,6 +647,7 @@ describe('DepartmentService input normalisation', () => {
             LOWER,
             { name: 'Ops team', parentDepartmentUuid: LOWER },
             'user-uuid',
+            LIMITS,
         );
         expect(departmentModel.delete).toHaveBeenCalledWith(ORG, LOWER);
         expect(departmentModel.setGroupLinks).toHaveBeenCalledWith(ORG, LOWER, [

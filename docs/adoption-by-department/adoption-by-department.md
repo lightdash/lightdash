@@ -39,7 +39,17 @@ Departments form a tree. A department with no parent is at the top. A department
 
 Every department write (create, edit, delete, and setting linked groups, assigned people or owners) runs in one transaction that first takes a per-organization advisory lock (`pg_advisory_xact_lock(hashtextextended('organization-departments:<organization uuid>', 0))`). The existence, parent and cycle checks then read the organization's tree inside that transaction, before the write. Writes in one organization therefore run one at a time, so two moves at the same moment cannot store a cycle and two assignments of the same person cannot both stand. The lock is released on commit or rollback, and writes in different organizations do not wait for each other.
 
-The tree helpers (ancestors, descendants, cycle check, effective headcount, roll-up) are pure functions in `packages/common/src/departments/departmentTree.ts`.
+The tree helpers (ancestors, descendants, cycle check, depth, effective headcount, roll-up) are pure functions in `packages/common/src/departments/departmentTree.ts`. They walk the tree with explicit stacks and queues, never recursion, so a deep tree cannot overflow the call stack.
+
+### Limits
+
+`DEPARTMENT_TREE_LIMITS` in `DepartmentService.ts` and the owner check there keep every organization's tree small enough for the walks, the responses and the map to stay fast:
+
+- At most 1,000 departments per organization.
+- At most 10 levels deep. A top-level department is at level 1. Moving a department moves its whole branch, so after the move every department in the branch must still be within 10 levels.
+- At most 20 owners per department, each counted once.
+
+Creating or moving a department past the first two limits, or setting more owners, answers 400 with a plain message. The department count and depth are checked inside the per-organization lock described above, so departments created at the same moment cannot together pass the limit. The drawer's owner picker stops at 20.
 
 ### Membership: most specific wins
 
