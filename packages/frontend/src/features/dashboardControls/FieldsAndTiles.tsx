@@ -190,6 +190,11 @@ export const FieldsAndTiles: FC = () => {
                     parameters={freeParameters}
                     onPickParameter={addParameterControl}
                 />
+                <Text fz="xs" c="dimmed" className={classes.hint}>
+                    {freeParameters.length > 0
+                        ? 'Pick a field to filter tiles by it, or a parameter to set its value on tiles.'
+                        : 'Pick a field to filter tiles by it.'}
+                </Text>
             </Stack>
         );
     }
@@ -251,6 +256,7 @@ export const FieldsAndTiles: FC = () => {
                                 sqlColumnsByTile,
                             )}
                             isHighlighted={highlightedFieldId === fieldId}
+                            isWaiting={isWaiting}
                             onToggleHighlight={() =>
                                 setHighlightedFieldId(
                                     highlightedFieldId === fieldId

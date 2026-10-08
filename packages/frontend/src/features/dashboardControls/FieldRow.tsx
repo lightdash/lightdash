@@ -25,6 +25,8 @@ type Props = {
     tableLabel: string;
     count: FieldCount;
     isHighlighted: boolean;
+    // On no tile yet
+    isWaiting: boolean;
     onToggleHighlight: () => void;
     onHoverChange: (isHovered: boolean) => void;
     onAll: () => void;
@@ -39,6 +41,7 @@ export const FieldRow: FC<Props> = ({
     tableLabel,
     count,
     isHighlighted,
+    isWaiting,
     onToggleHighlight,
     onHoverChange,
     onAll,
@@ -56,6 +59,7 @@ export const FieldRow: FC<Props> = ({
                     : classes.row
             }
             gap={0}
+            data-waiting={isWaiting || undefined}
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
@@ -67,7 +71,7 @@ export const FieldRow: FC<Props> = ({
                 onFocus={() => onHoverChange(true)}
                 onBlur={() => onHoverChange(false)}
             >
-                <Group gap="xs" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
                     {field !== null && (
                         <FieldIcon item={field} size={14} aria-hidden />
                     )}
@@ -82,7 +86,13 @@ export const FieldRow: FC<Props> = ({
                 justify="space-between"
                 wrap="nowrap"
             >
-                <Text fz="xs" c="dimmed" truncate>
+                <Text
+                    key={`${count.applied}/${count.possible}`}
+                    fz="xs"
+                    c="dimmed"
+                    truncate
+                    className={classes.rowCount}
+                >
                     {`${tableLabel} · ${count.applied} of ${
                         count.possible
                     } ${pluralizeTiles(count.possible)}`}

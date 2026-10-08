@@ -2,7 +2,7 @@ import {
     type DashboardParameterControl,
     type DashboardTile,
 } from '@lightdash/common';
-import { Paper, Select, Stack, Text } from '@mantine/core';
+import { Box, Paper, Select, Stack, Text } from '@mantine/core';
 import { useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -20,7 +20,7 @@ import {
     type TileParameterSource,
 } from './parameterSources';
 import classes from './TileOverlay.module.css';
-import { getTileSelector, stopPropagation } from './tileSelector';
+import { getTileSelector, stopPropagation, WAVE_BUCKETS } from './tileSelector';
 import { useControlsSidebar } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
@@ -46,6 +46,7 @@ type OverlayProps = {
     control: DashboardParameterControl;
     activeFieldId: string | null;
     highlightedFieldId: string | null;
+    wave: number;
     onChange: (control: DashboardParameterControl) => void;
 };
 
@@ -54,6 +55,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
     control,
     activeFieldId,
     highlightedFieldId,
+    wave,
     onChange,
 }) => {
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -91,6 +93,7 @@ const ParameterOverlay: FC<OverlayProps> = ({
         return (
             <div
                 className={`${classes.overlay} ${classes.unfilterable}`}
+                data-wave={wave}
                 title="This control cannot reach this tile"
                 onMouseDown={stopPropagation}
                 onTouchStart={stopPropagation}
@@ -126,10 +129,12 @@ const ParameterOverlay: FC<OverlayProps> = ({
             className={classes.overlay}
             title="Tiles are locked while a control is edited"
             data-highlighted={highlight}
+            data-wave={wave}
             onMouseDown={stopPropagation}
             onTouchStart={stopPropagation}
             onClick={stopPropagation}
         >
+            <Box className={classes.ring} aria-hidden />
             <Paper
                 shadow="lg"
                 p="sm"
@@ -137,6 +142,11 @@ const ParameterOverlay: FC<OverlayProps> = ({
                 className={classes.card}
                 title=""
             >
+                <Box
+                    key={getSelectValue()}
+                    className={classes.confirm}
+                    aria-hidden
+                />
                 <Stack gap="xs">
                     <Text fz="xs" c="dimmed">
                         {setKeys.length > 0 ? 'Set by' : 'Not set'}
@@ -221,7 +231,7 @@ export const ParameterOverlays: FC = () => {
 
     return (
         <>
-            {tiles.map((tile) => {
+            {tiles.map((tile, index) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 return createPortal(
@@ -230,6 +240,7 @@ export const ParameterOverlays: FC = () => {
                         control={editingControl}
                         activeFieldId={activeFieldId}
                         highlightedFieldId={highlightedFieldId}
+                        wave={index % WAVE_BUCKETS}
                         onChange={updateControl}
                     />,
                     element,

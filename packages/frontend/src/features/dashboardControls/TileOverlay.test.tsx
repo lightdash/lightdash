@@ -160,6 +160,34 @@ describe('TileOverlays', () => {
         expect(overlay(otherTab.uuid)).toBeNull();
     });
 
+    it('buckets the overlays by tile order for the arrival wave', () => {
+        renderWithProviders(<TileOverlays />);
+
+        expect(overlay(both.uuid)).toHaveAttribute('data-wave', '0');
+        expect(overlay(statusOnly.uuid)).toHaveAttribute('data-wave', '1');
+        expect(overlay(markdown.uuid)).toHaveAttribute('data-wave', '2');
+    });
+
+    it('wraps the wave after six tiles', () => {
+        const seventh = tile('tile-seventh', 'tab-1');
+        const element = document.createElement('div');
+        element.setAttribute('data-tile-uuid', seventh.uuid);
+        document.body.appendChild(element);
+        mockContainers.current[seventh.uuid] = element;
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [
+                ...['a', 'b', 'c', 'd', 'e', 'f'].map((id) =>
+                    tile(`tile-${id}`, 'tab-1'),
+                ),
+                seventh,
+            ],
+        };
+        renderWithProviders(<TileOverlays />);
+
+        expect(overlay(seventh.uuid)).toHaveAttribute('data-wave', '0');
+    });
+
     it('leaves a tile out when "Not filtered" is chosen', async () => {
         mockDashboardContext.current = {
             ...mockDashboardContext.current,

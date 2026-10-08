@@ -3,9 +3,10 @@
     display: inline-flex;
 }
 
-.selectedPill {
-    border-color: var(--mantine-primary-color-filled);
-    border-width: 2px;
+/* Doubled so it outranks the theme's border on a default button, hovered too */
+.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled) {
+    border-color: var(--mantine-color-blue-5);
+    border-width: 1px;
 }
 
 .draftPill {

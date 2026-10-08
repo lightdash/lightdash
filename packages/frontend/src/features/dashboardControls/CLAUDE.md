@@ -97,8 +97,12 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   (the tile is on the active field: its dashed edit border becomes a solid
   hairline in `--mantine-color-blue-5` with a soft blurred glow of the same
   blue) and `available` (the tile offers the field but is on another one or on
-  none: the dashed border at full strength). The highlighted sidebar row uses
-  the same blue. No ink: `--mantine-primary-color-filled` reads too heavy here.
+  none: the dashed border at full strength over a faint free-slot wash). The
+  hairline and glow live on the `.ring` child and the dashed border on
+  `.overlay::after`; both only change `opacity`. The highlighted sidebar row
+  and the pill being edited use the same blue. No ink:
+  `--mantine-primary-color-filled` reads too heavy here.
+- A waiting field's row carries `data-waiting` and a dashed border.
 - A tab with a count badge keeps its natural width (`TabCounts.module.css`),
   so the tab strip scrolls instead of cutting the names.
 - `TileOverlays` portals a veil and a "Filtered by" card into each
@@ -147,3 +151,33 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   ends.
 - Rendered only in edit mode while the sidebar is closed, so it never stacks
   on `TileOverlays`.
+
+## Motion
+
+Values are the homepage builder's (`ee/features/homepageBuilder/HomepageEditor.module.css`),
+restated, never imported. Each stylesheet declares the ones it uses once, as
+custom properties on its root class:
+
+- `--controls-duration-hover: 0.12s` and `--controls-duration-state: 0.15s`,
+  both with `--controls-ease: ease-in-out`.
+- `--controls-duration-arrive: 0.28s` with
+  `--controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1)`, from transparent
+  and `translateY(-6px) scale(0.98)` (the editor uses `translateX(-6px)`, the
+  footer status `translateY(4px)`).
+- Press is `scale(0.98)` on a row's name and `scale(0.97)` on "Done".
+
+Rules:
+
+- Animate `opacity` and `transform` only. Never width, height, margin,
+  position or `box-shadow`: these run once per tile. A shadow that has to
+  appear sits on its own layer and that layer's opacity changes.
+- No React state, effects, refs, timers or context for motion. Things arrive
+  with a mount animation; a replay is a `key` on a small leaf element (counts,
+  the footer status, the `.confirm` line on a tile card). Closing is immediate.
+- Tile cards arrive in one wave: `data-wave` is the tile's index modulo
+  `WAVE_BUCKETS`, and the stylesheet maps it to 20ms delay steps.
+- A row's press scales the name inside the button. A transform on the button
+  would shrink its card-wide `::after` click area mid-click.
+- Every animation and transition is switched off under
+  `@media (prefers-reduced-motion: reduce)` at the end of its stylesheet.
+- No new `:has()` selectors.

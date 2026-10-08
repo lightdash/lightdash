@@ -97,6 +97,11 @@ const control = (
 const badgeText = (tabUuid: string) =>
     mockContainers.current[tabUuid].textContent;
 
+const isBadgeReached = (tabUuid: string) =>
+    mockContainers.current[tabUuid]
+        .querySelector('[data-reached]')
+        ?.getAttribute('data-reached');
+
 describe('TabCounts', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
@@ -149,6 +154,51 @@ describe('TabCounts', () => {
         expect(
             await screen.findByText('2 of 3 tiles on this tab use this filter'),
         ).toBeInTheDocument();
+    });
+
+    it('marks the tabs the control reaches while no field is active', () => {
+        renderWithProviders(<TabCounts />);
+
+        expect(isBadgeReached('tab-1')).toBe('true');
+        expect(isBadgeReached('tab-2')).toBe('false');
+    });
+
+    it('marks only the tabs with tiles on the active field', () => {
+        setSidebar({
+            editingRule: rule({
+                tileTargets: {
+                    'tile-region': {
+                        fieldId: 'orders_region',
+                        tableName: 'orders',
+                    },
+                },
+            }),
+            activeFieldId: 'orders_region',
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('0 of 3');
+        expect(isBadgeReached('tab-1')).toBe('false');
+        expect(isBadgeReached('tab-2')).toBe('true');
+    });
+
+    it('marks the tabs a parameter control reaches, whole or by parameter', () => {
+        setSidebar({ editingRule: null, editingControl: control() });
+        const { unmount } = renderWithProviders(<TabCounts />);
+
+        expect(isBadgeReached('tab-1')).toBe('true');
+        expect(isBadgeReached('tab-2')).toBe('true');
+        unmount();
+
+        setSidebar({
+            editingRule: null,
+            editingControl: control(),
+            activeFieldId: 'start',
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(isBadgeReached('tab-1')).toBe('true');
+        expect(isBadgeReached('tab-2')).toBe('false');
     });
 
     it('counts the active field alone while a row is hovered or clicked', async () => {

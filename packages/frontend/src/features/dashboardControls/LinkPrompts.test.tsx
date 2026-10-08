@@ -185,6 +185,10 @@ describe('LinkPrompts', () => {
         expect(card(added.uuid).getByText('Status')).toBeVisible();
         expect(select(added.uuid)).toHaveValue('Method');
         expect(linkButton(added.uuid)).toBeEnabled();
+        expect(container(added.uuid).firstElementChild).toHaveAttribute(
+            'data-wave',
+            '0',
+        );
 
         await userEvent.click(linkButton(added.uuid));
 

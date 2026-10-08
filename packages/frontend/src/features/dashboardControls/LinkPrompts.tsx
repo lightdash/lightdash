@@ -12,7 +12,7 @@ import { getFieldDisplayLabel } from './fieldGrains';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
-import { getTileSelector, stopPropagation } from './tileSelector';
+import { getTileSelector, stopPropagation, WAVE_BUCKETS } from './tileSelector';
 import { useControlsSidebar } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 
@@ -132,12 +132,13 @@ export const LinkPrompts: FC = () => {
 
     return (
         <>
-            {prompts.map(({ tile, rows }) => {
+            {prompts.map(({ tile, rows }, index) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 return createPortal(
                     <div
                         className={classes.overlay}
+                        data-wave={index % WAVE_BUCKETS}
                         onMouseDown={stopPropagation}
                         onTouchStart={stopPropagation}
                         onClick={stopPropagation}

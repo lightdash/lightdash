@@ -284,7 +284,12 @@ export const ParameterSidebar: FC = () => {
                                         onFocus={() => setHovered(key, true)}
                                         onBlur={() => setHovered(key, false)}
                                     >
-                                        <Text fz="sm" fw={600} truncate>
+                                        <Text
+                                            fz="sm"
+                                            fw={600}
+                                            truncate
+                                            className={classes.rowLabel}
+                                        >
                                             {label}
                                         </Text>
                                     </UnstyledButton>
@@ -294,7 +299,13 @@ export const ParameterSidebar: FC = () => {
                                         justify="space-between"
                                         wrap="nowrap"
                                     >
-                                        <Text fz="xs" c="dimmed" truncate>
+                                        <Text
+                                            key={`${count.applied}/${count.possible}`}
+                                            fz="xs"
+                                            c="dimmed"
+                                            truncate
+                                            className={classes.rowCount}
+                                        >
                                             {`Parameter · ${count.applied} of ${count.possible} ${count.possible === 1 ? 'tile' : 'tiles'}`}
                                         </Text>
                                         {keyCount > 1 && (

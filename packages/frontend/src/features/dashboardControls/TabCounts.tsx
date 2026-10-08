@@ -115,6 +115,8 @@ export const TabCounts: FC = () => {
                 const element = targets[tab.uuid];
                 const count = counts[tab.uuid];
                 if (!element || !count || count.total === 0) return null;
+                // Tabs the control, or the active field, reaches stand out
+                const isReached = count.applied > 0;
                 return createPortal(
                     <Tooltip
                         fz="xs"
@@ -123,10 +125,11 @@ export const TabCounts: FC = () => {
                         <Badge
                             size="xs"
                             variant="light"
-                            color="gray"
+                            color={isReached ? 'blue' : 'gray'}
+                            data-reached={isReached}
                             className={classes.count}
                         >
-                            {count.applied} of {count.total}
+                            {`${count.applied} of ${count.total}`}
                         </Badge>
                     </Tooltip>,
                     element,

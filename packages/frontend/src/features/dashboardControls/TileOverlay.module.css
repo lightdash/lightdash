@@ -1,5 +1,11 @@
 /* Square on purpose: it has to catch the pointer in the tile's corners too */
 .overlay {
+    --controls-ease: ease-in-out;
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+    --controls-duration-state: 0.15s;
+    --controls-wave-step: 20ms;
+
     position: absolute;
     inset: 0;
     z-index: 2;
@@ -22,35 +28,63 @@
         var(--mantine-color-body) 75%,
         transparent
     );
-    box-shadow:
-        inset 0 0 0 1px transparent,
-        0 0 10px 0 transparent;
-    transition: box-shadow 150ms ease-out;
+    animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
-/* On the active field: the tile's dashed edit border becomes a solid hairline
-   in the same blue, with a soft glow around it */
-.overlay[data-highlighted]::before {
-    box-shadow:
-        inset 0 0 0 1px var(--mantine-color-blue-5),
-        0 0 10px 0
-            color-mix(in srgb, var(--mantine-color-blue-5) 14%, transparent);
+/* Reached by the control: the tile's dashed edit border becomes a solid
+   hairline in the same blue. Only its opacity changes */
+.ring {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-xs);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--controls-duration-state) var(--controls-ease);
+    animation: ringEnter var(--controls-duration-state) var(--controls-ease);
 }
 
-/* Could take the field: the dashed edit border at full strength, nothing more */
+/* On the active field: a soft glow joins the hairline, on its own layer */
+.ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 10px 0
+        color-mix(in srgb, var(--mantine-color-blue-5) 14%, transparent);
+    opacity: 0;
+    transition: opacity var(--controls-duration-state) var(--controls-ease);
+}
+
+.overlay[data-highlighted='reached'] > .ring,
+.overlay[data-highlighted='mapped'] > .ring,
+.overlay[data-highlighted='mapped'] > .ring::after {
+    opacity: 1;
+}
+
+/* Could take the field: the dashed edit border at full strength over a faint
+   free-slot wash */
 .overlay[data-highlighted='available']::before {
-    box-shadow:
-        inset 0 0 0 1px var(--mantine-color-body),
-        0 0 10px 0 transparent;
+    box-shadow: inset 0 0 0 1px var(--mantine-color-body);
 }
 
-.overlay[data-highlighted='available']::after {
+.overlay::after {
     content: '';
     position: absolute;
     inset: 0;
     border: 1px dashed var(--mantine-color-blue-5);
     border-radius: var(--mantine-radius-xs);
+    background-color: light-dark(
+        color-mix(in srgb, var(--mantine-color-blue-light) 35%, transparent),
+        color-mix(in srgb, var(--mantine-color-blue-light) 50%, transparent)
+    );
+    opacity: 0;
     pointer-events: none;
+    transition: opacity var(--controls-duration-state) var(--controls-ease);
+}
+
+.overlay[data-highlighted='available']::after {
+    opacity: 1;
 }
 
 .unfilterable::before {
@@ -70,8 +104,96 @@
     display: none;
 }
 
+/* Above the wash, so the card keeps its own surface */
 .card {
     position: relative;
+    z-index: 1;
     width: 280px;
     max-width: 90%;
+    animation: cardEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive) backwards;
+}
+
+/* One short wave across the tiles: six buckets, 20ms apart */
+.overlay[data-wave='1'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 1);
+}
+
+.overlay[data-wave='2'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 2);
+}
+
+.overlay[data-wave='3'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 3);
+}
+
+.overlay[data-wave='4'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 4);
+}
+
+.overlay[data-wave='5'] > .card {
+    animation-delay: calc(var(--controls-wave-step) * 5);
+}
+
+/* Replays when the tile's choice changes: it is keyed by that choice */
+.confirm {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    opacity: 0;
+    pointer-events: none;
+    animation: fadeOut var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* No end value: the hairline fades in to whatever its state asks for */
+@keyframes ringEnter {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay::before,
+    .ring,
+    .card,
+    .confirm {
+        animation: none;
+    }
+
+    .ring,
+    .ring::after,
+    .overlay::after {
+        transition: none;
+    }
 }

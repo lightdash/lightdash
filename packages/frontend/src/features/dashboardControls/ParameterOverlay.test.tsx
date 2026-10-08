@@ -143,6 +143,14 @@ describe('ParameterOverlays', () => {
         expect(overlay(otherTab.uuid)).toBeNull();
     });
 
+    it('buckets the overlays by tile order for the arrival wave', () => {
+        renderWithProviders(<ParameterOverlays />);
+
+        expect(overlay(single.uuid)).toHaveAttribute('data-wave', '0');
+        expect(overlay(both.uuid)).toHaveAttribute('data-wave', '1');
+        expect(overlay(unreferenced.uuid)).toHaveAttribute('data-wave', '2');
+    });
+
     it('writes false when "Not set" is chosen', async () => {
         onlyTile(single);
         renderWithProviders(<ParameterOverlays />);

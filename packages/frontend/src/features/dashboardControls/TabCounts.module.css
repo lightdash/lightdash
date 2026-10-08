@@ -1,11 +1,33 @@
+/* Counts swap with no fade: every badge changes at once while rows are
+   hovered. Tabular figures keep them from jittering */
 .count {
+    --controls-ease: ease-in-out;
+    --controls-duration-state: 0.15s;
+
     flex-shrink: 0;
     margin-left: var(--mantine-spacing-xs);
     text-transform: none;
+    font-variant-numeric: tabular-nums;
+    animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
 /* A tab with a count keeps its natural width, so the strip scrolls instead of
    squeezing the name */
-:has(> [role='tab'] > .count) {
+[role='tablist'] > :has(> [role='tab'] > .count) {
     flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .count {
+        animation: none;
+    }
 }

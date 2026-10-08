@@ -155,7 +155,12 @@ export const EditorShell: FC<Props> = ({
 
         <Stack gap="xs" p="md" className={classes.footer}>
             {footerStatus !== null && (
-                <Text fz="xs" c="dimmed">
+                <Text
+                    key={footerStatus}
+                    fz="xs"
+                    c="dimmed"
+                    className={classes.footerStatus}
+                >
                     {footerStatus}
                 </Text>
             )}
@@ -173,7 +178,9 @@ export const EditorShell: FC<Props> = ({
                         {discardLabel}
                     </Button>
                 )}
-                <Button onClick={onClose}>Done</Button>
+                <Button className={classes.done} onClick={onClose}>
+                    Done
+                </Button>
             </Group>
         </Stack>
     </Box>

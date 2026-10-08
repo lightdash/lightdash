@@ -147,6 +147,9 @@ describe('FieldsAndTiles', () => {
         expect(
             screen.queryByText('Fields in this filter'),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Pick a field to filter tiles by it.'),
+        ).toBeVisible();
 
         await userEvent.click(screen.getByPlaceholderText('Search fields'));
         const options = screen.getAllByRole('option', { hidden: true });
@@ -185,6 +188,11 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule(''), { isPlaceholder: true });
         renderWithProviders(<FieldsAndTiles />);
 
+        expect(
+            screen.getByText(
+                'Pick a field to filter tiles by it, or a parameter to set its value on tiles.',
+            ),
+        ).toBeVisible();
         await userEvent.click(
             screen.getByPlaceholderText('Search fields and parameters'),
         );
@@ -414,6 +422,12 @@ describe('FieldsAndTiles', () => {
 
             expect(screen.getByText('Orders · 0 of 1 tile')).toBeVisible();
             expect(screen.getByText('Apply to all 1')).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Region' }).parentElement,
+            ).toHaveAttribute('data-waiting', 'true');
+            expect(
+                screen.getByRole('button', { name: 'Status' }).parentElement,
+            ).not.toHaveAttribute('data-waiting');
 
             openRowMenu('Region');
             await userEvent.click(await screen.findByText('Remove field'));

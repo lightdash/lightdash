@@ -5,7 +5,7 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { Paper, Select, Stack, Text } from '@mantine/core';
+import { Box, Paper, Select, Stack, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -24,7 +24,7 @@ import {
     type FieldsByTile,
 } from './peers';
 import classes from './TileOverlay.module.css';
-import { getTileSelector, stopPropagation } from './tileSelector';
+import { getTileSelector, stopPropagation, WAVE_BUCKETS } from './tileSelector';
 import { useControlsSidebar } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
@@ -75,6 +75,8 @@ type TileOverlayProps = {
     offeredField: DashboardFieldTarget | null;
     activeFieldId: string | null;
     highlightedFieldId: string | null;
+    // Bucket for the arrival wave
+    wave: number;
     onChange: (rule: DashboardFilterRule) => void;
 };
 
@@ -89,6 +91,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
     offeredField,
     activeFieldId,
     highlightedFieldId,
+    wave,
     onChange,
 }) => {
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -129,6 +132,7 @@ const TileOverlay: FC<TileOverlayProps> = ({
         return (
             <div
                 className={`${classes.overlay} ${classes.unfilterable}`}
+                data-wave={wave}
                 title="This filter cannot reach this tile"
                 onMouseDown={stopPropagation}
                 onTouchStart={stopPropagation}
@@ -146,11 +150,13 @@ const TileOverlay: FC<TileOverlayProps> = ({
             ref={overlayRef}
             className={classes.overlay}
             data-highlighted={highlight}
+            data-wave={wave}
             title="Tiles are locked while a control is edited"
             onMouseDown={stopPropagation}
             onTouchStart={stopPropagation}
             onClick={stopPropagation}
         >
+            <Box className={classes.ring} aria-hidden />
             {/* An empty title keeps the veil's hint off the card */}
             <Paper
                 shadow="lg"
@@ -159,6 +165,11 @@ const TileOverlay: FC<TileOverlayProps> = ({
                 className={classes.card}
                 title=""
             >
+                <Box
+                    key={tileField?.fieldId ?? NOT_FILTERED}
+                    className={classes.confirm}
+                    aria-hidden
+                />
                 <Stack gap="xs">
                     <Text fz="xs" c="dimmed">
                         {tileField ? 'Filtered by' : 'Not filtered'}
@@ -254,7 +265,7 @@ export const TileOverlays: FC = () => {
 
     return (
         <>
-            {tiles.map((tile) => {
+            {tiles.map((tile, index) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 return createPortal(
@@ -269,6 +280,7 @@ export const TileOverlays: FC = () => {
                         offeredField={offeredField}
                         activeFieldId={activeFieldId}
                         highlightedFieldId={highlightedFieldId}
+                        wave={index % WAVE_BUCKETS}
                         onChange={updateFilter}
                     />,
                     element,
