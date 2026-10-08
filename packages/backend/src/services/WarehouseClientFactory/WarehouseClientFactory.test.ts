@@ -28,7 +28,7 @@ import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
-import type { AiAccessService } from '../AiAccessService/AiAccessService';
+import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     connectionContextFromUser,
@@ -148,8 +148,14 @@ const buildFixture = (releaseSshTunnelOnScopeExit = true) => {
         getWarehouseClientIdentityOptions:
             vi.fn<ProjectModel['getWarehouseClientIdentityOptions']>(),
     };
+    const analytics = { track: vi.fn() };
+    const trackingService = new AiAccessService({
+        analytics,
+    } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const aiAccessService = {
-        recordQueryRefusal: vi.fn<AiAccessService['recordQueryRefusal']>(),
+        trackQueryRefusal: vi.fn<AiAccessService['trackQueryRefusal']>(
+            trackingService.trackQueryRefusal.bind(trackingService),
+        ),
         resolvePlan: vi
             .fn<AiAccessService['resolvePlan']>()
             .mockResolvedValue(null),
@@ -189,6 +195,7 @@ const buildFixture = (releaseSshTunnelOnScopeExit = true) => {
         logger: logger as unknown as typeof Logger,
     });
     return {
+        analytics,
         factory,
         projectModel,
         aiAccessService,
@@ -438,8 +445,11 @@ describe('WarehouseClientFactory', () => {
                     cacheEnabled: true,
                     wrapConstructionErrors: false,
                     warehouseConnectionUuid: 'extra-uuid',
+                    compileGroup: undefined,
+                    clientOptions: undefined,
                     refusalScope: {
                         context: contextFor(queryContext),
+                        warehouseConnectionUuid: 'extra-uuid',
                         refused: false,
                     },
                 },
@@ -1058,8 +1068,6 @@ describe('WarehouseClientFactory', () => {
             warehouseConnectionUuid: 'extra-uuid',
             connection: credentials,
             context: QueryExecutionContext.AI,
-            purpose: 'execute',
-            surface: 'in_app_agent',
             userUuid: 'user-uuid',
             isRegisteredUser: true,
             isServiceAccount: false,
@@ -1924,6 +1932,114 @@ describe('AI service account factory scopes', () => {
     });
 
     test.each([
+        [ConnectionSurface.IN_APP_AGENT, QuerySurface.APP],
+        [ConnectionSurface.MCP, QuerySurface.MCP],
+    ] as const)(
+        'runtime slot refusal on %s emits one event with main properties',
+        async (surface, expectedSurface) => {
+            const { factory, aiAccessService, projectModel, analytics } =
+                buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi
+                        .fn()
+                        .mockRejectedValue(new Error('invalid_grant')),
+                }),
+            );
+            const context = connectionContextFromUser(
+                {
+                    userUuid: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                },
+                {
+                    organizationUuid: 'org-uuid',
+                    queryContext: QueryExecutionContext.AI,
+                    surface,
+                },
+            );
+            await factory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid: 'project-uuid',
+                    credentials: slotPlan.credentials,
+                    aiPlan: slotPlan,
+                    warehouseConnectionUuid: 'extra',
+                    connectionRoute: null,
+                },
+                context,
+                async ({ warehouseClient, deriveClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                    await expect(
+                        deriveClient(slotPlan.credentials).runQuery(
+                            'SELECT 1',
+                            {},
+                        ),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                },
+            );
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'query.refused',
+                userId: 'user-uuid',
+                properties: {
+                    organizationId: 'org-uuid',
+                    projectId: 'project-uuid',
+                    userId: 'user-uuid',
+                    warehouseConnectionId: 'extra',
+                    surface: expectedSurface,
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    reason: 'ai_service_account_invalid',
+                },
+            });
+        },
+    );
+
+    test.each(['compile', 'diagnostic'] as const)(
+        'runtime slot refusal is silent for %s evaluation',
+        async (kind) => {
+            const { factory, aiAccessService, projectModel, analytics } =
+                buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi
+                        .fn()
+                        .mockRejectedValue(new Error('invalid_grant')),
+                }),
+            );
+            const context = {
+                ...contextFor(QueryExecutionContext.AI),
+                ...(kind === 'compile'
+                    ? { purpose: 'compile' as const }
+                    : { aiAccess: 'diagnostic' as const }),
+            };
+            await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({ warehouseClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'ai_service_account_invalid' },
+                    });
+                },
+            );
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
         new Error('invalid_grant'),
         new Error('Invalid JWT signature.'),
         Object.assign(new Error('unauthenticated'), { code: 401 }),
@@ -1974,19 +2090,22 @@ describe('AI service account factory scopes', () => {
                 },
             );
             expect(
-                aiAccessService.recordQueryRefusal,
+                aiAccessService.trackQueryRefusal,
             ).toHaveBeenCalledExactlyOnceWith(
                 {
                     organizationUuid: 'org-uuid',
                     projectUuid: 'project-uuid',
                     userUuid: 'user-uuid',
-                    surface: 'in_app_agent',
+                    warehouseConnectionUuid: null,
+                    evaluation: { kind: 'query', surface: QuerySurface.APP },
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
                     warehouseType: WarehouseTypes.BIGQUERY,
                 },
                 'ai_service_account_invalid',
             );
             expect(
-                JSON.stringify(aiAccessService.recordQueryRefusal.mock.calls),
+                JSON.stringify(aiAccessService.trackQueryRefusal.mock.calls),
             ).not.toMatch(/saved-key|agent@example.com|keyfileContents|SELECT/);
             await factory.withWarehouseClient(
                 bindingRef,
@@ -1999,7 +2118,7 @@ describe('AI service account factory scopes', () => {
                     });
                 },
             );
-            expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledTimes(2);
+            expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledTimes(2);
         },
     );
 
@@ -2029,7 +2148,7 @@ describe('AI service account factory scopes', () => {
                     ).rejects.toBe(error);
                 },
             );
-            expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+            expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
         },
     );
 
@@ -2067,7 +2186,7 @@ describe('AI service account factory scopes', () => {
                 });
             },
         );
-        expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledOnce();
+        expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledOnce();
     });
 
     test('preserves real BigQuery SQL errors that mention an authentication phrase', async () => {
@@ -2102,7 +2221,7 @@ describe('AI service account factory scopes', () => {
                 );
             },
         );
-        expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+        expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
     });
 
     test('attributes slot construction failures and never replays with ordinary credentials', async () => {
@@ -2127,7 +2246,7 @@ describe('AI service account factory scopes', () => {
             projectModel.getWarehouseClientFromCredentials,
         ).toHaveBeenCalledOnce();
         expect(credentialSource.finish).not.toHaveBeenCalled();
-        expect(aiAccessService.recordQueryRefusal).toHaveBeenCalledOnce();
+        expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledOnce();
     });
 
     test.each([false, true])(
@@ -2167,8 +2286,12 @@ describe('AI service account factory scopes', () => {
                 },
             );
             expect(
-                aiAccessService.recordQueryRefusal.mock.calls[0][0].userUuid,
-            ).toBeNull();
+                aiAccessService.trackQueryRefusal.mock.calls[0][0],
+            ).toMatchObject({
+                userUuid: 'external',
+                isRegisteredUser: false,
+                isServiceAccount,
+            });
         },
     );
 });
@@ -2212,7 +2335,7 @@ describe('factory cache tuple and agent probes', () => {
             expect.objectContaining({ agentSession: true }),
         );
         expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
-        expect(aiAccessService.recordQueryRefusal).not.toHaveBeenCalled();
+        expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
         expect(factory.warehouseClients).toEqual({});
     });
 });

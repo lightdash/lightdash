@@ -1,4 +1,3 @@
-import { WarehouseTypes } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
@@ -62,7 +61,9 @@ test.each([
             }),
         ).toEqual({
             settings: { requireVerifiedAgentSessions: required },
-            previousRequired,
+            previousSource: previousRequired
+                ? 'agent_sign_in'
+                : 'marked_person',
         });
         expect(tracker.history.select[0].sql).toContain('for update');
         expect(tracker.history.select[0].bindings).toContain('org');
@@ -73,5 +74,9 @@ test.each([
         expect(tracker.history.insert[1].sql).toContain('"updated_at"');
         expect(tracker.history.insert[1].bindings).toContain('org');
         expect(tracker.history.insert[1].bindings).toContain(required);
+        expect(tracker.history.insert[0].bindings).toContain(
+            required ? 'agent_sign_in' : 'marked_person',
+        );
+        expect(tracker.history.insert[0].sql).not.toContain('"required"');
     },
 );

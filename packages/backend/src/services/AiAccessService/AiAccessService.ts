@@ -56,10 +56,6 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
 import { BaseService } from '../BaseService';
-import {
-    surfaceFromQueryContext,
-    type ConnectionSurface,
-} from '../WarehouseClientFactory/ConnectionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
@@ -83,14 +79,12 @@ export type ResolvePlanArgs = {
     warehouseConnectionUuid: string | null;
     connection: CreateWarehouseCredentials;
     context: QueryExecutionContext;
-    purpose: 'execute' | 'check';
-    surface?: ConnectionSurface;
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
 };
 
-type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation' | 'purpose' | 'surface'>;
+type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
 
 type AiAccessServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -260,7 +254,7 @@ export class AiAccessService extends BaseService {
     async updateOrganizationSettings(
         account: Account,
         settings: OrganizationAgentIdentitySettings,
-    ): Promise<OrganizationAgentIdentitySettings> {
+    ): Promise<OrganizationAgentIdentityOverview> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         await this.assertFeatureEnabled({
@@ -275,12 +269,15 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const { settings: savedSettings, previousRequired } =
+        const { settings: savedSettings, previousSource } =
             await this.organizationAgentIdentitySettingsModel.upsert(
                 organizationUuid,
                 settings,
             );
-        if (savedSettings.requireVerifiedAgentSessions !== previousRequired) {
+        const source = savedSettings.requireVerifiedAgentSessions
+            ? 'agent_sign_in'
+            : 'marked_person';
+        if (source !== previousSource) {
             const userId = this.analyticsUserId({
                 userUuid: account.user.id,
                 isRegisteredUser: account.user.type === 'registered',
@@ -296,13 +293,18 @@ export class AiAccessService extends BaseService {
                         organizationId: organizationUuid,
                         userId,
                         warehouseType: WarehouseTypes.SNOWFLAKE,
-                        required: savedSettings.requireVerifiedAgentSessions,
-                        previousRequired,
+                        source,
+                        previousSource,
                     },
                 }),
             );
         }
-        return { ...savedSettings, rules: await this.organizationAgentIdentityRulesModel.list(organizationUuid) };
+        return {
+            ...savedSettings,
+            rules: await this.organizationAgentIdentityRulesModel.list(
+                organizationUuid,
+            ),
+        };
     }
 
     async updateOrganizationRule(
@@ -701,34 +703,6 @@ export class AiAccessService extends BaseService {
         };
     }
 
-    recordQueryRefusal(
-        args: {
-            organizationUuid: string;
-            projectUuid: string;
-            userUuid: string | null;
-            surface: ConnectionSurface;
-            warehouseType: WarehouseTypes;
-        },
-        reason:
-            | AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
-            | AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
-    ): void {
-        trackSafely(() =>
-            this.analytics.track({
-                event: 'query.refused',
-                userId: args.userUuid ?? undefined,
-                properties: {
-                    organizationId: args.organizationUuid,
-                    projectId: args.projectUuid,
-                    userId: args.userUuid,
-                    surface: args.surface,
-                    warehouseType: args.warehouseType,
-                    reason,
-                },
-            }),
-        );
-    }
-
     private async provider(args: AccessArgs): Promise<AiCredentialProvider> {
         if (args.isServiceAccount) {
             throw new AiAccessRefusedError(
@@ -811,6 +785,56 @@ export class AiAccessService extends BaseService {
         | string
         | null {
         return isRegisteredUser && !isServiceAccount ? userUuid : null;
+    }
+
+    trackQueryRefusal(
+        args: Pick<
+            ResolvePlanArgs,
+            | 'evaluation'
+            | 'organizationUuid'
+            | 'projectUuid'
+            | 'warehouseConnectionUuid'
+            | 'userUuid'
+            | 'isRegisteredUser'
+            | 'isServiceAccount'
+        > & { warehouseType: WarehouseTypes },
+        reason: AiAccessRefusalReason,
+    ): void {
+        if (args.evaluation.kind === 'query') {
+            const userId = this.analyticsUserId(args);
+            const actor =
+                userId !== null
+                    ? { userId }
+                    : { anonymousId: LightdashAnalytics.anonymousId };
+            const properties = {
+                organizationId: args.organizationUuid,
+                projectId: args.projectUuid,
+                userId,
+                warehouseConnectionId: args.warehouseConnectionUuid,
+                surface: args.evaluation.surface,
+                warehouseType: args.warehouseType,
+                reason,
+            };
+            trackSafely(() =>
+                this.analytics.track({
+                    ...actor,
+                    event: 'query.refused',
+                    properties,
+                }),
+            );
+            if (properties.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED) {
+                trackSafely(() =>
+                    this.analytics.track({
+                        ...actor,
+                        event: 'agent_identity.expired',
+                        properties: {
+                            ...properties,
+                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                        },
+                    }),
+                );
+            }
+        }
     }
 
     private logRefusal(args: AccessArgs, error: AiAccessRefusedError): void {
@@ -946,44 +970,10 @@ export class AiAccessService extends BaseService {
                         : AgentIdentityConnectEntryPoint.UNKNOWN,
                 );
                 this.logRefusal(args, refusalError);
-                if (args.evaluation.kind === 'query') {
-                    const userId = this.analyticsUserId(args);
-                    const actor =
-                        userId !== null
-                            ? { userId }
-                            : { anonymousId: LightdashAnalytics.anonymousId };
-                    const properties = {
-                        organizationId: args.organizationUuid,
-                        projectId: args.projectUuid,
-                        userId,
-                        warehouseConnectionId: args.warehouseConnectionUuid,
-                        surface: args.evaluation.surface,
-                        warehouseType: args.connection.type,
-                        reason: refusalError.refusal.reason,
-                    };
-                    trackSafely(() =>
-                        this.analytics.track({
-                            ...actor,
-                            event: 'query.refused',
-                            properties,
-                        }),
-                    );
-                    if (
-                        properties.reason ===
-                        AiAccessRefusalReason.SIGN_IN_EXPIRED
-                    ) {
-                        trackSafely(() =>
-                            this.analytics.track({
-                                ...actor,
-                                event: 'agent_identity.expired',
-                                properties: {
-                                    ...properties,
-                                    reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                                },
-                            }),
-                        );
-                    }
-                }
+                this.trackQueryRefusal(
+                    { ...args, warehouseType: args.connection.type },
+                    refusalError.refusal.reason,
+                );
                 throw refusalError;
             }
             throw error;
@@ -1124,7 +1114,6 @@ export class AiAccessService extends BaseService {
                             warehouseConnectionUuid,
                             connection,
                             context: QueryExecutionContext.AI,
-                            purpose: 'check',
                             userUuid: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
                             isServiceAccount: account.isServiceAccount(),

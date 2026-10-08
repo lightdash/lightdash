@@ -589,6 +589,9 @@ describe('OAuth authorize redirects', () => {
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             },
+            organizationAgentIdentityRulesModel: {
+                get: vi.fn().mockResolvedValue({ source: 'agent_sign_in' }),
+            },
             organizationAgentIdentitySettingsModel: {
                 get: vi
                     .fn()

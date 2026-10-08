@@ -40,7 +40,10 @@ import {
     isWarehouseTokenError,
     withSharedSignInExpiry,
 } from '../../utils/sharedSignInExpiry';
-import type { AiAccessService } from '../AiAccessService/AiAccessService';
+import type {
+    AiAccessEvaluation,
+    AiAccessService,
+} from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     querySurfaceFromConnectionSurface,
@@ -198,6 +201,20 @@ export class WarehouseClientFactory {
         }
     }
 
+    private aiAccessEvaluation(
+        context: Pick<ConnectionContext, 'purpose' | 'aiAccess' | 'actor'>,
+    ): AiAccessEvaluation {
+        return context.purpose === 'compile' ||
+            context.aiAccess === 'diagnostic'
+            ? { kind: 'diagnostic' }
+            : {
+                  kind: 'query',
+                  surface: querySurfaceFromConnectionSurface(
+                      context.actor.surface,
+                  ),
+              };
+    }
+
     async resolveLoadedCredentials(
         base: WarehouseCredentialBase,
         context: WarehouseCredentialResolutionContext,
@@ -222,23 +239,12 @@ export class WarehouseClientFactory {
                 );
             }
             aiPlan = await this.aiAccessService.resolvePlan({
-                evaluation:
-                    context.purpose === 'compile' ||
-                    context.aiAccess === 'diagnostic'
-                        ? { kind: 'diagnostic' }
-                        : {
-                              kind: 'query',
-                              surface: querySurfaceFromConnectionSurface(
-                                  context.actor.surface,
-                              ),
-                          },
+                evaluation: this.aiAccessEvaluation(context),
                 projectUuid: base.projectUuid,
                 organizationUuid,
                 warehouseConnectionUuid: base.warehouseConnectionUuid,
                 connection: base.credentials,
                 context: context.queryContext,
-                purpose: 'execute',
-                surface: context.actor.surface,
                 userUuid: person.userUuid,
                 isRegisteredUser: person.isRegisteredUser,
                 isServiceAccount: person.isServiceAccount,
@@ -331,7 +337,6 @@ export class WarehouseClientFactory {
         let credentialKind: WarehouseCredentialKind | undefined;
         let overrides: Parameters<WarehouseClientFactory['acquireUnscoped']>[2];
         let tunnelOptions: SshTunnelOptions | undefined;
-        const refusalScope = { context, refused: false };
         switch (ref.kind) {
             case 'binding': {
                 ({
@@ -381,6 +386,11 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
+        const refusalScope = {
+            context,
+            warehouseConnectionUuid,
+            refused: false,
+        };
         credentialKind ??= this.getCredentialKind(
             warehouseCredentials,
             aiPlan,
@@ -502,7 +512,11 @@ export class WarehouseClientFactory {
         }: {
             cacheEnabled: boolean;
             wrapConstructionErrors: boolean;
-            refusalScope?: { context: ConnectionContext; refused: boolean };
+            refusalScope?: {
+                context: ConnectionContext;
+                warehouseConnectionUuid: string | null;
+                refused: boolean;
+            };
             warehouseConnectionUuid?: string | null;
             compileGroup?: WarehouseCompileGroup;
             clientOptions?: Pick<WarehouseClientOptions, 'maxOpenConnections'>;
@@ -727,7 +741,11 @@ export class WarehouseClientFactory {
         credentials: CreateWarehouseCredentials,
         client: T,
         aiPlan?: AiExecutionPlan | null,
-        refusalScope?: { context: ConnectionContext; refused: boolean },
+        refusalScope?: {
+            context: ConnectionContext;
+            warehouseConnectionUuid: string | null;
+            refused: boolean;
+        },
     ): T {
         if (aiPlan?.identity === 'connected_person') return client;
         if (aiPlan?.identity === 'ai_service_account') {
@@ -761,7 +779,11 @@ export class WarehouseClientFactory {
         projectUuid: string | null,
         credentials: CreateWarehouseCredentials,
         error: unknown,
-        refusalScope?: { context: ConnectionContext; refused: boolean },
+        refusalScope?: {
+            context: ConnectionContext;
+            warehouseConnectionUuid: string | null;
+            refused: boolean;
+        },
     ): Promise<never> {
         if (
             credentials.type !== WarehouseTypes.BIGQUERY ||
@@ -774,15 +796,15 @@ export class WarehouseClientFactory {
             scope.refused = true;
             const { context } = scope;
             const { person } = context.actor;
-            this.aiAccessService.recordQueryRefusal(
+            this.aiAccessService.trackQueryRefusal(
                 {
                     projectUuid,
                     organizationUuid: context.organizationUuid,
-                    userUuid:
-                        person?.isRegisteredUser && !person.isServiceAccount
-                            ? person.userUuid
-                            : null,
-                    surface: context.actor.surface,
+                    warehouseConnectionUuid: scope.warehouseConnectionUuid,
+                    evaluation: this.aiAccessEvaluation(context),
+                    userUuid: person?.userUuid ?? '',
+                    isRegisteredUser: person?.isRegisteredUser ?? false,
+                    isServiceAccount: person?.isServiceAccount ?? false,
                     warehouseType: credentials.type,
                 },
                 reason,

@@ -21,7 +21,7 @@ const setup = () => {
             async (
                 _uuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => ({ settings, previousRequired: false }),
+            ) => ({ settings, previousSource: 'marked_person' }),
         ),
     };
     const rules = {

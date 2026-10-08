@@ -4564,6 +4564,12 @@ describe('AsyncQueryService', () => {
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),
                 },
+                organizationAgentIdentityRulesModel: {
+                    get: vi.fn(async () => ({ source: 'agent_sign_in' })),
+                },
+                queryHistoryModel: {
+                    getDuckdbExecution: vi.fn(async () => null),
+                },
                 organizationAgentIdentitySettingsModel: {
                     get: vi.fn(async () => ({
                         requireVerifiedAgentSessions: true,
@@ -4597,6 +4603,8 @@ describe('AsyncQueryService', () => {
                 service.projectModel.getWarehouseCredentialsForProject,
             ).mockResolvedValue(credentials);
             const resolve = vi.spyOn(aiAccessService, 'resolvePlan');
+            const trackRefusal = vi.spyOn(aiAccessService, 'trackQueryRefusal');
+            const readGuard = vi.spyOn(aiAccessService, 'assertCanReadResults');
             const markErrored = vi
                 .fn<AsyncQueryService['markAsyncQueryErrored']>()
                 .mockResolvedValue(undefined);
@@ -4611,7 +4619,15 @@ describe('AsyncQueryService', () => {
                 createdByUserUuid: sessionAccount.user.id,
             } as QueryHistory;
             vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
-            return { service, analytics, resolve, markErrored, history };
+            return {
+                service,
+                analytics,
+                resolve,
+                trackRefusal,
+                readGuard,
+                markErrored,
+                history,
+            };
         };
         const executionArgs = {
             userUuid: sessionAccount.user.id,
@@ -4791,7 +4807,8 @@ describe('AsyncQueryService', () => {
         );
 
         test('counts one expired refusal across all seven result readers and repeated polls', async () => {
-            const { service, analytics, resolve, markErrored } = setupRefusal();
+            const { service, analytics, resolve, trackRefusal, markErrored } =
+                setupRefusal();
             await service.runAsyncWarehouseQuery(executionArgs);
             expect(markErrored).toHaveBeenCalledOnce();
             expect(resolve).toHaveBeenCalledExactlyOnceWith(
@@ -4851,9 +4868,12 @@ describe('AsyncQueryService', () => {
                 );
             await readAll();
             await readAll();
-            expect(resolve).toHaveBeenCalledTimes(15);
+            expect(resolve).toHaveBeenCalledTimes(1);
+            expect(trackRefusal).toHaveBeenCalledTimes(15);
             expect(
-                resolve.mock.calls.slice(1).map(([args]) => args.evaluation),
+                trackRefusal.mock.calls
+                    .slice(1)
+                    .map(([args]) => args.evaluation),
             ).toEqual(
                 Array.from({ length: 14 }, () => ({ kind: 'result_read' })),
             );
@@ -4865,27 +4885,27 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('keeps both raw-result guards silent when only the second one refuses', async () => {
-            const { service, analytics, resolve } = setupRefusal();
+        test('keeps the shared raw-result guard silent after a query refusal', async () => {
+            const { service, analytics, trackRefusal, readGuard } =
+                setupRefusal();
             await service.runAsyncWarehouseQuery(executionArgs);
             const readArgs = {
                 account: sessionAccount,
                 projectUuid,
                 queryUuid: 'agent-query',
             };
-            resolve.mockResolvedValueOnce(null);
             await expect(
                 service.getRawAsyncQueryResults(readArgs),
             ).rejects.toMatchObject({
                 refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
             });
-            expect(resolve.mock.calls.map(([args]) => args.evaluation)).toEqual(
-                [
-                    { kind: 'query', surface: QuerySurface.MCP },
-                    { kind: 'result_read' },
-                    { kind: 'result_read' },
-                ],
-            );
+            expect(readGuard).toHaveBeenCalledOnce();
+            expect(
+                trackRefusal.mock.calls.map(([args]) => args.evaluation),
+            ).toEqual([
+                { kind: 'query', surface: QuerySurface.MCP },
+                { kind: 'result_read' },
+            ]);
             expect(
                 analytics.track.mock.calls.map(([event]) => event.event),
             ).toEqual(['query.refused', 'agent_identity.expired']);

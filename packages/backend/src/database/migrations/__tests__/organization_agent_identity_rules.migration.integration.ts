@@ -2,6 +2,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     QueryExecutionContext,
+    QuerySurface,
     WarehouseTypes,
     type AiActorKind,
 } from '@lightdash/common';
@@ -266,7 +267,10 @@ test.each([true, false])(
             await settings.upsert(organizationUuid, {
                 requireVerifiedAgentSessions: required,
             }),
-        ).toEqual({ requireVerifiedAgentSessions: required });
+        ).toEqual({
+            settings: { requireVerifiedAgentSessions: required },
+            previousSource: required ? 'marked_person' : 'agent_sign_in',
+        });
         await Promise.all(
             actors.map(async (actor) => {
                 expect(
@@ -393,6 +397,19 @@ test('serializes concurrent writes and cascades organization deletion', async ()
     expect(await settings.get(organizationUuid)).toEqual({
         requireVerifiedAgentSessions: person.source === 'agent_sign_in',
     });
+    const rows = await migrated
+        .database('organization_agent_identity_rules')
+        .where({
+            organization_uuid: organizationUuid,
+            warehouse_type: WarehouseTypes.SNOWFLAKE,
+        });
+    expect(
+        rows
+            .map(({ actor_kind, source }) => ({ actor_kind, source }))
+            .sort((a, b) => a.actor_kind.localeCompare(b.actor_kind)),
+    ).toEqual(
+        actors.map((actor_kind) => ({ actor_kind, source: person.source })),
+    );
     await migrated
         .database('organizations')
         .where('organization_uuid', organizationUuid)
@@ -537,7 +554,7 @@ test('resolvePlan refuses needs_sign_in after an old pod enables the legacy swit
             isRegisteredUser: true,
             isServiceAccount: false,
             context: QueryExecutionContext.AI,
-            purpose: 'execute',
+            evaluation: { kind: 'query', surface: QuerySurface.APP },
             connection: {
                 type: WarehouseTypes.SNOWFLAKE,
                 account: 'account',

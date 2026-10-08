@@ -1,5 +1,6 @@
 import {
     WarehouseTypes,
+    type AiIdentitySource,
     type OrganizationAgentIdentitySettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -48,7 +49,7 @@ export class OrganizationAgentIdentitySettingsModel {
         settings: OrganizationAgentIdentitySettings,
     ): Promise<{
         settings: OrganizationAgentIdentitySettings;
-        previousRequired: boolean;
+        previousSource: AiIdentitySource;
     }> {
         return this.database.transaction(async (transaction) => {
             await transaction(OrganizationTableName)
@@ -62,16 +63,24 @@ export class OrganizationAgentIdentitySettingsModel {
                 )
                     .where('organization_uuid', organizationUuid)
                     .first();
-            await this.rulesModel.set(organizationUuid, WarehouseTypes.SNOWFLAKE, {
-                source: settings.requireVerifiedAgentSessions ? 'agent_sign_in' : 'marked_person',
-            }, transaction);
+            await this.rulesModel.set(
+                organizationUuid,
+                WarehouseTypes.SNOWFLAKE,
+                {
+                    source: settings.requireVerifiedAgentSessions
+                        ? 'agent_sign_in'
+                        : 'marked_person',
+                },
+                transaction,
+            );
             return {
                 settings: {
                     requireVerifiedAgentSessions:
                         settings.requireVerifiedAgentSessions,
                 },
-                previousRequired:
-                    previous?.require_verified_agent_sessions ?? false,
+                previousSource: previous?.require_verified_agent_sessions
+                    ? 'agent_sign_in'
+                    : 'marked_person',
             };
         });
     }

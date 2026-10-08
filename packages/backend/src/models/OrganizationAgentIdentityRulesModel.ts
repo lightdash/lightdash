@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { OrganizationAgentIdentityRulesTableName } from '../database/entities/organizationAgentIdentityRules';
+import { OrganizationTableName } from '../database/entities/organizations';
 
 export class OrganizationAgentIdentityRulesModel {
     private readonly database: Knex;
@@ -97,6 +98,13 @@ export class OrganizationAgentIdentityRulesModel {
             );
         }
         const write = async (transaction: Knex.Transaction) => {
+            if (warehouseType === WarehouseTypes.SNOWFLAKE) {
+                await transaction(OrganizationTableName)
+                    .where('organization_uuid', organizationUuid)
+                    .select('organization_uuid')
+                    .forUpdate()
+                    .first();
+            }
             const actorKinds: AiActorKind[] = ['person', 'service_account'];
             await transaction(OrganizationAgentIdentityRulesTableName)
                 .insert(
