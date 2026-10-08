@@ -3,8 +3,11 @@ import {
     DatabricksAuthenticationType,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
+    FeatureFlags,
+    ProjectType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -25,6 +28,7 @@ import { type ProjectAdapter } from '../../types';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
+import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields, user } from './ProjectService.mock';
 
@@ -440,31 +444,159 @@ describe('compile credential resolution', () => {
         expect(f.projectModel.rotateRefreshToken).toHaveBeenCalledTimes(1);
     });
 
-    it.each([true, false])(
-        'runs the BigQuery preview repair check once with compile resolution %s',
-        async (enabled) => {
-            const f = setup(
-                {
-                    type: WarehouseTypes.BIGQUERY,
-                    project: 'project',
-                    dataset: 'dataset',
-                    timeoutSeconds: undefined,
-                    priority: undefined,
-                    retries: undefined,
-                    location: undefined,
-                    maximumBytesBilled: undefined,
-                    authenticationType: BigqueryAuthenticationType.SSO,
-                    keyfileContents: {
-                        type: 'authorized_user',
-                        client_id: 'google-client',
-                        refresh_token: 'google-refresh',
-                    },
+    describe.each([true, false])(
+        'BigQuery preview repair with compile resolution %s',
+        (enabled) => {
+            it.each([true, false])(
+                'checks once and repairs only a rejected token: %s',
+                async (rejected) => {
+                    const stale: CreateBigqueryCredentials = {
+                        type: WarehouseTypes.BIGQUERY,
+                        project: 'preview-project',
+                        dataset: 'preview_dataset',
+                        timeoutSeconds: undefined,
+                        priority: undefined,
+                        retries: undefined,
+                        location: undefined,
+                        maximumBytesBilled: undefined,
+                        authenticationType: BigqueryAuthenticationType.SSO,
+                        keyfileContents: {
+                            type: 'authorized_user',
+                            client_id: 'google-client',
+                            refresh_token: 'preview-refresh',
+                        },
+                    };
+                    const upstream: CreateBigqueryCredentials = {
+                        ...stale,
+                        project: 'upstream-project',
+                        dataset: 'upstream_dataset',
+                        keyfileContents: {
+                            ...stale.keyfileContents,
+                            refresh_token: 'upstream-refresh',
+                        },
+                    };
+                    const f = setup(stale, { enabled });
+                    f.project.type = ProjectType.PREVIEW;
+                    f.project.upstreamProjectUuid = 'upstream-uuid';
+                    const checkRefreshToken = vi.fn<CheckGoogleRefreshToken>(
+                        async (keyfile) =>
+                            rejected &&
+                            keyfile.refresh_token === 'preview-refresh'
+                                ? 'rejected'
+                                : 'valid',
+                    );
+                    const featureFlagGet = vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: FeatureFlags;
+                        }) => ({
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.PreviewSsoCredentialSync,
+                        }),
+                    );
+                    Object.assign(f.service, {
+                        checkGoogleRefreshToken: checkRefreshToken,
+                        featureFlagModel: { get: featureFlagGet },
+                    });
+                    let stored: CreateWarehouseCredentials = stale;
+                    const readBinding = vi.fn<
+                        ProjectModel['getWarehouseCredentialsForBinding']
+                    >(async (projectUuid) =>
+                        projectUuid === 'upstream-uuid' ? upstream : stored,
+                    );
+                    const getPreviewOwnsCredentials = vi.fn(async () => false);
+                    const updateIf = vi.fn<
+                        ProjectModel['updateWarehouseCredentialsIf']
+                    >(async (_projectUuid, update) => {
+                        const next = update(stored);
+                        if (next) stored = next;
+                        return next !== null;
+                    });
+                    Object.assign(f.projectModel, {
+                        getWarehouseCredentialsForBinding: readBinding,
+                        getPreviewOwnsCredentials,
+                        updateWarehouseCredentialsIf: updateIf,
+                    });
+                    const repair = vi.spyOn(
+                        f.service as unknown as {
+                            repairStalePreviewSsoCredentials: ProjectService['repairStalePreviewSsoCredentials'];
+                        },
+                        'repairStalePreviewSsoCredentials',
+                    );
+                    const expected = {
+                        ...stale,
+                        keyfileContents: rejected
+                            ? upstream.keyfileContents
+                            : stale.keyfileContents,
+                    };
+                    f.project.dbtConnection = { type: DbtProjectType.NONE };
+                    vi.mocked(
+                        warehouseClientFromCredentials,
+                    ).mockImplementation((credentials) => ({
+                        ...warehouseClientMock,
+                        credentials,
+                    }));
+                    const probe = f.service as unknown as {
+                        withCompileAdapter: ProjectService['withCompileAdapter'];
+                    };
+                    await probe.withCompileAdapter(
+                        f.project.projectUuid,
+                        user,
+                        async ({ connection, warehouseCredentials }) => {
+                            expect(
+                                connection.connectionCredentials,
+                            ).toMatchObject(expected);
+                            expect(warehouseCredentials).toMatchObject(
+                                expected,
+                            );
+                        },
+                        [],
+                    );
+                    expect(repair).toHaveBeenCalledExactlyOnceWith(
+                        f.project.projectUuid,
+                        stale,
+                    );
+                    expect(
+                        f.projectModel.getSummary,
+                    ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
+                    expect(featureFlagGet).toHaveBeenCalledWith({
+                        user: { organizationUuid: f.project.organizationUuid },
+                        featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
+                    });
+                    expect(
+                        getPreviewOwnsCredentials,
+                    ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
+                    expect(readBinding).toHaveBeenCalledWith('upstream-uuid', {
+                        kind: 'original',
+                    });
+                    expect(checkRefreshToken.mock.calls).toEqual(
+                        rejected
+                            ? [
+                                  [stale.keyfileContents],
+                                  [upstream.keyfileContents],
+                              ]
+                            : [[stale.keyfileContents]],
+                    );
+                    expect(updateIf).toHaveBeenCalledTimes(rejected ? 1 : 0);
+                    if (rejected) {
+                        expect(updateIf).toHaveBeenCalledWith(
+                            f.project.projectUuid,
+                            expect.any(Function),
+                        );
+                        const update = updateIf.mock.calls[0][1];
+                        expect(update(stale)).toEqual(expected);
+                        expect(update(upstream)).toBeNull();
+                    }
+                    expect(stored).toEqual(expected);
+                    expect(
+                        warehouseClientFromCredentials,
+                    ).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining(expected),
+                        expect.any(Object),
+                    );
                 },
-                { enabled },
-            );
-            await f.prepare();
-            expect(f.projectModel.getSummary).toHaveBeenCalledExactlyOnceWith(
-                f.project.projectUuid,
             );
         },
     );
