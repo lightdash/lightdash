@@ -530,7 +530,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         filterRule={item}
                         onRemove={() =>
-                            removeDimensionDashboardFilter(index, false)
+                            removeDimensionDashboardFilter(index, true)
                         }
                     />
                 );
