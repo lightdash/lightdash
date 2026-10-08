@@ -165,12 +165,14 @@ describe('buildDepartmentMembers', () => {
             {
                 userUuid: 'recent',
                 lastActiveAt: new Date('2026-10-06T00:00:00Z'),
+                isActive30d: true,
                 queries30d: 9,
                 dashboardViews30d: 3,
             },
             {
                 userUuid: 'stale',
                 lastActiveAt: new Date('2026-06-01T00:00:00Z'),
+                isActive30d: false,
                 queries30d: 0,
                 dashboardViews30d: 0,
             },
@@ -191,6 +193,7 @@ describe('buildDepartmentMembers', () => {
             source: 'group',
             sourceGroupName: 'Store staff',
             lastActiveAt: null,
+            isActive30d: false,
             queries30d: 0,
             dashboardViews30d: 0,
         });
@@ -200,6 +203,7 @@ describe('buildDepartmentMembers', () => {
             source: 'explicit',
             sourceGroupName: null,
             lastActiveAt: '2026-10-06T00:00:00.000Z',
+            isActive30d: true,
             queries30d: 9,
         });
     });

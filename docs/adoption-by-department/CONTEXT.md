@@ -81,7 +81,7 @@ _Avoid_: licensed, provisioned, seated
 ### Measures
 
 **Active**:
-Ran a query, or viewed a chart or dashboard, in the last 30 days. Weekly counts use the same activity per UTC week.
+Ran a query themselves, or viewed a chart or dashboard, in this organization in the last 30 days. Scheduled, API, agent and MCP runs do not count. Weekly counts use the same activity per UTC week.
 _Avoid_: engaged, retained, MAU
 
 **Coverage**:

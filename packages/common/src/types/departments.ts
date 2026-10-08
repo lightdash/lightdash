@@ -167,6 +167,7 @@ export type DepartmentMember = {
     source: 'explicit' | 'group';
     sourceGroupName: string | null;
     lastActiveAt: string | null; // ISO timestamp, null = never active
+    isActive30d: boolean; // same definition and bound as activeCount30d
     queries30d: number;
     dashboardViews30d: number;
 };

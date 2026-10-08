@@ -11,6 +11,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import {
     DepartmentService,
+    getActivityWindows,
     validateDepartmentInput,
 } from './DepartmentService';
 
@@ -108,8 +109,9 @@ const buildService = (opts: {
         setOwners: vi.fn().mockResolvedValue({}),
     };
     const departmentAnalyticsModel = {
-        getActiveUserUuids: vi.fn().mockResolvedValue([]),
-        getWeeklyActivity: vi.fn().mockResolvedValue([]),
+        getActivity: vi
+            .fn()
+            .mockResolvedValue({ activeUserUuids: [], weeklyActivity: [] }),
         getMemberActivity: vi.fn().mockResolvedValue([]),
         getTopContent: vi
             .fn()
@@ -390,7 +392,10 @@ describe('DepartmentService.getSummary', () => {
                 user('none', []),
             ],
         });
-        departmentAnalyticsModel.getActiveUserUuids.mockResolvedValue(['both']);
+        departmentAnalyticsModel.getActivity.mockResolvedValue({
+            activeUserUuids: ['both'],
+            weeklyActivity: [],
+        });
 
         const summary = await service.getSummary(
             buildAccount(abilityWith(['view', ORG])),
@@ -411,7 +416,7 @@ describe('DepartmentService.getSummary', () => {
 });
 
 describe('DepartmentService analytics scoping', () => {
-    it('hands both analytics methods exactly the org member uuids', async () => {
+    it('reads activity once, for exactly the org member uuids', async () => {
         const row = (userUuid: string) => ({
             userUuid,
             email: `${userUuid}@example.com`,
@@ -428,15 +433,24 @@ describe('DepartmentService analytics scoping', () => {
             });
         await service.getSummary(buildAccount(abilityWith(['view', ORG])));
         expect(departmentModel.getResolvedMemberRows).toHaveBeenCalledWith(ORG);
-        const memberUuids = ['u1', 'u2', 'u3'];
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(1);
+        const [org, userUuids, windows] =
+            departmentAnalyticsModel.getActivity.mock.calls[0];
+        expect(org).toBe(ORG);
+        expect(userUuids).toEqual(['u1', 'u2', 'u3']);
+        const DAY = 24 * 60 * 60 * 1000;
         expect(
-            departmentAnalyticsModel.getActiveUserUuids,
-        ).toHaveBeenCalledWith(ORG, memberUuids, 30);
-        expect(departmentAnalyticsModel.getWeeklyActivity).toHaveBeenCalledWith(
-            ORG,
-            memberUuids,
-            12,
-        );
+            windows.activeSince.getTime() - windows.trendSince.getTime(),
+        ).toBe((84 - 30) * DAY);
+    });
+});
+
+describe('getActivityWindows', () => {
+    it('measures 30 days and 12 weeks back from one instant', () => {
+        expect(getActivityWindows(new Date('2026-10-08T09:30:00Z'))).toEqual({
+            activeSince: new Date('2026-09-08T09:30:00Z'),
+            trendSince: new Date('2026-07-16T09:30:00Z'),
+        });
     });
 });
 
@@ -622,11 +636,14 @@ describe('DepartmentService.getDetail', () => {
             departmentAnalyticsModel.getMemberActivity.mock.calls[0];
         expect(org).toBe(ORG);
         expect([...userUuids].sort()).toEqual(['a', 'b']);
-        const [topOrg, topUsers, days, limit] =
+        const [topOrg, topUsers, since, limit] =
             departmentAnalyticsModel.getTopContent.mock.calls[0];
         expect(topOrg).toBe(ORG);
         expect([...topUsers].sort()).toEqual(['a', 'b']);
-        expect([days, limit]).toEqual([30, 5]);
+        expect(limit).toBe(5);
+        expect(since).toBe(
+            departmentAnalyticsModel.getActivity.mock.calls[0][2].activeSince,
+        );
         expect(detail.children.map((d) => d.departmentUuid)).toEqual([STORES]);
         expect(detail.members.map((m) => m.userUuid).sort()).toEqual([
             'a',
@@ -637,6 +654,45 @@ describe('DepartmentService.getDetail', () => {
             remaining: 5,
         });
         expect(detail.weeklyActive).toHaveLength(12);
+    });
+    it('agrees on who is active between the 30-day count and the member flags', async () => {
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        // Both reads apply one definition, so the fixture answers them consistently
+        departmentAnalyticsModel.getActivity.mockResolvedValue({
+            activeUserUuids: ['a', 'c'],
+            weeklyActivity: [],
+        });
+        const member = (userUuid: string, isActive30d: boolean) => ({
+            userUuid,
+            lastActiveAt: isActive30d ? new Date('2026-10-01T09:00:00Z') : null,
+            isActive30d,
+            queries30d: 0,
+            dashboardViews30d: 0,
+        });
+        departmentAnalyticsModel.getMemberActivity.mockResolvedValue([
+            member('a', true),
+            member('b', false),
+        ]);
+
+        const detail = await service.getDetail(viewer(), OPS);
+
+        expect(detail.department.metrics.activeCount30d).toBe(1);
+        expect(
+            detail.members.filter((m) => m.isActive30d).map((m) => m.userUuid),
+        ).toEqual(['a']);
+        expect(detail.members.filter((m) => m.isActive30d)).toHaveLength(
+            detail.department.metrics.activeCount30d,
+        );
+        // The count and the flags are bounded by the very same instant
+        expect(
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],
+        ).toBe(
+            departmentAnalyticsModel.getActivity.mock.calls[0][2].activeSince,
+        );
     });
     it('lists ancestors from the top down', async () => {
         const { service } = buildService({ flag: true, departments, rows });

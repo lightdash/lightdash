@@ -35,21 +35,15 @@ const formatUtcDate = (isoTimestamp: string): string => {
     return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 };
 
-const matches = (
-    member: DepartmentMember,
-    filter: MemberFilter,
-    now: Date,
-): boolean => {
+// Who is active comes from the server's flag, never from comparing a timestamp to this clock
+const matches = (member: DepartmentMember, filter: MemberFilter): boolean => {
     switch (filter) {
         case 'all':
             return true;
         case 'neverActive':
             return member.lastActiveAt === null;
         case 'inactive30d':
-            return (
-                member.lastActiveAt !== null &&
-                daysSince(member.lastActiveAt, now) > ACTIVE_DAYS
-            );
+            return member.lastActiveAt !== null && !member.isActive30d;
         default:
             return false;
     }
@@ -58,16 +52,14 @@ const matches = (
 export const filterMembers = (
     members: DepartmentMember[],
     filter: MemberFilter,
-    now: Date = new Date(),
-): DepartmentMember[] => members.filter((m) => matches(m, filter, now));
+): DepartmentMember[] => members.filter((m) => matches(m, filter));
 
 export const countMembersByFilter = (
     members: DepartmentMember[],
-    now: Date = new Date(),
 ): Record<MemberFilter, number> => ({
     all: members.length,
-    neverActive: filterMembers(members, 'neverActive', now).length,
-    inactive30d: filterMembers(members, 'inactive30d', now).length,
+    neverActive: filterMembers(members, 'neverActive').length,
+    inactive30d: filterMembers(members, 'inactive30d').length,
 });
 
 // Never active first, then the longest quiet; ties by email

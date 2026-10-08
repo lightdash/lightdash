@@ -71,13 +71,17 @@ Computed on each request in `DepartmentService` and `departmentMetrics.ts` from 
 
 A query counts only when a person ran it. `DepartmentAnalyticsModel` keeps the `query_history` rows whose `context` the backend's `queryWorkloadOrigin` (`packages/backend/src/services/AsyncQueryService/queryUsage.ts`) classifies as interactive: explores, dashboards, saved charts, SQL runner and view underlying data. Scheduled deliveries, alerts, Google Sheets syncs, API and CLI runs, AI agent and MCP runs, and auto-refreshed dashboards do not make their owner active. The same filter applies to the per-person query count and to top explores.
 
+Active has one definition, in SQL. The summary's 30-day count and weekly buckets come from a single query (`DepartmentAnalyticsModel.getActivity`), and the member list's `isActive30d` flag (`getMemberActivity`) uses the same sources and the same 30-day bound. The browser reads the flag for the member filters, the map's dot colours and the legend; it does not compare `lastActiveAt` to its own clock. The one exception is the map's "Active in 12 weeks" colouring, which still compares `lastActiveAt` to the clock for people who are not active in 30 days.
+
+Every activity read is limited to the organization. `query_history` has an organization column. `analytics_chart_views` and `analytics_dashboard_views` do not, so they are joined to the organization through the content viewed: chart to project, and dashboard to space to project. A view of content in another organization never counts.
+
 Percentages are of headcount and are null when there is no headcount or it is 0. They are not capped, so more accounts than headcount reads above 100. The page then shows counts.
 
 Time handling is UTC, but not everything is calendar-aligned:
 
 - Week buckets start on UTC Mondays, on both the SQL side (`date_trunc('week', ...)`) and the TypeScript side (`lastNWeekStarts`). The newest bucket is the current, partial week.
-- The 30-day active window and the 12-week trend read are rolling windows measured from the moment of the request (`daysAgo()` in `DepartmentAnalyticsModel.ts`: now minus 30 days, and now minus 84 days), not from a UTC midnight.
-- `weeksLeft` and the frontend's "N days ago" label count UTC calendar days.
+- The 30-day active window and the 12-week trend read are rolling windows measured from one instant per request (`getActivityWindows()` in `DepartmentService.ts`: now minus 30 days, and now minus 84 days), not from a UTC midnight. Every read in the request uses the same two bounds.
+- `weeksLeft` and the frontend's "N days ago" label count UTC calendar days. The label is for display only and never decides who is active.
 
 The timestamp columns read here are `timestamp without time zone`. They are read as UTC only if the server process and the database session run in UTC; the code does not enforce it.
 
@@ -86,7 +90,7 @@ The department page (`getDetail`) adds:
 - Target progress: `targetActiveUsers` against current active members. `remaining` is never negative. `weeksLeft` is null with no target date, 0 on the target day, positive before it (rounded up, so a partial week counts) and negative once overdue.
 - The weekly trend against `orgAverage`, the mean across departments at the same depth in the tree.
 - Top content for the last 30 days, up to five each of dashboards, explores and AI agents, with use counts and distinct people.
-- A member list sorted never active first, then longest inactive. Each row has the person's last activity, queries and dashboard views in 30 days, and where they resolved. `isDirect` says whether they resolved to this department or a descendant.
+- A member list sorted never active first, then longest inactive. Each row has the person's last activity, whether they are active in 30 days (`isActive30d`), queries and dashboard views in 30 days, and where they resolved. `isDirect` says whether they resolved to this department or a descendant.
 
 The AI agent read is guarded by a table check (`hasAiTables`) because `ai_prompt`, `ai_thread` and `ai_agent` come from enterprise migrations and do not exist on every instance. Without them the list is empty.
 
@@ -126,7 +130,6 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 
 - Moving departments concurrently can store a cycle. The cycle check runs before the update with no per-organization lock, so two moves in opposite directions at the same moment can both pass.
 - Assigning people concurrently can leave a person with two explicit assignments, because the one-assignment rule is application code with no constraint behind it.
-- `analytics_chart_views` and `analytics_dashboard_views` have no organization column. Only the member-list activity (`getMemberActivity`) and the top-content lists join through content to the organization. Every other number, on the index and on the detail page (active tile, target progress, weekly chart), comes from the summary snapshot, which scopes those two tables by the user set only. A user who changed organization can carry earlier views into those numbers.
 - A scheduled delivery of a saved chart writes an `analytics_chart_views` row for the schedule's owner, and the row carries nothing that tells it apart from a person opening the chart. Those views still count as activity.
 - `query_history` does not record whether a query came from a data app or a schedule that reused an interactive context, so such a run still counts as a query.
 - Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.

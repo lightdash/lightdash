@@ -121,7 +121,10 @@ describe('countDotKinds', () => {
     });
     it('counts named people by their own activity once they are loaded', () => {
         const members = groupMembersByDepartment([
-            memberFixture('a', RECENT, { departmentUuid: 'Finance' }),
+            memberFixture('a', RECENT, {
+                departmentUuid: 'Finance',
+                isActive30d: true,
+            }),
             memberFixture('b', null, { departmentUuid: 'Finance' }),
             memberFixture('c', null, { departmentUuid: 'Finance' }),
         ]);
@@ -146,7 +149,10 @@ describe('buildDots', () => {
     it('attaches loaded people to the account dots, most active first', () => {
         const members = groupMembersByDepartment([
             memberFixture('idle', null, { departmentUuid: 'Finance' }),
-            memberFixture('busy', RECENT, { departmentUuid: 'Finance' }),
+            memberFixture('busy', RECENT, {
+                departmentUuid: 'Finance',
+                isActive30d: true,
+            }),
         ]);
         const [circle] = layout('Finance');
         const dots = buildDots(circle, 'active', members, NOW);

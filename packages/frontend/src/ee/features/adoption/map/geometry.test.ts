@@ -265,6 +265,7 @@ describe('dot budget', () => {
 describe('member dots', () => {
     const recent = memberFixture('recent', '2026-10-01T00:00:00Z', {
         role: OrganizationMemberRole.ADMIN,
+        isActive30d: true,
     });
     const lapsed = memberFixture('lapsed', '2026-08-15T00:00:00Z', {
         role: OrganizationMemberRole.DEVELOPER,
@@ -277,6 +278,18 @@ describe('member dots', () => {
         expect(getMemberDotKind(recent, 'active', NOW)).toBe('active');
         expect(getMemberDotKind(lapsed, 'active', NOW)).toBe('idle');
         expect(getMemberDotKind(never, 'active', NOW)).toBe('idle');
+    });
+    it('takes active in 30 days from the server flag, not from the timestamp', () => {
+        const flaggedIdle = memberFixture('x', NOW.toISOString());
+        const flaggedActive = memberFixture('y', '2020-01-01T00:00:00Z', {
+            isActive30d: true,
+        });
+        expect(getMemberDotKind(flaggedIdle, 'active', NOW)).toBe('idle');
+        expect(getMemberDotKind(flaggedIdle, 'lastActive', NOW)).toBe('lapsed');
+        expect(getMemberDotKind(flaggedActive, 'active', NOW)).toBe('active');
+        expect(getMemberDotKind(flaggedActive, 'lastActive', NOW)).toBe(
+            'active',
+        );
     });
     it('colours by role with the same buckets as the role split', () => {
         expect(getMemberDotKind(recent, 'role', NOW)).toBe('admin');

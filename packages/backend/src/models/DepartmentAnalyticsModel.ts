@@ -8,9 +8,18 @@ import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
 
+// One clock per request, so every read in it shares the same rolling bounds
+export type ActivityWindows = { activeSince: Date; trendSince: Date };
+
+export type ActivitySnapshot = {
+    activeUserUuids: string[]; // active since activeSince
+    weeklyActivity: ActivityRow[]; // one row per person per UTC week since trendSince
+};
+
 export type MemberActivityRow = {
     userUuid: string;
     lastActiveAt: Date | null;
+    isActive30d: boolean;
     queries30d: number;
     dashboardViews30d: number;
 };
@@ -39,39 +48,48 @@ const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
 
 type Deps = { database: Knex };
 
-const daysAgo = (days: number): Date => {
-    const since = new Date();
-    since.setUTCDate(since.getUTCDate() - days);
-    return since;
-};
-
-// Caller contract: userUuids must be built from one organization's members only; the view tables have no organization column, so the user set is their only scope.
+// The view tables have no organization column, so they are tied to it through the content viewed
 const activityUnion = (
     organizationUuid: string,
     userUuids: string[],
     since: Date,
 ): { sql: string; bindings: Knex.RawBinding[] } => ({
     sql: `
-        SELECT created_by_user_uuid AS user_uuid, created_at AS at
-        FROM query_history
-        WHERE organization_uuid = ?
-          AND created_by_user_uuid = ANY(?::uuid[])
-          AND context = ANY(?::text[])
-          AND created_at >= ?
+        SELECT qh.created_by_user_uuid AS user_uuid, qh.created_at AS at
+        FROM query_history qh
+        WHERE qh.organization_uuid = ?
+          AND qh.created_by_user_uuid = ANY(?::uuid[])
+          AND qh.context = ANY(?::text[])
+          AND qh.created_at >= ?
         UNION ALL
-        SELECT user_uuid, timestamp AS at FROM analytics_chart_views
-        WHERE user_uuid = ANY(?::uuid[]) AND timestamp >= ?
+        SELECT v.user_uuid, v.timestamp AS at
+        FROM analytics_chart_views v
+        JOIN saved_queries sq ON sq.saved_query_uuid = v.chart_uuid
+        JOIN projects p ON p.project_uuid = sq.project_uuid
+        JOIN organizations o ON o.organization_id = p.organization_id
+        WHERE o.organization_uuid = ?
+          AND v.user_uuid = ANY(?::uuid[])
+          AND v.timestamp >= ?
         UNION ALL
-        SELECT user_uuid, timestamp AS at FROM analytics_dashboard_views
-        WHERE user_uuid = ANY(?::uuid[]) AND timestamp >= ?
+        SELECT v.user_uuid, v.timestamp AS at
+        FROM analytics_dashboard_views v
+        JOIN dashboards d ON d.dashboard_uuid = v.dashboard_uuid
+        JOIN spaces s ON s.space_id = d.space_id
+        JOIN projects p ON p.project_id = s.project_id
+        JOIN organizations o ON o.organization_id = p.organization_id
+        WHERE o.organization_uuid = ?
+          AND v.user_uuid = ANY(?::uuid[])
+          AND v.timestamp >= ?
     `,
     bindings: [
         organizationUuid,
         userUuids,
         INTERACTIVE_QUERY_CONTEXTS,
         since,
+        organizationUuid,
         userUuids,
         since,
+        organizationUuid,
         userUuids,
         since,
     ],
@@ -86,42 +104,47 @@ export class DepartmentAnalyticsModel {
         this.database = database;
     }
 
-    async getWeeklyActivity(
+    // One scan of the union answers both the weekly buckets and the 30-day active set
+    async getActivity(
         organizationUuid: string,
         userUuids: string[],
-        weeks: number,
-    ): Promise<ActivityRow[]> {
-        if (userUuids.length === 0) return [];
+        windows: ActivityWindows,
+    ): Promise<ActivitySnapshot> {
+        if (userUuids.length === 0) {
+            return { activeUserUuids: [], weeklyActivity: [] };
+        }
         const union = activityUnion(
             organizationUuid,
             userUuids,
-            daysAgo(weeks * 7),
+            windows.trendSince,
         );
         const result = await this.database.raw<{
-            rows: { user_uuid: string; week_start: string }[];
+            rows: {
+                user_uuid: string;
+                week_start: string;
+                is_active_30d: boolean;
+            }[];
         }>(
-            `SELECT DISTINCT user_uuid,
-                    to_char(date_trunc('week', at), 'YYYY-MM-DD') AS week_start
-             FROM (${union.sql}) a`,
-            union.bindings,
+            `SELECT a.user_uuid,
+                    to_char(date_trunc('week', a.at), 'YYYY-MM-DD') AS week_start,
+                    bool_or(a.at >= ?) AS is_active_30d
+             FROM (${union.sql}) a
+             GROUP BY a.user_uuid, date_trunc('week', a.at)`,
+            [windows.activeSince, ...union.bindings],
         );
-        return result.rows.map((r) => ({
-            userUuid: r.user_uuid,
-            weekStart: r.week_start,
-        }));
-    }
-
-    async getActiveUserUuids(
-        organizationUuid: string,
-        userUuids: string[],
-        days: number,
-    ): Promise<string[]> {
-        if (userUuids.length === 0) return [];
-        const union = activityUnion(organizationUuid, userUuids, daysAgo(days));
-        const result = await this.database.raw<{
-            rows: { user_uuid: string }[];
-        }>(`SELECT DISTINCT user_uuid FROM (${union.sql}) a`, union.bindings);
-        return result.rows.map((r) => r.user_uuid);
+        return {
+            activeUserUuids: Array.from(
+                new Set(
+                    result.rows
+                        .filter((r) => r.is_active_30d)
+                        .map((r) => r.user_uuid),
+                ),
+            ),
+            weeklyActivity: result.rows.map((r) => ({
+                userUuid: r.user_uuid,
+                weekStart: r.week_start,
+            })),
+        };
     }
 
     // AI tables come from enterprise migrations and may not exist
@@ -135,18 +158,18 @@ export class DepartmentAnalyticsModel {
         return this.aiTablesExist;
     }
 
-    // Every read is limited to the organization in SQL as well as to the user set
+    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count
     async getMemberActivity(
         organizationUuid: string,
         userUuids: string[],
-        days: number,
+        since: Date,
     ): Promise<MemberActivityRow[]> {
         if (userUuids.length === 0) return [];
-        const since = daysAgo(days);
         const result = await this.database.raw<{
             rows: {
                 user_uuid: string;
                 last_active_at: Date | null;
+                is_active_30d: boolean;
                 queries_30d: number;
                 dashboard_views_30d: number;
             }[];
@@ -187,6 +210,7 @@ export class DepartmentAnalyticsModel {
             )
             SELECT u.user_uuid,
                    GREATEST(q.last_at, dv.last_at, cv.last_at) AS last_active_at,
+                   COALESCE(GREATEST(q.last_at, dv.last_at, cv.last_at) >= ?, false) AS is_active_30d,
                    COALESCE(q.recent, 0)::int AS queries_30d,
                    COALESCE(dv.recent, 0)::int AS dashboard_views_30d
             FROM unnest(?::uuid[]) AS u(user_uuid)
@@ -204,12 +228,14 @@ export class DepartmentAnalyticsModel {
                 userUuids,
                 organizationUuid,
                 userUuids,
+                since,
                 userUuids,
             ],
         );
         return result.rows.map((r) => ({
             userUuid: r.user_uuid,
             lastActiveAt: r.last_active_at,
+            isActive30d: r.is_active_30d,
             queries30d: r.queries_30d,
             dashboardViews30d: r.dashboard_views_30d,
         }));
@@ -311,13 +337,12 @@ export class DepartmentAnalyticsModel {
     async getTopContent(
         organizationUuid: string,
         userUuids: string[],
-        days: number,
+        since: Date,
         limit: number,
     ): Promise<DepartmentTopContent> {
         if (userUuids.length === 0) {
             return { dashboards: [], explores: [], aiAgents: [] };
         }
-        const since = daysAgo(days);
         const [dashboards, explores, aiAgents] = await Promise.all([
             this.topDashboards(organizationUuid, userUuids, since, limit),
             this.topExplores(organizationUuid, userUuids, since, limit),

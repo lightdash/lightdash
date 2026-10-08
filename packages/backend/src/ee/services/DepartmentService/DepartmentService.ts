@@ -20,7 +20,10 @@ import {
     type UpdateDepartment,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
-import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
+import {
+    type ActivityWindows,
+    type DepartmentAnalyticsModel,
+} from '../../../models/DepartmentAnalyticsModel';
 import { type DepartmentModel } from '../../../models/DepartmentModel';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -50,6 +53,20 @@ type Deps = {
 const MAX_INT4 = 2147483647;
 const NAME_MAX_LENGTH = 255;
 const MAX_LIST_LENGTH = 5000;
+
+const daysBefore = (now: Date, days: number): Date => {
+    const since = new Date(now);
+    since.setUTCDate(since.getUTCDate() - days);
+    return since;
+};
+
+// Rolling windows measured from one instant, shared by every read in a request
+export const getActivityWindows = (
+    now: Date = new Date(),
+): ActivityWindows => ({
+    activeSince: daysBefore(now, ACTIVE_DAYS),
+    trendSince: daysBefore(now, TREND_WEEKS * 7),
+});
 
 const isWholeNonNegative = (value: number): boolean =>
     Number.isInteger(value) && value >= 0 && value <= MAX_INT4;
@@ -203,37 +220,33 @@ export class DepartmentService extends BaseService {
 
     protected async loadSnapshot(
         organizationUuid: string,
+        windows: ActivityWindows,
     ): Promise<AdoptionSnapshot> {
         const [departments, rows] = await Promise.all([
             this.departmentModel.listByOrganization(organizationUuid),
             this.departmentModel.getResolvedMemberRows(organizationUuid),
         ]);
         const membership = resolveDepartmentMembership(rows, departments);
-        const allUuids = membership.map((m) => m.userUuid);
-        const [active, weeklyActivity] = await Promise.all([
-            this.departmentAnalyticsModel.getActiveUserUuids(
-                organizationUuid,
-                allUuids,
-                ACTIVE_DAYS,
-            ),
-            this.departmentAnalyticsModel.getWeeklyActivity(
-                organizationUuid,
-                allUuids,
-                TREND_WEEKS,
-            ),
-        ]);
+        const activity = await this.departmentAnalyticsModel.getActivity(
+            organizationUuid,
+            membership.map((m) => m.userUuid),
+            windows,
+        );
         return buildAdoptionSnapshot({
             departments,
             membership,
-            activeUserUuids: new Set(active),
-            weeklyActivity,
+            activeUserUuids: new Set(activity.activeUserUuids),
+            weeklyActivity: activity.weeklyActivity,
             weekStarts: lastNWeekStarts(TREND_WEEKS),
         });
     }
 
     async getSummary(account: Account): Promise<OrganizationAdoptionSummary> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        const snapshot = await this.loadSnapshot(organizationUuid);
+        const snapshot = await this.loadSnapshot(
+            organizationUuid,
+            getActivityWindows(),
+        );
         return snapshot.summary;
     }
 
@@ -250,12 +263,13 @@ export class DepartmentService extends BaseService {
         organizationUuid: string,
         snapshot: AdoptionSnapshot,
         departmentUuid: string,
+        activeSince: Date,
     ): Promise<DepartmentMember[]> {
         const members = snapshot.rolledMembers.get(departmentUuid) ?? [];
         const activity = await this.departmentAnalyticsModel.getMemberActivity(
             organizationUuid,
             members.map((m) => m.userUuid),
-            ACTIVE_DAYS,
+            activeSince,
         );
         return buildDepartmentMembers({
             departmentUuid,
@@ -271,7 +285,9 @@ export class DepartmentService extends BaseService {
     ): Promise<DepartmentDetail> {
         const { organizationUuid } = await this.authorize(account, 'view');
         assertUuid(departmentUuid, 'Department');
-        const snapshot = await this.loadSnapshot(organizationUuid);
+        // The count and the member list share these bounds, so they agree on who is active
+        const windows = getActivityWindows();
+        const snapshot = await this.loadSnapshot(organizationUuid, windows);
         const all = snapshot.summary.departments;
         const department = all.find((d) => d.departmentUuid === departmentUuid);
         // Same error whether it is missing or belongs to another organization
@@ -282,11 +298,16 @@ export class DepartmentService extends BaseService {
             snapshot.rolledMembers.get(departmentUuid) ?? []
         ).map((m) => m.userUuid);
         const [members, topContent] = await Promise.all([
-            this.loadMembers(organizationUuid, snapshot, departmentUuid),
+            this.loadMembers(
+                organizationUuid,
+                snapshot,
+                departmentUuid,
+                windows.activeSince,
+            ),
             this.departmentAnalyticsModel.getTopContent(
                 organizationUuid,
                 memberUuids,
-                ACTIVE_DAYS,
+                windows.activeSince,
                 TOP_CONTENT_LIMIT,
             ),
         ]);

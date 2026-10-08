@@ -96,6 +96,7 @@ export const buildDepartmentMembers = (input: {
                 source,
                 sourceGroupName,
                 lastActiveAt: row?.lastActiveAt?.toISOString() ?? null,
+                isActive30d: row?.isActive30d ?? false,
                 queries30d: row?.queries30d ?? 0,
                 dashboardViews30d: row?.dashboardViews30d ?? 0,
             },

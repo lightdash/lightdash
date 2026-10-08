@@ -89,6 +89,7 @@ export const memberFixture = (
     source: 'explicit',
     sourceGroupName: null,
     lastActiveAt,
+    isActive30d: false,
     queries30d: 0,
     dashboardViews30d: 0,
     ...over,

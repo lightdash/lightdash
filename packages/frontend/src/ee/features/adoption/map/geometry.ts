@@ -17,7 +17,6 @@ const CIRCLE_PADDING = 8;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const ACTIVE_DAYS = 30;
 const LAPSED_DAYS = 84;
 const LABEL_PX_PER_CHAR = 3.6;
 const ROOMY_DOT_RADIUS = 11;
@@ -444,23 +443,26 @@ const roleKind = (role: OrganizationMemberRole): DotKind => {
     }
 };
 
+// Active in 30 days is the server's flag; only the 12-week split still reads the timestamp
 export const getMemberDotKind = (
-    member: Pick<DepartmentMember, 'role' | 'lastActiveAt'>,
+    member: Pick<DepartmentMember, 'role' | 'lastActiveAt' | 'isActive30d'>,
     colourBy: ColourBy,
     now: Date = new Date(),
 ): DotKind => {
-    const daysSince =
-        member.lastActiveAt === null
-            ? Number.POSITIVE_INFINITY
-            : (now.getTime() - Date.parse(member.lastActiveAt)) / MS_PER_DAY;
     switch (colourBy) {
         case 'active':
-            return daysSince <= ACTIVE_DAYS ? 'active' : 'idle';
+            return member.isActive30d ? 'active' : 'idle';
         case 'role':
             return roleKind(member.role);
-        case 'lastActive':
-            if (daysSince <= ACTIVE_DAYS) return 'active';
+        case 'lastActive': {
+            if (member.isActive30d) return 'active';
+            const daysSince =
+                member.lastActiveAt === null
+                    ? Number.POSITIVE_INFINITY
+                    : (now.getTime() - Date.parse(member.lastActiveAt)) /
+                      MS_PER_DAY;
             return daysSince <= LAPSED_DAYS ? 'lapsed' : 'inactive';
+        }
         default:
             return assertUnreachable(colourBy, 'Unknown colouring');
     }

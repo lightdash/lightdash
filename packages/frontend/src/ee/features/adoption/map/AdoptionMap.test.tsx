@@ -256,6 +256,7 @@ describe('AdoptionMap', () => {
     it('names people inside a small department and inspects the one selected', async () => {
         loadMembers('Finance', [
             memberFixture('ada', new Date().toISOString(), {
+                isActive30d: true,
                 firstName: 'Ada',
                 lastName: 'Lovelace',
                 departmentUuid: 'Finance',
@@ -301,6 +302,7 @@ describe('AdoptionMap', () => {
         const big = [d('Field', null, 151, 1, 1)];
         loadMembers('Field', [
             memberFixture('ada', new Date().toISOString(), {
+                isActive30d: true,
                 firstName: 'Ada',
                 departmentUuid: 'Field',
             }),

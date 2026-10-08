@@ -6,7 +6,10 @@ import { memberFixture } from '../utils/adoptionFixtures';
 import { DepartmentMembersTable } from './DepartmentMembersTable';
 
 const members = [
-    memberFixture('recent', new Date().toISOString(), { queries30d: 12 }),
+    memberFixture('recent', new Date().toISOString(), {
+        queries30d: 12,
+        isActive30d: true,
+    }),
     memberFixture('stale', '2020-01-01T00:00:00Z', {
         source: 'group',
         sourceGroupName: 'ops-all',
@@ -49,7 +52,11 @@ describe('DepartmentMembersTable', () => {
     it('says so when a filter matches nobody', async () => {
         renderWithProviders(
             <DepartmentMembersTable
-                members={[memberFixture('recent', new Date().toISOString())]}
+                members={[
+                    memberFixture('recent', new Date().toISOString(), {
+                        isActive30d: true,
+                    }),
+                ]}
             />,
         );
         await userEvent.click(screen.getByText('Never active (0)'));
