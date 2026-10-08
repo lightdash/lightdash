@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Creates four empty department tables without reading or rewriting existing rows',
+    reason: 'Creates four empty department tables and an index on one of them, without reading or rewriting existing rows',
 } as const;
 
 const LOCK_TIMEOUT = '5s';
@@ -12,6 +12,8 @@ const MEMBERS = 'department_members';
 const OWNERS = 'department_owners';
 const LINK_TYPES = ['group', 'space', 'project'];
 const PRINCIPAL_TYPES = ['user', 'group'];
+const UNIQUE_NAME_INDEX =
+    'organization_departments_organization_uuid_lower_name_unique';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
@@ -21,13 +23,13 @@ export async function up(knex: Knex): Promise<void> {
             .uuid('department_uuid')
             .primary()
             .defaultTo(knex.raw('uuid_generate_v4()'));
+        // Covered by the unique index below, which leads with this column
         table
             .uuid('organization_uuid')
             .notNullable()
             .references('organization_uuid')
             .inTable('organizations')
-            .onDelete('CASCADE')
-            .index();
+            .onDelete('CASCADE');
         // SET NULL is the fallback; the model re-parents children on delete
         table
             .uuid('parent_department_uuid')
@@ -56,8 +58,22 @@ export async function up(knex: Knex): Promise<void> {
             .inTable('users')
             .onDelete('SET NULL')
             .index();
-        table.unique(['organization_uuid', 'name']);
+        table.check(
+            'headcount >= 0',
+            undefined,
+            'organization_departments_headcount_check',
+        );
+        table.check(
+            'target_active_users >= 0',
+            undefined,
+            'organization_departments_target_active_users_check',
+        );
     });
+
+    // Names are unique per organization whatever their case
+    await knex.raw(
+        `CREATE UNIQUE INDEX ${UNIQUE_NAME_INDEX} ON ${DEPARTMENTS} (organization_uuid, lower(name))`,
+    );
 
     await knex.schema.createTable(LINKS, (table) => {
         table
@@ -74,13 +90,13 @@ export async function up(knex: Knex): Promise<void> {
     });
 
     await knex.schema.createTable(MEMBERS, (table) => {
+        // Covered by the primary key, which leads with this column
         table
             .uuid('department_uuid')
             .notNullable()
             .references('department_uuid')
             .inTable(DEPARTMENTS)
-            .onDelete('CASCADE')
-            .index();
+            .onDelete('CASCADE');
         table
             .uuid('user_uuid')
             .notNullable()
@@ -92,13 +108,13 @@ export async function up(knex: Knex): Promise<void> {
     });
 
     await knex.schema.createTable(OWNERS, (table) => {
+        // Covered by the primary key, which leads with this column
         table
             .uuid('department_uuid')
             .notNullable()
             .references('department_uuid')
             .inTable(DEPARTMENTS)
-            .onDelete('CASCADE')
-            .index();
+            .onDelete('CASCADE');
         table.text('principal_type').notNullable().checkIn(PRINCIPAL_TYPES);
         // Polymorphic, so no FK; reads inner-join users or groups
         table.uuid('principal_uuid').notNullable();
