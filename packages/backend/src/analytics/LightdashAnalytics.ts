@@ -1774,6 +1774,22 @@ export type DocumentViewEvent = BaseTrack & {
     };
 };
 
+export type DocumentMovedEvent = BaseTrack & {
+    event: 'document.moved';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        /** Null when a personal Document was saved to a Space. */
+        sourceSpaceId: string | null;
+        targetSpaceId: string;
+        source: DocumentChangeSource;
+        aiPromptId?: string;
+        aiThreadId?: string;
+    };
+};
+
 export type DocumentRestoredEvent = BaseTrack & {
     event: 'document.restored';
     userId: string;
@@ -4740,6 +4756,7 @@ type TypedEvent =
     | DocumentUpdatedEvent
     | DocumentOwnerAssignedEvent
     | DocumentDeletedEvent
+    | DocumentMovedEvent
     | DocumentRestoredEvent
     | DocumentViewEvent
     | AiAgentSkillCreatedEvent

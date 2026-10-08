@@ -1051,6 +1051,97 @@ describe('DocumentService', () => {
         });
     });
 
+    describe('document.moved', () => {
+        const moveArgs = {
+            projectUuid,
+            itemUuid: documentUuid,
+            targetSpaceUuid: 'destination',
+        };
+        const moved = (properties: Record<string, unknown>) => ({
+            event: 'document.moved',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                documentId: documentUuid,
+                sourceSpaceId: spaceUuid,
+                targetSpaceId: 'destination',
+                ...properties,
+            },
+        });
+
+        test('records one event with the source and destination Spaces', async () => {
+            const { service, analytics } = setup();
+            await service.moveToSpace(
+                makeAccount(OrganizationMemberRole.ADMIN),
+                moveArgs,
+            );
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                moved({ source: 'api' }),
+            );
+        });
+
+        test('attributes an AI agent move to its prompt and thread', async () => {
+            const { service, analytics } = setup();
+            await service.moveToSpace(
+                makeAccount(OrganizationMemberRole.ADMIN),
+                moveArgs,
+                {
+                    change: {
+                        source: 'ai_agent',
+                        aiPromptUuid: 'prompt',
+                        aiThreadUuid: 'thread',
+                    },
+                },
+            );
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                moved({
+                    source: 'ai_agent',
+                    aiPromptId: 'prompt',
+                    aiThreadId: 'thread',
+                }),
+            );
+        });
+
+        test('leaves bulk moves to their caller', async () => {
+            const { service, analytics, documentModel } = setup();
+            await service.moveToSpace(
+                makeAccount(OrganizationMemberRole.ADMIN),
+                moveArgs,
+                { trackEvent: false },
+            );
+            expect(documentModel.moveToSpace).toHaveBeenCalledOnce();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('records nothing for a denied move', async () => {
+            const { service, analytics, spacePermissionService } = setup();
+            spacePermissionService.resolveAccessBatch.mockResolvedValue([
+                { context: makeContext([], false) },
+                { context: makeContext([], false) },
+            ]);
+            await expect(
+                service.moveToSpace(makeAccount(), moveArgs),
+            ).rejects.toThrow(ForbiddenError);
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('records an approved review move', async () => {
+            const { service, analytics } = setup();
+            await service.moveApprovedToSpace(
+                makeAccount(OrganizationMemberRole.ADMIN),
+                {
+                    projectUuid,
+                    documentUuid,
+                    targetSpaceUuid: 'destination',
+                },
+            );
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                moved({ source: 'api' }),
+            );
+        });
+    });
+
     test('move rejects a cross-project destination', async () => {
         const { service, documentModel, spacePermissionService } = setup();
         spacePermissionService.resolveAccessBatch.mockResolvedValue([

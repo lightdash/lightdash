@@ -2052,3 +2052,67 @@ describe('SpaceService - space share target validation', () => {
         });
     });
 });
+
+describe('Space cascade audit for Documents', () => {
+    const cascaded = [
+        { documentUuid: 'doc-1', projectUuid: 'project' },
+        { documentUuid: 'doc-2', projectUuid: 'project' },
+    ];
+    const setup = () => {
+        const user = createTestUser({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        }) as SessionUser;
+        user.organizationUuid = 'org';
+        const spaceModel = {
+            getChartUuidsInSpace: vi.fn().mockResolvedValue([]),
+            getDashboardUuidsInSpace: vi.fn().mockResolvedValue([]),
+            getChildSpaceUuids: vi.fn().mockResolvedValue([]),
+            softDelete: vi.fn().mockResolvedValue(cascaded),
+            restore: vi.fn().mockResolvedValue(cascaded),
+            getSpaceSummary: vi.fn().mockResolvedValue({
+                name: 'Space',
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                deletedBy: null,
+            }),
+        };
+        const service = new SpaceService({
+            analytics: analyticsMock,
+            spaceModel,
+        } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+        const logBypassEvent = vi.spyOn(
+            service as unknown as { logBypassEvent: () => void },
+            'logBypassEvent',
+        );
+        return { user, service, logBypassEvent };
+    };
+
+    it('logs one bypass event per Document deleted with the Space', async () => {
+        const { user, service, logBypassEvent } = setup();
+        await service.softDelete(user, 'space', { bypassPermissions: true });
+        cascaded.forEach(({ documentUuid }) =>
+            expect(logBypassEvent).toHaveBeenCalledWith(user, 'delete', {
+                type: 'Document',
+                metadata: { documentUuid, spaceUuid: 'space' },
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }),
+        );
+        // Plus the Space's own bypass event
+        expect(logBypassEvent).toHaveBeenCalledTimes(cascaded.length + 1);
+    });
+
+    it('logs one bypass event per Document restored with the Space', async () => {
+        const { user, service, logBypassEvent } = setup();
+        await service.restore(user, 'space', { bypassPermissions: true });
+        cascaded.forEach(({ documentUuid }) =>
+            expect(logBypassEvent).toHaveBeenCalledWith(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { documentUuid, spaceUuid: 'space' },
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }),
+        );
+    });
+});

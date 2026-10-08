@@ -3094,11 +3094,15 @@ export class PromoteService extends BaseService {
             );
         }
         if (upstream.spaceUuid !== spaceUuid) {
-            await documentService.moveToSpace(account, {
-                projectUuid: upstreamProjectUuid,
-                itemUuid: upstream.documentUuid,
-                targetSpaceUuid: spaceUuid,
-            });
+            await documentService.moveToSpace(
+                account,
+                {
+                    projectUuid: upstreamProjectUuid,
+                    itemUuid: upstream.documentUuid,
+                    targetSpaceUuid: spaceUuid,
+                },
+                { change },
+            );
         }
         return documentService.get(
             account,
