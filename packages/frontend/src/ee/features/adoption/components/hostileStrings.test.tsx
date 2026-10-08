@@ -3,7 +3,7 @@ import {
     type DepartmentDetail,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -36,7 +36,7 @@ const CHILD = hostile('Child');
 vi.mock('../../../../components/EChartsReactWrapper', () => ({
     default: () => null,
 }));
-const { mutation, hooks } = vi.hoisted(() => ({
+const { mutation, hooks, layout } = vi.hoisted(() => ({
     mutation: () => ({
         mutate: vi.fn(),
         mutateAsync: vi.fn(),
@@ -47,6 +47,8 @@ const { mutation, hooks } = vi.hoisted(() => ({
         membership: [] as DepartmentMembership[],
         detail: undefined as DepartmentDetail | undefined,
     },
+    // jsdom has no layout, so text is never measured as cut short unless a test says it is
+    layout: { isTruncated: false },
 }));
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useCreateDepartment: mutation,
@@ -72,6 +74,12 @@ vi.mock('../../../../hooks/useOrganizationUsers', () => ({
 }));
 vi.mock('../../../../hooks/useOrganizationGroups', () => ({
     useOrganizationGroups: () => ({ data: [] }),
+}));
+vi.mock('../../../../hooks/useIsTruncated', () => ({
+    useIsTruncated: () => ({
+        ref: { current: null },
+        isTruncated: layout.isTruncated,
+    }),
 }));
 
 const hostileDepartment = dept(NAME, null, 50, {
@@ -105,6 +113,7 @@ describe('typed strings render as text', () => {
     afterEach(() => {
         hooks.membership = [];
         hooks.detail = undefined;
+        layout.isTruncated = false;
     });
 
     it('in the list table', async () => {
@@ -239,26 +248,53 @@ describe('typed strings render as text', () => {
             drawn('text, title').forEach((node) =>
                 expect(node.children).toHaveLength(0),
             );
+        const hover = (departmentUuid: string) => {
+            const circle = container.querySelector(
+                `svg[role="img"] [data-department="${departmentUuid}"]`,
+            );
+            expect(circle).not.toBeNull();
+            if (circle) fireEvent.pointerOver(circle);
+        };
 
-        // The sub-department's label is drawn whole; both circles' hover titles start with their names
-        expect(drawnText('text')).toContain(`${CHILD} · 10`);
+        // Both circles' hover titles start with their names, and the sub-department's ends with the department
+        // a click opens
         expect(
             drawnText('title').some((title) => title.startsWith(`${NAME},`)),
         ).toBe(true);
         expect(
-            drawnText('title').some((title) => title.startsWith(`${CHILD},`)),
+            drawnText('title').some(
+                (title) =>
+                    title.startsWith(`${CHILD},`) && title.endsWith(NAME),
+            ),
         ).toBe(true);
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // Inside the department, labels cut short still draw the markup as text, and each person's dot is
-        // titled with the full name and labelled with the start of the first name
+        // Names this long find no room on the drawing at rest, so each circle's label is drawn whole while it is
+        // hovered
+        hover('child');
+        expect(drawnText('[data-label="child"]')).toEqual([`${CHILD} · 10`]);
+        expectSvgTextOnly();
+        hover('hostile');
+        expect(drawnText('[data-label="hostile"]')).toContain(NAME);
+        expectSvgTextOnly();
+        expectNothingInjected();
+
+        // Inside the department the sub-department's label is drawn whole, a label cut short still draws the
+        // markup as text while a title holds the whole name, and each person's dot is titled with the full name
+        // and labelled with the start of the first name
         await userEvent.click(
             screen.getByRole('button', {
                 name: (accessibleName) => accessibleName.startsWith(`${NAME},`),
             }),
         );
-        expect(drawnText('text').some((text) => text.includes('"><img'))).toBe(
+        expect(drawnText('[data-label="child"]')).toContain(CHILD);
+        expect(
+            drawnText('text').some(
+                (text) => text.endsWith('…') && text.includes('"><img'),
+            ),
+        ).toBe(true);
+        expect(drawnText('title').some((title) => title.includes(NAME))).toBe(
             true,
         );
         expect(drawnText('title')).toContain(`${PERSON} ${SURNAME}`);
@@ -277,6 +313,7 @@ describe('typed strings render as text', () => {
         const PAGE = '11111111-2222-4333-8444-555555555555';
         const PARENT_UUID = '22222222-3333-4444-8555-666666666666';
         const CHILD_UUID = '33333333-4444-4555-8666-777777777777';
+        layout.isTruncated = true;
         hooks.detail = {
             department: {
                 ...hostileDepartment,
@@ -347,16 +384,20 @@ describe('typed strings render as text', () => {
         expectLiteral(EMAIL);
         expectLiteral(`Group ${GROUP}`);
 
-        // The headcount's tooltip repeats the note
-        const headcount = screen.getByText('Headcount').parentElement;
-        expect(headcount).not.toBeNull();
-        if (headcount) await userEvent.hover(within(headcount).getByText('10'));
+        // The note beside the headcount is cut short, and its tooltip gives it whole
+        const note = screen.getByText(NOTE);
+        expect(screen.getByText('Headcount').parentElement).toContainElement(
+            note,
+        );
+        expect(note).toHaveAttribute('data-truncate', 'end');
+        await userEvent.hover(note);
         expect(await screen.findByRole('tooltip')).toHaveTextContent(NOTE);
         expectNothingInjected();
     });
 
-    it('in the placement modal rows and its department picker', async () => {
+    it('in the placement modal rows and its department pickers', async () => {
         const OTHER = hostile('Other');
+        const UNNAMED = hostile('Unnamed');
         hooks.membership = [
             {
                 userUuid: 'p1',
@@ -371,7 +412,7 @@ describe('typed strings render as text', () => {
             },
             {
                 userUuid: 'p2',
-                email: hostile('Unnamed'),
+                email: UNNAMED,
                 firstName: '',
                 lastName: '',
                 role: OrganizationMemberRole.VIEWER,
@@ -383,7 +424,10 @@ describe('typed strings render as text', () => {
                 opened
                 onClose={vi.fn()}
                 departments={[
-                    hostileDepartment,
+                    {
+                        ...hostileDepartment,
+                        linkedGroups: [{ groupUuid: 'group', name: GROUP }],
+                    },
                     dept(OTHER, null, 50, { departmentUuid: 'other' }),
                 ]}
             />,
@@ -391,22 +435,43 @@ describe('typed strings render as text', () => {
 
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectLiteral(EMAIL);
-        expectLiteral(`In ${NAME} and ${OTHER}`);
-        // Someone with no name is shown by their email
+        // A person in two departments is shown each of them, with the groups linked to it
+        const candidates = screen.getByText(
+            `${NAME} through ${GROUP}`,
+        ).parentElement;
         expect(
-            screen.getByRole('combobox', {
-                name: `Department for ${hostile('Unnamed')}`,
-            }),
+            Array.from(candidates?.children ?? [], (line) => line.textContent),
+        ).toEqual([`${NAME} through ${GROUP}`, OTHER]);
+        // Each row's checkbox and select are named for the person; someone with no name, by their email
+        expect(
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('combobox', { name: `Department for ${UNNAMED}` }),
+        ).toBeInTheDocument();
+        // Each picker opens its own list of the departments
+        const expectDepartmentOptions = async (picker: string) => {
+            await userEvent.click(
+                screen.getByRole('combobox', { name: picker }),
+            );
+            const options = within(
+                await screen.findByRole('listbox', { name: picker }),
+            );
+            expect(
+                options.getByRole('option', { name: NAME }),
+            ).toBeInTheDocument();
+            expect(
+                options.getByRole('option', { name: OTHER }),
+            ).toBeInTheDocument();
+            expectNothingInjected();
+        };
+        await expectDepartmentOptions(`Department for ${PERSON} ${SURNAME}`);
+        // The picker for everyone selected offers the same departments
         await userEvent.click(
-            screen.getByRole('combobox', {
-                name: `Department for ${PERSON} ${SURNAME}`,
+            screen.getByRole('checkbox', {
+                name: `Select ${PERSON} ${SURNAME}`,
             }),
         );
-        expect(
-            await screen.findByRole('option', { name: NAME }),
-        ).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: OTHER })).toBeInTheDocument();
-        expectNothingInjected();
+        await expectDepartmentOptions('Place selected in');
     });
 });
