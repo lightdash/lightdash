@@ -1,7 +1,7 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -351,17 +351,17 @@ describe('LearnPage access', () => {
             },
         ];
         renderPage();
-        await userEvent.click(screen.getByLabelText('Filter'));
-        await userEvent.click(
-            screen.getByRole('menuitem', { name: 'Start fresh' }),
-        );
-        expect(
-            screen.getByText(
-                'Your copy and everything you built in it will be removed.',
-            ),
-        ).toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Start fresh' }),
+        );
+        const warning = await screen.findByText(
+            'Your copy and everything you built in it will be removed.',
+        );
+        const dialog = warning.closest(
+            '[role="dialog"], [role="alertdialog"]',
+        ) as HTMLElement;
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Start fresh' }),
         );
         expect(startFresh).toHaveBeenCalledWith(
             { trainingProjectUuid: 'training-1' },
@@ -369,11 +369,10 @@ describe('LearnPage access', () => {
         );
     });
 
-    it('offers no Start fresh to a learner without a copy', async () => {
+    it('offers no Start fresh to a learner without a copy', () => {
         renderPage();
-        await userEvent.click(screen.getByLabelText('Filter'));
         expect(
-            screen.queryByRole('menuitem', { name: 'Start fresh' }),
+            screen.queryByRole('button', { name: 'Start fresh' }),
         ).not.toBeInTheDocument();
     });
 
