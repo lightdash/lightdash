@@ -5,9 +5,11 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     buildDepartmentUpdate,
+    cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
     formatTargetDate,
+    getAssignableUsers,
     getDepartmentPathLabel,
     getParentOptions,
     getResolvedMembers,
@@ -60,6 +62,36 @@ describe('toNullableNumber', () => {
         expect(toNullableNumber('')).toBeNull();
         expect(toNullableNumber(0)).toBe(0);
         expect(toNullableNumber('12')).toBe(12);
+    });
+});
+
+describe('getAssignableUsers', () => {
+    const user = (userUuid: string, isActive: boolean, isPending: boolean) => ({
+        userUuid,
+        isActive,
+        isPending,
+    });
+    it('offers people on Lightdash, plus anyone already chosen', () => {
+        const users = [
+            user('on', true, false),
+            user('deactivated', false, false),
+            user('invited', true, true),
+            user('chosen', false, false),
+        ];
+        expect(
+            getAssignableUsers(users, new Set(['chosen'])).map(
+                (u) => u.userUuid,
+            ),
+        ).toEqual(['on', 'chosen']);
+    });
+});
+
+describe('cleanHeadcountNote', () => {
+    it('puts the note on one line and maps an empty note to null', () => {
+        expect(cleanHeadcountNote(' Store managers\n\tand buyers ')).toBe(
+            'Store managers and buyers',
+        );
+        expect(cleanHeadcountNote(' \n ')).toBeNull();
     });
 });
 

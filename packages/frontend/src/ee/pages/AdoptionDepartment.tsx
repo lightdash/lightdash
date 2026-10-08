@@ -14,6 +14,7 @@ import {
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { validate as isUuid } from 'uuid';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
@@ -70,7 +71,14 @@ const getUnavailableCopy = (
 };
 
 const AdoptionDepartment: FC = () => {
-    const { departmentUuid } = useParams<{ departmentUuid: string }>();
+    const { departmentUuid: routeDepartmentUuid } = useParams<{
+        departmentUuid: string;
+    }>();
+    // Only a real uuid reaches the API; anything else is a department that does not exist
+    const departmentUuid =
+        routeDepartmentUuid !== undefined && isUuid(routeDepartmentUuid)
+            ? routeDepartmentUuid
+            : undefined;
     const { user } = useApp();
     const canManage =
         user.data?.ability.can(
@@ -81,12 +89,27 @@ const AdoptionDepartment: FC = () => {
         ) ?? false;
     const detail = useDepartmentDetail(departmentUuid);
     // The drawer's parent picker needs every department
-    const summary = useOrgAdoptionSummary(canManage);
+    const summary = useOrgAdoptionSummary(
+        canManage && departmentUuid !== undefined,
+    );
     const [isEditing, setIsEditing] = useState(false);
     // While a delete is in flight the refetch returns 404; keep the last page until we leave
     const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
 
+    if (departmentUuid === undefined) {
+        const { title, description } = getUnavailableCopy(404, undefined);
+        return (
+            <SettingsPage title="Department">
+                <SuboptimalState
+                    icon={IconAlertCircle}
+                    title={title}
+                    description={description}
+                    action={<BackToAdoption />}
+                />
+            </SettingsPage>
+        );
+    }
     if (detail.isInitialLoading) {
         return (
             <SettingsPage title="Department">

@@ -1,15 +1,22 @@
 import {
     QueryExecutionContext,
+    TimeoutError,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { isStatementTimeout } from '../database/errors';
 import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
 
 // One clock per request, so every read in it shares the same rolling bounds
-export type ActivityWindows = { activeSince: Date; trendSince: Date };
+export type ActivityWindows = {
+    activeSince: Date;
+    trendSince: Date;
+    // How far back a member's last activity is read
+    lastActiveSince: Date;
+};
 
 export type ActivitySnapshot = {
     activeUserUuids: string[]; // active since activeSince
@@ -33,6 +40,9 @@ type TopContentRow = {
 
 const AI_TABLES = ['ai_prompt', 'ai_thread', 'ai_agent'];
 
+// A runaway read is cancelled instead of holding a pooled connection
+const READ_TIMEOUT_MS = 15000;
+
 // Interactive contexts plus AI agent and MCP, since a person asking the agent or using MCP is adoption
 const COUNTED_CONTEXT_ORIGINS = ['interactive', 'agent', 'mcp'];
 
@@ -54,6 +64,11 @@ type Deps = { database: Knex };
 
 // The view tables have no organization column, so they are tied to it through the content viewed.
 // Queries are only kept for the instance's retention period, so they are read for the 30-day set alone.
+// The view tables are read by the organization's member set on their (user_uuid, timestamp)
+// index: the set comes from organization_memberships, so it is the tenancy boundary, and a
+// person's activity is theirs whatever content it was on. Joining views through chart, space
+// and project to the organization made the planner run one scan per chart and sort every
+// view to disk (measured at 5 s against 0.8 s on 2.5M views over 12 weeks).
 const activityUnion = (
     organizationUuid: string,
     userUuids: string[],
@@ -69,21 +84,12 @@ const activityUnion = (
         UNION ALL
         SELECT v.user_uuid, v.timestamp AS at, true AS is_view
         FROM analytics_chart_views v
-        JOIN saved_queries sq ON sq.saved_query_uuid = v.chart_uuid
-        JOIN projects p ON p.project_uuid = sq.project_uuid
-        JOIN organizations o ON o.organization_id = p.organization_id
-        WHERE o.organization_uuid = ?
-          AND v.user_uuid = ANY(?::uuid[])
+        WHERE v.user_uuid = ANY(?::uuid[])
           AND v.timestamp >= ?
         UNION ALL
         SELECT v.user_uuid, v.timestamp AS at, true AS is_view
         FROM analytics_dashboard_views v
-        JOIN dashboards d ON d.dashboard_uuid = v.dashboard_uuid
-        JOIN spaces s ON s.space_id = d.space_id
-        JOIN projects p ON p.project_id = s.project_id
-        JOIN organizations o ON o.organization_id = p.organization_id
-        WHERE o.organization_uuid = ?
-          AND v.user_uuid = ANY(?::uuid[])
+        WHERE v.user_uuid = ANY(?::uuid[])
           AND v.timestamp >= ?
     `,
     bindings: [
@@ -91,10 +97,8 @@ const activityUnion = (
         userUuids,
         COUNTED_QUERY_CONTEXTS,
         windows.activeSince,
-        organizationUuid,
         userUuids,
         windows.trendSince,
-        organizationUuid,
         userUuids,
         windows.trendSince,
     ],
@@ -109,6 +113,27 @@ export class DepartmentAnalyticsModel {
         this.database = database;
     }
 
+    // Each read runs in its own transaction, so SET LOCAL applies to that read alone
+    private async bounded<T>(
+        read: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(
+                    `SET LOCAL statement_timeout = ${READ_TIMEOUT_MS}`,
+                );
+                return read(trx);
+            });
+        } catch (e) {
+            if (isStatementTimeout(e)) {
+                throw new TimeoutError(
+                    'Adoption figures took too long to load. Try again in a minute',
+                );
+            }
+            throw e;
+        }
+    }
+
     // One scan answers both: weekly buckets from views only, the 30-day set from views and queries
     async getActivity(
         organizationUuid: string,
@@ -119,21 +144,23 @@ export class DepartmentAnalyticsModel {
             return { activeUserUuids: [], weeklyActivity: [] };
         }
         const union = activityUnion(organizationUuid, userUuids, windows);
-        const result = await this.database.raw<{
-            rows: {
-                user_uuid: string;
-                week_start: string | null; // null on rows that come from queries
-                is_active_30d: boolean;
-            }[];
-        }>(
-            `SELECT a.user_uuid,
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{
+                rows: {
+                    user_uuid: string;
+                    week_start: string | null; // null on rows that come from queries
+                    is_active_30d: boolean;
+                }[];
+            }>(
+                `SELECT a.user_uuid,
                     CASE WHEN a.is_view
                          THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
                     END AS week_start,
                     bool_or(a.at >= ?) AS is_active_30d
              FROM (${union.sql}) a
              GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
-            [windows.activeSince, ...union.bindings],
+                [windows.activeSince, ...union.bindings],
+            ),
         );
         return {
             activeUserUuids: Array.from(
@@ -162,23 +189,26 @@ export class DepartmentAnalyticsModel {
         return this.aiTablesExist;
     }
 
-    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count
+    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count.
+    // Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
     async getMemberActivity(
         organizationUuid: string,
         userUuids: string[],
         since: Date,
+        lastActiveSince: Date,
     ): Promise<MemberActivityRow[]> {
         if (userUuids.length === 0) return [];
-        const result = await this.database.raw<{
-            rows: {
-                user_uuid: string;
-                last_active_at: Date | null;
-                is_active_30d: boolean;
-                queries_30d: number;
-                dashboard_views_30d: number;
-            }[];
-        }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{
+                rows: {
+                    user_uuid: string;
+                    last_active_at: Date | null;
+                    is_active_30d: boolean;
+                    queries_30d: number;
+                    dashboard_views_30d: number;
+                }[];
+            }>(
+                `
             WITH q AS (
                 SELECT created_by_user_uuid AS user_uuid,
                        MAX(created_at) AS last_at,
@@ -187,6 +217,7 @@ export class DepartmentAnalyticsModel {
                 WHERE organization_uuid = ?
                   AND created_by_user_uuid = ANY(?::uuid[])
                   AND context = ANY(?::text[])
+                  AND created_at >= ?
                 GROUP BY created_by_user_uuid
             ),
             dv AS (
@@ -194,22 +225,15 @@ export class DepartmentAnalyticsModel {
                        MAX(v.timestamp) AS last_at,
                        COUNT(*) FILTER (WHERE v.timestamp >= ?) AS recent
                 FROM analytics_dashboard_views v
-                JOIN dashboards d ON d.dashboard_uuid = v.dashboard_uuid
-                JOIN spaces s ON s.space_id = d.space_id
-                JOIN projects p ON p.project_id = s.project_id
-                JOIN organizations o ON o.organization_id = p.organization_id
-                WHERE o.organization_uuid = ?
-                  AND v.user_uuid = ANY(?::uuid[])
+                WHERE v.user_uuid = ANY(?::uuid[])
+                  AND v.timestamp >= ?
                 GROUP BY v.user_uuid
             ),
             cv AS (
                 SELECT v.user_uuid, MAX(v.timestamp) AS last_at
                 FROM analytics_chart_views v
-                JOIN saved_queries sq ON sq.saved_query_uuid = v.chart_uuid
-                JOIN projects p ON p.project_uuid = sq.project_uuid
-                JOIN organizations o ON o.organization_id = p.organization_id
-                WHERE o.organization_uuid = ?
-                  AND v.user_uuid = ANY(?::uuid[])
+                WHERE v.user_uuid = ANY(?::uuid[])
+                  AND v.timestamp >= ?
                 GROUP BY v.user_uuid
             )
             SELECT u.user_uuid,
@@ -222,19 +246,21 @@ export class DepartmentAnalyticsModel {
             LEFT JOIN dv ON dv.user_uuid = u.user_uuid
             LEFT JOIN cv ON cv.user_uuid = u.user_uuid
             `,
-            [
-                since,
-                organizationUuid,
-                userUuids,
-                COUNTED_QUERY_CONTEXTS,
-                since,
-                organizationUuid,
-                userUuids,
-                organizationUuid,
-                userUuids,
-                since,
-                userUuids,
-            ],
+                [
+                    since,
+                    organizationUuid,
+                    userUuids,
+                    COUNTED_QUERY_CONTEXTS,
+                    lastActiveSince,
+                    since,
+                    userUuids,
+                    lastActiveSince,
+                    userUuids,
+                    lastActiveSince,
+                    since,
+                    userUuids,
+                ],
+            ),
         );
         return result.rows.map((r) => ({
             userUuid: r.user_uuid,
@@ -251,8 +277,9 @@ export class DepartmentAnalyticsModel {
         since: Date,
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT d.dashboard_uuid AS id,
                    d.name,
                    COUNT(*)::int AS count,
@@ -270,7 +297,8 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, d.name ASC
             LIMIT ?
             `,
-            [organizationUuid, userUuids, since, limit],
+                [organizationUuid, userUuids, since, limit],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }
@@ -281,8 +309,9 @@ export class DepartmentAnalyticsModel {
         since: Date,
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT concat(qh.project_uuid, ':', qh.metric_query->>'exploreName') AS id,
                    qh.metric_query->>'exploreName' AS name,
                    COUNT(*)::int AS count,
@@ -297,7 +326,14 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, name ASC
             LIMIT ?
             `,
-            [organizationUuid, userUuids, COUNTED_QUERY_CONTEXTS, since, limit],
+                [
+                    organizationUuid,
+                    userUuids,
+                    COUNTED_QUERY_CONTEXTS,
+                    since,
+                    limit,
+                ],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }
@@ -309,8 +345,9 @@ export class DepartmentAnalyticsModel {
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
         if (!(await this.hasAiTables())) return [];
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT a.ai_agent_uuid AS id,
                    a.name,
                    COUNT(*)::int AS count,
@@ -327,7 +364,8 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, a.name ASC
             LIMIT ?
             `,
-            [organizationUuid, organizationUuid, userUuids, since, limit],
+                [organizationUuid, organizationUuid, userUuids, since, limit],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }

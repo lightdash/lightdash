@@ -3,7 +3,8 @@ import {
     type Department,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import Logger from '../../../logging/logger';
 import {
     buildAdoptionSnapshot,
     computeAdoptionMetrics,
@@ -68,6 +69,33 @@ describe('lastNWeekStarts', () => {
 });
 
 describe('computeAdoptionMetrics', () => {
+    it('counts a role it does not know as a viewer and warns once, instead of failing', () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        // A role a later migration might add to organization_membership_roles
+        const unknownRole = 'auditor' as OrganizationMemberRole;
+        const metrics = () =>
+            computeAdoptionMetrics({
+                members: [
+                    member('a', unknownRole),
+                    member('b', unknownRole),
+                    member('c', OrganizationMemberRole.ADMIN),
+                ],
+                headcount: null,
+                activeUserUuids: new Set(),
+                weeksByUser: new Map(),
+                weekStarts,
+            });
+        expect(metrics().roleSplit).toEqual({
+            viewers: 2,
+            interactiveViewers: 0,
+            editors: 0,
+            admins: 1,
+        });
+        metrics();
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('"auditor"');
+        warn.mockRestore();
+    });
     it('computes coverage and active as percentages of headcount', () => {
         const m = computeAdoptionMetrics({
             members: [

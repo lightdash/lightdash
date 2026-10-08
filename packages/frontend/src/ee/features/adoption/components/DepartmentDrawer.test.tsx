@@ -42,6 +42,8 @@ const person = (userUuid: string, firstName: string) => ({
     firstName,
     lastName: 'Test',
     email: `${userUuid}@example.com`,
+    isActive: true,
+    isPending: false,
 });
 let users = [person('u1', 'Ann'), person('u2', 'Bob')];
 const groups = [
@@ -136,6 +138,34 @@ describe('DepartmentForm', () => {
         });
         await waitFor(() => expect(onClose).toHaveBeenCalled());
         expect(setOwners).not.toHaveBeenCalled();
+    });
+
+    it('sends the name as the server stores it and the note on one line', async () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                members={null}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^Name/),
+            '  Supply   chain ',
+        );
+        await userEvent.type(
+            screen.getByLabelText('Headcount note'),
+            'Store managers{enter}and buyers',
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Create department' }),
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'Supply chain',
+                headcountNote: 'Store managers and buyers',
+            }),
+        );
     });
 
     it('prefills an existing department, including the headcount note', () => {

@@ -1,13 +1,20 @@
 // packages/backend/src/models/DepartmentModel.ts
 import {
     AlreadyExistsError,
+    ConflictError,
+    getAncestorUuids,
+    getBranchHeight,
+    getParentMap,
     NotFoundError,
     ParameterError,
+    truncateForMessage,
+    wouldCreateCycle,
     type CreateDepartment,
     type Department,
     type DepartmentGroupLink,
     type DepartmentOwner,
     type DepartmentOwnerInput,
+    type DepartmentTreeNode,
     type OrganizationMemberRole,
     type ResolvedMemberRow,
     type UpdateDepartment,
@@ -24,10 +31,23 @@ import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { UserTableName } from '../database/entities/users';
+import { isLockTimeout } from '../database/errors';
 
 const UNIQUE_VIOLATION = '23505';
+// Transaction-scoped, so it is released on commit or rollback
+const ORGANIZATION_LOCK_SQL =
+    'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))';
+// Set before the lock is asked for, so a write queued behind others gives up instead of holding a connection
+const ORGANIZATION_LOCK_TIMEOUT_SQL = "SET LOCAL lock_timeout = '5s'";
 
 type Deps = { database: Knex };
+
+// Set by the service; checked inside the organization lock so concurrent writes cannot pass them
+export type DepartmentTreeLimits = {
+    maxDepartments: number;
+    // A top-level department is at depth 1
+    maxDepth: number;
+};
 
 type DepartmentRow = Omit<DbDepartment, 'target_date'> & {
     target_date: string | null;
@@ -61,9 +81,31 @@ const isUniqueViolation = (e: unknown): boolean =>
     'code' in e &&
     e.code === UNIQUE_VIOLATION;
 
+// On Lightdash: active and signed up (a password, a single sign-on identity or a verified primary
+// email), derived as the organization members list derives it. Needs users as u and the primary email as e
+const ON_LIGHTDASH_SQL = `u.is_active = true
+                  AND (
+                      e.is_verified = true
+                      OR EXISTS (SELECT 1 FROM password_logins pl WHERE pl.user_id = u.user_id)
+                      OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
+                  )`;
+
 const normalizeNote = (note: string | null): string | null => {
     const trimmed = note?.trim() ?? '';
     return trimmed.length > 0 ? trimmed : null;
+};
+
+// One pass over the rows; each department's rows keep the order they were read in
+const groupByDepartment = <T extends { department_uuid: string }>(
+    rows: T[],
+): Map<string, T[]> => {
+    const grouped = new Map<string, T[]>();
+    rows.forEach((row) => {
+        const list = grouped.get(row.department_uuid);
+        if (list) list.push(row);
+        else grouped.set(row.department_uuid, [row]);
+    });
+    return grouped;
 };
 
 export class DepartmentModel {
@@ -152,14 +194,19 @@ export class DepartmentModel {
                 ),
         ]);
 
+        const linksByDepartment = groupByDepartment(links);
+        const membersByDepartment = groupByDepartment(members);
+        const userOwnersByDepartment = groupByDepartment(userOwners);
+        const groupOwnersByDepartment = groupByDepartment(groupOwners);
+
         const ownersFor = (departmentUuid: string): DepartmentOwner[] =>
             [
-                ...userOwners
-                    .filter((o) => o.department_uuid === departmentUuid)
-                    .map((o) => ({ row: o, type: 'user' as const })),
-                ...groupOwners
-                    .filter((o) => o.department_uuid === departmentUuid)
-                    .map((o) => ({ row: o, type: 'group' as const })),
+                ...(userOwnersByDepartment.get(departmentUuid) ?? []).map(
+                    (o) => ({ row: o, type: 'user' as const }),
+                ),
+                ...(groupOwnersByDepartment.get(departmentUuid) ?? []).map(
+                    (o) => ({ row: o, type: 'group' as const }),
+                ),
             ]
                 .sort((a, b) => a.row.position - b.row.position)
                 .map(({ row, type }) => ({
@@ -177,12 +224,12 @@ export class DepartmentModel {
             targetActiveUsers: row.target_active_users,
             targetDate: row.target_date,
             owners: ownersFor(row.department_uuid),
-            linkedGroups: links
-                .filter((l) => l.department_uuid === row.department_uuid)
-                .map((l) => ({ groupUuid: l.group_uuid, name: l.name })),
-            explicitMemberUuids: members
-                .filter((m) => m.department_uuid === row.department_uuid)
-                .map((m) => m.user_uuid),
+            linkedGroups: (
+                linksByDepartment.get(row.department_uuid) ?? []
+            ).map((l) => ({ groupUuid: l.group_uuid, name: l.name })),
+            explicitMemberUuids: (
+                membersByDepartment.get(row.department_uuid) ?? []
+            ).map((m) => m.user_uuid),
         }));
     }
 
@@ -203,50 +250,72 @@ export class DepartmentModel {
         return department;
     }
 
-    private async assertParentInOrg(
+    // Every department write in an organization takes this lock first, so the checks and the write
+    // of one cannot interleave with another's (two moves storing a cycle, for example)
+    private async inOrganizationLock<T>(
         organizationUuid: string,
+        write: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(ORGANIZATION_LOCK_TIMEOUT_SQL);
+                await trx.raw(ORGANIZATION_LOCK_SQL, [
+                    `organization-departments:${organizationUuid}`,
+                ]);
+                return write(trx);
+            });
+        } catch (e) {
+            if (isLockTimeout(e)) {
+                throw new ConflictError(
+                    'Another change to departments is being saved. Try again in a moment',
+                );
+            }
+            throw e;
+        }
+    }
+
+    private static async getTree(
+        organizationUuid: string,
+        db: Knex,
+    ): Promise<DepartmentTreeNode[]> {
+        const rows = await db(DepartmentTableName)
+            .where('organization_uuid', organizationUuid)
+            .select<
+                {
+                    department_uuid: string;
+                    parent_department_uuid: string | null;
+                }[]
+            >('department_uuid', 'parent_department_uuid');
+        return rows.map((row) => ({
+            departmentUuid: row.department_uuid,
+            parentDepartmentUuid: row.parent_department_uuid,
+        }));
+    }
+
+    private static assertParentInTree(
+        tree: DepartmentTreeNode[],
         parentDepartmentUuid: string,
-    ): Promise<void> {
-        const [row] = await this.database(DepartmentTableName)
-            .where({
-                organization_uuid: organizationUuid,
-                department_uuid: parentDepartmentUuid,
-            })
-            .select('department_uuid');
-        if (!row) {
+    ): void {
+        if (!tree.some((n) => n.departmentUuid === parentDepartmentUuid)) {
             throw new ParameterError(
                 `Department ${parentDepartmentUuid} is not in this organization`,
             );
         }
     }
 
-    // Walks up from the new parent; reaching the moved department means a cycle
-    private async assertNoCycle(
-        organizationUuid: string,
-        departmentUuid: string,
-        newParentUuid: string,
-    ): Promise<void> {
-        const result = await this.database.raw<{
-            rows: { department_uuid: string }[];
-        }>(
-            `
-            WITH RECURSIVE ancestors AS (
-                SELECT department_uuid, parent_department_uuid
-                FROM organization_departments
-                WHERE department_uuid = ? AND organization_uuid = ?
-                UNION
-                SELECT d.department_uuid, d.parent_department_uuid
-                FROM organization_departments d
-                JOIN ancestors a ON d.department_uuid = a.parent_department_uuid
-                WHERE d.organization_uuid = ?
-            )
-            SELECT department_uuid FROM ancestors WHERE department_uuid = ? LIMIT 1
-            `,
-            [newParentUuid, organizationUuid, organizationUuid, departmentUuid],
-        );
-        if (result.rows.length > 0) {
+    // A branch of the given height placed under the parent must stay within the depth limit
+    private static assertDepthUnderParent(
+        tree: DepartmentTreeNode[],
+        parentDepartmentUuid: string,
+        branchHeight: number,
+        limits: DepartmentTreeLimits,
+    ): void {
+        const parentDepth =
+            getAncestorUuids(parentDepartmentUuid, getParentMap(tree)).length +
+            1;
+        if (parentDepth + branchHeight > limits.maxDepth) {
             throw new ParameterError(
-                'A department cannot sit under itself or one of its sub-departments',
+                `Departments can be nested at most ${limits.maxDepth} levels deep`,
             );
         }
     }
@@ -255,38 +324,57 @@ export class DepartmentModel {
         organizationUuid: string,
         data: CreateDepartment,
         updatedByUserUuid: string,
+        limits: DepartmentTreeLimits,
     ): Promise<Department> {
-        if (data.parentDepartmentUuid !== null) {
-            await this.assertParentInOrg(
-                organizationUuid,
-                data.parentDepartmentUuid,
-            );
-        }
-        try {
-            const [created] = await this.database(DepartmentTableName)
-                .insert({
-                    organization_uuid: organizationUuid,
-                    parent_department_uuid: data.parentDepartmentUuid,
-                    name: data.name.trim(),
-                    headcount: data.headcount,
-                    headcount_note: normalizeNote(data.headcountNote),
-                    target_active_users: data.targetActiveUsers,
-                    target_date: data.targetDate,
-                    updated_by_user_uuid: updatedByUserUuid,
-                })
-                .returning('department_uuid');
-            return await this.getByUuid(
-                organizationUuid,
-                created.department_uuid,
-            );
-        } catch (e) {
-            if (isUniqueViolation(e)) {
-                throw new AlreadyExistsError(
-                    `A department named "${data.name.trim()}" already exists`,
+        const departmentUuid = await this.inOrganizationLock(
+            organizationUuid,
+            async (trx) => {
+                const tree = await DepartmentModel.getTree(
+                    organizationUuid,
+                    trx,
                 );
-            }
-            throw e;
-        }
+                if (tree.length >= limits.maxDepartments) {
+                    throw new ParameterError(
+                        `An organization can have at most ${limits.maxDepartments.toLocaleString('en-US')} departments`,
+                    );
+                }
+                if (data.parentDepartmentUuid !== null) {
+                    DepartmentModel.assertParentInTree(
+                        tree,
+                        data.parentDepartmentUuid,
+                    );
+                    DepartmentModel.assertDepthUnderParent(
+                        tree,
+                        data.parentDepartmentUuid,
+                        1,
+                        limits,
+                    );
+                }
+                try {
+                    const [created] = await trx(DepartmentTableName)
+                        .insert({
+                            organization_uuid: organizationUuid,
+                            parent_department_uuid: data.parentDepartmentUuid,
+                            name: data.name.trim(),
+                            headcount: data.headcount,
+                            headcount_note: normalizeNote(data.headcountNote),
+                            target_active_users: data.targetActiveUsers,
+                            target_date: data.targetDate,
+                            updated_by_user_uuid: updatedByUserUuid,
+                        })
+                        .returning('department_uuid');
+                    return created.department_uuid;
+                } catch (e) {
+                    if (isUniqueViolation(e)) {
+                        throw new AlreadyExistsError(
+                            `A department named "${truncateForMessage(data.name.trim())}" already exists`,
+                        );
+                    }
+                    throw e;
+                }
+            },
+        );
+        return this.getByUuid(organizationUuid, departmentUuid);
     }
 
     async update(
@@ -294,49 +382,71 @@ export class DepartmentModel {
         departmentUuid: string,
         data: UpdateDepartment,
         updatedByUserUuid: string,
+        limits: DepartmentTreeLimits,
     ): Promise<Department> {
-        await this.getRow(organizationUuid, departmentUuid);
         const parent = data.parentDepartmentUuid;
-        if (parent !== undefined && parent !== null) {
-            await this.assertParentInOrg(organizationUuid, parent);
-            await this.assertNoCycle(organizationUuid, departmentUuid, parent);
-        }
-        try {
-            await this.database(DepartmentTableName)
-                .where({
-                    organization_uuid: organizationUuid,
-                    department_uuid: departmentUuid,
-                })
-                .update({
-                    ...(data.name !== undefined
-                        ? { name: data.name.trim() }
-                        : {}),
-                    ...(parent !== undefined
-                        ? { parent_department_uuid: parent }
-                        : {}),
-                    ...(data.headcount !== undefined
-                        ? { headcount: data.headcount }
-                        : {}),
-                    ...(data.headcountNote !== undefined
-                        ? { headcount_note: normalizeNote(data.headcountNote) }
-                        : {}),
-                    ...(data.targetActiveUsers !== undefined
-                        ? { target_active_users: data.targetActiveUsers }
-                        : {}),
-                    ...(data.targetDate !== undefined
-                        ? { target_date: data.targetDate }
-                        : {}),
-                    updated_by_user_uuid: updatedByUserUuid,
-                    updated_at: new Date(),
-                });
-        } catch (e) {
-            if (isUniqueViolation(e)) {
-                throw new AlreadyExistsError(
-                    `A department named "${data.name?.trim() ?? ''}" already exists`,
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await this.getRow(organizationUuid, departmentUuid, trx);
+            if (parent !== undefined && parent !== null) {
+                const tree = await DepartmentModel.getTree(
+                    organizationUuid,
+                    trx,
+                );
+                DepartmentModel.assertParentInTree(tree, parent);
+                if (wouldCreateCycle(tree, departmentUuid, parent)) {
+                    throw new ParameterError(
+                        'A department cannot sit under itself or one of its sub-departments',
+                    );
+                }
+                // The department moves with its whole branch, so the branch's deepest level counts
+                DepartmentModel.assertDepthUnderParent(
+                    tree,
+                    parent,
+                    getBranchHeight(departmentUuid, tree),
+                    limits,
                 );
             }
-            throw e;
-        }
+            try {
+                await trx(DepartmentTableName)
+                    .where({
+                        organization_uuid: organizationUuid,
+                        department_uuid: departmentUuid,
+                    })
+                    .update({
+                        ...(data.name !== undefined
+                            ? { name: data.name.trim() }
+                            : {}),
+                        ...(parent !== undefined
+                            ? { parent_department_uuid: parent }
+                            : {}),
+                        ...(data.headcount !== undefined
+                            ? { headcount: data.headcount }
+                            : {}),
+                        ...(data.headcountNote !== undefined
+                            ? {
+                                  headcount_note: normalizeNote(
+                                      data.headcountNote,
+                                  ),
+                              }
+                            : {}),
+                        ...(data.targetActiveUsers !== undefined
+                            ? { target_active_users: data.targetActiveUsers }
+                            : {}),
+                        ...(data.targetDate !== undefined
+                            ? { target_date: data.targetDate }
+                            : {}),
+                        updated_by_user_uuid: updatedByUserUuid,
+                        updated_at: new Date(),
+                    });
+            } catch (e) {
+                if (isUniqueViolation(e)) {
+                    throw new AlreadyExistsError(
+                        `A department named "${truncateForMessage(data.name?.trim() ?? '')}" already exists`,
+                    );
+                }
+                throw e;
+            }
+        });
         return this.getByUuid(organizationUuid, departmentUuid);
     }
 
@@ -344,7 +454,7 @@ export class DepartmentModel {
         organizationUuid: string,
         departmentUuid: string,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
             const row = await this.getRow(
                 organizationUuid,
                 departmentUuid,
@@ -366,12 +476,13 @@ export class DepartmentModel {
         });
     }
 
-    private async assertGroupsInOrg(
+    private static async assertGroupsInOrg(
         organizationUuid: string,
         groupUuids: string[],
+        db: Knex,
     ): Promise<void> {
         if (groupUuids.length === 0) return;
-        const found = await this.database(GroupTableName)
+        const found = await db(GroupTableName)
             .innerJoin(
                 OrganizationTableName,
                 `${GroupTableName}.organization_id`,
@@ -392,12 +503,13 @@ export class DepartmentModel {
         }
     }
 
-    private async assertUsersInOrg(
+    private static async assertUsersInOrg(
         organizationUuid: string,
         userUuids: string[],
+        db: Knex,
     ): Promise<void> {
         if (userUuids.length === 0) return;
-        const found = await this.database(OrganizationMembershipsTableName)
+        const found = await db(OrganizationMembershipsTableName)
             .innerJoin(
                 UserTableName,
                 `${OrganizationMembershipsTableName}.user_id`,
@@ -424,15 +536,47 @@ export class DepartmentModel {
         }
     }
 
+    // Someone newly assigned or made an owner must be on Lightdash. People already in the list stay,
+    // so a list holding someone since deactivated can still be saved
+    private static async assertNewcomersOnLightdash(
+        userUuids: string[],
+        alreadyListed: Set<string>,
+        db: Knex,
+    ): Promise<void> {
+        const newcomers = userUuids.filter((u) => !alreadyListed.has(u));
+        if (newcomers.length === 0) return;
+        const result = await db.raw<{ rows: { user_uuid: string }[] }>(
+            `
+            SELECT u.user_uuid
+            FROM users u
+            JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
+            WHERE u.user_uuid = ANY(?::uuid[])
+              AND ${ON_LIGHTDASH_SQL}
+            `,
+            [newcomers],
+        );
+        const found = new Set(result.rows.map((r) => r.user_uuid));
+        const inactive = newcomers.find((u) => !found.has(u));
+        if (inactive) {
+            throw new ParameterError(
+                `User ${inactive} must be an active member of this organization`,
+            );
+        }
+    }
+
     async setGroupLinks(
         organizationUuid: string,
         departmentUuid: string,
         groupUuids: string[],
     ): Promise<Department> {
         const unique = Array.from(new Set(groupUuids));
-        await this.assertGroupsInOrg(organizationUuid, unique);
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertGroupsInOrg(
+                organizationUuid,
+                unique,
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
             // A group maps to one department, so take it from any other
             await trx(DepartmentLinkTableName)
                 .where('link_type', 'group')
@@ -460,9 +604,21 @@ export class DepartmentModel {
         userUuids: string[],
     ): Promise<Department> {
         const unique = Array.from(new Set(userUuids));
-        await this.assertUsersInOrg(organizationUuid, unique);
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertUsersInOrg(
+                organizationUuid,
+                unique,
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
+            const listed = await trx(DepartmentMemberTableName)
+                .where('department_uuid', departmentUuid)
+                .select<{ user_uuid: string }[]>('user_uuid');
+            await DepartmentModel.assertNewcomersOnLightdash(
+                unique,
+                new Set(listed.map((m) => m.user_uuid)),
+                trx,
+            );
             // One explicit assignment per user per org
             const orgDepartments = trx(DepartmentTableName)
                 .select('department_uuid')
@@ -498,16 +654,32 @@ export class DepartmentModel {
             seen.add(key);
             return true;
         });
-        await this.assertUsersInOrg(
-            organizationUuid,
-            unique.filter((o) => o.type === 'user').map((o) => o.uuid),
-        );
-        await this.assertGroupsInOrg(
-            organizationUuid,
-            unique.filter((o) => o.type === 'group').map((o) => o.uuid),
-        );
-        await this.getRow(organizationUuid, departmentUuid);
-        await this.database.transaction(async (trx) => {
+        const userOwners = unique
+            .filter((o) => o.type === 'user')
+            .map((o) => o.uuid);
+        await this.inOrganizationLock(organizationUuid, async (trx) => {
+            await DepartmentModel.assertUsersInOrg(
+                organizationUuid,
+                userOwners,
+                trx,
+            );
+            await DepartmentModel.assertGroupsInOrg(
+                organizationUuid,
+                unique.filter((o) => o.type === 'group').map((o) => o.uuid),
+                trx,
+            );
+            await this.getRow(organizationUuid, departmentUuid, trx);
+            const listed = await trx(DepartmentOwnerTableName)
+                .where({
+                    department_uuid: departmentUuid,
+                    principal_type: 'user',
+                })
+                .select<{ principal_uuid: string }[]>('principal_uuid');
+            await DepartmentModel.assertNewcomersOnLightdash(
+                userOwners,
+                new Set(listed.map((o) => o.principal_uuid)),
+                trx,
+            );
             await trx(DepartmentOwnerTableName)
                 .where('department_uuid', departmentUuid)
                 .delete();
@@ -552,12 +724,7 @@ export class DepartmentModel {
                 JOIN users u ON u.user_id = om.user_id
                 JOIN emails e ON e.user_id = u.user_id AND e.is_primary = true
                 WHERE u.is_internal = false
-                  AND u.is_active = true
-                  AND (
-                      e.is_verified = true
-                      OR EXISTS (SELECT 1 FROM password_logins pl WHERE pl.user_id = u.user_id)
-                      OR EXISTS (SELECT 1 FROM openid_identities oi WHERE oi.user_id = u.user_id)
-                  )
+                  AND ${ON_LIGHTDASH_SQL}
             ),
             explicit AS (
                 SELECT dm.user_uuid, MIN(dm.department_uuid::text) AS department_uuid
