@@ -277,6 +277,58 @@ describe('DepartmentModel', () => {
         );
     });
 
+    describe('a name that differs only by case', () => {
+        // What Postgres raises when the unique index on (organization_uuid, lower(name)) is violated
+        const caseOnlyDuplicate = Object.assign(
+            new Error('duplicate key value violates unique constraint'),
+            {
+                code: '23505',
+                constraint:
+                    'organization_departments_organization_uuid_lower_name_unique',
+            },
+        );
+
+        it('is rejected on create with AlreadyExistsError', async () => {
+            tracker.on
+                .insert(DepartmentTableName)
+                .simulateError(caseOnlyDuplicate);
+            await expect(
+                model.create(
+                    'org',
+                    {
+                        name: 'operations',
+                        parentDepartmentUuid: null,
+                        headcount: null,
+                        headcountNote: null,
+                        targetActiveUsers: null,
+                        targetDate: null,
+                    },
+                    'user',
+                ),
+            ).rejects.toThrow(
+                new AlreadyExistsError(
+                    'A department named "operations" already exists',
+                ),
+            );
+        });
+
+        it('is rejected on rename with AlreadyExistsError', async () => {
+            tracker.on
+                .select(SELECT_DEPARTMENTS)
+                .response([departmentRow({ name: 'Finance' })]);
+            tracker.on
+                .update(DepartmentTableName)
+                .simulateError(caseOnlyDuplicate);
+            await expect(
+                model.update('org', 'dep', { name: 'OPERATIONS' }, 'user'),
+            ).rejects.toThrow(
+                new AlreadyExistsError(
+                    'A department named "OPERATIONS" already exists',
+                ),
+            );
+        });
+    });
+
     it('replaces group links, taking each group from any other department', async () => {
         tracker.on
             .select(/^select .* from "groups"/)

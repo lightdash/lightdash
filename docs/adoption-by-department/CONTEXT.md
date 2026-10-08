@@ -7,7 +7,7 @@ How an organization's use of Lightdash is broken down by the parts of the busine
 ### Structure
 
 **Department**:
-A named part of the organization, such as Finance or North region, unique by name within the organization. May sit under one parent department.
+A named part of the organization, such as Finance or North region, unique by name within the organization whatever the case. May sit under one parent department.
 _Avoid_: team, business unit, org unit, division, group (a group is a Lightdash user group)
 
 **Sub-department**:
