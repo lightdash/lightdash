@@ -1,3 +1,16 @@
+# [2.487.0](https://github.com/lightdash/lightdash/compare/2.486.1...2.487.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **learn:** scroll a walkthrough's control away from the page's edge before placing the card (CS-379) ([#30724](https://github.com/lightdash/lightdash/issues/30724)) ([4026893](https://github.com/lightdash/lightdash/commit/4026893715fc4dbb2ca6fa1e98d86f629b7472d2))
+
+
+### Features
+
+* **ai:** show a Connect agent button in Slack when agent sign-in is needed ([#30714](https://github.com/lightdash/lightdash/issues/30714)) ([39eb5c2](https://github.com/lightdash/lightdash/commit/39eb5c27fb01ad9121dd3e57b8c7550559e1496f))
+* **learn:** bring back the Recently deleted walkthrough through project settings (CS-311) ([#30708](https://github.com/lightdash/lightdash/issues/30708)) ([8d8a13e](https://github.com/lightdash/lightdash/commit/8d8a13edf8fdb6abcb2dbbc368d62b8dde5c799e))
+
 ## [2.486.1](https://github.com/lightdash/lightdash/compare/2.486.0...2.486.1) (2026-10-08)
 
 
