@@ -54,8 +54,15 @@ import {
 } from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
 import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
-import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
-import { type WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
+import {
+    connectionContextFromUser,
+    WarehouseCredentialKind,
+} from '../../../services/WarehouseClientFactory/ConnectionContext';
+import {
+    type ScopedWarehouseConnection,
+    type WarehouseClientFactory,
+    type WarehouseConnectionLease,
+} from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { getAdminDatabase } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -555,22 +562,32 @@ describe('Multi-connection compile on the real schema', () => {
     describe('entry points', () => {
         type PrimaryBuild = {
             adapter: DbtManifestProjectAdapter;
-            sshTunnel: { disconnect: () => Promise<void> };
+            connection: ScopedWarehouseConnection;
+            lease: WarehouseConnectionLease;
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: {
                 warehouseCatalog: unknown;
                 onWarehouseCatalogChange: (catalog: never) => Promise<void>;
             };
             dbtVersionOption: SupportedDbtVersions;
+            dbtPartialParse: boolean;
         };
         type CompileInternals = {
-            buildAdapter: (projectUuid: string) => Promise<PrimaryBuild>;
+            withCompileAdapter: <T>(
+                projectUuid: string,
+                user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                fn: (primary: PrimaryBuild) => Promise<T>,
+                manifestFetchAdapters: DbtManifestProjectAdapter[],
+            ) => Promise<T>;
             testProjectAdapter: () => Promise<PrimaryBuild>;
             buildSourceAdapter: (
                 dbtConnection: DbtProjectConfig,
                 warehouseLocation: unknown,
                 organizationUuid: string | undefined,
-                shared: { warehouseCredentials: CreateWarehouseCredentials },
+                shared: {
+                    warehouseCredentials: CreateWarehouseCredentials;
+                    connection: ScopedWarehouseConnection;
+                },
             ) => Promise<unknown>;
             resolveCompileAdapter: () => Promise<unknown>;
             multiConnectionCompiler: MultiConnectionCompiler;
@@ -591,6 +608,18 @@ describe('Multi-connection compile on the real schema', () => {
             dbtProjectDir: string | undefined,
         ): Promise<PrimaryBuild> => {
             const warehouseCredentials = postgresWarehouse(ORIGINAL_DB);
+            const connection: ScopedWarehouseConnection = {
+                warehouseClient:
+                    warehouseClientFromCredentials(warehouseCredentials),
+                warehouseCredentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                credentialKind: WarehouseCredentialKind.COMPILE,
+                tunnelConnectMs: null,
+                deriveClient: (credentials) =>
+                    warehouseClientFromCredentials(credentials),
+            };
             const cachedWarehouse = {
                 warehouseCatalog:
                     await projectModel.getWarehouseFromCache(projectUuid),
@@ -604,16 +633,17 @@ describe('Multi-connection compile on the real schema', () => {
             return {
                 adapter: new DbtManifestProjectAdapter({
                     parsedManifest: dbtManifest('primary', primaryModels),
-                    warehouseClient:
-                        warehouseClientFromCredentials(warehouseCredentials),
+                    warehouseClient: connection.warehouseClient,
                     cachedWarehouse: cachedWarehouse as never,
                     dbtVersion: SupportedDbtVersions.V1_8,
                     dbtProjectDir,
                 }),
-                sshTunnel: { disconnect: async () => {} },
+                connection,
+                lease: { ...connection, release: async () => {} },
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption: SupportedDbtVersions.V1_8,
+                dbtPartialParse: false,
             };
         };
 
@@ -670,8 +700,18 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             } as never);
             const internals = service as unknown as CompileInternals;
-            vi.spyOn(internals, 'buildAdapter').mockImplementation(() =>
-                primaryBuild(projectUuid, options.dbtProjectDir),
+            vi.spyOn(internals, 'withCompileAdapter').mockImplementation(
+                async (_projectUuid, _user, fn) => {
+                    const primary = await primaryBuild(
+                        projectUuid,
+                        options.dbtProjectDir,
+                    );
+                    try {
+                        return await fn(primary);
+                    } finally {
+                        await primary.adapter.destroy();
+                    }
+                },
             );
             vi.spyOn(internals, 'testProjectAdapter').mockImplementation(() =>
                 primaryBuild(projectUuid, options.dbtProjectDir),
@@ -1140,13 +1180,17 @@ describe('Multi-connection compile on the real schema', () => {
                 setTag.mockClear();
 
                 await run(multi.projectUuid);
-                const multiTags = setTag.mock.calls.filter(([key]) =>
-                    key.startsWith('warehouse.'),
+                const multiTags = setTag.mock.calls.filter(
+                    ([key]) =>
+                        key === 'warehouse.route' ||
+                        key === 'warehouse.binding_kind',
                 );
                 setTag.mockClear();
                 await run(single.projectUuid);
-                const singleTags = setTag.mock.calls.filter(([key]) =>
-                    key.startsWith('warehouse.'),
+                const singleTags = setTag.mock.calls.filter(
+                    ([key]) =>
+                        key === 'warehouse.route' ||
+                        key === 'warehouse.binding_kind',
                 );
 
                 expect(multiTags).toEqual([
