@@ -24,6 +24,12 @@ describe('isZoomGesture', () => {
             isZoomGesture(event('touchstart', { touches: { length: 2 } })),
         ).toBe(true);
     });
+    it('moves a zoomed map with one finger', () => {
+        const swipe = event('touchstart', { touches: { length: 1 } });
+        expect(isZoomGesture(swipe, 1)).toBe(false);
+        expect(isZoomGesture(swipe, 1.6)).toBe(true);
+        expect(isZoomGesture(event('wheel'), 3)).toBe(false);
+    });
     it('drags with the main mouse button only', () => {
         expect(isZoomGesture(event('mousedown', { button: 0 }))).toBe(true);
         expect(isZoomGesture(event('mousedown', { button: 2 }))).toBe(false);

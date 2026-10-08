@@ -554,14 +554,15 @@ describe('AdoptionMap', () => {
             );
         });
 
+        const openWithKeyboard = async (name: RegExp) => {
+            screen.getByRole('button', { name }).focus();
+            await userEvent.keyboard('{Enter}');
+        };
+
         it('goes up one level on Escape and keeps focus on the map', async () => {
             renderMap(seededOrganization());
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Operations,/ }),
-            );
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Stores,/ }),
-            );
+            await openWithKeyboard(/^Operations,/);
+            await openWithKeyboard(/^Stores,/);
             expect(document.activeElement).toHaveTextContent('Stores');
             await userEvent.keyboard('{Escape}');
             expect(
@@ -579,6 +580,90 @@ describe('AdoptionMap', () => {
                 screen.getByRole('heading', { name: 'All departments' }),
             ).toBeInTheDocument();
         });
+
+        it('leaves focus where it was when a department is opened with the pointer', async () => {
+            const { container } = renderMap(seededOrganization());
+            const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
+            // A card under the map: moving focus to the breadcrumb would scroll the page up
+            await userEvent.click(
+                screen.getByText('Supply chain: 0 of 80 active'),
+            );
+            expect(
+                screen.getByRole('heading', { name: 'Supply chain' }),
+            ).toBeInTheDocument();
+            expect(document.activeElement).not.toHaveAttribute('aria-current');
+            const circle = container.querySelector(
+                '[data-department="Procurement"]',
+            );
+            if (circle) fireEvent.click(circle);
+            expect(document.activeElement).not.toHaveAttribute('aria-current');
+            expect(
+                focusSpy.mock.contexts.some(
+                    (element) =>
+                        element instanceof HTMLElement &&
+                        element.hasAttribute('aria-current'),
+                ),
+            ).toBe(false);
+            focusSpy.mockRestore();
+        });
+
+        it("leaves Escape alone on controls that are not the map's way-finding", async () => {
+            renderMap(seededOrganization());
+            await openWithKeyboard(/^Operations,/);
+            screen.getByRole('radio', { name: 'Role' }).focus();
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toBeInTheDocument();
+            screen.getByRole('button', { name: 'Zoom in' }).focus();
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toBeInTheDocument();
+            // From a department control it goes up
+            screen.getByRole('button', { name: /^Stores,/ }).focus();
+            await userEvent.keyboard('{Escape}');
+            expect(
+                screen.getByRole('heading', { name: 'All departments' }),
+            ).toBeInTheDocument();
+        });
+    });
+
+    it('names what a click will open when hovering a sub-department at the top level', () => {
+        const { container } = renderMap(seededOrganization());
+        const title = (uuid: string) =>
+            container.querySelector(`[data-department="${uuid}"] title`)
+                ?.textContent;
+        expect(title('Stores')).toBe(
+            'Stores, 22 people, nobody on Lightdash yet. Select to open Operations',
+        );
+        expect(title('Operations')).toMatch(
+            /^Operations, 1 of 40 on Lightdash/,
+        );
+        expect(title('Operations')).not.toMatch(/Select to open/);
+        // Everything inside a top-level department shares one hover group
+        const group = container.querySelector(
+            '[data-department="Stores"]',
+        )?.parentElement;
+        expect(group).toHaveAttribute('data-opens', 'Operations');
+        expect(
+            group?.querySelector('[data-department="Operations"]'),
+        ).not.toBeNull();
+        expect(group?.querySelector('[data-department="Finance"]')).toBeNull();
+    });
+
+    it("draws a small department's people as dots large enough to read", async () => {
+        const { container } = renderMap(seededOrganization());
+        await userEvent.click(screen.getByRole('button', { name: /^Data,/ }));
+        const dots = [
+            ...container.querySelectorAll('svg[role="img"] [data-dot]'),
+        ];
+        expect(dots).toHaveLength(9);
+        const diameters = dots.map((dot) => Number(dot.getAttribute('r')) * 2);
+        // The eight without an account are smaller than the one with, and none is a speck
+        expect(Math.max(...diameters)).toBeGreaterThanOrEqual(16);
+        expect(Math.min(...diameters)).toBeGreaterThanOrEqual(12);
+        expect(Math.min(...diameters)).toBeLessThan(Math.max(...diameters));
     });
 
     it('leaves a plain wheel to the page and zooms with Ctrl held', () => {

@@ -2,9 +2,14 @@
     display: block;
     overflow: hidden;
     cursor: grab;
-    /* One finger scrolls the page; two fingers move and zoom the map */
+    /* At the reset view one finger scrolls the page; two fingers zoom the map */
     touch-action: pan-y;
     user-select: none;
+}
+
+/* Once zoomed in, one finger moves the map instead */
+.svg[data-zoomed] {
+    touch-action: none;
 }
 
 .svg:active {
@@ -38,8 +43,9 @@
     );
 }
 
-.circle[data-opens]:hover {
-    stroke: var(--mantine-color-ldGray-5);
+/* Hovering any part of a top-level department marks the circle a click will open */
+.group[data-opens]:hover > .circle:not([data-nested]) {
+    stroke: var(--mantine-color-ldGray-6);
 }
 
 /* Sized by the people on Lightdash because no headcount is set */

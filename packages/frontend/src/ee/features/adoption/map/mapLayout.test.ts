@@ -15,7 +15,8 @@ import {
     estimateTextWidth,
     fitToArea,
     getCaptionVariants,
-    getDrillTargets,
+    getControlsBox,
+    getTopLevelGroups,
     getLabelLines,
     layoutMap,
     placeLabels,
@@ -213,18 +214,42 @@ describe('fitToArea', () => {
     });
 });
 
-describe('getDrillTargets', () => {
-    it('opens the top-level department from anywhere inside its circle', () => {
-        const targets = getDrillTargets(build(seededOrganization()).circles);
-        expect(targets.get('Operations')).toBe('Operations');
-        expect(targets.get('Stores')).toBe('Operations');
-        expect(targets.get('own:Operations')).toBe('Operations');
-        expect(targets.get('Logistics')).toBe('Supply chain');
-        expect(targets.get('Finance')).toBe('Finance');
+describe('getTopLevelGroups', () => {
+    it('groups everything inside a top-level circle under the department a click opens', () => {
+        const groups = getTopLevelGroups(build(seededOrganization()).circles);
+        const operations = groups.find(
+            (group) => group.anchor.id === 'Operations',
+        );
+        expect(operations?.opens).toBe('Operations');
+        expect(operations?.circles[0].id).toBe('Operations');
+        expect(operations?.circles.map((circle) => circle.id).sort()).toEqual([
+            'Depots',
+            'North',
+            'Operations',
+            'Stores',
+            'own:Operations',
+        ]);
+        expect(
+            groups.find((group) => group.anchor.id === 'Finance')?.circles,
+        ).toHaveLength(1);
+        expect(
+            groups
+                .map((group) => group.opens ?? '')
+                .sort((x, y) => x.localeCompare(y)),
+        ).toEqual([
+            'Data',
+            'Finance',
+            'Marketing',
+            'Operations',
+            'Product',
+            'Supply chain',
+        ]);
     });
     it('opens nothing from the lone circle of a department without sub-departments', () => {
         const { circles } = build(seededOrganization(), PANEL, 'Finance');
-        expect([...getDrillTargets(circles).values()]).toEqual([null]);
+        expect(getTopLevelGroups(circles).map((group) => group.opens)).toEqual([
+            null,
+        ]);
     });
 });
 
@@ -323,6 +348,76 @@ describe('placeLabels on the seeded organization', () => {
         expect(find('Procurement')?.name).toBe('Procurement · 30');
         expect(find('Logistics')?.name).toBe('Logistics · 50');
         labels.forEach((label) => expect(label.name).not.toContain('…'));
+    });
+    it.each([
+        [760, 560],
+        [1100, 560],
+    ])(
+        'keeps labels off the zoom buttons and inside a %ix%i panel',
+        (width, height) => {
+            const area = { width, height };
+            const fitted = build(seededOrganization(), area);
+            const controls = getControlsBox(area);
+            expect(controls).toEqual({
+                x: 0,
+                y: height - 46,
+                width: 172,
+                height: 46,
+            });
+            expect(fitted.labels.length).toBeGreaterThanOrEqual(10);
+            fitted.labels.forEach((label) => {
+                expect(boxesIntersect(label.box, controls)).toBe(false);
+                expect(label.box.x).toBeGreaterThanOrEqual(6);
+                expect(label.box.y).toBeGreaterThanOrEqual(6);
+                expect(label.box.x + label.box.width).toBeLessThanOrEqual(
+                    width - 6,
+                );
+                expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+                    height - 6,
+                );
+            });
+            topLevel.forEach((id) => {
+                const label = fitted.labels.find((each) => each.id === id);
+                expect(label?.name).toBe(id);
+                expect(label?.detail).not.toBeNull();
+            });
+            expectCleanLabels(fitted.circles, fitted.labels, area);
+        },
+    );
+    it('keeps labels off the zoom buttons however the departments are ordered', () => {
+        // The order changes where each circle lands, so some arrangement puts one in every corner
+        const seededTree = seededOrganization();
+        const tops = seededTree.filter(
+            (each) => each.parentDepartmentUuid === null,
+        );
+        const rest = seededTree.filter(
+            (each) => each.parentDepartmentUuid !== null,
+        );
+        const orders = tops.flatMap((_, shift) => {
+            const rotated = [...tops.slice(shift), ...tops.slice(0, shift)];
+            return [rotated, [...rotated].reverse()];
+        });
+        const nearControls = orders.filter((order) => {
+            const fitted = build([...order, ...rest]);
+            const controls = getControlsBox(PANEL);
+            fitted.labels.forEach((label) => {
+                expect(boxesIntersect(label.box, controls)).toBe(false);
+            });
+            expectCleanLabels(fitted.circles, fitted.labels, PANEL);
+            topLevel.forEach((id) => {
+                const label = fitted.labels.find((each) => each.id === id);
+                expect(label?.name).toBe(id);
+                expect(label?.detail).not.toBeNull();
+            });
+            // A circle whose usual label spot, right underneath it, is where the buttons are
+            return fitted.circles.some(
+                (circle) =>
+                    circle.depth === 1 &&
+                    circle.x < controls.width + 60 &&
+                    circle.y + circle.r > controls.y - 40,
+            );
+        });
+        expect(nearControls.length).toBeGreaterThan(0);
     });
     it('leaves the people directly in a department unlabelled', () => {
         expect(circles.some((circle) => circle.id === 'own:Operations')).toBe(

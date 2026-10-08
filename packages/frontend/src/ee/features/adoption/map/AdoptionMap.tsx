@@ -194,24 +194,36 @@ export const AdoptionMap: FC<Props> = ({
         [visibleDepartments, focus, summary.attention],
     );
 
+    // Whether the last thing the person did in the map was a key press or a pointer press
+    const lastInputRef = useRef<'keyboard' | 'pointer'>('pointer');
+    const shouldMoveFocusRef = useRef(false);
     const focusOn = useCallback((departmentUuid: string | null) => {
+        shouldMoveFocusRef.current = lastInputRef.current === 'keyboard';
         setFocusUuid(departmentUuid);
         setSelectedUserUuid(null);
         setHighlightedUuid(null);
     }, []);
 
-    // The control that was pressed is gone after a change of level, so keyboard focus
-    // moves to the breadcrumb's current item instead of falling back to the page
+    // The control that was pressed is gone after a change of level, so keyboard focus moves to the
+    // breadcrumb's current item. A pointer press leaves focus, and the page's scroll position, alone.
     const currentCrumbRef = useRef<HTMLParagraphElement | null>(null);
     const lastFocusedUuid = useRef(focusedUuid);
     useEffect(() => {
         if (lastFocusedUuid.current === focusedUuid) return;
         lastFocusedUuid.current = focusedUuid;
+        if (!shouldMoveFocusRef.current) return;
+        shouldMoveFocusRef.current = false;
         currentCrumbRef.current?.focus();
     }, [focusedUuid]);
 
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        lastInputRef.current = 'keyboard';
         if (event.key !== 'Escape' || focus === null) return;
+        // Escape belongs to the map's own way-finding controls; elsewhere it keeps its usual meaning
+        const isOnMapControl =
+            event.target instanceof Element &&
+            event.target.closest('[data-map-navigation]') !== null;
+        if (event.defaultPrevented || !isOnMapControl) return;
         event.stopPropagation();
         // Up one level: the last ancestor in the trail, or the whole organization
         focusOn(trail[trail.length - 2]?.departmentUuid ?? null);
@@ -223,9 +235,18 @@ export const AdoptionMap: FC<Props> = ({
     const namedDots = showNames ? dots.filter((dot) => dot.member) : [];
 
     return (
-        <Stack gap="md" onKeyDown={handleKeyDown}>
+        <Stack
+            gap="md"
+            onKeyDown={handleKeyDown}
+            onPointerDownCapture={() => {
+                lastInputRef.current = 'pointer';
+            }}
+        >
             <Group justify="space-between" align="center" gap="sm">
-                <Breadcrumbs aria-label="Position on the map">
+                <Breadcrumbs
+                    aria-label="Position on the map"
+                    data-map-navigation
+                >
                     {focus === null ? (
                         <Text
                             ref={currentCrumbRef}
@@ -330,7 +351,7 @@ export const AdoptionMap: FC<Props> = ({
                         )}
                     </Box>
                     {/* The drawing is one image to assistive tech, so its controls are real buttons here */}
-                    <VisuallyHidden component="div">
+                    <VisuallyHidden component="div" data-map-navigation>
                         <ul aria-label="Departments on the map">
                             {departmentCircles.map((circle) => (
                                 <li key={circle.id}>

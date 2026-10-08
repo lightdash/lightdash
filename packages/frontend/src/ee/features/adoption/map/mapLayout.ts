@@ -49,6 +49,8 @@ const LINE_PX: Record<TextRole, number> = { name: 16, detail: 14, nested: 14 };
 const LABEL_GAP_PX = 4;
 const SIDE_GAP_PX = 7;
 const CLEARANCE_PX = 2;
+// Labels keep this far from the panel's edge
+const PANEL_INSET_PX = 6;
 const NESTED_MIN_RADIUS_PX = 12;
 
 const isInside = (inner: PackedCircle, outer: PackedCircle): boolean =>
@@ -70,21 +72,40 @@ const getTopLevelAnchors = (
     );
 };
 
-// Selecting anywhere inside a top-level circle opens that department, one level at a time
-export const getDrillTargets = (
-    circles: PackedCircle[],
-): Map<string, string | null> => {
-    const anchors = getTopLevelAnchors(circles);
-    return new Map(
-        circles.map((circle) => {
-            const anchor = anchors.get(circle.id) ?? circle;
-            return [
-                circle.id,
-                anchor.kind === 'department' ? anchor.departmentUuid : null,
-            ];
-        }),
-    );
+export type TopLevelGroup = {
+    anchor: PackedCircle;
+    // The department a click anywhere inside the top-level circle opens, one level at a time
+    opens: string | null;
+    // The top-level circle first, then everything inside it
+    circles: PackedCircle[];
 };
+
+export const getTopLevelGroups = (circles: PackedCircle[]): TopLevelGroup[] => {
+    const anchors = getTopLevelAnchors(circles);
+    return circles
+        .filter((circle) => circle.depth === 1)
+        .map((anchor) => ({
+            anchor,
+            opens: anchor.kind === 'department' ? anchor.departmentUuid : null,
+            circles: [
+                anchor,
+                ...circles.filter(
+                    (circle) =>
+                        circle.depth > 1 &&
+                        anchors.get(circle.id)?.id === anchor.id,
+                ),
+            ],
+        }));
+};
+
+// The zoom buttons sit over the bottom-left corner of the panel; nothing is labelled under them
+const CONTROLS_SIZE = { width: 172, height: 46 };
+export const getControlsBox = (area: Area): Box => ({
+    x: 0,
+    y: area.height - CONTROLS_SIZE.height,
+    width: CONTROLS_SIZE.width,
+    height: CONTROLS_SIZE.height,
+});
 
 type Extent = { minX: number; maxX: number; minY: number; maxY: number };
 
@@ -361,16 +382,19 @@ export const placeLabels = (
 ): CircleLabel[] => {
     const placed: CircleLabel[] = [];
     const isInArea = (box: Box): boolean =>
-        box.x >= 0 &&
-        box.y >= 0 &&
-        box.x + box.width <= area.width * zoom &&
-        box.y + box.height <= area.height * zoom;
+        box.x >= PANEL_INSET_PX &&
+        box.y >= PANEL_INSET_PX &&
+        box.x + box.width <= area.width * zoom - PANEL_INSET_PX &&
+        box.y + box.height <= area.height * zoom - PANEL_INSET_PX;
+    // The buttons stay put while a zoomed map moves under them, so they only count at the reset view
+    const reserved = zoom === 1 ? [getControlsBox(area)] : [];
     const isFree = (
         circle: PackedCircle,
         box: Box,
         ownId: string | null,
     ): boolean =>
         isInArea(box) &&
+        !reserved.some((taken) => boxesOverlap(taken, box)) &&
         !placed.some(
             (label) => label.id !== ownId && boxesOverlap(label.box, box),
         ) &&

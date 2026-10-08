@@ -143,7 +143,8 @@ describe('sunflowerPositions', () => {
 describe('getDotRadius', () => {
     it('shrinks as a circle gets more crowded and stays within bounds', () => {
         expect(getDotRadius(10, 100)).toBeGreaterThan(getDotRadius(1000, 100));
-        expect(getDotRadius(1, 400)).toBeLessThanOrEqual(5);
+        expect(getDotRadius(1, 400)).toBeLessThanOrEqual(11);
+        expect(getDotRadius(150, 400)).toBeLessThanOrEqual(5);
         expect(getDotRadius(100000, 10)).toBeGreaterThanOrEqual(0.75);
         expect(getDotRadius(0, 10)).toBe(0);
     });
@@ -517,5 +518,70 @@ describe('minimum radius inside the layout', () => {
         ['Big', 'Core'].forEach((id) =>
             expect(byId.get(id)?.isAreaHonest).toBe(true),
         );
+    });
+});
+
+describe('dot size for the people in view', () => {
+    const CIRCLE = 250;
+    const closestPair = (positions: { x: number; y: number }[]): number =>
+        positions.reduce(
+            (closest, a, index) =>
+                positions
+                    .slice(index + 1)
+                    .reduce(
+                        (best, b) =>
+                            Math.min(best, Math.hypot(a.x - b.x, a.y - b.y)),
+                        closest,
+                    ),
+            Number.POSITIVE_INFINITY,
+        );
+
+    it.each([1, 9, 20])(
+        'draws %i people as dots 16 to 24 pixels across',
+        (count) => {
+            const { dotRadius } = layoutDots(count, CIRCLE);
+            expect(dotRadius * 2).toBeGreaterThanOrEqual(16);
+            expect(dotRadius * 2).toBeLessThanOrEqual(24);
+        },
+    );
+    it('shrinks smoothly from 20 people to 150 and beyond', () => {
+        const radii = [20, 21, 50, 100, 150, 3000].map(
+            (count) => layoutDots(count, CIRCLE).dotRadius,
+        );
+        radii.slice(1).forEach((radius, index) => {
+            expect(radius).toBeLessThanOrEqual(radii[index]);
+        });
+        // One more person never changes the size by a visible step
+        expect(radii[0] - radii[1]).toBeLessThan(0.1);
+        expect(layoutDots(150, CIRCLE).dotRadius).toBeCloseTo(5, 6);
+        expect(layoutDots(3000, CIRCLE).dotRadius).toBeCloseTo(
+            (248 / Math.sqrt(3000)) * 0.6,
+            6,
+        );
+    });
+    it.each([1, 9, 20, 150, 3000])(
+        'keeps %i dots apart and inside the circle',
+        (count) => {
+            const { dotRadius, positions } = layoutDots(count, CIRCLE);
+            expect(positions).toHaveLength(count);
+            positions.forEach((position) => {
+                expect(
+                    Math.hypot(position.x, position.y) + dotRadius,
+                ).toBeLessThanOrEqual(CIRCLE);
+            });
+            if (count > 1) {
+                expect(closestPair(positions)).toBeGreaterThanOrEqual(
+                    dotRadius * 2,
+                );
+            }
+        },
+    );
+    it('is the same every time', () => {
+        expect(layoutDots(9, CIRCLE)).toEqual(layoutDots(9, CIRCLE));
+    });
+    it('still fits a single person inside the smallest circle', () => {
+        const { dotRadius } = layoutDots(1, MIN_CIRCLE_RADIUS);
+        expect(dotRadius).toBeLessThanOrEqual(MIN_CIRCLE_RADIUS / 2);
+        expect(dotRadius).toBeGreaterThan(3);
     });
 });

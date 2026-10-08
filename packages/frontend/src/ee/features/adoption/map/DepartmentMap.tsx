@@ -23,7 +23,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import styles from './DepartmentMap.module.css';
 import { truncateLabel, type PackedCircle } from './geometry';
 import {
-    getDrillTargets,
+    getTopLevelGroups,
     getLabelLines,
     placeLabels,
     TEXT_FONTS,
@@ -41,7 +41,7 @@ const ZOOM_STEP = 1.6;
 const CLICK_SLOP_PX = 5;
 const PERSON_FONT_PX = 10;
 const HALO_PX = 3.5;
-const NO_ACCOUNT_SCALE = 0.72;
+const NO_ACCOUNT_SCALE = 0.78;
 // Fed to the shared truncation rule: about ten characters
 const FIRST_NAME_RADIUS = 36;
 
@@ -87,36 +87,54 @@ const CirclesLayer = memo<{
     info: Map<string, CircleInfo>;
     highlightedUuid: string | null;
 }>(({ circles, info, highlightedUuid }) => {
-    const targets = useMemo(() => getDrillTargets(circles), [circles]);
+    const groups = useMemo(() => getTopLevelGroups(circles), [circles]);
+    // One group per top-level department, so hovering any part of it marks what a click opens
     return (
         <>
-            {circles.map((circle) => (
-                <circle
-                    key={circle.id}
-                    className={styles.circle}
-                    data-kind={circle.kind}
-                    data-department={
-                        circle.kind === 'department'
-                            ? (circle.departmentUuid ?? undefined)
-                            : undefined
-                    }
-                    data-opens={targets.get(circle.id) ?? undefined}
-                    data-nested={circle.depth > 1 || undefined}
-                    data-empty={!circle.hasMembers || undefined}
-                    data-no-headcount={!circle.hasHeadcount || undefined}
-                    data-highlighted={
-                        (circle.kind === 'department' &&
-                            circle.departmentUuid === highlightedUuid) ||
-                        undefined
-                    }
-                    cx={circle.x}
-                    cy={circle.y}
-                    r={circle.r}
+            {groups.map(({ anchor, opens, circles: members }) => (
+                <g
+                    key={anchor.id}
+                    className={styles.group}
+                    data-opens={opens ?? undefined}
                 >
-                    <title>
-                        {info.get(circle.id)?.description ?? circle.name}
-                    </title>
-                </circle>
+                    {members.map((circle) => {
+                        const description =
+                            info.get(circle.id)?.description ?? circle.name;
+                        return (
+                            <circle
+                                key={circle.id}
+                                className={styles.circle}
+                                data-kind={circle.kind}
+                                data-department={
+                                    circle.kind === 'department'
+                                        ? (circle.departmentUuid ?? undefined)
+                                        : undefined
+                                }
+                                data-opens={opens ?? undefined}
+                                data-nested={circle.depth > 1 || undefined}
+                                data-empty={!circle.hasMembers || undefined}
+                                data-no-headcount={
+                                    !circle.hasHeadcount || undefined
+                                }
+                                data-highlighted={
+                                    (circle.kind === 'department' &&
+                                        circle.departmentUuid ===
+                                            highlightedUuid) ||
+                                    undefined
+                                }
+                                cx={circle.x}
+                                cy={circle.y}
+                                r={circle.r}
+                            >
+                                <title>
+                                    {circle.id === anchor.id || opens === null
+                                        ? description
+                                        : `${description}. Select to open ${anchor.name}`}
+                                </title>
+                            </circle>
+                        );
+                    })}
+                </g>
             ))}
         </>
     );
@@ -230,6 +248,8 @@ export const DepartmentMap: FC<Props> = ({
     const svgRef = useRef<SVGSVGElement | null>(null);
     const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
     const pressRef = useRef<{ x: number; y: number } | null>(null);
+    // Read by the gesture filter, which runs outside React
+    const scaleRef = useRef(1);
     const [view, setView] = useState<View>({
         transform: zoomIdentity,
         isAnimated: false,
@@ -249,14 +269,17 @@ export const DepartmentMap: FC<Props> = ({
             ])
             .scaleExtent([1, MAX_ZOOM])
             .clickDistance(CLICK_SLOP_PX)
-            .filter(isZoomGesture)
-            .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) =>
+            .filter((event: Parameters<typeof isZoomGesture>[0]) =>
+                isZoomGesture(event, scaleRef.current),
+            )
+            .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
+                scaleRef.current = event.transform.k;
                 setView({
                     transform: event.transform,
                     // Buttons and resets carry no pointer event
                     isAnimated: !event.sourceEvent,
-                }),
-            );
+                });
+            });
         zoomRef.current = behaviour;
         const target = selectZoomTarget(svg);
         behaviour(target);
@@ -326,6 +349,7 @@ export const DepartmentMap: FC<Props> = ({
                 height={height}
                 role="img"
                 aria-label={ariaLabel}
+                data-zoomed={k > 1 || undefined}
                 onPointerDown={handlePointerDown}
             >
                 <g

@@ -20,6 +20,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
 const LAPSED_DAYS = 84;
 const LABEL_PX_PER_CHAR = 3.6;
+const ROOMY_DOT_RADIUS = 11;
+const DENSE_DOT_RADIUS = 5;
+const ROOMY_COUNT = 20;
+const DENSE_COUNT = 150;
 
 export type ColourBy = 'active' | 'role' | 'lastActive';
 
@@ -146,10 +150,22 @@ export const sunflowerPositions = (
         };
     });
 
+// A handful of people get dots big enough to read as people; the cap eases down as the count grows
+const getDotRadiusCap = (count: number): number => {
+    const roominess = Math.min(
+        Math.max((DENSE_COUNT - count) / (DENSE_COUNT - ROOMY_COUNT), 0),
+        1,
+    );
+    return DENSE_DOT_RADIUS + (ROOMY_DOT_RADIUS - DENSE_DOT_RADIUS) * roominess;
+};
+
 export const getDotRadius = (count: number, radius: number): number =>
     count <= 0
         ? 0
-        : Math.min(Math.max((radius / Math.sqrt(count)) * 0.6, 0.75), 5);
+        : Math.min(
+              Math.max((radius / Math.sqrt(count)) * 0.6, 0.75),
+              getDotRadiusCap(count),
+          );
 
 // Dots plus their own radius sit inside the circle, with a margin at the edge
 export const layoutDots = (
