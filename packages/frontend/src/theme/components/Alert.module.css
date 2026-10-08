@@ -14,6 +14,9 @@
 .body {
     min-height: rem(28px);
     justify-content: center;
+    /* The title row is 28px to meet the chip, so a small gap keeps the
+       message close to the title text. */
+    gap: rem(4px);
 }
 
 .title {
