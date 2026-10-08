@@ -1,3 +1,10 @@
+# [2.474.0](https://github.com/lightdash/lightdash/compare/2.473.1...2.474.0) (2026-10-08)
+
+
+### Features
+
+* add current-population people adoption analytics ([#30388](https://github.com/lightdash/lightdash/issues/30388)) ([e9d83e5](https://github.com/lightdash/lightdash/commit/e9d83e57441a1669e8c4ee4603a46a5c2454e243))
+
 ## [2.473.1](https://github.com/lightdash/lightdash/compare/2.473.0...2.473.1) (2026-10-08)
 
 
