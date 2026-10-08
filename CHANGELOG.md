@@ -1,3 +1,15 @@
+# [2.494.0](https://github.com/lightdash/lightdash/compare/2.493.0...2.494.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **dashboards:** remove the temporary filter from its invalid pill ([#30745](https://github.com/lightdash/lightdash/issues/30745)) ([69c5654](https://github.com/lightdash/lightdash/commit/69c5654ca9aeefbc7c7d3b473f360a047285aef1))
+
+
+### Features
+
+* **ai:** render runSql approval inline like composer queries ([#30727](https://github.com/lightdash/lightdash/issues/30727)) ([e2885da](https://github.com/lightdash/lightdash/commit/e2885da4fadb941a1f2b4989cf65df4c00e770a5))
+
 # [2.493.0](https://github.com/lightdash/lightdash/compare/2.492.0...2.493.0) (2026-10-08)
 
 
