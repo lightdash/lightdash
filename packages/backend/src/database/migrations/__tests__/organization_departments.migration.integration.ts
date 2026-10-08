@@ -624,26 +624,31 @@ describe('two organizations on the real schema', () => {
         ).toEqual({ name: 'Shared name' });
     });
 
-    test("count only activity on each organization's own content", async () => {
+    test("attribute a person's activity to them and list only the organization's own content", async () => {
         const mine = await createOrganization('Activity mine');
         const theirs = await createOrganization('Activity theirs');
         const me = await createPerson(mine, 'Me');
         const them = await createPerson(theirs, 'Them');
         const now = new Date();
         const daysAgo = (days: number) => new Date(now.getTime() - days * DAY);
-        // My only activity is on their content, and theirs is on their own
-        await addDashboardView(theirs.dashboardUuid, me, daysAgo(1));
+        // My only activity is a view of their dashboard and a query in their organization;
+        // theirs is on their own content
+        const myView = daysAgo(1);
+        await addDashboardView(theirs.dashboardUuid, me, myView);
         await addDashboardView(theirs.dashboardUuid, them, daysAgo(1));
         await addQuery(theirs, me, QueryExecutionContext.EXPLORE, daysAgo(1));
         const windows = windowsAt(now);
 
-        expect(
-            await analytics.getActivity(
-                mine.organizationUuid,
-                [me.userUuid],
-                windows,
-            ),
-        ).toEqual({ activeUserUuids: [], weeklyActivity: [] });
+        // Views are read by the organization's member set, so the view counts for me and
+        // nothing of theirs appears; the query carries their organization and does not count
+        const activity = await analytics.getActivity(
+            mine.organizationUuid,
+            [me.userUuid],
+            windows,
+        );
+        expect(activity.activeUserUuids).toEqual([me.userUuid]);
+        expect(activity.weeklyActivity).toHaveLength(1);
+        expect(activity.weeklyActivity[0]?.userUuid).toBe(me.userUuid);
         expect(
             await analytics.getMemberActivity(
                 mine.organizationUuid,
@@ -654,10 +659,10 @@ describe('two organizations on the real schema', () => {
         ).toEqual([
             {
                 userUuid: me.userUuid,
-                lastActiveAt: null,
-                isActive30d: false,
+                lastActiveAt: myView,
+                isActive30d: true,
                 queries30d: 0,
-                dashboardViews30d: 0,
+                dashboardViews30d: 1,
             },
         ]);
         expect(

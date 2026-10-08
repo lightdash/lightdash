@@ -100,21 +100,23 @@ describe('DepartmentAnalyticsModel', () => {
         tracker.on.any(/query_history/).responseOnce({ rows: [] });
         await model.getActivity('org', ['u1', 'u2'], windows);
         const [query] = reads();
-        expect(query.bindings.filter((b) => b === 'org')).toHaveLength(3);
+        // query_history binds the organization; the view tables bind the organization's
+        // member set, which is the tenancy boundary, on their (user_uuid, timestamp) index
+        expect(query.bindings.filter((b) => b === 'org')).toHaveLength(1);
         expect(
             query.bindings.filter(
                 (b) => Array.isArray(b) && b[0] === 'u1' && b[1] === 'u2',
             ),
         ).toHaveLength(3);
         expect(query.sql).toMatch(/qh\.organization_uuid = \$\d+/);
-        // Chart views reach the organization through the chart's project
         expect(query.sql).toMatch(
-            /FROM analytics_chart_views v\s+JOIN saved_queries sq ON sq\.saved_query_uuid = v\.chart_uuid\s+JOIN projects p ON p\.project_uuid = sq\.project_uuid\s+JOIN organizations o ON o\.organization_id = p\.organization_id\s+WHERE o\.organization_uuid = \$\d+/,
+            /FROM analytics_chart_views v\s+WHERE v\.user_uuid = ANY\(\$\d+::uuid\[\]\)\s+AND v\.timestamp >= \$\d+/,
         );
-        // Dashboard views reach it through the dashboard's space and project
         expect(query.sql).toMatch(
-            /FROM analytics_dashboard_views v\s+JOIN dashboards d ON d\.dashboard_uuid = v\.dashboard_uuid\s+JOIN spaces s ON s\.space_id = d\.space_id\s+JOIN projects p ON p\.project_id = s\.project_id\s+JOIN organizations o ON o\.organization_id = p\.organization_id\s+WHERE o\.organization_uuid = \$\d+/,
+            /FROM analytics_dashboard_views v\s+WHERE v\.user_uuid = ANY\(\$\d+::uuid\[\]\)\s+AND v\.timestamp >= \$\d+/,
         );
+        // No content join: it made the planner scan once per chart and sort every view to disk
+        expect(query.sql).not.toContain('JOIN');
     });
 
     it('returns no member activity for an empty user set without querying', async () => {
@@ -183,12 +185,19 @@ describe('DepartmentAnalyticsModel', () => {
             lastActiveSince,
         );
         const [query] = reads();
-        const orgBindings = query.bindings.filter((b) => b === 'org');
-        // query_history, dashboard views and chart views each bind the organization
-        expect(orgBindings).toHaveLength(3);
-        expect(query.sql).toMatch(/o\.organization_uuid = \$\d/);
+        // query_history binds the organization; both view tables bind the member set
+        expect(query.bindings.filter((b) => b === 'org')).toHaveLength(1);
+        expect(
+            query.bindings.filter((b) => Array.isArray(b) && b[0] === 'u1'),
+        ).toHaveLength(4);
         expect(query.sql).toMatch(/WHERE organization_uuid = \$\d/);
-        expect(query.sql).toContain('JOIN organizations o');
+        expect(query.sql).toMatch(
+            /FROM analytics_dashboard_views v\s+WHERE v\.user_uuid = ANY\(\$\d+::uuid\[\]\)/,
+        );
+        expect(query.sql).toMatch(
+            /FROM analytics_chart_views v\s+WHERE v\.user_uuid = ANY\(\$\d+::uuid\[\]\)/,
+        );
+        expect(query.sql).not.toContain('JOIN organizations o');
     });
 
     it('reads every source of member activity back to the 90-day bound only', async () => {
