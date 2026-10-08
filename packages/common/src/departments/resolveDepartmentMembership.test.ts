@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+    type DepartmentMembership,
+    type MembershipKind,
     type MembershipPlacement,
     type ResolvedMemberRow,
 } from '../types/departments';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
-import { rollUpByDepartment } from './departmentTree';
+import {
+    getAncestorUuids,
+    getParentMap,
+    rollUpByDepartment,
+    type DepartmentTreeNode,
+} from './departmentTree';
 import {
     getDirectMembersByDepartment,
     resolveDepartmentMembership,
@@ -491,5 +498,311 @@ describe('resolution on very deep and very wide trees', () => {
             kind: 'assigned',
             countedDepartmentUuids: ['c0042'],
         });
+    });
+});
+
+// The pairwise collapse the one-pass version replaced, kept to prove they give the same answers
+const pairwiseGetPlacements = (
+    member: ResolvedMemberRow,
+    ancestorsOf: (departmentUuid: string) => Set<string>,
+): MembershipPlacement[] => {
+    const explicitUuids = new Set(member.explicitDepartmentUuids);
+    const firstGroupNames = new Map<string, string>();
+    member.groupLinks.forEach(({ departmentUuid, groupName }) => {
+        const current = firstGroupNames.get(departmentUuid);
+        if (current === undefined || groupName < current) {
+            firstGroupNames.set(departmentUuid, groupName);
+        }
+    });
+    const linkedUuids = [
+        ...new Set([...explicitUuids, ...firstGroupNames.keys()]),
+    ];
+    const mostSpecific =
+        linkedUuids.length < 2
+            ? linkedUuids
+            : linkedUuids.filter(
+                  (uuid) =>
+                      !linkedUuids.some(
+                          (other) =>
+                              other !== uuid &&
+                              ancestorsOf(other).has(uuid) &&
+                              !ancestorsOf(uuid).has(other),
+                      ),
+              );
+    return mostSpecific.sort().map(
+        (departmentUuid): MembershipPlacement =>
+            explicitUuids.has(departmentUuid)
+                ? {
+                      departmentUuid,
+                      source: 'explicit',
+                      sourceGroupName: null,
+                  }
+                : {
+                      departmentUuid,
+                      source: 'group',
+                      sourceGroupName:
+                          firstGroupNames.get(departmentUuid) ?? null,
+                  },
+    );
+};
+
+const pairwiseGetKind = (placementCount: number): MembershipKind => {
+    if (placementCount === 0) return 'unassigned';
+    if (placementCount === 1) return 'assigned';
+    return 'shared';
+};
+
+const pairwiseResolveDepartmentMembership = (
+    rows: ResolvedMemberRow[],
+    nodes: DepartmentTreeNode[],
+): DepartmentMembership[] => {
+    const parentMap = getParentMap(nodes);
+    const ancestorSets = new Map<string, Set<string>>();
+    const ancestorsOf = (departmentUuid: string): Set<string> => {
+        const known = ancestorSets.get(departmentUuid);
+        if (known) return known;
+        const ancestors = new Set(getAncestorUuids(departmentUuid, parentMap));
+        ancestorSets.set(departmentUuid, ancestors);
+        return ancestors;
+    };
+    return rows.map((member) => {
+        const placements = pairwiseGetPlacements(member, ancestorsOf);
+        const placedUuids = placements.map((p) => p.departmentUuid);
+        const primaryDepartmentUuid =
+            member.primaryDepartmentUuid !== null &&
+            placedUuids.includes(member.primaryDepartmentUuid)
+                ? member.primaryDepartmentUuid
+                : null;
+        return {
+            userUuid: member.userUuid,
+            email: member.email,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            role: member.role,
+            kind: pairwiseGetKind(placements.length),
+            placements,
+            primaryDepartmentUuid,
+            countedDepartmentUuids:
+                primaryDepartmentUuid === null
+                    ? placedUuids
+                    : [primaryDepartmentUuid],
+        };
+    });
+};
+
+describe('one-pass collapse matches the pairwise one', () => {
+    // Small seeded generator, so a failure always reproduces
+    const random = (seed: number) => {
+        // Spread small seeds out, or the first draws would all be near zero
+        let state = (seed * 7919 + 104729) % 2147483647;
+        return () => {
+            // Park-Miller: the product stays below 2^53, so every step is exact
+            state = (state * 48271) % 2147483647;
+            return state / 2147483647;
+        };
+    };
+    const randomCase = (seed: number, acyclic: boolean) => {
+        const next = random(seed);
+        const pick = <T>(items: T[]): T =>
+            items[Math.floor(next() * items.length)];
+        const size = 1 + Math.floor(next() * 25);
+        const uuids = Array.from({ length: size }, (_, i) => `n${i}`);
+        // Parents at random: top level, missing, or a department; any department when cycles are allowed, which
+        // makes cycles and self-parents, and only an earlier one in an acyclic tree
+        const pickParent = (i: number): string | null => {
+            const roll = next();
+            if (roll < 0.25) return null;
+            if (roll < 0.3) return 'gone';
+            if (!acyclic) return pick(uuids);
+            return i === 0 ? null : pick(uuids.slice(0, i));
+        };
+        const tree: DepartmentTreeNode[] = uuids.map((departmentUuid, i) => ({
+            departmentUuid,
+            parentDepartmentUuid: pickParent(i),
+        }));
+        // Departments may be outside the tree, or reached explicitly and through two groups at once
+        const targets = [...uuids, 'gone'];
+        const rows = Array.from(
+            { length: 1 + Math.floor(next() * 8) },
+            (_, i) => {
+                const explicitDepartmentUuids = Array.from(
+                    { length: next() < 0.6 ? 0 : 1 + Math.floor(next() * 3) },
+                    () => pick(targets),
+                );
+                const groupLinks = Array.from(
+                    { length: Math.floor(next() * 7) },
+                    () => {
+                        const departmentUuid = pick(targets);
+                        return {
+                            departmentUuid,
+                            groupUuid: `g-${departmentUuid}`,
+                            groupName: pick(['A', 'B', 'C']),
+                        };
+                    },
+                );
+                // A primary on one of their own departments, on any department, or none
+                const own = [
+                    ...explicitDepartmentUuids,
+                    ...groupLinks.map((l) => l.departmentUuid),
+                ];
+                const roll = next();
+                const primaryDepartmentUuid =
+                    roll < 0.45
+                        ? pick(roll < 0.3 && own.length > 0 ? own : targets)
+                        : null;
+                return row({
+                    userUuid: `u${i}`,
+                    explicitDepartmentUuids,
+                    groupLinks,
+                    primaryDepartmentUuid,
+                });
+            },
+        );
+        return { tree, rows };
+    };
+    const SEEDS = Array.from({ length: 400 }, (_, seed) => seed + 1);
+
+    it.each(SEEDS)('resolves random acyclic case %i the same way', (seed) => {
+        const { tree, rows } = randomCase(seed, true);
+        expect(resolveDepartmentMembership(rows, tree)).toEqual(
+            pairwiseResolveDepartmentMembership(rows, tree),
+        );
+    });
+
+    it.each(SEEDS)(
+        'resolves random case %i with cycles allowed the same way',
+        (seed) => {
+            const { tree, rows } = randomCase(seed, false);
+            expect(resolveDepartmentMembership(rows, tree)).toEqual(
+                pairwiseResolveDepartmentMembership(rows, tree),
+            );
+        },
+    );
+
+    it('draws acyclic trees, self-parents, longer cycles, shared people, kept cycles, kept and ignored primaries and dropped ancestors among the cases', () => {
+        const seen = {
+            cycleInAcyclicCase: 0,
+            selfParent: 0,
+            cycle: 0,
+            shared: 0,
+            keptCycle: 0,
+            primary: 0,
+            ignoredPrimary: 0,
+            dropped: 0,
+        };
+        [true, false].forEach((acyclic) =>
+            SEEDS.forEach((seed) => {
+                const { tree, rows } = randomCase(seed, acyclic);
+                const parentMap = getParentMap(tree);
+                const hasSelfParent = tree.some(
+                    (n) => n.parentDepartmentUuid === n.departmentUuid,
+                );
+                // A walk that comes back to where it started after two or more steps
+                const isInLongerCycle = (start: string) => {
+                    let current = parentMap.get(start) ?? null;
+                    for (let step = 1; step <= tree.length; step += 1) {
+                        if (current === null) return false;
+                        if (current === start) return step > 1;
+                        current = parentMap.get(current) ?? null;
+                    }
+                    return false;
+                };
+                const hasLongerCycle = tree.some((n) =>
+                    isInLongerCycle(n.departmentUuid),
+                );
+                if (acyclic && (hasSelfParent || hasLongerCycle)) {
+                    seen.cycleInAcyclicCase += 1;
+                }
+                if (hasSelfParent) seen.selfParent += 1;
+                if (hasLongerCycle) seen.cycle += 1;
+                resolveDepartmentMembership(rows, tree).forEach((member, i) => {
+                    const linked = new Set([
+                        ...rows[i].explicitDepartmentUuids,
+                        ...rows[i].groupLinks.map((l) => l.departmentUuid),
+                    ]);
+                    const placed = member.placements.map(
+                        (p) => p.departmentUuid,
+                    );
+                    if (member.kind === 'shared') seen.shared += 1;
+                    // Two placements with one above the other: both members of a stored cycle were kept
+                    if (
+                        placed.some((a) =>
+                            getAncestorUuids(a, parentMap).some((ancestor) =>
+                                placed.includes(ancestor),
+                            ),
+                        )
+                    ) {
+                        seen.keptCycle += 1;
+                    }
+                    if (member.primaryDepartmentUuid !== null) {
+                        seen.primary += 1;
+                    }
+                    if (
+                        rows[i].primaryDepartmentUuid !== null &&
+                        member.primaryDepartmentUuid === null
+                    ) {
+                        seen.ignoredPrimary += 1;
+                    }
+                    if (placed.length < linked.size) seen.dropped += 1;
+                });
+            }),
+        );
+        expect(seen.cycleInAcyclicCase).toBe(0);
+        expect(seen.selfParent).toBeGreaterThan(0);
+        expect(seen.cycle).toBeGreaterThan(0);
+        expect(seen.shared).toBeGreaterThan(0);
+        expect(seen.keptCycle).toBeGreaterThan(0);
+        expect(seen.primary).toBeGreaterThan(0);
+        expect(seen.ignoredPrimary).toBeGreaterThan(0);
+        expect(seen.dropped).toBeGreaterThan(0);
+    });
+});
+
+describe('resolution when one person is in very many linked groups', () => {
+    it('resolves 300 people each in all 999 sub-departments of one root in under 200 ms', () => {
+        const subDepartments = Array.from(
+            { length: 999 },
+            (_, i) => `s${String(i).padStart(3, '0')}`,
+        );
+        const flat = [
+            { departmentUuid: 'root', parentDepartmentUuid: null },
+            ...subDepartments.map((departmentUuid) => ({
+                departmentUuid,
+                parentDepartmentUuid: 'root',
+            })),
+        ];
+        // One group per sub-department, and everyone in every group
+        const rows = Array.from({ length: 300 }, (_, i) =>
+            row({
+                userUuid: `u${i}`,
+                groupLinks: subDepartments.map((departmentUuid) =>
+                    link(departmentUuid),
+                ),
+            }),
+        );
+
+        // The fastest of five runs, so a busy machine does not fail it
+        const fastest = Math.min(
+            ...Array.from({ length: 5 }, () => {
+                const started = performance.now();
+                resolveDepartmentMembership(rows, flat);
+                return performance.now() - started;
+            }),
+        );
+        const resolved = resolveDepartmentMembership(rows, flat);
+
+        expect(fastest).toBeLessThan(200);
+        expect(resolved).toHaveLength(300);
+        const placements = subDepartments.map((departmentUuid) =>
+            viaGroup(departmentUuid),
+        );
+        resolved.forEach((member) =>
+            expect(member).toMatchObject({
+                kind: 'shared',
+                placements,
+                primaryDepartmentUuid: null,
+                countedDepartmentUuids: subDepartments,
+            }),
+        );
     });
 });

@@ -25,20 +25,28 @@ const getPlacements = (
     const linkedUuids = [
         ...new Set([...explicitUuids, ...firstGroupNames.keys()]),
     ];
-    // Most specific wins: drop a strict ancestor of another placement; in a stored cycle
-    // each is the other's ancestor, so both stay. A lone department needs no walk
-    const mostSpecific =
-        linkedUuids.length < 2
-            ? linkedUuids
-            : linkedUuids.filter(
-                  (uuid) =>
-                      !linkedUuids.some(
-                          (other) =>
-                              other !== uuid &&
-                              ancestorsOf(other).has(uuid) &&
-                              !ancestorsOf(uuid).has(other),
-                      ),
-              );
+    // Most specific wins: drop a strict ancestor of another placement. One walk up from each one lists it
+    // under the linked ancestors it passes, so the cost grows linearly; a lone department needs no walk
+    const linked = new Set(linkedUuids);
+    const linkedBelow = new Map<string, string[]>();
+    if (linkedUuids.length > 1) {
+        linkedUuids.forEach((other) =>
+            ancestorsOf(other).forEach((ancestor) => {
+                if (ancestor !== other && linked.has(ancestor)) {
+                    const below = linkedBelow.get(ancestor);
+                    if (below) below.push(other);
+                    else linkedBelow.set(ancestor, [other]);
+                }
+            }),
+        );
+    }
+    // Dropped only when something listed under it is not also above it, so a stored cycle keeps every member
+    const mostSpecific = linkedUuids.filter(
+        (uuid) =>
+            !(linkedBelow.get(uuid) ?? []).some(
+                (below) => !ancestorsOf(uuid).has(below),
+            ),
+    );
     return mostSpecific.sort().map(
         (departmentUuid): MembershipPlacement =>
             explicitUuids.has(departmentUuid)
