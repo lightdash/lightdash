@@ -190,8 +190,10 @@ describe('limited project settings routes', () => {
             { action: 'create', subject: 'SavedChart', conditions: scope },
         ]);
 
+        // The server's own message reaches the page: a 503 with the API
+        // envelope is passed through, not replaced by the network message.
         expect(
-            await screen.findByText(/unable to reach the Lightdash server/),
+            await screen.findByText('Unable to check space access'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('status', { name: 'Current URL' }),
