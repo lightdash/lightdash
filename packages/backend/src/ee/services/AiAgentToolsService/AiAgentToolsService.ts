@@ -4569,6 +4569,8 @@ export class AiAgentToolsService extends BaseService {
                 }),
             },
             AiAgentToolsService.documentChange(context),
+            // Like AI chart and dashboard creates, a taken slug gets a suffix.
+            { uniqueSlug: true },
         );
         return this.documentContentResult(context, document);
     }

@@ -696,6 +696,33 @@ describe('DocumentModel PostgreSQL integration', () => {
         ).rejects.toThrow('Document not found');
     });
 
+    test('a taken slug conflicts unless it is only a base for a unique slug', async () => {
+        const document = await model.create({
+            ...input,
+            slug: 'weekly-review',
+        });
+        await expect(
+            model.create({ ...input, slug: document.slug }),
+        ).rejects.toThrow(
+            'A document with this slug already exists in this project',
+        );
+        const copy = await model.create({
+            ...input,
+            slug: document.slug,
+            uniqueSlug: true,
+        });
+        expect(copy.slug).toBe('weekly-review-1');
+        await expect(
+            model.getBySlug(input.projectUuid, document.slug),
+        ).resolves.toEqual(document);
+        const fresh = await model.create({
+            ...input,
+            slug: 'monthly-review',
+            uniqueSlug: true,
+        });
+        expect(fresh.slug).toBe('monthly-review');
+    });
+
     test.each(['document', 'space'] as const)(
         'slug lookup hides a deleted %s',
         async (deletedResource) => {
