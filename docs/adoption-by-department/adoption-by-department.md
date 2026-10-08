@@ -155,8 +155,8 @@ Response types are in `packages/common/src/types/departments.ts`.
 Code is under `packages/frontend/src/ee/`:
 
 - `pages/Adoption.tsx` is the index: the Map and List views, the attention strip, and the department drawer and placement modal for people with `manage`.
-- `pages/AdoptionDepartment.tsx` is one department's page.
-- `hooks/useOrgDepartments.ts` holds the query and mutation hooks. Mutations invalidate the `org-adoption` query key.
+- `pages/AdoptionDepartment.tsx` is one department's page. It checks the route's `departmentUuid` is a UUID before anything is fetched; any other value shows "Department not found" and requests nothing.
+- `hooks/useOrgDepartments.ts` holds the query and mutation hooks. Mutations invalidate the `org-adoption` query key. Every department path segment is URL-encoded, and the detail query only runs for a UUID, so a crafted value cannot reach another API path.
 - `features/adoption/map/` draws the map: departments as nested circles, people as dots coloured by activity, role or last activity. Layout and geometry are pure modules with tests.
 - `features/adoption/components/` and `utils/` hold the list, drawer, tiles, charts and helpers.
 

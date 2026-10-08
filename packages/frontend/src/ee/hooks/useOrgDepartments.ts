@@ -9,10 +9,15 @@ import {
     type UpdateDepartment,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { validate as isUuid } from 'uuid';
 import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
 
 const ORG_ADOPTION_QUERY_KEY = ['org-adoption'];
+
+// Encoded, so a crafted value can never step out of the departments path
+const departmentUrl = (departmentUuid: string, suffix = ''): string =>
+    `/org/departments/${encodeURIComponent(departmentUuid)}${suffix}`;
 
 export const useOrgAdoptionSummary = (enabled = true) =>
     useQuery<OrganizationAdoptionSummary, ApiError>({
@@ -32,11 +37,12 @@ export const useDepartmentDetail = (departmentUuid: string | undefined) =>
         queryKey: [...ORG_ADOPTION_QUERY_KEY, 'detail', departmentUuid],
         queryFn: () =>
             lightdashApi<DepartmentDetail>({
-                url: `/org/departments/${departmentUuid}`,
+                url: departmentUrl(departmentUuid ?? ''),
                 method: 'GET',
                 body: undefined,
             }),
-        enabled: departmentUuid !== undefined,
+        // Nothing is requested for a value that is not a uuid
+        enabled: departmentUuid !== undefined && isUuid(departmentUuid),
         retry: false,
     });
 
@@ -94,7 +100,7 @@ export const useUpdateDepartment = () => {
     >(
         ({ departmentUuid, data }) =>
             lightdashApi<Department>({
-                url: `/org/departments/${departmentUuid}`,
+                url: departmentUrl(departmentUuid),
                 method: 'PATCH',
                 body: JSON.stringify(data),
             }),
@@ -118,7 +124,7 @@ export const useDeleteDepartment = () => {
     return useMutation<null, ApiError, string>(
         (departmentUuid) =>
             lightdashApi<null>({
-                url: `/org/departments/${departmentUuid}`,
+                url: departmentUrl(departmentUuid),
                 method: 'DELETE',
                 body: undefined,
             }),
@@ -146,7 +152,7 @@ export const useSetDepartmentGroups = () => {
     >(
         ({ departmentUuid, groupUuids }) =>
             lightdashApi<Department>({
-                url: `/org/departments/${departmentUuid}/groups`,
+                url: departmentUrl(departmentUuid, '/groups'),
                 method: 'PUT',
                 body: JSON.stringify({ groupUuids }),
             }),
@@ -171,7 +177,7 @@ export const useSetDepartmentMembers = () => {
     >(
         ({ departmentUuid, userUuids }) =>
             lightdashApi<Department>({
-                url: `/org/departments/${departmentUuid}/members`,
+                url: departmentUrl(departmentUuid, '/members'),
                 method: 'PUT',
                 body: JSON.stringify({ userUuids }),
             }),
@@ -196,7 +202,7 @@ export const useSetDepartmentOwners = () => {
     >(
         ({ departmentUuid, owners }) =>
             lightdashApi<Department>({
-                url: `/org/departments/${departmentUuid}/owners`,
+                url: departmentUrl(departmentUuid, '/owners'),
                 method: 'PUT',
                 body: JSON.stringify({ owners }),
             }),
