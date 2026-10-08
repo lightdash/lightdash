@@ -1,3 +1,10 @@
+# [2.492.0](https://github.com/lightdash/lightdash/compare/2.491.0...2.492.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** track agent identity set-up, sign-in and refusals in product analytics ([#30705](https://github.com/lightdash/lightdash/issues/30705)) ([96df2d7](https://github.com/lightdash/lightdash/commit/96df2d73608cbfb5e37edcd29f38398364e7372c))
+
 # [2.491.0](https://github.com/lightdash/lightdash/compare/2.490.0...2.491.0) (2026-10-08)
 
 
