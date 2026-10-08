@@ -96,7 +96,7 @@ const isNeutral = (color: unknown) => color === undefined || color === 'gray';
 
 /**
  * Alerts are a two-step scale rather than tint versus solid block: `light`
- * is a pale wash, `filled` a firmer tint of the same hue. Both keep the
+ * is a borderless pale wash, `filled` a firmer tint with a hairline. Both keep the
  * semantic colour on the title and icon; dark tints the deep shade over the
  * surface so neither becomes a block.
  */
@@ -106,14 +106,14 @@ const ALERT_TONES: Record<
     AlertTone,
     { fill: number; border: number; darkFill: number; darkBorder: number }
 > = {
-    light: { fill: 45, border: 18, darkFill: 8, darkBorder: 22 },
+    light: { fill: 45, border: 0, darkFill: 8, darkBorder: 0 },
     filled: { fill: 100, border: 40, darkFill: 22, darkBorder: 40 },
 };
 
 const NEUTRAL_ALERT_VARS: Record<AlertTone, Record<string, string>> = {
     light: {
         '--alert-bg': 'var(--mantine-color-ldGray-1)',
-        '--alert-bd': '1px solid var(--mantine-color-ldGray-3)',
+        '--alert-bd': '1px solid transparent',
         '--alert-color': 'var(--mantine-color-text)',
     },
     filled: {
