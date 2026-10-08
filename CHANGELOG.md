@@ -1,3 +1,10 @@
+## [2.495.2](https://github.com/lightdash/lightdash/compare/2.495.1...2.495.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** pad the launcher composer and resize it from its top edge ([#30761](https://github.com/lightdash/lightdash/issues/30761)) ([dbd9f6c](https://github.com/lightdash/lightdash/commit/dbd9f6c22e084b8212f90528c44a0bbe11575ca9))
+
 ## [2.495.1](https://github.com/lightdash/lightdash/compare/2.495.0...2.495.1) (2026-10-08)
 
 
