@@ -10,7 +10,7 @@ Use `resolveWarehouseCredentials` followed by a `resolved` ref only when a path 
 
 A `resolved` ref can have a null `projectUuid` for credentials that belong to no saved project, such as credentials typed in the create form. Set `cachePolicy: 'disabled'` to keep the client out of the query client cache.
 
-Resolution with purpose `compile` selects the credentials that compile uses, which are not always the credentials that a query uses. Compile uses the stored connection, or the organisation credential that the project points to, and does not apply personal credential rules. For a Databricks U2M connection with no stored refresh token, compile uses the acting person's matching credential, and refuses a credential from a different workspace. The resolution refreshes the token once and saves a rotated refresh token against its owner: the project, the organisation credential, the user credential or the extra connection. Queries use the same refresh and rotation code.
+Resolution with purpose `compile` selects the credentials that compile uses, which are not always the credentials that a query uses. Compile uses the stored connection, or the organisation credential that the project points to, and does not apply personal credential rules. For a project's own Databricks U2M connection with no stored refresh token, compile uses the acting person's matching credential, and refuses a credential from a different workspace. Organisation credentials and extra connections get no such fallback. The resolution refreshes the token once and saves a rotated refresh token against its owner: the project, the organisation credential, the user credential or the extra connection. Queries use the same refresh and rotation code.
 
 ## Compile adapters
 
@@ -33,6 +33,17 @@ Three modes exist only to roll back a credential resolution fix. The default pat
 - `test_and_compile`: the test-and-compile job with the reloaded connection row. Switch: `TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED`.
 
 Remove a mode and its rollback branch together when its switch is retired.
+
+## Behaviour changes from credential resolution
+
+With the switches on, these paths behave differently from before. Each switch restores the old behaviour for its path.
+
+- The dbt Cloud preview webhook and the data timezone preview call the identity provider to refresh Snowflake SSO and Databricks OAuth tokens on every run, also when the stored token still works. Webhook conversion never queries the warehouse, but a provider error now stops it.
+- Compile, the webhook and test-and-compile reject a Snowflake SSO or Databricks OAuth row that has an access token but no refresh token or client secret. Queries already rejected such rows; the old compile code used the access token until it expired.
+- The data timezone preview in edit mode selects credentials as a query does. A person who can edit the project can need personal warehouse credentials to preview its timezone.
+- The webhook checks that the project creator can create the preview before it resolves credentials for a new preview.
+
+Not changed: `_resolveWarehouseClientCredentials`, which resolves typed credentials, keeps the previous refresh token after a Snowflake or Databricks U2M refresh, and does not save rotations for typed organisation credentials.
 
 ## SQL builders without a connection
 
