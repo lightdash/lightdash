@@ -202,21 +202,14 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
-    const {
-        agentDefault,
-        explicitModelConfig,
-        extendedThinking,
-        handleExtendedThinkingChange,
-        handleSelectedModelKeyChange,
-        modelOptions,
-        selectedModelKey,
-        showExtendedThinking,
-    } = useAiAgentModelSelection({
+    const { explicitModelConfig, selectedModel } = useAiAgentModelSelection({
         projectUuid,
         agentUuid,
         defaultModelConfig: agent.modelConfig,
         organizationSettingsEnabled: !isEmbed,
     });
+    // Model can't change mid-thread; the status bar shows what the next message uses.
+    const threadModelName = selectedModel?.displayName ?? null;
 
     const disabledReasons: { when: boolean; message: string }[] = [
         {
@@ -445,18 +438,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         threadUuid={threadUuid}
-                        models={modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking ? extendedThinking : undefined
-                        }
-                        onExtendedThinkingChange={
-                            showExtendedThinking
-                                ? handleExtendedThinkingChange
-                                : undefined
-                        }
-                        agentDefault={agentDefault}
+                        threadModelName={threadModelName}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

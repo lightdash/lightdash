@@ -7,9 +7,10 @@ import {
     ScrollArea,
     Stack,
     Text,
+    Tooltip,
     type ButtonProps,
 } from '@mantine/core';
-import { IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { IconBolt, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
@@ -34,6 +35,8 @@ interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     onChange: (modelKey: string) => void;
     reasoningEnabled?: boolean;
     onReasoningChange?: (enabled: boolean) => void;
+    fastModeEnabled?: boolean;
+    onFastModeChange?: (enabled: boolean) => void;
     agentDefault?: AgentDefaultOption;
 }
 
@@ -47,6 +50,8 @@ export const ModelSelector: FC<Props> = ({
     onChange,
     reasoningEnabled,
     onReasoningChange,
+    fastModeEnabled = false,
+    onFastModeChange,
     agentDefault,
     ...buttonProps
 }) => {
@@ -85,38 +90,100 @@ export const ModelSelector: FC<Props> = ({
         onReasoningChange !== undefined;
     const reasoningLabel = reasoningEnabled ? 'High' : null;
 
-    if (visibleModels.length === 1 && !showReasoning) {
+    const showFastMode = onFastModeChange !== undefined;
+    const fastModeOn = showFastMode && fastModeEnabled;
+
+    if (visibleModels.length === 1 && !showReasoning && !showFastMode) {
         return null;
     }
 
     return (
         <Menu width={340} position="top-end" offset={8}>
             <Menu.Target>
-                <Button
-                    px="xs"
-                    {...buttonProps}
-                    rightSection={
-                        <MantineIcon
-                            icon={IconChevronDown}
-                            size="sm"
-                            color="dimmed"
-                        />
-                    }
+                <Tooltip
+                    label="Jev picks the quickest way to answer, so simple questions come back faster"
+                    multiline
+                    w={240}
+                    position="top"
+                    openDelay={300}
+                    disabled={!fastModeOn}
                 >
-                    <Group gap={6} wrap="nowrap">
-                        <Text size="xs" fw={600} c="ldGray.8" span>
-                            {selectedModel?.displayName ?? 'Select model'}
-                        </Text>
-                        {showReasoning && reasoningLabel && (
-                            <Text size="xs" fw={500} c="dimmed" span>
-                                {reasoningLabel}
+                    <Button
+                        px="xs"
+                        {...buttonProps}
+                        data-fast-mode={fastModeOn || undefined}
+                        leftSection={
+                            fastModeOn ? (
+                                <MantineIcon
+                                    icon={IconBolt}
+                                    size="sm"
+                                    color="blue.6"
+                                    fill="blue.6"
+                                />
+                            ) : undefined
+                        }
+                        rightSection={
+                            <MantineIcon
+                                icon={IconChevronDown}
+                                size="sm"
+                                color="dimmed"
+                            />
+                        }
+                    >
+                        <Group gap={6} wrap="nowrap">
+                            <Text size="xs" fw={600} c="ldGray.8" span>
+                                {selectedModel?.displayName ?? 'Select model'}
                             </Text>
-                        )}
-                    </Group>
-                </Button>
+                            {showReasoning && reasoningLabel && (
+                                <Text size="xs" fw={500} c="dimmed" span>
+                                    {reasoningLabel}
+                                </Text>
+                            )}
+                        </Group>
+                    </Button>
+                </Tooltip>
             </Menu.Target>
 
             <Menu.Dropdown>
+                {showFastMode && (
+                    <>
+                        <Menu.Item
+                            aria-label={
+                                fastModeOn
+                                    ? 'Disable Fast mode'
+                                    : 'Enable Fast mode'
+                            }
+                            closeMenuOnClick={false}
+                            onClick={() => onFastModeChange(!fastModeOn)}
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconBolt}
+                                    size="sm"
+                                    color={fastModeOn ? 'blue.6' : 'ldGray.6'}
+                                />
+                            }
+                            rightSection={
+                                fastModeOn ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size="sm"
+                                        color="blue.6"
+                                    />
+                                ) : null
+                            }
+                        >
+                            <Stack gap={0}>
+                                <Text size="sm" fw={500}>
+                                    Fast
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Quickest route for simple questions
+                                </Text>
+                            </Stack>
+                        </Menu.Item>
+                        <Menu.Divider />
+                    </>
+                )}
                 {showReasoning && (
                     <>
                         <Menu.Label>Reasoning</Menu.Label>

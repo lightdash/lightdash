@@ -137,6 +137,7 @@ describe('AgentChatInput Deep Research mode', () => {
             'Attach a document',
             'SQL Runner',
             'Deep research',
+            'Fast',
         ]);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
@@ -200,25 +201,28 @@ describe('AgentChatInput Deep Research mode', () => {
         inputClick.mockRestore();
     });
 
-    it('saves the Fast mode choice from the composer toolbar', async () => {
+    it('saves the Fast mode choice from the composer menu', async () => {
         window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
         renderInput({ enableCsvAttachment: true });
-        const user = userEvent.setup();
-        const fastButton = await screen.findByRole('button', { name: 'Fast' });
-        expect(fastButton).toHaveAttribute('aria-pressed', 'true');
+        const user = await openComposerOptions();
 
-        await user.click(fastButton);
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Disable Fast mode' }),
+        );
 
-        expect(fastButton).toHaveAttribute('aria-pressed', 'false');
+        expect(
+            screen.getByRole('menuitem', { name: 'Enable Fast mode' }),
+        ).toBeInTheDocument();
         expect(readAiAgentFastMode()).toBe(false);
         window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
     });
 
-    it('hides Fast mode when fast decisions are off', () => {
+    it('hides Fast mode when fast decisions are off', async () => {
         renderInput({ onSqlModeChange: vi.fn() });
+        await openComposerOptions();
 
         expect(
-            screen.queryByRole('button', { name: 'Fast' }),
+            screen.queryByRole('menuitem', { name: /Fast mode/ }),
         ).not.toBeInTheDocument();
     });
 
