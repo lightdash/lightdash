@@ -12,6 +12,7 @@ import LearnPage from './LearnPage';
 const {
     track,
     projectState,
+    startFresh,
     learnFlagState,
     availabilityState,
     accessState,
@@ -19,6 +20,7 @@ const {
     learnActions,
     learnPermission,
 } = vi.hoisted(() => ({
+    startFresh: vi.fn(),
     track: vi.fn(),
     learnPermission: { granted: true },
     projectState: { current: [] as unknown[] },
@@ -51,6 +53,7 @@ vi.mock('../../providers/App/useApp', () => ({
         user: {
             data: {
                 organizationUuid: 'org-1',
+                userUuid: 'user-1',
                 role: 'admin',
                 ability: new Ability([
                     { action: 'manage', subject: 'Organization' },
@@ -123,6 +126,10 @@ vi.mock('./availability', () => ({
             !availabilityState.current.closed.includes(module.gate),
         isSettled: availabilityState.current.isSettled,
     }),
+}));
+
+vi.mock('./useStartFresh', () => ({
+    useStartFresh: () => ({ mutate: startFresh, isLoading: false }),
 }));
 
 vi.mock('./useEnableLearn', () => ({
@@ -331,6 +338,44 @@ describe('LearnPage access', () => {
             screen.getByRole('menuitem', { name: 'Show extra modules' }),
         );
     };
+
+    it('offers Start fresh to a learner with a copy, and removes it once confirmed', async () => {
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+            {
+                projectUuid: 'copy-1',
+                type: ProjectType.PREVIEW,
+                provisioningSource: 'training',
+                upstreamProjectUuid: 'training-1',
+                createdByUserUuid: 'user-1',
+            },
+        ];
+        renderPage();
+        await userEvent.click(screen.getByLabelText('Filter'));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Start fresh' }),
+        );
+        expect(
+            screen.getByText(
+                'Your copy and everything you built in it will be removed.',
+            ),
+        ).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Start fresh' }),
+        );
+        expect(startFresh).toHaveBeenCalledWith(
+            { trainingProjectUuid: 'training-1' },
+            expect.anything(),
+        );
+    });
+
+    it('offers no Start fresh to a learner without a copy', async () => {
+        renderPage();
+        await userEvent.click(screen.getByLabelText('Filter'));
+        expect(
+            screen.queryByRole('menuitem', { name: 'Start fresh' }),
+        ).not.toBeInTheDocument();
+    });
 
     it('shows the forbidden state without Learn access and records no library view', () => {
         learnPermission.granted = false;
