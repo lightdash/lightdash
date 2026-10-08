@@ -62,16 +62,20 @@ _Avoid_: system user, bot
 The number of people a department should have on Lightdash, entered by an admin. Unknown is null, not zero.
 _Avoid_: size, seats, licences, employees
 
+**Residual headcount**:
+The headcount a department with sub-departments keeps for the people directly in it: its effective headcount less its sub-departments', and never fewer than those people. The map draws it as the department's "Directly in" circle, and `directMetrics` percentages are of it.
+_Avoid_: leftover, own headcount, direct headcount
+
 **Headcount note**:
 Free text saying where a headcount came from.
 _Avoid_: comment, source, description
 
 **Effective headcount**:
-The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, and never fewer than its members, so a headcount only ever adds people without an account. A department with no headcount counts its members.
+The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, and never fewer than its sub-departments' effective headcounts plus the people on Lightdash directly in it (for a department without sub-departments, its members), so a headcount only ever adds people without an account. A department with no headcount counts its members.
 _Avoid_: total headcount, rolled-up headcount, computed headcount
 
 **Headcount below children**:
-A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The own value is still used, never below the members.
+A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The department counts its sub-departments' total, plus the people directly in it, instead.
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
