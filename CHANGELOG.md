@@ -1,3 +1,10 @@
+## [2.481.2](https://github.com/lightdash/lightdash/compare/2.481.1...2.481.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **viz:** hide overlapping x-axis labels on SQL chart time axes ([#30711](https://github.com/lightdash/lightdash/issues/30711)) ([3852813](https://github.com/lightdash/lightdash/commit/38528137b7ab254cc1171eb615838029e2a6c19c))
+
 ## [2.481.1](https://github.com/lightdash/lightdash/compare/2.481.0...2.481.1) (2026-10-08)
 
 
