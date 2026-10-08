@@ -87,6 +87,7 @@ import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSetting
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import Adoption from '../ee/pages/Adoption';
+import AdoptionDepartment from '../ee/pages/AdoptionDepartment';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
@@ -711,6 +712,14 @@ const Settings: FC = () => {
                 element: (
                     <TrackPage name={PageName.ADOPTION}>
                         <Adoption />
+                    </TrackPage>
+                ),
+            });
+            allowedRoutes.push({
+                path: '/adoption/:departmentUuid',
+                element: (
+                    <TrackPage name={PageName.ADOPTION_DEPARTMENT}>
+                        <AdoptionDepartment />
                     </TrackPage>
                 ),
             });

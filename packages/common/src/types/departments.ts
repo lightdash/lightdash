@@ -125,3 +125,63 @@ export type ApiDepartmentMembershipResponse = {
     status: 'ok';
     results: DepartmentMembership[];
 };
+
+export type DepartmentRef = { departmentUuid: string; name: string };
+
+export type DepartmentTargetProgress = {
+    targetActiveUsers: number;
+    targetDate: string | null;
+    activeUsers: number;
+    remaining: number; // never negative
+    weeksLeft: number | null; // null without a target date, negative once it has passed
+};
+
+export type DepartmentWeeklyActivePoint = {
+    weekStart: string;
+    activeUsers: number;
+    orgAverage: number; // mean across departments at the same level
+};
+
+export type DepartmentTopContentItem = {
+    id: string;
+    name: string;
+    count: number;
+    distinctPeople: number;
+};
+
+export type DepartmentTopContent = {
+    dashboards: DepartmentTopContentItem[];
+    explores: DepartmentTopContentItem[];
+    aiAgents: DepartmentTopContentItem[];
+};
+
+export type DepartmentMember = {
+    userUuid: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: OrganizationMemberRole;
+    departmentUuid: string; // where the person resolved, this department or a descendant
+    departmentName: string;
+    isDirect: boolean;
+    source: 'explicit' | 'group';
+    sourceGroupName: string | null;
+    lastActiveAt: string | null; // ISO timestamp, null = never active
+    queries30d: number;
+    dashboardViews30d: number;
+};
+
+export type DepartmentDetail = {
+    department: DepartmentWithMetrics;
+    ancestors: DepartmentRef[]; // top level first
+    children: DepartmentWithMetrics[];
+    targetProgress: DepartmentTargetProgress | null;
+    weeklyActive: DepartmentWeeklyActivePoint[];
+    topContent: DepartmentTopContent;
+    members: DepartmentMember[];
+};
+
+export type ApiDepartmentDetailResponse = {
+    status: 'ok';
+    results: DepartmentDetail;
+};

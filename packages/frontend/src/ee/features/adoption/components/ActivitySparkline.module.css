@@ -1,4 +1,24 @@
 .chart {
+    display: block;
     width: 110px;
     height: 30px;
+    overflow: hidden;
+}
+
+.line {
+    fill: none;
+    stroke: var(--mantine-color-dimmed);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.area {
+    fill: var(--mantine-color-dimmed);
+    opacity: 0.08;
+}
+
+.rule {
+    stroke: var(--mantine-color-dimmed);
+    stroke-width: 1;
 }

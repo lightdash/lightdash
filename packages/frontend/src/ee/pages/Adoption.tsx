@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import { Button, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -67,12 +67,24 @@ const Adoption: FC = () => {
 
     const departments = summary.data?.departments ?? [];
     // Read the edited department from fresh data so the drawer never shows stale values
-    const editing =
+    const found =
         drawer.opened && drawer.departmentUuid !== null
             ? (departments.find(
                   (d) => d.departmentUuid === drawer.departmentUuid,
               ) ?? null)
             : null;
+    // A delete removes the department from fresh data before the drawer closes; keep showing it until then
+    const lastFound = useRef<DepartmentWithMetrics | null>(null);
+    useEffect(() => {
+        lastFound.current = found ?? lastFound.current;
+    }, [found]);
+    const heldDepartment =
+        drawer.opened &&
+        drawer.departmentUuid !== null &&
+        lastFound.current?.departmentUuid === drawer.departmentUuid
+            ? lastFound.current
+            : null;
+    const editing = found ?? heldDepartment;
 
     const statusCode = summary.error?.error.statusCode;
     const isUnavailable = statusCode === 403 || statusCode === 404;
