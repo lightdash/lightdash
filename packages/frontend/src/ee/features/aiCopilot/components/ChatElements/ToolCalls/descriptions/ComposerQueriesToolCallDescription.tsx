@@ -265,7 +265,9 @@ const ComposerQueryNode: FC<{
             <Collapse expanded={open} transitionDuration={200}>
                 <Stack gap={6} className={styles.body}>
                     <NodeBody node={node} />
-                    {showApproval ? <SqlApprovalActions {...approval} /> : null}
+                    {showApproval ? (
+                        <SqlApprovalActions {...approval} review={null} />
+                    ) : null}
                 </Stack>
             </Collapse>
         </Box>

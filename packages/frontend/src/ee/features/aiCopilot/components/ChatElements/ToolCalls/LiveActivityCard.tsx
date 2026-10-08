@@ -723,9 +723,15 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || (userExpanded ?? defaultExpanded);
 
+    // A call awaiting approval (e.g. a SQL chart) renders its actions in the body.
+    const latestAwaitsApproval =
+        latest?.calls.some((call) =>
+            sqlApproval?.pendingToolCallIds.includes(call.toolCallId),
+        ) ?? false;
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
-        latest?.toolName === 'runComposerQueries';
+        latest?.toolName === 'runComposerQueries' ||
+        latestAwaitsApproval;
     const showBody =
         expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 

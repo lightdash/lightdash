@@ -1,5 +1,9 @@
-import { Code, Stack, Text } from '@mantine/core';
+import { Code, Group, Stack, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconTerminal2 } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { AiSqlModal } from '../../AiSqlModal';
+import { SqlExpandButton } from '../SqlApprovalCard';
 
 type SqlRunToolCallDescriptionProps = {
     sql: string;
@@ -10,13 +14,17 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
     sql,
     limit,
 }) => {
+    const [expanded, { open, close }] = useDisclosure(false);
+    const limitLabel = limit ? `Row limit: ${limit}` : null;
+
     return (
         <Stack gap={6} align="stretch" w="100%">
-            {limit ? (
+            <Group gap="xs" wrap="nowrap" justify="space-between">
                 <Text c="dimmed" size="xs">
-                    Row limit: {limit}
+                    {limitLabel}
                 </Text>
-            ) : null}
+                <SqlExpandButton onClick={open} />
+            </Group>
             <Code
                 block
                 style={{
@@ -30,6 +38,15 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
             >
                 {sql}
             </Code>
+            <AiSqlModal
+                opened={expanded}
+                onClose={close}
+                sql={sql}
+                title="SQL query"
+                icon={IconTerminal2}
+                subtitle={limitLabel}
+                copyPlacement="inline"
+            />
         </Stack>
     );
 };
