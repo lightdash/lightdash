@@ -85,11 +85,12 @@ import { prepareChartAsCode } from '../ai/utils/chartAsCode';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { canStartDeepResearch } from '../AiAgentService/dataAppThreadPolicy';
-import {
-    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
-    getAiDeepResearchDocumentToolCallId,
-} from './constants';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
+import {
+    findAiDeepResearchRunDocuments,
+    getAiDeepResearchDocumentToolCallId,
+} from './runDocument';
 import { toDeepResearchDocument } from './toDeepResearchDocument';
 import {
     isDeepResearchEvidenceQueryTool,
@@ -455,30 +456,6 @@ const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
         return new Date(row.completed_at.getTime() + 30 * 24 * 60 * 60 * 1_000);
     }
     return null;
-};
-
-const parseRunDocument = (
-    metadata: object | null,
-): AiDeepResearchRunDocument | null => {
-    if (
-        !metadata ||
-        !('status' in metadata) ||
-        !('uuid' in metadata) ||
-        !('name' in metadata) ||
-        !('slug' in metadata) ||
-        metadata.status !== 'success' ||
-        typeof metadata.uuid !== 'string' ||
-        !isValidUuid(metadata.uuid) ||
-        typeof metadata.name !== 'string' ||
-        typeof metadata.slug !== 'string'
-    ) {
-        return null;
-    }
-    return {
-        documentUuid: metadata.uuid,
-        name: metadata.name,
-        slug: metadata.slug,
-    };
 };
 
 const toRun = (
@@ -1194,27 +1171,7 @@ export class AiDeepResearchService extends BaseService {
     private async findRunDocuments(
         runs: DbAiDeepResearchRun[],
     ): Promise<Map<string, AiDeepResearchRunDocument>> {
-        const runUuidByToolCallId = new Map(
-            runs.map((run) => [
-                getAiDeepResearchDocumentToolCallId(
-                    run.ai_deep_research_run_uuid,
-                ),
-                run.ai_deep_research_run_uuid,
-            ]),
-        );
-        const results = await this.aiAgentModel.findToolResultsByToolCallIds(
-            [...new Set(runs.map((run) => run.prompt_uuid))],
-            [...runUuidByToolCallId.keys()],
-        );
-        return new Map(
-            results.flatMap((result) => {
-                const runUuid = runUuidByToolCallId.get(result.toolCallId);
-                const document = parseRunDocument(result.metadata);
-                return runUuid && document
-                    ? [[runUuid, document] as const]
-                    : [];
-            }),
-        );
+        return findAiDeepResearchRunDocuments(this.aiAgentModel, runs);
     }
 
     async cleanExpiredReports(batchSize: number) {

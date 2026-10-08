@@ -107,6 +107,10 @@ const makeService = ({
     jobModel = { get: vi.fn() },
     aiAgentDocumentModel = {},
     aiDeepResearchRunModel = {},
+    aiAgentModel = {
+        findToolResultsByToolCallIds: vi.fn().mockResolvedValue([]),
+    },
+    documentService = {},
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
@@ -137,6 +141,8 @@ const makeService = ({
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
     aiDeepResearchRunModel?: Record<string, unknown>;
+    aiAgentModel?: Record<string, unknown>;
+    documentService?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
@@ -212,6 +218,8 @@ const makeService = ({
         projectContextModel: {},
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
+        aiAgentModel,
+        documentService,
         featureFlagService,
         previewDeploySetupService: {},
         shareService: {},
@@ -1009,6 +1017,7 @@ describe('AiAgentToolsService', () => {
                     findReportSummariesByThreadScoped: vi
                         .fn()
                         .mockResolvedValue([run]),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
@@ -1064,6 +1073,141 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        const publishedRun = {
+            ...run,
+            ai_deep_research_run_uuid: 'published-run',
+            prompt_uuid: 'prompt-uuid',
+            result_markdown: null,
+        };
+        const publishedDocument = {
+            documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+            name: 'Revenue fell in spring',
+            slug: 'revenue-fell-in-spring',
+            updatedAt: new Date('2026-07-29T10:06:00.000Z'),
+            version: {
+                content: {
+                    markdown: '# Spring dip\n\nOrders fell.',
+                    charts: {},
+                },
+            },
+        };
+        const registeredAccount = {
+            ...account,
+            user: { id: userUuid, type: 'registered' },
+        } as unknown as Account;
+        const publishedServices = (
+            documentService: Record<string, unknown>,
+        ) => ({
+            aiAgentDocumentModel: {
+                findAllForAgent: vi.fn().mockResolvedValue([]),
+                getContentForAgent: vi.fn().mockResolvedValue(undefined),
+            },
+            aiDeepResearchRunModel: {
+                findReportSummariesByThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue([]),
+                findReportByUuidThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+                findByThreadScoped: vi.fn().mockResolvedValue([publishedRun]),
+            },
+            aiAgentModel: {
+                findToolResultsByToolCallIds: vi.fn().mockResolvedValue([
+                    {
+                        promptUuid: 'prompt-uuid',
+                        toolCallId: 'deep-research-published-run-document',
+                        toolName: 'createContent',
+                        metadata: {
+                            status: 'success',
+                            uuid: publishedDocument.documentUuid,
+                            name: publishedDocument.name,
+                            slug: publishedDocument.slug,
+                        },
+                    },
+                ]),
+            },
+            documentService,
+        });
+
+        it('lists a report published as a Document as a thread document', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi.fn().mockResolvedValue(publishedDocument),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
+                expect.objectContaining({
+                    uuid: 'published-run',
+                    name: 'Revenue fell in spring',
+                    mimeType: 'text/markdown',
+                }),
+            ]);
+        });
+
+        it('reads a published report through the Document', async () => {
+            const get = vi.fn().mockResolvedValue(publishedDocument);
+            const service = makeService(publishedServices({ get }));
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).resolves.toEqual({
+                uuid: 'published-run',
+                name: 'Revenue fell in spring',
+                mimeType: 'text/markdown',
+                content: '# Spring dip\n\nOrders fell.',
+            });
+            expect(get).toHaveBeenCalledWith(
+                registeredAccount,
+                projectUuid,
+                publishedDocument.documentUuid,
+            );
+        });
+
+        it('skips a published report the user can no longer read', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new NotFoundError('Document not found'),
+                        ),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([]);
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).rejects.toThrow(
+                'Knowledge document published-run is not accessible to this agent.',
+            );
+        });
+
         it('rejects runs without an accessible report', async () => {
             const service = makeService({
                 aiAgentDocumentModel: {
@@ -1073,6 +1217,7 @@ describe('AiAgentToolsService', () => {
                     findReportByUuidThreadScoped: vi
                         .fn()
                         .mockResolvedValue(undefined),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
