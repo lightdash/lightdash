@@ -1,3 +1,10 @@
+## [2.470.1](https://github.com/lightdash/lightdash/compare/2.470.0...2.470.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **duckdb:** stop concurrent sessions racing to replace the GCS secret ([#30658](https://github.com/lightdash/lightdash/issues/30658)) ([9ea7468](https://github.com/lightdash/lightdash/commit/9ea74682bf541fe607b83e156935acd70b532387))
+
 # [2.470.0](https://github.com/lightdash/lightdash/compare/2.469.0...2.470.0) (2026-10-07)
 
 
