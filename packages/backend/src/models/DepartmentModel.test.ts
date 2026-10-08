@@ -252,6 +252,83 @@ describe('DepartmentModel', () => {
         ]);
     });
 
+    it('hydrates 1,000 departments with 5,000 rows of each kind in under 100 ms, keeping the order read', async () => {
+        const DEPARTMENTS = 1000;
+        const ROWS = 5000;
+        const departmentUuid = (i: number) =>
+            `dep-${String(i % DEPARTMENTS).padStart(4, '0')}`;
+        tracker.on.select(SELECT_DEPARTMENTS).response(
+            Array.from({ length: DEPARTMENTS }, (_, i) =>
+                departmentRow({
+                    department_uuid: departmentUuid(i),
+                    name: `D${i}`,
+                }),
+            ),
+        );
+        // Row n belongs to department n mod 1,000, so each department's rows are spread through the result
+        tracker.on.select(/from "department_links"/).response(
+            Array.from({ length: ROWS }, (_, n) => ({
+                department_uuid: departmentUuid(n),
+                group_uuid: `g${n}`,
+                name: `Group ${n}`,
+            })),
+        );
+        tracker.on.select(/from "department_members"/).response(
+            Array.from({ length: ROWS }, (_, n) => ({
+                department_uuid: departmentUuid(n),
+                user_uuid: `u${n}`,
+            })),
+        );
+        tracker.on.select(/inner join "users"/).response(
+            Array.from({ length: ROWS }, (_, n) => ({
+                department_uuid: departmentUuid(n),
+                principal_uuid: `ou${n}`,
+                position: 2 * Math.floor(n / DEPARTMENTS) + 1,
+                name: `Owner ${n}`,
+            })),
+        );
+        tracker.on
+            .select(/from "department_owners" inner join "groups"/)
+            .response(
+                Array.from({ length: ROWS }, (_, n) => ({
+                    department_uuid: departmentUuid(n),
+                    principal_uuid: `og${n}`,
+                    position: 2 * Math.floor(n / DEPARTMENTS),
+                    name: `Owner group ${n}`,
+                })),
+            );
+
+        // The fastest of five runs after a warm-up, so a busy machine does not fail it
+        let departments = await model.listByOrganization('org');
+        let fastest = Number.POSITIVE_INFINITY;
+        for (let run = 0; run < 5; run += 1) {
+            const started = performance.now();
+            // eslint-disable-next-line no-await-in-loop
+            departments = await model.listByOrganization('org');
+            fastest = Math.min(fastest, performance.now() - started);
+        }
+
+        expect(fastest).toBeLessThan(100);
+        expect(departments).toHaveLength(DEPARTMENTS);
+        departments.forEach((department, i) => {
+            const own = [0, 1, 2, 3, 4].map((k) => i + k * DEPARTMENTS);
+            expect(department.departmentUuid).toBe(departmentUuid(i));
+            expect(department.linkedGroups).toEqual(
+                own.map((n) => ({ groupUuid: `g${n}`, name: `Group ${n}` })),
+            );
+            expect(department.explicitMemberUuids).toEqual(
+                own.map((n) => `u${n}`),
+            );
+            // Users at odd positions and groups at even ones, merged by position
+            expect(department.owners).toEqual(
+                own.flatMap((n) => [
+                    { type: 'group', uuid: `og${n}`, name: `Owner group ${n}` },
+                    { type: 'user', uuid: `ou${n}`, name: `Owner ${n}` },
+                ]),
+            );
+        });
+    });
+
     it('rejects creating under a parent that is not in the org', async () => {
         tracker.on.select(SELECT_DEPARTMENTS).response([]);
         await expect(

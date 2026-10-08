@@ -91,6 +91,19 @@ const normalizeNote = (note: string | null): string | null => {
     return trimmed.length > 0 ? trimmed : null;
 };
 
+// One pass over the rows; each department's rows keep the order they were read in
+const groupByDepartment = <T extends { department_uuid: string }>(
+    rows: T[],
+): Map<string, T[]> => {
+    const grouped = new Map<string, T[]>();
+    rows.forEach((row) => {
+        const list = grouped.get(row.department_uuid);
+        if (list) list.push(row);
+        else grouped.set(row.department_uuid, [row]);
+    });
+    return grouped;
+};
+
 export class DepartmentModel {
     private readonly database: Knex;
 
@@ -177,14 +190,19 @@ export class DepartmentModel {
                 ),
         ]);
 
+        const linksByDepartment = groupByDepartment(links);
+        const membersByDepartment = groupByDepartment(members);
+        const userOwnersByDepartment = groupByDepartment(userOwners);
+        const groupOwnersByDepartment = groupByDepartment(groupOwners);
+
         const ownersFor = (departmentUuid: string): DepartmentOwner[] =>
             [
-                ...userOwners
-                    .filter((o) => o.department_uuid === departmentUuid)
-                    .map((o) => ({ row: o, type: 'user' as const })),
-                ...groupOwners
-                    .filter((o) => o.department_uuid === departmentUuid)
-                    .map((o) => ({ row: o, type: 'group' as const })),
+                ...(userOwnersByDepartment.get(departmentUuid) ?? []).map(
+                    (o) => ({ row: o, type: 'user' as const }),
+                ),
+                ...(groupOwnersByDepartment.get(departmentUuid) ?? []).map(
+                    (o) => ({ row: o, type: 'group' as const }),
+                ),
             ]
                 .sort((a, b) => a.row.position - b.row.position)
                 .map(({ row, type }) => ({
@@ -202,12 +220,12 @@ export class DepartmentModel {
             targetActiveUsers: row.target_active_users,
             targetDate: row.target_date,
             owners: ownersFor(row.department_uuid),
-            linkedGroups: links
-                .filter((l) => l.department_uuid === row.department_uuid)
-                .map((l) => ({ groupUuid: l.group_uuid, name: l.name })),
-            explicitMemberUuids: members
-                .filter((m) => m.department_uuid === row.department_uuid)
-                .map((m) => m.user_uuid),
+            linkedGroups: (
+                linksByDepartment.get(row.department_uuid) ?? []
+            ).map((l) => ({ groupUuid: l.group_uuid, name: l.name })),
+            explicitMemberUuids: (
+                membersByDepartment.get(row.department_uuid) ?? []
+            ).map((m) => m.user_uuid),
         }));
     }
 
