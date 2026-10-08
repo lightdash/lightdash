@@ -14735,11 +14735,13 @@ export class ProjectService
     }
 
     /**
-     * A learner's own throwaway copy of the training project, so a walkthrough
-     * always starts from the seeded state and never touches what other
-     * learners are doing. Any earlier copy the learner had is deleted first,
-     * so "start the tour again" means "start clean". Expires like any preview;
-     * the scheduler removes it.
+     * A learner's own copy of the training project, where walkthroughs run
+     * without touching what other learners are doing. One copy per learner:
+     * a walkthrough starts in the copy the learner already has, so what
+     * earlier walkthroughs built is still there, and only makes a new one
+     * when there is none or it has expired. Each start moves the expiry out
+     * again; the scheduler removes a copy nobody has come back to. Removing
+     * the copy (`deleteTrainingPreviews`) is how a learner starts clean.
      */
     async createTrainingPreview(
         user: SessionUser,
@@ -14782,6 +14784,39 @@ export class ProjectService
                         project.upstreamProjectUuid === trainingProjectUuid &&
                         project.createdByUserUuid === user.userUuid,
                 );
+                // The learner's live copy is handed back rather than
+                // replaced, with another day before it expires. A copy past
+                // its expiry that the scheduler has not swept yet counts as
+                // gone: the new copy's creation removes it.
+                const live = existing
+                    .filter(
+                        (project) =>
+                            project.expiresAt === null ||
+                            new Date(project.expiresAt).getTime() > Date.now(),
+                    )
+                    .sort(
+                        (a, b) =>
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime(),
+                    )[0];
+                if (live) {
+                    const expiresAt = new Date(
+                        Date.now() +
+                            ProjectService.TRAINING_PREVIEW_EXPIRES_IN_HOURS *
+                                60 *
+                                60 *
+                                1000,
+                    );
+                    await this.projectModel.updateExpiresAt(
+                        live.projectUuid,
+                        expiresAt,
+                    );
+                    return {
+                        projectUuid: live.projectUuid,
+                        expiresAt,
+                        reused: true,
+                    };
+                }
                 const newest = existing
                     .map((project) => new Date(project.createdAt).getTime())
                     .sort((a, b) => b - a)[0];
@@ -14953,7 +14988,11 @@ export class ProjectService
         this.userModel.invalidateSessionUserCache(user.userUuid);
 
         const preview = await this.projectModel.get(projectUuid);
-        return { projectUuid, expiresAt: preview.expiresAt ?? null };
+        return {
+            projectUuid,
+            expiresAt: preview.expiresAt ?? null,
+            reused: false,
+        };
     }
 
     /**
