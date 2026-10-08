@@ -56,14 +56,14 @@ type ProjectServiceCredentials = {
             purpose?: 'query' | 'compile';
         },
     ) => Promise<CredentialsResult>;
-    buildAdapter: (
+    withCompileAdapter: <T>(
         projectUuid: string,
         user: { userUuid: string; organizationUuid: string },
-    ) => Promise<{
-        warehouseCredentials: CreateWarehouseCredentials;
-        sshTunnel: { disconnect: () => Promise<void> };
-        adapter: { destroy: () => Promise<void> };
-    }>;
+        fn: (primary: {
+            warehouseCredentials: CreateWarehouseCredentials;
+        }) => Promise<T>,
+        manifestFetchAdapters: [],
+    ) => Promise<T>;
     refreshCredentials: (
         args: CreateWarehouseCredentials,
         userUuid: string,
@@ -922,12 +922,15 @@ describe('Extra connection credentials on the real schema', () => {
                     passwordPersonal(credentials.type),
                 );
 
-                const main = await credentialsApi.buildAdapter(singleProject, {
-                    userUuid: organization.userUuid,
-                    organizationUuid: organization.organizationUuid,
-                });
-                await main.adapter.destroy();
-                await main.sshTunnel.disconnect();
+                const main = await credentialsApi.withCompileAdapter(
+                    singleProject,
+                    {
+                        userUuid: organization.userUuid,
+                        organizationUuid: organization.organizationUuid,
+                    },
+                    async (primary) => primary.warehouseCredentials,
+                    [],
+                );
                 const { userWarehouseCredentialsUuid, ...compiled } =
                     await compileCredentials(
                         multiProject,
@@ -936,7 +939,7 @@ describe('Extra connection credentials on the real schema', () => {
                     );
 
                 expect(userWarehouseCredentialsUuid).toBeUndefined();
-                expect(compiled).toEqual(main.warehouseCredentials);
+                expect(compiled).toEqual(main);
             },
         );
     });

@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CreateWarehouseCredentials,
     DbtManifestProjectConfig,
     DbtProjectConfig,
@@ -6,11 +7,8 @@ import {
     DbtVersionOption,
     ParameterError,
     resolveDbtVersion,
+    type WarehouseClient,
 } from '@lightdash/common';
-import {
-    warehouseClientFromCredentials,
-    type WarehouseClientOptions,
-} from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
@@ -32,6 +30,7 @@ export const projectAdapterFromConfig = async (
     config:
         | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
         | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
+    warehouseClient: WarehouseClient,
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
@@ -41,15 +40,7 @@ export const projectAdapterFromConfig = async (
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
     manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
-    warehouseClientOptions?: WarehouseClientOptions,
 ): Promise<ProjectAdapter> => {
-    Logger.debug(
-        `Initialize warehouse client of type ${warehouseCredentials.type}`,
-    );
-    const warehouseClient = warehouseClientFromCredentials(
-        warehouseCredentials,
-        warehouseClientOptions,
-    );
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 
@@ -220,7 +211,9 @@ export const projectAdapterFromConfig = async (
                 selector: config.selector,
             });
         default:
-            const never: never = config;
-            throw new Error(`Adapter not implemented for type: ${configType}`);
+            return assertUnreachable(
+                config,
+                `Adapter not implemented for type: ${configType}`,
+            );
     }
 };

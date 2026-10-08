@@ -678,6 +678,21 @@ describe('mobile minimum supported versions', () => {
     });
 });
 
+describe('scoped SSH tunnel release', () => {
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            expected,
+        );
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();

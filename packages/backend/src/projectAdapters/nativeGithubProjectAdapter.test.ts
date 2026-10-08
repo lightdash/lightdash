@@ -49,6 +49,7 @@ describe('native GitHub server compilation', () => {
     const createAdapter = (config: DbtProjectConfig = connection) =>
         projectAdapterFromConfig(
             config,
+            warehouseClientMock,
             {
                 type: WarehouseTypes.POSTGRES,
                 host: 'localhost',

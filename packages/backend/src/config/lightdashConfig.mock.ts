@@ -486,6 +486,9 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    warehouseClient: {
+        releaseSshTunnelOnScopeExit: true,
+    },
     motherduckInstanceCache: {
         enabled: false,
         projectUuids: [],

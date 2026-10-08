@@ -26,6 +26,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import knex, { type Knex } from 'knex';
 import fetch from 'node-fetch';
 import { randomUUID } from 'node:crypto';
@@ -127,7 +128,6 @@ type RuntimeInternals = {
     }) => Promise<{
         warehouseConnectionUuid: string | null;
         originalColumns: Record<string, unknown>;
-        warehouseConnection: { sshTunnel: { disconnect: () => Promise<void> } };
     }>;
 };
 
@@ -707,7 +707,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
                     chartUuid: chart.savedSqlUuid,
                     limit: 10,
                 });
-            await prepared.warehouseConnection.sshTunnel.disconnect();
 
             expect(prepared.warehouseConnectionUuid).toBe(expected(fixture));
             expect(Object.keys(prepared.originalColumns)).toEqual([
@@ -1473,7 +1472,14 @@ describe('Multi runtime identity wiring on the real schema', () => {
                         lightdashProjectConfig,
                     destroy: async () => {},
                 },
-                sshTunnel: { disconnect: async () => {} },
+                lease: {
+                    release: async () => {},
+                    warehouseClient: warehouseClientFromCredentials(
+                        postgresWarehouse(ORIGINAL_DB),
+                    ),
+                    deriveClient: (credentials: CreateWarehouseCredentials) =>
+                        warehouseClientFromCredentials(credentials),
+                },
             });
             vi.spyOn(internals, 'getOnboardingFlow').mockResolvedValue(
                 undefined,
