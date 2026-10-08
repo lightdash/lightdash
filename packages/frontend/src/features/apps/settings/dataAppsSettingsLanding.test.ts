@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { getDataAppsSettingsLanding } from './dataAppsSettingsLanding';
 
 describe('getDataAppsSettingsLanding', () => {
-    it('lands a user who can open General on General', () => {
+    it('lands an organization manager on General', () => {
         expect(
             getDataAppsSettingsLanding({
-                canOpenGeneral: true,
+                canManageOrganization: true,
                 canManageThemes: true,
             }),
         ).toBe('/generalSettings/dataApps/general');
         expect(
             getDataAppsSettingsLanding({
-                canOpenGeneral: true,
+                canManageOrganization: true,
                 canManageThemes: false,
             }),
         ).toBe('/generalSettings/dataApps/general');
@@ -20,7 +20,7 @@ describe('getDataAppsSettingsLanding', () => {
     it('lands a user who can only manage themes on Themes', () => {
         expect(
             getDataAppsSettingsLanding({
-                canOpenGeneral: false,
+                canManageOrganization: false,
                 canManageThemes: true,
             }),
         ).toBe('/generalSettings/dataApps/themes');
@@ -29,7 +29,7 @@ describe('getDataAppsSettingsLanding', () => {
     it('has no landing page for a user who can reach none', () => {
         expect(
             getDataAppsSettingsLanding({
-                canOpenGeneral: false,
+                canManageOrganization: false,
                 canManageThemes: false,
             }),
         ).toBeNull();

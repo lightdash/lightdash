@@ -86,7 +86,7 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
-    /** Data apps > General has one flagged setting, so the page is gated on it. */
+    /** Data apps > General has one flagged setting, so its sidebar entry follows it. */
     isDataAppGeneralSettingsEnabled: boolean;
     isDataAppsFlagLoading: boolean;
     externalSourcesFlag: FeatureFlag | undefined;

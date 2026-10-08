@@ -79,9 +79,9 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
-    // Data apps > General currently holds a single setting (automatic
-    // thumbnails), so the whole page is gated on that flag. When another
-    // setting lands there, drop this gate and keep the flag on the card only.
+    // Data apps > General holds a single setting (automatic thumbnails), so its
+    // sidebar entry follows that flag. Drop this once another setting lands
+    // there; the route itself is not gated.
     const dataAppAutomaticThumbnailsFlagQuery = useServerFeatureFlag(
         FeatureFlags.EnableDataAppAutomaticThumbnails,
     );
@@ -256,8 +256,7 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppGeneralSettingsEnabled,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
-            dataAppAnalysisFlagQuery.isInitialLoading ||
-            dataAppAutomaticThumbnailsFlagQuery.isInitialLoading,
+            dataAppAnalysisFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

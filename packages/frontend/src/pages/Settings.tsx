@@ -173,7 +173,6 @@ const Settings: FC = () => {
         isScimTokenManagementEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         externalSourcesFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
@@ -547,10 +546,8 @@ const Settings: FC = () => {
                 user?.ability.can('manage', 'Organization') ?? false;
             const canManageAiAnalysis =
                 canManageOrganization && dataAppAnalysisFlag?.enabled === true;
-            const canOpenGeneral =
-                canManageOrganization && isDataAppGeneralSettingsEnabled;
 
-            if (canOpenGeneral) {
+            if (canManageOrganization) {
                 allowedRoutes.push({
                     path: '/dataApps/general',
                     element: <DataAppGeneralSettingsPage />,
@@ -576,7 +573,7 @@ const Settings: FC = () => {
             }
             // Land on whichever sub-page the user can actually reach.
             const dataAppsLanding = getDataAppsSettingsLanding({
-                canOpenGeneral,
+                canManageOrganization,
                 canManageThemes,
             });
             if (dataAppsLanding) {
@@ -859,7 +856,6 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
-        isDataAppGeneralSettingsEnabled,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
