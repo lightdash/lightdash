@@ -1,3 +1,15 @@
+## [2.475.1](https://github.com/lightdash/lightdash/compare/2.475.0...2.475.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* bound content snapshot dashboard lookups ([#30669](https://github.com/lightdash/lightdash/issues/30669)) ([8ceb9de](https://github.com/lightdash/lightdash/commit/8ceb9de89f22e609c8fc94153a6c409fe8ca6936))
+
+
+### Performance Improvements
+
+* cache small analytics parquet files ([#30671](https://github.com/lightdash/lightdash/issues/30671)) ([23649a8](https://github.com/lightdash/lightdash/commit/23649a8904d916002d6350067cb55691bf3cbbf0))
+
 # [2.475.0](https://github.com/lightdash/lightdash/compare/2.474.0...2.475.0) (2026-10-08)
 
 
