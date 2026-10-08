@@ -8,7 +8,6 @@ import {
     getBuildOutcome,
     useBuildNotification,
 } from '../../../../../features/apps/hooks/useBuildNotification';
-import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     getAiAgentThreadPath,
     getThreadUuidFromPathname,
@@ -64,7 +63,9 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const { projectUuid, agentUuid, threadUuid, appUuid } = watch;
-    const isEmbed = useIsEmbedded();
+    // Mounted above the routes, outside any EmbedProvider, so the embed is
+    // recognised from its route rather than useIsEmbedded()
+    const isEmbed = pathname.startsWith('/embed/');
     const canNotify = !isEmbed;
     const landedReadyVersionRef = useRef<number | null>(null);
 

@@ -817,8 +817,7 @@ export const AgentChatInput = ({
     const hasValue = value.trim().length > 0;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
-    const isEmbed = useIsEmbedded();
-    const canStartDeepResearch = Boolean(onStartDeepResearch && !isEmbed);
+    const canStartDeepResearch = Boolean(onStartDeepResearch && !isEmbedded);
     const hasActiveDeepResearchRun = useHasActiveDeepResearchRun({
         projectUuid,
         threadUuid,
@@ -835,7 +834,7 @@ export const AgentChatInput = ({
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const fastMode = useAiAgentFastMode();
     const showFastModeControl =
-        showFastMode && fastMode.available && !disabled && !isEmbed;
+        showFastMode && fastMode.available && !disabled && !isEmbedded;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -852,7 +851,7 @@ export const AgentChatInput = ({
         externalSourcesFlag?.enabled &&
         multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
-        !isEmbed &&
+        !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
             subject('ExternalSource', {
@@ -868,7 +867,7 @@ export const AgentChatInput = ({
             }),
         ),
     );
-    const canAttachThreadFile = Boolean(projectUuid && !isEmbed);
+    const canAttachThreadFile = Boolean(projectUuid && !isEmbedded);
     const showAttachControl = Boolean(
         (canAttachExternalSource || canAttachThreadFile) &&
         !disabled &&

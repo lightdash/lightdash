@@ -1051,7 +1051,10 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
 };
 
 // Follows threadUuid/agentUuid prop changes from the host
-const AiAgentRouteSync: FC<{ path: string }> = ({ path }) => {
+const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
+    path,
+    hasThread,
+}) => {
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const pathnameRef = useRef(pathname);
@@ -1062,9 +1065,13 @@ const AiAgentRouteSync: FC<{ path: string }> = ({ path }) => {
         if (lastPathRef.current === path) return;
         lastPathRef.current = path;
         const current = pathnameRef.current;
-        if (current === path || current.startsWith(`${path}/`)) return;
+        // A thread path also matches its message subroutes; the new-thread
+        // path is a prefix of every thread, so it must match exactly
+        const isOnPath =
+            current === path || (hasThread && current.startsWith(`${path}/`));
+        if (isOnPath) return;
         void navigate(path);
-    }, [navigate, path]);
+    }, [navigate, path, hasThread]);
 
     return null;
 };
@@ -1072,10 +1079,18 @@ const AiAgentRouteSync: FC<{ path: string }> = ({ path }) => {
 const NativeAiAgentLayout: FC<{
     agentUuid: string;
     embedToken: string;
+    hasThread: boolean;
     onThreadChange: AiAgentProps['onThreadChange'];
     path: string;
     projectUuid: string;
-}> = ({ agentUuid, embedToken, onThreadChange, path, projectUuid }) => {
+}> = ({
+    agentUuid,
+    embedToken,
+    hasThread,
+    onThreadChange,
+    path,
+    projectUuid,
+}) => {
     const {
         savedChart,
         customSqlProvenanceChartUuid,
@@ -1108,7 +1123,7 @@ const NativeAiAgentLayout: FC<{
             onAiAgentThreadChange={handleThreadChange}
         >
             <AiAgentsCoreProvider>
-                <AiAgentRouteSync path={path} />
+                <AiAgentRouteSync path={path} hasThread={hasThread} />
                 <Outlet />
             </AiAgentsCoreProvider>
         </EmbedProvider>
@@ -1166,6 +1181,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                                 <NativeAiAgentLayout
                                     agentUuid={agentUuid}
                                     embedToken={tokenContext.token}
+                                    hasThread={threadUuid !== undefined}
                                     onThreadChange={onThreadChange}
                                     path={path}
                                     projectUuid={tokenContext.projectUuid}

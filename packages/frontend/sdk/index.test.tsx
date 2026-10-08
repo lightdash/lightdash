@@ -1112,6 +1112,34 @@ describe('SDK native AI agent', () => {
         },
     );
 
+    it('opens a new thread when the host clears threadUuid', async () => {
+        const { findByTestId, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-thread');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads',
+            );
+        });
+    });
+
     it('follows a threadUuid change from the host', async () => {
         const { findByTestId, rerender } = render(
             <AiAgent
