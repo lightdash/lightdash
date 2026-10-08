@@ -607,6 +607,7 @@ describe('Haiku model lifecycle', () => {
                         modelName: 'claude-haiku-5-5',
                         customHeaders: {},
                         supportsStreaming: true,
+                        supportsContextManagement: true,
                     },
                     bedrock: {
                         apiKey: 'test',
