@@ -138,6 +138,7 @@ const markedPlan: Extract<AiExecutionPlan, { identity: 'marked_person' }> = {
 const buildFixture = (
     releaseSshTunnelOnScopeExit = true,
     resolveDbtCloudPreviewCredentials = true,
+    resolveTimezonePreviewCredentials = true,
 ) => {
     const projectModel = {
         getWarehouseClientFromCredentials: vi.fn<
@@ -193,6 +194,7 @@ const buildFixture = (
                 ...lightdashConfigMock.warehouseClient,
                 releaseSshTunnelOnScopeExit,
                 resolveDbtCloudPreviewCredentials,
+                resolveTimezonePreviewCredentials,
             },
         },
         projectModel: projectModel as unknown as ProjectModel,
@@ -1134,6 +1136,76 @@ describe('WarehouseClientFactory', () => {
         expect(credentialSource.finish).not.toHaveBeenCalled();
     });
 
+    test('rejects timezone bypass before construction when resolution is enabled', async () => {
+        const { factory, projectModel, credentialSource } = buildFixture();
+        const callback = vi.fn();
+        await expect(
+            factory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'timezone_preview',
+                    projectUuid: null,
+                    credentials,
+                },
+                contextFor(),
+                callback,
+            ),
+        ).rejects.toThrow(
+            'Timezone preview credential bypass requires credential resolution to be disabled',
+        );
+        expect(callback).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).not.toHaveBeenCalled();
+        expect(SshTunnel).not.toHaveBeenCalled();
+        expect(credentialSource.loadBase).not.toHaveBeenCalled();
+    });
+
+    test('warns once when timezone credential resolution is disabled', () => {
+        const { logger } = buildFixture(true, true, false);
+        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Timezone preview credential resolution is disabled; using raw credentials without refresh',
+        );
+    });
+
+    test.each([null, 'project-uuid'])(
+        'resolved preview with project %s never reads or writes the query cache',
+        async (projectUuid) => {
+            const { factory, projectModel, credentialSource } = buildFixture();
+            const cached = { ...warehouseClientMock, credentials };
+            factory.warehouseClients[String(projectUuid)] = cached;
+            const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
+                kind: 'resolved',
+                projectUuid,
+                credentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                cachePolicy: 'disabled',
+            };
+            const first = await factory.withWarehouseClient(
+                ref,
+                contextFor(),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            const second = await factory.withWarehouseClient(
+                ref,
+                contextFor(),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(first).not.toBe(cached);
+            expect(second).not.toBe(first);
+            expect(factory.warehouseClients).toEqual({
+                [String(projectUuid)]: cached,
+            });
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            expect(credentialSource.loadBase).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledTimes(2);
+        },
+    );
+
     test('rejects webhook bypass before construction when resolution is enabled', async () => {
         const { factory, projectModel, credentialSource } = buildFixture();
         const callback = vi.fn();
@@ -1193,7 +1265,7 @@ describe('WarehouseClientFactory', () => {
         '$kind refs skip credential resolution and AI planning',
         async (ref) => {
             const { factory, credentialSource, aiAccessService, logger } =
-                buildFixture(true, false);
+                buildFixture(true, false, false);
             await factory.withWarehouseClient(
                 ref,
                 contextFor(QueryExecutionContext.AI),
@@ -1226,7 +1298,7 @@ describe('WarehouseClientFactory', () => {
     ] as const)(
         '%s bypass calls build fresh clients without populating the cache',
         async (mode) => {
-            const { factory, projectModel } = buildFixture(true, false);
+            const { factory, projectModel } = buildFixture(true, false, false);
             const ref = {
                 kind: 'bypass',
                 mode,
@@ -1253,7 +1325,7 @@ describe('WarehouseClientFactory', () => {
     );
 
     test('bypass calls do not read or replace an existing query client', async () => {
-        const { factory, projectModel } = buildFixture();
+        const { factory, projectModel } = buildFixture(true, true, false);
         const cached = await factory.withWarehouseClient(
             bindingRef,
             contextFor(),

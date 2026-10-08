@@ -490,6 +490,7 @@ export const lightdashConfigMock: LightdashConfig = {
         releaseSshTunnelOnScopeExit: true,
         resolveCompileCredentials: true,
         resolveDbtCloudPreviewCredentials: true,
+        resolveTimezonePreviewCredentials: true,
     },
     motherduckInstanceCache: {
         enabled: false,

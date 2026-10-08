@@ -6851,17 +6851,65 @@ export class ProjectService
             throw new ParameterError('Invalid data timezone');
         }
 
-        return this.warehouseClientFactory.withWarehouseClient(
-            {
+        const connectionContext = connectionContextFromAccount(account, {
+            organizationUuid: connectionOrganizationUuid,
+            queryContext: QueryExecutionContext.API,
+        });
+        let warehouseRef: WarehouseClientRef;
+        if (
+            this.lightdashConfig.warehouseClient
+                .resolveTimezonePreviewCredentials
+        ) {
+            if (body.mode === 'edit') {
+                const resolution =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        {
+                            kind: 'binding',
+                            projectUuid: body.projectUuid,
+                            binding: { kind: 'original' },
+                        },
+                        connectionContext,
+                    );
+                warehouseRef = {
+                    kind: 'resolved',
+                    projectUuid: body.projectUuid,
+                    credentials: {
+                        ...resolution.warehouseCredentials,
+                        dataTimezone,
+                    },
+                    aiPlan: resolution.aiPlan,
+                    warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                    connectionRoute: resolution.connectionRoute,
+                    cachePolicy: 'disabled',
+                };
+            } else {
+                const { warehouseConnection } =
+                    await this._resolveWarehouseClientCredentials(
+                        { warehouseConnection: body.credentials },
+                        account.user.userUuid,
+                        connectionOrganizationUuid,
+                    );
+                warehouseRef = {
+                    kind: 'resolved',
+                    projectUuid: null,
+                    credentials: { ...warehouseConnection, dataTimezone },
+                    aiPlan: null,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                    cachePolicy: 'disabled',
+                };
+            }
+        } else {
+            warehouseRef = {
                 kind: 'bypass',
                 mode: 'timezone_preview',
                 projectUuid: body.mode === 'edit' ? body.projectUuid : null,
                 credentials: effectiveCredentials,
-            },
-            connectionContextFromAccount(account, {
-                organizationUuid: connectionOrganizationUuid,
-                queryContext: QueryExecutionContext.API,
-            }),
+            };
+        }
+        return this.warehouseClientFactory.withWarehouseClient(
+            warehouseRef,
+            connectionContext,
             async ({ warehouseClient }) => {
                 const adapterType = warehouseClient.getAdapterType();
                 // A fixed wall-clock, read through the session timezone the client

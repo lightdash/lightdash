@@ -2031,6 +2031,7 @@ export type LightdashConfig = {
         releaseSshTunnelOnScopeExit: boolean;
         resolveCompileCredentials: boolean;
         resolveDbtCloudPreviewCredentials: boolean;
+        resolveTimezonePreviewCredentials: boolean;
     };
     motherduckInstanceCache: {
         enabled: boolean;
@@ -4114,6 +4115,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED !== 'false',
             resolveDbtCloudPreviewCredentials:
                 process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
+            resolveTimezonePreviewCredentials:
+                process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
                 'false',
         },
         motherduckInstanceCache,

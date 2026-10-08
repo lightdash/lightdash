@@ -94,7 +94,8 @@ export type WarehouseClientRef =
       }
     | {
           kind: 'resolved';
-          projectUuid: string;
+          projectUuid: string | null;
+          cachePolicy?: 'default' | 'disabled';
           credentials: CreateWarehouseCredentials & {
               userWarehouseCredentialsUuid?: string;
           };
@@ -188,6 +189,8 @@ export class WarehouseClientFactory {
 
     private readonly resolveDbtCloudPreviewCredentials: boolean;
 
+    private readonly resolveTimezonePreviewCredentials: boolean;
+
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
         this.projectModel = deps.projectModel;
@@ -201,6 +204,14 @@ export class WarehouseClientFactory {
         this.resolveDbtCloudPreviewCredentials =
             deps.lightdashConfig?.warehouseClient
                 ?.resolveDbtCloudPreviewCredentials ?? true;
+        this.resolveTimezonePreviewCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveTimezonePreviewCredentials ?? true;
+        if (!this.resolveTimezonePreviewCredentials) {
+            this.logger.warn(
+                'Timezone preview credential resolution is disabled; using raw credentials without refresh',
+            );
+        }
         if (!this.resolveDbtCloudPreviewCredentials) {
             this.logger.warn(
                 'dbt Cloud preview credential resolution is disabled; using stored credentials without refresh',
@@ -391,6 +402,14 @@ export class WarehouseClientFactory {
                         'dbt Cloud preview credential bypass requires credential resolution to be disabled',
                     );
                 }
+                if (
+                    ref.mode === 'timezone_preview' &&
+                    this.resolveTimezonePreviewCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'Timezone preview credential bypass requires credential resolution to be disabled',
+                    );
+                }
                 this.logger.debug(
                     `Warehouse client credential bypass: ${ref.mode}`,
                 );
@@ -425,7 +444,12 @@ export class WarehouseClientFactory {
                     refusalScope,
                     warehouseConnectionUuid,
                     cacheEnabled:
-                        ref.kind !== 'bypass' && ref.kind !== 'compile',
+                        ref.kind !== 'bypass' &&
+                        ref.kind !== 'compile' &&
+                        !(
+                            ref.kind === 'resolved' &&
+                            ref.cachePolicy === 'disabled'
+                        ),
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,
                     clientOptions:
