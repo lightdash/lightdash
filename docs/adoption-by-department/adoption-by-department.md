@@ -118,6 +118,8 @@ The department page (`getDetail`) adds:
 
 The AI agent read is guarded by a table check (`hasAiTables`) because `ai_prompt`, `ai_thread` and `ai_agent` come from enterprise migrations and do not exist on every instance. Without them the list is empty.
 
+Every activity read (the summary's activity, the member activity and each top-content list) runs in its own transaction that first sets `SET LOCAL statement_timeout = 15000`, so a runaway read is cancelled after 15 seconds instead of holding a pooled connection. A cancelled read answers with `TimeoutError` ("Adoption figures took too long to load. Try again in a minute"), the closest existing error class: there is no 503 class in `@lightdash/common`, and `TimeoutError` answers 400.
+
 ## API
 
 All routes are under `/api/v1/org/departments` in `packages/backend/src/ee/controllers/OrgDepartmentsController.ts`. The organization always comes from the session; no route accepts an organization identifier. A department that belongs to another organization answers 404, the same as one that does not exist.

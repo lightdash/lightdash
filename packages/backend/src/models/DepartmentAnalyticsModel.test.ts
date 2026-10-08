@@ -1,7 +1,8 @@
-import { QueryExecutionContext } from '@lightdash/common';
+import { QueryExecutionContext, TimeoutError } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { DatabaseError } from 'pg';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     COUNTED_QUERY_CONTEXTS,
     DepartmentAnalyticsModel,
@@ -13,6 +14,13 @@ describe('DepartmentAnalyticsModel', () => {
     let tracker: Tracker;
     beforeAll(() => {
         tracker = getTracker();
+    });
+    const STATEMENT_TIMEOUT = /statement_timeout/;
+    // Every read runs after a SET LOCAL in its own transaction; these are the reads themselves
+    const reads = () =>
+        tracker.history.all.filter((q) => !STATEMENT_TIMEOUT.test(q.sql));
+    beforeEach(() => {
+        tracker.on.any(STATEMENT_TIMEOUT).response([]);
     });
     afterEach(() => {
         tracker.reset();
@@ -63,13 +71,13 @@ describe('DepartmentAnalyticsModel', () => {
                 { userUuid: 'u2', weekStart: '2026-08-03' },
             ],
         });
-        expect(tracker.history.all).toHaveLength(1);
+        expect(reads()).toHaveLength(1);
     });
 
     it('builds the weekly buckets from views only and reads queries for 30 days', async () => {
         tracker.on.any(/query_history/).responseOnce({ rows: [] });
         await model.getActivity('org', ['u1', 'u2'], windows);
-        const [query] = tracker.history.all;
+        const [query] = reads();
         expect(query.sql).toMatch(/bool_or\(a\.at >= \$1\) AS is_active_30d/);
         expect(query.sql).toMatch(
             /CASE WHEN a\.is_view\s+THEN to_char\(date_trunc\('week', a\.at\), 'YYYY-MM-DD'\)\s+END AS week_start/,
@@ -91,7 +99,7 @@ describe('DepartmentAnalyticsModel', () => {
     it('limits every source of the activity read to the organization', async () => {
         tracker.on.any(/query_history/).responseOnce({ rows: [] });
         await model.getActivity('org', ['u1', 'u2'], windows);
-        const [query] = tracker.history.all;
+        const [query] = reads();
         expect(query.bindings.filter((b) => b === 'org')).toHaveLength(3);
         expect(
             query.bindings.filter(
@@ -174,7 +182,7 @@ describe('DepartmentAnalyticsModel', () => {
             activeSince,
             lastActiveSince,
         );
-        const [query] = tracker.history.all;
+        const [query] = reads();
         const orgBindings = query.bindings.filter((b) => b === 'org');
         // query_history, dashboard views and chart views each bind the organization
         expect(orgBindings).toHaveLength(3);
@@ -191,7 +199,7 @@ describe('DepartmentAnalyticsModel', () => {
             activeSince,
             lastActiveSince,
         );
-        const [query] = tracker.history.all;
+        const [query] = reads();
         const placeholders = query.bindings.flatMap((b, i) =>
             b === lastActiveSince ? [`$${i + 1}`] : [],
         );
@@ -215,7 +223,7 @@ describe('DepartmentAnalyticsModel', () => {
             activeSince,
             lastActiveSince,
         );
-        const [query] = tracker.history.all;
+        const [query] = reads();
         expect(query.sql).toMatch(
             /COALESCE\(GREATEST\(q\.last_at, dv\.last_at, cv\.last_at\) >= \$\d+, false\) AS is_active_30d/,
         );
@@ -283,7 +291,7 @@ describe('DepartmentAnalyticsModel', () => {
         it('filters the activity read to counted contexts', async () => {
             tracker.on.any(/query_history/).responseOnce({ rows: [] });
             await model.getActivity('org', ['u1'], windows);
-            const [query] = tracker.history.all;
+            const [query] = reads();
             expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
             expect(query.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);
         });
@@ -296,7 +304,7 @@ describe('DepartmentAnalyticsModel', () => {
                 activeSince,
                 lastActiveSince,
             );
-            const [query] = tracker.history.all;
+            const [query] = reads();
             expect(query.sql).toMatch(/context = ANY\(\$\d+::text\[\]\)/);
             expect(query.bindings).toContainEqual(COUNTED_QUERY_CONTEXTS);
         });
@@ -311,9 +319,7 @@ describe('DepartmentAnalyticsModel', () => {
                 { hasAiTables: async () => false },
             );
             await withoutAi.getTopContent('org', ['u1'], activeSince, 5);
-            const explores = tracker.history.all.find((q) =>
-                /exploreName/.test(q.sql),
-            );
+            const explores = reads().find((q) => /exploreName/.test(q.sql));
             expect(explores?.sql).toMatch(
                 /qh\.context = ANY\(\$\d+::text\[\]\)/,
             );
@@ -361,9 +367,9 @@ describe('DepartmentAnalyticsModel', () => {
                 explores: [],
                 aiAgents: [],
             });
-            expect(
-                tracker.history.all.some((q) => q.sql.includes('ai_prompt')),
-            ).toBe(false);
+            expect(reads().some((q) => q.sql.includes('ai_prompt'))).toBe(
+                false,
+            );
         });
 
         it('includes agents when the AI tables exist', async () => {
@@ -393,8 +399,7 @@ describe('DepartmentAnalyticsModel', () => {
                 activeSince,
                 5,
             );
-            const find = (re: RegExp) =>
-                tracker.history.all.find((q) => re.test(q.sql));
+            const find = (re: RegExp) => reads().find((q) => re.test(q.sql));
             const dashboards = find(/analytics_dashboard_views/);
             expect(dashboards?.sql).toContain(
                 'JOIN organizations o ON o.organization_id = p.organization_id',
@@ -420,10 +425,80 @@ describe('DepartmentAnalyticsModel', () => {
                 activeSince,
                 5,
             );
-            tracker.history.all.forEach((q) => {
+            reads().forEach((q) => {
                 expect(q.bindings[1]).toEqual(['u1', 'u2']);
                 expect(q.bindings[q.bindings.length - 1]).toBe(5);
             });
+        });
+    });
+
+    describe('statement timeout', () => {
+        const withoutAi = () =>
+            Object.assign(new DepartmentAnalyticsModel({ database }), {
+                hasAiTables: async () => false,
+            });
+        const databaseError = (code: string, message: string) =>
+            Object.assign(new DatabaseError(message, 0, 'error'), { code });
+
+        it('runs each read in its own transaction that first sets a 15-second statement timeout', async () => {
+            tracker.on.any(/unnest/).response({ rows: [] });
+            tracker.on.any(/exploreName/).response({ rows: [] });
+            tracker.on.any(/deleted_at IS NULL/).response({ rows: [] });
+            tracker.on.any(/bool_or/).response({ rows: [] });
+            await model.getActivity('org', ['u1'], windows);
+            await model.getMemberActivity(
+                'org',
+                ['u1'],
+                activeSince,
+                lastActiveSince,
+            );
+            await withoutAi().getTopContent('org', ['u1'], activeSince, 5);
+
+            // Summary activity, member activity, top dashboards and top explores
+            const { transactions } = tracker.history;
+            expect(transactions).toHaveLength(4);
+            transactions.forEach((transaction) => {
+                expect(transaction.state).toBe('committed');
+                expect(transaction.queries.map((q) => q.sql)).toEqual([
+                    'SET LOCAL statement_timeout = 15000',
+                    expect.any(String),
+                ]);
+            });
+        });
+
+        it('answers a read cancelled by the statement timeout with a TimeoutError', async () => {
+            tracker.on
+                .any(/unnest/)
+                .simulateError(
+                    databaseError(
+                        '57014',
+                        'canceling statement due to statement timeout',
+                    ),
+                );
+            await expect(
+                model.getMemberActivity(
+                    'org',
+                    ['u1'],
+                    activeSince,
+                    lastActiveSince,
+                ),
+            ).rejects.toThrow(
+                new TimeoutError(
+                    'Adoption figures took too long to load. Try again in a minute',
+                ),
+            );
+            expect(tracker.history.transactions[0].state).toBe('rolled back');
+        });
+
+        it('passes any other database error through unchanged', async () => {
+            const missingTable = databaseError(
+                '42P01',
+                'relation does not exist',
+            );
+            tracker.on.any(/bool_or/).simulateError(missingTable);
+            await expect(
+                model.getActivity('org', ['u1'], windows),
+            ).rejects.toBe(missingTable);
         });
     });
 

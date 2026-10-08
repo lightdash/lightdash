@@ -1,9 +1,11 @@
 import {
     QueryExecutionContext,
+    TimeoutError,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { isStatementTimeout } from '../database/errors';
 import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
@@ -37,6 +39,9 @@ type TopContentRow = {
 };
 
 const AI_TABLES = ['ai_prompt', 'ai_thread', 'ai_agent'];
+
+// A runaway read is cancelled instead of holding a pooled connection
+const READ_TIMEOUT_MS = 15000;
 
 // Interactive contexts plus AI agent and MCP, since a person asking the agent or using MCP is adoption
 const COUNTED_CONTEXT_ORIGINS = ['interactive', 'agent', 'mcp'];
@@ -114,6 +119,27 @@ export class DepartmentAnalyticsModel {
         this.database = database;
     }
 
+    // Each read runs in its own transaction, so SET LOCAL applies to that read alone
+    private async bounded<T>(
+        read: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(
+                    `SET LOCAL statement_timeout = ${READ_TIMEOUT_MS}`,
+                );
+                return read(trx);
+            });
+        } catch (e) {
+            if (isStatementTimeout(e)) {
+                throw new TimeoutError(
+                    'Adoption figures took too long to load. Try again in a minute',
+                );
+            }
+            throw e;
+        }
+    }
+
     // One scan answers both: weekly buckets from views only, the 30-day set from views and queries
     async getActivity(
         organizationUuid: string,
@@ -124,21 +150,23 @@ export class DepartmentAnalyticsModel {
             return { activeUserUuids: [], weeklyActivity: [] };
         }
         const union = activityUnion(organizationUuid, userUuids, windows);
-        const result = await this.database.raw<{
-            rows: {
-                user_uuid: string;
-                week_start: string | null; // null on rows that come from queries
-                is_active_30d: boolean;
-            }[];
-        }>(
-            `SELECT a.user_uuid,
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{
+                rows: {
+                    user_uuid: string;
+                    week_start: string | null; // null on rows that come from queries
+                    is_active_30d: boolean;
+                }[];
+            }>(
+                `SELECT a.user_uuid,
                     CASE WHEN a.is_view
                          THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
                     END AS week_start,
                     bool_or(a.at >= ?) AS is_active_30d
              FROM (${union.sql}) a
              GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
-            [windows.activeSince, ...union.bindings],
+                [windows.activeSince, ...union.bindings],
+            ),
         );
         return {
             activeUserUuids: Array.from(
@@ -176,16 +204,17 @@ export class DepartmentAnalyticsModel {
         lastActiveSince: Date,
     ): Promise<MemberActivityRow[]> {
         if (userUuids.length === 0) return [];
-        const result = await this.database.raw<{
-            rows: {
-                user_uuid: string;
-                last_active_at: Date | null;
-                is_active_30d: boolean;
-                queries_30d: number;
-                dashboard_views_30d: number;
-            }[];
-        }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{
+                rows: {
+                    user_uuid: string;
+                    last_active_at: Date | null;
+                    is_active_30d: boolean;
+                    queries_30d: number;
+                    dashboard_views_30d: number;
+                }[];
+            }>(
+                `
             WITH q AS (
                 SELECT created_by_user_uuid AS user_uuid,
                        MAX(created_at) AS last_at,
@@ -232,22 +261,23 @@ export class DepartmentAnalyticsModel {
             LEFT JOIN dv ON dv.user_uuid = u.user_uuid
             LEFT JOIN cv ON cv.user_uuid = u.user_uuid
             `,
-            [
-                since,
-                organizationUuid,
-                userUuids,
-                COUNTED_QUERY_CONTEXTS,
-                lastActiveSince,
-                since,
-                organizationUuid,
-                userUuids,
-                lastActiveSince,
-                organizationUuid,
-                userUuids,
-                lastActiveSince,
-                since,
-                userUuids,
-            ],
+                [
+                    since,
+                    organizationUuid,
+                    userUuids,
+                    COUNTED_QUERY_CONTEXTS,
+                    lastActiveSince,
+                    since,
+                    organizationUuid,
+                    userUuids,
+                    lastActiveSince,
+                    organizationUuid,
+                    userUuids,
+                    lastActiveSince,
+                    since,
+                    userUuids,
+                ],
+            ),
         );
         return result.rows.map((r) => ({
             userUuid: r.user_uuid,
@@ -264,8 +294,9 @@ export class DepartmentAnalyticsModel {
         since: Date,
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT d.dashboard_uuid AS id,
                    d.name,
                    COUNT(*)::int AS count,
@@ -283,7 +314,8 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, d.name ASC
             LIMIT ?
             `,
-            [organizationUuid, userUuids, since, limit],
+                [organizationUuid, userUuids, since, limit],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }
@@ -294,8 +326,9 @@ export class DepartmentAnalyticsModel {
         since: Date,
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT concat(qh.project_uuid, ':', qh.metric_query->>'exploreName') AS id,
                    qh.metric_query->>'exploreName' AS name,
                    COUNT(*)::int AS count,
@@ -310,7 +343,14 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, name ASC
             LIMIT ?
             `,
-            [organizationUuid, userUuids, COUNTED_QUERY_CONTEXTS, since, limit],
+                [
+                    organizationUuid,
+                    userUuids,
+                    COUNTED_QUERY_CONTEXTS,
+                    since,
+                    limit,
+                ],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }
@@ -322,8 +362,9 @@ export class DepartmentAnalyticsModel {
         limit: number,
     ): Promise<DepartmentTopContentItem[]> {
         if (!(await this.hasAiTables())) return [];
-        const result = await this.database.raw<{ rows: TopContentRow[] }>(
-            `
+        const result = await this.bounded(async (trx) =>
+            trx.raw<{ rows: TopContentRow[] }>(
+                `
             SELECT a.ai_agent_uuid AS id,
                    a.name,
                    COUNT(*)::int AS count,
@@ -340,7 +381,8 @@ export class DepartmentAnalyticsModel {
             ORDER BY count DESC, a.name ASC
             LIMIT ?
             `,
-            [organizationUuid, organizationUuid, userUuids, since, limit],
+                [organizationUuid, organizationUuid, userUuids, since, limit],
+            ),
         );
         return result.rows.map(toTopContentItem);
     }
