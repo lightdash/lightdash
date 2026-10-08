@@ -1,4 +1,6 @@
 export const shouldShowAgentConnection = (
     flagEnabled: boolean,
     clientConfigured: boolean,
-): boolean => flagEnabled && clientConfigured;
+    hasBigQueryServiceAccountRule = false,
+): boolean =>
+    flagEnabled && (clientConfigured || hasBigQueryServiceAccountRule);

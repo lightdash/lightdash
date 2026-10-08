@@ -1,9 +1,11 @@
+import { WarehouseTypes } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
+import { identityLabels, requiredIdentityLabel } from './identityLabels';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
 
 const mocks = vi.hoisted(() => ({
@@ -57,10 +59,25 @@ const renderSection = () => {
             </MemoryRouter>
         </QueryClientProvider>,
     );
-    return { invalidate };
+    return { invalidate, container: document.body };
 };
-const findSwitch = () =>
-    screen.findByRole('switch', { name: /^Require agent identity/ });
+const overview = (required = false) => ({
+    requireVerifiedAgentSessions: false,
+    rules: [
+        {
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            source: 'agent_sign_in',
+            required,
+        },
+        {
+            warehouseType: WarehouseTypes.BIGQUERY,
+            source: 'ai_service_account',
+            required,
+        },
+    ],
+});
+const findSwitches = () =>
+    screen.findAllByRole('switch', { name: requiredIdentityLabel });
 
 describe('Organisation agent identity settings', () => {
     beforeEach(() => {
@@ -72,54 +89,138 @@ describe('Organisation agent identity settings', () => {
             healthLoading: false,
             healthError: false,
         });
-        vi.mocked(lightdashApi).mockResolvedValue({
-            requireVerifiedAgentSessions: false,
-        });
+        vi.mocked(lightdashApi).mockResolvedValue(overview());
     });
-    it.each([false, true])(
-        'saves the opposite of %s through the organisation route',
-        async (required) => {
-            vi.mocked(lightdashApi).mockResolvedValue({
-                requireVerifiedAgentSessions: required,
-            });
+    it('shows two warehouse rows with shared copy and no status badges', async () => {
+        const { container } = renderSection();
+        expect(await screen.findAllByRole('combobox')).toHaveLength(2);
+        expect(await findSwitches()).toHaveLength(2);
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toHaveValue(identityLabels.agent_sign_in.label);
+        expect(
+            screen.getByRole('combobox', { name: 'BigQuery agent identity' }),
+        ).toHaveValue(identityLabels.ai_service_account.label);
+        expect(
+            screen.getByText(identityLabels.agent_sign_in.helper),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(identityLabels.ai_service_account.helper),
+        ).toBeInTheDocument();
+        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
+        expect(
+            screen.queryByText(
+                /Postgres|Databricks|marked_person|ai_service_account|agent_sign_in/,
+            ),
+        ).not.toBeInTheDocument();
+    });
+    it.each([0, 1])(
+        'saves the source and requirement for row %s',
+        async (row) => {
             const { invalidate } = renderSection();
-            const toggle = await findSwitch();
-            expect(toggle).toHaveProperty('checked', required);
-            expect(lightdashApi).toHaveBeenCalledWith({
-                version: 'v2',
-                url: '/org/agent-identity',
-                method: 'GET',
-                body: undefined,
-            });
-            fireEvent.click(toggle);
+            fireEvent.click((await findSwitches())[row]);
+            const rule = overview().rules[row];
             await waitFor(() =>
                 expect(lightdashApi).toHaveBeenCalledWith({
                     version: 'v2',
-                    url: '/org/agent-identity',
+                    url: `/org/agent-identity/${rule.warehouseType}`,
                     method: 'PUT',
                     body: JSON.stringify({
-                        requireVerifiedAgentSessions: !required,
+                        source: rule.source,
+                        required: true,
                     }),
                 }),
             );
             await waitFor(() =>
                 expect(mocks.toast).toHaveBeenCalledWith({
-                    title: 'Agent identity requirement saved.',
+                    title: 'Agent identity saved.',
                 }),
             );
             expect(invalidate).toHaveBeenCalledWith(['ai-access']);
-            expect(
-                screen.getByRole('link', { name: 'My warehouse connections' }),
-            ).toHaveAttribute(
-                'href',
-                '/generalSettings/myWarehouseConnections',
+        },
+    );
+    it.each([
+        ['Snowflake', 'snowflake'],
+        ['BigQuery', 'bigquery'],
+    ] as const)(
+        'clears Required when %s moves to the same credentials as the user',
+        async (name, warehouseType) => {
+            const source = 'marked_person';
+            vi.mocked(lightdashApi).mockResolvedValue(overview(true));
+            renderSection();
+            fireEvent.click(
+                await screen.findByRole('combobox', {
+                    name: `${name} agent identity`,
+                }),
+            );
+            fireEvent.click(
+                screen.getByRole('option', {
+                    name: identityLabels[source].label,
+                }),
+            );
+            await waitFor(() =>
+                expect(lightdashApi).toHaveBeenCalledWith({
+                    version: 'v2',
+                    url: `/org/agent-identity/${warehouseType}`,
+                    method: 'PUT',
+                    body: JSON.stringify({ source, required: false }),
+                }),
             );
         },
     );
-    it('disables the switch and shows setup when the integration is unavailable', async () => {
+    it('keeps Required when a row moves to another separate identity', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            requireVerifiedAgentSessions: false,
+            rules: [
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    required: false,
+                },
+            ],
+        });
+        renderSection();
+        expect(await findSwitches()).toHaveLength(1);
+        expect((await findSwitches())[0]).toBeDisabled();
+        fireEvent.click(
+            screen.getByRole('combobox', { name: 'BigQuery agent identity' }),
+        );
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: identityLabels.ai_service_account.label,
+            }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/bigquery',
+                method: 'PUT',
+                body: JSON.stringify({
+                    source: 'ai_service_account',
+                    required: false,
+                }),
+            }),
+        );
+    });
+    it('disables agent sign-in only when the integration is unavailable and keeps setup', async () => {
         mocks.configured = false;
         renderSection();
-        expect(await findSwitch()).toBeDisabled();
+        fireEvent.click(
+            await screen.findByRole('combobox', {
+                name: 'Snowflake agent identity',
+            }),
+        );
+        expect(
+            screen.getByRole('option', {
+                name: identityLabels.agent_sign_in.label,
+            }),
+        ).toHaveAttribute('data-combobox-disabled', 'true');
+        expect((await findSwitches())[0]).toBeEnabled();
+        expect(
+            screen.getByText(
+                'Agent sign-in needs the Snowflake agent integration.',
+            ),
+        ).toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('button', {
                 name: 'Set up the Snowflake agent integration',
@@ -130,24 +231,26 @@ describe('Organisation agent identity settings', () => {
         ).toHaveTextContent(
             "OAUTH_REDIRECT_URI = 'https://instance.example/api/v1/oauth/redirect/snowflake-ai'",
         );
-        expect(
-            screen.getByText(/Set SNOWFLAKE_AI_OAUTH_CLIENT_ID/),
-        ).toHaveTextContent('SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT');
     });
-    it('disables the switch while a save is pending', async () => {
+    it('disables both controls in the saving row', async () => {
         renderSection();
-        const toggle = await findSwitch();
+        const [toggle] = await findSwitches();
         vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
         fireEvent.click(toggle);
         await waitFor(() => expect(toggle).toBeDisabled());
-        expect(toggle).toHaveAttribute('aria-busy', 'true');
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('combobox', { name: 'BigQuery agent identity' }),
+        ).toBeEnabled();
     });
     it('waits for settings to load', () => {
         vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
         renderSection();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     });
-    it('shows a retry state when settings fail to load', async () => {
+    it('allows retry after a load failure', async () => {
         vi.mocked(lightdashApi).mockRejectedValue({
             error: { message: 'Unavailable' },
         });
@@ -155,15 +258,13 @@ describe('Organisation agent identity settings', () => {
         expect(
             await screen.findByText('Could not load agent identity settings.'),
         ).toBeInTheDocument();
-        vi.mocked(lightdashApi).mockResolvedValue({
-            requireVerifiedAgentSessions: true,
-        });
+        vi.mocked(lightdashApi).mockResolvedValue(overview(true));
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-        expect(await findSwitch()).toBeChecked();
+        expect((await findSwitches())[0]).toBeChecked();
     });
-    it('reports a failed save without changing the requirement', async () => {
+    it('reports failed saves and preserves the value', async () => {
         renderSection();
-        const toggle = await findSwitch();
+        const [toggle] = await findSwitches();
         vi.mocked(lightdashApi).mockRejectedValue({
             error: { message: 'Unavailable' },
         });

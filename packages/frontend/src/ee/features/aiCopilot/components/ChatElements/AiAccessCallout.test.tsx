@@ -221,4 +221,28 @@ describe('AI access callout', () => {
         ).toBeNull();
         expect(getAiAccessRefusal({ result: 'failed' })).toBeNull();
     });
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('shows the backend message for %s without sign-in', (reason) => {
+        const message =
+            'Ask an administrator to add or replace the AI service account.';
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...refusal,
+                        reason,
+                        action: AiAccessRefusalAction.ASK_ADMIN,
+                        message,
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect agent' }),
+        ).not.toBeInTheDocument();
+    });
 });
