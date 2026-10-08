@@ -6,6 +6,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    QuerySurface,
     type Document,
     type RegisteredAccount,
     type SessionUser,
@@ -141,6 +142,7 @@ const setup = (spaceAccess: string[] | null = null) => {
         projectUuid,
         organizationUuid: document.organizationUuid,
         source: 'mcp',
+        querySurface: QuerySurface.MCP,
         catalogSearchContext: CatalogSearchContext.MCP,
         defaultQueryExecutionContext:
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
@@ -977,11 +979,15 @@ describe('MCP Document runtime', () => {
                     spaceSlug: 'Reports',
                 }),
             ).resolves.toMatchObject({ content: { spaceSlug: 'reports' } });
-            expect(documentService.moveToSpace).toHaveBeenCalledWith(account, {
-                projectUuid,
-                itemUuid: personal.documentUuid,
-                targetSpaceUuid: spaceUuid,
-            });
+            expect(documentService.moveToSpace).toHaveBeenCalledWith(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: personal.documentUuid,
+                    targetSpaceUuid: spaceUuid,
+                },
+                { change: { source: 'mcp' } },
+            );
             expect(documentService.updateMetadata).not.toHaveBeenCalled();
         });
 

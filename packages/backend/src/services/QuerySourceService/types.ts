@@ -5,6 +5,7 @@ import type {
     QueryExecutionContext,
     QuerySourceDefinition,
     QuerySourceSchema,
+    QuerySurface,
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -17,10 +18,10 @@ export type ScanSchemaArgs = {
 };
 
 /**
- * Execution context shared by every query of one submission. Each field is
- * required so a caller decides it explicitly; none of them defaults.
+ * Execution context shared by every query of one submission.
  */
 export type SourceQueryExecutionContext = {
+    querySurface?: QuerySurface;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
     /**

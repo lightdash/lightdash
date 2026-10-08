@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import { FeatureFlags, type PossibleAbilities } from '@lightdash/common';
 import { type Request } from 'express';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
@@ -14,11 +15,12 @@ const setup = () => {
             async (
                 _uuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => settings,
+            ) => ({ settings, previousRequired: false }),
         ),
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        analytics: analyticsMock,
         featureFlagModel: flags,
         organizationAgentIdentitySettingsModel:
             model as unknown as OrganizationAgentIdentitySettingsModel,

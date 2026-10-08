@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AgentIdentityConnectEntryPoint,
+    AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_TAG,
     AI_PRINCIPAL_QUERY_TAG,
@@ -15,6 +17,7 @@ import {
     isAiAccessQueryContext,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
@@ -27,6 +30,12 @@ import {
     type QueryHistory,
     type SessionUser,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
+import {
+    LightdashAnalytics,
+    type AgentIdentityConnectProperties,
+} from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
@@ -41,7 +50,18 @@ import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
 
+export type AgentConnectAttempt = Omit<
+    AgentIdentityConnectProperties,
+    'warehouseType'
+>;
+
+export type AiAccessEvaluation =
+    | { kind: 'query'; surface: QuerySurface }
+    | { kind: 'result_read' }
+    | { kind: 'diagnostic' };
+
 export type ResolvePlanArgs = {
+    evaluation: AiAccessEvaluation;
     projectUuid: string;
     organizationUuid: string;
     warehouseConnectionUuid: string | null;
@@ -52,9 +72,10 @@ export type ResolvePlanArgs = {
     isServiceAccount: boolean;
 };
 
-type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
+type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
 
 type AiAccessServiceArguments = {
+    analytics: LightdashAnalytics;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
@@ -67,6 +88,8 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -86,6 +109,7 @@ export class AiAccessService extends BaseService {
     private readonly providerRegistry: AiCredentialProviderRegistry;
 
     constructor({
+        analytics,
         organizationAgentIdentitySettingsModel,
         lightdashConfig,
         featureFlagModel,
@@ -97,6 +121,7 @@ export class AiAccessService extends BaseService {
         providerRegistry,
     }: AiAccessServiceArguments) {
         super();
+        this.analytics = analytics;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
         this.lightdashConfig = lightdashConfig;
@@ -117,10 +142,12 @@ export class AiAccessService extends BaseService {
         }
     }
 
-    async getAgentConnectPrompt(
-        user: SessionUser,
-    ): Promise<
-        | { required: true; reason: 'needs_sign_in' | 'sign_in_expired' }
+    async getAgentConnectPrompt(user: SessionUser): Promise<
+        | {
+              required: true;
+              reason: 'needs_sign_in' | 'sign_in_expired';
+              projectUuid: string;
+          }
         | { required: false }
     > {
         const { organizationUuid, userUuid } = user;
@@ -161,7 +188,7 @@ export class AiAccessService extends BaseService {
             reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         )
-            return { required: true, reason };
+            return { required: true, reason, projectUuid: project.projectUuid };
         return { required: false };
     }
 
@@ -196,10 +223,34 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return this.organizationAgentIdentitySettingsModel.upsert(
-            organizationUuid,
-            settings,
-        );
+        const { settings: savedSettings, previousRequired } =
+            await this.organizationAgentIdentitySettingsModel.upsert(
+                organizationUuid,
+                settings,
+            );
+        if (savedSettings.requireVerifiedAgentSessions !== previousRequired) {
+            const userId = this.analyticsUserId({
+                userUuid: account.user.id,
+                isRegisteredUser: account.user.type === 'registered',
+                isServiceAccount: account.isServiceAccount(),
+            });
+            trackSafely(() =>
+                this.analytics.track({
+                    ...(userId !== null
+                        ? { userId }
+                        : { anonymousId: LightdashAnalytics.anonymousId }),
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: organizationUuid,
+                        userId,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required: savedSettings.requireVerifiedAgentSessions,
+                        previousRequired,
+                    },
+                }),
+            );
+        }
+        return savedSettings;
     }
 
     private async authorizeProject(
@@ -219,6 +270,64 @@ export class AiAccessService extends BaseService {
             throw new ForbiddenError();
         }
         return organizationUuid;
+    }
+
+    async getConnectProjectId(
+        account: Account | null,
+        project: unknown,
+        organizationId: string,
+    ): Promise<string | null> {
+        if (!account || typeof project !== 'string' || !isUuid(project)) {
+            return null;
+        }
+        try {
+            const projectOrganizationId = await this.authorizeProject(
+                account,
+                project,
+                'view',
+            );
+            return projectOrganizationId === organizationId ? project : null;
+        } catch {
+            return null;
+        }
+    }
+
+    trackConnectStarted(attempt: AgentConnectAttempt): void {
+        trackSafely(() =>
+            this.analytics.track({
+                userId: attempt.userId,
+                event: 'agent_identity.connect_started',
+                properties: {
+                    ...attempt,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+            }),
+        );
+    }
+
+    trackConnectOutcome(
+        attempt: AgentConnectAttempt,
+        failureReason: AgentIdentityConnectFailureReason | null,
+    ): void {
+        const properties: AgentIdentityConnectProperties = {
+            ...attempt,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        trackSafely(() =>
+            this.analytics.track(
+                failureReason === null
+                    ? {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connected',
+                          properties: { ...properties, failureReason: null },
+                      }
+                    : {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connect_failed',
+                          properties: { ...properties, failureReason },
+                      },
+            ),
+        );
     }
 
     private async loadConnection(
@@ -470,9 +579,28 @@ export class AiAccessService extends BaseService {
         return provider;
     }
 
+    private connectEntryPoint(
+        surface: QuerySurface,
+    ): AgentIdentityConnectEntryPoint {
+        switch (surface) {
+            case QuerySurface.MCP:
+                return AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK;
+            case QuerySurface.SLACK:
+                return AgentIdentityConnectEntryPoint.SLACK_LINK;
+            case QuerySurface.APP:
+                return AgentIdentityConnectEntryPoint.CHAT_CARD;
+            case QuerySurface.API:
+            case QuerySurface.CLI:
+                return AgentIdentityConnectEntryPoint.UNKNOWN;
+            default:
+                return assertUnreachable(surface, 'Unknown query surface');
+        }
+    }
+
     private withRefusalUrls(
         error: AiAccessRefusedError,
         projectUuid: string,
+        entryPoint: AgentIdentityConnectEntryPoint,
     ): AiAccessRefusedError {
         if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
             const connectUrl = new URL(
@@ -481,6 +609,7 @@ export class AiAccessService extends BaseService {
             );
             connectUrl.searchParams.set('project', projectUuid);
             connectUrl.searchParams.set('redirect', '/agent-connected');
+            connectUrl.searchParams.set('entryPoint', entryPoint);
             return new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
@@ -497,6 +626,16 @@ export class AiAccessService extends BaseService {
             });
         }
         return error;
+    }
+
+    private analyticsUserId({
+        userUuid,
+        isRegisteredUser,
+        isServiceAccount,
+    }: Pick<AccessArgs, 'userUuid' | 'isRegisteredUser' | 'isServiceAccount'>):
+        | string
+        | null {
+        return isRegisteredUser && !isServiceAccount ? userUuid : null;
     }
 
     private logRefusal(args: AccessArgs, error: AiAccessRefusedError): void {
@@ -575,8 +714,49 @@ export class AiAccessService extends BaseService {
                 const refusalError = this.withRefusalUrls(
                     error,
                     args.projectUuid,
+                    args.evaluation.kind === 'query'
+                        ? this.connectEntryPoint(args.evaluation.surface)
+                        : AgentIdentityConnectEntryPoint.UNKNOWN,
                 );
                 this.logRefusal(args, refusalError);
+                if (args.evaluation.kind === 'query') {
+                    const userId = this.analyticsUserId(args);
+                    const actor =
+                        userId !== null
+                            ? { userId }
+                            : { anonymousId: LightdashAnalytics.anonymousId };
+                    const properties = {
+                        organizationId: args.organizationUuid,
+                        projectId: args.projectUuid,
+                        userId,
+                        warehouseConnectionId: args.warehouseConnectionUuid,
+                        surface: args.evaluation.surface,
+                        warehouseType: args.connection.type,
+                        reason: refusalError.refusal.reason,
+                    };
+                    trackSafely(() =>
+                        this.analytics.track({
+                            ...actor,
+                            event: 'query.refused',
+                            properties,
+                        }),
+                    );
+                    if (
+                        properties.reason ===
+                        AiAccessRefusalReason.SIGN_IN_EXPIRED
+                    ) {
+                        trackSafely(() =>
+                            this.analytics.track({
+                                ...actor,
+                                event: 'agent_identity.expired',
+                                properties: {
+                                    ...properties,
+                                    reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                                },
+                            }),
+                        );
+                    }
+                }
                 throw refusalError;
             }
             throw error;
@@ -601,6 +781,7 @@ export class AiAccessService extends BaseService {
             'view',
         );
         const plan = await this.resolvePlan({
+            evaluation: { kind: 'result_read' },
             projectUuid,
             organizationUuid,
             warehouseConnectionUuid:
@@ -708,7 +889,11 @@ export class AiAccessService extends BaseService {
             result.expiresAt = credential?.expiresAt ?? null;
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = this.withRefusalUrls(error, args.projectUuid);
+            const refusalError = this.withRefusalUrls(
+                error,
+                args.projectUuid,
+                AgentIdentityConnectEntryPoint.UNKNOWN,
+            );
             this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }

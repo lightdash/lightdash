@@ -14,6 +14,7 @@ const BEDROCK_MODELS = [
         default: false,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 
@@ -46,6 +47,7 @@ const renderCard = (props?: {
                     default: true,
                     supportsReasoning: true,
                     deprecated: false,
+                    supersededBy: null,
                 },
             ]}
             dataAppModelVisibility={null}

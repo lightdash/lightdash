@@ -12,7 +12,7 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
@@ -59,7 +59,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const currentPreview = useAiAgentStoreSelector(selectPreview);
     // Inside an embedded agent the full app is unreachable: dashboards open
     // on the embed route, charts in the side panel, everything else is static.
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;

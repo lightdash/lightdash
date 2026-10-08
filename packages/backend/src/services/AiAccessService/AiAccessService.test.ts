@@ -7,11 +7,14 @@ import {
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type PossibleAbilities,
     type QueryHistory,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -59,6 +62,7 @@ const snowflake: CreateWarehouseCredentials = {
 };
 
 const args: ResolvePlanArgs = {
+    evaluation: { kind: 'query', surface: QuerySurface.APP },
     projectUuid: 'project',
     organizationUuid: 'org',
     warehouseConnectionUuid: null,
@@ -134,7 +138,7 @@ const setup = () => {
             async (
                 _organizationUuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => settings,
+            ) => ({ settings, previousRequired: false }),
         ),
     };
     const credentials = {
@@ -144,7 +148,9 @@ const setup = () => {
             credentials: { type: WarehouseTypes.SNOWFLAKE },
         })),
     };
+    const analytics = { track: vi.fn() };
     const service = new AiAccessService({
+        analytics: analytics as unknown as LightdashAnalytics,
         userWarehouseCredentialsModel:
             credentials as unknown as UserWarehouseCredentialsModel,
         organizationAgentIdentitySettingsModel:
@@ -165,6 +171,7 @@ const setup = () => {
         providerRegistry: registry,
     });
     return {
+        analytics,
         service,
         historyModel,
         credentials,
@@ -178,6 +185,413 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    describe('query refusal analytics', () => {
+        const queryArgs: ResolvePlanArgs = { ...args, connection: snowflake };
+        const properties = {
+            organizationId: 'org',
+            projectId: 'project',
+            userId: 'user',
+            warehouseConnectionId: null,
+            surface: QuerySurface.APP,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+
+        test.each([
+            AiAccessRefusalReason.SERVICE_ACCOUNT,
+            AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
+            AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+            AiAccessRefusalReason.PRINCIPAL_FAILED,
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ])('tracks %s with exact properties', async (reason) => {
+            const { service, provider, analytics } = setup();
+            if (reason === AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED) {
+                provider.configurationError.mockReturnValue(
+                    'private configuration',
+                );
+            } else if (reason === AiAccessRefusalReason.PRINCIPAL_FAILED) {
+                provider.probe.mockResolvedValue({
+                    ok: false,
+                    transient: false,
+                    checkedAt: new Date(),
+                    observed: {},
+                    reason: AiSessionFailureReason.NOT_AGENT_SESSION,
+                    message: 'private provider message',
+                });
+            } else {
+                provider.mint.mockRejectedValue(
+                    new AiAccessRefusedError(reason),
+                );
+            }
+            const anonymous =
+                reason === AiAccessRefusalReason.SERVICE_ACCOUNT ||
+                reason === AiAccessRefusalReason.EMBED_NOT_SUPPORTED;
+            await expect(
+                service.resolvePlan({
+                    ...queryArgs,
+                    isServiceAccount:
+                        reason === AiAccessRefusalReason.SERVICE_ACCOUNT,
+                    isRegisteredUser:
+                        reason !== AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
+                }),
+            ).rejects.toMatchObject({ refusal: { reason } });
+            const event = {
+                ...(anonymous
+                    ? { anonymousId: LightdashAnalytics.anonymousId }
+                    : { userId: 'user' }),
+                event: 'query.refused',
+                properties: {
+                    ...properties,
+                    userId: anonymous ? null : 'user',
+                    reason,
+                },
+            };
+            expect(analytics.track.mock.calls).toEqual([
+                [event],
+                ...(reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+                    ? [
+                          [
+                              {
+                                  ...event,
+                                  event: 'agent_identity.expired',
+                              },
+                          ],
+                      ]
+                    : []),
+            ]);
+            expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                /email|token|sql|private|example.test/i,
+            );
+        });
+
+        test.each(['result_read', 'diagnostic'] as const)(
+            'does not track %s refusals',
+            async (kind) => {
+                const { service, provider, analytics } = setup();
+                provider.mint.mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    ),
+                );
+                await expect(
+                    service.resolvePlan({ ...queryArgs, evaluation: { kind } }),
+                ).rejects.toBeInstanceOf(AiAccessRefusedError);
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
+
+        test('uses the supplied surface and extra connection', async () => {
+            const { service, provider, analytics } = setup();
+            provider.mint.mockRejectedValue(
+                new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+            );
+            await expect(
+                service.resolvePlan({
+                    ...queryArgs,
+                    warehouseConnectionUuid: 'extra',
+                    evaluation: { kind: 'query', surface: QuerySurface.SLACK },
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                userId: 'user',
+                event: 'query.refused',
+                properties: {
+                    ...properties,
+                    warehouseConnectionId: 'extra',
+                    surface: QuerySurface.SLACK,
+                    reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                },
+            });
+        });
+
+        test('does not track untyped errors', async () => {
+            const { service, provider, analytics } = setup();
+            const error = new Error('secret token SQL');
+            provider.mint.mockRejectedValue(error);
+            await expect(service.resolvePlan(queryArgs)).rejects.toBe(error);
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test.each(['flag off', 'non-AI context', 'rule off'] as const)(
+            'does not track with %s',
+            async (condition) => {
+                const { service, flags, organizationSettings, analytics } =
+                    setup();
+                if (condition === 'flag off')
+                    flags.get.mockResolvedValue({ enabled: false });
+                if (condition === 'rule off')
+                    organizationSettings.get.mockResolvedValue({
+                        requireVerifiedAgentSessions: false,
+                    });
+                await service.resolvePlan({
+                    ...queryArgs,
+                    context:
+                        condition === 'non-AI context'
+                            ? QueryExecutionContext.SQL_RUNNER
+                            : QueryExecutionContext.AI,
+                });
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each(['query.refused', 'agent_identity.expired'])(
+            'keeps the expiry refusal and both track attempts when %s throws',
+            async (failingEvent) => {
+                const { service, provider, analytics } = setup();
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                );
+                provider.mint.mockRejectedValue(refusal);
+                analytics.track.mockImplementation((event) => {
+                    if (event.event === failingEvent)
+                        throw new Error('tracking failed');
+                });
+                await expect(
+                    service.resolvePlan(queryArgs),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        ...refusal.refusal,
+                        connectUrl:
+                            'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=chat_card',
+                    },
+                });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => event.event),
+                ).toEqual(['query.refused', 'agent_identity.expired']);
+            },
+        );
+
+        test.each([false, true])(
+            'keeps result guards silent after a query refusal (composed=%s)',
+            async (composed) => {
+                const {
+                    service,
+                    provider,
+                    projects,
+                    connections,
+                    historyModel,
+                    analytics,
+                } = setup();
+                provider.mint.mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    ),
+                );
+                provider.missingPrerequisite.mockResolvedValue(
+                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                );
+                await expect(
+                    service.resolvePlan(queryArgs),
+                ).rejects.toBeInstanceOf(AiAccessRefusedError);
+                const resolve = vi.spyOn(service, 'resolvePlan');
+                const history: QueryHistory = {
+                    queryUuid: 'result',
+                    status: QueryHistoryStatus.READY,
+                    context: QueryExecutionContext.AI,
+                    requestParameters: {},
+                    warehouseConnectionUuid: null,
+                } as QueryHistory;
+                if (composed) {
+                    connections.getCredentials.mockResolvedValue(snowflake);
+                    historyModel.getDuckdbExecution.mockResolvedValue({
+                        references: { source: 'source' },
+                    });
+                    historyModel.get.mockResolvedValue({
+                        ...history,
+                        queryUuid: 'source',
+                        warehouseConnectionUuid: 'extra',
+                    });
+                } else {
+                    projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                        snowflake,
+                    );
+                }
+                const read = () =>
+                    expect(
+                        service.assertCanReadResults(
+                            account,
+                            'project',
+                            history,
+                        ),
+                    ).rejects.toBeInstanceOf(AiAccessRefusedError);
+                await read();
+                await read();
+                await read();
+                await service.getAiAccessForUser(queryArgs);
+                expect(resolve).toHaveBeenCalledTimes(composed ? 6 : 3);
+                for (const [resolvedArgs] of resolve.mock.calls)
+                    expect(resolvedArgs.evaluation).toEqual({
+                        kind: 'result_read',
+                    });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => event.event),
+                ).toEqual(['query.refused', 'agent_identity.expired']);
+            },
+        );
+    });
+
+    describe('updateOrganizationSettings', () => {
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Organization' },
+        ]);
+
+        test.each([
+            { previousRequired: false, required: true },
+            { previousRequired: true, required: false },
+        ])(
+            'tracks $previousRequired -> $required once',
+            async ({ previousRequired, required }) => {
+                const { service, organizationSettings, analytics } = setup();
+                const settings = { requireVerifiedAgentSessions: required };
+                organizationSettings.upsert.mockResolvedValue({
+                    settings,
+                    previousRequired,
+                });
+                await expect(
+                    service.updateOrganizationSettings(admin, settings),
+                ).resolves.toEqual(settings);
+                expect(
+                    organizationSettings.upsert,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    admin.organization.organizationUuid,
+                    settings,
+                );
+                expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                    userId: admin.user.id,
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: admin.organization.organizationUuid,
+                        userId: admin.user.id,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required,
+                        previousRequired,
+                    },
+                });
+                expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                    /email|token|sql/i,
+                );
+            },
+        );
+
+        test.each([false, true])(
+            'does not track an unchanged setting %s',
+            async (required) => {
+                const { service, organizationSettings, analytics } = setup();
+                const settings = { requireVerifiedAgentSessions: required };
+                organizationSettings.upsert.mockResolvedValue({
+                    settings,
+                    previousRequired: required,
+                });
+                await expect(
+                    service.updateOrganizationSettings(admin, settings),
+                ).resolves.toEqual(settings);
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
+
+        test('uses the saved value to decide whether the rule changed', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            const saved = { requireVerifiedAgentSessions: false };
+            organizationSettings.upsert.mockResolvedValue({
+                settings: saved,
+                previousRequired: false,
+            });
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).resolves.toEqual(saved);
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track denied access', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            await expect(
+                service.updateOrganizationSettings(viewer, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track a failed save', async () => {
+            const { service, organizationSettings, analytics } = setup();
+            organizationSettings.upsert.mockRejectedValue(
+                new Error('save failed'),
+            );
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toThrow('save failed');
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('does not save or track with the flag off', async () => {
+            const { service, organizationSettings, analytics, flags } = setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                }),
+            ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        test('returns saved settings when tracking throws', async () => {
+            const { service, analytics } = setup();
+            analytics.track.mockImplementation(() => {
+                throw new Error('tracking failed');
+            });
+            const settings = { requireVerifiedAgentSessions: true };
+            await expect(
+                service.updateOrganizationSettings(admin, settings),
+            ).resolves.toEqual(settings);
+            expect(analytics.track).toHaveBeenCalledTimes(1);
+        });
+
+        test.each(['jwt', 'service-account'])(
+            'tracks a %s actor anonymously',
+            async (actorType) => {
+                const { service, analytics } = setup();
+                const anonymous =
+                    actorType === 'jwt'
+                        ? buildAccount({ accountType: 'jwt' })
+                        : fromServiceAccount(
+                              {
+                                  ...sessionUser,
+                                  serviceAccount: {
+                                      uuid: 'service-account-uuid',
+                                  },
+                              },
+                              'test',
+                          );
+                anonymous.organization = admin.organization;
+                anonymous.user.ability = admin.user.ability;
+                await service.updateOrganizationSettings(anonymous, {
+                    requireVerifiedAgentSessions: true,
+                });
+                expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: anonymous.organization.organizationUuid,
+                        userId: null,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        required: true,
+                        previousRequired: false,
+                    },
+                });
+                expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                    /email|token|sql/i,
+                );
+            },
+        );
+    });
+
     describe('getAgentConnectPrompt', () => {
         const user = {
             ...sessionUser,
@@ -264,7 +678,8 @@ describe('AiAccessService', () => {
             AiAccessRefusalReason.NEEDS_SIGN_IN,
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
         ])('prompts a project viewer for %s', async (reason) => {
-            const { service, projects, provider, registry } = setup();
+            const { service, projects, provider, registry, analytics } =
+                setup();
             projects.getWarehouseCredentialsForBinding.mockResolvedValue(
                 snowflake,
             );
@@ -272,10 +687,12 @@ describe('AiAccessService', () => {
             expect(await service.getAgentConnectPrompt(user)).toEqual({
                 required: true,
                 reason,
+                projectUuid: 'project',
             });
             expect(projects.getAllByOrganizationUuid).toHaveBeenCalledWith(
                 'org',
             );
+            expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
                 connection: snowflake,
@@ -852,7 +1269,7 @@ describe('AiAccessService', () => {
             expiresAt: null,
             refusal: {
                 connectUrl:
-                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=unknown',
             },
         });
     });
@@ -870,7 +1287,34 @@ describe('AiAccessService', () => {
             ).rejects.toMatchObject({
                 refusal: {
                     connectUrl:
-                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                        'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=chat_card',
+                },
+            });
+        },
+    );
+
+    test.each([
+        [QuerySurface.MCP, 'mcp_connect_link'],
+        [QuerySurface.SLACK, 'slack_link'],
+        [QuerySurface.APP, 'chat_card'],
+        [QuerySurface.API, 'unknown'],
+        [QuerySurface.CLI, 'unknown'],
+    ] as const)(
+        'attributes a %s query refusal to %s',
+        async (surface, entryPoint) => {
+            const { service, provider } = setup();
+            provider.mint.mockRejectedValue(
+                new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+            );
+            await expect(
+                service.resolvePlan({
+                    ...args,
+                    connection: snowflake,
+                    evaluation: { kind: 'query', surface },
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    connectUrl: `https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=${entryPoint}`,
                 },
             });
         },
@@ -915,7 +1359,7 @@ describe('AiAccessService', () => {
                     'Connect your agent to the warehouse once so it can run as you.',
                 settingsUrl: null,
                 connectUrl:
-                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected',
+                    'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=unknown',
             },
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(

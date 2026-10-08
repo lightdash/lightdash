@@ -343,6 +343,209 @@ describe('UserService', () => {
         vi.clearAllMocks();
     });
 
+    describe('deleteWarehouseCredentials', () => {
+        const credentialUuid = 'credential-uuid';
+        const setupDelete = () => {
+            const credentials = {
+                deleteAiCredential: vi
+                    .fn<UserWarehouseCredentialsModel['deleteAiCredential']>()
+                    .mockResolvedValue({
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        projectUuid: 'project-uuid',
+                    }),
+                delete: vi
+                    .fn<UserWarehouseCredentialsModel['delete']>()
+                    .mockResolvedValue(undefined),
+            };
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    }),
+                ),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel: credentials,
+                featureFlagModel: flags,
+            });
+            return { service, credentials, flags };
+        };
+
+        const disconnectedCalls = () =>
+            vi
+                .mocked(analyticsMock.track)
+                .mock.calls.filter(
+                    ([event]) => event.event === 'agent_identity.disconnected',
+                );
+
+        test.each(['project-uuid', null])(
+            'tracks a deleted AI credential with project %s',
+            async (projectUuid) => {
+                const { service, credentials, flags } = setupDelete();
+                credentials.deleteAiCredential.mockResolvedValue({
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    projectUuid,
+                });
+                await service.deleteWarehouseCredentials(
+                    sessionUser,
+                    credentialUuid,
+                );
+                expect(
+                    credentials.deleteAiCredential,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    sessionUser.userUuid,
+                    credentialUuid,
+                );
+                expect(credentials.delete).not.toHaveBeenCalled();
+                expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+                    user: sessionUser,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+                expect(disconnectedCalls()).toEqual([
+                    [
+                        {
+                            userId: sessionUser.userUuid,
+                            event: 'agent_identity.disconnected',
+                            properties: {
+                                organizationId: sessionUser.organizationUuid,
+                                userId: sessionUser.userUuid,
+                                projectId: projectUuid,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        },
+                    ],
+                ]);
+                expect(JSON.stringify(disconnectedCalls())).not.toMatch(
+                    /email|token|sql/i,
+                );
+                expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+            },
+        );
+
+        test('uses null for an absent organization', async () => {
+            const { service } = setupDelete();
+            await service.deleteWarehouseCredentials(
+                { ...sessionUser, organizationUuid: undefined },
+                credentialUuid,
+            );
+            expect(disconnectedCalls()).toEqual([
+                [
+                    {
+                        userId: sessionUser.userUuid,
+                        event: 'agent_identity.disconnected',
+                        properties: {
+                            organizationId: null,
+                            userId: sessionUser.userUuid,
+                            projectId: 'project-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                        },
+                    },
+                ],
+            ]);
+        });
+
+        test('deletes an ordinary credential without a disconnection event', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockResolvedValue(null);
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).resolves.toBeUndefined();
+            expect(credentials.delete).toHaveBeenCalledExactlyOnceWith(
+                sessionUser.userUuid,
+                credentialUuid,
+            );
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).toHaveBeenCalledExactlyOnceWith({
+                userId: sessionUser.userUuid,
+                event: 'user_warehouse_credentials.deleted',
+                properties: { credentialsId: credentialUuid },
+            });
+            expect(disconnectedCalls()).toEqual([]);
+        });
+
+        test('does not track a missing or already deleted credential', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockResolvedValue(null);
+            credentials.delete.mockRejectedValue(
+                new NotFoundError('Credential not found'),
+            );
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).rejects.toThrow(NotFoundError);
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track a failed AI delete', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockRejectedValue(
+                new Error('delete failed'),
+            );
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).rejects.toThrow('delete failed');
+            expect(credentials.delete).not.toHaveBeenCalled();
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        });
+
+        test.each(['disabled', 'lookup failed'])(
+            'keeps deletion successful when the flag is %s',
+            async (state) => {
+                const { service, flags } = setupDelete();
+                if (state === 'disabled') {
+                    flags.get.mockResolvedValue({
+                        id: FeatureFlags.AgentIdentity,
+                        enabled: false,
+                    });
+                } else {
+                    flags.get.mockRejectedValue(
+                        new Error('flag lookup failed'),
+                    );
+                }
+                await expect(
+                    service.deleteWarehouseCredentials(
+                        sessionUser,
+                        credentialUuid,
+                    ),
+                ).resolves.toBeUndefined();
+                expect(disconnectedCalls()).toEqual([]);
+                expect(analyticsMock.track).toHaveBeenCalledExactlyOnceWith({
+                    userId: sessionUser.userUuid,
+                    event: 'user_warehouse_credentials.deleted',
+                    properties: { credentialsId: credentialUuid },
+                });
+            },
+        );
+
+        test.each([
+            'user_warehouse_credentials.deleted',
+            'agent_identity.disconnected',
+        ])(
+            'keeps deletion successful when %s tracking throws',
+            async (failingEvent) => {
+                const { service } = setupDelete();
+                vi.mocked(analyticsMock.track).mockImplementation((event) => {
+                    if (event.event === failingEvent)
+                        throw new Error('tracking failed');
+                });
+                try {
+                    await expect(
+                        service.deleteWarehouseCredentials(
+                            sessionUser,
+                            credentialUuid,
+                        ),
+                    ).resolves.toBeUndefined();
+                    expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+                    expect(disconnectedCalls()).toHaveLength(1);
+                } finally {
+                    vi.mocked(analyticsMock.track).mockReset();
+                }
+            },
+        );
+    });
+
     describe('joinOrg by allowed email domain', () => {
         const userWithoutOrganization: SessionUser = { ...sessionUser };
         delete userWithoutOrganization.organizationUuid;

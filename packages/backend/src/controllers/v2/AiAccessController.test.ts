@@ -5,6 +5,7 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
@@ -20,6 +21,7 @@ const setup = (enabled: boolean) => {
         type: WarehouseTypes.POSTGRES,
     }));
     const service = new AiAccessService({
+        analytics: analyticsMock,
         featureFlagModel: flags,
         projectModel: {
             getSummary: vi.fn(async () => ({

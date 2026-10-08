@@ -76,6 +76,15 @@ follows until its outcome lands. Lives in the AI agent store for the session
 only; nothing is persisted.
 _Avoid_: subscription, poll registration, tracked build
 
+**Agent default**:
+The model picker entry that drops an explicit model pick so the composer
+follows the agent's current model again. Shown as selected whenever no pick is
+stored for that agent in this browser. See
+[ai-agent-model-resolution.md](../ai-agent-model-resolution.md) for the
+resolution order.
+_Avoid_: default model (ambiguous with the organization default), reset,
+auto
+
 **Skill**:
 A named unit of guidance the AI agent can follow: a description, a markdown
 body, and optional resource files. Built-in skills ship with Lightdash;

@@ -778,6 +778,7 @@ export const useSettingsNavigation = (
                 keywords: ['trash', 'restore', 'deleted'],
                 children: [],
                 exact: true,
+                tourNav: 'recently-deleted',
             },
         };
 

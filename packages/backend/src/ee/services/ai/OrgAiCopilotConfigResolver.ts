@@ -22,7 +22,13 @@ import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
-import { getFastModelForAccessibleKey, OrgModelOverrides } from './models';
+import {
+    getAvailableModels,
+    getFastModelForAccessibleKey,
+    getOrgModelCatalogue,
+    ModelCatalogue,
+    OrgModelOverrides,
+} from './models';
 import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
@@ -240,6 +246,17 @@ export type AiConfigScope = {
      * silent resolve to another region's credential.
      */
     credentialUuid: string | null;
+};
+
+export type OrgModelCatalogue = {
+    copilotConfig: ResolvedCopilotConfig;
+    overrides: OrgModelOverrides;
+    catalogue: ModelCatalogue;
+};
+
+const NO_ORG_MODEL_OVERRIDES: OrgModelOverrides = {
+    modelVisibility: null,
+    keyAccessibleModelIds: null,
 };
 
 type Dependencies = {
@@ -543,16 +560,19 @@ export class OrgAiCopilotConfigResolver {
     async getOrgModelOverrides(
         organizationUuid: string | null | undefined,
     ): Promise<OrgModelOverrides> {
-        const none: OrgModelOverrides = {
-            modelVisibility: null,
-            keyAccessibleModelIds: null,
-        };
-        if (!organizationUuid) return none;
+        if (!organizationUuid) return NO_ORG_MODEL_OVERRIDES;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
             projectUuid: null,
             onUnreadable: 'tolerate-unreadable',
         });
-        if (!orgKeys) return none;
+        if (!orgKeys) return NO_ORG_MODEL_OVERRIDES;
+        return this.buildOrgModelOverrides(organizationUuid, orgKeys);
+    }
+
+    private async buildOrgModelOverrides(
+        organizationUuid: string,
+        orgKeys: AiOrgProviderApiKeys,
+    ): Promise<OrgModelOverrides> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
@@ -577,6 +597,61 @@ export class OrgAiCopilotConfigResolver {
                 settings?.modelVisibility ?? null,
             ),
             keyAccessibleModelIds,
+        };
+    }
+
+    /**
+     * The copilot config that serves a prompt together with the model
+     * catalogue the org may pick from, resolving the org's provider keys once.
+     * Fails closed like `getCopilotConfig`.
+     */
+    async getOrgModelCatalogue(
+        scope: AiConfigScope,
+    ): Promise<OrgModelCatalogue> {
+        return this.resolveOrgModelCatalogue(scope, 'fail-closed');
+    }
+
+    /** Display-only counterpart, see `getCopilotConfigForDisplay`. */
+    async getOrgModelCatalogueForDisplay(
+        organizationUuid: string | null | undefined,
+    ): Promise<OrgModelCatalogue> {
+        return this.resolveOrgModelCatalogue(
+            { organizationUuid, projectUuid: null, credentialUuid: null },
+            'tolerate-unreadable',
+        );
+    }
+
+    private async resolveOrgModelCatalogue(
+        { organizationUuid, projectUuid, credentialUuid }: AiConfigScope,
+        onUnreadable: 'fail-closed' | 'tolerate-unreadable',
+    ): Promise<OrgModelCatalogue> {
+        const base = this.lightdashConfig.ai.copilot;
+        const orgKeys = organizationUuid
+            ? await this.resolveOrgProviderKeys(organizationUuid, {
+                  projectUuid,
+                  credentialUuid,
+                  onUnreadable,
+              })
+            : null;
+        const resolved =
+            organizationUuid && orgKeys
+                ? {
+                      copilotConfig: overlayOrgProviderApiKeys(base, orgKeys),
+                      overrides: await this.buildOrgModelOverrides(
+                          organizationUuid,
+                          orgKeys,
+                      ),
+                  }
+                : {
+                      copilotConfig: { ...base, byoProviders: [] },
+                      overrides: NO_ORG_MODEL_OVERRIDES,
+                  };
+        return {
+            ...resolved,
+            catalogue: getOrgModelCatalogue(
+                getAvailableModels(resolved.copilotConfig),
+                resolved.overrides,
+            ),
         };
     }
 

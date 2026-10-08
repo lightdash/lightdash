@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 const resolveAiAgentMemoryEnabled = (
     settings:
@@ -60,6 +61,7 @@ export const useAiOrganizationSettings = (
         ApiError
     >,
 ) => {
+    const isEmbed = useIsEmbedded();
     return useQuery<
         ApiAiOrganizationRuntimeSettingsResponse['results'],
         ApiError
@@ -68,6 +70,7 @@ export const useAiOrganizationSettings = (
         queryFn: getAiOrganizationSettings,
         keepPreviousData: true,
         ...queryOptions,
+        enabled: !isEmbed && queryOptions?.enabled !== false,
     });
 };
 

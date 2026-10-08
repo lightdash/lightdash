@@ -67,6 +67,32 @@ export type ApiAiMarkerTestResponse = {
 
 export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 
+export enum AgentIdentityConnectEntryPoint {
+    CHAT_CARD = 'chat_card',
+    MY_WAREHOUSE_CONNECTIONS = 'my_warehouse_connections',
+    MCP_CONNECT_LINK = 'mcp_connect_link',
+    CLI = 'cli',
+    MCP_CONSENT = 'mcp_consent',
+    OAUTH_CONSENT = 'oauth_consent',
+    SLACK_LINK = 'slack_link',
+    UNKNOWN = 'unknown',
+}
+
+export enum AgentIdentityConnectFailureReason {
+    ACCESS_DENIED = 'access_denied',
+    OAUTH_ERROR = 'oauth_error',
+    STATE_MISMATCH = 'state_mismatch',
+    TOKEN_EXCHANGE_FAILED = 'token_exchange_failed',
+    NO_REFRESH_TOKEN = 'no_refresh_token',
+    NOT_AGENT_SESSION = 'not_agent_session',
+    SESSION_CHECK_FAILED = 'session_check_failed',
+    LICENSE_REQUIRED = 'license_required',
+    ORGANIZATION_REQUIRED = 'organization_required',
+    NOT_CONFIGURED = 'not_configured',
+    CREDENTIAL_SAVE_FAILED = 'credential_save_failed',
+    SIGN_IN_FAILED = 'sign_in_failed',
+}
+
 export enum AiAccessRefusalReason {
     RESULT_NOT_AGENT_PRODUCED = 'result_not_agent_produced',
     PRINCIPAL_FAILED = 'principal_failed',

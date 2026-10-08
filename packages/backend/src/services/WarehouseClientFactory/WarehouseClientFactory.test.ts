@@ -7,6 +7,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     QueryExecutionContext,
+    QuerySurface,
     RedshiftAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
@@ -30,6 +31,7 @@ import type { AiAccessService } from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     connectionContextFromUser,
+    ConnectionSurface,
     WarehouseCredentialKind,
 } from './ConnectionContext';
 import {
@@ -916,6 +918,65 @@ describe('WarehouseClientFactory', () => {
         },
     );
 
+    test.each([
+        [ConnectionSurface.IN_APP_AGENT, QuerySurface.APP],
+        [ConnectionSurface.APP, QuerySurface.APP],
+        [ConnectionSurface.DATA_APP, QuerySurface.APP],
+        [ConnectionSurface.SCHEDULE, QuerySurface.APP],
+        [ConnectionSurface.EMBED, QuerySurface.APP],
+        [ConnectionSurface.SLACK_AGENT, QuerySurface.SLACK],
+        [ConnectionSurface.MCP, QuerySurface.MCP],
+        [ConnectionSurface.API, QuerySurface.API],
+    ] as const)(
+        'an enforced AI query maps %s to %s',
+        async (surface, expected) => {
+            const { factory, aiAccessService } = buildFixture();
+            await factory.resolveWarehouseCredentials(
+                bindingRef,
+                connectionContextFromUser(
+                    { userUuid: 'user-uuid' },
+                    {
+                        organizationUuid: 'org-uuid',
+                        queryContext: QueryExecutionContext.AI,
+                        surface,
+                    },
+                ),
+            );
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    evaluation: { kind: 'query', surface: expected },
+                }),
+            );
+        },
+    );
+
+    test.each([
+        { purpose: 'compile', aiAccess: 'enforce' },
+        { purpose: 'query', aiAccess: 'diagnostic' },
+    ] as const)(
+        '$purpose with $aiAccess uses diagnostic evaluation',
+        async (options) => {
+            const { factory, aiAccessService } = buildFixture();
+            await factory.resolveWarehouseCredentials(
+                bindingRef,
+                connectionContextFromUser(
+                    { userUuid: 'user-uuid' },
+                    {
+                        organizationUuid: 'org-uuid',
+                        queryContext: QueryExecutionContext.AI,
+                        ...options,
+                    },
+                ),
+            );
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    evaluation: { kind: 'diagnostic' },
+                }),
+            );
+        },
+    );
+
     test('the connected-person plan short-circuits personal credentials and preserves the connection route', async () => {
         const { factory, aiAccessService, credentialSource, base } =
             buildFixture();
@@ -956,6 +1017,7 @@ describe('WarehouseClientFactory', () => {
         );
         expect(credentialSource.finish).not.toHaveBeenCalled();
         expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith({
+            evaluation: { kind: 'query', surface: QuerySurface.APP },
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             warehouseConnectionUuid: 'extra-uuid',

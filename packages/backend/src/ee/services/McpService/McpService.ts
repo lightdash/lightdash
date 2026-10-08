@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentIdentityConnectEntryPoint,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
@@ -78,6 +79,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
@@ -1033,6 +1035,7 @@ export class McpService extends BaseService {
             organizationUuid,
             projectUuid,
             source: 'mcp',
+            querySurface: QuerySurface.MCP,
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext:
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
@@ -2322,10 +2325,17 @@ export class McpService extends BaseService {
             access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         ) {
+            const connectUrl = access.refusal.connectUrl
+                ? new URL(access.refusal.connectUrl)
+                : null;
+            connectUrl?.searchParams.set(
+                'entryPoint',
+                AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+            );
             return {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
-                connectUrl: access.refusal.connectUrl,
+                connectUrl: connectUrl?.href ?? null,
                 expiresAt: null,
             };
         }

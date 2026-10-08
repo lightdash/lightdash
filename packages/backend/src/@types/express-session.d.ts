@@ -1,7 +1,10 @@
 import 'express-session';
+import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
     interface SessionData {
+        'oauth2:snowflake-ai'?: { state?: string };
+        agentConnectAttempts?: Record<string, AgentConnectAttempt>;
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;

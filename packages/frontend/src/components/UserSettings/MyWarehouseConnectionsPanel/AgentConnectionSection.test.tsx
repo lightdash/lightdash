@@ -15,14 +15,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentConnectionSection } from './AgentConnectionSection';
 
-const { login, deleteCredentials } = vi.hoisted(() => ({
+const { login, deleteCredentials, popup } = vi.hoisted(() => ({
     login: vi.fn<() => Promise<void>>(),
+    popup: vi.fn(),
     deleteCredentials: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('../../../hooks/useSnowflake', () => ({
-    useSnowflakeAiLoginPopup: () =>
-        useMutation<void, Error>({ mutationFn: login }),
+    useSnowflakeAiLoginPopup: (attribution: unknown) => {
+        popup(attribution);
+        return useMutation<void, Error>({ mutationFn: login });
+    },
 }));
 
 vi.mock(
@@ -163,6 +166,10 @@ describe('AgentConnectionSection', () => {
             name: 'Connect agent',
         });
         fireEvent.click(button);
+        expect(popup).toHaveBeenLastCalledWith({
+            entryPoint: 'my_warehouse_connections',
+            projectUuid: null,
+        });
         await waitFor(() =>
             expect(button).toHaveAttribute('data-loading', 'true'),
         );

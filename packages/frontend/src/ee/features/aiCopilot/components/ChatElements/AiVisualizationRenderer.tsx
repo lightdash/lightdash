@@ -43,7 +43,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
@@ -109,7 +109,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
 }) => {
     const { data: health } = useHealth();
     const projectUuid = useProjectUuid();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const { data: resolvedPalette } = useProjectColorPalette(
         projectUuid,
         {},

@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
@@ -48,6 +48,7 @@ export const UserBubble: FC<Props> = ({
     projectUuid: projectUuidProp,
     agentUuid: agentUuidProp,
 }) => {
+    const isEmbed = useIsEmbedded();
     const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
@@ -91,7 +92,7 @@ export const UserBubble: FC<Props> = ({
                     </Text>
                 ) : null}
                 <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
-                    {isEmbedAiAgentRoute() ? (
+                    {isEmbed ? (
                         // The message permalink lives in the full app, which an
                         // embed cannot open.
                         <Text c="dimmed" fz="xs">

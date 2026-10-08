@@ -12,12 +12,22 @@ import {
 } from '@mantine/core';
 import { IconBolt, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
+import { RetiredModelBadge } from './RetiredModelBadge';
 import {
     filterDeprecatedModelsForPicker,
     getModelGroupLabel,
     getModelKey,
 } from './utils';
+
+// Opt-in for composers only: settings pickers set the agent's own model and
+// have no default to fall back to.
+export type AgentDefaultOption = {
+    model: AiModelOption | null;
+    isSelected: boolean;
+    onSelect: () => void;
+};
 
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
@@ -27,7 +37,12 @@ interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     onReasoningChange?: (enabled: boolean) => void;
     fastModeEnabled?: boolean;
     onFastModeChange?: (enabled: boolean) => void;
+    agentDefault?: AgentDefaultOption;
 }
+
+const SelectedCheck: FC = () => (
+    <MantineIcon icon={IconCheck} size="sm" color="blue" />
+);
 
 export const ModelSelector: FC<Props> = ({
     models,
@@ -37,8 +52,10 @@ export const ModelSelector: FC<Props> = ({
     onReasoningChange,
     fastModeEnabled = false,
     onFastModeChange,
+    agentDefault,
     ...buttonProps
 }) => {
+    const agentDefaultLabel = useUiString('aiAgent.modelSelector.agentDefault');
     const selectedModel = useMemo(
         () => models.find((m) => getModelKey(m) === value),
         [models, value],
@@ -202,6 +219,29 @@ export const ModelSelector: FC<Props> = ({
                     </>
                 )}
                 <ScrollArea.Autosize mah={200}>
+                    {agentDefault && (
+                        <>
+                            <Menu.Item
+                                onClick={agentDefault.onSelect}
+                                rightSection={
+                                    agentDefault.isSelected ? (
+                                        <SelectedCheck />
+                                    ) : null
+                                }
+                            >
+                                <Text size="sm" fw={500}>
+                                    {agentDefaultLabel}
+                                    {agentDefault.model && (
+                                        <Text size="sm" c="dimmed" span>
+                                            {' · '}
+                                            {agentDefault.model.displayName}
+                                        </Text>
+                                    )}
+                                </Text>
+                            </Menu.Item>
+                            <Menu.Divider />
+                        </>
+                    )}
                     {modelGroups.map((groupLabel, groupIndex) => {
                         const groupModels = groupedModels.get(groupLabel) ?? [];
                         return (
@@ -212,25 +252,28 @@ export const ModelSelector: FC<Props> = ({
 
                                 {groupModels.map((model) => {
                                     const modelKey = getModelKey(model);
-                                    const isSelected = modelKey === value;
+                                    const isSelected =
+                                        modelKey === value &&
+                                        !agentDefault?.isSelected;
                                     return (
                                         <Menu.Item
                                             key={modelKey}
                                             onClick={() => onChange(modelKey)}
                                             rightSection={
                                                 isSelected ? (
-                                                    <MantineIcon
-                                                        icon={IconCheck}
-                                                        size="sm"
-                                                        color="blue"
-                                                    />
+                                                    <SelectedCheck />
                                                 ) : null
                                             }
                                         >
                                             <Stack gap={0}>
-                                                <Text size="sm" fw={500}>
-                                                    {model.displayName}
-                                                </Text>
+                                                <Group gap={6} wrap="nowrap">
+                                                    <Text size="sm" fw={500}>
+                                                        {model.displayName}
+                                                    </Text>
+                                                    {model.deprecated && (
+                                                        <RetiredModelBadge />
+                                                    )}
+                                                </Group>
                                                 {model.description && (
                                                     <Text size="xs" c="dimmed">
                                                         {model.description}

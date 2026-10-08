@@ -39,6 +39,7 @@ import {
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
@@ -210,6 +211,7 @@ export type AiAgentToolsRuntimeContext = {
     enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
+    querySurface: QuerySurface;
     tags: string[] | null;
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
@@ -2897,6 +2899,7 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
@@ -2945,6 +2948,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters,
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
@@ -2998,6 +3002,7 @@ export class AiAgentToolsService extends BaseService {
                             chartUuid: args.chartUuid,
                             limit,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             ...(context.invalidateQueryCache
                                 ? { invalidateCache: true }
                                 : {}),
@@ -3047,6 +3052,7 @@ export class AiAgentToolsService extends BaseService {
                         dashboardSorts: [],
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        querySurface: context.querySurface,
                         ...(context.invalidateQueryCache
                             ? { invalidateCache: true }
                             : {}),
@@ -3109,6 +3115,7 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        querySurface: context.querySurface,
                     });
 
                 const maxWaitMs = 5 * 60 * 1000;
@@ -3226,6 +3233,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
@@ -3548,6 +3556,7 @@ export class AiAgentToolsService extends BaseService {
                     context.source === 'mcp'
                         ? context.defaultQueryExecutionContext
                         : queryContext,
+                    context.querySurface,
                 );
                 return filterWarehouseCatalogToScope(catalog, context.sqlScope);
             },
@@ -3608,6 +3617,7 @@ export class AiAgentToolsService extends BaseService {
                     table,
                     resolvedSchema ?? undefined,
                     resolvedDatabase ?? undefined,
+                    context.querySurface,
                 );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
@@ -3736,6 +3746,7 @@ export class AiAgentToolsService extends BaseService {
                         context.source === 'mcp'
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                             : QueryExecutionContext.AI,
+                        context.querySurface,
                     );
                 const output =
                     context.source === 'mcp' ? results : results.results;
@@ -4859,11 +4870,15 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         const space = await this.resolveDocumentSpace(context, spaceSlug);
-        await this.documentService.moveToSpace(context.account, {
-            projectUuid: context.projectUuid,
-            itemUuid: document.documentUuid,
-            targetSpaceUuid: space.uuid,
-        });
+        await this.documentService.moveToSpace(
+            context.account,
+            {
+                projectUuid: context.projectUuid,
+                itemUuid: document.documentUuid,
+                targetSpaceUuid: space.uuid,
+            },
+            { change: AiAgentToolsService.documentChange(context) },
+        );
         return this.documentService.get(
             context.account,
             context.projectUuid,

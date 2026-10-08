@@ -13,6 +13,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type MemberAbility,
@@ -2707,73 +2708,83 @@ describe('AiDeepResearchService', () => {
             fields: {},
         };
 
-        it('re-executes the metric query behind a referenced report chart', async () => {
-            const { service, asyncQueryService } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReportMarkdown }),
+        it.each([
+            ['api', QuerySurface.API],
+            ['web_app', QuerySurface.APP],
+        ] as const)(
+            're-executes the %s report chart with surface %s',
+            async (threadCreatedFrom, querySurface) => {
+                const { service, asyncQueryService } = buildService({
+                    model: {
+                        findByUuidScoped: vi.fn().mockResolvedValue(
+                            runRow({
+                                result_markdown: chartReportMarkdown,
+                            }),
                         ),
-                },
-                aiAgentModel: {
-                    getToolCallsAndResultsForPrompt: vi
-                        .fn()
-                        .mockResolvedValue(chartProvenance()),
-                },
-                queryHistoryModel: {
-                    getByQueryUuid: vi
-                        .fn()
-                        .mockResolvedValue(refreshQueryHistory),
-                },
-                asyncQueryService: {
-                    executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                    },
+                    aiAgentModel: {
+                        findWebAppPrompt: vi
+                            .fn()
+                            .mockResolvedValue({ threadCreatedFrom }),
+                        getToolCallsAndResultsForPrompt: vi
+                            .fn()
+                            .mockResolvedValue(chartProvenance()),
+                    },
+                    queryHistoryModel: {
+                        getByQueryUuid: vi
+                            .fn()
+                            .mockResolvedValue(refreshQueryHistory),
+                    },
+                    asyncQueryService: {
+                        executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                            queryUuid: 'query-2',
+                            cacheMetadata: { cacheHit: true },
+                            metricQuery: refreshQueryHistory.metricQuery,
+                            fields: {},
+                            warnings: [],
+                        }),
+                    },
+                });
+
+                const result = await service.refreshChart({
+                    account: {} as AnyType,
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    aiDeepResearchRunUuid: 'run-1',
+                    chartKey: chart.queryUuid,
+                });
+
+                expect(
+                    asyncQueryService.executeAsyncMetricQuery,
+                ).toHaveBeenCalledWith({
+                    account: {},
+                    projectUuid: 'project-1',
+                    metricQuery: refreshQueryHistory.metricQuery,
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                    pivotConfiguration: undefined,
+                });
+                expect(result).toEqual({
+                    source: 'semantic',
+                    type: AiResultType.QUERY_RESULT,
+                    mergeQuery: null,
+                    query: {
                         queryUuid: 'query-2',
                         cacheMetadata: { cacheHit: true },
                         metricQuery: refreshQueryHistory.metricQuery,
                         fields: {},
                         warnings: [],
-                    }),
-                },
-            });
-
-            const result = await service.refreshChart({
-                account: {} as AnyType,
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                aiDeepResearchRunUuid: 'run-1',
-                chartKey: chart.queryUuid,
-            });
-
-            expect(
-                asyncQueryService.executeAsyncMetricQuery,
-            ).toHaveBeenCalledWith({
-                account: {},
-                projectUuid: 'project-1',
-                metricQuery: refreshQueryHistory.metricQuery,
-                context: QueryExecutionContext.AI,
-                pivotConfiguration: undefined,
-            });
-            expect(result).toEqual({
-                source: 'semantic',
-                type: AiResultType.QUERY_RESULT,
-                mergeQuery: null,
-                query: {
-                    queryUuid: 'query-2',
-                    cacheMetadata: { cacheHit: true },
-                    metricQuery: refreshQueryHistory.metricQuery,
-                    fields: {},
-                    warnings: [],
-                    parameterReferences: [],
-                    usedParametersValues: {},
-                    resolvedTimezone: 'Europe/London',
-                },
-                metadata: {
-                    title: chart.title,
-                    description: null,
-                },
-            });
-        });
+                        parameterReferences: [],
+                        usedParametersValues: {},
+                        resolvedTimezone: 'Europe/London',
+                    },
+                    metadata: {
+                        title: chart.title,
+                        description: null,
+                    },
+                });
+            },
+        );
 
         it('pivots the refreshed query by the chart group-by dimension', async () => {
             const groupedChartConfig = {

@@ -771,7 +771,14 @@ export class DocumentService extends BaseService {
         },
         {
             tx,
-        }: { tx?: Knex; checkForAccess?: boolean; trackEvent?: boolean } = {},
+            trackEvent = true,
+            change = API_CHANGE,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+            change?: DocumentChangeContext;
+        } = {},
     ): Promise<void> {
         if (!targetSpaceUuid) {
             throw new ParameterError('Documents must belong to a Space');
@@ -818,6 +825,9 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        if (trackEvent) {
+            this.trackMoved(account, document, targetSpaceUuid, change);
+        }
     }
 
     /**
@@ -872,6 +882,28 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        this.trackMoved(account, document, targetSpaceUuid, API_CHANGE);
+    }
+
+    private trackMoved(
+        account: RegisteredAccount,
+        document: Document,
+        targetSpaceUuid: string,
+        change: DocumentChangeContext,
+    ): void {
+        this.dependencies.analytics.track({
+            event: 'document.moved',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: document.projectUuid,
+                documentId: document.documentUuid,
+                sourceSpaceId: document.spaceUuid,
+                targetSpaceId: targetSpaceUuid,
+                source: change.source,
+                ...DocumentService.getAiProperties(change),
+            },
+        });
     }
 
     private static validateMetadata(

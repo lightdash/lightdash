@@ -59,6 +59,7 @@ import fetch from 'node-fetch';
 import playwright, { type ElementHandle, type Page } from 'playwright';
 import { type Readable } from 'stream';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import {
@@ -70,6 +71,7 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -78,9 +80,11 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
+import { UserModel } from '../../models/UserModel';
 import { traceSpan } from '../../tracing/tracing';
 import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { countPdfPages } from './countPdfPages';
 import { obscureFramesText, obscureThumbnailImage } from './obscureThumbnail';
@@ -357,6 +361,7 @@ export type ParsedUrl = {
     chartUuid?: string;
     savedSqlUuid?: string;
     appUuid?: string;
+    documentUuid?: string;
     exploreModel?: string;
 };
 
@@ -403,6 +408,9 @@ type UnfurlServiceArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
+    documentModel: DocumentModel;
+    documentService: DocumentService;
+    userModel: UserModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -436,6 +444,12 @@ export class UnfurlService extends BaseService {
 
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
 
+    documentModel: DocumentModel;
+
+    documentService: DocumentService;
+
+    userModel: UserModel;
+
     private readonly screenshotTimeoutMs: number;
 
     constructor({
@@ -454,6 +468,9 @@ export class UnfurlService extends BaseService {
         slackAuthenticationModel,
         spacePermissionService,
         headlessBrowserLoginGrantModel,
+        documentModel,
+        documentService,
+        userModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -471,6 +488,9 @@ export class UnfurlService extends BaseService {
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
         this.headlessBrowserLoginGrantModel = headlessBrowserLoginGrantModel;
+        this.documentModel = documentModel;
+        this.documentService = documentService;
+        this.userModel = userModel;
         this.screenshotTimeoutMs =
             lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
@@ -642,10 +662,21 @@ export class UnfurlService extends BaseService {
                     `AI artifact pages cannot be unfurled: ${parsedUrl.url}`,
                 );
             case LightdashPage.DOCUMENT:
-                // Never produced by parseUrl; see exportDocumentPdf
-                throw new ParameterError(
-                    `Document pages cannot be unfurled: ${parsedUrl.url}`,
+                if (!parsedUrl.projectUuid || !parsedUrl.documentUuid) {
+                    throw new ParameterError(
+                        `Missing documentUuid when unfurling Document URL ${parsedUrl.url}`,
+                    );
+                }
+                const document = await this.documentModel.get(
+                    parsedUrl.projectUuid,
+                    parsedUrl.documentUuid,
                 );
+                return {
+                    title: document.name,
+                    description: document.description || undefined,
+                    organizationUuid: document.organizationUuid,
+                    resourceUuid: document.documentUuid,
+                };
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
             default:
@@ -690,6 +721,7 @@ export class UnfurlService extends BaseService {
             imageUrl: undefined,
             minimalUrl: parsedUrl.minimalUrl,
             organizationUuid,
+            projectUuid: parsedUrl.projectUuid,
             chartType,
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
@@ -2886,6 +2918,28 @@ export class UnfurlService extends BaseService {
                             animations: 'disabled',
                             timeout: this.screenshotTimeoutMs,
                         });
+                    } else if (lightdashPage === LightdashPage.DOCUMENT) {
+                        // A preview of a long Document stays one viewport tall
+                        const documentBox = await page
+                            .locator(finalSelector)
+                            .boundingBox({ timeout: this.screenshotTimeoutMs });
+                        imageBuffer = await page.screenshot({
+                            path,
+                            animations: 'disabled',
+                            timeout: this.screenshotTimeoutMs,
+                            clip: {
+                                x: documentBox?.x ?? 0,
+                                y: documentBox?.y ?? 0,
+                                width:
+                                    documentBox?.width ??
+                                    documentViewport.width,
+                                height: Math.min(
+                                    documentBox?.height ??
+                                        documentViewport.height,
+                                    documentViewport.height,
+                                ),
+                            },
+                        });
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({
@@ -3242,6 +3296,9 @@ export class UnfurlService extends BaseService {
             `/projects/(${uuid})/dashboards/([^/?#]+)`,
         );
         const chartUrl = new RegExp(`/projects/(${uuid})/saved/([^/?#]+)`);
+        const documentUrl = new RegExp(
+            `/projects/(${uuid})/documents/([^/?#]+)`,
+        );
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
         const sqlChartUrl = new RegExp(
             `/projects/(${uuid})/sql-runner/([^/?#]+)`,
@@ -3327,6 +3384,46 @@ export class UnfurlService extends BaseService {
             } catch (e) {
                 this.logger.debug(
                     `Chart ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+        }
+        const documentMatch = resolvedUrl.match(documentUrl);
+        if (documentMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = documentMatch;
+            try {
+                const documentIdentifier =
+                    decodeURIComponent(encodedIdentifier);
+                const document = uuidExactRegex.test(documentIdentifier)
+                    ? await this.documentModel.get(
+                          projectUuid,
+                          documentIdentifier,
+                      )
+                    : await this.documentModel.getBySlug(
+                          projectUuid,
+                          documentIdentifier,
+                      );
+                const minimalUrl = new URL(
+                    `/minimal/projects/${projectUuid}/documents/${document.documentUuid}`,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                );
+                minimalUrl.searchParams.set(
+                    'versionUuid',
+                    document.version.versionUuid,
+                );
+
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.DOCUMENT,
+                    url,
+                    minimalUrl: minimalUrl.href,
+                    projectUuid,
+                    documentUuid: document.documentUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Document ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
                         e,
                     )}`,
                 );
@@ -3457,6 +3554,38 @@ export class UnfurlService extends BaseService {
             });
     }
 
+    // Unfurls render as the Slack installer, so a Document they can't view
+    // must not unfurl at all: its title would otherwise reach the channel.
+    private async canSlackInstallerViewDocument(
+        teamId: string,
+        { organizationUuid, projectUuid, resourceUuid }: Unfurl,
+    ): Promise<boolean> {
+        if (!projectUuid || !resourceUuid) {
+            return false;
+        }
+        try {
+            const installerUuid =
+                await this.slackAuthenticationModel.getUserUuid(teamId);
+            const installer = await this.userModel.findSessionUserAndOrgByUuid(
+                installerUuid,
+                organizationUuid,
+            );
+            await this.documentService.getByIdOrSlug(
+                fromSession(installer),
+                projectUuid,
+                resourceUuid,
+            );
+            return true;
+        } catch (e) {
+            this.logger.info(
+                `Skipping Slack unfurl of Document ${resourceUuid}: the Slack installer cannot view it (${getErrorMessage(
+                    e,
+                )})`,
+            );
+            return false;
+        }
+    }
+
     public async unfurlSlackUrls(
         message: SlackEventMiddlewareArgs<'link_shared'> &
             AllMiddlewareArgs<StringIndexed>,
@@ -3499,6 +3628,13 @@ export class UnfurlService extends BaseService {
                     null,
                     organizationUuid,
                 );
+
+                if (
+                    details?.pageType === LightdashPage.DOCUMENT &&
+                    !(await this.canSlackInstallerViewDocument(teamId, details))
+                ) {
+                    return;
+                }
 
                 if (details) {
                     this.analytics.track({

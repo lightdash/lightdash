@@ -1,9 +1,15 @@
-import { QueryExecutionContext, type Account } from '@lightdash/common';
+import {
+    QueryExecutionContext,
+    QuerySurface,
+    type Account,
+} from '@lightdash/common';
 import {
     aiClientFromQueryContext,
     connectionContextFromAccount,
     connectionContextFromUser,
     ConnectionSurface,
+    connectionSurfaceFromQuerySurface,
+    querySurfaceFromConnectionSurface,
     surfaceFromQueryContext,
     type ConnectionAiClient,
 } from './ConnectionContext';
@@ -96,8 +102,75 @@ describe('ConnectionContext', () => {
             },
             queryContext: null,
             purpose: 'query',
+            aiAccess: 'enforce',
         });
     });
+
+    test.each([
+        [ConnectionSurface.APP, QuerySurface.APP],
+        [ConnectionSurface.IN_APP_AGENT, QuerySurface.APP],
+        [ConnectionSurface.DATA_APP, QuerySurface.APP],
+        [ConnectionSurface.SCHEDULE, QuerySurface.APP],
+        [ConnectionSurface.EMBED, QuerySurface.APP],
+        [ConnectionSurface.SLACK_AGENT, QuerySurface.SLACK],
+        [ConnectionSurface.MCP, QuerySurface.MCP],
+        [ConnectionSurface.API, QuerySurface.API],
+    ] as const)(
+        'maps connection surface %s to query surface %s',
+        (surface, expected) => {
+            expect(querySurfaceFromConnectionSurface(surface)).toBe(expected);
+        },
+    );
+
+    test.each([
+        [QuerySurface.SLACK, ConnectionSurface.SLACK_AGENT],
+        [QuerySurface.API, ConnectionSurface.API],
+        [QuerySurface.CLI, ConnectionSurface.API],
+        [QuerySurface.MCP, ConnectionSurface.MCP],
+        [QuerySurface.APP, ConnectionSurface.IN_APP_AGENT],
+    ] as const)(
+        'maps query surface %s to connection surface %s',
+        (surface, expected) => {
+            expect(
+                connectionSurfaceFromQuerySurface(
+                    surface,
+                    QueryExecutionContext.AI,
+                ),
+            ).toBe(expected);
+        },
+    );
+
+    test.each(Object.values(QueryExecutionContext))(
+        'app attribution preserves the default for %s',
+        (context) => {
+            expect(
+                connectionSurfaceFromQuerySurface(QuerySurface.APP, context),
+            ).toBe(surfaceFromQueryContext(context));
+        },
+    );
+
+    test.each([ConnectionSurface.SLACK_AGENT, ConnectionSurface.API])(
+        'the account builder overrides %s without changing the AI client',
+        (surface) => {
+            const account = {
+                user: { id: 'user-uuid' },
+                isRegisteredUser: () => true,
+                isServiceAccount: () => false,
+            } as unknown as Account;
+            const context = connectionContextFromAccount(account, {
+                organizationUuid: 'org-uuid',
+                queryContext: QueryExecutionContext.AI,
+                surface,
+                aiAccess: 'diagnostic',
+            });
+            expect(context).toMatchObject({
+                actor: { surface, aiClient: { kind: 'agent' } },
+                queryContext: QueryExecutionContext.AI,
+                purpose: 'query',
+                aiAccess: 'diagnostic',
+            });
+        },
+    );
 
     test.each([
         { isRegisteredUser: true, isServiceAccount: false },

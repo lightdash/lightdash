@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     isByoAiProvider,
     ParameterError,
+    type AiAgentModelConfig,
     type AiModelOption,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -237,23 +238,15 @@ export const getAvailableModels = (
     );
 };
 
-export const presetToModelOption = (
-    preset: ModelPreset<SelectableModelProvider>,
-    defaultModel: { name: string; provider: string } | null,
-): AiModelOption => ({
-    name: preset.name,
-    modelId: preset.modelId,
-    displayName: preset.displayName,
-    description: preset.description,
-    provider: preset.provider,
-    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
-    default:
-        defaultModel !== null &&
-        preset.provider === defaultModel.provider &&
-        matchesPreset(preset, defaultModel.name),
-    supportsReasoning: preset.supportsReasoning,
-    deprecated: preset.deprecated ?? false,
-});
+export const findPreset = (
+    presets: ModelPreset<SelectableModelProvider>[],
+    provider: string,
+    modelName: string,
+): ModelPreset<SelectableModelProvider> | undefined =>
+    presets.find(
+        (preset) =>
+            preset.provider === provider && matchesPreset(preset, modelName),
+    );
 
 export type OrgModelOverrides = {
     modelVisibility: AiOrgModelVisibility | null;
@@ -299,6 +292,97 @@ export const filterModelsForOrg = (
         return true;
     });
 
+// The presets this instance ships, and the subset an org may pick from
+export type ModelCatalogue = {
+    instancePresets: ModelPreset<SelectableModelProvider>[];
+    offeredPresets: ModelPreset<SelectableModelProvider>[];
+};
+
+export const getOrgModelCatalogue = (
+    instancePresets: ModelPreset<SelectableModelProvider>[],
+    overrides: OrgModelOverrides,
+): ModelCatalogue => ({
+    instancePresets,
+    offeredPresets: filterModelsForOrg(instancePresets, overrides),
+});
+
+const shippedPresets = (
+    provider: SelectableModelProvider,
+): ModelPreset<SelectableModelProvider>[] =>
+    provider === 'openrouter' || provider === 'vertex'
+        ? []
+        : MODEL_PRESETS[provider];
+
+// Walks every preset the code ships, not the env-filtered list, so an
+// instance `availableModels` list that omits an intermediate still reaches
+// the end of the chain; only that end must be offered to the org.
+export const resolveSupersedingPreset = (
+    preset: ModelPreset<SelectableModelProvider>,
+    { offeredPresets }: ModelCatalogue,
+): ModelPreset<SelectableModelProvider> | null => {
+    let current = preset;
+    while (current.deprecated && current.supersededBy) {
+        const next = findPreset(
+            shippedPresets(current.provider),
+            current.provider,
+            current.supersededBy,
+        );
+        if (!next) return null;
+        current = next;
+    }
+    if (current === preset || current.deprecated) return null;
+    return findPreset(offeredPresets, current.provider, current.name) ?? null;
+};
+
+export const presetToModelOption = (
+    preset: ModelPreset<SelectableModelProvider>,
+    defaultModel: { name: string; provider: string } | null,
+    catalogue: ModelCatalogue,
+): AiModelOption => ({
+    name: preset.name,
+    modelId: preset.modelId,
+    displayName: preset.displayName,
+    description: preset.description,
+    provider: preset.provider,
+    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
+    default:
+        defaultModel !== null &&
+        preset.provider === defaultModel.provider &&
+        matchesPreset(preset, defaultModel.name),
+    supportsReasoning: preset.supportsReasoning,
+    deprecated: preset.deprecated ?? false,
+    supersededBy: resolveSupersedingPreset(preset, catalogue)?.name ?? null,
+});
+
+export const getOrgModelOptions = (
+    catalogue: ModelCatalogue,
+    defaultModel: { name: string; provider: string } | null,
+): AiModelOption[] =>
+    catalogue.offeredPresets.map((preset) =>
+        presetToModelOption(preset, defaultModel, catalogue),
+    );
+
+// The returned config is what gets recorded on the prompt, so the swap must
+// happen before the prompt is stored.
+export const resolveModelConfigForPrompt = (
+    catalogue: ModelCatalogue,
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    const pinned = findPreset(
+        catalogue.instancePresets,
+        modelConfig.modelProvider,
+        modelConfig.modelName,
+    );
+    const replacement = pinned
+        ? resolveSupersedingPreset(pinned, catalogue)
+        : null;
+    if (!pinned || !replacement) return modelConfig;
+    Logger.info(
+        `Model preset "${pinned.name}" is deprecated, running the prompt on "${replacement.name}"`,
+    );
+    return { ...modelConfig, modelName: replacement.name };
+};
+
 export const getModelPreset = <T extends ModelPresetProvider>(
     provider: T,
     config: LightdashConfig['ai']['copilot'],
@@ -316,9 +400,7 @@ export const getModelPreset = <T extends ModelPresetProvider>(
 
     const modelNameToFind = modelName ?? providerConfig.modelName;
     const availableModels = getAvailableModels(config);
-    let preset = availableModels.find(
-        (p) => p.provider === provider && matchesPreset(p, modelNameToFind),
-    );
+    let preset = findPreset(availableModels, provider, modelNameToFind);
 
     // Fallback to first available model for provider if requested model not found
     // This handles deprecated models in env vars or stored in conversations

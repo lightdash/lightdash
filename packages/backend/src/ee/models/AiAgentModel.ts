@@ -10507,6 +10507,7 @@ export class AiAgentModel {
                     threadUuid: targetThreadUuid,
                     createdByUserUuid: targetUserUuid,
                     prompt: sourcePrompt.prompt,
+                    modelConfig: null,
                 },
                 { db: trx },
             );

@@ -269,7 +269,15 @@ export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
  * stable fix identifiers here; do not use SDK version floors or backfill
  * historical fixes.
  */
-export const SDK_FIXES: SdkFix[] = [];
+export const SDK_FIXES: SdkFix[] = [
+    {
+        key: 'table-calculation-results',
+        label: 'Table calculation results',
+        description:
+            'Includes table calculation values and formatted results in data app tables and charts instead of showing them as missing.',
+        appliesTo: ['data_app'],
+    },
+];
 
 export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);
 

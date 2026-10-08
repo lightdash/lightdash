@@ -965,6 +965,7 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    analytics: this.context.lightdashAnalytics,
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
@@ -1469,6 +1470,9 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     headlessBrowserLoginGrantModel:
                         this.models.getHeadlessBrowserLoginGrantModel(),
+                    documentModel: this.models.getDocumentModel(),
+                    documentService: this.getDocumentService(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

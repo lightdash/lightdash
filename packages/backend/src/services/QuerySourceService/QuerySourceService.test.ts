@@ -5,6 +5,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
+    QuerySurface,
     UnexpectedServerError,
     VizAggregationOptions,
     VizIndexType,
@@ -24,6 +25,7 @@ import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
+import { SqlQuerySource } from './sources/SqlQuerySource';
 import type {
     QuerySourceClient,
     SourceQueryExecutionContext,
@@ -615,6 +617,10 @@ describe('QuerySourceService', () => {
 describe('composer pipelines return the standard results interface', () => {
     const createRealSources = () => {
         const asyncQueryService = {
+            executeAsyncSqlQuery: vi.fn().mockResolvedValue({
+                queryUuid: 'sql-query-uuid',
+                cacheMetadata: { cacheHit: false },
+            }),
             executeAsyncMetricQuery: vi.fn().mockResolvedValue({
                 queryUuid: 'metric-query-uuid',
                 cacheMetadata: { cacheHit: true },
@@ -641,8 +647,62 @@ describe('composer pipelines return the standard results interface', () => {
                     asyncQueryService as unknown as AsyncQueryService,
             }),
         );
+        registry.register(
+            new SqlQuerySource({
+                asyncQueryService:
+                    asyncQueryService as unknown as AsyncQueryService,
+                projectService: {} as ProjectService,
+            }),
+        );
         return { registry, asyncQueryService };
     };
+
+    it.each([QuerySurface.SLACK, QuerySurface.API])(
+        'carries %s through all composer source adapters',
+        async (querySurface) => {
+            const { registry, asyncQueryService } = createRealSources();
+            const { service } = createService(registry);
+            await service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                querySurface,
+                queries: [
+                    {
+                        nodeId: 'sql',
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'select 1',
+                    },
+                    {
+                        nodeId: 'metric',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: 'orders',
+                        dimensions: [],
+                        metrics: [],
+                    },
+                    {
+                        nodeId: 'compose',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'select * from metric',
+                        references: ['metric'],
+                    },
+                ],
+            });
+            for (const execute of [
+                asyncQueryService.executeAsyncSqlQuery,
+                asyncQueryService.executeAsyncMetricQuery,
+                asyncQueryService.executeAsyncComposeSqlQuery,
+            ]) {
+                expect(execute).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        context: QueryExecutionContext.AI,
+                        querySurface,
+                    }),
+                );
+            }
+        },
+    );
 
     it('resolves a single-node semantic-layer pipeline to the metric query itself, without a DuckDB wrapper', async () => {
         const { registry, asyncQueryService } = createRealSources();

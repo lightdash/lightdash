@@ -10,7 +10,7 @@ import type * as t from '@babel/types';
 
 // Bump when the extractor learns new patterns so persisted results can be
 // detected as stale and re-extracted.
-export const DATA_REFERENCE_EXTRACTOR_VERSION = 4;
+export const DATA_REFERENCE_EXTRACTOR_VERSION = 5;
 
 export type DataAppSourceFile = {
     path: string; // relative to the bundle root, forward slashes
@@ -31,7 +31,8 @@ export type QueryReferenceUnresolvedPart =
     | 'metricFilters'
     | 'sorts'
     | 'parameters'
-    | 'localFields';
+    | 'localFields'
+    | 'customSql';
 
 export type ExtractedQueryReference = {
     kind: 'query';
@@ -1455,14 +1456,17 @@ class DataReferenceExtractor {
                       )
                     : unresolvedStrings();
                 for (const value of resolved.values) ref.localFields.add(value);
-                if (argNode) {
-                    this.collectCustomSqlDefinitions(
+                if (
+                    !argNode ||
+                    !this.collectCustomSqlDefinitions(
                         argNode,
                         scope,
                         0,
                         name,
                         ref.customSql,
-                    );
+                    )
+                ) {
+                    ref.unresolved.add('customSql');
                 }
                 if (!resolved.complete) {
                     ref.unresolved.add('localFields');
@@ -2633,7 +2637,7 @@ class DataReferenceExtractor {
             ) {
                 return false;
             }
-            const resolveProperty = (key: 'sql' | 'table') => {
+            const resolveProperty = (key: 'sql' | 'table' | 'type') => {
                 const matching = properties.filter(
                     (property): property is t.ObjectProperty =>
                         property.type === 'ObjectProperty' &&
@@ -2650,6 +2654,25 @@ class DataReferenceExtractor {
                     ? [...resolved.values][0]
                     : null;
             };
+            if (
+                kind === 'customDimensions' &&
+                resolveProperty('type') === 'bin'
+            ) {
+                return true;
+            }
+            const hasProperty = (key: string) =>
+                properties.some(
+                    (property) =>
+                        property.type === 'ObjectProperty' &&
+                        objectPropertyKeyName(property) === key,
+                );
+            if (
+                kind === 'tableCalculations' &&
+                !hasProperty('sql') &&
+                (hasProperty('formula') || hasProperty('template'))
+            ) {
+                return true;
+            }
             const sql = resolveProperty('sql');
             if (sql === null) return false;
             if (kind === 'tableCalculations') {

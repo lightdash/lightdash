@@ -1,10 +1,14 @@
 import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useMemo, useReducer } from 'react';
+import { type AgentDefaultOption } from '../../../../components/common/ModelSelector/ModelSelector';
 import {
     filterDeprecatedModelsForPicker,
     getModelKey,
+    getSupersedingModel,
     matchesModelConfig,
+    resolveModelForNewChat,
+    type ModelReplacement,
 } from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useModelOptions } from './useModelOptions';
@@ -49,34 +53,40 @@ const getSystemDefaultModelOption = (
     modelOptions: AiModelOption[] | undefined,
 ) => modelOptions?.find((model) => model.default);
 
-export const getDefaultModelSelection = (
+const getDefaultModelSelection = (
     modelOptions: AiModelOption[] | undefined,
     modelConfig: AiAgentModelConfig | null | undefined,
 ) => {
     const configuredModel = getConfiguredModelOption(modelOptions, modelConfig);
-    const model = configuredModel ?? getSystemDefaultModelOption(modelOptions);
+    const model = configuredModel
+        ? resolveModelForNewChat(modelOptions ?? [], configuredModel)
+        : getSystemDefaultModelOption(modelOptions);
 
     if (!model) return undefined;
 
     return {
         model,
         extendedThinking:
-            configuredModel?.supportsReasoning === true &&
+            configuredModel !== undefined &&
+            model.supportsReasoning &&
             modelConfig?.reasoning === true,
     };
 };
+
+const toAiAgentModelConfig = (
+    model: AiModelOption,
+    extendedThinking: boolean,
+): AiAgentModelConfig => ({
+    modelName: model.name,
+    modelProvider: model.provider,
+    reasoning: model.supportsReasoning ? extendedThinking : undefined,
+});
 
 export const getAiAgentModelConfig = (
     model: AiModelOption | undefined,
     extendedThinking: boolean,
 ): AiAgentModelConfig | undefined =>
-    model
-        ? {
-              modelName: model.name,
-              modelProvider: model.provider,
-              reasoning: model.supportsReasoning ? extendedThinking : undefined,
-          }
-        : undefined;
+    model ? toAiAgentModelConfig(model, extendedThinking) : undefined;
 
 type UseDefaultAiAgentModelProps = {
     modelOptions: AiModelOption[] | undefined;
@@ -104,6 +114,20 @@ export const useDefaultAiAgentModel = ({
             ),
         [modelOptions, selectedModelKey],
     );
+    const modelReplacement = useMemo((): ModelReplacement | null => {
+        const model = selectedModel
+            ? getSupersedingModel(modelOptions ?? [], selectedModel)
+            : null;
+        return model
+            ? {
+                  model,
+                  modelConfig: toAiAgentModelConfig(
+                      model,
+                      modelConfig?.reasoning ?? false,
+                  ),
+              }
+            : null;
+    }, [modelConfig?.reasoning, modelOptions, selectedModel]);
     const fallbackModel = useMemo(
         () =>
             getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
@@ -118,6 +142,7 @@ export const useDefaultAiAgentModel = ({
     return {
         fallbackModel,
         fallbackModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
@@ -144,7 +169,8 @@ type ModelSelectionAction =
           modelKey: string;
           supportsReasoning: boolean;
           extendedThinking: boolean;
-      };
+      }
+    | { type: 'followAgentDefault' };
 
 const modelSelectionReducer = (
     state: ModelSelectionState,
@@ -164,6 +190,8 @@ const modelSelectionReducer = (
                     action.extendedThinking,
                 ),
             };
+        case 'followAgentDefault':
+            return { selectedModelKey: null, extendedThinking: null };
     }
 };
 
@@ -219,7 +247,10 @@ export const useAiAgentModelSelection = ({
                 : undefined,
         [isDefaultModelConfigReady, modelOptions, resolvedDefaultModelConfig],
     );
-    const storedModel = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModelOption = getModelOptionByKey(modelOptions, storedModelKey);
+    const storedModel = storedModelOption
+        ? resolveModelForNewChat(modelOptions ?? [], storedModelOption)
+        : undefined;
     const effectiveSelectedModelKey =
         selectedModelKey ??
         (storedModel ? getModelKey(storedModel) : null) ??
@@ -289,20 +320,49 @@ export const useAiAgentModelSelection = ({
         [setStoredSelection],
     );
 
-    const modelConfig = useMemo(
-        () => getAiAgentModelConfig(selectedModel, effectiveExtendedThinking),
-        [effectiveExtendedThinking, selectedModel],
+    const handleAgentDefaultSelect = useCallback(() => {
+        dispatch({ type: 'followAgentDefault' });
+        setStoredSelection(null);
+    }, [setStoredSelection]);
+
+    const isAgentDefaultSelected =
+        selectedModelKey === null && storedModel === undefined;
+    const agentDefault = useMemo<AgentDefaultOption>(
+        () => ({
+            model: defaultModelSelection?.model ?? null,
+            isSelected: isAgentDefaultSelected,
+            onSelect: handleAgentDefaultSelect,
+        }),
+        [
+            defaultModelSelection,
+            handleAgentDefaultSelect,
+            isAgentDefaultSelected,
+        ],
+    );
+
+    // Left unset so the server resolves the agent's current model.
+    const explicitModelConfig = useMemo(
+        () =>
+            isAgentDefaultSelected && extendedThinking === null
+                ? undefined
+                : getAiAgentModelConfig(
+                      selectedModel,
+                      effectiveExtendedThinking,
+                  ),
+        [
+            effectiveExtendedThinking,
+            extendedThinking,
+            isAgentDefaultSelected,
+            selectedModel,
+        ],
     );
 
     return {
+        agentDefault,
+        explicitModelConfig,
         extendedThinking: effectiveExtendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        isModelSelectionExplicit:
-            selectedModelKey !== null ||
-            extendedThinking !== null ||
-            storedModel !== undefined,
-        modelConfig,
         modelOptions,
         selectedModel,
         selectedModelKey: effectiveSelectedModelKey,

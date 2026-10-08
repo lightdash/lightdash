@@ -1,7 +1,6 @@
 import type { AiAgentDocumentStructuredSummary } from '@lightdash/common';
-import { Group, Paper, Text } from '@mantine/core';
-import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import { Text } from '@mantine/core';
+import Callout from '../../../../components/common/Callout';
 
 type Props = {
     summary: AiAgentDocumentStructuredSummary;
@@ -14,37 +13,21 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
 
     if (isNotRelevant) {
         return (
-            <Paper p="sm" radius="md">
-                <Group gap="xs" wrap="nowrap" align="flex-start">
-                    <MantineIcon
-                        icon={IconAlertTriangle}
-                        size="sm"
-                        color="orange"
-                        style={{ flexShrink: 0, marginTop: 2 }}
-                    />
-                    <Text size="xs" c="dimmed">
-                        {warning ??
-                            'This document does not appear to relate to the project — the agent may ignore it.'}
-                    </Text>
-                </Group>
-            </Paper>
+            <Callout variant="warning">
+                <Text size="xs">
+                    {warning ??
+                        'This document does not appear to relate to the project — the agent may ignore it.'}
+                </Text>
+            </Callout>
         );
     }
 
     return (
-        <Paper p="sm" radius="md">
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <MantineIcon
-                    icon={IconInfoCircle}
-                    size="sm"
-                    color="gray"
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                />
-                <Text size="xs" c="dimmed">
-                    The agent uses this summary to decide whether to read the
-                    file. The full text is retrieved on demand.
-                </Text>
-            </Group>
-        </Paper>
+        <Callout variant="neutral">
+            <Text size="xs">
+                The agent uses this summary to decide whether to read the file.
+                The full text is retrieved on demand.
+            </Text>
+        </Callout>
     );
 };

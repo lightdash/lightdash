@@ -1,7 +1,8 @@
 import { useAbilityContext } from '../../../../providers/Ability/useAbilityContext';
-import { isEmbedAiAgentRoute } from './aiAgentRouting';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const useCanViewAiAgentSql = (): boolean => {
     const ability = useAbilityContext();
-    return !isEmbedAiAgentRoute() || ability.can('view', 'EmbedCompiledSql');
+    const isEmbed = useIsEmbedded();
+    return !isEmbed || ability.can('view', 'EmbedCompiledSql');
 };

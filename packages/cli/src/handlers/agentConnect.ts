@@ -1,4 +1,5 @@
 import {
+    AgentIdentityConnectEntryPoint,
     generateOAuthErrorResponse,
     generateOAuthSuccessResponse,
     ParameterError,
@@ -157,6 +158,10 @@ export const agentConnectHandler = async (
         GlobalState.debug(`> Agent callback server listening on ${redirect}`);
         const connectUrl = new URL(access.refusal.connectUrl);
         connectUrl.searchParams.set('redirect', redirect);
+        connectUrl.searchParams.set(
+            'entryPoint',
+            AgentIdentityConnectEntryPoint.CLI,
+        );
         const result = Promise.race([
             callback,
             new Promise<{ status: 'timeout' }>((resolve) => {

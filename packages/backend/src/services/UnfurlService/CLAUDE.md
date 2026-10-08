@@ -41,6 +41,7 @@ ScreenshotReadyIndicator                    page.waitForSelector(
 | Single Charts            | `MinimalSavedExplorer.tsx` | `/minimal/projects/:projectUuid/saved/:savedQueryUuid`     | Uses minimal page                                  |
 | Explore (unsaved charts) | `Explorer/index.tsx`       | `/projects/:projectUuid/tables/:tableName`                 | Uses full page, screenshots only the visualization |
 | Data Apps                | `MinimalApp.tsx`           | `/minimal/projects/:projectUuid/apps/:appUuid`             | Indicator lives on parent, not in sandboxed iframe |
+| Documents                | `MinimalDocument.tsx`      | `/minimal/projects/:projectUuid/documents/:documentUuid`   | Requires `?versionUuid=`; unfurls resolve the latest |
 
 For EXPLORE pages, the indicator is rendered in the regular `Explorer` component (not a minimal page). The UnfurlService screenshots only the `[data-testid="visualization"]` element, so the sidebar and other UI elements are excluded from the screenshot.
 
@@ -129,6 +130,7 @@ When a user shares a Lightdash URL in Slack, Slack requests a preview image.
 
 - Triggered by `SlackController.getUnfurl()` → `UnfurlService.unfurlImage()`
 - Slack needs a publicly accessible URL to fetch the image
+- Unfurls render as the Slack installer, not the person who shared the link. Document links unfurl only when the installer can view the Document (`canSlackInstallerViewDocument`); the preview is the top viewport of the latest version
 
 **Image Storage:**
 

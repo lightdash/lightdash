@@ -90,14 +90,10 @@ export const WorkspaceThreadPane: FC<Props> = ({
 
     const handleSubmit = useCallback(
         ({ message, toolHints, context, optimisticContext }: SubmitArgs) => {
-            const firstAssistant = thread?.messages?.find(
-                (m) => m.role === 'assistant',
-            );
             // Continue PR turns are frictionless: SQL runs auto-approved and the
             // writeback tool is pinned so a follow-up reliably updates the PR.
             void createMessage({
                 prompt: message,
-                modelConfig: firstAssistant?.modelConfig ?? undefined,
                 context,
                 optimisticContext,
                 enableSqlMode: sqlMode,
@@ -107,7 +103,7 @@ export const WorkspaceThreadPane: FC<Props> = ({
                     : ['editDbtProject', ...toolHints],
             });
         },
-        [createMessage, thread?.messages, sqlMode],
+        [createMessage, sqlMode],
     );
 
     if (isLoading || !thread) {

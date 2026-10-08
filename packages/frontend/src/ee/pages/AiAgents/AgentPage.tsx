@@ -28,10 +28,7 @@ import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/
 import { MEMORY_TOUR_STEPS } from '../../features/aiCopilot/components/MyMemories/onboarding';
 import AiThreadChartEditorModal from '../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal';
 import { AiThreadChartEditContext } from '../../features/aiCopilot/components/ThreadChartEditor/useAiThreadChartEdit';
-import {
-    getAiAgentPageBase,
-    isEmbedAiAgentRoute,
-} from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -43,6 +40,7 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import styles from './AgentPage.module.css';
 
 type NavigateFromAgentChatOptions = {
@@ -55,7 +53,7 @@ const AgentPage = () => {
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -231,8 +229,8 @@ const AgentPage = () => {
             <Navigate
                 to={
                     isEmbed
-                        ? `${getAiAgentPageBase(projectUuid!)}/not-authorized`
-                        : getAiAgentPageBase(projectUuid!)
+                        ? `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`
+                        : getAiAgentPageBase(projectUuid!, isEmbed)
                 }
             />
         );

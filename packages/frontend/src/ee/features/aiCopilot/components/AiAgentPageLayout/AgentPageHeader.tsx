@@ -1,5 +1,4 @@
 import { ActionIcon, Button, Divider, Group, Tooltip } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import {
     IconNotebook,
     IconSettings,
@@ -9,6 +8,7 @@ import {
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
 import styles from './agentPageHeader.module.css';
 
@@ -30,7 +30,7 @@ export const AgentPageHeader: FC<Props> = ({
     settingsHref,
 }) => {
     const settingsLinkState = useAgentSettingsLinkState();
-    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+    const isMobile = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
     });
     // Memories and minimize are desktop affordances — the mobile header only

@@ -1,3 +1,78 @@
+# [2.492.0](https://github.com/lightdash/lightdash/compare/2.491.0...2.492.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** track agent identity set-up, sign-in and refusals in product analytics ([#30705](https://github.com/lightdash/lightdash/issues/30705)) ([96df2d7](https://github.com/lightdash/lightdash/commit/96df2d73608cbfb5e37edcd29f38398364e7372c))
+
+# [2.491.0](https://github.com/lightdash/lightdash/compare/2.490.0...2.491.0) (2026-10-08)
+
+
+### Features
+
+* **ai-agent:** thread follow-ups follow the agent's current model and the picker offers Agent default ([#30638](https://github.com/lightdash/lightdash/issues/30638)) ([6a2193e](https://github.com/lightdash/lightdash/commit/6a2193e089d9f6e5cfd3d64423cfdcf3d0e8c003))
+* **ai:** redesign the agent's reference documents panel ([#30734](https://github.com/lightdash/lightdash/issues/30734)) ([bb8b2c3](https://github.com/lightdash/lightdash/commit/bb8b2c3453e2debb263bfee3c4e690192b2c9452))
+
+# [2.490.0](https://github.com/lightdash/lightdash/compare/2.489.0...2.490.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai-agent:** list only edited content under the Steps taken edited group ([#30634](https://github.com/lightdash/lightdash/issues/30634)) ([d4c9805](https://github.com/lightdash/lightdash/commit/d4c980580db17e126f767958439b5d53f257f85e))
+
+
+### Features
+
+* **ai-agent:** run agents pinned to a retired model on its replacement and warn in settings ([#30637](https://github.com/lightdash/lightdash/issues/30637)) ([391bc9e](https://github.com/lightdash/lightdash/commit/391bc9e86af7591dbf95fc08d27638418ab43fdd))
+
+# [2.489.0](https://github.com/lightdash/lightdash/compare/2.488.1...2.489.0) (2026-10-08)
+
+
+### Features
+
+* **slack:** unfurl Document links with a title and preview image ([#30733](https://github.com/lightdash/lightdash/issues/30733)) ([d732aa5](https://github.com/lightdash/lightdash/commit/d732aa57dcb78c5eda78ec69edea7eb0ede65f4b))
+
+## [2.488.1](https://github.com/lightdash/lightdash/compare/2.488.0...2.488.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* resolve org-level OneLogin SSO without a login hint on single-org instances ([#30723](https://github.com/lightdash/lightdash/issues/30723)) ([71f8478](https://github.com/lightdash/lightdash/commit/71f8478294159cf8ee400399ac5f14b7bb6c2c05)), closes [#30716](https://github.com/lightdash/lightdash/issues/30716)
+
+# [2.488.0](https://github.com/lightdash/lightdash/compare/2.487.1...2.488.0) (2026-10-08)
+
+
+### Features
+
+* **documents:** record Document moves and Space-cascaded deletes in activity and audit ([#30722](https://github.com/lightdash/lightdash/issues/30722)) ([1db4273](https://github.com/lightdash/lightdash/commit/1db4273f7c99f372d848529711822160a24e6391))
+
+## [2.487.1](https://github.com/lightdash/lightdash/compare/2.487.0...2.487.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **data-apps:** prefer modelled fields and validate custom SQL ([#30683](https://github.com/lightdash/lightdash/issues/30683)) ([b0f7404](https://github.com/lightdash/lightdash/commit/b0f740434a63b23fdc41eb1726217bf8fad151b8))
+
+# [2.487.0](https://github.com/lightdash/lightdash/compare/2.486.1...2.487.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **learn:** scroll a walkthrough's control away from the page's edge before placing the card (CS-379) ([#30724](https://github.com/lightdash/lightdash/issues/30724)) ([4026893](https://github.com/lightdash/lightdash/commit/4026893715fc4dbb2ca6fa1e98d86f629b7472d2))
+
+
+### Features
+
+* **ai:** show a Connect agent button in Slack when agent sign-in is needed ([#30714](https://github.com/lightdash/lightdash/issues/30714)) ([39eb5c2](https://github.com/lightdash/lightdash/commit/39eb5c27fb01ad9121dd3e57b8c7550559e1496f))
+* **learn:** bring back the Recently deleted walkthrough through project settings (CS-311) ([#30708](https://github.com/lightdash/lightdash/issues/30708)) ([8d8a13e](https://github.com/lightdash/lightdash/commit/8d8a13edf8fdb6abcb2dbbc368d62b8dde5c799e))
+
+## [2.486.1](https://github.com/lightdash/lightdash/compare/2.486.0...2.486.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ai:** make the Deep Research run card readable in dark mode ([#30720](https://github.com/lightdash/lightdash/issues/30720)) ([ecb2648](https://github.com/lightdash/lightdash/commit/ecb2648dbc29d444975347a0c41052ebe7a96d37))
+
 # [2.486.0](https://github.com/lightdash/lightdash/compare/2.485.0...2.486.0) (2026-10-08)
 
 

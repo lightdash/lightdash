@@ -24,7 +24,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
     IconBolt,
@@ -49,7 +48,10 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import {
+    ModelSelector,
+    type AgentDefaultOption,
+} from '../../../../../components/common/ModelSelector/ModelSelector';
 import {
     ComposerSubmitButton,
     PromptComposer,
@@ -72,7 +74,7 @@ import {
     markDeepResearchNudgeShown,
 } from '../../deepResearch/draftNudge';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import { useAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
@@ -271,6 +273,7 @@ interface AgentChatInputProps {
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;
     onExtendedThinkingChange?: (enabled: boolean) => void;
+    agentDefault?: AgentDefaultOption;
     sqlMode?: boolean;
     onSqlModeChange?: (enabled: boolean) => void;
     defaultValue?: string;
@@ -345,6 +348,7 @@ export const AgentChatInput = ({
     onModelChange,
     extendedThinking = false,
     onExtendedThinkingChange,
+    agentDefault,
     sqlMode = false,
     onSqlModeChange,
     defaultValue,
@@ -365,7 +369,10 @@ export const AgentChatInput = ({
     const user = useUser(true);
     const app = useApp();
     const isEmbedded = useIsEmbedded();
-    const isPhoneLayout = useMediaQuery('(max-width: 32em)', undefined, {
+    const isPhoneLayout = useAgentMaxWidth(512, {
+        getInitialValueInEffect: false,
+    });
+    const isCompactLayout = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
     });
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -822,9 +829,7 @@ export const AgentChatInput = ({
     const hasValue = value.trim().length > 0;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
-    const canStartDeepResearch = Boolean(
-        onStartDeepResearch && !isEmbedAiAgentRoute(),
-    );
+    const canStartDeepResearch = Boolean(onStartDeepResearch && !isEmbedded);
     const hasActiveDeepResearchRun = useHasActiveDeepResearchRun({
         projectUuid,
         threadUuid,
@@ -841,10 +846,7 @@ export const AgentChatInput = ({
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const fastMode = useAiAgentFastMode();
     const showFastModeControl =
-        showFastMode &&
-        fastMode.available &&
-        !disabled &&
-        !isEmbedAiAgentRoute();
+        showFastMode && fastMode.available && !disabled && !isEmbedded;
     const showFastModeInModelSelector =
         showFastModeControl && !isMinimalMode && showModelSelectorControl;
     const showStatusRow = threadModelName !== undefined && !disabled;
@@ -866,7 +868,7 @@ export const AgentChatInput = ({
         externalSourcesFlag?.enabled &&
         multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
-        !isEmbedAiAgentRoute() &&
+        !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
             subject('ExternalSource', {
@@ -882,7 +884,7 @@ export const AgentChatInput = ({
             }),
         ),
     );
-    const canAttachThreadFile = Boolean(projectUuid && !isEmbedAiAgentRoute());
+    const canAttachThreadFile = Boolean(projectUuid && !isEmbedded);
     const showAttachControl = Boolean(
         (canAttachExternalSource || canAttachThreadFile) &&
         !disabled &&
@@ -1752,7 +1754,10 @@ export const AgentChatInput = ({
                         }
                         toolbarRight={
                             <Group gap="xs" align="center" wrap="nowrap">
-                                <Box className={styles.toolbarSelectors}>
+                                <Box
+                                    className={styles.toolbarSelectors}
+                                    data-compact={isCompactLayout}
+                                >
                                     {showAgentSelector && (
                                         <Box
                                             className={styles.controlsReveal}
@@ -1805,6 +1810,7 @@ export const AgentChatInput = ({
                                                             ? fastMode.setEnabled
                                                             : undefined
                                                     }
+                                                    agentDefault={agentDefault}
                                                 />
                                             </Box>
                                         )}
