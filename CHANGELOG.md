@@ -1,3 +1,10 @@
+# [2.481.0](https://github.com/lightdash/lightdash/compare/2.480.0...2.481.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** add Claude Haiku 5.5 presets for Anthropic and Bedrock ([#30657](https://github.com/lightdash/lightdash/issues/30657)) ([3131b4e](https://github.com/lightdash/lightdash/commit/3131b4eb238f82cf40d8ad3f87e536fdeed2e58c))
+
 # [2.480.0](https://github.com/lightdash/lightdash/compare/2.479.1...2.480.0) (2026-10-08)
 
 
