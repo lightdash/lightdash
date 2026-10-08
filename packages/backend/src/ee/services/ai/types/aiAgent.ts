@@ -103,7 +103,6 @@ import {
     StoreToolResultsFn,
     SyncDbtProjectFn,
     TrackEventFn,
-    TrackSqlApprovalTimeoutFn,
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
@@ -414,7 +413,6 @@ export type AiAgentDependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
-    trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

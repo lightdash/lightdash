@@ -42,6 +42,14 @@ export type SqlAutoApprovalSource = Extract<
     'auto_approve' | 'thread_auto_approve'
 >;
 
+/** Tracks an approval wait that ended with no decision. */
+export type TrackSqlApprovalTimeoutFn = (args: {
+    toolCallId: string;
+    toolName: SqlApprovalToolName;
+    promptedUserUuid: string | null;
+    source: SqlPromptedApprovalSource;
+}) => void;
+
 export type SqlApprovalDecisionRecord = {
     organizationUuid: string;
     projectUuid: string;

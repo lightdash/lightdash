@@ -20,7 +20,6 @@ import type {
     RunSqlJobFn,
     SendFileFn,
     StoreToolResultsFn,
-    TrackSqlApprovalTimeoutFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
@@ -33,6 +32,7 @@ import {
 } from '../utils/sqlScope';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
+import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;

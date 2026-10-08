@@ -57,6 +57,7 @@ import {
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
+    AiAgentSqlApprovalDecidedEvent,
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
     AiAgentToolCallEvent,
@@ -73,7 +74,6 @@ import { AiAgentSkill } from '../skills/types';
 import type {
     SqlApprovalToolName,
     SqlAutoApprovalSource,
-    SqlPromptedApprovalSource,
 } from '../tools/sqlApprovals';
 
 type Pagination = KnexPaginateArgs & {
@@ -609,7 +609,8 @@ export type TrackEventFn = (
         | AiAgentToolCallEvent
         | AiAgentToolCallCompletedEvent
         | AiAgentToolCallFailedEvent
-        | AiAgentFindContentCoverageEvent,
+        | AiAgentFindContentCoverageEvent
+        | AiAgentSqlApprovalDecidedEvent,
 ) => void;
 
 export type SearchFieldValuesFn = (args: {
@@ -746,13 +747,6 @@ export type RecordSqlApprovalFn = (args: {
     decidedByUserUuid: string | null;
     source: SqlAutoApprovalSource;
 }) => Promise<boolean>;
-
-export type TrackSqlApprovalTimeoutFn = (args: {
-    toolCallId: string;
-    toolName: SqlApprovalToolName;
-    promptedUserUuid: string | null;
-    source: SqlPromptedApprovalSource;
-}) => void;
 
 export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,

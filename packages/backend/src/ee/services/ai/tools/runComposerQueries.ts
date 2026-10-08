@@ -26,7 +26,6 @@ import type {
     ListThreadComposerPipelinesFn,
     RecordSqlApprovalFn,
     RunComposerQueriesFn,
-    TrackSqlApprovalTimeoutFn,
     UpdateProgressFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
@@ -37,6 +36,7 @@ import type {
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
+import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;

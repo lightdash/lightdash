@@ -15536,25 +15536,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     source,
                     userUuid: decidedByUserUuid,
                 }),
-            trackSqlApprovalTimeout: ({
-                toolCallId,
-                toolName,
-                promptedUserUuid,
-                source,
-            }) =>
-                this.analytics.track(
-                    buildSqlApprovalDecidedEvent({
-                        organizationUuid: prompt.organizationUuid,
-                        projectUuid: prompt.projectUuid,
-                        agentUuid: agentSettings.uuid,
-                        threadUuid: prompt.threadUuid,
-                        toolCallId,
-                        toolName,
-                        decision: 'timed_out',
-                        source,
-                        userUuid: promptedUserUuid,
-                    }),
-                ),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
             loadSkill: async (name, loadOptions) => {
