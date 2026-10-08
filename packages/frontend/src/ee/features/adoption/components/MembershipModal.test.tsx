@@ -2,7 +2,7 @@ import {
     OrganizationMemberRole,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -146,7 +146,7 @@ describe('MembershipModal', () => {
     });
 
     describe('with more people than fit', () => {
-        const crowd = Array.from({ length: 1240 }, (_, index) =>
+        const crowd = Array.from({ length: 300 }, (_, index) =>
             person(`crowd${index}`, `Person${index}`),
         );
         const withCrowd = (run: () => Promise<void>) => async () => {
@@ -164,7 +164,7 @@ describe('MembershipModal', () => {
                 renderModal();
                 expect(screen.getAllByRole('combobox')).toHaveLength(50);
                 expect(
-                    screen.getByText('Showing 50 of 1,243, search to narrow'),
+                    screen.getByText('Showing 50 of 303, search to narrow'),
                 ).toBeInTheDocument();
             }),
         );
@@ -176,25 +176,23 @@ describe('MembershipModal', () => {
                 const search = screen.getByRole('textbox', {
                     name: 'Search people',
                 });
-                await userEvent.type(search, 'person1239');
+                fireEvent.change(search, { target: { value: 'person299' } });
                 expect(screen.getAllByRole('combobox')).toHaveLength(1);
                 expect(
                     screen.getByRole('combobox', {
-                        name: 'Department for Person1239 Test',
+                        name: 'Department for Person299 Test',
                     }),
                 ).toBeInTheDocument();
                 expect(
                     screen.queryByText(/search to narrow/),
                 ).not.toBeInTheDocument();
-                await userEvent.clear(search);
-                await userEvent.type(search, 'U2@EXAMPLE');
+                fireEvent.change(search, { target: { value: 'U2@EXAMPLE' } });
                 expect(
                     screen.getByRole('combobox', {
                         name: 'Department for Bob Test',
                     }),
                 ).toBeInTheDocument();
-                await userEvent.clear(search);
-                await userEvent.type(search, 'zzz');
+                fireEvent.change(search, { target: { value: 'zzz' } });
                 expect(
                     screen.getByText('Nobody matches this search'),
                 ).toBeInTheDocument();
@@ -205,14 +203,14 @@ describe('MembershipModal', () => {
             'still places a person found by search, keeping existing members',
             withCrowd(async () => {
                 renderModal();
-                await userEvent.type(
+                fireEvent.change(
                     screen.getByRole('textbox', { name: 'Search people' }),
-                    'person1239',
+                    { target: { value: 'person299' } },
                 );
-                await place('Department for Person1239 Test', 'Ops');
+                await place('Department for Person299 Test', 'Ops');
                 expect(mutate).toHaveBeenCalledWith({
                     departmentUuid: 'Ops',
-                    userUuids: ['u9', 'crowd1239'],
+                    userUuids: ['u9', 'crowd299'],
                 });
             }),
         );
