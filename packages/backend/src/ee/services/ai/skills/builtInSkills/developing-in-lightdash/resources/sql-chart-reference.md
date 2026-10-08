@@ -72,13 +72,13 @@ Do not send `connection`, `access`, `updatedAt`, or `downloadedAt`.
 
 ## Chart kinds
 
-| `chartKind`    | Use for                    | `config` shape                                     |
-| -------------- | -------------------------- | -------------------------------------------------- |
-| `vertical_bar` | Category comparisons       | `fieldConfig` (`x`, `y`, `groupBy`), `display`     |
-| `line`         | Trends over time           | `fieldConfig` (`x`, `y`, `groupBy`), `display`     |
-| `pie`          | Parts of a whole           | `fieldConfig` (`x` slices, one `y`), `display`     |
-| `big_number`   | One KPI                    | `fieldConfig` (`y` only), `display`                |
-| `table`        | Row-level or detailed data | `columns` keyed by column name, `display`          |
+| `chartKind`    | Use for                    | `config` shape                                 |
+| -------------- | -------------------------- | ---------------------------------------------- |
+| `vertical_bar` | Category comparisons       | `fieldConfig` (`x`, `y`, `groupBy`), `display` |
+| `line`         | Trends over time           | `fieldConfig` (`x`, `y`, `groupBy`), `display` |
+| `pie`          | Parts of a whole           | `fieldConfig` (`x` slices, one `y`), `display` |
+| `big_number`   | One KPI                    | `fieldConfig` (`y` only), `display`            |
+| `table`        | Row-level or detailed data | `columns` keyed by column name, `display`      |
 
 Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 
