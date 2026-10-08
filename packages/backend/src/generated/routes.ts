@@ -41582,6 +41582,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchRunDocument: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                slug: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                documentUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchLimits: {
         dataType: 'refAlias',
         type: {
@@ -42019,6 +42032,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 budget: { ref: 'AiDeepResearchBudget', required: true },
+                document: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiDeepResearchRunDocument' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 isReportExpired: { dataType: 'boolean', required: true },
                 reportExpiredAt: {
                     dataType: 'union',

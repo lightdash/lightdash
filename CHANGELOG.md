@@ -1,3 +1,10 @@
+# [2.484.0](https://github.com/lightdash/lightdash/compare/2.483.0...2.484.0) (2026-10-08)
+
+
+### Features
+
+* **ai:** show a Deep Research run's published Document ([#30717](https://github.com/lightdash/lightdash/issues/30717)) ([5d34ee5](https://github.com/lightdash/lightdash/commit/5d34ee583a36ce55566b6bc67a88ee0b90910d0f)), closes [#30707](https://github.com/lightdash/lightdash/issues/30707)
+
 # [2.483.0](https://github.com/lightdash/lightdash/compare/2.482.0...2.483.0) (2026-10-08)
 
 
