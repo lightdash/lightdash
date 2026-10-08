@@ -6,7 +6,7 @@ The feature lives under Settings, Adoption (`/generalSettings/adoption`, and `/g
 
 ## Access
 
-All of the following must hold, otherwise the API answers 404 (no flag, no licence) or 403 (no scope):
+All of the following must hold, otherwise the API answers 404 (no flag, no licence) or 403 (no scope). A malformed `departmentUuid` in the path is rejected earlier, by the route layer, with 422, so it returns 422 even when the feature is off:
 
 - The `organization-adoption` feature flag is on for the user and organization (`FeatureFlags.OrganizationAdoption`).
 - The instance has the enterprise licence. Without it the service is not registered and the controller turns the missing provider into a 404.
@@ -18,12 +18,12 @@ The routes are hidden from the generated API docs while the feature is under dev
 
 One migration (`packages/backend/src/database/migrations/20261007201524_create_organization_departments.ts`) creates four tables:
 
-| Table                      | Purpose                                                                                                                                                                                                            |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `organization_departments` | One row per department. `parent_department_uuid` makes the tree. Holds `headcount`, `headcount_note`, `target_active_users`, `target_date`, and `updated_by_user_uuid`. Name is unique per organization            |
-| `department_links`         | Groups linked to a department (`link_type = 'group'`; `space` and `project` are allowed by the check constraint but reserved). Primary key is `(link_type, link_uuid)`, so a group links to at most one department |
-| `department_members`       | People assigned to a department by hand                                                                                                                                                                            |
-| `department_owners`        | Owners of a department, each a user or a group, ordered by `position`                                                                                                                                              |
+| Table                      | Purpose                                                                                                                                                                                                                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `organization_departments` | One row per department. `parent_department_uuid` makes the tree. Holds `headcount`, `headcount_note`, `target_active_users`, `target_date`, and `updated_by_user_uuid`. Name is unique per organization                                                                                  |
+| `department_links`         | Groups linked to a department (`link_type = 'group'`; `space` and `project` are allowed by the check constraint but reserved). Primary key is `(link_type, link_uuid)`, so a group links to at most one department                                                                       |
+| `department_members`       | People assigned to a department by hand. The primary key is `(department_uuid, user_uuid)`. One assignment per person per organization is enforced in application code, not by a constraint: `DepartmentModel.setMembers` removes the person's other assignments in the same transaction |
+| `department_owners`        | Owners of a department, each a user or a group, ordered by `position`                                                                                                                                                                                                                    |
 
 `link_uuid` and `principal_uuid` are polymorphic and have no foreign key. Reads inner-join the target table, so a deleted group or user drops out. Deleting an organization cascades to its departments.
 
@@ -71,7 +71,13 @@ Computed on each request in `DepartmentService` and `departmentMetrics.ts` from 
 
 Percentages are of headcount and are null when there is no headcount or it is 0. They are not capped, so more accounts than headcount reads above 100. The page then shows counts.
 
-All time handling is UTC. Weeks start on UTC Mondays, on both the SQL side (`date_trunc('week', ...)`) and the TypeScript side (`lastNWeekStarts`). Days are UTC calendar days.
+Time handling is UTC, but not everything is calendar-aligned:
+
+- Week buckets start on UTC Mondays, on both the SQL side (`date_trunc('week', ...)`) and the TypeScript side (`lastNWeekStarts`). The newest bucket is the current, partial week.
+- The 30-day active window and the 12-week trend read are rolling windows measured from the moment of the request (`daysAgo()` in `DepartmentAnalyticsModel.ts`: now minus 30 days, and now minus 84 days), not from a UTC midnight.
+- `weeksLeft` and the frontend's "N days ago" label count UTC calendar days.
+
+The timestamp columns read here are `timestamp without time zone`. They are read as UTC only if the server process and the database session run in UTC; the code does not enforce it.
 
 The department page (`getDetail`) adds:
 
@@ -98,7 +104,7 @@ All routes are under `/api/v1/org/departments` in `packages/backend/src/ee/contr
 | `PUT /{departmentUuid}/members` | Replace explicitly assigned people                                                                                            | manage |
 | `PUT /{departmentUuid}/owners`  | Replace owners                                                                                                                | manage |
 
-Validation in `DepartmentService`: names are required, unique per organization (409) and at most 255 characters; headcount and target are whole numbers from 0; the target date is a real `YYYY-MM-DD` date; ids must be UUIDs (422 from the route layer, 400 from the service); unknown groups, users or parents answer 400.
+Validation in `DepartmentService`: names are required, unique per organization (409) and at most 255 characters; headcount and target are whole numbers from 0; the target date is a real `YYYY-MM-DD` date; the path `departmentUuid` must be a UUID (422 from the route layer, before the flag and scope checks); ids in request bodies (`groupUuids`, `userUuids`, owner `uuid`, `parentDepartmentUuid`) are validated by the service and answer 400, as do unknown groups, users or parents.
 
 Response types are in `packages/common/src/types/departments.ts`.
 
@@ -116,13 +122,15 @@ Routes are added in `packages/frontend/src/pages/Settings.tsx` only when the fla
 
 ## Known limits
 
-These were found during review and deliberately deferred.
-
 - Moving departments concurrently can store a cycle. The cycle check runs before the update with no per-organization lock, so two moves in opposite directions at the same moment can both pass.
-- Activity from `analytics_chart_views` and `analytics_dashboard_views` has no organization column. On the detail page it is scoped to the organization through content joins; on the summary it is scoped only by the user set. A user who changed organization can therefore carry earlier views into the summary.
-- Invited users who have never logged in, and deactivated users, count as "on Lightdash".
+- Assigning people concurrently can leave a person with two explicit assignments, because the one-assignment rule is application code with no constraint behind it.
+- `analytics_chart_views` and `analytics_dashboard_views` have no organization column. Only the member-list activity (`getMemberActivity`) and the top-content lists join through content to the organization. Every other number, on the index and on the detail page (active tile, target progress, weekly chart), comes from the summary snapshot, which scopes those two tables by the user set only. A user who changed organization can carry earlier views into those numbers.
+- Every read, including a single department page, loads the whole organization snapshot and passes every member uuid to SQL.
 - The per-person last-active read scans all history rather than a window.
-- Dashboards in a trashed space can appear in "what this department uses". Only the dashboard's own `deleted_at` is checked.
+- Invited users who have never logged in, and deactivated users, count as "on Lightdash". Users without a primary email are left out of the member rows altogether.
+- The newest weekly bucket is the current, partial week, so it usually reads low.
+- Percentages on a department's `directMetrics` use that department's own headcount, not the effective one.
+- Dashboards in a trashed space can appear in top content. Only the dashboard's own `deleted_at` is checked.
 - Top content names are visible to anyone with the view scope, whatever their access to the space.
 - The map hides person dots above 5,000 people in view and drops labels on very crowded maps.
 - Safari trackpad pinch does not zoom the map.

@@ -29,7 +29,7 @@ _Avoid_: lead, manager, admin, steward
 ### Placing people
 
 **Assigned person**:
-A person an admin placed in a department by hand. An assignment beats every linked group, and a person has at most one in an organization.
+A person an admin placed in a department by hand. An assignment beats every linked group, and the application keeps a person to one in an organization.
 _Avoid_: manual member, pinned user, override
 
 **Resolution**:
@@ -41,7 +41,7 @@ The rule for people placed through linked groups: when a person is reached throu
 _Avoid_: lowest wins, child wins, priority
 
 **Conflict**:
-A person reached through linked groups of departments in different branches, so no single department is most specific. They count nowhere until an admin assigns them.
+A person reached through linked groups of departments in different branches, so no single department is most specific. They count nowhere until someone with `manage:OrganizationAdoption` assigns them.
 _Avoid_: clash, overlap, duplicate
 
 **Unassigned**:
@@ -123,7 +123,7 @@ The index view as a table of departments with their measures.
 _Avoid_: grid, table view
 
 **Attention**:
-The counts of conflicts and unassigned people shown above the index, with a way for admins to place them.
+The counts of conflicts and unassigned people shown above the index, with a way for anyone holding `manage:OrganizationAdoption` (admins by default, custom roles can grant it) to place them.
 _Avoid_: alerts, issues, to-do
 
 ## Relationships
