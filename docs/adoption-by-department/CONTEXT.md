@@ -67,11 +67,11 @@ Free text saying where a headcount came from.
 _Avoid_: comment, source, description
 
 **Effective headcount**:
-The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, otherwise unknown.
+The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, and never fewer than its members, so a headcount only ever adds people without an account. A department with no headcount counts its members.
 _Avoid_: total headcount, rolled-up headcount, computed headcount
 
 **Headcount below children**:
-A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The own value is still used.
+A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The own value is still used, never below the members.
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
@@ -85,11 +85,11 @@ In this organization in the last 30 days, ran a query from a dashboard, explore,
 _Avoid_: engaged, retained, MAU
 
 **Coverage**:
-Members divided by effective headcount, as a percentage. Null without a headcount.
+Members divided by effective headcount, as a percentage, so never above 100. A department without a headcount reads 100 % and is asked for one.
 _Avoid_: penetration, reach, adoption rate
 
 **Active percentage**:
-Active members divided by effective headcount. Null without a headcount. Uncapped, so it can exceed 100.
+Active members divided by effective headcount, so never above 100.
 _Avoid_: adoption, usage rate
 
 **Target**:
@@ -130,8 +130,8 @@ _Avoid_: alerts, issues, to-do
 
 - A **department** has zero or one parent, any number of **sub-departments**, any number of **linked groups**, any number of **assigned people** and an ordered list of **owners**.
 - A **person** resolves to at most one department. An **assigned person** resolves where assigned; otherwise **most specific wins** among linked groups; reaching several branches is a **conflict**; reaching none is **unassigned**.
-- **Members** roll up the tree: a parent counts its descendants' members. **Headcount** rolls up only as a fallback when the parent has none of its own.
-- **Coverage** and **active percentage** are measured against **effective headcount**, so both are null without one and the page shows counts.
+- **Members** roll up the tree: a parent counts its descendants' members. **Headcount** rolls up only as a fallback when the parent has none of its own, and **effective headcount** never falls below the members.
+- **Coverage** and **active percentage** are measured against **effective headcount**, so neither exceeds 100.
 
 ## Flagged ambiguities
 

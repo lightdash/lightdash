@@ -35,14 +35,18 @@ const d = (
 ) =>
     dept(name, parent, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        // Never below the people on Lightdash, as the server gives it
+        effectiveHeadcount: Math.max(headcount ?? 0, members),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(members, null, {
             activeCount30d: active,
             activeCount12w: active,
             coveragePct:
-                headcount === null
+                Math.max(headcount ?? 0, members) === 0
                     ? null
-                    : Math.round((100 * members) / headcount),
+                    : Math.round(
+                          (100 * members) / Math.max(headcount ?? 0, members),
+                      ),
         }),
         directMetrics: metricsFixture(members, null, {
             activeCount30d: active,
@@ -381,7 +385,7 @@ describe('AdoptionMap', () => {
             (sum, entry) => sum + entry.count,
             0,
         );
-        expect(inView).toBeGreaterThan(5000);
+        expect(inView).toBeGreaterThan(4000);
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(inView);
@@ -495,7 +499,8 @@ describe('AdoptionMap', () => {
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('img', {
-                    name: /^Map of Operations: 3 sub-departments, 40 people/,
+                    // Its 40 less the 8 directly in it, none of them on Lightdash, so not drawn
+                    name: /^Map of Operations: 3 sub-departments, 32 people/,
                 }),
             ).toBeInTheDocument();
             expect(
@@ -798,31 +803,8 @@ describe('AdoptionMap', () => {
         ).toHaveTextContent(/^On Lightdash3of 8$/);
     });
 
-    it('says how many accounts sit above their department headcount', () => {
-        // Placed 17 = headcount 18 - 5 without an account + 4 accounts above Data's headcount
-        renderMap([d('Data', null, 10, 14, 6), d('Finance', null, 8, 3, 2)], {
-            organization: metricsFixture(20, null, { activeCount30d: 8 }),
-        });
-        const details = screen.getByRole('complementary', {
-            name: 'Details',
-        });
-        expect(
-            within(details).getByText(
-                'Placed in a department: 17 of 20 on Lightdash',
-            ),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText('Without an account: 5 of 18 headcount'),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText(
-                "Excludes 4 accounts above their department's headcount",
-            ),
-        ).toBeInTheDocument();
-    });
-
-    it('names the people in departments without a headcount', () => {
-        // Placed 19 = headcount 10 - 0 without an account + 4 above it + 5 with no headcount
+    it('names the people in departments without a headcount, who count as their own headcount', () => {
+        // Data's 10 counts its 14 people on Lightdash; Product has no headcount and counts its 5
         renderMap(
             [d('Data', null, 10, 14, 6), d('Product', null, null, 5, 5)],
             {
@@ -838,26 +820,23 @@ describe('AdoptionMap', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            within(details).getByText('Without an account: 0 of 10 headcount'),
-        ).toBeInTheDocument();
-        expect(
-            within(details).getByText(
-                "Excludes 4 accounts above their department's headcount",
-            ),
+            within(details).getByText('Without an account: 0 of 19 headcount'),
         ).toBeInTheDocument();
         expect(
             within(details).getByText(
                 '5 people are in departments without a headcount',
             ),
         ).toBeInTheDocument();
+        expect(within(details).queryByText(/^Excludes/)).toBeNull();
     });
 
-    it('explains accounts above headcount in the inspector rows and for the department opened', async () => {
-        // Data has 9 accounts, all active, for a headcount of 8
+    it('never shows coverage above 100%, in the inspector rows or for the department opened', async () => {
+        // A headcount of 8 entered for 9 people on Lightdash, all active, counts 9
         const over = d('Data', null, 8, 9, 9, {
-            metrics: metricsFixture(9, 113, {
+            effectiveHeadcount: 9,
+            metrics: metricsFixture(9, 100, {
                 activeCount30d: 9,
-                activePct: 113,
+                activePct: 100,
                 roleSplit: {
                     viewers: 6,
                     interactiveViewers: 1,
@@ -874,23 +853,60 @@ describe('AdoptionMap', () => {
             within(details)
                 .getAllByRole('button')
                 .find((each) => each.textContent?.startsWith(name));
-        expect(row('Data')).toHaveTextContent(
-            /^Data9 of 8113%More accounts than headcount$/,
-        );
+        expect(row('Data')).toHaveTextContent(/^Data9 of 9100%$/);
         expect(row('Finance')).toHaveTextContent(/^Finance3 of 838%$/);
         await userEvent.click(screen.getByRole('button', { name: /^Data,/ }));
-        // Under the tiles: why coverage reads above 100%, then the role split
         expect(
-            within(details).getByText('More accounts than headcount'),
-        ).toBeInTheDocument();
+            within(details).getByText('On Lightdash').parentElement,
+        ).toHaveTextContent(/^On Lightdash9of 9$/);
         expect(
             within(details).getByText('Active in 30 days').parentElement,
-        ).toHaveTextContent(/^Active in 30 days9113% \(9 of 8\)$/);
+        ).toHaveTextContent(/^Active in 30 days9100%$/);
+        expect(
+            within(details).queryByText(/More accounts than headcount/),
+        ).toBeNull();
         expect(
             within(details).getByText(
                 '6 viewers, 1 interactive viewer, 2 editors',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('counts the people directly in a department on their own, on the map and in the inspector', async () => {
+        // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, 4 of them on Lightdash and 1 active
+        const { container } = renderMap([
+            d('Ops', null, 40, 13, 3, {
+                directMetrics: metricsFixture(4, null, { activeCount30d: 1 }),
+            }),
+            d('Stores', 'Ops', 20, 6, 2),
+            d('Depots', 'Ops', 10, 3, 0),
+        ]);
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        const direct = container.querySelector(
+            '[data-kind="direct"][data-circle="own:Ops"]',
+        );
+        expect(direct).not.toBeNull();
+        // Stores and Depots draw their headcount, the people directly in Ops only those on Lightdash
+        expect(
+            container.querySelectorAll('svg[role="img"] [data-dot]'),
+        ).toHaveLength(20 + 10 + 4);
+        if (direct) fireEvent.pointerOver(direct);
+        expect(
+            [
+                ...container.querySelectorAll(
+                    'svg[role="img"] [data-label="own:Ops"]',
+                ),
+            ].map((node) => node.textContent),
+        ).toEqual(['Directly in Ops', '4 on Lightdash · 1 active']);
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        const directRow =
+            within(details).getByText('Directly in Ops').parentElement;
+        expect(directRow).toHaveTextContent(
+            /^Directly in Ops4 on Lightdash · 1 active–$/,
+        );
+        expect(directRow?.tagName).not.toBe('BUTTON');
     });
 
     it('shows no target in the inspector, even for a department with one', async () => {

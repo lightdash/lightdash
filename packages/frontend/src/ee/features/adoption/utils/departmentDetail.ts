@@ -7,7 +7,6 @@ import {
     type WeeklyActivePoint,
 } from '@lightdash/common';
 import { getAiAgentPageBase } from '../../aiCopilot/hooks/aiAgentRouting';
-import { formatShare } from './departmentRows';
 import {
     formatCount,
     formatQuantity,
@@ -251,38 +250,15 @@ export const getWeeklyChartLabel = (weeks: WeeklyComparisonPoint[]): string => {
     return `${department}, against ${formatCount(first.atOrgRate)} and ${formatCount(last.atOrgRate)} at the organization's rate`;
 };
 
-const MORE_ACCOUNTS_THAN_HEADCOUNT = 'More accounts than headcount';
-
-// Says why coverage reads above 100%; null when it does not
-export const getCoverageNote = (
-    headcount: number | null,
-    memberCount: number,
-): string | null =>
-    headcount !== null && memberCount > headcount
-        ? MORE_ACCOUNTS_THAN_HEADCOUNT
-        : null;
-
-// Above 100% the counts behind the share are shown, as the share alone looks like an error
-export const formatCoverage = (
-    coveragePct: number | null,
-    memberCount: number,
-    headcount: number | null,
-): string =>
-    coveragePct !== null && headcount !== null && memberCount > headcount
-        ? `${coveragePct}% (${formatCount(memberCount)} of ${formatCount(headcount)})`
-        : formatShare(coveragePct, memberCount);
-
-// Captions use the same denominator as the percentage beside them (the headcount)
+// Captions use the same denominator as the percentage beside them (the headcount); null when none is set, where
+// the people on Lightdash are all that is counted
 export const getCoverageCaption = (
     headcount: number | null,
     memberCount: number,
-): string => {
-    if (headcount === null) return 'Add a headcount to see a percentage';
-    return (
-        getCoverageNote(headcount, memberCount) ??
-        `${formatCount(memberCount)} of ${formatCount(headcount)} people have an account`
-    );
-};
+): string =>
+    headcount === null
+        ? 'Add a headcount to count people without an account'
+        : `${formatCount(memberCount)} of ${formatCount(headcount)} people have an account`;
 
 export const getActiveCaption = (
     headcount: number | null,
@@ -298,9 +274,6 @@ export const getActiveCaption = (
             ? 'No one has an account yet'
             : `${withAccount} ${activeCount === 1 ? 'was' : 'were'} active`;
     }
-    // Above the headcount the caption says why, as the coverage caption does
-    const overall =
-        getCoverageNote(headcount, activeCount) ??
-        `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
+    const overall = `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
     return withAccount === null ? overall : `${overall} · ${withAccount}`;
 };

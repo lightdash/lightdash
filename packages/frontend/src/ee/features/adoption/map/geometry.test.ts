@@ -36,7 +36,8 @@ const d = (
 ): DepartmentWithMetrics =>
     dept(name, parent, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        effectiveHeadcount: Math.max(headcount ?? 0, rolledMembers),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(rolledMembers, null, {
             activeCount30d: active,
             activeCount12w: active,
@@ -154,7 +155,7 @@ describe('getDotRadius', () => {
 });
 
 describe('buildPackInput', () => {
-    it('nests sub-departments and gives a parent a bucket for its own people', () => {
+    it('nests sub-departments and gives a parent a circle of the people on Lightdash directly in it', () => {
         const root = buildPackInput(tree, null);
         expect(root.children.map((c) => c.id)).toEqual([
             'Ops',
@@ -168,8 +169,13 @@ describe('buildPackInput', () => {
             'Depots',
             'own:Ops',
         ]);
-        // 100 in Ops minus 60 in its sub-departments
-        expect(ops.children[2].people?.headcount).toBe(40);
+        // Its 3 people on Lightdash and no one else, as Ops's headcount is for all of Ops
+        expect(ops.children[2]).toMatchObject({
+            kind: 'direct',
+            name: 'Directly in Ops',
+            size: 3,
+        });
+        expect(ops.children[2].people?.headcount).toBeNull();
         expect(ops.children[2].people?.metrics.memberCount).toBe(3);
     });
     it('marks departments without headcount or without members', () => {
@@ -284,8 +290,8 @@ describe('layoutPack', () => {
 describe('dot budget', () => {
     it('counts headcount, or members when they outnumber it', () => {
         const circles = layoutPack(buildPackInput(tree, null));
-        // Stores 40 + Depots 20 + Ops own 40 + Finance 5 + Legal 2
-        expect(countPeople(circles)).toBe(107);
+        // Stores 40 + Depots 20 + the 3 directly in Ops + Finance 5 + Legal 2
+        expect(countPeople(circles)).toBe(70);
     });
     it('renders dots in SVG up to the limit and not beyond', () => {
         expect(shouldRenderDots(SVG_DOT_LIMIT)).toBe(true);
@@ -411,7 +417,7 @@ describe('edge cases', () => {
         expect(countPeople([empty])).toBe(0);
     });
 
-    it('keeps a parent below its children without a negative own bucket', () => {
+    it('draws the people directly in a parent whose headcount is below its children', () => {
         const root = buildPackInput(
             [
                 d('Parent', null, 10, 14, 2),
@@ -421,8 +427,9 @@ describe('edge cases', () => {
             null,
         );
         const parent = root.children[0];
-        const own = parent.children.find((c) => c.kind === 'own');
-        expect(own?.people?.headcount).toBe(2);
+        const direct = parent.children.find((c) => c.kind === 'direct');
+        expect(direct?.size).toBe(2);
+        expect(direct?.people?.headcount).toBeNull();
         const circles = layoutPack(root);
         // children's 40 plus the two people directly in Parent
         expect(countPeople(circles)).toBe(42);

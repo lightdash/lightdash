@@ -65,7 +65,7 @@ export const indexWeeklyActivity = (
     return weeksByUser;
 };
 
-// Uncapped: more accounts than headcount reads above 100
+// Never above 100 for a department, as its effective headcount is never below its members
 const pct = (num: number, headcount: number | null): number | null =>
     headcount === null || headcount <= 0
         ? null
@@ -147,7 +147,12 @@ export const buildAdoptionSnapshot = (
     const weeksByUser = indexWeeklyActivity(input.weeklyActivity);
     const directMembers = getDirectMembersByDepartment(membership);
     const rolledMembers = rollUpByDepartment(departments, directMembers);
-    const headcounts = computeEffectiveHeadcounts(departments);
+    const headcounts = computeEffectiveHeadcounts(
+        departments,
+        new Map(
+            [...rolledMembers].map(([uuid, members]) => [uuid, members.length]),
+        ),
+    );
     const metricsFor = (
         members: DepartmentMembership[],
         headcount: number | null,
@@ -165,21 +170,23 @@ export const buildAdoptionSnapshot = (
             // The org row is a count baseline; there is no org-wide headcount
             organization: metricsFor(membership, null),
             departments: departments.map((d) => {
+                const members = rolledMembers.get(d.departmentUuid) ?? [];
                 const effective = headcounts.get(d.departmentUuid);
                 const effectiveHeadcount =
-                    effective?.effectiveHeadcount ?? d.headcount;
+                    effective?.effectiveHeadcount ??
+                    Math.max(d.headcount ?? 0, members.length);
                 return {
                     ...d,
                     effectiveHeadcount,
+                    hasHeadcount:
+                        effective?.hasHeadcount ?? d.headcount !== null,
                     headcountBelowChildren:
                         effective?.headcountBelowChildren ?? false,
-                    metrics: metricsFor(
-                        rolledMembers.get(d.departmentUuid) ?? [],
-                        effectiveHeadcount,
-                    ),
+                    metrics: metricsFor(members, effectiveHeadcount),
+                    // The headcount belongs to the department as a whole, so its own people carry counts only
                     directMetrics: metricsFor(
                         directMembers.get(d.departmentUuid) ?? [],
-                        d.headcount,
+                        null,
                     ),
                 };
             }),

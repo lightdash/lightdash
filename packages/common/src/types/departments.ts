@@ -59,17 +59,18 @@ export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
     activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
-    coveragePct: number | null;
+    coveragePct: number | null; // of the effective headcount, so never above 100; null without one
     activePct: number | null;
     roleSplit: RoleSplit;
     weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first; chart and dashboard views only
 };
 
 export type DepartmentWithMetrics = Department & {
-    effectiveHeadcount: number | null; // own if set, else sum of children
+    effectiveHeadcount: number; // own if set, else sum of children, never below the members (rolled up)
+    hasHeadcount: boolean; // a headcount is entered on the department or on one below it
     headcountBelowChildren: boolean;
     metrics: AdoptionMetrics; // rolled up: own members plus all descendants'
-    directMetrics: AdoptionMetrics; // members resolved to this department itself
+    directMetrics: AdoptionMetrics; // members resolved to this department itself; counts only, no percentages
 };
 
 export type OrganizationAdoptionSummary = {

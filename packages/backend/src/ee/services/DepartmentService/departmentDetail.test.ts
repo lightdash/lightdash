@@ -41,7 +41,9 @@ const department = (
     owners: [],
     linkedGroups: [],
     explicitMemberUuids: [],
-    effectiveHeadcount: null,
+    // Nobody on Lightdash and no headcount
+    effectiveHeadcount: 0,
+    hasHeadcount: false,
     headcountBelowChildren: false,
     metrics: metrics(weekly),
     directMetrics: metrics(weekly),

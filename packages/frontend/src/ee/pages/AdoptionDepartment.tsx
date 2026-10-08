@@ -27,13 +27,14 @@ import {
     getDepartmentPath,
 } from '../features/adoption/utils/adoptionNav';
 import {
-    formatCoverage,
     getActiveCaption,
     getCoverageCaption,
-    getCoverageNote,
     getWeeklyComparison,
 } from '../features/adoption/utils/departmentDetail';
-import { sortByCoverage } from '../features/adoption/utils/departmentRows';
+import {
+    formatShare,
+    sortByCoverage,
+} from '../features/adoption/utils/departmentRows';
 import { type Noun } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
@@ -146,6 +147,10 @@ const AdoptionDepartment: FC = () => {
     const { department, ancestors, children, members, topContent } =
         detail.data;
     const { metrics } = department;
+    // Without a headcount the people on Lightdash are all that is counted, so the captions ask for one
+    const headcount = department.hasHeadcount
+        ? department.effectiveHeadcount
+        : null;
 
     return (
         <SettingsPage
@@ -182,25 +187,23 @@ const AdoptionDepartment: FC = () => {
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <StatTile
                         label="Coverage"
-                        value={formatCoverage(
+                        value={formatShare(
                             metrics.coveragePct,
                             metrics.memberCount,
-                            department.effectiveHeadcount,
                         )}
                         detail={getCoverageCaption(
-                            department.effectiveHeadcount,
+                            headcount,
                             metrics.memberCount,
                         )}
                     />
                     <StatTile
                         label="Active in 30 days"
-                        value={formatCoverage(
+                        value={formatShare(
                             metrics.activePct,
                             metrics.activeCount30d,
-                            department.effectiveHeadcount,
                         )}
                         detail={getActiveCaption(
-                            department.effectiveHeadcount,
+                            headcount,
                             metrics.activeCount30d,
                             metrics.memberCount,
                         )}
@@ -253,62 +256,38 @@ const AdoptionDepartment: FC = () => {
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {sortByCoverage(children).map((child) => {
-                                    const coverageNote = getCoverageNote(
-                                        child.effectiveHeadcount,
-                                        child.metrics.memberCount,
-                                    );
-                                    const activeNote = getCoverageNote(
-                                        child.effectiveHeadcount,
-                                        child.metrics.activeCount30d,
-                                    );
-                                    return (
-                                        <Table.Tr key={child.departmentUuid}>
-                                            <Table.Td>
-                                                <Anchor
-                                                    component={Link}
-                                                    to={getDepartmentPath(
-                                                        child.departmentUuid,
-                                                    )}
-                                                    fz="sm"
-                                                >
-                                                    {child.name}
-                                                </Anchor>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                <Text fz="sm">
-                                                    {formatCoverage(
-                                                        child.metrics
-                                                            .coveragePct,
-                                                        child.metrics
-                                                            .memberCount,
-                                                        child.effectiveHeadcount,
-                                                    )}
-                                                </Text>
-                                                {coverageNote !== null && (
-                                                    <Text fz="xs" c="dimmed">
-                                                        {coverageNote}
-                                                    </Text>
+                                {sortByCoverage(children).map((child) => (
+                                    <Table.Tr key={child.departmentUuid}>
+                                        <Table.Td>
+                                            <Anchor
+                                                component={Link}
+                                                to={getDepartmentPath(
+                                                    child.departmentUuid,
                                                 )}
-                                            </Table.Td>
-                                            <Table.Td>
-                                                <Text fz="sm">
-                                                    {formatCoverage(
-                                                        child.metrics.activePct,
-                                                        child.metrics
-                                                            .activeCount30d,
-                                                        child.effectiveHeadcount,
-                                                    )}
-                                                </Text>
-                                                {activeNote !== null && (
-                                                    <Text fz="xs" c="dimmed">
-                                                        {activeNote}
-                                                    </Text>
+                                                fz="sm"
+                                            >
+                                                {child.name}
+                                            </Anchor>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Text fz="sm">
+                                                {formatShare(
+                                                    child.metrics.coveragePct,
+                                                    child.metrics.memberCount,
                                                 )}
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    );
-                                })}
+                                            </Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Text fz="sm">
+                                                {formatShare(
+                                                    child.metrics.activePct,
+                                                    child.metrics
+                                                        .activeCount30d,
+                                                )}
+                                            </Text>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
                             </Table.Tbody>
                         </Table>
                     </Stack>

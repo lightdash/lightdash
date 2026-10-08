@@ -86,17 +86,21 @@
     cursor: pointer;
 }
 
-/* A caption under a row takes the row's whole width */
-.rowNote {
-    grid-column: 1 / -1;
-}
-
 .row:last-child {
     border-bottom: 0;
 }
 
 .row:hover {
     background: var(--mantine-color-default-hover);
+}
+
+/* The people directly in the open department: a row with nothing to open */
+.directRow {
+    cursor: default;
+}
+
+.directRow:hover {
+    background: transparent;
 }
 
 .selected {

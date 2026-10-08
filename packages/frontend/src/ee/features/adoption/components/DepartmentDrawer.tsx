@@ -81,6 +81,18 @@ type FormProps = {
 
 type SavedDepartment = { departmentUuid: string; core: CreateDepartment };
 
+// The headcount never counts fewer than the people already on Lightdash, so the field says how many that is
+const getHeadcountHint = (department: DepartmentWithMetrics | null): string =>
+    [
+        'How many people work in this department',
+        'Leave empty to add up its sub-departments',
+        ...(department !== null && department.metrics.memberCount > 0
+            ? [
+                  `At least ${formatCount(department.metrics.memberCount)}, the people already on Lightdash`,
+              ]
+            : []),
+    ].join('. ');
+
 const getFullName = (person: {
     firstName: string;
     lastName: string;
@@ -310,7 +322,7 @@ export const DepartmentForm: FC<FormProps> = ({
                     />
                     <NumberInput
                         label="Headcount"
-                        description="How many people work in this department. Leave empty to add up its sub-departments"
+                        description={getHeadcountHint(department)}
                         min={0}
                         max={MAX_WHOLE_NUMBER}
                         allowNegative={false}

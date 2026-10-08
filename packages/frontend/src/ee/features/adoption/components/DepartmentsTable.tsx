@@ -25,11 +25,11 @@ import {
 } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getDepartmentPath } from '../utils/adoptionNav';
-import { formatCoverage, getCoverageNote } from '../utils/departmentDetail';
 import {
     buildDepartmentRows,
     formatOwners,
     formatRoleSplit,
+    formatShare,
     type DepartmentRow,
 } from '../utils/departmentRows';
 import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
@@ -90,21 +90,6 @@ const ExplainedValue: FC<{ value: string; explanation: string }> = ({
         </Text>
     </Tooltip>
 );
-
-// A share above 100% shows the counts behind it and says why
-const ShareCell: FC<{
-    pct: number | null;
-    count: number;
-    headcount: number | null;
-}> = ({ pct, count, headcount }) => {
-    const value = formatCoverage(pct, count, headcount);
-    const note = getCoverageNote(headcount, count);
-    return note === null ? (
-        <CellText>{value}</CellText>
-    ) : (
-        <ExplainedValue value={value} explanation={note} />
-    );
-};
 
 type Props = {
     departments: DepartmentWithMetrics[];
@@ -211,7 +196,7 @@ export const DepartmentsTable: FC<Props> = ({
                 size: 96,
                 Cell: ({ row }) => {
                     const { department } = row.original;
-                    if (department.effectiveHeadcount === null) {
+                    if (!department.hasHeadcount) {
                         return canManage ? (
                             <Button
                                 variant="subtle"
@@ -267,11 +252,12 @@ export const DepartmentsTable: FC<Props> = ({
                 header: 'Coverage',
                 size: 144,
                 Cell: ({ row }) => (
-                    <ShareCell
-                        pct={row.original.department.metrics.coveragePct}
-                        count={row.original.department.metrics.memberCount}
-                        headcount={row.original.department.effectiveHeadcount}
-                    />
+                    <CellText>
+                        {formatShare(
+                            row.original.department.metrics.coveragePct,
+                            row.original.department.metrics.memberCount,
+                        )}
+                    </CellText>
                 ),
             },
             {
@@ -279,11 +265,12 @@ export const DepartmentsTable: FC<Props> = ({
                 header: 'Active 30d',
                 size: 120,
                 Cell: ({ row }) => (
-                    <ShareCell
-                        pct={row.original.department.metrics.activePct}
-                        count={row.original.department.metrics.activeCount30d}
-                        headcount={row.original.department.effectiveHeadcount}
-                    />
+                    <CellText>
+                        {formatShare(
+                            row.original.department.metrics.activePct,
+                            row.original.department.metrics.activeCount30d,
+                        )}
+                    </CellText>
                 ),
             },
             {

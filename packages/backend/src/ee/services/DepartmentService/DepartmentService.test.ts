@@ -701,10 +701,56 @@ describe('DepartmentService.getSummary', () => {
         expect(byUuid.get('ops')?.metrics.memberCount).toBe(1);
         expect(byUuid.get('ops')?.directMetrics.memberCount).toBe(0);
         expect(byUuid.get('ops')?.metrics.activePct).toBe(5);
+        expect(byUuid.get('ops')?.effectiveHeadcount).toBe(20);
+        expect(byUuid.get('ops')?.hasHeadcount).toBe(true);
         expect(byUuid.get('ops')?.headcountBelowChildren).toBe(false);
         expect(summary.attention).toEqual({
             conflictCount: 0,
             unassignedCount: 1,
+        });
+    });
+    it('never puts a headcount below the people on Lightdash, and counts them where none is set', async () => {
+        const departments = [
+            departmentFixture('ops', null, 1),
+            departmentFixture('finance', null, null),
+        ];
+        const user = (userUuid: string, departmentUuid: string) => ({
+            userUuid,
+            email: `${userUuid}@example.com`,
+            firstName: userUuid,
+            lastName: 'L',
+            role: OrganizationMemberRole.MEMBER,
+            explicitDepartmentUuid: departmentUuid,
+            groupLinks: [],
+        });
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows: [user('a', 'ops'), user('b', 'ops'), user('c', 'finance')],
+        });
+        departmentAnalyticsModel.getActivity.mockResolvedValue({
+            activeUserUuids: ['a', 'c'],
+            weeklyActivity: [],
+        });
+        const summary = await service.getSummary(
+            buildAccount(abilityWith(['view', ORG])),
+        );
+        const byUuid = new Map(
+            summary.departments.map((d) => [d.departmentUuid, d]),
+        );
+        // A headcount of 1 with two people on Lightdash counts two
+        expect(byUuid.get('ops')).toMatchObject({
+            headcount: 1,
+            effectiveHeadcount: 2,
+            hasHeadcount: true,
+            metrics: { coveragePct: 100, activePct: 50 },
+        });
+        // No headcount at all: its people on Lightdash, and it says it has none
+        expect(byUuid.get('finance')).toMatchObject({
+            headcount: null,
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            metrics: { coveragePct: 100, activePct: 100 },
         });
     });
 });

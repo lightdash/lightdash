@@ -40,7 +40,8 @@ const d = (
 ) =>
     dept(name, parent, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        effectiveHeadcount: Math.max(headcount ?? 0, members),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(members, null, { activeCount30d: active }),
         directMetrics: metricsFixture(directMembers, null, {
             activeCount30d: directMembers === members ? active : 0,
@@ -381,12 +382,12 @@ describe('getTopLevelGroups', () => {
         );
         expect(operations?.opens).toBe('Operations');
         expect(operations?.circles[0].id).toBe('Operations');
+        // Nobody is on Lightdash directly in Operations, so it has no circle of its own people
         expect(operations?.circles.map((circle) => circle.id).sort()).toEqual([
             'Depots',
             'North',
             'Operations',
             'Stores',
-            'own:Operations',
         ]);
         expect(
             groups.find((group) => group.anchor.id === 'Finance')?.circles,
@@ -420,6 +421,7 @@ describe('getCaptionVariants', () => {
                 members: 41,
                 active: 33,
                 headcount: 60,
+                isDirect: false,
             }),
         ).toEqual([
             '41 of 60 on Lightdash · 33 active',
@@ -434,6 +436,7 @@ describe('getCaptionVariants', () => {
                 members: 9,
                 active: 9,
                 headcount: 9,
+                isDirect: false,
             })[1],
         ).toBe('9 of 9 · all active');
     });
@@ -444,6 +447,7 @@ describe('getCaptionVariants', () => {
                 members: 0,
                 active: 0,
                 headcount: 80,
+                isDirect: false,
             }),
         ).toEqual(['80 people · nobody on Lightdash', '80 · nobody yet', '80']);
     });
@@ -454,6 +458,7 @@ describe('getCaptionVariants', () => {
                 members: 14,
                 active: 11,
                 headcount: null,
+                isDirect: false,
             }),
         ).toEqual(['14 on Lightdash · no headcount', 'No headcount']);
     });
@@ -464,8 +469,29 @@ describe('getCaptionVariants', () => {
                 members: 412,
                 active: 180,
                 headcount: 3000,
+                isDirect: false,
             })[0],
         ).toBe('412 of 3,000 on Lightdash · 180 active');
+    });
+    it('counts the people directly in a department on their own, with no headcount', () => {
+        expect(
+            getCaptionVariants({
+                people: 50,
+                members: 50,
+                active: 12,
+                headcount: null,
+                isDirect: true,
+            }),
+        ).toEqual(['50 on Lightdash · 12 active']);
+        expect(
+            getCaptionVariants({
+                people: 3,
+                members: 3,
+                active: 3,
+                headcount: null,
+                isDirect: true,
+            }),
+        ).toEqual(['3 on Lightdash · all active']);
     });
 });
 
@@ -775,7 +801,7 @@ describe.skipIf(!LABELS_AT_REST)('placeLabels at the focused level', () => {
         const large = operations.map((department) => ({
             ...department,
             headcount: (department.headcount ?? 0) * 3,
-            effectiveHeadcount: (department.effectiveHeadcount ?? 0) * 3,
+            effectiveHeadcount: department.effectiveHeadcount * 3,
         }));
         const drawn = build(large, PANEL, 'Operations');
         expect(
@@ -1017,10 +1043,33 @@ describe('getHoverLabel', () => {
             detail: null,
             isNested: true,
         });
-        // The people directly in a department have no name of their own
-        expect(hoverOf('own:Operations')).toBeNull();
     });
-    it("quotes a department's headcount, not the people drawn, for a circle of its own people", () => {
+    it('leaves the people directly in a department nested in its circle unnamed', () => {
+        // Supply chain's own people sit beside its sub-departments, inside it
+        const departments = [
+            d('Supply chain', null, 80, 6, 2, 4),
+            d('Logistics', 'Supply chain', 50, 2, 1),
+        ];
+        const { circles } = build(departments);
+        const direct = circles.find((each) => each.id === 'own:Supply chain');
+        expect(direct).toMatchObject({ kind: 'direct', depth: 2 });
+        if (!direct) return;
+        expect(
+            getHoverLabel(
+                direct,
+                describeCircles(
+                    circles,
+                    new Map(
+                        departments.map((each) => [each.departmentUuid, each]),
+                    ),
+                ),
+                1,
+                PANEL,
+                estimateTextWidth,
+            ),
+        ).toBeNull();
+    });
+    it("quotes a department's headcount for its one circle, and only the people on Lightdash for the people directly in it", () => {
         const data = [
             d('Data', null, 110, 191, 85, 84),
             d('Analytics', 'Data', 64, 63, 29),
@@ -1041,15 +1090,15 @@ describe('getHoverLabel', () => {
                 estimateTextWidth,
             );
         };
-        // A department without sub-departments, with more accounts than headcount
+        // A department without sub-departments whose headcount of 8 counts its 9 people on Lightdash
         expect(hoverIn('Governance', 'own:Governance')).toMatchObject({
             name: 'Governance',
-            detail: '9 of 8',
+            detail: '9 of 9',
         });
-        // The people directly in a department whose headcount is entered on itself
+        // The people directly in a department, counted on their own as its headcount is for the whole department
         expect(hoverIn('Data', 'own:Data')).toMatchObject({
             name: 'Directly in Data',
-            detail: '84 of 110',
+            detail: '84 on Lightdash · 0 active',
         });
     });
     it('moves a label under a circle as tall as the drawing right of the zoom buttons', () => {

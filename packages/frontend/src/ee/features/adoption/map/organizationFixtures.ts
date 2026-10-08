@@ -29,7 +29,9 @@ const toDepartments = (rows: Row[]): DepartmentWithMetrics[] =>
         ]) =>
             dept(name, parent, null, {
                 headcount,
-                effectiveHeadcount,
+                // Never below the people on Lightdash, as the server gives it
+                effectiveHeadcount: Math.max(effectiveHeadcount ?? 0, members),
+                hasHeadcount: effectiveHeadcount !== null,
                 metrics: metricsFixture(members, null, {
                     activeCount30d: active,
                     activeCount12w: active,

@@ -8,7 +8,10 @@ export type DepartmentHeadcountNode = DepartmentTreeNode & {
 };
 
 export type EffectiveHeadcount = {
-    effectiveHeadcount: number | null;
+    // Never below the department's people on Lightdash, so a headcount only ever adds people without an account
+    effectiveHeadcount: number;
+    // A headcount is entered on the department or on one below it
+    hasHeadcount: boolean;
     headcountBelowChildren: boolean;
 };
 
@@ -156,10 +159,14 @@ type HeadcountFrame = {
     children: string[];
     next: number;
     childValues: number[];
+    hasChildHeadcount: boolean;
 };
 
+// The headcount entered, else the sum of the children's, and never below the people on Lightdash
+// (memberCounts, rolled up), so a department with no headcount anywhere counts its people
 export const computeEffectiveHeadcounts = (
     nodes: DepartmentHeadcountNode[],
+    memberCounts: Map<string, number>,
 ): Map<string, EffectiveHeadcount> => {
     const children = getChildrenMap(nodes);
     const byUuid = new Map(nodes.map((n) => [n.departmentUuid, n]));
@@ -173,6 +180,7 @@ export const computeEffectiveHeadcounts = (
             children: children.get(uuid) ?? [],
             next: 0,
             childValues: [],
+            hasChildHeadcount: false,
         };
     };
 
@@ -187,11 +195,9 @@ export const computeEffectiveHeadcounts = (
                 const known = onPath.has(child) ? null : result.get(child);
                 if (known === undefined) {
                     stack.push(open(child));
-                } else if (
-                    known !== null &&
-                    known.effectiveHeadcount !== null
-                ) {
+                } else if (known !== null) {
                     frame.childValues.push(known.effectiveHeadcount);
+                    frame.hasChildHeadcount ||= known.hasHeadcount;
                 }
             } else {
                 stack.pop();
@@ -205,7 +211,11 @@ export const computeEffectiveHeadcounts = (
                         : null;
                 const own = byUuid.get(frame.uuid)?.headcount ?? null;
                 const value: EffectiveHeadcount = {
-                    effectiveHeadcount: own ?? childrenSum,
+                    effectiveHeadcount: Math.max(
+                        own ?? childrenSum ?? 0,
+                        memberCounts.get(frame.uuid) ?? 0,
+                    ),
+                    hasHeadcount: own !== null || frame.hasChildHeadcount,
                     headcountBelowChildren:
                         own !== null &&
                         childrenSum !== null &&
@@ -213,8 +223,9 @@ export const computeEffectiveHeadcounts = (
                 };
                 result.set(frame.uuid, value);
                 const parent = stack[stack.length - 1];
-                if (parent !== undefined && value.effectiveHeadcount !== null) {
+                if (parent !== undefined) {
                     parent.childValues.push(value.effectiveHeadcount);
+                    parent.hasChildHeadcount ||= value.hasHeadcount;
                 }
             }
         }

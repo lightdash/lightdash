@@ -371,7 +371,7 @@ export const DepartmentMap: FC<Props> = ({
         const shown = shownId === null ? undefined : circlesById.get(shownId);
         // The people directly in a department are named by the department drawn around them
         const circle =
-            shown?.kind === 'own' && shown.parentId !== null
+            shown?.kind === 'direct' && shown.parentId !== null
                 ? circlesById.get(shown.parentId)
                 : shown;
         if (!circle || labels.some((label) => label.id === circle.id)) {

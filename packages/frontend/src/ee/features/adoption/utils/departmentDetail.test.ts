@@ -3,13 +3,11 @@ import { memberFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
     filterMembers,
-    formatCoverage,
     formatLastActive,
     formatMemberSource,
     formatTopContentUsage,
     getActiveCaption,
     getCoverageCaption,
-    getCoverageNote,
     getWeekAxisLabels,
     getWeekLabels,
     getWeeklyChartLabel,
@@ -324,44 +322,10 @@ describe('getCoverageCaption', () => {
             '221 of 2,350 people have an account',
         );
     });
-    it('prompts without a headcount', () => {
+    it('asks for a headcount without one, as only the people on Lightdash are counted', () => {
         expect(getCoverageCaption(null, 3)).toBe(
-            'Add a headcount to see a percentage',
+            'Add a headcount to count people without an account',
         );
-    });
-    it('says so when accounts outnumber the headcount', () => {
-        expect(getCoverageCaption(3, 5)).toBe('More accounts than headcount');
-    });
-});
-
-describe('formatCoverage', () => {
-    it('shows the share and the people on Lightdash up to 100%', () => {
-        expect(formatCoverage(49, 560, 1150)).toBe('49% (560)');
-        expect(formatCoverage(100, 8, 8)).toBe('100% (8)');
-        expect(formatCoverage(56, 1317, 2350)).toBe('56% (1,317)');
-    });
-    it('shows the counts behind a share above 100%', () => {
-        expect(formatCoverage(113, 9, 8)).toBe('113% (9 of 8)');
-        expect(formatCoverage(174, 191, 110)).toBe('174% (191 of 110)');
-        expect(formatCoverage(113, 2350, 2080)).toBe('113% (2,350 of 2,080)');
-    });
-    it('shows the counts when a rounded 100% hides one account too many', () => {
-        expect(formatCoverage(100, 1001, 1000)).toBe('100% (1,001 of 1,000)');
-    });
-    it('counts people without a headcount', () => {
-        expect(formatCoverage(null, 7, null)).toBe('7 people');
-    });
-    it('counts people against a headcount of zero, which has no percentage', () => {
-        expect(formatCoverage(null, 3, 0)).toBe('3 people');
-        expect(getCoverageNote(0, 3)).toBe('More accounts than headcount');
-    });
-});
-
-describe('getCoverageNote', () => {
-    it('explains a share above 100% and nothing else', () => {
-        expect(getCoverageNote(8, 9)).toBe('More accounts than headcount');
-        expect(getCoverageNote(8, 8)).toBeNull();
-        expect(getCoverageNote(null, 9)).toBeNull();
     });
 });
 
@@ -452,11 +416,6 @@ describe('getActiveCaption', () => {
     it('handles zero members', () => {
         expect(getActiveCaption(40, 0, 0)).toBe('0 of 40 people were active');
         expect(getActiveCaption(null, 0, 0)).toBe('No one has an account yet');
-    });
-    it('handles more accounts or activity than headcount', () => {
-        expect(getActiveCaption(3, 5, 5)).toBe(
-            'More accounts than headcount · 5 of the 5 with an account',
-        );
     });
     it('groups thousands', () => {
         expect(getActiveCaption(2350, 1126, 1221)).toBe(

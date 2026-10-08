@@ -103,18 +103,18 @@ describe('DepartmentMap labels', () => {
             people: null,
             childDepartmentCount: 1,
         };
-        const own: PackedCircle = {
+        const direct: PackedCircle = {
             ...circleOfPeople(60),
             id: 'own:Ops',
-            kind: 'own',
+            kind: 'direct',
             departmentUuid: 'Ops',
             name: 'Directly in Ops',
-            size: 10,
-            people: { metrics: metricsFixture(4, null), headcount: 10 },
+            size: 4,
+            people: { metrics: metricsFixture(4, null), headcount: null },
             depth: 2,
             parentId: 'Ops',
         };
-        const { container, textOf } = draw([ops, own]);
+        const { container, textOf } = draw([ops, direct]);
         const people = container.querySelector('[data-circle="own:Ops"]');
         if (people) fireEvent.pointerOver(people);
         expect(textOf('Ops')).toEqual(['Ops', '12 of 40']);

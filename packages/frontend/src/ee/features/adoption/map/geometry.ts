@@ -52,18 +52,21 @@ export type DotSegment = { kind: DotKind; count: number };
 
 export type PeopleBucket = {
     metrics: AdoptionMetrics;
+    // What the people are counted against: null without a headcount, and for the people directly in a department
     headcount: number | null;
 };
 
 export type PackDatum = {
     id: string;
-    kind: 'root' | 'department' | 'own';
+    // 'own' is a department without sub-departments opened on its own; 'direct' is the people directly in a
+    // department beside its sub-departments
+    kind: 'root' | 'department' | 'own' | 'direct';
     departmentUuid: string | null;
     name: string;
     hasHeadcount: boolean;
     hasMembers: boolean;
     childDepartmentCount: number;
-    // What the area stands for: the effective headcount, or the people on Lightdash without one
+    // What the area stands for: the effective headcount, or for the people directly in a department, those on Lightdash
     size: number;
     people: PeopleBucket | null;
     children: PackDatum[];
@@ -92,8 +95,9 @@ const DOT_ORDER: DotKind[] = [
     'noAccount',
 ];
 
+// Never below the people on Lightdash, which it is for a department without a headcount
 export const getDepartmentSize = (department: DepartmentWithMetrics): number =>
-    department.effectiveHeadcount ?? department.metrics.memberCount;
+    department.effectiveHeadcount;
 
 export const countBucketPeople = (bucket: PeopleBucket): number =>
     Math.max(bucket.headcount ?? 0, bucket.metrics.memberCount);
@@ -268,29 +272,45 @@ export const buildPackInput = (
             return department ? [department] : [];
         });
 
-    // People who belong to a department itself rather than a sub-department
-    const ownBucket = (department: DepartmentWithMetrics): PackDatum | null => {
-        const childrenSize = lookup(children.get(department.departmentUuid))
-            .map(getDepartmentSize)
-            .reduce((sum, size) => sum + size, 0);
-        const ownPeople = Math.max(
-            getDepartmentSize(department) - childrenSize,
-            department.directMetrics.memberCount,
-        );
-        if (ownPeople <= 0) return null;
+    // The people on Lightdash directly in a department beside its sub-departments, and no one else, as the
+    // department's headcount is for the department as a whole
+    const directBucket = (
+        department: DepartmentWithMetrics,
+    ): PackDatum | null => {
+        const people = department.directMetrics.memberCount;
+        if (people <= 0) return null;
+        return {
+            id: `own:${department.departmentUuid}`,
+            kind: 'direct',
+            departmentUuid: department.departmentUuid,
+            name: `Directly in ${department.name}`,
+            hasHeadcount: department.hasHeadcount,
+            hasMembers: true,
+            childDepartmentCount: 0,
+            size: people,
+            people: { metrics: department.directMetrics, headcount: null },
+            children: [],
+        };
+    };
+
+    // A department without sub-departments opened on its own: one circle of all its people
+    const loneBucket = (
+        department: DepartmentWithMetrics,
+    ): PackDatum | null => {
+        const size = getDepartmentSize(department);
+        if (size <= 0) return null;
         return {
             id: `own:${department.departmentUuid}`,
             kind: 'own',
             departmentUuid: department.departmentUuid,
             name: `Directly in ${department.name}`,
-            hasHeadcount: department.effectiveHeadcount !== null,
-            hasMembers: department.directMetrics.memberCount > 0,
+            hasHeadcount: department.hasHeadcount,
+            hasMembers: department.metrics.memberCount > 0,
             childDepartmentCount: 0,
-            size: ownPeople,
+            size,
             people: {
-                metrics: department.directMetrics,
-                headcount:
-                    department.effectiveHeadcount === null ? null : ownPeople,
+                metrics: department.metrics,
+                headcount: department.hasHeadcount ? size : null,
             },
             children: [],
         };
@@ -306,7 +326,7 @@ export const buildPackInput = (
             kind: 'department' as const,
             departmentUuid: department.departmentUuid,
             name: department.name,
-            hasHeadcount: department.effectiveHeadcount !== null,
+            hasHeadcount: department.hasHeadcount,
             hasMembers: department.metrics.memberCount > 0,
             childDepartmentCount,
             size: getDepartmentSize(department),
@@ -316,16 +336,18 @@ export const buildPackInput = (
                 ...base,
                 people: {
                     metrics: department.metrics,
-                    headcount: department.effectiveHeadcount,
+                    headcount: department.hasHeadcount
+                        ? department.effectiveHeadcount
+                        : null,
                 },
                 children: [],
             };
         }
-        const own = ownBucket(department);
+        const direct = directBucket(department);
         return {
             ...base,
             people: null,
-            children: [...childData, ...(own ? [own] : [])],
+            children: [...childData, ...(direct ? [direct] : [])],
         };
     };
 
@@ -381,7 +403,12 @@ export const buildPackInput = (
 
     const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
     const topLevel = lookup(children.get(focus?.departmentUuid ?? null));
-    const focusOwn = focus === null ? null : ownBucket(focus);
+    const focusOwn =
+        focus === null
+            ? null
+            : topLevel.length === 0
+              ? loneBucket(focus)
+              : directBucket(focus);
     const rootChildren = [
         ...topLevel.map((department) => toDatum(department)),
         ...(focusOwn ? [focusOwn] : []),

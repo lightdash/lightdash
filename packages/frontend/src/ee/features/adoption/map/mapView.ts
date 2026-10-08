@@ -13,7 +13,6 @@ import {
     formatQuantity,
     PEOPLE,
     SUB_DEPARTMENTS,
-    type Noun,
 } from '../utils/format';
 import {
     countBucketPeople,
@@ -29,8 +28,6 @@ import {
 
 // First names are only readable when few people share the map
 export const NAME_LABEL_LIMIT = 150;
-
-const ACCOUNTS: Noun = { one: 'account', other: 'accounts' };
 
 // The departments one level below the focus: what the map compares
 export const getVisibleDepartments = (
@@ -192,7 +189,9 @@ export type CircleStats = {
     people: number;
     members: number;
     active: number;
+    // Null without a headcount, and for the people directly in a department, who are counted on their own
     headcount: number | null;
+    isDirect: boolean;
 };
 
 export type CircleInfo = { stats: CircleStats; description: string };
@@ -201,35 +200,42 @@ const getCircleStats = (
     circle: PackedCircle,
     byUuid: Map<string, DepartmentWithMetrics>,
 ): CircleStats | null => {
-    const department =
-        circle.departmentUuid === null
-            ? undefined
-            : byUuid.get(circle.departmentUuid);
-    // A bucket of people carries its own counts, against its department's headcount as the inspector gives it
-    // rather than the people drawn. A parent circle reads its rolled-up numbers
-    if (circle.kind === 'own' && circle.people !== null) {
+    // The people directly in a department are counted on their own, as its headcount is for the whole department
+    if (circle.kind === 'direct' && circle.people !== null) {
         return {
             people: countBucketPeople(circle.people),
             members: circle.people.metrics.memberCount,
             active: circle.people.metrics.activeCount30d,
-            headcount:
-                department?.effectiveHeadcount ?? circle.people.headcount,
+            headcount: null,
+            isDirect: true,
         };
     }
+    // A department, or one without sub-departments drawn as one circle, reads its rolled-up numbers
+    const department =
+        circle.departmentUuid === null
+            ? undefined
+            : byUuid.get(circle.departmentUuid);
     if (!department) return null;
     return {
-        people: Math.max(
-            getDepartmentSize(department),
-            department.metrics.memberCount,
-        ),
+        people: getDepartmentSize(department),
         members: department.metrics.memberCount,
         active: department.metrics.activeCount30d,
-        headcount: department.effectiveHeadcount,
+        headcount: department.hasHeadcount
+            ? department.effectiveHeadcount
+            : null,
+        isDirect: false,
     };
 };
 
+// The people directly in a department, counted on their own with no headcount
+export const formatDirectPeople = (members: number, active: number): string =>
+    `${formatCount(members)} on Lightdash · ${active === members ? 'all active' : `${formatCount(active)} active`}`;
+
 const describeStats = (stats: CircleStats): string[] => {
     const active = `${formatCount(stats.active)} active in the last 30 days`;
+    if (stats.isDirect) {
+        return [`${formatCount(stats.members)} on Lightdash`, active];
+    }
     if (stats.headcount === null) {
         return stats.members === 0
             ? ['nobody on Lightdash yet', 'no headcount set']
@@ -293,49 +299,36 @@ export type OrganizationOverview = {
     onLightdash: number;
     active30d: number;
     placed: number;
-    // The legend's "No account": headcount without an account in every circle drawn
-    withoutAccount: number;
-    // The top-level departments' effective headcounts added up, or null when none has one
+    // The top-level departments' effective headcounts added up, or null when none has a headcount
     headcount: number | null;
-    // What makes placed = headcount - without an account + these two: people placed beyond
-    // headcount, and people in top-level departments without one
-    aboveHeadcount: number;
+    // Headcount minus accounts over the top-level departments, so placed = headcount - without an account
+    withoutAccount: number;
+    // People in top-level departments without a headcount, who count as their own headcount
     withoutHeadcount: number;
-    // A headcount entered below its sub-departments' total also counts towards aboveHeadcount
-    hasHeadcountBelowSubDepartments: boolean;
 };
 
-// Totals reads the circles of the whole organization, as the legend does
+// Totals reads the circles of the whole organization, which hold everyone placed
 export const getOrganizationOverview = (
     organization: AdoptionMetrics,
     departments: DepartmentWithMetrics[],
     totals: ViewTotals,
 ): OrganizationOverview => {
     const topLevel = getVisibleDepartments(departments, null);
-    const counted = topLevel.filter(
-        (department) => department.effectiveHeadcount !== null,
-    );
-    const headcount = counted.reduce(
-        (sum, department) => sum + (department.effectiveHeadcount ?? 0),
-        0,
-    );
-    const withoutHeadcount = topLevel
-        .filter((department) => department.effectiveHeadcount === null)
-        .reduce((sum, department) => sum + department.metrics.memberCount, 0);
-    const withoutAccount = Math.max(totals.people - totals.members, 0);
+    const sum = (count: (department: DepartmentWithMetrics) => number) =>
+        topLevel.reduce((total, department) => total + count(department), 0);
     return {
         onLightdash: organization.memberCount,
         active30d: organization.activeCount30d,
         placed: totals.members,
-        withoutAccount,
-        headcount: counted.length > 0 ? headcount : null,
-        aboveHeadcount: Math.max(
-            totals.members - headcount + withoutAccount - withoutHeadcount,
-            0,
+        headcount: topLevel.some((department) => department.hasHeadcount)
+            ? sum((department) => department.effectiveHeadcount)
+            : null,
+        withoutAccount: sum(
+            (department) =>
+                department.effectiveHeadcount - department.metrics.memberCount,
         ),
-        withoutHeadcount,
-        hasHeadcountBelowSubDepartments: departments.some(
-            (department) => department.headcountBelowChildren,
+        withoutHeadcount: sum((department) =>
+            department.hasHeadcount ? 0 : department.metrics.memberCount,
         ),
     };
 };
@@ -353,23 +346,18 @@ export const describeOrganizationOverview = (
     if (overview.headcount === null) {
         return { placed, withoutAccount: null, captions: [] };
     }
-    const { aboveHeadcount, withoutHeadcount } = overview;
-    const excluded = overview.hasHeadcountBelowSubDepartments
-        ? `Excludes ${formatQuantity(aboveHeadcount, PEOPLE)} counted above their department's headcount or below its sub-departments' total`
-        : `Excludes ${formatQuantity(aboveHeadcount, ACCOUNTS)} above their department's headcount`;
+    const { withoutHeadcount } = overview;
     return {
         placed,
         withoutAccount: `Without an account: ${formatCount(overview.withoutAccount)} of ${formatCount(overview.headcount)} headcount`,
-        captions: [
-            ...(aboveHeadcount > 0 ? [excluded] : []),
-            ...(withoutHeadcount > 0
+        captions:
+            withoutHeadcount > 0
                 ? [
                       withoutHeadcount === 1
                           ? '1 person is in a department without a headcount'
                           : `${formatQuantity(withoutHeadcount, PEOPLE)} are in departments without a headcount`,
                   ]
-                : []),
-        ],
+                : [],
     };
 };
 
@@ -433,6 +421,9 @@ export const sortForInspector = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] =>
     [...departments].sort((a, b) => {
+        if (a.hasHeadcount !== b.hasHeadcount) return a.hasHeadcount ? -1 : 1;
+        // Without a headcount everyone counted is on Lightdash, so only the name orders them
+        if (!a.hasHeadcount) return a.name.localeCompare(b.name);
         const left = a.metrics.coveragePct;
         const right = b.metrics.coveragePct;
         if (left === null || right === null) {
@@ -441,7 +432,7 @@ export const sortForInspector = (
         }
         return (
             left - right ||
-            (b.effectiveHeadcount ?? 0) - (a.effectiveHeadcount ?? 0) ||
+            b.effectiveHeadcount - a.effectiveHeadcount ||
             a.name.localeCompare(b.name)
         );
     });

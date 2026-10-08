@@ -63,7 +63,9 @@ export const dept = (
         owners: [],
         linkedGroups: [],
         explicitMemberUuids: [],
-        effectiveHeadcount: headcount,
+        // Never below the people on Lightdash, as the server gives it
+        effectiveHeadcount: Math.max(headcount ?? 0, memberCount),
+        hasHeadcount: headcount !== null,
         headcountBelowChildren: false,
         metrics,
         directMetrics: metrics,
@@ -102,7 +104,8 @@ const seeded = (
 ): DepartmentWithMetrics =>
     dept(name, parentDepartmentUuid, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        effectiveHeadcount: Math.max(headcount ?? 0, members),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(
             members,
             headcount === null ? null : Math.round((100 * members) / headcount),

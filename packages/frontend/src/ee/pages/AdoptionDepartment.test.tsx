@@ -33,10 +33,11 @@ const WEEK_STARTS = ['2026-09-21', '2026-09-28', '2026-10-05'];
 const LONG_NOTE =
     'Headcount from the HR export of September 2026, contractors and interns excluded, reviewed by the people team';
 
+// Data's headcount of 110 counts its 191 people on Lightdash, as no headcount is below them
 const departmentDetail = (): DepartmentDetail => {
-    const metrics = metricsFixture(191, 174, {
+    const metrics = metricsFixture(191, 100, {
         activeCount30d: 85,
-        activePct: 77,
+        activePct: 45,
         roleSplit: {
             viewers: 129,
             interactiveViewers: 40,
@@ -52,7 +53,7 @@ const departmentDetail = (): DepartmentDetail => {
         department: dept('Data', null, null, {
             departmentUuid: DEPARTMENT,
             headcount: 110,
-            effectiveHeadcount: 110,
+            effectiveHeadcount: 191,
             headcountNote: LONG_NOTE,
             metrics,
             directMetrics: metrics,
@@ -61,10 +62,10 @@ const departmentDetail = (): DepartmentDetail => {
         children: [
             dept('Science', DEPARTMENT, null, {
                 headcount: 8,
-                effectiveHeadcount: 8,
-                metrics: metricsFixture(9, 113, {
+                effectiveHeadcount: 9,
+                metrics: metricsFixture(9, 100, {
                     activeCount30d: 9,
-                    activePct: 113,
+                    activePct: 100,
                 }),
             }),
             dept('Engineering', DEPARTMENT, null, {
@@ -260,59 +261,67 @@ describe('AdoptionDepartment', () => {
                 })),
             );
         });
-        it('shows coverage above 100% with the counts behind it and says why', () => {
+        it('shows coverage of a headcount that never counts fewer than the people on Lightdash', () => {
             renderPage();
             const tile = screen.getByRole('group', { name: 'Coverage' });
-            expect(within(tile).getByText('174% (191 of 110)')).toBeVisible();
+            expect(within(tile).getByText('100% (191)')).toBeVisible();
             expect(
-                within(tile).getByText('More accounts than headcount'),
+                within(tile).getByText('191 of 191 people have an account'),
             ).toBeVisible();
+            expect(
+                screen.queryByText(/More accounts than headcount/),
+            ).not.toBeInTheDocument();
         });
-        it('explains coverage and activity above 100% in the sub-department rows', () => {
+        it('shows the sub-departments as plain shares, none above 100%', () => {
             renderPage();
             const science = screen.getByRole('row', { name: /Science/ });
-            // Coverage and Active in 30 days, each with the counts behind it and the reason
             const [coverage, active] = within(science)
                 .getAllByRole('cell')
                 .slice(1);
             [coverage, active].forEach((cell) => {
-                expect(within(cell).getByText('113% (9 of 8)')).toBeVisible();
-                expect(
-                    within(cell).getByText('More accounts than headcount'),
-                ).toBeVisible();
+                expect(cell).toHaveTextContent(/^100% \(9\)$/);
             });
             const engineering = screen.getByRole('row', {
                 name: /Engineering/,
             });
             expect(within(engineering).getByText('97% (33)')).toBeVisible();
-            expect(
-                within(engineering).queryByText('More accounts than headcount'),
-            ).not.toBeInTheDocument();
         });
-        it('shows activity above the headcount with the counts behind it and says why', () => {
-            const busy = departmentDetail();
-            detail.mockReturnValue(
-                loaded({
-                    ...busy,
-                    department: {
-                        ...busy.department,
-                        metrics: {
-                            ...busy.department.metrics,
-                            activeCount30d: 120,
-                            activePct: 109,
-                        },
-                    },
-                }),
-            );
+        it('shows activity as a share of the headcount and of the people with an account', () => {
             renderPage();
             const tile = screen.getByRole('group', {
                 name: 'Active in 30 days',
             });
-            expect(within(tile).getByText('109% (120 of 110)')).toBeVisible();
+            expect(within(tile).getByText('45% (85)')).toBeVisible();
             expect(
                 within(tile).getByText(
-                    'More accounts than headcount · 120 of the 191 with an account',
+                    '85 of 191 people were active · 85 of the 191 with an account',
                 ),
+            ).toBeVisible();
+        });
+        it('asks for a headcount where none is set, counting only the people on Lightdash', () => {
+            const none = departmentDetail();
+            detail.mockReturnValue(
+                loaded({
+                    ...none,
+                    department: {
+                        ...none.department,
+                        headcount: null,
+                        hasHeadcount: false,
+                    },
+                }),
+            );
+            renderPage();
+            const tile = screen.getByRole('group', { name: 'Coverage' });
+            expect(within(tile).getByText('100% (191)')).toBeVisible();
+            expect(
+                within(tile).getByText(
+                    'Add a headcount to count people without an account',
+                ),
+            ).toBeVisible();
+            expect(
+                within(
+                    screen.getByRole('group', { name: 'Active in 30 days' }),
+                ).getByText('85 of the 191 with an account were active'),
             ).toBeVisible();
         });
         it('keeps the breadcrumb, the title and Edit department, with no line of owners, headcount, groups or roles under them', async () => {

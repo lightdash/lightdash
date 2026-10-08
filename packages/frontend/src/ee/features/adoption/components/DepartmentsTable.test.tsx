@@ -332,68 +332,29 @@ describe('DepartmentsTable', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText(/1,200|30 Nov 2026/)).not.toBeInTheDocument();
     });
-    it('shows coverage above 100% with the counts behind it, explained in a tooltip', async () => {
+    it('shows coverage and activity as plain shares, which never pass 100%, and still asks for a missing headcount', () => {
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
                     departments={[
+                        // A headcount of 8 entered for 9 people on Lightdash counts 9
                         dept('Data governance', null, null, {
                             headcount: 8,
-                            effectiveHeadcount: 8,
-                            metrics: metricsFixture(9, 113),
-                        }),
-                        dept('Sales', null, 80),
-                    ]}
-                    canManage
-                    onEdit={vi.fn()}
-                />
-            </MemoryRouter>,
-        );
-        await userEvent.hover(screen.getByText('113% (9 of 8)'));
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'More accounts than headcount',
-        );
-        // Coverage within the headcount needs no explanation
-        expect(screen.getByText('80% (8)')).toHaveAttribute(
-            'data-truncate',
-            'end',
-        );
-    });
-    it('keeps a long coverage above 100% inside its column, with the whole value in the tooltip', async () => {
-        renderWithProviders(
-            <MemoryRouter>
-                <DepartmentsTable
-                    departments={[
-                        dept('Data', null, null, {
-                            headcount: 110,
-                            effectiveHeadcount: 110,
-                            metrics: metricsFixture(191, 174),
-                        }),
-                    ]}
-                    canManage
-                    onEdit={vi.fn()}
-                />
-            </MemoryRouter>,
-        );
-        const coverage = screen.getByText('174% (191 of 110)');
-        expect(coverage).toHaveAttribute('data-truncate', 'end');
-        expect(coverage).toHaveClass(styles.explained);
-        await userEvent.hover(coverage);
-        const tooltip = await screen.findByRole('tooltip');
-        expect(tooltip).toHaveTextContent('174% (191 of 110)');
-        expect(tooltip).toHaveTextContent('More accounts than headcount');
-    });
-    it('explains active people above the headcount the same way', async () => {
-        renderWithProviders(
-            <MemoryRouter>
-                <DepartmentsTable
-                    departments={[
-                        dept('Data governance', null, null, {
-                            headcount: 8,
-                            effectiveHeadcount: 8,
-                            metrics: metricsFixture(9, 113, {
+                            effectiveHeadcount: 9,
+                            hasHeadcount: true,
+                            metrics: metricsFixture(9, 100, {
                                 activeCount30d: 9,
-                                activePct: 113,
+                                activePct: 100,
+                            }),
+                        }),
+                        // No headcount: its 5 people on Lightdash are all it counts
+                        dept('Product', null, null, {
+                            headcount: null,
+                            effectiveHeadcount: 5,
+                            hasHeadcount: false,
+                            metrics: metricsFixture(5, 100, {
+                                activeCount30d: 2,
+                                activePct: 40,
                             }),
                         }),
                     ]}
@@ -402,14 +363,28 @@ describe('DepartmentsTable', () => {
                 />
             </MemoryRouter>,
         );
-        const [coverage, active] = screen.getAllByText('113% (9 of 8)');
-        expect(coverage).toHaveClass(styles.explained);
-        expect(active).toHaveClass(styles.explained);
-        expect(active).toHaveAttribute('data-truncate', 'end');
-        await userEvent.hover(active);
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'More accounts than headcount',
-        );
+        const governance = screen
+            .getByRole('link', { name: 'Data governance' })
+            .closest('tr')!;
+        expect(within(governance).getByText('9')).toBeInTheDocument();
+        const shares = within(governance).getAllByText('100% (9)');
+        expect(shares).toHaveLength(2);
+        shares.forEach((share) => {
+            expect(share).toHaveAttribute('data-truncate', 'end');
+            expect(share).not.toHaveClass(styles.explained);
+        });
+        const product = screen
+            .getByRole('link', { name: 'Product' })
+            .closest('tr')!;
+        expect(
+            within(product).getByRole('button', {
+                name: 'Add headcount for Product',
+            }),
+        ).toBeInTheDocument();
+        expect(within(product).getByText('100% (5)')).toBeInTheDocument();
+        expect(
+            screen.queryByText(/More accounts than headcount|of 8\)/),
+        ).toBeNull();
     });
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();

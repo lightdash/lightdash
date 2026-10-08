@@ -78,7 +78,7 @@
     cursor: inherit;
 }
 
-.circle[data-kind='own'][data-nested] {
+.circle[data-kind='direct'][data-nested] {
     fill: none;
     stroke: var(--mantine-color-ldGray-2);
     stroke-width: 1px;

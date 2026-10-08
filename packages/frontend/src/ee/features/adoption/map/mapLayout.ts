@@ -10,6 +10,7 @@ import {
     type PackedCircle,
 } from './geometry';
 import {
+    formatDirectPeople,
     NAME_LABEL_LIMIT,
     nameLoneBucket,
     type CircleInfo,
@@ -247,6 +248,9 @@ export const fitToArea = (
 
 // The line of numbers under a circle, longest first so the widest that fits wins
 export const getCaptionVariants = (stats: CircleStats): string[] => {
+    // The people directly in a department are counted on their own, with no headcount
+    if (stats.isDirect)
+        return [formatDirectPeople(stats.members, stats.active)];
     if (stats.headcount === null) {
         return [
             stats.members === 0

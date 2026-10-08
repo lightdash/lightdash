@@ -43,7 +43,8 @@ const d = (
 ) =>
     dept(name, parent, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        effectiveHeadcount: Math.max(headcount ?? 0, members),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(members, null, {
             activeCount30d: active,
             activeCount12w: active,
@@ -255,19 +256,25 @@ describe('describeCircles', () => {
                 new Map(data.map((each) => [each.departmentUuid, each])),
             );
 
-        it('gives a department without sub-departments its own headcount, not the people drawn', () => {
+        it("gives a department without sub-departments its department's headcount, never below its people", () => {
+            // A headcount of 8 for 9 people on Lightdash counts 9
             const info = describeView('Governance');
-            expect(info.get('own:Governance')?.stats.headcount).toBe(8);
+            expect(info.get('own:Governance')?.stats.headcount).toBe(9);
             expect(info.get('own:Governance')?.description).toBe(
-                'Governance, 9 of 8 on Lightdash, 9 active in the last 30 days',
+                'Governance, 9 of 9 on Lightdash, 9 active in the last 30 days',
             );
         });
-        it('gives the people directly in a department the headcount of the department around them', () => {
-            // Data's 110 is entered on Data itself and its sub-departments add up to all of it
+        it('counts the people directly in a department on their own, with no headcount, as the headcount is for the whole department', () => {
             [describeView('Data'), describeView(null)].forEach((info) => {
-                expect(info.get('own:Data')?.stats.headcount).toBe(110);
+                expect(info.get('own:Data')?.stats).toEqual({
+                    people: 84,
+                    members: 84,
+                    active: 0,
+                    headcount: null,
+                    isDirect: true,
+                });
                 expect(info.get('own:Data')?.description).toBe(
-                    'Directly in Data, 84 of 110 on Lightdash, 0 active in the last 30 days',
+                    'Directly in Data, 84 on Lightdash, 0 active in the last 30 days',
                 );
             });
         });
@@ -291,21 +298,10 @@ describe('getOrganizationOverview', () => {
             departments,
             getViewTotals(layout(null, departments)),
         );
-    // Placed = headcount - without an account + the two remainders the captions name
+    // Placed = headcount - without an account, as no headcount is below the people on Lightdash
     const expectLinesAddUp = (departments: DepartmentWithMetrics[]) => {
-        const {
-            placed,
-            headcount,
-            withoutAccount,
-            aboveHeadcount,
-            withoutHeadcount,
-        } = overview(departments);
-        expect(placed).toBe(
-            (headcount ?? 0) -
-                withoutAccount +
-                aboveHeadcount +
-                withoutHeadcount,
-        );
+        const { placed, headcount, withoutAccount } = overview(departments);
+        expect(placed).toBe((headcount ?? 0) - withoutAccount);
     };
 
     it("gives the organization's own numbers for everyone on Lightdash", () => {
@@ -314,79 +310,60 @@ describe('getOrganizationOverview', () => {
             active30d: 1181,
         });
     });
-    it('counts people without an account exactly as the legend does', () => {
-        const circles = layout(null, tree);
-        const legend = countDotKinds(circles, 'active', null, NOW);
-        expect(overview(tree).withoutAccount).toBe(legend.get('noAccount'));
-    });
-    it('counts the people placed in a department and the headcount without an account', () => {
-        // Placed: Ops 9, Finance 3, Product 5. Headcount: Ops 30, Finance 8, Supply 40
+    it('counts the people placed, the headcount and the headcount without an account, which add up', () => {
+        // Placed: Ops 9, Finance 3, Product 5. Headcount: Ops 30, Finance 8, Supply 40, and Product's 5 people
         expect(overview(tree)).toEqual({
             onLightdash: 1951,
             active30d: 1181,
             placed: 17,
+            headcount: 83,
             withoutAccount: 66,
-            headcount: 78,
-            aboveHeadcount: 0,
             withoutHeadcount: 5,
-            hasHeadcountBelowSubDepartments: false,
         });
         expectLinesAddUp(tree);
     });
-    it('carries the accounts above headcount, at any depth, so the lines add up', () => {
-        const over = [d('Data', null, 10, 14, 6), d('Finance', null, 8, 3, 2)];
-        expect(overview(over)).toMatchObject({
-            placed: 17,
-            withoutAccount: 5,
-            headcount: 18,
-            aboveHeadcount: 4,
-        });
-        // A sub-department over its headcount inside a department under its own
-        const crowded = [
-            d('Ops', null, 30, 25, 4, 0),
-            d('Stores', 'Ops', 20, 25, 4),
-            d('Depots', 'Ops', 10, 0, 0),
-        ];
-        expect(overview(crowded)).toMatchObject({
-            placed: 25,
-            withoutAccount: 10,
-            headcount: 30,
-            aboveHeadcount: 5,
-        });
-        // A headcount entered below the sub-departments' total, and people placed directly in a parent
-        const uneven = [
-            {
-                ...d('People', null, 120, 61, 36, 0),
-                headcountBelowChildren: true,
-            },
-            d('Partners', 'People', 40, 18, 10),
-            d('Learning', 'People', 20, 9, 6),
-            d('Operations', 'People', 30, 15, 9),
-            d('Talent', 'People', 35, 19, 11),
-            d('Engineering', null, 100, 112, 40, 12),
-            d('Platform', 'Engineering', 60, 60, 20),
-            d('Apps', 'Engineering', 40, 40, 10),
-        ];
-        expect(overview(uneven)).toMatchObject({
-            placed: 173,
-            withoutAccount: 64,
-            headcount: 220,
-            aboveHeadcount: 17,
-            hasHeadcountBelowSubDepartments: true,
-        });
-        expect(overview(crowded).hasHeadcountBelowSubDepartments).toBe(false);
-        [tree, over, crowded, uneven].forEach(expectLinesAddUp);
+    it('counts people without an account as the legend does when no headcount is left over above sub-departments', () => {
+        const circles = layout(null, tree);
+        const legend = countDotKinds(circles, 'active', null, NOW);
+        expect(overview(tree).withoutAccount).toBe(legend.get('noAccount'));
     });
-    it('counts the people in top-level departments without a headcount on their own', () => {
+    it("counts a department's headcount beyond its sub-departments without an account, where the map draws no dots", () => {
+        // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, of whom 2 are on Lightdash
+        const parent = [
+            d('Ops', null, 40, 9, 4, 2),
+            d('Stores', 'Ops', 20, 5, 3),
+            d('Depots', 'Ops', 10, 2, 1),
+        ];
+        expect(overview(parent)).toMatchObject({
+            placed: 9,
+            headcount: 40,
+            withoutAccount: 31,
+        });
+        expect(
+            countDotKinds(layout(null, parent), 'active', null, NOW).get(
+                'noAccount',
+            ),
+        ).toBe(15 + 8);
+        expectLinesAddUp(parent);
+    });
+    it('never counts more people on Lightdash than headcount, so a stale headcount leaves nothing over', () => {
+        const stale = [d('Data', null, 10, 14, 6), d('Finance', null, 8, 3, 2)];
+        expect(overview(stale)).toMatchObject({
+            placed: 17,
+            headcount: 22,
+            withoutAccount: 5,
+        });
+        expectLinesAddUp(stale);
+    });
+    it('counts the people in top-level departments without a headcount as their own headcount', () => {
         const mixed = [
             d('Data', null, 10, 14, 6),
             d('Product', null, null, 5, 5),
         ];
         expect(overview(mixed)).toMatchObject({
             placed: 19,
+            headcount: 19,
             withoutAccount: 0,
-            headcount: 10,
-            aboveHeadcount: 4,
             withoutHeadcount: 5,
         });
         expectLinesAddUp(mixed);
@@ -407,59 +384,21 @@ describe('describeOrganizationOverview', () => {
         active30d: 1181,
         placed: 1763,
         withoutAccount: 3837,
-        headcount: 5582,
-        aboveHeadcount: 0,
+        headcount: 5600,
         withoutHeadcount: 0,
-        hasHeadcountBelowSubDepartments: false,
     };
-    it('says how many are placed and how many in headcount have no account', () => {
+    it('says how many are placed and how many in headcount have no account, and nothing more', () => {
         expect(describeOrganizationOverview(base)).toEqual({
             placed: 'Placed in a department: 1,763 of 1,951 on Lightdash',
-            withoutAccount: 'Without an account: 3,837 of 5,582 headcount',
+            withoutAccount: 'Without an account: 3,837 of 5,600 headcount',
             captions: [],
         });
     });
-    it('says when part of what the headcount leaves out is a headcount below the sub-departments', () => {
-        expect(
-            describeOrganizationOverview({
-                ...base,
-                aboveHeadcount: 18,
-                hasHeadcountBelowSubDepartments: true,
-            }).captions,
-        ).toEqual([
-            "Excludes 18 people counted above their department's headcount or below its sub-departments' total",
-        ]);
-        expect(
-            describeOrganizationOverview({
-                ...base,
-                aboveHeadcount: 1,
-                hasHeadcountBelowSubDepartments: true,
-            }).captions,
-        ).toEqual([
-            "Excludes 1 person counted above their department's headcount or below its sub-departments' total",
-        ]);
-    });
-    it('says how many accounts the headcount leaves out', () => {
-        expect(
-            describeOrganizationOverview({ ...base, aboveHeadcount: 18 })
-                .captions,
-        ).toEqual(["Excludes 18 accounts above their department's headcount"]);
-        expect(
-            describeOrganizationOverview({ ...base, aboveHeadcount: 1 })
-                .captions,
-        ).toEqual(["Excludes 1 account above their department's headcount"]);
-    });
     it('names the people in departments without a headcount only when there are some', () => {
         expect(
-            describeOrganizationOverview({
-                ...base,
-                aboveHeadcount: 18,
-                withoutHeadcount: 14,
-            }).captions,
-        ).toEqual([
-            "Excludes 18 accounts above their department's headcount",
-            '14 people are in departments without a headcount',
-        ]);
+            describeOrganizationOverview({ ...base, withoutHeadcount: 14 })
+                .captions,
+        ).toEqual(['14 people are in departments without a headcount']);
         expect(
             describeOrganizationOverview({ ...base, withoutHeadcount: 1 })
                 .captions,
@@ -586,12 +525,15 @@ describe('sortForInspector', () => {
     const c = (name: string, headcount: number | null, members: number) =>
         dept(name, null, null, {
             headcount,
-            effectiveHeadcount: headcount,
+            effectiveHeadcount: Math.max(headcount ?? 0, members),
+            hasHeadcount: headcount !== null,
             metrics: metricsFixture(
                 members,
-                headcount === null
+                Math.max(headcount ?? 0, members) === 0
                     ? null
-                    : Math.round((100 * members) / headcount),
+                    : Math.round(
+                          (100 * members) / Math.max(headcount ?? 0, members),
+                      ),
             ),
         });
     it('puts the biggest untouched department first and departments without a headcount last', () => {

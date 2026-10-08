@@ -22,6 +22,8 @@ export const sortByCoverage = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] =>
     [...departments].sort((a, b) => {
+        if (a.hasHeadcount !== b.hasHeadcount) return a.hasHeadcount ? -1 : 1;
+        if (!a.hasHeadcount) return a.name.localeCompare(b.name);
         const left = a.metrics.coveragePct;
         const right = b.metrics.coveragePct;
         if (left === null && right === null)

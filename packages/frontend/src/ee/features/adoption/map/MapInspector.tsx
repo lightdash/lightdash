@@ -17,7 +17,6 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
-import { formatCoverage, getCoverageNote } from '../utils/departmentDetail';
 import { formatOwners, formatRoleSplit } from '../utils/departmentRows';
 import {
     DEPARTMENTS,
@@ -29,6 +28,7 @@ import {
 import styles from './AdoptionMap.module.css';
 import {
     describeOrganizationOverview,
+    formatDirectPeople,
     formatMemberActivity,
     formatPct,
     sortForInspector,
@@ -85,32 +85,21 @@ const getDepartmentTiles = (
     department: DepartmentWithMetrics,
     totals: ViewTotals,
 ): TileProps[] => {
-    const { metrics, effectiveHeadcount } = department;
-    // Above the headcount the share carries the counts behind it, as on the department page
-    const isActiveAboveHeadcount =
-        metrics.activePct !== null &&
-        getCoverageNote(effectiveHeadcount, metrics.activeCount30d) !== null;
+    const { metrics, effectiveHeadcount, hasHeadcount } = department;
     return [
         {
             label: 'On Lightdash',
             value: metrics.memberCount,
-            note:
-                effectiveHeadcount === null
-                    ? 'no headcount'
-                    : `of ${formatCount(effectiveHeadcount)}`,
+            note: hasHeadcount
+                ? `of ${formatCount(effectiveHeadcount)}`
+                : 'no headcount',
         },
         {
             label: 'Active in 30 days',
             value: metrics.activeCount30d,
-            note: isActiveAboveHeadcount
-                ? formatCoverage(
-                      metrics.activePct,
-                      metrics.activeCount30d,
-                      effectiveHeadcount,
-                  )
-                : formatPct(metrics.activePct, metrics.activeCount30d),
+            note: formatPct(metrics.activePct, metrics.activeCount30d),
         },
-        ...(effectiveHeadcount === null
+        ...(!hasHeadcount
             ? []
             : [
                   {
@@ -183,13 +172,13 @@ export const MapInspector: FC<Props> = ({
         department === null
             ? getOrganizationTiles(overview)
             : getDepartmentTiles(department, totals);
-    const coverageNote =
-        department === null
-            ? null
-            : getCoverageNote(
-                  department.effectiveHeadcount,
-                  department.metrics.memberCount,
-              );
+    // The people directly in a department beside its sub-departments, counted on their own as on the map
+    const direct =
+        department !== null &&
+        subDepartments.length > 0 &&
+        department.directMetrics.memberCount > 0
+            ? department.directMetrics
+            : null;
     return (
         <Paper p="md" component="aside" aria-label="Details">
             <Stack gap="md" h="100%">
@@ -211,11 +200,6 @@ export const MapInspector: FC<Props> = ({
                         <Tile key={tile.label} {...tile} />
                     ))}
                 </SimpleGrid>
-                {coverageNote !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {coverageNote}
-                    </Text>
-                )}
                 {department !== null && department.metrics.memberCount > 0 && (
                     <Text fz="xs" c="dimmed">
                         {formatRoleSplit(department.metrics.roleSplit)}
@@ -282,58 +266,68 @@ export const MapInspector: FC<Props> = ({
                                 : 'Sub-departments, lowest coverage first'}
                         </Text>
                         <Box className={styles.rows}>
-                            {sortForInspector(subDepartments).map((child) => {
-                                const note = getCoverageNote(
-                                    child.effectiveHeadcount,
-                                    child.metrics.memberCount,
-                                );
-                                return (
-                                    <button
-                                        key={child.departmentUuid}
-                                        type="button"
-                                        className={styles.row}
-                                        onClick={() =>
-                                            onDepartmentClick(
-                                                child.departmentUuid,
-                                            )
-                                        }
+                            {sortForInspector(subDepartments).map((child) => (
+                                <button
+                                    key={child.departmentUuid}
+                                    type="button"
+                                    className={styles.row}
+                                    onClick={() =>
+                                        onDepartmentClick(child.departmentUuid)
+                                    }
+                                >
+                                    <Text fz="sm" truncate>
+                                        {child.name}
+                                    </Text>
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        className={styles.count}
                                     >
-                                        <Text fz="sm" truncate>
-                                            {child.name}
-                                        </Text>
-                                        <Text
-                                            fz="xs"
-                                            c="dimmed"
-                                            className={styles.count}
-                                        >
-                                            {child.effectiveHeadcount === null
-                                                ? `${formatCount(child.metrics.memberCount)} on Lightdash`
-                                                : `${formatCount(child.metrics.memberCount)} of ${formatCount(child.effectiveHeadcount)}`}
-                                        </Text>
-                                        <Text
-                                            fz="sm"
-                                            fw={500}
-                                            ta="right"
-                                            className={styles.count}
-                                        >
-                                            {formatPct(
-                                                child.metrics.coveragePct,
-                                                child.metrics.memberCount,
-                                            ) ?? '–'}
-                                        </Text>
-                                        {/* The counts beside the share are the ones behind it, so only the reason is added */}
-                                        {note !== null && (
-                                            <Text
-                                                fz="xs"
-                                                c="dimmed"
-                                                className={styles.rowNote}
-                                            >
-                                                {note}
-                                            </Text>
+                                        {child.hasHeadcount
+                                            ? `${formatCount(child.metrics.memberCount)} of ${formatCount(child.effectiveHeadcount)}`
+                                            : `${formatCount(child.metrics.memberCount)} on Lightdash`}
+                                    </Text>
+                                    <Text
+                                        fz="sm"
+                                        fw={500}
+                                        ta="right"
+                                        className={styles.count}
+                                    >
+                                        {formatPct(
+                                            child.metrics.coveragePct,
+                                            child.metrics.memberCount,
+                                        ) ?? '–'}
+                                    </Text>
+                                </button>
+                            ))}
+                            {/* Nothing to open: the department is already open, so the row is plain */}
+                            {department !== null && direct !== null && (
+                                <Box
+                                    className={`${styles.row} ${styles.directRow}`}
+                                >
+                                    <Text fz="sm" truncate>
+                                        {`Directly in ${department.name}`}
+                                    </Text>
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        className={styles.count}
+                                    >
+                                        {formatDirectPeople(
+                                            direct.memberCount,
+                                            direct.activeCount30d,
                                         )}
-                                    </button>
-                                );
-                            })}
+                                    </Text>
+                                    <Text
+                                        fz="sm"
+                                        fw={500}
+                                        ta="right"
+                                        className={styles.count}
+                                    >
+                                        –
+                                    </Text>
+                                </Box>
+                            )}
                         </Box>
                     </Stack>
                 )}

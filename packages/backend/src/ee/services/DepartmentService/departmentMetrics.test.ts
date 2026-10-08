@@ -141,20 +141,6 @@ describe('computeAdoptionMetrics', () => {
         expect(m.coveragePct).toBeNull();
         expect(m.activePct).toBeNull();
     });
-    it('reports coverage above 100 when accounts outnumber a stale headcount', () => {
-        const m = computeAdoptionMetrics({
-            members: [
-                member('a', OrganizationMemberRole.VIEWER),
-                member('b', OrganizationMemberRole.VIEWER),
-                member('c', OrganizationMemberRole.VIEWER),
-            ],
-            headcount: 2,
-            activeUserUuids: new Set(),
-            weeksByUser: new Map(),
-            weekStarts,
-        });
-        expect(m.coveragePct).toBe(150);
-    });
     it('buckets roles: member and viewer are viewers, editor and developer are editors', () => {
         const m = computeAdoptionMetrics({
             members: [
@@ -236,11 +222,36 @@ describe('buildAdoptionSnapshot', () => {
     it('rolls members and headcount up to the parent', () => {
         const ops = byUuid.get('ops');
         expect(ops?.effectiveHeadcount).toBe(40);
+        expect(ops?.hasHeadcount).toBe(true);
         expect(ops?.headcountBelowChildren).toBe(false);
         expect(ops?.metrics.memberCount).toBe(3);
         expect(ops?.metrics.activeCount30d).toBe(2);
         expect(ops?.metrics.coveragePct).toBe(8);
         expect(ops?.directMetrics.memberCount).toBe(1);
+    });
+    it("counts a department's own people without percentages, as its headcount is for the whole department", () => {
+        const ops = byUuid.get('ops');
+        expect(ops?.directMetrics.activeCount30d).toBe(1);
+        expect(ops?.directMetrics.coveragePct).toBeNull();
+        expect(ops?.directMetrics.activePct).toBeNull();
+    });
+    it('never puts the headcount below the people on Lightdash, so coverage and activity never pass 100%', () => {
+        // Three people on Lightdash, all active, in a department whose headcount says two
+        const stale = buildAdoptionSnapshot({
+            departments: [department('stale', null, 2)],
+            membership: ['a', 'b', 'c'].map((uuid) =>
+                member(uuid, OrganizationMemberRole.VIEWER, 'stale'),
+            ),
+            activeUserUuids: new Set(['a', 'b', 'c']),
+            weeklyActivity: [],
+            weekStarts,
+        });
+        const [only] = stale.summary.departments;
+        expect(only.headcount).toBe(2);
+        expect(only.effectiveHeadcount).toBe(3);
+        expect(only.hasHeadcount).toBe(true);
+        expect(only.metrics.coveragePct).toBe(100);
+        expect(only.metrics.activePct).toBe(100);
     });
     it('keeps a parent headcount that is below its children as the denominator', () => {
         const low = buildAdoptionSnapshot({
@@ -264,18 +275,27 @@ describe('buildAdoptionSnapshot', () => {
         expect(parent?.headcountBelowChildren).toBe(true);
         expect(parent?.metrics.coveragePct).toBe(40);
     });
-    it('gives null percentages for a department with no headcount anywhere in its subtree', () => {
+    it('counts its people on Lightdash as the headcount of a department with none anywhere in its subtree', () => {
         const none = buildAdoptionSnapshot({
-            departments: [department('x', null, null)],
-            membership: [member('x1', OrganizationMemberRole.VIEWER, 'x')],
+            departments: [
+                department('x', null, null),
+                department('y', 'x', null),
+            ],
+            membership: [
+                member('x1', OrganizationMemberRole.VIEWER, 'x'),
+                member('y1', OrganizationMemberRole.VIEWER, 'y'),
+            ],
             activeUserUuids: new Set(['x1']),
             weeklyActivity: [],
             weekStarts,
         });
-        const x = none.summary.departments[0];
-        expect(x.effectiveHeadcount).toBeNull();
-        expect(x.metrics.coveragePct).toBeNull();
-        expect(x.metrics.activePct).toBeNull();
+        const [x, y] = none.summary.departments;
+        expect(x.effectiveHeadcount).toBe(2);
+        expect(x.hasHeadcount).toBe(false);
+        expect(x.metrics.coveragePct).toBe(100);
+        expect(x.metrics.activePct).toBe(50);
+        expect(y.effectiveHeadcount).toBe(1);
+        expect(y.hasHeadcount).toBe(false);
     });
     it('keeps a department with no users at zero, not missing', () => {
         const depots = byUuid.get('depots');

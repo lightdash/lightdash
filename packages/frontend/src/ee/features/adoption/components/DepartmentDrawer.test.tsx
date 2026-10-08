@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept, memberFixture } from '../utils/adoptionFixtures';
+import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentForm } from './DepartmentDrawer';
 
 const create = vi.fn();
@@ -166,6 +166,45 @@ describe('DepartmentForm', () => {
                 headcountNote: 'Store managers and buyers',
             }),
         );
+    });
+
+    it('says the headcount counts at least the people already on Lightdash, and accepts any number', async () => {
+        const busy = dept('Ops', null, null, {
+            headcount: 4,
+            effectiveHeadcount: 12,
+            metrics: metricsFixture(12, 100),
+        });
+        renderEdit(busy);
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments. At least 12, the people already on Lightdash',
+            ),
+        ).toBeInTheDocument();
+        // A lower number is still sent as typed; the server counts the people on Lightdash
+        await userEvent.clear(screen.getByLabelText('Headcount'));
+        await userEvent.type(screen.getByLabelText('Headcount'), '6');
+        await save();
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            data: { headcount: 6 },
+        });
+    });
+    it('gives no minimum for a new department', () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                members={null}
+                onClose={vi.fn()}
+            />,
+        );
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/At least/)).toBeNull();
     });
 
     it('prefills an existing department, including the headcount note', () => {
