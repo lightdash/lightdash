@@ -72,7 +72,7 @@ const Callout: FC<CalloutProps> = ({
 }) => {
     const config = CALLOUT_CONFIG[variant];
     const IconComponent = config.icon;
-    const resolvedIcon = icon ?? <MantineIcon icon={IconComponent} size="lg" />;
+    const resolvedIcon = icon ?? <MantineIcon icon={IconComponent} />;
 
     return (
         <Alert

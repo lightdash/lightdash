@@ -1,8 +1,25 @@
+/* The icon sits in a 28px chip tinted from the alert's own ink colour, so it
+   follows every colour and both schemes without extra configuration. */
+.icon {
+    width: rem(28px);
+    height: rem(28px);
+    margin-top: 0;
+    margin-inline-end: var(--mantine-spacing-sm);
+    justify-content: center;
+    border-radius: var(--mantine-radius-md);
+    background-color: color-mix(in srgb, var(--alert-color) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alert-color) 12%, transparent);
+}
+
+.body {
+    min-height: rem(28px);
+    justify-content: center;
+}
+
 .title {
+    min-height: rem(28px);
     font-size: var(--mantine-font-size-sm);
     font-weight: 600;
-    /* Aligns the title with the icon's optical center. */
-    line-height: var(--mantine-line-height-md);
 }
 
 .message {

@@ -41,7 +41,7 @@ export const Playground: Story = {
         color: 'green',
         title: 'Deploy succeeded',
         children: 'Your changes are live on production.',
-        icon: <MantineIcon icon={IconCircleCheck} size="lg" />,
+        icon: <MantineIcon icon={IconCircleCheck} />,
         withCloseButton: false,
     },
 };
@@ -53,28 +53,28 @@ export const SemanticWithTitles: Story = {
             <Alert
                 color="gray"
                 title="Heads up"
-                icon={<MantineIcon icon={IconInfoCircle} size="lg" />}
+                icon={<MantineIcon icon={IconInfoCircle} />}
             >
                 A calm, monochrome alert that never shouts.
             </Alert>
             <Alert
                 color="green"
                 title="Deploy succeeded"
-                icon={<MantineIcon icon={IconCircleCheck} size="lg" />}
+                icon={<MantineIcon icon={IconCircleCheck} />}
             >
                 Your changes are live on production.
             </Alert>
             <Alert
                 color="orange"
                 title="Approaching limit"
-                icon={<MantineIcon icon={IconAlertTriangle} size="lg" />}
+                icon={<MantineIcon icon={IconAlertTriangle} />}
             >
                 You have used 82% of your monthly quota.
             </Alert>
             <Alert
                 color="red"
                 title="Payment failed"
-                icon={<MantineIcon icon={IconAlertCircle} size="lg" />}
+                icon={<MantineIcon icon={IconAlertCircle} />}
             >
                 We could not charge the card on file.
             </Alert>
@@ -132,7 +132,7 @@ export const WithCloseButton: Story = {
             <Alert
                 color="orange"
                 title="Approaching limit"
-                icon={<MantineIcon icon={IconAlertTriangle} size="lg" />}
+                icon={<MantineIcon icon={IconAlertTriangle} />}
                 withCloseButton
             >
                 You have used 82% of your monthly quota.
@@ -150,7 +150,7 @@ export const RichContent: Story = {
         <Alert
             color="red"
             title="Compilation failed"
-            icon={<MantineIcon icon={IconAlertCircle} size="lg" />}
+            icon={<MantineIcon icon={IconAlertCircle} />}
         >
             <Stack gap="xs">
                 <Text fz="sm">
