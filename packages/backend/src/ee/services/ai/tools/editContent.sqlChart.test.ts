@@ -248,6 +248,17 @@ describe('editContent SQL charts', () => {
                 patch: renamePatch,
             }),
         ).resolves.toBe(false);
+        // Rejected by the content service before any approval prompt.
+        await expect(
+            needsApproval({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [
+                    ...sqlPatch,
+                    { op: 'copy', from: '/description', path: '/sql' },
+                ],
+            }),
+        ).resolves.toBe(false);
     });
 
     it('persists the result when a natively approved edit resumes', async () => {

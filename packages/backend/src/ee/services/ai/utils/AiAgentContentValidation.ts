@@ -3,6 +3,7 @@ import {
     ContentAsCodeType,
     dashboardAsCodeSchema,
     getChartAsCodeBranchSchema,
+    getSqlChartPatchSqlErrors,
     ParameterError,
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
@@ -141,6 +142,9 @@ export class AiAgentContentValidation {
                     : undefined,
             ]);
         });
+        if (type === 'sql_chart') {
+            errors.push(...getSqlChartPatchSqlErrors(patch));
+        }
 
         if (errors.length > 0) {
             throw new ParameterError(

@@ -1,6 +1,7 @@
 import {
     getPatchedSql,
     getSqlApprovalSql,
+    getSqlChartPatchSqlErrors,
     isSqlApprovalToolCall,
 } from './sqlApprovalToolCalls';
 
@@ -29,13 +30,21 @@ describe('isSqlApprovalToolCall', () => {
         expect(
             isSqlApprovalToolCall('editContent', {
                 type: 'sql_chart',
-                patch: [{ op: 'replace', path: '', value: {} }],
+                patch: [
+                    { op: 'replace', path: '', value: { sql: 'select 1' } },
+                ],
             }),
         ).toBe(true);
         expect(
             isSqlApprovalToolCall('editContent', {
                 type: 'sql_chart',
                 patch: [{ op: 'replace', path: '/name', value: 'Orders' }],
+            }),
+        ).toBe(false);
+        expect(
+            isSqlApprovalToolCall('editContent', {
+                type: 'sql_chart',
+                patch: [{ op: 'copy', from: '/description', path: '/sql' }],
             }),
         ).toBe(false);
         expect(
@@ -97,10 +106,54 @@ describe('getPatchedSql', () => {
         ).toBe('select 4');
     });
 
+    it('returns null when the patch also changes the SQL without a literal value', () => {
+        expect(
+            getPatchedSql([
+                { op: 'replace', path: '/sql', value: 'select 2' },
+                { op: 'copy', from: '/description', path: '/sql' },
+            ]),
+        ).toBeNull();
+    });
+
     it('returns null when the patch sets no SQL', () => {
         expect(
             getPatchedSql([{ op: 'replace', path: '/name', value: 'x' }]),
         ).toBeNull();
         expect(getPatchedSql(undefined)).toBeNull();
+    });
+});
+
+describe('getSqlChartPatchSqlErrors', () => {
+    it('allows literal SQL values and copying the SQL elsewhere', () => {
+        expect(
+            getSqlChartPatchSqlErrors([
+                { op: 'replace', path: '/sql', value: 'select 1' },
+                { op: 'add', path: '', value: { sql: 'select 2' } },
+                { op: 'copy', from: '/sql', path: '/description' },
+                { op: 'replace', path: '/sqlNotes', value: 1 },
+            ]),
+        ).toEqual([]);
+    });
+
+    it('rejects every operation that changes the SQL without a literal value', () => {
+        expect(
+            getSqlChartPatchSqlErrors([
+                { op: 'copy', from: '/description', path: '/sql' },
+                { op: 'move', from: '/description', path: '' },
+                { op: 'remove', path: '/sql' },
+                { op: 'move', from: '/sql', path: '/description' },
+                { op: 'replace', path: '/sql', value: 1 },
+                { op: 'replace', path: '', value: { name: 'x' } },
+                { op: 'add', path: '/sql/0', value: 's' },
+            ]),
+        ).toEqual([
+            'patch[0].path: "copy" cannot change "/sql"; use "replace" with the full SQL string',
+            'patch[1].path: "move" cannot change ""; use "replace" with the full SQL string',
+            'patch[2].path: "remove" cannot change "/sql"; use "replace" with the full SQL string',
+            'patch[3].from: "move" cannot remove "/sql"; use "copy" to reuse the SQL',
+            'patch[4].path: "replace" at "/sql" needs a string value',
+            'patch[5].path: "replace" at "" needs an object value with a string "sql"',
+            'patch[6].path: "add" cannot change "/sql/0"; use "replace" with the full SQL string at "/sql"',
+        ]);
     });
 });

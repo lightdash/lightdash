@@ -27,32 +27,63 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const getPatch = (toolArgs: unknown): unknown =>
     isRecord(toolArgs) ? toolArgs.patch : undefined;
 
-/** Whether a JSON Patch can change a SQL chart's sql, so it needs approval. */
-export const doesPatchTouchSqlChartSql = (patch: unknown): boolean =>
-    Array.isArray(patch) &&
-    patch.some(
-        (operation: unknown) =>
-            isRecord(operation) &&
-            ['path', 'from'].some((key) => {
-                const pointer = operation[key];
-                return pointer === '' || pointer === '/sql';
-            }),
-    );
+const SQL_POINTER = '/sql';
 
-/** The SQL a SQL chart patch sets, including by replacing the whole chart. */
+const isSqlChildPointer = (pointer: unknown): pointer is string =>
+    typeof pointer === 'string' && pointer.startsWith(`${SQL_POINTER}/`);
+
+const changesSqlAt = (pointer: unknown): pointer is string =>
+    pointer === '' || pointer === SQL_POINTER || isSqlChildPointer(pointer);
+
+const getOperationSqlError = (operation: unknown): string | null => {
+    if (!isRecord(operation)) return null;
+    const { op, path, from, value } = operation;
+    if (op === 'move' && changesSqlAt(from)) {
+        return `from: "move" cannot remove "${from}"; use "copy" to reuse the SQL`;
+    }
+    if (op === 'test' || !changesSqlAt(path)) return null;
+    if (isSqlChildPointer(path)) {
+        return `path: "${op}" cannot change "${path}"; use "replace" with the full SQL string at "${SQL_POINTER}"`;
+    }
+    if (op !== 'add' && op !== 'replace') {
+        return `path: "${op}" cannot change "${path}"; use "replace" with the full SQL string`;
+    }
+    if (path === SQL_POINTER) {
+        return typeof value === 'string'
+            ? null
+            : `path: "${op}" at "${SQL_POINTER}" needs a string value`;
+    }
+    return isRecord(value) && typeof value.sql === 'string'
+        ? null
+        : `path: "${op}" at "" needs an object value with a string "sql"`;
+};
+
+/** Operations that change a SQL chart's sql without a literal value, which approval cannot preview. */
+export const getSqlChartPatchSqlErrors = (patch: unknown[]): string[] =>
+    patch.flatMap((operation, index) => {
+        const error = getOperationSqlError(operation);
+        return error === null ? [] : [`patch[${index}].${error}`];
+    });
+
+/** The SQL a SQL chart patch sets; null when it sets none or changes it without a literal value. */
 export const getPatchedSql = (patch: unknown): string | null => {
-    if (!Array.isArray(patch)) return null;
+    if (!Array.isArray(patch) || getSqlChartPatchSqlErrors(patch).length > 0)
+        return null;
     for (let index = patch.length - 1; index >= 0; index -= 1) {
         const operation: unknown = patch[index];
-        if (isRecord(operation)) {
+        if (isRecord(operation) && operation.op !== 'test') {
             const { path, value } = operation;
-            if (path === '/sql' && typeof value === 'string') return value;
+            if (path === SQL_POINTER && typeof value === 'string') return value;
             if (path === '' && isRecord(value) && typeof value.sql === 'string')
                 return value.sql;
         }
     }
     return null;
 };
+
+/** Whether a JSON Patch sets a SQL chart's sql, so it needs approval. */
+export const doesPatchTouchSqlChartSql = (patch: unknown): boolean =>
+    getPatchedSql(patch) !== null;
 
 /**
  * Content tools only gate on approval when they save new SQL: creating a SQL

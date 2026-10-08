@@ -2751,6 +2751,28 @@ describe('AiAgentToolsService', () => {
             expect(upsertSqlChart).not.toHaveBeenCalled();
         });
 
+        it('rejects a patch that changes the SQL other than to a literal value', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        { op: 'replace', path: '/sql', value: 'select 2' },
+                        { op: 'copy', from: '/description', path: '/sql' },
+                    ],
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'Patch contains disallowed paths:\n- patch[1].path: "copy" cannot change "/sql"; use "replace" with the full SQL string',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
         it('rejects patches to read-only SQL chart fields', async () => {
             const { service, upsertSqlChart } = makeSqlChartService();
             const runtime = service.createRuntime(makeRuntimeContext());

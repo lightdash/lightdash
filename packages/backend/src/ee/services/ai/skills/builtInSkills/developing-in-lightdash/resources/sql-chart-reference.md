@@ -154,6 +154,7 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 
 - A patch that leaves `sql` untouched (name, description, limit, config, chart kind, space) saves straight away.
 - A patch that changes `sql` goes through the same approval as creating a SQL chart: the edit saves only once the user approves the new SQL. If they reject it or it times out, nothing changes.
+- Change `sql` only with `replace` (or `add`) and the full SQL string as `value`; `copy`, `move` or `remove` onto `/sql` is rejected.
 - `slug`, `connection`, `updatedAt`, and `downloadedAt` cannot be patched.
 - When you change `chartKind`, replace `config` too so that `config.type` matches, and keep `config` references in step with the columns the SQL returns.
 - If you rename a SQL chart, also update the `title` and `chartName` of dashboard tiles that reference its slug.
