@@ -126,6 +126,37 @@ describe('local dashboard slug updates', () => {
         expect(getLocalSlugUpdateFileChanges(replay, root)).toEqual([]);
     });
 
+    test('ignores YAML files that parse to null, such as comment-only context files', async () => {
+        const root = await createTemporaryContent();
+        const dashboardFile = path.join(root, 'dashboards', 'old-overview.yml');
+        await fs.writeFile(dashboardFile, 'slug: old-overview\ntiles: []\n');
+        // `lightdash download` writes this file itself for a custom chart type, and it
+        // only ever contains comments. Reading properties off it used to throw
+        // "Cannot read properties of null (reading 'contentType')".
+        const contextDirectory = path.join(
+            root,
+            'chart-types',
+            'custom',
+            '.lightdash',
+            'context',
+        );
+        await fs.mkdir(contextDirectory, { recursive: true });
+        await fs.writeFile(
+            path.join(contextDirectory, 'semantic-layer.yml'),
+            '# The semantic layer is sharded across one YAML file per model.\n',
+        );
+
+        const plan = await planLocalSlugUpdate(
+            root,
+            'old-overview',
+            'overview',
+            ContentType.DASHBOARD,
+        );
+
+        expect(plan.referencesUpdated).toBe(1);
+        expect(plan.fileMoves).toHaveLength(1);
+    });
+
     test('sends the dashboard type before changing local files', async () => {
         const root = await createTemporaryContent();
         const dashboardFile = path.join(root, 'dashboards', 'old-overview.yml');

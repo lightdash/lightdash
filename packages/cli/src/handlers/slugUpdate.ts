@@ -156,7 +156,20 @@ export const planLocalSlugUpdate = async (
                 properties?: { chartSlug?: unknown };
             }>;
             resource?: { type?: unknown; slug?: unknown };
-        };
+        } | null;
+
+        // An empty or comment-only document parses to null, and a scalar or a list has
+        // no slug to update either. `lightdash download` writes such a file itself -
+        // a custom chart type's context is only comments - so reading properties off
+        // it here crashed the command for anyone who downloaded one first.
+        if (
+            parsed === null ||
+            typeof parsed !== 'object' ||
+            Array.isArray(parsed)
+        ) {
+            // eslint-disable-next-line no-continue
+            continue;
+        }
 
         const isChart =
             parsed.contentType === ContentType.CHART ||
