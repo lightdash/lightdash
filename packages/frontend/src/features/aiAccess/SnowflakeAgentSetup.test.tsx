@@ -117,8 +117,7 @@ describe('SnowflakeAgentSetup client', () => {
                 updatedAt: null,
             },
             configured: false,
-            hasInstanceSettings: false,
-            missingSettings: [],
+            missingSettings: ['Snowflake OAuth client'],
             redirectUri:
                 'https://instance.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: 'CREATE SECURITY INTEGRATION test;',
@@ -187,16 +186,20 @@ describe('SnowflakeAgentSetup client', () => {
     });
 
     it.each([false, true])(
-        'shows the instance footer with configured=%s when instance settings exist',
-        async (configured) => {
-            setup = { ...setup, configured, hasInstanceSettings: true };
+        'shows no instance footnote with a saved client=%s',
+        async (saved) => {
+            if (saved)
+                setup = {
+                    ...setup,
+                    configured: true,
+                    client: savedClient,
+                    missingSettings: [],
+                };
             renderSetup(true);
             await expandSetup();
-            expect(
-                await screen.findByText(
-                    'This instance also has Snowflake OAuth settings. A client saved here overrides them for this organisation.',
-                ),
-            ).toBeInTheDocument();
+            await screen.findByLabelText('Snowflake account URL');
+            expect(screen.queryByText(/instance/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/overrides/i)).not.toBeInTheDocument();
         },
     );
     it.each([
@@ -327,24 +330,6 @@ describe('SnowflakeAgentSetup client', () => {
         );
         expect(screen.getByLabelText('Client secret')).toHaveValue('');
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    });
-    it('shows an empty form and a note for an environment client', async () => {
-        setup = {
-            ...setup,
-            configured: true,
-            client: { ...savedClient, source: 'environment' },
-            hasInstanceSettings: true,
-        };
-        renderSetup(true);
-        await expandSetup();
-        expect(
-            await screen.findByText(
-                'This instance currently uses its own Snowflake OAuth settings.',
-            ),
-        ).toBeInTheDocument();
-        expect(screen.getByLabelText('Snowflake account URL')).toHaveValue('');
-        expect(screen.getByLabelText('Client ID')).toHaveValue('');
-        expect(screen.getByLabelText('Client secret')).toHaveValue('');
     });
     it('shows the server validation error and keeps the form available for correction', async () => {
         renderSetup();

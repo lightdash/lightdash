@@ -56,7 +56,8 @@ describe('agent result identity check configuration', () => {
 });
 
 describe('Snowflake AI OAuth configuration', () => {
-    it('reads the separate client and routes', () => {
+    it('keeps only the routes and ignores legacy OAuth environment settings', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT = 'legacy-account';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
         process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
@@ -64,11 +65,6 @@ describe('Snowflake AI OAuth configuration', () => {
         process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
             'https://snowflake.example/token';
         expect(parseConfig().auth.snowflakeAi).toEqual({
-            account: undefined,
-            clientId: 'ai-client',
-            clientSecret: 'ai-secret',
-            authorizationEndpoint: 'https://snowflake.example/authorize',
-            tokenEndpoint: 'https://snowflake.example/token',
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
         });

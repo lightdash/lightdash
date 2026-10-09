@@ -22,16 +22,6 @@ export const buildSnowflakeAgentIntegrationSql = ({
   OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('${SNOWFLAKE_AGENT_INTEGRATION_NAME}');`;
 
-export const SNOWFLAKE_AGENT_OAUTH_SETTINGS = [
-    { envVar: 'SNOWFLAKE_AI_OAUTH_CLIENT_ID', label: 'Client ID' },
-    { envVar: 'SNOWFLAKE_AI_OAUTH_CLIENT_SECRET', label: 'Client secret' },
-    {
-        envVar: 'SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT',
-        label: 'Authorization endpoint',
-    },
-    { envVar: 'SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT', label: 'Token endpoint' },
-] as const;
-
 const singleQuote = (value: string): string =>
     `'${value.replaceAll("'", "'\"'\"'")}'`;
 const shellWord = (value: string): string =>

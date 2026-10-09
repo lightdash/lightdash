@@ -5,7 +5,6 @@ import {
     ForbiddenError,
     getSnowflakeAgentRedirectUri,
     ParameterError,
-    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
     WarehouseTypes,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -24,22 +23,11 @@ const organizationClient = {
     updatedAt: new Date(),
 };
 
-const setup = () => {
+const setup = (saved = true) => {
     const config = {
         ...lightdashConfigMock,
         siteUrl: 'https://instance.example/nested/path/',
         license: { ...lightdashConfigMock.license, licenseKey: 'test-license' },
-        auth: {
-            ...lightdashConfigMock.auth,
-            snowflakeAi: {
-                ...lightdashConfigMock.auth.snowflakeAi,
-                clientId: 'test-client',
-                clientSecret: 'test-secret',
-                authorizationEndpoint: 'https://snowflake.example/authorize',
-                tokenEndpoint:
-                    'https://test-account.snowflakecomputing.com/token',
-            },
-        },
     };
     const account = buildAccount();
     account.user.ability = new Ability<PossibleAbilities>([
@@ -67,7 +55,9 @@ const setup = () => {
         }),
     };
     const clients = {
-        getWithSecret: vi.fn().mockResolvedValue(null),
+        getWithSecret: vi
+            .fn()
+            .mockResolvedValue(saved ? organizationClient : null),
         getMetadata: vi.fn().mockResolvedValue(null),
         upsert: vi.fn(),
     };
@@ -100,95 +90,48 @@ const setup = () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Snowflake integration setup', () => {
-    it.each(['organization', 'environment', 'empty', 'partial'] as const)(
-        'describes the %s OAuth client state',
-        async (state) => {
-            const { service, account, config, clients } = setup();
-            if (state === 'organization') {
-                clients.getWithSecret.mockResolvedValue(organizationClient);
-            }
-            if (state === 'empty' || state === 'partial') {
-                Object.assign(config.auth.snowflakeAi, {
-                    clientId: state === 'partial' ? 'test-client' : undefined,
-                    clientSecret: undefined,
-                    authorizationEndpoint: undefined,
-                    tokenEndpoint: undefined,
-                    account: undefined,
-                });
-            }
-            const details = {
-                organization: 'Using the client saved for this organisation.',
-                environment: "Using this instance's Snowflake OAuth settings.",
-                empty: 'Not saved. Paste the account URL, client ID and client secret from Snowflake in step 2, then verify again.',
-                partial:
-                    "This instance's Snowflake OAuth settings are incomplete. Missing instance settings: SNOWFLAKE_AI_OAUTH_CLIENT_SECRET, SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT, SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT. Set them, or paste the client from Snowflake in step 2.",
-            };
+    it.each([
+        { saved: false, licensed: false },
+        { saved: false, licensed: true },
+        { saved: true, licensed: false },
+        { saved: true, licensed: true },
+    ])(
+        'describes a saved client=$saved with licensed=$licensed',
+        async ({ saved, licensed }) => {
+            const { service, account, config } = setup(saved);
+            const detail = saved
+                ? 'Using the client saved for this organisation.'
+                : 'Not saved. Paste the client ID and secret from Snowflake in the form above, then verify again.';
+            Object.assign(config.license, {
+                licenseKey: licensed ? 'test-license' : null,
+            });
             const result = await service.verifySnowflakeSetup(account);
             expect(result.checks[0]).toMatchObject({
-                status:
-                    state === 'empty' || state === 'partial'
-                        ? 'failed'
-                        : 'passed',
-                detail: details[state],
+                status: saved ? 'passed' : 'failed',
+                detail: `${detail}${licensed ? '' : ' Missing: Enterprise licence.'}`,
             });
-            expect(result.passed).toBe(
-                state === 'organization' || state === 'environment',
-            );
-            if (state !== 'partial') {
-                result.checks.forEach(({ detail }) =>
-                    expect(detail).not.toContain('SNOWFLAKE_AI_OAUTH'),
-                );
-            }
-            if (state === 'empty' || state === 'partial') {
+            expect(result.passed).toBe(saved && licensed);
+            if (!saved)
                 expect(result.checks[1]).toMatchObject({
                     status: 'not_checked',
                     detail: 'Save the OAuth client first.',
                 });
-            }
             expect(result.checks[2]).toMatchObject({
                 status: 'not_checked',
                 detail: 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
             });
-            Object.assign(config.license, { licenseKey: undefined });
-            const unlicensed = await service.verifySnowflakeSetup(account);
-            expect(unlicensed.passed).toBe(false);
-            expect(unlicensed.checks[0].status).toBe(result.checks[0].status);
-            expect(unlicensed.checks[0].detail).toBe(
-                `${details[state]} Missing: Enterprise licence.`,
-            );
-        },
-    );
-    it.each([
-        'full',
-        'empty',
-        'clientId',
-        'clientSecret',
-        'authorizationEndpoint',
-        'tokenEndpoint',
-        'account',
-    ] as const)(
-        'reports instance settings when %s is configured',
-        async (state) => {
-            const { service, account, config } = setup();
-            if (state !== 'full') {
-                Object.assign(config.auth.snowflakeAi, {
-                    clientId: undefined,
-                    clientSecret: undefined,
-                    authorizationEndpoint: undefined,
-                    tokenEndpoint: undefined,
-                    account: undefined,
-                });
-                if (state !== 'empty')
-                    config.auth.snowflakeAi[state] = 'test-value';
-            }
-            expect(
-                (await service.getSnowflakeSetup(account)).hasInstanceSettings,
-            ).toBe(state !== 'empty');
-            if (state !== 'full' && state !== 'empty') {
-                const { checks } = await service.verifySnowflakeSetup(account);
-                expect(checks[0].detail).toMatch(
-                    /^This instance's Snowflake OAuth settings are incomplete\. Missing instance settings: /,
-                );
+            const setupResult = await service.getSnowflakeSetup(account);
+            expect(setupResult.configured).toBe(saved && licensed);
+            expect(setupResult.missingSettings).toEqual([
+                ...(saved ? [] : ['Snowflake OAuth client']),
+                ...(licensed ? [] : ['Enterprise licence']),
+            ]);
+            for (const text of [
+                ...result.checks.map((check) => check.detail),
+                ...setupResult.missingSettings,
+            ]) {
+                expect(text).not.toContain('SNOWFLAKE_AI_OAUTH');
+                expect(text.toLowerCase()).not.toContain('instance');
             }
         },
     );
@@ -201,48 +144,21 @@ describe('Snowflake integration setup', () => {
             redirectUri,
             integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
             configured: true,
-            hasInstanceSettings: true,
             missingSettings: [],
             client: {
-                source: 'environment',
-                accountUrl: 'https://test-account.snowflakecomputing.com',
-                clientId: 'test-client',
+                source: 'organization',
+                accountUrl: organizationClient.accountUrl,
+                clientId: organizationClient.clientId,
                 hasClientSecret: true,
                 updatedAt: null,
             },
         });
-        expect(JSON.stringify(result)).not.toMatch(/test-secret/);
-    });
-    it('names every missing setting and the Enterprise licence', async () => {
-        const { service, account, config, fetchMock } = setup();
-        Object.assign(config.auth.snowflakeAi, {
-            clientId: undefined,
-            clientSecret: undefined,
-            authorizationEndpoint: undefined,
-            tokenEndpoint: undefined,
-        });
-        Object.assign(config.license, { licenseKey: undefined });
-        const result = await service.getSnowflakeSetup(account);
-        expect(result.missingSettings).toEqual([
-            ...SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
-            'Enterprise licence',
-        ]);
-        expect(result.configured).toBe(false);
-        const verification = await service.verifySnowflakeSetup(account);
-        expect(verification.passed).toBe(false);
-        expect(verification.checks[0].status).toBe('failed');
-        expect(verification.checks[0].detail).toBe(
-            'Not saved. Paste the account URL, client ID and client secret from Snowflake in step 2, then verify again. Missing: Enterprise licence.',
-        );
-        expect(verification.checks[1].status).toBe('not_checked');
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(JSON.stringify(result)).not.toMatch(/org-client-secret/);
     });
     it.each([200, 302, 303, 307, 400, 401, 403])(
         'accepts HTTP %s without following redirects or sending credentials',
         async (status) => {
-            const { service, account, fetchMock, config } = setup();
-            config.auth.snowflakeAi.authorizationEndpoint =
-                'https://user:password@snowflake.example/authorize?client_secret=hidden#fragment';
+            const { service, account, fetchMock } = setup();
             fetchMock.mockResolvedValue({ status });
             const result = await service.verifySnowflakeSetup(account);
             expect(result.passed).toBe(true);
@@ -256,7 +172,7 @@ describe('Snowflake integration setup', () => {
                 status: 'not_checked',
             });
             expect(fetchMock).toHaveBeenCalledWith(
-                'https://snowflake.example/authorize',
+                `${organizationClient.accountUrl}/oauth/authorize`,
                 {
                     method: 'GET',
                     redirect: 'manual',
@@ -276,7 +192,7 @@ describe('Snowflake integration setup', () => {
                 status: 'failed',
                 detail: `The authorization endpoint returned HTTP ${status}.${
                     [404, 405].includes(status)
-                        ? " Check this instance's SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT setting."
+                        ? ' Check the Snowflake account URL.'
                         : ''
                 }`,
             });
@@ -315,7 +231,10 @@ describe('Snowflake integration setup', () => {
         const result = await service.verifySnowflakeSetup(account);
         expect(
             credentials.hasOrganizationAiSnowflakeCredential,
-        ).toHaveBeenCalledWith(account.organization?.organizationUuid, null);
+        ).toHaveBeenCalledWith(
+            account.organization?.organizationUuid,
+            organizationClient.clientVersion,
+        );
         expect(result.checks[2]).toMatchObject({
             status: 'passed',
             required: false,
@@ -347,15 +266,14 @@ describe('Snowflake integration setup', () => {
         },
     );
     it('rejects unconfigured agent sign-in on both write endpoints, but permits the existing source', async () => {
-        const { service, account, config, rules, settings } = setup();
-        Object.assign(config.auth.snowflakeAi, { clientSecret: undefined });
+        const { service, account, rules, settings } = setup(false);
         await expect(
             service.updateOrganizationRule(account, WarehouseTypes.SNOWFLAKE, {
                 source: 'agent_sign_in',
             }),
         ).rejects.toThrow(
             new ParameterError(
-                'The Snowflake agent integration is not configured on this instance',
+                'The Snowflake agent integration is not configured for this organisation',
             ),
         );
         await expect(
@@ -371,24 +289,20 @@ describe('Snowflake integration setup', () => {
             }),
         ).resolves.toMatchObject({ source: 'marked_person' });
     });
-    it('reports an unresolved account in setup and verification and blocks both write endpoints', async () => {
-        const { service, account, config, fetchMock, rules, settings } =
-            setup();
-        Object.assign(config.auth.snowflakeAi, {
-            account: undefined,
-            tokenEndpoint: 'https://proxy.example/token',
-        });
+    it('blocks setup until an organization client is saved', async () => {
+        const { service, account, clients, fetchMock, rules, settings } =
+            setup(false);
         await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject(
             {
                 configured: false,
-                missingSettings: ['SNOWFLAKE_AI_OAUTH_ACCOUNT'],
+                missingSettings: ['Snowflake OAuth client'],
             },
         );
         const result = await service.verifySnowflakeSetup(account);
         expect(result.passed).toBe(false);
         expect(result.checks[0]).toMatchObject({
             status: 'failed',
-            detail: "This instance's Snowflake OAuth settings are incomplete. Missing instance settings: SNOWFLAKE_AI_OAUTH_ACCOUNT. Set them, or paste the client from Snowflake in step 2.",
+            detail: 'Not saved. Paste the client ID and secret from Snowflake in the form above, then verify again.',
         });
         expect(result.checks[1].status).toBe('not_checked');
         expect(fetchMock).not.toHaveBeenCalled();
@@ -404,7 +318,7 @@ describe('Snowflake integration setup', () => {
         ).rejects.toBeInstanceOf(ParameterError);
         expect(rules.set).not.toHaveBeenCalled();
         expect(settings.upsert).not.toHaveBeenCalled();
-        config.auth.snowflakeAi.account = 'test-account';
+        clients.getWithSecret.mockResolvedValue(organizationClient);
         await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject(
             {
                 configured: true,
@@ -542,10 +456,9 @@ describe('organization Snowflake client', () => {
             );
         },
     );
-    it('allows org-aware settings updates without instance OAuth settings', async () => {
-        const { service, account, clients, config } = setup();
+    it('allows settings updates with a saved organization client', async () => {
+        const { service, account, clients } = setup();
         clients.getWithSecret.mockResolvedValue(organizationClient);
-        Object.assign(config.auth.snowflakeAi, { clientSecret: undefined });
         await expect(
             service.updateOrganizationSettings(account, {
                 requireVerifiedAgentSessions: true,
@@ -562,7 +475,7 @@ describe('organization Snowflake client', () => {
 it('verifies a resolved client while still reporting a missing licence', async () => {
     const { service, account, clients, config } = setup();
     clients.getWithSecret.mockResolvedValue(organizationClient);
-    Object.assign(config.license, { licenseKey: undefined });
+    Object.assign(config.license, { licenseKey: null });
     const result = await service.verifySnowflakeSetup(account);
     expect(result.passed).toBe(false);
     expect(result.checks[0]).toMatchObject({ status: 'passed' });
@@ -572,7 +485,7 @@ it('verifies a resolved client while still reporting a missing licence', async (
     expect(result.checks[0].detail).toContain('Enterprise licence');
 });
 
-it('keeps unreadable organization clients editable without falling back to the environment', async () => {
+it('keeps unreadable organization clients editable', async () => {
     const { service, clients, account } = setup();
     clients.getMetadata.mockResolvedValue(organizationClient);
     clients.getWithSecret.mockRejectedValue(
@@ -594,7 +507,7 @@ it('keeps unreadable organization clients editable without falling back to the e
     ).resolves.toMatchObject({ snowflakeConfigured: false });
 });
 
-it('resolves an environment client only once when reading setup', async () => {
+it('resolves a saved client only once when reading setup', async () => {
     const { service, clients, account } = setup();
     await service.getSnowflakeSetup(account);
     expect(clients.getWithSecret).toHaveBeenCalledOnce();

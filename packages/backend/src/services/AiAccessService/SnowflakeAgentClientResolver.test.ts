@@ -1,24 +1,12 @@
 import { ParameterError } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { parseConfig } from '../../config/parseConfig';
 import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
 const setup = () => {
     const config = {
         ...lightdashConfigMock,
         license: { ...lightdashConfigMock.license, licenseKey: 'test-license' },
-        auth: {
-            ...lightdashConfigMock.auth,
-            snowflakeAi: {
-                ...lightdashConfigMock.auth.snowflakeAi,
-                account: undefined,
-                clientId: 'environment-client',
-                clientSecret: 'environment-secret',
-                authorizationEndpoint:
-                    'https://env.snowflakecomputing.com/oauth/authorize',
-                tokenEndpoint:
-                    'https://env.snowflakecomputing.com/oauth/token-request',
-            },
-        },
     };
     const saved = {
         organizationUuid: 'org',
@@ -42,7 +30,7 @@ const setup = () => {
     return { config, model, saved, createResolver, resolver: createResolver() };
 };
 
-test('an organization client wins as a whole over environment settings', async () => {
+test('resolves the saved organization client', async () => {
     const { saved, model, resolver } = setup();
     model.getWithSecret.mockResolvedValue(saved);
     expect(await resolver.resolve('org')).toEqual({
@@ -59,36 +47,51 @@ test('an organization client wins as a whole over environment settings', async (
     expect(model.getWithSecret).toHaveBeenCalledWith('org');
 });
 
-test('uses complete environment settings when no client is saved', async () => {
-    const { resolver } = setup();
-    expect(await resolver.resolve('org')).toMatchObject({
-        source: 'environment',
-        organizationUuid: 'org',
-        clientVersion: null,
-        clientId: 'environment-client',
-        clientSecret: 'environment-secret',
-        account: 'env',
-        accessUrl: 'https://env.snowflakecomputing.com',
-    });
-});
+afterEach(() => vi.unstubAllEnvs());
 
-test('returns null for incomplete environment settings', async () => {
-    const { resolver, config } = setup();
-    config.auth.snowflakeAi.clientSecret = '';
+test('ignores legacy environment settings when no client is saved', async () => {
+    vi.stubEnv('LIGHTDASH_SECRET', 'test-secret');
+    vi.stubEnv('S3_ENDPOINT', 'mock_endpoint');
+    vi.stubEnv('S3_BUCKET', 'mock_bucket');
+    vi.stubEnv('S3_REGION', 'mock_region');
+    vi.stubEnv('SNOWFLAKE_AI_OAUTH_ACCOUNT', 'legacy-account');
+    vi.stubEnv('SNOWFLAKE_AI_OAUTH_CLIENT_ID', 'legacy-client');
+    vi.stubEnv('SNOWFLAKE_AI_OAUTH_CLIENT_SECRET', 'legacy-secret');
+    vi.stubEnv(
+        'SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT',
+        'https://legacy.snowflakecomputing.com/oauth/authorize',
+    );
+    vi.stubEnv(
+        'SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT',
+        'https://legacy.snowflakecomputing.com/oauth/token-request',
+    );
+    const { config, createResolver } = setup();
+    config.auth = parseConfig().auth;
+    const resolver = createResolver();
     expect(await resolver.resolve('org')).toBeNull();
     expect(await resolver.getMissingSettings('org')).toEqual([
-        'SNOWFLAKE_AI_OAUTH_CLIENT_SECRET',
+        'Snowflake OAuth client',
     ]);
     expect(await resolver.isConfigured('org')).toBe(false);
+    Object.assign(config.license, { licenseKey: null });
+    expect(await resolver.getMissingSettings('org')).toEqual([
+        'Snowflake OAuth client',
+        'Enterprise licence',
+    ]);
 });
 
-test('does not fall back to environment settings if decryption fails', async () => {
-    const { resolver, model } = setup();
+test('reports an unreadable saved client secret', async () => {
+    const { resolver, model, config } = setup();
     model.getWithSecret.mockRejectedValue(new ParameterError('Cannot decrypt'));
     await expect(resolver.resolve('org')).rejects.toThrow('Cannot decrypt');
     await expect(resolver.isConfigured('org')).resolves.toBe(false);
     await expect(resolver.getMissingSettings('org')).resolves.toEqual([
         'Snowflake client secret (replace it)',
+    ]);
+    Object.assign(config.license, { licenseKey: null });
+    await expect(resolver.getMissingSettings('org')).resolves.toEqual([
+        'Snowflake client secret (replace it)',
+        'Enterprise licence',
     ]);
 });
 
@@ -120,7 +123,7 @@ test('independent resolvers both see a replacement without caching', async () =>
 test('a saved client still requires an Enterprise licence', async () => {
     const { resolver, model, saved, config } = setup();
     model.getWithSecret.mockResolvedValue(saved);
-    Object.assign(config.license, { licenseKey: undefined });
+    Object.assign(config.license, { licenseKey: null });
     expect(await resolver.resolve('org')).not.toBeNull();
     expect(await resolver.getMissingSettings('org')).toEqual([
         'Enterprise licence',

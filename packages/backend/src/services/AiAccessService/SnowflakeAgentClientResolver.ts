@@ -3,10 +3,6 @@ import {
     type SnowflakeAgentClientSource,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
-import {
-    getSnowflakeAgentMissingOAuthSettings,
-    getSnowflakeAiAccount,
-} from '../../config/snowflakeAgentConfiguration';
 import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 
 export type ResolvedSnowflakeAgentClient = {
@@ -52,20 +48,7 @@ export class SnowflakeAgentClientResolver {
                 accessUrl: client.accountUrl,
             };
         }
-        const config = this.args.lightdashConfig.auth.snowflakeAi;
-        if (getSnowflakeAgentMissingOAuthSettings(config).length > 0)
-            return null;
-        return {
-            source: 'environment',
-            organizationUuid,
-            clientVersion: null,
-            clientId: config.clientId!,
-            clientSecret: config.clientSecret!,
-            authorizationEndpoint: config.authorizationEndpoint!,
-            tokenEndpoint: config.tokenEndpoint!,
-            account: getSnowflakeAiAccount(config)!,
-            accessUrl: new URL(config.tokenEndpoint!).origin,
-        };
+        return null;
     }
 
     async getMissingSettings(
@@ -82,18 +65,14 @@ export class SnowflakeAgentClientResolver {
             if (!(error instanceof ParameterError)) throw error;
             return [
                 'Snowflake client secret (replace it)',
-                ...(this.args.lightdashConfig.license.licenseKey === undefined
+                ...(this.args.lightdashConfig.license.licenseKey == null
                     ? ['Enterprise licence']
                     : []),
             ];
         }
         return [
-            ...(resolved
-                ? []
-                : getSnowflakeAgentMissingOAuthSettings(
-                      this.args.lightdashConfig.auth.snowflakeAi,
-                  )),
-            ...(this.args.lightdashConfig.license.licenseKey === undefined
+            ...(resolved ? [] : ['Snowflake OAuth client']),
+            ...(this.args.lightdashConfig.license.licenseKey == null
                 ? ['Enterprise licence']
                 : []),
         ];

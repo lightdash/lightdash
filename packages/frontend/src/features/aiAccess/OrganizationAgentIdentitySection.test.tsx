@@ -1,6 +1,5 @@
 import {
     WarehouseTypes,
-    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
     type OrganizationAgentIdentitySnowflakeVerify,
     type OrganizationAgentIdentityOverview,
 } from '@lightdash/common';
@@ -126,17 +125,14 @@ const apiHandler = async ({
                 'https://backend.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: backendSql,
             client: {
-                source: mocks.configured ? ('environment' as const) : null,
+                source: mocks.configured ? ('organization' as const) : null,
                 accountUrl: null,
                 clientId: null,
                 hasClientSecret: mocks.configured,
                 updatedAt: null,
             },
             configured: mocks.configured,
-            hasInstanceSettings: mocks.configured,
-            missingSettings: mocks.configured
-                ? []
-                : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
+            missingSettings: mocks.configured ? [] : ['Snowflake OAuth client'],
         };
     if (url.endsWith('/verify')) return verification;
     if (method === 'PUT') {

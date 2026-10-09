@@ -266,7 +266,15 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
     };
     const service = new AiAccessService({
         organizationSnowflakeAgentClientModel: {
-            getWithSecret: vi.fn().mockResolvedValue(null),
+            getWithSecret: vi.fn().mockResolvedValue({
+                organizationUuid: 'org',
+                accountUrl: 'https://test-account.snowflakecomputing.com',
+                accountIdentifier: 'test-account',
+                clientId: 'test-client',
+                clientSecret: 'test-secret',
+                clientVersion: 'version-1',
+                updatedAt: new Date(),
+            }),
         } as unknown as OrganizationSnowflakeAgentClientModel,
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
@@ -284,18 +292,6 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             license: {
                 ...lightdashConfigMock.license,
                 licenseKey: 'test-license',
-            },
-            auth: {
-                ...lightdashConfigMock.auth,
-                snowflakeAi: {
-                    ...lightdashConfigMock.auth.snowflakeAi,
-                    clientId: 'test-client',
-                    clientSecret: 'test-secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint:
-                        'https://test-account.snowflakecomputing.com/token',
-                },
             },
         } as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
@@ -4444,19 +4440,6 @@ describe('silent refresh routing', () => {
                     },
                     lightdashConfig: {
                         ...lightdashConfigMock,
-                        auth: {
-                            ...lightdashConfigMock.auth,
-                            snowflakeAi: {
-                                ...lightdashConfigMock.auth.snowflakeAi,
-                                clientId: 'client',
-                                clientSecret: 'secret',
-                                authorizationEndpoint:
-                                    'https://warehouse.example/authorize',
-                                tokenEndpoint:
-                                    'https://warehouse.example/token',
-                                account: 'test-account',
-                            },
-                        },
                     },
                     userWarehouseCredentialsModel:
                         model as unknown as UserWarehouseCredentialsModel,

@@ -66,7 +66,6 @@ const SnowflakeSetupSteps = ({
                 <Stack gap="xs">
                     <SnowflakeAgentClient
                         client={setup.client}
-                        hasInstanceSettings={setup.hasInstanceSettings}
                         onSave={onClientSave}
                     />
                     {setup.missingSettings.includes('Enterprise licence') && (

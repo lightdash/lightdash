@@ -225,11 +225,9 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
                 ? bindings[callbackState]
                 : null;
         if (
-            binding
-                ? binding.organizationUuid !== req.user?.organizationUuid ||
-                  binding.clientVersion !== client.clientVersion
-                : client.source !== 'environment' ||
-                  (bindings !== undefined && state === callbackState)
+            !binding ||
+            binding.organizationUuid !== req.user?.organizationUuid ||
+            binding.clientVersion !== client.clientVersion
         ) {
             consumeCallbackState();
             recordConnectOutcome(req, reason);

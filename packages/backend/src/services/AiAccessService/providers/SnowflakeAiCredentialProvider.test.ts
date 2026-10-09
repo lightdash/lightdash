@@ -44,6 +44,7 @@ const connection: CreateSnowflakeCredentials = {
 };
 const credential: UserWarehouseCredentialsWithSecrets = {
     uuid: 'credential',
+    aiClientBinding: { organizationUuid: 'org', clientVersion: 'version-1' },
     expiresAt: null,
     credentials: {
         type: WarehouseTypes.SNOWFLAKE,
@@ -71,19 +72,6 @@ const setup = () => {
     const config = {
         ...lightdashConfigMock,
         siteUrl: 'https://lightdash.example.test',
-        auth: {
-            ...lightdashConfigMock.auth,
-            snowflakeAi: {
-                clientId: 'client',
-                clientSecret: 'secret',
-                authorizationEndpoint:
-                    'https://snowflake.example.test/authorize',
-                tokenEndpoint: 'https://snowflake.example.test/token',
-                account: 'account',
-                loginPath: '/login/snowflake-ai',
-                callbackPath: '/login/snowflake-ai/callback',
-            },
-        },
     };
     const model = {
         findAiCredentialWithSecrets: vi.fn(
@@ -102,11 +90,20 @@ const setup = () => {
             ) => true,
         ),
     };
+    const clients = {
+        getWithSecret: vi.fn().mockResolvedValue({
+            organizationUuid: 'org',
+            accountUrl: 'https://snowflake.example.test',
+            accountIdentifier: 'account',
+            clientId: 'client',
+            clientSecret: 'secret',
+            clientVersion: 'version-1',
+            updatedAt: new Date(),
+        }),
+    };
     const resolver = new SnowflakeAgentClientResolver({
         lightdashConfig: config,
-        organizationSnowflakeAgentClientModel: {
-            getWithSecret: vi.fn().mockResolvedValue(null),
-        },
+        organizationSnowflakeAgentClientModel: clients,
     });
     const provider = new SnowflakeAiCredentialProvider({
         featureFlagModel: {
@@ -118,7 +115,7 @@ const setup = () => {
         userWarehouseCredentialsModel:
             model as unknown as UserWarehouseCredentialsModel,
     });
-    return { provider, model, config, resolver };
+    return { provider, model, config, resolver, clients };
 };
 
 describe('SnowflakeAiCredentialProvider', () => {
@@ -242,21 +239,9 @@ describe('SnowflakeAiCredentialProvider', () => {
     test('accepts a configured agent sign-in', async () => {
         expect(await setup().provider.configurationError('org')).toBeNull();
     });
-    test('requires an account when the token endpoint does not name one', async () => {
-        const { provider, config } = setup();
-        config.auth.snowflakeAi.account = '';
-        expect(await provider.configurationError('org')).toBe(
-            'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
-        );
-    });
-    test.each([
-        'clientId',
-        'clientSecret',
-        'authorizationEndpoint',
-        'tokenEndpoint',
-    ] as const)('requires OAuth %s', async (field) => {
-        const { provider, config } = setup();
-        config.auth.snowflakeAi[field] = '';
+    test('requires a saved organization client', async () => {
+        const { provider, clients } = setup();
+        clients.getWithSecret.mockResolvedValue(null);
         expect(await provider.configurationError('org')).toBe(
             'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
         );

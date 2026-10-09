@@ -277,7 +277,7 @@ export type ApiAiServiceAccountTestResponse = {
     results: AiServiceAccountTestResult;
 };
 
-export type SnowflakeAgentClientSource = 'organization' | 'environment';
+export type SnowflakeAgentClientSource = 'organization';
 
 export type UpdateOrganizationSnowflakeAgentClient = {
     accountUrl: string;
@@ -300,7 +300,6 @@ export type OrganizationAgentIdentitySnowflakeSetup = {
     };
     redirectUri: string;
     integrationSql: string;
-    hasInstanceSettings: boolean;
     missingSettings: string[];
     configured: boolean;
 };

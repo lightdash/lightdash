@@ -2494,9 +2494,13 @@ type AuthSnowflakeConfig = {
     clientSecret: string | undefined;
     authorizationEndpoint: string | undefined;
     tokenEndpoint: string | undefined;
-    account?: string;
     callbackPath: string;
     loginPath: string;
+};
+
+type AuthSnowflakeAiConfig = {
+    loginPath: string;
+    callbackPath: string;
 };
 
 type AuthDatabricksConfig = {
@@ -2526,7 +2530,7 @@ export type AuthConfig = {
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
-    snowflakeAi: AuthSnowflakeConfig;
+    snowflakeAi: AuthSnowflakeAiConfig;
     databricks: AuthDatabricksConfig;
     pat: {
         enabled: boolean;
@@ -3503,12 +3507,6 @@ export const parseConfig = (): LightdashConfig => {
                 callbackPath: '/oauth/redirect/snowflake',
             },
             snowflakeAi: {
-                account: process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT,
-                clientId: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID,
-                clientSecret: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET,
-                authorizationEndpoint:
-                    process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
-                tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
                 callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
             },

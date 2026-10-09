@@ -67,12 +67,6 @@ const SnowflakeAgentClientForm = ({
                             it to use agent sign-in.
                         </Callout>
                     )}
-                {client.source === 'environment' && (
-                    <Text size="sm" c="dimmed">
-                        This instance currently uses its own Snowflake OAuth
-                        settings.
-                    </Text>
-                )}
                 <TextInput
                     label="Snowflake account URL"
                     description="We work out the sign-in and token addresses from this."
@@ -134,11 +128,9 @@ const SnowflakeAgentClientForm = ({
 
 export const SnowflakeAgentClient = ({
     client,
-    hasInstanceSettings,
     onSave,
 }: {
     client: Client;
-    hasInstanceSettings: boolean;
     onSave: () => void;
 }) => {
     const [replacing, setReplacing] = useState(false);
@@ -174,12 +166,6 @@ export const SnowflakeAgentClient = ({
                     onSaved={() => setReplacing(false)}
                     onCancel={saved ? () => setReplacing(false) : null}
                 />
-            )}
-            {hasInstanceSettings && (
-                <Text size="xs" c="dimmed">
-                    This instance also has Snowflake OAuth settings. A client
-                    saved here overrides them for this organisation.
-                </Text>
             )}
         </Stack>
     );

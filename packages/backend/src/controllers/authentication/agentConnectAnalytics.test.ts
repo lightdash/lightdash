@@ -50,15 +50,7 @@ vi.mock('../../config/lightdashConfig', async () => {
             license: { licenseKey: 'test-license' },
             auth: {
                 ...lightdashConfigMock.auth,
-                snowflakeAi: {
-                    account: 'test-account',
-                    clientId: 'client',
-                    clientSecret: 'secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint: 'https://snowflake.example/token',
-                    callbackPath: '/oauth/redirect/snowflake-ai',
-                },
+                snowflakeAi: lightdashConfigMock.auth.snowflakeAi,
             },
         },
     };
@@ -182,7 +174,6 @@ afterEach(() => {
     vi.restoreAllMocks();
     passport.unuse('snowflake-ai');
     lightdashConfig.license.licenseKey = 'test-license';
-    lightdashConfig.auth.snowflakeAi.account = 'test-account';
 });
 
 describe('connect start', () => {
@@ -314,18 +305,16 @@ describe('connect outcome with real Passport', () => {
     });
 
     it.each([false, true])(
-        'allows an unbound environment nonce only without a bindings map (map=%s)',
+        'rejects an unbound nonce with or without a bindings map (map=%s)',
         async (hasBindings) => {
             const { req, callback, upsert } = setup();
             req.session['oauth2:snowflake-ai'] = { state: 'legacy-state' };
             if (hasBindings) req.session.agentConnectBindings = {};
             req.query = { code: 'code', state: 'legacy-state' };
             const result = await callback();
-            expect(result.includes('error=')).toBe(hasBindings);
-            expect(oauth.getOAuthAccessToken).toHaveBeenCalledTimes(
-                hasBindings ? 0 : 1,
-            );
-            expect(upsert).toHaveBeenCalledTimes(hasBindings ? 0 : 1);
+            expect(result).toContain('error=sign_in_failed');
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
             expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
         },
     );
@@ -567,7 +556,7 @@ describe('connect outcome with real Passport', () => {
     );
 
     it.each([undefined, 'unknown'])(
-        'does not consume attribution when Passport rejects code with state %j',
+        'preserves a pending attempt when a callback has unbound state %j',
         async (state) => {
             const { req, start, authorize, callback, analytics, upsert } =
                 setup();
@@ -581,7 +570,10 @@ describe('connect outcome with real Passport', () => {
             expect(req.session.agentConnectAttempts).toEqual({
                 [pendingState]: attempt,
             });
-            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+            expect(req.session['oauth2:snowflake-ai']?.state).toBe(
+                pendingState,
+            );
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
             expect(upsert).not.toHaveBeenCalled();
         },
     );
@@ -1071,15 +1063,15 @@ describe('Snowflake client attempt bindings', () => {
             );
         },
     );
-    it('allows an old-pod attempt without binding only with environment settings', async () => {
+    it('rejects an old-pod attempt without a client binding', async () => {
         const { req, start, authorize, callback, upsert } = setup();
         await start();
         const state = new URL(await authorize()).searchParams.get('state')!;
         delete req.session.agentConnectBindings;
         req.query = { code: 'code', state };
-        expect(await callback()).not.toContain('error=');
-        expect(oauth.getOAuthAccessToken).toHaveBeenCalledOnce();
-        expect(upsert).toHaveBeenCalledOnce();
+        expect(await callback()).toContain('error=sign_in_failed');
+        expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
     });
     it('reports missing callback configuration without exchanging a code', async () => {
         const { req, start, authorize, callback, analytics, service } = setup();
