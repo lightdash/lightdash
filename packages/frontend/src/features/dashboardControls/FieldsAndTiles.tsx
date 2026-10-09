@@ -206,8 +206,8 @@ export const FieldsAndTiles: FC = () => {
                 )}
                 <Text fz="xs" c="dimmed" className={classes.hint}>
                     {hasFields
-                        ? 'Pick a field to filter tiles by it.'
-                        : 'Pick a column to filter tiles by it.'}
+                        ? 'Select the field to filter tiles by.'
+                        : 'Select the column to filter tiles by.'}
                 </Text>
             </Stack>
         );
@@ -222,10 +222,10 @@ export const FieldsAndTiles: FC = () => {
             <Stack gap="xs">
                 <Stack gap={2}>
                     <Text fz="sm" fw={600}>
-                        Fields in this filter
+                        Tiles are filtered by
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Select a field to change its tiles.
+                        Select a field to see and change its tiles.
                     </Text>
                 </Stack>
                 {rowIds.map((fieldId) => {
@@ -257,7 +257,7 @@ export const FieldsAndTiles: FC = () => {
             </Stack>
             <Stack gap="xs" align="flex-start">
                 <Tooltip
-                    label="No other field of this type is on a tile"
+                    label="No tile has another field this filter could use"
                     disabled={hasCandidates}
                 >
                     <Button
@@ -272,7 +272,7 @@ export const FieldsAndTiles: FC = () => {
                         data-disabled={!hasCandidates || undefined}
                         aria-disabled={!hasCandidates || undefined}
                     >
-                        Add a field
+                        Add another field
                     </Button>
                 </Tooltip>
                 {isAdding && hasCandidates && (

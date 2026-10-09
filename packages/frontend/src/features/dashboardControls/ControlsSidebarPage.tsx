@@ -22,7 +22,7 @@ const PageWithControlSidebar: FC<Props> = (props) => {
         <Page
             {...props}
             sidebar={<ControlSidebar />}
-            sidebarTitle="Edit control"
+            sidebarTitle="Edit filter"
             isSidebarOpen={isSidebarOpen}
             noSidebarPadding
             sidebarWidthProps={SIDEBAR_WIDTH}

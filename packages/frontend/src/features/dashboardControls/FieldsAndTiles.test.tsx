@@ -232,10 +232,10 @@ describe('FieldsAndTiles', () => {
 
             expect(screen.getByText('Select a field to filter')).toBeVisible();
             expect(
-                screen.queryByText('Fields in this filter'),
+                screen.queryByText('Tiles are filtered by'),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText('Pick a field to filter tiles by it.'),
+                screen.getByText('Select the field to filter tiles by.'),
             ).toBeVisible();
 
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
@@ -366,7 +366,7 @@ describe('FieldsAndTiles', () => {
 
             expect(fieldSearch()).not.toBeInTheDocument();
             expect(
-                screen.getByText('Pick a column to filter tiles by it.'),
+                screen.getByText('Select the column to filter tiles by.'),
             ).toBeVisible();
             expect(screen.getByText('Select a column to filter')).toBeVisible();
             await userEvent.click(
@@ -393,9 +393,9 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
         renderWithProviders(<FieldsAndTiles />);
 
-        expect(screen.getByText('Fields in this filter')).toBeVisible();
+        expect(screen.getByText('Tiles are filtered by')).toBeVisible();
         expect(
-            screen.getByText('Select a field to change its tiles.'),
+            screen.getByText('Select a field to see and change its tiles.'),
         ).toBeVisible();
         expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
         expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
@@ -457,7 +457,7 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(
-                screen.getByRole('button', { name: 'Add a field' }),
+                screen.getByRole('button', { name: 'Add another field' }),
             );
             await screen.findByText('Orders');
             expect(optionNames()).toEqual(['Profit']);
@@ -529,7 +529,7 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             expect(
-                screen.getByRole('button', { name: 'Add a field' }),
+                screen.getByRole('button', { name: 'Add another field' }),
             ).toHaveAttribute('data-disabled', 'true');
         });
     });
@@ -696,7 +696,7 @@ describe('FieldsAndTiles', () => {
     it('puts "Add a field" away on Escape and when focus leaves it', async () => {
         setSidebar(rule('orders_status'));
         renderWithProviders(<Editor />);
-        const add = screen.getByRole('button', { name: 'Add a field' });
+        const add = screen.getByRole('button', { name: 'Add another field' });
 
         await userEvent.click(add);
         // Focused with its list open
@@ -715,7 +715,7 @@ describe('FieldsAndTiles', () => {
         expect(add).toHaveFocus();
 
         await userEvent.click(add);
-        await userEvent.click(screen.getByText('Fields in this filter'));
+        await userEvent.click(screen.getByText('Tiles are filtered by'));
         expect(fieldSearch()).not.toBeInTheDocument();
     });
 
@@ -724,7 +724,7 @@ describe('FieldsAndTiles', () => {
         renderWithProviders(<FieldsAndTiles />);
 
         await userEvent.click(
-            screen.getByRole('button', { name: 'Add a field' }),
+            screen.getByRole('button', { name: 'Add another field' }),
         );
         await userEvent.keyboard('reg');
         await waitFor(() => expect(optionNames()).toEqual(['Region']));
@@ -763,7 +763,9 @@ describe('FieldsAndTiles', () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<FieldsAndTiles />);
 
-            const button = screen.getByRole('button', { name: 'Add a field' });
+            const button = screen.getByRole('button', {
+                name: 'Add another field',
+            });
             expect(button).not.toHaveAttribute('data-disabled');
             await userEvent.click(button);
 
@@ -801,7 +803,7 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(
-                screen.getByRole('button', { name: 'Add a field' }),
+                screen.getByRole('button', { name: 'Add another field' }),
             );
             await screen.findByText('Orders');
             expect(optionNames()).toEqual(['Created day']);
@@ -822,7 +824,7 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(
-                screen.getByRole('button', { name: 'Add a field' }),
+                screen.getByRole('button', { name: 'Add another field' }),
             );
             await userEvent.click(
                 await screen.findByRole('option', { name: 'Region' }),
@@ -864,7 +866,7 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(
-                screen.getByRole('button', { name: 'Add a field' }),
+                screen.getByRole('button', { name: 'Add another field' }),
             );
             await screen.findByText('Customers');
             expect(optionNames()).toEqual(['City', 'Region']);
@@ -889,7 +891,9 @@ describe('FieldsAndTiles', () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<FieldsAndTiles />);
 
-            const button = screen.getByRole('button', { name: 'Add a field' });
+            const button = screen.getByRole('button', {
+                name: 'Add another field',
+            });
             expect(button).toHaveAttribute('data-disabled', 'true');
             await userEvent.click(button);
             expect(fieldSearch()).not.toBeInTheDocument();
@@ -897,7 +901,7 @@ describe('FieldsAndTiles', () => {
             await userEvent.hover(button);
             expect(
                 await screen.findByText(
-                    'No other field of this type is on a tile',
+                    'No tile has another field this filter could use',
                 ),
             ).toBeInTheDocument();
         });
@@ -908,7 +912,7 @@ describe('FieldsAndTiles', () => {
         renderWithProviders(<FieldsAndTiles />);
 
         expect(
-            screen.queryByText('Fields in this filter'),
+            screen.queryByText('Tiles are filtered by'),
         ).not.toBeInTheDocument();
         expect(fieldSearch()).not.toBeInTheDocument();
     });

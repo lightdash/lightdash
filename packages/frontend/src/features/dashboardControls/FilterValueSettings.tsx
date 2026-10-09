@@ -42,13 +42,13 @@ export const FilterValueSettings: FC<Props> = ({
             />
             {isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
-                    Choose a value, or the default is left off.
+                    Set a value, or the default stays off.
                 </Text>
             )}
             {!!filterRule.disabled && !isRequired && (
                 <Text size="xs" c="dimmed">
-                    Not set: each tile keeps its own values until a viewer picks
-                    one.
+                    No default: each tile keeps its own values until a viewer
+                    sets one.
                 </Text>
             )}
         </Stack>

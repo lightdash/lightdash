@@ -162,7 +162,7 @@ const status = (tileUuid: string) =>
 const overlay = (tileUuid: string) =>
     container(tileUuid).firstElementChild as HTMLElement | null;
 const clearButton = (tileUuid: string) =>
-    card(tileUuid).queryByRole('button', { name: 'Leave this tile out' });
+    card(tileUuid).queryByRole('button', { name: 'Stop filtering this tile' });
 
 describe('TileOverlays', () => {
     beforeEach(() => {
@@ -560,7 +560,7 @@ describe('TileOverlays', () => {
         );
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'title',
-            'This filter cannot reach this tile',
+            'This tile has no field this filter can use',
         );
     });
 
@@ -1042,7 +1042,7 @@ describe('TileOverlays', () => {
         const placeholder = (label?: string) =>
             rule({ label, target: { fieldId: '', tableName: '' } });
         const newRenders = (tileUuid: string) =>
-            renderCounts.current[`New control on Title ${tileUuid}`] ?? 0;
+            renderCounts.current[`New filter on Title ${tileUuid}`] ?? 0;
         const allOptions = () =>
             screen
                 .getAllByRole('option', { hidden: true })
@@ -1090,7 +1090,7 @@ describe('TileOverlays', () => {
             });
             expect(select(statusOnly.uuid)).toHaveTextContent('Select a field');
             expect(select(statusOnly.uuid)).toHaveAccessibleName(
-                'New control on Title tile-status',
+                'New filter on Title tile-status',
             );
             expect(select(both.uuid)).toHaveTextContent('Select a field');
             expect(overlay(otherTab.uuid)).toBeNull();
@@ -1105,7 +1105,7 @@ describe('TileOverlays', () => {
             expect(overlay(markdown.uuid)).toBeEmptyDOMElement();
             expect(overlay(markdown.uuid)).toHaveAttribute(
                 'title',
-                'This control cannot reach this tile',
+                'This tile has no field this filter can use',
             );
         });
 

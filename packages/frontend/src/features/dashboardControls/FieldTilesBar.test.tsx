@@ -235,7 +235,7 @@ describe('FieldTilesBar', () => {
             expect(buttonTexts()).toEqual(['Filter all 2']);
             expect(
                 screen.getByRole('button', {
-                    name: 'Filter the 2 unfiltered tiles by Status',
+                    name: 'Filter all 2 tiles by Status',
                 }),
             ).toHaveAttribute('data-variant', 'filled');
         });
@@ -247,7 +247,9 @@ describe('FieldTilesBar', () => {
             });
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('City')).toHaveTextContent(/^No tile has it$/);
+            expect(countOf('City')).toHaveTextContent(
+                /^No tile has this field$/,
+            );
             expect(countOf('City')).toHaveAttribute('aria-live', 'polite');
             expect(within(bar('City')).queryAllByRole('button')).toHaveLength(
                 0,
@@ -260,7 +262,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the 1 unfiltered tile by Status',
+                    name: 'Filter the other 1 tile by Status',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toBeUndefined();
@@ -288,14 +290,14 @@ describe('FieldTilesBar', () => {
             // One tile each: the two buttons never count the same tile
             expect(countOf()).toHaveTextContent('on 1 of 3 tiles');
             expect(buttonTexts()).toEqual([
-                'Filter the other 1',
-                'Switch 1 from Region',
+                'Filter 1 unfiltered tile',
+                'Replace Region on 1 tile',
                 'Clear',
             ]);
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the 1 unfiltered tile by Status',
+                    name: 'Filter 1 unfiltered tile by Status',
                 }),
             );
             // tile-1 keeps Region
@@ -304,7 +306,7 @@ describe('FieldTilesBar', () => {
             updateFilter.mockClear();
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile from Region to Status',
+                    name: 'Replace Region on 1 tile with Status',
                 }),
             );
             // tile-2 stays unfiltered
@@ -324,16 +326,18 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(buttonTexts()).toEqual(['Switch 2 from Region and City']);
+            expect(buttonTexts()).toEqual([
+                'Replace Region and City on 2 tiles',
+            ]);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 2 tiles from Region and City to Status',
+                    name: 'Replace Region and City on 2 tiles with Status',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
-        it('says "Filter the other" when the rest is on another field', () => {
+        it('counts the unfiltered tiles in words beside a replace', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 filterableFieldsByTileUuid: {
@@ -352,7 +356,7 @@ describe('FieldTilesBar', () => {
                 within(bar('Region'))
                     .getAllByRole('button')
                     .map((button) => button.textContent),
-            ).toEqual(['Filter the other 1', 'Switch 1 from Status']);
+            ).toEqual(['Filter 1 unfiltered tile', 'Replace Status on 1 tile']);
         });
 
         it('clears the field from its tiles', () => {
@@ -378,7 +382,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('Region')).toHaveTextContent('on 0 of 1 tile');
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile from Status to Region',
+                    name: 'Replace Status on 1 tile with Region',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
@@ -435,7 +439,7 @@ describe('FieldTilesBar', () => {
             </>
         );
         const OTHER_TABS = (count: number) =>
-            `Filter the ${count} unfiltered ${count === 1 ? 'tile' : 'tiles'} on other tabs by Status`;
+            `Filter ${count} on other tabs by Status`;
 
         beforeEach(() => setTabs(TAB_1));
 
@@ -514,7 +518,7 @@ describe('FieldTilesBar', () => {
             expect(buttonTexts()).toEqual([
                 'Filter the other 1',
                 'Clear',
-                '+ 1 on other tabs',
+                'Filter 1 on other tabs',
             ]);
             expect(
                 screen.getByRole('button', { name: OTHER_TABS(1) }),
@@ -530,7 +534,7 @@ describe('FieldTilesBar', () => {
             rerender(<TabbedDashboard />);
             expect(
                 screen.getByRole('button', { name: OTHER_TABS(2) }),
-            ).toHaveTextContent('+ 2 on other tabs');
+            ).toHaveTextContent('Filter 2 on other tabs');
         });
 
         it('does not count a tile on another field of the other tabs', () => {
@@ -539,7 +543,7 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<TabbedDashboard />);
 
-            expect(buttonTexts()).toEqual(['Clear', '+ 1 on other tabs']);
+            expect(buttonTexts()).toEqual(['Clear', 'Filter 1 on other tabs']);
         });
 
         it('fills the other tabs from the link and leaves this tab alone', () => {
@@ -570,10 +574,48 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the 1 unfiltered tile by Status on this tab',
+                    name: 'Filter the other 1 tile on this tab by Status',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
+        });
+
+        it('names the main button by its label, then the tab and the field', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status, region],
+                    'tile-3': [status],
+                    'tile-4': [status],
+                },
+            };
+            // All out on this tab
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+            );
+            const { rerender } = renderWithProviders(<TabbedDashboard />);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Filter all 2 tiles on this tab by Status',
+                }),
+            ).toHaveTextContent(/^Filter all 2$/);
+
+            // One on Region: the unfiltered count is spelled out
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            rerender(<TabbedDashboard />);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Filter 1 unfiltered tile on this tab by Status',
+                }),
+            ).toHaveTextContent(/^Filter 1 unfiltered tile$/);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Replace Region on 1 tile with Status on this tab',
+                }),
+            ).toHaveTextContent(/^Replace Region on 1 tile$/);
         });
 
         it('says "Filter all" when the field is on no tile of the tab', () => {
@@ -600,8 +642,10 @@ describe('FieldTilesBar', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<TabbedDashboard />);
 
-            expect(countOf()).toHaveTextContent(/^No tile on this tab has it$/);
-            expect(buttonTexts()).toEqual(['+ 1 on other tabs']);
+            expect(countOf()).toHaveTextContent(
+                /^No tile on this tab has this field$/,
+            );
+            expect(buttonTexts()).toEqual(['Filter 1 on other tabs']);
             fireEvent.click(
                 screen.getByRole('button', { name: OTHER_TABS(1) }),
             );
@@ -625,7 +669,7 @@ describe('FieldTilesBar', () => {
             renderWithProviders(<TabbedDashboard />);
 
             expect(countOf('Region')).toHaveTextContent(
-                'No tile on this tab has it',
+                'No tile on this tab has this field',
             );
             expect(within(bar('Region')).queryAllByRole('button')).toHaveLength(
                 0,
@@ -640,7 +684,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile from Region to Status on this tab',
+                    name: 'Replace Region on 1 tile with Status on this tab',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-4': REGION });
@@ -710,7 +754,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('country')).toHaveTextContent('on 1 of 2 tiles');
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the 1 unfiltered tile by country',
+                    name: 'Filter the other 1 tile by country',
                 }),
             );
             const next = getUpdatedRule();
@@ -732,7 +776,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile from city to country',
+                    name: 'Replace city on 1 tile with country',
                 }),
             );
             const next = getUpdatedRule();
@@ -787,7 +831,7 @@ describe('FieldTilesBar', () => {
             );
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the 1 unfiltered tile on other tabs by country',
+                    name: 'Filter 1 on other tabs by country',
                 }),
             );
             const next = getUpdatedRule();

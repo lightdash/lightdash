@@ -202,11 +202,7 @@ const TileOverlay = memo<TileOverlayProps>(
                     className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
                     data-controls-overlay
                     data-wave={wave}
-                    title={
-                        isPlaceholder
-                            ? 'This control cannot reach this tile'
-                            : 'This filter cannot reach this tile'
-                    }
+                    title="This tile has no field this filter can use"
                 />
             );
         }
@@ -240,7 +236,7 @@ const TileOverlay = memo<TileOverlayProps>(
                 data-controls-overlay
                 data-highlighted={highlight ?? undefined}
                 data-wave={wave}
-                title="Tiles are locked while a control is edited"
+                title="Tiles are locked while a filter is edited"
             >
                 <Box className={classes.ring} aria-hidden />
                 {/* An empty title keeps the veil's hint off the card */}
@@ -312,7 +308,7 @@ const TileOverlay = memo<TileOverlayProps>(
                                         ? 'Select a column'
                                         : 'Select a field'
                                 }
-                                clearLabel="Leave this tile out"
+                                clearLabel="Stop filtering this tile"
                                 renderOptionIcon={
                                     isSqlTile ? null : renderOptionIcon
                                 }
@@ -594,7 +590,7 @@ const EditedTileOverlays: FC = () => {
                         <TileOverlay
                             tileUuid={tile.uuid}
                             // Not the label: typing it must not reach the tiles
-                            selectLabel={`New control on ${getTileTitle(tile)}`}
+                            selectLabel={`New filter on ${getTileTitle(tile)}`}
                             isPlaceholder
                             isReachable={isReachable}
                             isSqlTile={false}

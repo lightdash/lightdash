@@ -43,7 +43,7 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
             <Select
                 size="xs"
                 aria-label={`Field for ${filterLabel} on this tile`}
-                placeholder="Pick a field"
+                placeholder="Select a field"
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
                 value={chosen}
@@ -67,7 +67,7 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
                         );
                     }}
                 >
-                    Link
+                    Apply
                 </Button>
                 <Button
                     size="compact-xs"
@@ -156,8 +156,8 @@ export const LinkPrompts: FC = () => {
                             <Stack gap="sm">
                                 <Text fz="xs" c="dimmed">
                                     {rows.length === 1
-                                        ? 'A filter could reach this tile'
-                                        : 'Filters that could reach this tile'}
+                                        ? 'This tile can use a filter'
+                                        : 'This tile can use these filters'}
                                 </Text>
                                 {rows.map((prompt) => (
                                     <LinkRow

@@ -69,7 +69,7 @@ export const TabCounts: FC = () => {
         const activeField = fieldsMap[activeFieldId];
         return activeField ? activeField.label : activeFieldId;
     };
-    const reach = `use ${getFilterSubject()}`;
+    const subject = getFilterSubject();
 
     if (!isEnabled) return null;
 
@@ -85,7 +85,7 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} tiles on this tab ${reach}`}
+                        label={`${count.applied} of ${count.total} ${count.total === 1 ? 'tile on this tab is' : 'tiles on this tab are'} filtered by ${subject}`}
                     >
                         <Badge
                             size="xs"
