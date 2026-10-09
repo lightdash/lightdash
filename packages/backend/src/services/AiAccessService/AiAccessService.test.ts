@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
+    AgentIdentityConnectEntryPoint,
+    AgentIdentityConnectFailureReason,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
@@ -10,6 +12,7 @@ import {
     FeatureNotEnabledError,
     ForbiddenError,
     getAiExecutionCredentialUuid,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -32,6 +35,8 @@ import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import * as auditLogger from '../../logging/winston';
+import { withCause } from '../../logging/withCause';
 import {
     type AiServiceAccountCredentialsModel,
     type AiServiceAccountSecrets,
@@ -596,6 +601,7 @@ describe('AiAccessService', () => {
                 provider.probe.mockResolvedValue({
                     ok: false,
                     transient: false,
+                    cause: null,
                     checkedAt: new Date(),
                     observed: {},
                     reason: AiSessionFailureReason.NOT_AGENT_SESSION,
@@ -2088,7 +2094,7 @@ describe('AiAccessService', () => {
         },
     ])(
         'logs an agent query for $plan.identity with user $userUuid',
-        ({ plan, userUuid, principalKind, principalRef }) => {
+        ({ plan, userUuid, principalKind }) => {
             const { service } = setup();
             const logger = Logger.child({});
             const info = vi
@@ -2120,9 +2126,11 @@ describe('AiAccessService', () => {
                         ? null
                         : plan.identityUuid,
                 principalKind,
-                principalRef,
                 context: QueryExecutionContext.AI,
             });
+            expect(JSON.stringify(info.mock.calls)).not.toMatch(
+                /person@example.test|agent@example.com|ai_shared|saved-key|refresh-token|SELECT/,
+            );
         },
     );
     test('ignores non-AI contexts before checking flags', async () => {
@@ -2171,6 +2179,7 @@ describe('AiAccessService', () => {
         provider.probe.mockResolvedValue({
             ok: false,
             transient: false,
+            cause: null,
             checkedAt: new Date(),
             observed: {},
             reason: AiSessionFailureReason.NOT_AGENT_SESSION,
@@ -2670,6 +2679,7 @@ describe('per-type execution identity resolution', () => {
                     checkedAt: new Date(),
                     observed: {},
                     transient: false,
+                    cause: null,
                     reason: AiSessionFailureReason.NOT_AGENT_SESSION,
                     message: 'inactive',
                 });
@@ -3125,7 +3135,9 @@ describe('bounded stored result lineage', () => {
         Object.assign(built.historyModel, {
             getManyWithDuckdbExecutions: batch,
         });
-        return { ...built, rows, batch };
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(built.service, { logger });
+        return { ...built, rows, batch, logger };
     };
 
     test.each(
@@ -3304,11 +3316,209 @@ describe('bounded stored result lineage', () => {
         ).toEqual(rows.mcp.agentIdentity);
     });
 
-    test('flag off performs zero lineage reads for a compose with references', async () => {
-        const { service, flags, historyModel, rows, batch } = buildGraph({
-            root: ['source'],
-            source: [],
+    test.each([
+        'missing_identity',
+        'credential_generation_mismatch',
+        'source_generation_mismatch',
+    ] as const)(
+        'logs the refused lineage node for %s without result data',
+        async (reason) => {
+            const f = buildGraph({ root: ['source'], source: [] });
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                bigquery,
+            );
+            f.connections.getCredentials.mockResolvedValue(bigquery);
+            f.slots.getSecrets.mockResolvedValue({ slot, secrets });
+            f.rows.root.requestParameters = {
+                aiSignInCredentialUuid: slot.identityUuid,
+                sql: 'SELECT secret_column FROM private_table',
+            };
+            f.rows.source.requestParameters = {
+                aiSignInCredentialUuid: slot.identityUuid,
+                sql: 'SELECT secret_column FROM private_table',
+            };
+            if (reason === 'missing_identity')
+                f.slots.getSecrets.mockResolvedValue(null);
+            if (reason === 'credential_generation_mismatch')
+                f.rows.source.requestParameters.aiSignInCredentialUuid =
+                    'old-generation';
+            if (reason === 'source_generation_mismatch') {
+                f.rows.source.warehouseConnectionUuid = 'extra';
+                f.rows.source.requestParameters.aiSignInCredentialUuid =
+                    'other-generation';
+                f.slots.getSecrets
+                    .mockResolvedValueOnce({ slot, secrets })
+                    .mockResolvedValueOnce({
+                        slot: { ...slot, identityUuid: 'other-generation' },
+                        secrets,
+                    });
+            }
+            await expect(
+                f.service.assertCanReadResults(account, 'project', f.rows.root),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(f.logger.warn).toHaveBeenCalledWith(
+                'Agent result lineage refused',
+                {
+                    queryUuid: 'root',
+                    refusedNode:
+                        reason === 'credential_generation_mismatch'
+                            ? 'source'
+                            : 'root',
+                    reason:
+                        reason === 'missing_identity'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : reason,
+                },
+            );
+            expect(
+                JSON.stringify(
+                    Object.values(f.logger).map((mock) => mock.mock.calls),
+                ),
+            ).not.toMatch(
+                /saved-key|agent@example.com|secret_column|private_table/,
+            );
+        },
+    );
+
+    test.each([
+        { error: new NotFoundError('missing'), reason: 'ancestor_not_found' },
+        {
+            error: new ForbiddenError('forbidden'),
+            reason: 'ancestor_forbidden',
+        },
+    ])(
+        'logs $reason and preserves the original exception',
+        async ({ error, reason }) => {
+            const f = buildGraph({ root: ['source'], source: [] });
+            f.batch.mockRejectedValue(error);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', f.rows.root),
+            ).rejects.toBe(error);
+            expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'Agent result lineage refused',
+                {
+                    queryUuid: 'root',
+                    refusedNode: 'source',
+                    reason,
+                },
+            );
+        },
+    );
+
+    test('logs the missing ancestor identified by the batch lookup', async () => {
+        const f = buildGraph({
+            root: ['first', 'second'],
+            first: [],
+            second: [],
         });
+        const error = new NotFoundError(
+            'Query second not found for project project',
+        );
+        f.batch.mockRejectedValue(error);
+        await expect(
+            f.service.assertCanReadResults(account, 'project', f.rows.root),
+        ).rejects.toBe(error);
+        expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Agent result lineage refused',
+            {
+                queryUuid: 'root',
+                refusedNode: 'second',
+                reason: 'ancestor_not_found',
+            },
+        );
+    });
+
+    test('uses the root when a failed batch does not identify the ancestor', async () => {
+        const f = buildGraph({
+            root: ['first', 'second'],
+            first: [],
+            second: [],
+        });
+        const error = new ForbiddenError();
+        f.batch.mockRejectedValue(error);
+        await expect(
+            f.service.assertCanReadResults(account, 'project', f.rows.root),
+        ).rejects.toBe(error);
+        expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Agent result lineage refused',
+            {
+                queryUuid: 'root',
+                refusedNode: 'root',
+                reason: 'ancestor_forbidden',
+            },
+        );
+    });
+
+    test.each([new NotFoundError('missing'), new ForbiddenError()])(
+        'logs a root execution lookup failure: %s',
+        async (error) => {
+            const f = buildGraph({ root: [] });
+            f.historyModel.getDuckdbExecution.mockRejectedValue(error);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', f.rows.root),
+            ).rejects.toBe(error);
+            expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'Agent result lineage refused',
+                {
+                    queryUuid: 'root',
+                    refusedNode: 'root',
+                    reason:
+                        error instanceof NotFoundError
+                            ? 'ancestor_not_found'
+                            : 'ancestor_forbidden',
+                },
+            );
+        },
+    );
+
+    test.each([new NotFoundError('missing'), new ForbiddenError()])(
+        'logs an unavailable ancestor connection: %s',
+        async (error) => {
+            const f = buildGraph({ root: ['source'], source: [] });
+            f.rows.source.warehouseConnectionUuid = 'extra';
+            f.connections.getCredentials.mockRejectedValue(error);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', f.rows.root),
+            ).rejects.toBe(error);
+            expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'Agent result lineage refused',
+                {
+                    queryUuid: 'root',
+                    refusedNode: 'source',
+                    reason: 'connection_unavailable',
+                },
+            );
+        },
+    );
+
+    test.each(['batch', 'execution', 'connection'] as const)(
+        'does not label an unexpected %s failure as a lineage refusal',
+        async (lookup) => {
+            const f = buildGraph({ root: ['source'], source: [] });
+            const error = new TypeError('programming error');
+            if (lookup === 'batch') f.batch.mockRejectedValue(error);
+            if (lookup === 'execution')
+                f.historyModel.getDuckdbExecution.mockRejectedValue(error);
+            if (lookup === 'connection')
+                f.projects.getWarehouseCredentialsForBinding.mockRejectedValue(
+                    error,
+                );
+            await expect(
+                f.service.assertCanReadResults(account, 'project', f.rows.root),
+            ).rejects.toBe(error);
+            expect(f.logger.warn).not.toHaveBeenCalled();
+        },
+    );
+
+    test('flag off performs zero lineage reads for a compose with references', async () => {
+        const { service, flags, historyModel, rows, batch, logger } =
+            buildGraph({
+                root: ['source'],
+                source: [],
+            });
         flags.get.mockResolvedValue({ enabled: false });
         rows.root.requestParameters = {
             sql: 'SELECT * FROM source',
@@ -3321,6 +3531,7 @@ describe('bounded stored result lineage', () => {
         expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
         expect(batch).not.toHaveBeenCalled();
         expect(flags.get).toHaveBeenCalledOnce();
+        expect(logger.warn).not.toHaveBeenCalled();
     });
 
     test.each([1, 2])(
@@ -3434,7 +3645,11 @@ describe('bounded stored result lineage', () => {
                               ]),
                           ),
                       };
-            const { service, historyModel, rows, batch } = buildGraph(edges);
+            const { service, historyModel, rows, batch, logger } =
+                buildGraph(edges);
+            rows.root.requestParameters = {
+                sql: 'SELECT secret_column FROM private_table',
+            };
             const read = service.assertCanReadResults(
                 account,
                 'project',
@@ -3453,6 +3668,23 @@ describe('bounded stored result lineage', () => {
                     0,
                 );
             expect(rowReads).toBe(cap === 'nodes' ? 0 : 50);
+            expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'Agent result lineage refused',
+                {
+                    queryUuid: 'root',
+                    refusedNode: cap === 'nodes' ? '499' : '50',
+                    reason: cap === 'nodes' ? 'size_limit' : 'depth_limit',
+                    depth: cap === 'nodes' ? 1 : 51,
+                    size: cap === 'nodes' ? 501 : 52,
+                    maxDepth: 50,
+                    maxNodes: 500,
+                },
+            );
+            expect(
+                JSON.stringify(
+                    Object.values(logger).map((mock) => mock.mock.calls),
+                ),
+            ).not.toMatch(/secret_column|private_table/);
         },
     );
 
@@ -3505,12 +3737,15 @@ describe('bounded stored result lineage', () => {
     });
 
     test('refuses a cycle through a shared ancestor', async () => {
-        const { service, rows } = buildGraph({
+        const { service, rows, logger } = buildGraph({
             root: ['left', 'right'],
             left: ['shared'],
             right: ['shared'],
             shared: ['right'],
         });
+        rows.root.requestParameters = {
+            sql: 'SELECT secret_column FROM private_table',
+        };
         await expect(
             service.assertCanReadResults(account, 'project', rows.root),
         ).rejects.toMatchObject({
@@ -3518,6 +3753,259 @@ describe('bounded stored result lineage', () => {
                 reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
             },
         });
+        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Agent result lineage refused',
+            { queryUuid: 'root', refusedNode: 'shared', reason: 'cycle' },
+        );
+        expect(
+            JSON.stringify(
+                Object.values(logger).map((mock) => mock.mock.calls),
+            ),
+        ).not.toMatch(/secret_column|private_table/);
+    });
+});
+
+describe('agent identity operational logs', () => {
+    const prepare = () => {
+        const f = setup();
+        const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+        Object.assign(f.service, { logger });
+        return { ...f, logger };
+    };
+    const assertSafe = (logger: ReturnType<typeof prepare>['logger']) => {
+        expect(
+            JSON.stringify(
+                Object.values(logger).map((mock) => mock.mock.calls),
+            ),
+        ).not.toMatch(
+            /saved-key|agent@example.com|refresh-secret|SELECT secret_column|private_table/,
+        );
+    };
+    afterEach(() => vi.restoreAllMocks());
+
+    test('logs connect failures with user and organization IDs', () => {
+        const f = prepare();
+        f.service.trackConnectOutcome(
+            {
+                connectAttemptId: 'attempt',
+                userId: 'user',
+                organizationId: 'org',
+                projectId: null,
+                entryPoint: AgentIdentityConnectEntryPoint.UNKNOWN,
+            },
+            AgentIdentityConnectFailureReason.ACCESS_DENIED,
+        );
+        expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Agent sign-in connect failed',
+            {
+                userUuid: 'user',
+                organizationUuid: 'org',
+                reason: AgentIdentityConnectFailureReason.ACCESS_DENIED,
+            },
+        );
+        assertSafe(f.logger);
+    });
+
+    test.each(['settings', 'rule'] as const)(
+        'audits the %s rule change after saving',
+        async (path) => {
+            const f = prepare();
+            const admin = buildAccount();
+            admin.user.ability = new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'Organization' },
+            ]);
+            const audit = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            if (path === 'settings')
+                await f.service.updateOrganizationSettings(admin, {
+                    requireVerifiedAgentSessions: true,
+                });
+            else
+                await f.service.updateOrganizationRule(
+                    admin,
+                    WarehouseTypes.SNOWFLAKE,
+                    { source: 'agent_sign_in' },
+                );
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    actor: expect.objectContaining({ uuid: admin.user.id }),
+                    action: 'update',
+                    status: 'allowed',
+                    context: {},
+                    resource: {
+                        type: 'OrganizationAgentIdentityRule',
+                        organizationUuid: admin.organization.organizationUuid,
+                        metadata: {
+                            event: 'agent_identity.rule_updated',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                            previousSource: 'marked_person',
+                            source: 'agent_sign_in',
+                        },
+                    },
+                }),
+            );
+            expect(JSON.stringify(audit.mock.calls)).not.toMatch(
+                /saved-key|agent@example.com|refresh-secret|SELECT/,
+            );
+            assertSafe(f.logger);
+        },
+    );
+
+    test('audit failure leaves a successful rule change intact', async () => {
+        const f = prepare();
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Organization' },
+        ]);
+        vi.spyOn(auditLogger, 'logAuditEvent').mockImplementation((event) => {
+            if (event.resource.type === 'OrganizationAgentIdentityRule')
+                throw new Error(
+                    'audit unavailable token=refresh-secret agent@example.com',
+                );
+        });
+        await expect(
+            f.service.updateOrganizationRule(admin, WarehouseTypes.SNOWFLAKE, {
+                source: 'agent_sign_in',
+            }),
+        ).resolves.toMatchObject({ source: 'agent_sign_in' });
+        expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'Failed to write the agent identity rule audit event',
+            {
+                errorClass: 'Error',
+                errorCode: null,
+                errorCategory: null,
+                errorMessage: expect.stringContaining('audit unavailable'),
+            },
+        );
+        assertSafe(f.logger);
+    });
+
+    test('does not audit an unchanged or failed rule write', async () => {
+        const f = prepare();
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Organization' },
+        ]);
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        f.organizationRules.set.mockResolvedValue({
+            changed: false,
+            previousSource: 'marked_person',
+        });
+        await f.service.updateOrganizationRule(
+            admin,
+            WarehouseTypes.SNOWFLAKE,
+            { source: 'marked_person' },
+        );
+        f.organizationRules.set.mockRejectedValue(new Error('write failed'));
+        await expect(
+            f.service.updateOrganizationRule(admin, WarehouseTypes.SNOWFLAKE, {
+                source: 'agent_sign_in',
+            }),
+        ).rejects.toThrow('write failed');
+        expect(
+            audit.mock.calls.filter(
+                ([event]) =>
+                    event.resource.type === 'OrganizationAgentIdentityRule',
+            ),
+        ).toEqual([]);
+    });
+
+    test.each(['query', 'diagnostic'] as const)(
+        'logs one %s session-check refusal with reason and sanitized cause',
+        async (kind) => {
+            const f = prepare();
+            const cause = new TypeError(
+                'authentication failed token=refresh-secret agent@example.com SELECT secret_column FROM private_table',
+            );
+            f.provider.probe.mockResolvedValue({
+                ok: false,
+                transient: false,
+                cause,
+                checkedAt: new Date(),
+                reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
+                message: cause.message,
+                observed: { private_key: 'saved-key' },
+            });
+            const evaluation =
+                kind === 'query'
+                    ? { kind, surface: QuerySurface.APP }
+                    : { kind };
+            const refusal = await f.service
+                .resolvePlan({ ...args, connection: snowflake, evaluation })
+                .catch((error: unknown) => error);
+            expect(refusal).toMatchObject({
+                cause: {
+                    reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
+                    cause,
+                },
+            });
+            expect(JSON.stringify(refusal)).not.toContain('cause');
+            expect(f.provider.mint).toHaveBeenCalledWith(
+                expect.objectContaining({ evaluationKind: kind }),
+            );
+            expect(
+                kind === 'diagnostic' ? f.logger.debug : f.logger.warn,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'AI access query refused',
+                expect.objectContaining({
+                    sessionCheckReason:
+                        AiSessionFailureReason.CREDENTIAL_REJECTED,
+                    errorClass: 'TypeError',
+                    errorCode: null,
+                    errorMessage: expect.stringContaining(
+                        'authentication failed',
+                    ),
+                }),
+            );
+            expect(
+                kind === 'diagnostic' ? f.logger.warn : f.logger.debug,
+            ).not.toHaveBeenCalled();
+            assertSafe(f.logger);
+        },
+    );
+
+    test('preserves a refresh cause when adding sign-in URLs', async () => {
+        const f = prepare();
+        const cause = new Error('invalid_grant token=refresh-secret');
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        );
+        withCause(refusal, cause);
+        f.provider.mint.mockRejectedValue(refusal);
+        await expect(
+            f.service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({
+            cause,
+            refusal: { connectUrl: expect.stringContaining('/agent/connect') },
+        });
+        assertSafe(f.logger);
+    });
+
+    test('logs status refusals at debug and stays quiet with the flag off', async () => {
+        const f = prepare();
+        f.provider.missingPrerequisite.mockResolvedValue(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        await f.service.getAiAccessForUser({ ...args, connection: snowflake });
+        expect(f.logger.warn).not.toHaveBeenCalled();
+        expect(f.logger.debug).toHaveBeenCalledWith(
+            'AI access query refused',
+            expect.objectContaining({
+                reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                userUuid: 'user',
+                projectUuid: 'project',
+            }),
+        );
+        assertSafe(f.logger);
+        Object.values(f.logger).forEach((mock) => mock.mockClear());
+        f.flags.get.mockResolvedValue({ enabled: false });
+        await f.service.resolvePlan({ ...args, connection: snowflake });
+        expect(
+            Object.values(f.logger).flatMap((mock) => mock.mock.calls),
+        ).toEqual([]);
     });
 });
 

@@ -15,6 +15,7 @@ import {
 } from '@lightdash/warehouses';
 import refresh from 'passport-oauth2-refresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import Logger from '../../../logging/logger';
 import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from '../../UserService';
 import { AiSessionFailureReason } from './AiCredentialProvider';
@@ -50,6 +51,8 @@ const credential: UserWarehouseCredentialsWithSecrets = {
 const mintArgs = {
     silentRefresh: false,
     connection,
+    organizationUuid: 'org',
+    evaluationKind: 'query' as const,
     person: { userUuid: 'user', email: 'user@example.test' },
 };
 const assurances: AiAssurance[] = [
@@ -89,7 +92,7 @@ const setup = () => {
                 _expiry?: Parameters<
                     UserWarehouseCredentialsModel['rotateRefreshToken']
                 >[3],
-            ) => {},
+            ) => true,
         ),
     };
     const provider = new SnowflakeAiCredentialProvider({
@@ -653,7 +656,9 @@ describe('silent Snowflake refresh', () => {
                     await new Promise<void>((resolve) => {
                         setTimeout(resolve, 450);
                     });
-                if (currentToken === expected) currentToken = next;
+                if (currentToken !== expected) return false;
+                currentToken = next;
+                return true;
             },
         );
         let calls = 0;
@@ -703,8 +708,10 @@ describe('silent Snowflake refresh', () => {
         });
         model.rotateRefreshToken.mockImplementation(
             async (_uuid, expected, next) => {
-                if (currentToken === expected) currentToken = next;
+                const swapped = currentToken === expected;
+                if (swapped) currentToken = next;
                 rotated();
+                return swapped;
             },
         );
         let calls = 0;
@@ -732,5 +739,253 @@ describe('silent Snowflake refresh', () => {
         ).resolves.toHaveLength(2);
         expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(3);
         expect(currentToken).toBe('T3');
+    });
+});
+
+describe('agent refresh logs', () => {
+    afterEach(() => vi.restoreAllMocks());
+    test.each([
+        { newToken: false, rotated: false },
+        { newToken: true, rotated: true },
+        { newToken: true, rotated: false },
+    ])(
+        'logs refresh and rotation outcome $newToken/$rotated without tokens',
+        async ({ newToken, rotated }) => {
+            const { provider, model } = setup();
+            model.rotateRefreshToken.mockResolvedValue(rotated);
+            const debug = vi
+                .spyOn(Logger, 'debug')
+                .mockImplementation(() => Logger);
+            const info = vi
+                .spyOn(Logger, 'info')
+                .mockImplementation(() => Logger);
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            vi.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue({
+                accessToken: 'new-access-token',
+                refreshToken: newToken
+                    ? 'new-refresh-token'
+                    : 'old-refresh-token',
+            });
+            await provider.mint(mintArgs);
+            expect(info.mock.calls).toEqual([
+                [
+                    'Agent sign-in refreshed',
+                    { userUuid: 'user', organizationUuid: 'org' },
+                ],
+                ...(rotated
+                    ? [
+                          [
+                              'Agent sign-in refresh token rotated',
+                              { userUuid: 'user', organizationUuid: 'org' },
+                          ],
+                      ]
+                    : []),
+            ]);
+            expect(debug.mock.calls).toEqual(
+                newToken && !rotated
+                    ? [
+                          [
+                              'Agent sign-in refresh token rotation skipped',
+                              { userUuid: 'user', organizationUuid: 'org' },
+                          ],
+                      ]
+                    : [],
+            );
+            expect(
+                JSON.stringify([
+                    info.mock.calls,
+                    warn.mock.calls,
+                    debug.mock.calls,
+                ]),
+            ).not.toMatch(
+                /new-access-token|new-refresh-token|old-refresh-token|user@example.test|connection-password|SELECT/,
+            );
+        },
+    );
+
+    test.each(['query', 'diagnostic'] as const)(
+        'logs a redacted %s refresh failure and preserves its cause',
+        async (evaluationKind) => {
+            const { provider, model } = setup();
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const debug = vi
+                .spyOn(Logger, 'debug')
+                .mockImplementation(() => Logger);
+            const info = vi
+                .spyOn(Logger, 'info')
+                .mockImplementation(() => Logger);
+            const error = new Error(
+                'invalid_grant refresh_token=old-refresh-token user@example.test SELECT secret_column FROM private_table',
+            );
+            vi.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockRejectedValue(error);
+            await expect(
+                provider.mint({ ...mintArgs, evaluationKind }),
+            ).rejects.toMatchObject({
+                cause: error,
+            });
+            expect(
+                evaluationKind === 'diagnostic' ? debug : warn,
+            ).toHaveBeenCalledExactlyOnceWith('Agent sign-in refresh failed', {
+                userUuid: 'user',
+                organizationUuid: 'org',
+                reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                errorClass: 'Error',
+                errorCode: null,
+                errorCategory: 'invalid_grant',
+                errorMessage: '[REDACTED]',
+            });
+            expect(
+                evaluationKind === 'diagnostic' ? warn : debug,
+            ).not.toHaveBeenCalled();
+            expect(info).not.toHaveBeenCalled();
+            expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+            expect(
+                JSON.stringify([
+                    warn.mock.calls,
+                    debug.mock.calls,
+                    info.mock.calls,
+                ]),
+            ).not.toMatch(
+                /old-refresh-token|user@example.test|secret_column|private_table/,
+            );
+        },
+    );
+});
+
+describe('silent refresh logs', () => {
+    const args = { ...mintArgs, silentRefresh: true };
+    const spyLogs = () => ({
+        info: vi.spyOn(Logger, 'info').mockImplementation(() => Logger),
+        warn: vi.spyOn(Logger, 'warn').mockImplementation(() => Logger),
+        debug: vi.spyOn(Logger, 'debug').mockImplementation(() => Logger),
+    });
+    const ids = { userUuid: 'user', organizationUuid: 'org' };
+    const secrets =
+        /old-refresh-token|new-refresh-token|new-access-token|user@example.test|client-secret|connection-password/;
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    test.each([
+        {
+            rotated: true,
+            level: 'info',
+            message: 'Agent sign-in refresh token rotated',
+        },
+        {
+            rotated: false,
+            level: 'debug',
+            message: 'Agent sign-in refresh token rotation skipped',
+        },
+    ] as const)(
+        'logs refresh success and rotation outcome $rotated',
+        async ({ rotated, level, message }) => {
+            const { provider, model } = setup();
+            model.rotateRefreshToken.mockResolvedValue(rotated);
+            vi.spyOn(refresh, 'requestNewAccessToken').mockImplementation(
+                (_strategy, _token, callback) => {
+                    callback(null, 'new-access-token', 'new-refresh-token', {
+                        expires_in: 600,
+                    });
+                },
+            );
+            const logs = spyLogs();
+            await provider.mint(args);
+            expect(logs.info).toHaveBeenCalledWith(
+                'Agent sign-in refreshed',
+                ids,
+            );
+            expect(logs[level]).toHaveBeenCalledWith(message, ids);
+            expect(logs.warn).not.toHaveBeenCalled();
+            expect(
+                JSON.stringify([logs.info.mock.calls, logs.debug.mock.calls]),
+            ).not.toMatch(secrets);
+        },
+    );
+
+    test.each([
+        {
+            kind: 'grant_gone',
+            failure: {
+                statusCode: 400,
+                data: '{"error":"invalid_grant","error_description":"old-refresh-token is gone"}',
+            },
+            reason: {
+                refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+            },
+        },
+        {
+            kind: 'temporary',
+            failure: new Error('ECONNRESET old-refresh-token'),
+            reason: { data: { code: 'warehouse_oauth_refresh_failed' } },
+        },
+        {
+            kind: 'configuration',
+            failure: {
+                statusCode: 401,
+                data: '{"error":"invalid_client","error_description":"client-secret rejected"}',
+            },
+            reason: {
+                refusal: {
+                    reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                },
+            },
+        },
+    ] as const)(
+        'logs a redacted $kind refresh failure once and keeps the cause',
+        async ({ kind, failure, reason }) => {
+            const { provider, model } = setup();
+            vi.spyOn(refresh, 'requestNewAccessToken').mockImplementation(
+                (_strategy, _token, callback) =>
+                    callback(failure as never, '', '', {}),
+            );
+            const logs = spyLogs();
+            const result = provider.mint(args).catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(1000);
+            const error = await result;
+            expect(error).toMatchObject(reason);
+            expect((error as Error).cause).toBe(failure);
+            expect(JSON.stringify(error)).not.toMatch(secrets);
+            expect(logs.warn).toHaveBeenCalledExactlyOnceWith(
+                'Agent sign-in refresh failed',
+                expect.objectContaining({ ...ids, kind }),
+            );
+            expect(logs.info).not.toHaveBeenCalled();
+            expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+            expect(
+                JSON.stringify([logs.warn.mock.calls, logs.debug.mock.calls]),
+            ).not.toMatch(secrets);
+        },
+    );
+
+    test('logs a diagnostic refresh failure at debug', async () => {
+        const { provider } = setup();
+        vi.spyOn(refresh, 'requestNewAccessToken').mockImplementation(
+            (_strategy, _token, callback) =>
+                callback(new Error('ECONNRESET') as never, '', '', {}),
+        );
+        const logs = spyLogs();
+        await expect(
+            provider.mint({ ...args, evaluationKind: 'diagnostic' }),
+        ).rejects.toBeDefined();
+        expect(logs.debug).toHaveBeenCalledWith(
+            'Agent sign-in refresh failed',
+            expect.objectContaining({ ...ids, kind: 'temporary' }),
+        );
+        expect(logs.warn).not.toHaveBeenCalled();
     });
 });

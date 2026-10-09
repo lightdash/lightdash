@@ -6,6 +6,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
     snowflakeAiPassportStrategy,
@@ -51,12 +52,16 @@ const verify = (
 const callVerify = async (
     enabled: boolean,
     refreshToken: string,
-    agentSession: boolean | 'error' = true,
+    agentSession: boolean | 'error' | Error = true,
     seconds: unknown = undefined,
 ) => {
     const check = vi.spyOn(snowflakeAiSessionCheck, 'check');
-    if (agentSession === 'error') {
-        check.mockRejectedValue(new Error('Snowflake query failed'));
+    if (agentSession === 'error' || agentSession instanceof Error) {
+        check.mockRejectedValue(
+            agentSession instanceof Error
+                ? agentSession
+                : new Error('Snowflake query failed'),
+        );
     } else {
         check.mockResolvedValue({
             agentActivated: agentSession,
@@ -295,4 +300,36 @@ describe('Snowflake agent redirect URI', () => {
             }
         },
     );
+it('logs session activation with user and organization IDs and no credentials', async () => {
+    const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+    try {
+        await callVerify(true, 'refresh-secret');
+        expect(info).toHaveBeenCalledWith('Snowflake agent session activated', {
+            userUuid: 'user-uuid',
+            organizationUuid: 'org-uuid',
+            currentRole: 'ANALYST',
+            activeRestrictedSessionScopes: 'READ',
+        });
+        expect(JSON.stringify(info.mock.calls)).not.toMatch(
+            /refresh-secret|access-token|ai-secret|client_email|SELECT/,
+        );
+    } finally {
+        info.mockRestore();
+    }
+});
+
+it('preserves the session-check exception as a non-enumerable cause', async () => {
+    const error = Object.assign(
+        new TypeError('Connection failed password is abc123'),
+        { code: '390318' },
+    );
+    const result = await callVerify(true, 'refresh-token', error);
+    const refusal = result.done.mock.calls[0]?.[0];
+    expect(refusal).toMatchObject({ name: 'ForbiddenError', cause: error });
+    expect(Object.getOwnPropertyDescriptor(refusal, 'cause')).toMatchObject({
+        value: error,
+        enumerable: false,
+    });
+    expect(JSON.stringify(refusal)).not.toContain('abc123');
+    expect(result.upsertAiSnowflakeCredential).not.toHaveBeenCalled();
 });

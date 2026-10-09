@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
+import * as auditLogger from '../../logging/winston';
 import { AiServiceAccountService } from './AiServiceAccountService';
 
 const secrets = {
@@ -45,15 +46,25 @@ const setup = () => {
         { action: 'manage', subject: 'Project' },
     ]);
     const model = {
-        getSlot: vi.fn().mockResolvedValue({ uuid: 'slot' }),
+        getSlot: vi.fn().mockResolvedValue({
+            uuid: 'slot',
+            identityUuid: 'generation-before',
+        }),
         getSecrets: vi.fn().mockResolvedValue(secrets),
         getReplaceableSecrets: vi.fn().mockResolvedValue(secrets),
-        upsert: vi.fn().mockResolvedValue({ uuid: 'slot' }),
+        upsert: vi.fn().mockResolvedValue({
+            uuid: 'slot',
+            identityUuid: 'generation-after',
+        }),
         delete: vi.fn().mockResolvedValue(undefined),
     };
     const flag = vi.fn().mockResolvedValue({ enabled: true });
     const load = vi.fn().mockResolvedValue(connection);
-    const getConnection = vi.fn().mockResolvedValue({ isOriginal: false });
+    const getConnection = vi
+        .fn()
+        .mockResolvedValue({ isOriginal: false, name: 'Extra warehouse' });
+    const listConnections = vi.fn().mockResolvedValue([]);
+    const getProject = vi.fn().mockResolvedValue({ projectUuid: 'project' });
     const getExtra = vi.fn().mockResolvedValue(connection);
     const runQuery = vi
         .fn()
@@ -69,12 +80,14 @@ const setup = () => {
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
+                name: 'Original warehouse',
             }),
             getWarehouseCredentialsForBinding: load,
         },
         warehouseConnectionModel: {
-            getProject: vi.fn().mockResolvedValue({ projectUuid: 'project' }),
+            getProject,
             get: getConnection,
+            list: listConnections,
             getCredentials: getExtra,
         },
         projectService: { warehouseClientFactory: { withWarehouseClient } },
@@ -86,6 +99,8 @@ const setup = () => {
         flag,
         load,
         getConnection,
+        getProject,
+        listConnections,
         getExtra,
         runQuery,
         withWarehouseClient,
@@ -520,4 +535,226 @@ describe('testAccess boundaries', () => {
         expect(f.model.getSecrets).not.toHaveBeenCalled();
         expect(f.withWarehouseClient).not.toHaveBeenCalled();
     });
+});
+
+describe('service account audit logging', () => {
+    const prepare = () => {
+        const f = setup();
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(f.service, { logger });
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        return { ...f, logger, audit };
+    };
+    const assertSafe = (f: ReturnType<typeof prepare>) => {
+        const payload = JSON.stringify([
+            f.audit.mock.calls,
+            ...Object.values(f.logger).map((mock) => mock.mock.calls),
+        ]);
+        for (const secret of [
+            JSON.stringify(secrets),
+            'saved-key',
+            'agent@example.com',
+            'personal-refresh',
+            'SELECT SESSION_USER() AS principal',
+        ]) {
+            expect(payload).not.toContain(secret);
+        }
+    };
+    afterEach(() => vi.restoreAllMocks());
+
+    test.each([
+        {
+            operation: 'save',
+            action: 'create',
+            event: 'saved',
+            generation: 'generation-after',
+        },
+        {
+            operation: 'replace',
+            action: 'update',
+            event: 'saved',
+            generation: 'generation-after',
+        },
+        {
+            operation: 'delete',
+            action: 'delete',
+            event: 'deleted',
+            generation: null,
+        },
+        {
+            operation: 'test success',
+            action: 'test',
+            event: 'tested',
+            generation: 'generation-before',
+        },
+        {
+            operation: 'test failure',
+            action: 'test',
+            event: 'tested',
+            generation: 'generation-before',
+        },
+    ] as const)(
+        'audits $operation with generations and no credentials',
+        async ({ operation, action, event: eventName, generation }) => {
+            const f = prepare();
+            if (operation === 'save') f.model.getSlot.mockResolvedValue(null);
+            if (operation === 'test failure')
+                f.runQuery.mockRejectedValue(
+                    new Error(
+                        `invalid_grant ${JSON.stringify(secrets)} SELECT SESSION_USER() AS principal`,
+                    ),
+                );
+            if (operation === 'save' || operation === 'replace')
+                await f.service.upsert(f.account, 'project', 'extra', input);
+            else if (operation === 'delete')
+                await f.service.delete(f.account, 'project', 'extra');
+            else await f.service.test(f.account, 'project', 'extra', input);
+            const event = f.audit.mock.calls.find(
+                ([entry]) => entry.resource.type === 'AiServiceAccount',
+            )?.[0];
+            expect(event).toMatchObject({
+                actor: { uuid: f.account.user.id },
+                action,
+                status: 'allowed',
+                context: {},
+                resource: {
+                    type: 'AiServiceAccount',
+                    organizationUuid: f.account.organization.organizationUuid,
+                    projectUuid: 'project',
+                    metadata: {
+                        event: `agent_identity.service_account_${eventName}`,
+                        warehouseConnectionUuid: 'extra',
+                        connectionName: 'Extra warehouse',
+                        previousGeneration:
+                            operation === 'save' ? null : 'generation-before',
+                        generation,
+                        ...(operation.startsWith('test')
+                            ? {
+                                  result:
+                                      operation === 'test success'
+                                          ? 'success'
+                                          : 'failure',
+                              }
+                            : {}),
+                    },
+                },
+            });
+            if (operation === 'test failure')
+                expect(f.logger.warn).toHaveBeenCalledWith(
+                    'AI service account test failed',
+                    {
+                        userUuid: f.account.user.id,
+                        organizationUuid:
+                            f.account.organization.organizationUuid,
+                        projectUuid: 'project',
+                        warehouseConnectionUuid: 'extra',
+                        reason: 'query_failed',
+                        errorClass: 'Error',
+                        errorCode: null,
+                        errorCategory: 'invalid_grant',
+                        errorMessage: '[REDACTED]',
+                    },
+                );
+            assertSafe(f);
+        },
+    );
+
+    test.each(['upsert', 'delete'] as const)(
+        'does not audit a failed %s',
+        async (operation) => {
+            const f = prepare();
+            f.model[operation].mockRejectedValue(new Error('write failed'));
+            await expect(
+                f.service[operation](f.account, 'project', null, input),
+            ).rejects.toThrow('write failed');
+            expect(
+                f.audit.mock.calls.filter(
+                    ([entry]) => entry.resource.type === 'AiServiceAccount',
+                ),
+            ).toEqual([]);
+        },
+    );
+
+    test('audit failure does not fail the saved key and logs only redacted details', async () => {
+        const f = prepare();
+        f.audit.mockImplementation((entry) => {
+            if (entry.resource.type === 'AiServiceAccount')
+                throw new Error(`audit unavailable ${JSON.stringify(secrets)}`);
+        });
+        await expect(
+            f.service.upsert(f.account, 'project', null, input),
+        ).resolves.toMatchObject({ identityUuid: 'generation-after' });
+        expect(f.logger.warn).toHaveBeenCalledWith(
+            'Failed to write the AI service account audit event',
+            {
+                errorClass: 'Error',
+                errorCode: null,
+                errorCategory: null,
+                errorMessage: 'audit unavailable [REDACTED]',
+            },
+        );
+        assertSafe(f);
+    });
+});
+
+describe.each(['upsert', 'delete', 'test'] as const)(
+    'original connection audit name for %s',
+    (operation) => {
+        afterEach(() => vi.restoreAllMocks());
+        test.each([null, 'original'])(
+            'uses the stored name for route %s',
+            async (connectionUuid) => {
+                const f = setup();
+                const original = { isOriginal: true, name: 'Named connection' };
+                f.getConnection.mockResolvedValue(original);
+                f.listConnections.mockResolvedValue([original]);
+                const audit = vi
+                    .spyOn(auditLogger, 'logAuditEvent')
+                    .mockImplementation(() => {});
+                await f.service[operation](
+                    f.account,
+                    'project',
+                    connectionUuid,
+                    input,
+                );
+                expect(audit).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        resource: expect.objectContaining({
+                            metadata: expect.objectContaining({
+                                warehouseConnectionUuid: null,
+                                connectionName: 'Named connection',
+                            }),
+                        }),
+                    }),
+                );
+            },
+        );
+        test('falls back to the project name for a legacy connection', async () => {
+            const f = setup();
+            const audit = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            await f.service[operation](f.account, 'project', null, input);
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resource: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            warehouseConnectionUuid: null,
+                            connectionName: 'Original warehouse',
+                        }),
+                    }),
+                }),
+            );
+        });
+    },
+);
+
+it('gets the original slot without resolving its audit name', async () => {
+    const f = setup();
+    await f.service.get(f.account, 'project', null);
+    expect(f.model.getSlot).toHaveBeenCalledWith('project', null);
+    expect(f.getProject).not.toHaveBeenCalled();
+    expect(f.listConnections).not.toHaveBeenCalled();
 });

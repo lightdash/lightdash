@@ -2217,8 +2217,13 @@ describe('AI service account factory scopes', () => {
     test.each(['compile', 'diagnostic'] as const)(
         'runtime slot refusal is silent for %s evaluation',
         async (kind) => {
-            const { factory, aiAccessService, projectModel, analytics } =
-                buildFixture();
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                analytics,
+                logger,
+            } = buildFixture();
             aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
             projectModel.getWarehouseClientFromCredentials.mockImplementation(
                 (creds) => ({
@@ -2247,17 +2252,29 @@ describe('AI service account factory scopes', () => {
                 },
             );
             expect(analytics.track).not.toHaveBeenCalled();
+            expect(logger.warn).not.toHaveBeenCalled();
+            expect(logger.debug).toHaveBeenCalledExactlyOnceWith(
+                'AI service account key refused',
+                expect.objectContaining({
+                    reason: 'ai_service_account_invalid',
+                    errorMessage: '[REDACTED]',
+                }),
+            );
         },
     );
 
     test.each([
         new Error('invalid_grant'),
         new Error('Invalid JWT signature.'),
+        new Error(
+            'invalid_grant private_key=saved-key token=refresh-secret agent@example.com SELECT secret_column FROM private_table',
+        ),
         Object.assign(new Error('unauthenticated'), { code: 401 }),
     ])(
         'attributes runtime authentication errors once per scope: %s',
         async (error) => {
-            const { factory, aiAccessService, projectModel } = buildFixture();
+            const { factory, aiAccessService, projectModel, logger } =
+                buildFixture();
             aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
             projectModel.getWarehouseClientFromCredentials.mockImplementation(
                 (creds) => ({
@@ -2275,6 +2292,7 @@ describe('AI service account factory scopes', () => {
                     await expect(
                         warehouseClient.runQuery('SELECT 1', {}),
                     ).rejects.toMatchObject({
+                        cause: error,
                         refusal: {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
@@ -2298,6 +2316,28 @@ describe('AI service account factory scopes', () => {
                         refusal: { reason: 'ai_service_account_invalid' },
                     });
                 },
+            );
+            expect(logger.debug).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'AI service account key refused',
+                {
+                    projectUuid: 'project-uuid',
+                    reason: 'ai_service_account_invalid',
+                    errorClass: 'Error',
+                    errorCode: 'code' in error ? '401' : null,
+                    errorCategory: error.message.includes('invalid_grant')
+                        ? 'invalid_grant'
+                        : null,
+                    errorMessage: expect.any(String),
+                },
+            );
+            expect(
+                JSON.stringify([
+                    logger.warn.mock.calls,
+                    logger.debug.mock.calls,
+                ]),
+            ).not.toMatch(
+                /saved-key|agent@example.com|secret_column|refresh-secret|SELECT 1|private_table/,
             );
             expect(
                 aiAccessService.trackQueryRefusal,
