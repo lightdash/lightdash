@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -53,6 +54,7 @@ import {
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
 import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import {
@@ -71,6 +73,10 @@ export const useSettingsNavigation = (
     context: SettingsContext,
 ): SettingsNavigationSection[] => {
     const { track } = useTracking();
+    const { data: agentIdentityFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentity,
+    );
+    const isAgentIdentityEnabled = agentIdentityFlag?.enabled === true;
     const {
         user,
         organization,
@@ -815,6 +821,25 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                ...(isAgentIdentityEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+                    ? [
+                          {
+                              label: 'Agent identity',
+                              to: `${base}/agentIdentity`,
+                              icon: IconIdBadge2,
+                              keywords: ['ai', 'agent', 'credentials'],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
                 ...(isAiCopilotEnabledOrTrial
@@ -1270,5 +1295,6 @@ export const useSettingsNavigation = (
         isContentReviewAvailable,
         projectSettingsAccess,
         track,
+        isAgentIdentityEnabled,
     ]);
 };
