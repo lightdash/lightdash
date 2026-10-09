@@ -5,12 +5,15 @@ import {
     type OrganizationAgentIdentityRule,
     type AiIdentitySource,
 } from '@lightdash/common';
-import { Anchor, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Box, Group, Select, Stack, Text } from '@mantine/core';
+import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
+import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
+import settingsClasses from '../../components/common/Settings/SettingsCard.module.css';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -19,11 +22,7 @@ import {
     useOrganizationAgentIdentitySettings,
     useUpdateOrganizationAgentIdentityRule,
 } from './api';
-import {
-    agentIdentitySentence,
-    identityLabels,
-    identityWarehouseNames,
-} from './identityLabels';
+import { identityLabels, identityWarehouseNames } from './identityLabels';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
 const AgentIdentityRule = ({
@@ -40,19 +39,25 @@ const AgentIdentityRule = ({
         'agent_sign_in'
     > | null>(null);
 
+    const warehouseName =
+        identityWarehouseNames[
+            rule.warehouseType as keyof typeof identityWarehouseNames
+        ];
+
     return (
-        <Stack gap="xs">
-            <Group gap="sm">
+        <Box
+            className={settingsClasses.settingsGrid}
+            data-testid={`${rule.warehouseType}-agent-identity-rule`}
+        >
+            <Group gap="sm" wrap="nowrap">
                 {getWarehouseIcon(rule.warehouseType)}
-                <Text size="sm">
-                    {agentIdentitySentence(
-                        identityWarehouseNames[
-                            rule.warehouseType as keyof typeof identityWarehouseNames
-                        ],
-                    )}
+                <Text size="sm" fw={500}>
+                    {warehouseName}
                 </Text>
+            </Group>
+            <Stack gap="xs">
                 <Select
-                    aria-label={`${identityWarehouseNames[rule.warehouseType as keyof typeof identityWarehouseNames]} agent identity`}
+                    aria-label={`${warehouseName} agent identity`}
                     value={rule.source}
                     data={AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
                         (source) => ({
@@ -74,6 +79,7 @@ const AgentIdentityRule = ({
                     allowDeselect={false}
                     disabled={save.isLoading}
                     w={340}
+                    maw="100%"
                     onOptionSubmit={(value) => {
                         const source = AGENT_IDENTITY_SOURCES[
                             rule.warehouseType
@@ -95,80 +101,104 @@ const AgentIdentityRule = ({
                             setPendingSource(source);
                     }}
                 />
-            </Group>
-            <Text size="sm" c="dimmed">
-                {pending
-                    ? 'Not saved. Finish the setup below, then select Turn on.'
-                    : identityLabels[rule.source].helper}
-            </Text>
-            {pendingSource !== null && (
-                <AgentIdentityRuleConfirmModal
-                    warehouseType={rule.warehouseType}
-                    source={pendingSource}
-                    onClose={() => setPendingSource(null)}
-                    saving={save.isLoading}
-                    onConfirm={() =>
-                        save.mutate(
-                            {
-                                warehouseType: rule.warehouseType,
-                                source: pendingSource,
-                            },
-                            { onSuccess: () => setPendingSource(null) },
-                        )
-                    }
-                />
-            )}
-            {rule.projectsMissingAiServiceAccount &&
-                rule.projectsMissingAiServiceAccount.length > 0 && (
-                    <Text size="sm" c="orange">
-                        {rule.projectsMissingAiServiceAccount.length}{' '}
-                        {rule.projectsMissingAiServiceAccount.length === 1
-                            ? 'project has'
-                            : 'projects have'}{' '}
-                        no AI service account:{' '}
-                        {rule.projectsMissingAiServiceAccount
-                            .slice(0, 3)
-                            .map((project, index) => (
-                                <Fragment key={project.projectUuid}>
-                                    {index > 0 && ', '}
-                                    <Anchor
-                                        component={Link}
-                                        size="sm"
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/agentIdentity`}
-                                    >
-                                        {project.name}
-                                    </Anchor>
-                                </Fragment>
-                            ))}
-                        {rule.projectsMissingAiServiceAccount.length > 3 &&
-                            ` and ${rule.projectsMissingAiServiceAccount.length - 3} more`}
-                        .{' '}
-                        {rule.projectsMissingAiServiceAccount.length === 1
-                            ? 'Agents are refused on it until a project admin adds one.'
-                            : 'Agents are refused on them until a project admin adds one.'}
-                    </Text>
-                )}
-            {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
-                (pending ? (
-                    <SnowflakeAgentSetup
-                        key="pending"
-                        mode="pending"
+                <Text size="sm" c="dimmed">
+                    {pending
+                        ? 'Not saved. Finish the setup below, then select Turn on.'
+                        : identityLabels[rule.source].helper}
+                </Text>
+                {pendingSource !== null && (
+                    <AgentIdentityRuleConfirmModal
+                        warehouseType={rule.warehouseType}
+                        source={pendingSource}
+                        onClose={() => setPendingSource(null)}
                         saving={save.isLoading}
-                        onCancel={() => setPending(false)}
-                        onTurnOn={() =>
+                        onConfirm={() =>
                             save.mutate(
                                 {
                                     warehouseType: rule.warehouseType,
-                                    source: 'agent_sign_in',
+                                    source: pendingSource,
                                 },
-                                { onSuccess: () => setPending(false) },
+                                { onSuccess: () => setPendingSource(null) },
                             )
                         }
                     />
-                ) : rule.source === 'agent_sign_in' ? (
-                    <SnowflakeAgentSetup key="active" mode="active" />
-                ) : null)}
-        </Stack>
+                )}
+                {rule.projectsMissingAiServiceAccount &&
+                    rule.projectsMissingAiServiceAccount.length > 0 && (
+                        <Group
+                            role="status"
+                            gap="xs"
+                            align="flex-start"
+                            wrap="nowrap"
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="orange"
+                                size="sm"
+                            />
+                            <Text size="sm" c="orange" flex={1}>
+                                {rule.projectsMissingAiServiceAccount.length}{' '}
+                                {rule.projectsMissingAiServiceAccount.length ===
+                                1
+                                    ? 'project has'
+                                    : 'projects have'}{' '}
+                                no AI service account:{' '}
+                                {rule.projectsMissingAiServiceAccount
+                                    .slice(0, 3)
+                                    .map((project, index) => (
+                                        <Fragment key={project.projectUuid}>
+                                            {index > 0 && ', '}
+                                            <Anchor
+                                                component={Link}
+                                                size="sm"
+                                                to={`/generalSettings/projectManagement/${project.projectUuid}/agentIdentity`}
+                                            >
+                                                {project.name}
+                                            </Anchor>
+                                        </Fragment>
+                                    ))}
+                                {rule.projectsMissingAiServiceAccount.length >
+                                    3 &&
+                                    ` and ${rule.projectsMissingAiServiceAccount.length - 3} more`}
+                                .{' '}
+                                {rule.projectsMissingAiServiceAccount.length ===
+                                1
+                                    ? 'Agents are refused on it until a project admin adds one.'
+                                    : 'Agents are refused on them until a project admin adds one.'}
+                            </Text>
+                        </Group>
+                    )}
+                {rule.projectsMissingAiServiceAccount?.length === 0 && (
+                    <Group role="status" gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconCheck} color="green" size="sm" />
+                        <Text size="sm" c="green" flex={1}>
+                            Every {warehouseName} project has an AI service
+                            account.
+                        </Text>
+                    </Group>
+                )}
+                {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                    (pending ? (
+                        <SnowflakeAgentSetup
+                            key="pending"
+                            mode="pending"
+                            saving={save.isLoading}
+                            onCancel={() => setPending(false)}
+                            onTurnOn={() =>
+                                save.mutate(
+                                    {
+                                        warehouseType: rule.warehouseType,
+                                        source: 'agent_sign_in',
+                                    },
+                                    { onSuccess: () => setPending(false) },
+                                )
+                            }
+                        />
+                    ) : rule.source === 'agent_sign_in' ? (
+                        <SnowflakeAgentSetup key="active" mode="active" />
+                    ) : null)}
+            </Stack>
+        </Box>
     );
 };
 
@@ -208,8 +238,7 @@ const OrganizationAgentIdentitySection = () => {
         <SettingsCard>
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
-                    Choose who AI agents run as for each warehouse in your
-                    organisation.
+                    Choose who AI agents run as on each warehouse.
                 </Text>
                 <AgentIdentitySettings />
             </Stack>

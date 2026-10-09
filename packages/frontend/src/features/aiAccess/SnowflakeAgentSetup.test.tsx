@@ -151,12 +151,12 @@ describe('SnowflakeAgentSetup client', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Stored encrypted for your organisation. Only organisation admins can replace it; it is never shown again.',
+                'Stored encrypted for your organization. Only organization admins can replace it; it is never shown again.',
             ),
         ).toBeInTheDocument();
         expect(
             screen.queryByText(
-                'This instance also has Snowflake OAuth settings. A client saved here overrides them for this organisation.',
+                'This instance also has Snowflake OAuth settings. A client saved here overrides them for this organization.',
             ),
         ).not.toBeInTheDocument();
         expect(screen.getByLabelText('Client ID')).toHaveAttribute(
