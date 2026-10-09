@@ -2,11 +2,12 @@ import {
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import mapStyles from '../map/DepartmentMap.module.css';
 import { LEGEND_KINDS } from '../map/mapStyles';
 import {
     deepOrganization,
@@ -17,6 +18,7 @@ import {
     metricsFixture,
     seededOrganization,
 } from '../utils/adoptionFixtures';
+import { getSweepDelay } from '../utils/sweepDelay';
 import type * as Layout from './layout';
 import styles from './Waffle.module.css';
 import { WaffleView } from './WaffleView';
@@ -385,6 +387,10 @@ describe('WaffleView', () => {
                 'Departments are drawn as bars above 20,000 people',
             ),
         ).toBeInTheDocument();
+        expect(screen.queryByText(/Each square is a person/)).toBeNull();
+        expect(
+            screen.getByText('Select a department to see its numbers'),
+        ).toBeInTheDocument();
     });
 
     it('draws squares at exactly 20,000 people', () => {
@@ -407,5 +413,192 @@ describe('WaffleView', () => {
         const { container } = renderWaffle([d(name, null, 10, 2, 1)]);
         expect(screen.getAllByText(name).length).toBeGreaterThan(0);
         expect(container.querySelector('img')).toBeNull();
+    });
+
+    describe('changing the colouring', () => {
+        const AREA = { width: 720, height: 560 };
+        const varOf = (element: Element | null, name: string): number =>
+            element instanceof HTMLElement
+                ? Number.parseFloat(element.style.getPropertyValue(name))
+                : Number.NaN;
+        // The centre of a square in the drawing, from where its block, part and squares are placed
+        const centreOf = (square: HTMLElement) => {
+            const content = square.parentElement;
+            const part = content?.parentElement ?? null;
+            const block = square.closest(`.${styles.block}`);
+            const [x, y] = (
+                /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(
+                    square.style.transform,
+                ) ?? []
+            )
+                .slice(1)
+                .map(Number);
+            const half = varOf(content, '--cell') / 2;
+            return {
+                x:
+                    varOf(block, '--block-x') +
+                    varOf(part, '--part-x') +
+                    varOf(content, '--content-x') +
+                    x +
+                    half,
+                y:
+                    varOf(block, '--block-y') +
+                    varOf(part, '--part-y') +
+                    varOf(content, '--content-y') +
+                    y +
+                    half,
+            };
+        };
+        const wave = (container: HTMLElement) => {
+            const board = screen.getByRole('group', {
+                name: 'Departments in the waffle',
+            });
+            const squares = [
+                ...container.querySelectorAll<HTMLElement>(`.${styles.square}`),
+            ];
+            return {
+                squares,
+                delays: squares.map((square) => square.style.transitionDelay),
+                fade: board.style.getPropertyValue('--colour-fade'),
+                move: board.style.getPropertyValue('--colour-move'),
+                band: container.querySelector(`.${mapStyles.sweepBand}`),
+            };
+        };
+        const isStill = (container: HTMLElement) => {
+            const { delays, fade, move, band } = wave(container);
+            return (
+                delays.every((delay) => delay === '') &&
+                fade === '' &&
+                move === '' &&
+                band === null
+            );
+        };
+
+        let matchMedia: typeof window.matchMedia;
+        beforeEach(() => {
+            ({ matchMedia } = window);
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+            window.matchMedia = matchMedia;
+        });
+
+        it('sweeps the new colours across the squares from the top-left corner, then leaves no delay on any square', () => {
+            const { container } = renderWaffle(flatOrganization);
+            const before = wave(container).squares;
+            fireEvent.click(screen.getByRole('radio', { name: 'Last active' }));
+            const during = wave(container);
+            expect(during.squares).toHaveLength(2339);
+            // Every place keeps its element and only changes colour
+            expect(
+                during.squares.every(
+                    (square, index) => square === before[index],
+                ),
+            ).toBe(true);
+            // Each square waits for the sweep to reach its centre
+            expect(during.delays).toEqual(
+                during.squares.map(
+                    (square) => `${getSweepDelay(centreOf(square), AREA)}ms`,
+                ),
+            );
+            expect(new Set(during.delays).size).toBeGreaterThan(100);
+            expect(during.fade).toBe('380ms');
+            expect(during.move).toBe('');
+            expect(during.band).not.toBeNull();
+
+            vi.advanceTimersByTime(1500);
+            expect(isStill(container)).toBe(true);
+            expect(drawnSquares(container, 'inactive').length).toBeGreaterThan(
+                0,
+            );
+        });
+
+        it("keeps every place's element under the sweep, so nobody moves and only the colours change", () => {
+            // Five admins and five viewers spread through ten people, so colouring by role regroups them
+            const team = dept('Team', null, null, {
+                headcount: 12,
+                effectiveHeadcount: 12,
+                hasHeadcount: true,
+                metrics: metricsFixture(10, null, {
+                    activeCount30d: 4,
+                    activeCount12w: 4,
+                    roleSplit: {
+                        admins: 5,
+                        editors: 0,
+                        interactiveViewers: 0,
+                        viewers: 5,
+                    },
+                }),
+            });
+            const { container } = renderWaffle([team]);
+            const part = container.querySelector('[data-squares="own:Team"]');
+            if (part === null) throw new Error('Team is not drawn');
+            const squares = [...part.children] as HTMLElement[];
+            const places = squares.map((square) => square.style.transform);
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(
+                [...part.children].every(
+                    (element, index) => element === squares[index],
+                ),
+            ).toBe(true);
+            expect(squares.map((square) => square.style.transform)).toEqual(
+                places,
+            );
+            expect(squares.map((square) => square.dataset.kind)).toEqual([
+                ...Array(5).fill('admin'),
+                ...Array(5).fill('viewer'),
+                'noAccount',
+                'noAccount',
+            ]);
+        });
+
+        it('changes the colours at once for people who prefer reduced motion', () => {
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: query === '(prefers-reduced-motion: reduce)',
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            })) as unknown as typeof window.matchMedia;
+            const { container } = renderWaffle(flatOrganization);
+            fireEvent.click(screen.getByRole('radio', { name: 'Last active' }));
+            expect(isStill(container)).toBe(true);
+            expect(drawnSquares(container, 'inactive').length).toBeGreaterThan(
+                0,
+            );
+        });
+
+        it('ends the sweep at once when new numbers arrive, and animates nothing else: new numbers, selection or hover', () => {
+            const { container, rerender } = renderWaffle(seededOrganization());
+            const redraw = (departments: DepartmentWithMetrics[]) =>
+                rerender(
+                    <MemoryRouter>
+                        <WaffleView
+                            summary={summary(departments)}
+                            canManage
+                            onEdit={vi.fn()}
+                        />
+                    </MemoryRouter>,
+                );
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(isStill(container)).toBe(false);
+            const moreActive = seededOrganization().map((department) =>
+                department.name === 'Data'
+                    ? d('Data', null, 9, 5, 5)
+                    : department,
+            );
+            redraw(moreActive);
+            expect(isStill(container)).toBe(true);
+            fireEvent.click(screen.getByRole('button', { name: /^Finance,/ }));
+            fireEvent.mouseEnter(
+                screen.getByRole('button', { name: /^Marketing,/ }),
+            );
+            redraw(seededOrganization());
+            expect(isStill(container)).toBe(true);
+        });
     });
 });

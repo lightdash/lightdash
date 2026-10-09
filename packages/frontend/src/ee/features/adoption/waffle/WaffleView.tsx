@@ -15,12 +15,17 @@ import {
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
     type FC,
 } from 'react';
 import mapStyles from '../map/AdoptionMap.module.css';
+import {
+    COLOUR_TRANSITION,
+    startColourTransition,
+} from '../map/colourTransition';
 import { type ColourBy, type DotKind } from '../map/geometry';
 import { MapInspector } from '../map/MapInspector';
 import {
@@ -42,11 +47,23 @@ import {
     getDepartmentBreakdown,
     getOrganizationBreakdown,
 } from '../utils/peopleBreakdown';
-import { getPartPeople, groupSquares } from './groupSquares';
-import { layoutWaffle, SQUARE_LIMIT } from './layout';
+import { type SweepPoint } from '../utils/sweepDelay';
+import {
+    getDrawnSquares,
+    getPartPeople,
+    groupSquares,
+    type WafflePerson,
+    type WaffleSquare,
+} from './groupSquares';
+import {
+    getSquareOffset,
+    layoutWaffle,
+    SQUARE_LIMIT,
+    type WaffleLayout,
+} from './layout';
 import styles from './Waffle.module.css';
 import { WaffleBlock } from './WaffleBlock';
-import { buildWaffleBlocks } from './waffleBlocks';
+import { buildWaffleBlocks, type WafflePart } from './waffleBlocks';
 
 const ROOT_NAME = 'All departments';
 // Used only where the container cannot be measured
@@ -56,6 +73,70 @@ type Props = {
     summary: OrganizationAdoptionSummary;
     canManage: boolean;
     onEdit: (department: DepartmentWithMetrics) => void;
+};
+
+type DrawnPeople = {
+    layout: WaffleLayout;
+    partsById: Map<string, WafflePart>;
+    peopleByPart: Map<string, WafflePerson[]>;
+    squaresByPart: Map<string, WaffleSquare[]>;
+};
+
+// Every square on the board in the order of its part's elements, with its centre in the drawing and its place in its
+// part under the previous colouring
+const collectSquares = (
+    board: HTMLElement,
+    { layout, partsById, peopleByPart, squaresByPart }: DrawnPeople,
+    previous: ColourBy,
+) => {
+    const marks: Element[] = [];
+    const points: SweepPoint[] = [];
+    const previousIndexes: number[] = [];
+    const containers = new Map(
+        Array.from(
+            board.querySelectorAll<HTMLElement>('[data-squares]'),
+            (element) => [element.dataset.squares, element],
+        ),
+    );
+    layout.blocks.forEach((block) =>
+        block.parts.forEach(({ id, x, y, content, grid }) => {
+            const container = containers.get(id);
+            const part = partsById.get(id);
+            const people = peopleByPart.get(id);
+            const squares = squaresByPart.get(id);
+            if (
+                grid.kind !== 'squares' ||
+                !container ||
+                !part ||
+                !people ||
+                !squares
+            ) {
+                return;
+            }
+            const before = new Map(
+                groupSquares(people, previous, part.size).map((square) => [
+                    square.key,
+                    square.position,
+                ]),
+            );
+            getDrawnSquares(squares, COLOUR_TRANSITION).forEach(
+                ({ square }, index) => {
+                    const element = container.children.item(index);
+                    if (element === null) return;
+                    const offset = getSquareOffset(grid, square.position);
+                    marks.push(element);
+                    points.push({
+                        x: block.x + x + content.x + offset.x + grid.cell / 2,
+                        y: block.y + y + content.y + offset.y + grid.cell / 2,
+                    });
+                    previousIndexes.push(
+                        before.get(square.key) ?? square.position,
+                    );
+                },
+            );
+        }),
+    );
+    return { marks, points, previousIndexes };
 };
 
 const WaffleLegend: FC<{
@@ -89,7 +170,9 @@ const WaffleLegend: FC<{
             </Text>
         )}
         <Text fz="xs" c="dimmed">
-            Each square is a person. Select a department to see its numbers
+            {isOverLimit
+                ? 'Select a department to see its numbers'
+                : 'Each square is a person. Select a department to see its numbers'}
         </Text>
     </Stack>
 );
@@ -141,6 +224,10 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         () => blocks.flatMap((block) => block.parts),
         [blocks],
     );
+    const partsById = useMemo(
+        () => new Map(parts.map((part) => [part.id, part])),
+        [parts],
+    );
     // Made once for each set of counts, so a change of colouring only gives the same people new places
     const peopleByPart = useMemo(
         () =>
@@ -171,6 +258,47 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
             ),
         [parts, peopleByPart, colourBy],
     );
+
+    const boardRef = useRef<HTMLDivElement | null>(null);
+    const bandLayerRef = useRef<HTMLDivElement | null>(null);
+    // The colouring the squares were last drawn in; nothing else that changes them is animated
+    const drawnColourByRef = useRef(colourBy);
+    // Runs once React has drawn the new colours and before the browser works them out, so each square waits for the
+    // change to reach it. New data or a new size during a change ends it, so they show at once
+    useLayoutEffect(() => {
+        const previous = drawnColourByRef.current;
+        if (previous === colourBy) return undefined;
+        drawnColourByRef.current = colourBy;
+        const board = boardRef.current;
+        const bandLayer = bandLayerRef.current;
+        if (!board || !bandLayer) return undefined;
+        const { marks, points, previousIndexes } = collectSquares(
+            board,
+            { layout, partsById, peopleByPart, squaresByPart },
+            previous,
+        );
+        return startColourTransition(
+            {
+                layer: board,
+                marks,
+                points,
+                area: { width, height },
+                bandLayer,
+                // Only a reflow moves people; otherwise every place keeps its square
+                previousIndexes:
+                    COLOUR_TRANSITION === 'reflow' ? previousIndexes : null,
+            },
+            COLOUR_TRANSITION,
+        );
+    }, [
+        colourBy,
+        layout,
+        partsById,
+        peopleByPart,
+        squaresByPart,
+        width,
+        height,
+    ]);
 
     // The legend counts the people drawn, from the same numbers as the panel; the panel shows the selection
     const organizationBreakdown = useMemo(
@@ -286,6 +414,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                             </Box>
                         ) : (
                             <Box
+                                ref={boardRef}
                                 className={styles.board}
                                 role="group"
                                 aria-label="Departments in the waffle"
@@ -318,6 +447,8 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                                 })}
                             </Box>
                         )}
+                        {/* Empty but for the band that crosses the waffle while its colouring changes */}
+                        <Box ref={bandLayerRef} className={styles.bandLayer} />
                     </Box>
                     <WaffleLegend
                         colourBy={colourBy}

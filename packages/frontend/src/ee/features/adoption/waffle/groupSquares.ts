@@ -1,4 +1,5 @@
-import { type AdoptionMetrics } from '@lightdash/common';
+import { assertUnreachable, type AdoptionMetrics } from '@lightdash/common';
+import { type ColourTransition } from '../map/colourTransition';
 import { type ColourBy, type DotKind } from '../map/geometry';
 import { LEGEND_KINDS } from '../map/mapStyles';
 
@@ -119,4 +120,22 @@ export const groupSquares = (
             }),
         ),
     ];
+};
+
+// The order a part's squares are drawn in, with each element's key. A reflow keeps each person's element and moves
+// it; otherwise each place keeps its element and only its colour changes
+export const getDrawnSquares = (
+    squares: WaffleSquare[],
+    transition: ColourTransition,
+): { key: string; square: WaffleSquare }[] => {
+    switch (transition) {
+        case 'reflow':
+            return squares.map((square) => ({ key: square.key, square }));
+        case 'sweep':
+            return [...squares]
+                .sort((a, b) => a.position - b.position)
+                .map((square) => ({ key: `place:${square.position}`, square }));
+        default:
+            return assertUnreachable(transition, 'Unknown colour transition');
+    }
 };
