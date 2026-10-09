@@ -32,6 +32,7 @@ describe('AiServiceAccountConnectionCard', () => {
             expect(screen.queryByText('Nothing to do')).not.toBeInTheDocument();
             expect(container.querySelector('.mantine-Badge-root')).toBeNull();
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
         },
     );
 });

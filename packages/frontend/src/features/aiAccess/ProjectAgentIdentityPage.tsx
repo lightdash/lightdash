@@ -40,6 +40,7 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
     )
         return null;
     if (
+        project.warehouseConnection?.type !== WarehouseTypes.ATHENA &&
         project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
         project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE &&
         project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS

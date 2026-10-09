@@ -10,12 +10,15 @@ import { Link } from 'react-router';
 import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
 
 type ServiceAccountWarehouse =
+    | WarehouseTypes.ATHENA
     | WarehouseTypes.BIGQUERY
     | WarehouseTypes.SNOWFLAKE
     | WarehouseTypes.DATABRICKS;
 
 const getMethod = (warehouseType: ServiceAccountWarehouse): string => {
     switch (warehouseType) {
+        case WarehouseTypes.ATHENA:
+            return 'Access keys';
         case WarehouseTypes.BIGQUERY:
             return 'Key file';
         case WarehouseTypes.SNOWFLAKE:

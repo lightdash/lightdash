@@ -10,6 +10,7 @@ import { useState } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { BigQueryKeyFileInput } from '../../components/ProjectConnection/WarehouseForms/BigQueryKeyFileInput';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
+import { AthenaAiServiceAccountForm } from './AthenaAiServiceAccountForm';
 import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
 import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
 
@@ -117,11 +118,14 @@ export const AiServiceAccountForm = ({
     ...props
 }: AiServiceAccountFormProps & {
     warehouseType:
+        | WarehouseTypes.ATHENA
         | WarehouseTypes.BIGQUERY
         | WarehouseTypes.DATABRICKS
         | WarehouseTypes.SNOWFLAKE;
 }) => {
     switch (warehouseType) {
+        case WarehouseTypes.ATHENA:
+            return <AthenaAiServiceAccountForm {...props} />;
         case WarehouseTypes.BIGQUERY:
             return <BigqueryAiServiceAccountForm {...props} />;
         case WarehouseTypes.DATABRICKS:
