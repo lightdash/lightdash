@@ -35,6 +35,17 @@ export function generateTableCalculationTemplate(
     const fieldId = getItemId(field);
 
     switch (type) {
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
+            return {
+                type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+                fieldId,
+                orderBy: currentSorts.map((sort) => ({
+                    fieldId: sort.fieldId,
+                    order: sort.descending ? 'desc' : 'asc',
+                })),
+                partitionBy: [],
+            };
+
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
             return {
                 type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,

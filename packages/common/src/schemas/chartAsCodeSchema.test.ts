@@ -1,5 +1,6 @@
 import Ajv, { type ErrorObject } from 'ajv';
 import { ContentAsCodeType } from '../types/contentAsCode/core';
+import { CustomFormatType, TableCalculationTemplateType } from '../types/field';
 import {
     chartAsCodeSchema,
     getChartAsCodeBranchSchema,
@@ -65,6 +66,33 @@ describe('chartAsCodeSchema', () => {
 
     test('accepts a semantic layer chart', () => {
         expect(validate(validChart)).toBe(true);
+    });
+
+    test('accepts a chart with a difference from previous calculation', () => {
+        expect(
+            validate({
+                ...validChart,
+                metricQuery: {
+                    ...validChart.metricQuery,
+                    metrics: ['orders_revenue'],
+                    tableCalculations: [
+                        {
+                            name: 'revenue_difference',
+                            displayName: 'Revenue difference',
+                            template: {
+                                type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+                                fieldId: 'orders_revenue',
+                                orderBy: [
+                                    { fieldId: 'orders_date', order: 'asc' },
+                                ],
+                                partitionBy: ['orders_status'],
+                            },
+                            format: { type: CustomFormatType.NUMBER, round: 2 },
+                        },
+                    ],
+                },
+            }),
+        ).toBe(true);
     });
 
     test('accepts a semantic layer chart without contentType', () => {
