@@ -1,12 +1,12 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept, metricsFixture } from '../utils/adoptionFixtures';
+import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentMap } from './DepartmentMap';
 import styles from './DepartmentMap.module.css';
 import { type PackedCircle } from './geometry';
 import { estimateTextWidth, TEXT_FONTS } from './mapLayout';
-import { describeCircles } from './mapView';
+import { describeCircles, type MapDot } from './mapView';
 
 const AREA = { width: 760, height: 560 };
 
@@ -38,7 +38,9 @@ const SERVICE = dept('Service', null, null, {
 const draw = (
     circles: PackedCircle[],
     highlightedUuid: string | null = null,
+    dots: MapDot[] = [],
 ) => {
+    const onPersonClick = vi.fn();
     const info = describeCircles(
         circles,
         new Map([
@@ -59,7 +61,7 @@ const draw = (
             height={AREA.height}
             circles={circles}
             info={info}
-            dots={[]}
+            dots={dots}
             colourBy="activity"
             ariaLabel="Map"
             measureText={estimateTextWidth}
@@ -67,7 +69,7 @@ const draw = (
             highlightedUuid={highlightedUuid}
             selectedUserUuid={null}
             onDepartmentClick={vi.fn()}
-            onPersonClick={vi.fn()}
+            onPersonClick={onPersonClick}
         />,
     );
     const textOf = (id: string) =>
@@ -100,6 +102,7 @@ const draw = (
         restBaselinesOf,
         hover,
         leave,
+        onPersonClick,
     };
 };
 
@@ -215,5 +218,90 @@ describe('DepartmentMap labels', () => {
         expect(
             container.querySelector('[data-rest-label="Service"]'),
         ).toHaveAttribute('font-size', String(TEXT_FONTS.name.size / 1.6));
+    });
+});
+
+describe('DepartmentMap dots', () => {
+    const dot = (key: string, x: number, isShared: boolean): MapDot => ({
+        key,
+        circleId: 'Service',
+        x,
+        y: 280,
+        r: 5,
+        kind: 'healthy',
+        member: null,
+        isShared,
+    });
+
+    it('rings the dot of a person who counts in another department, inside the room the dot has', () => {
+        const { container } = draw([circleOfPeople(120)], null, [
+            dot('a', 370, true),
+            dot('b', 390, false),
+        ]);
+        const rings = [...container.querySelectorAll(`.${styles.shared}`)];
+        expect(rings).toHaveLength(1);
+        const [ring] = rings;
+        // Drawn from counts, nobody is behind the dot, so its ring takes no presses
+        expect(ring).not.toHaveAttribute('data-ring-user');
+        const ringRadius = Number(ring.getAttribute('r'));
+        const ringWidth = Number(ring.getAttribute('stroke-width'));
+        expect(ring).toHaveAttribute('cx', '370');
+        expect(ringWidth).toBe(1);
+        // The ring's outer edge is the dot's own edge, so it never reaches a neighbour
+        expect(ringRadius + ringWidth / 2).toBeCloseTo(5, 9);
+        // How far a dot reaches, its edge included
+        const footprint = (circle: Element | null) =>
+            Number(circle?.getAttribute('r')) +
+            Number(circle?.getAttribute('stroke-width') ?? 0) / 2;
+        const ringed = container.querySelector('[data-dot][data-shared]');
+        expect(ringed).toHaveAttribute('cx', '370');
+        expect(footprint(ringed)).toBeLessThan(ringRadius - ringWidth / 2);
+        // Every dot is still one circle in the dots layer, ringed or not, and one without a ring fills its room
+        expect(container.querySelectorAll('[data-dot]')).toHaveLength(2);
+        expect(
+            footprint(container.querySelector('[data-dot]:not([data-shared])')),
+        ).toBe(5);
+    });
+    it("keeps a loaded person's whole room selectable: a press on their ring selects them, and their dot sits above it", () => {
+        const { container, onPersonClick } = draw([circleOfPeople(120)], null, [
+            { ...dot('a', 370, true), member: memberFixture('sam', null) },
+        ]);
+        const ring = container.querySelector(`.${styles.shared}`);
+        const ringed = container.querySelector('[data-dot][data-shared]');
+        expect(ring).toHaveAttribute('data-ring-user', 'sam');
+        expect(ringed).not.toBeNull();
+        // Drawn after its ring, so a press on the dot itself still reaches the dot
+        expect(
+            ring && ringed
+                ? ring.compareDocumentPosition(ringed) &
+                      Node.DOCUMENT_POSITION_FOLLOWING
+                : 0,
+        ).toBeTruthy();
+        if (ring) fireEvent.click(ring);
+        expect(onPersonClick).toHaveBeenCalledWith('sam');
+    });
+    it('sizes a dot and its ring from one room, so a smaller dot without an account keeps its ring at its edge', () => {
+        const { container } = draw([circleOfPeople(120)], null, [
+            { ...dot('a', 370, true), kind: 'noAccount' },
+        ]);
+        const ring = container.querySelector(`.${styles.shared}`);
+        const ringRadius = Number(ring?.getAttribute('r'));
+        const ringWidth = Number(ring?.getAttribute('stroke-width'));
+        // A dot without an account has 0.78 of the room a dot of 5 px has, and its ring sits at that edge
+        expect(ringRadius + ringWidth / 2).toBeCloseTo(5 * 0.78, 9);
+        expect(
+            Number(
+                container
+                    .querySelector('[data-dot][data-shared]')
+                    ?.getAttribute('r'),
+            ),
+        ).toBeLessThan(ringRadius - ringWidth / 2);
+    });
+    it('draws no rings when nobody counts in another department', () => {
+        const { container } = draw([circleOfPeople(120)], null, [
+            dot('a', 370, false),
+        ]);
+        expect(container.querySelector(`.${styles.shared}`)).toBeNull();
+        expect(container.querySelector('[data-shared]')).toBeNull();
     });
 });

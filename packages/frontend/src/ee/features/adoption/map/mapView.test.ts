@@ -1,9 +1,12 @@
+import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     dept,
     memberFixture,
     metricsFixture,
+    placedFixture,
     withServerHeadcounts,
+    withSharedPeople,
 } from '../utils/adoptionFixtures';
 import {
     getDepartmentBreakdown,
@@ -14,6 +17,7 @@ import {
     countPeople,
     layoutPack,
     SVG_DOT_LIMIT,
+    type ColourBy,
     type DotKind,
 } from './geometry';
 import { fitToArea } from './mapLayout';
@@ -27,6 +31,7 @@ import {
     formatPct,
     getFocusTrail,
     getLegendCounts,
+    getMemberDepartmentLines,
     getRingKeys,
     getViewTotals,
     getVisibleDepartments,
@@ -74,6 +79,16 @@ const tree = withServerHeadcounts([
 const byUuid = new Map(tree.map((each) => [each.departmentUuid, each]));
 const layout = (focus: string | null, departments = tree) =>
     layoutPack(buildPackInput(departments, focus));
+// The organization's people as the summary gives them, nobody in two top-level departments
+const organizationOf = (
+    departments: DepartmentWithMetrics[],
+    colourBy: ColourBy,
+) =>
+    getOrganizationBreakdown(
+        { placed: placedFixture(departments), departments },
+        colourBy,
+    );
+const ref = (name: string) => ({ departmentUuid: name, name });
 
 describe('getVisibleDepartments', () => {
     it('returns the top level when nothing is focused', () => {
@@ -152,6 +167,34 @@ describe('countDotKinds', () => {
     });
 });
 
+describe('groupMembersByDepartment', () => {
+    it('puts a person who counts in several departments in each of them, and nobody twice in one', () => {
+        const sam = memberFixture('sam', null, {
+            departmentUuid: 'Stores',
+            sharedWith: [ref('Depots')],
+        });
+        const groups = groupMembersByDepartment([
+            sam,
+            // Counts only in their primary, so only drawn there
+            memberFixture('pat', null, {
+                departmentUuid: 'Stores',
+                sharedWith: [ref('Finance')],
+                primaryDepartmentUuid: 'Stores',
+            }),
+            memberFixture('dee', null, {
+                departmentUuid: 'Depots',
+                sharedWith: [ref('Depots')],
+            }),
+            sam,
+        ]);
+        const people = (departmentUuid: string) =>
+            (groups.get(departmentUuid) ?? []).map((member) => member.userUuid);
+        expect(people('Stores')).toEqual(['sam', 'pat']);
+        expect(people('Depots')).toEqual(['sam', 'dee']);
+        expect(groups.has('Finance')).toBe(false);
+    });
+});
+
 describe('getLegendCounts', () => {
     // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, of whom 2 are on Lightdash
     const parent = withServerHeadcounts([
@@ -162,7 +205,7 @@ describe('getLegendCounts', () => {
 
     it("reads the panel's numbers, and the dots drawn match them", () => {
         const circles = layout(null, parent);
-        const breakdown = getOrganizationBreakdown(parent, 'activity');
+        const breakdown = organizationOf(parent, 'activity');
         const counts = getLegendCounts(breakdown);
         expect(Object.fromEntries(counts)).toEqual({
             healthy: 4,
@@ -193,7 +236,7 @@ describe('getLegendCounts', () => {
                     const legend = getLegendCounts(
                         focused
                             ? getDepartmentBreakdown(focused, colourBy)
-                            : getOrganizationBreakdown(departments, colourBy),
+                            : organizationOf(departments, colourBy),
                     );
                     const dots = countDotKinds(circles, colourBy, null);
                     expect({
@@ -212,15 +255,13 @@ describe('getLegendCounts', () => {
                 }),
             );
             // Every bucket is drawn somewhere in the organization
-            const top = getOrganizationBreakdown(departments, 'activity');
+            const top = organizationOf(departments, 'activity');
             top.forEach((part) => expect(part.count).toBeGreaterThan(0));
         },
     );
     it('reads the same as the dots wherever the headcount is all in sub-departments', () => {
         const circles = layout(null);
-        const counts = getLegendCounts(
-            getOrganizationBreakdown(tree, 'activity'),
-        );
+        const counts = getLegendCounts(organizationOf(tree, 'activity'));
         const dots = countDotKinds(circles, 'activity', null);
         LEGEND_KINDS.activity.forEach((kind) =>
             expect(counts.get(kind)).toBe(dots.get(kind)),
@@ -311,6 +352,76 @@ describe('buildDots', () => {
         const ops = layout(null).find((circle) => circle.id === 'Ops');
         expect(ops && buildDots(ops, 'activity', null)).toEqual([]);
     });
+    it('rings as many dots as the department has people who count in another department too, spread through its people on Lightdash', () => {
+        const stores = withServerHeadcounts([
+            withSharedPeople(d('Stores', null, 20, 6, 4), 2),
+        ]);
+        const [circle] = layout(null, stores);
+        const dots = buildDots(circle, 'activity', null);
+        expect(dots).toHaveLength(20);
+        // Two of its six dots on Lightdash, spread through them, and never someone without an account
+        expect(
+            dots.flatMap((dot, index) => (dot.isShared ? [index] : [])),
+        ).toEqual([1, 4]);
+        // The same dots coloured by role
+        expect(
+            buildDots(circle, 'role', null).map((dot) => dot.isShared),
+        ).toEqual(dots.map((dot) => dot.isShared));
+    });
+    it('rings the dots of the people directly in a department from their own count', () => {
+        const ops = withServerHeadcounts([
+            withSharedPeople(d('Ops', null, 40, 9, 4, 2), 3, 1),
+            withSharedPeople(d('Stores', 'Ops', 20, 5, 3), 1),
+            withSharedPeople(d('Depots', 'Ops', 10, 2, 1), 1),
+        ]);
+        const direct = layout(null, ops).find(
+            (circle) => circle.id === 'own:Ops',
+        );
+        expect(direct).toBeDefined();
+        if (!direct) return;
+        expect(
+            buildDots(direct, 'activity', null).filter((dot) => dot.isShared),
+        ).toHaveLength(1);
+    });
+    it('rings the loaded people who count in another department, in each department they count in', () => {
+        const members = groupMembersByDepartment([
+            memberFixture('sam', null, {
+                departmentUuid: 'Stores',
+                sharedWith: [ref('Depots')],
+            }),
+            memberFixture('pat', null, {
+                departmentUuid: 'Stores',
+                sharedWith: [ref('Finance')],
+                primaryDepartmentUuid: 'Stores',
+            }),
+            memberFixture('ann', RECENT, {
+                departmentUuid: 'Stores',
+                isActive30d: true,
+            }),
+        ]);
+        const circles = layout('Ops');
+        const dotsIn = (id: string) => {
+            const circle = circles.find((each) => each.id === id);
+            return circle ? buildDots(circle, 'activity', members) : [];
+        };
+        const ringed = (id: string) =>
+            dotsIn(id)
+                .filter((dot) => dot.isShared)
+                .map((dot) => dot.member?.userUuid);
+        expect(ringed('Stores')).toEqual(['sam']);
+        expect(ringed('Depots')).toEqual(['sam']);
+        // One dot each in Stores, and nobody's dot twice in one department
+        expect(
+            dotsIn('Stores').flatMap((dot) =>
+                dot.member ? [dot.member.userUuid] : [],
+            ),
+        ).toEqual(['ann', 'sam', 'pat']);
+        expect(
+            dotsIn('Depots').flatMap((dot) =>
+                dot.member ? [dot.member.userUuid] : [],
+            ),
+        ).toEqual(['sam']);
+    });
 });
 
 describe('dot and name thresholds', () => {
@@ -350,6 +461,28 @@ describe('describeCircles', () => {
         expect(info.get('Product')?.description).toBe(
             'Product, 5 on Lightdash, 5 active in the last 30 days, no headcount set',
         );
+    });
+    it('says how many people also count in another department', () => {
+        const shared = withServerHeadcounts([
+            withSharedPeople(d('Ops', null, 30, 8, 4, 0), 2, 0),
+            withSharedPeople(d('Stores', 'Ops', 20, 6, 4), 1),
+            withSharedPeople(d('Depots', 'Ops', 10, 3, 0), 2),
+            withSharedPeople(d('Product', null, null, 5, 5), 1),
+        ]);
+        const described = describeCircles(
+            layout(null, shared),
+            new Map(shared.map((each) => [each.departmentUuid, each])),
+        );
+        expect(described.get('Ops')?.description).toBe(
+            'Ops, 8 of 30 on Lightdash, 4 active in the last 30 days, 2 count in another department too, 2 sub-departments',
+        );
+        expect(described.get('Depots')?.description).toBe(
+            'Depots, 3 of 10 on Lightdash, 0 active in the last 30 days, 2 count in another department too',
+        );
+        expect(described.get('Product')?.description).toBe(
+            'Product, 5 on Lightdash, 5 active in the last 30 days, 1 counts in another department too, no headcount set',
+        );
+        expect(described.get('Depots')?.stats.shared).toBe(2);
     });
     it('says when a circle is not to scale', () => {
         const lopsided = [
@@ -400,6 +533,7 @@ describe('describeCircles', () => {
                     people: 84,
                     members: 84,
                     active: 0,
+                    shared: 0,
                     headcount: 84,
                     isDirect: true,
                 });
@@ -432,19 +566,53 @@ describe('describeCircles', () => {
     });
 });
 
+describe('getViewTotals', () => {
+    it('counts the people in view once each, as the panel does, with how many are active and also count in another department', () => {
+        const totals = { people: 36, members: 8, active: 3, shared: 2 };
+        expect(
+            getViewTotals(
+                [
+                    { kind: 'healthy', count: 3 },
+                    { kind: 'atRisk', count: 1 },
+                    { kind: 'lost', count: 4 },
+                    { kind: 'noAccount', count: 28 },
+                ],
+                { active: 3, shared: 2 },
+            ),
+        ).toEqual(totals);
+        // The same people whichever colouring the parts are in
+        expect(
+            getViewTotals(
+                [
+                    { kind: 'admin', count: 1 },
+                    { kind: 'editor', count: 2 },
+                    { kind: 'interactiveViewer', count: 0 },
+                    { kind: 'viewer', count: 5 },
+                    { kind: 'noAccount', count: 28 },
+                ],
+                { active: 3, shared: 2 },
+            ),
+        ).toEqual(totals);
+    });
+});
+
 describe('buildMapAriaLabel', () => {
     it('summarises the organization in words, naming the parts the dots are coloured by', () => {
-        const circles = layout(null);
-        const describe = (colourBy: 'activity' | 'role') =>
-            buildMapAriaLabel({
+        const describe = (colourBy: ColourBy) => {
+            const breakdown = organizationOf(tree, colourBy);
+            return buildMapAriaLabel({
                 scopeName: null,
                 departmentCount: 4,
-                totals: getViewTotals(circles),
+                totals: getViewTotals(breakdown, {
+                    active: placedFixture(tree).activeCount30d,
+                    shared: 0,
+                }),
                 areDotsHidden: false,
                 colourBy,
-                breakdown: getOrganizationBreakdown(tree, colourBy),
+                breakdown,
                 hasHeadcount: true,
             });
+        };
         expect(describe('activity')).toBe(
             'Map of the organization: 4 departments, 83 people, 17 on Lightdash placed in a department, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 11 healthy, 0 at risk, 6 lost, 66 with no account. The List view has the same numbers as a table',
         );
@@ -453,11 +621,17 @@ describe('buildMapAriaLabel', () => {
         );
     });
     it('names the focused department and its sub-departments', () => {
+        const ops = byUuid.get('Ops');
+        expect(ops).toBeDefined();
+        if (!ops) return;
         expect(
             buildMapAriaLabel({
                 scopeName: 'Ops',
                 departmentCount: 2,
-                totals: getViewTotals(layout('Ops')),
+                totals: getViewTotals(getDepartmentBreakdown(ops, 'activity'), {
+                    active: ops.metrics.activeCount30d,
+                    shared: 0,
+                }),
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
@@ -468,11 +642,14 @@ describe('buildMapAriaLabel', () => {
         );
     });
     it('uses the singular and leaves out the count for a department with no sub-departments', () => {
+        const finance = byUuid.get('Finance');
+        expect(finance).toBeDefined();
+        if (!finance) return;
         expect(
             buildMapAriaLabel({
                 scopeName: null,
                 departmentCount: 1,
-                totals: { people: 1, members: 1, active: 0 },
+                totals: { people: 1, members: 1, active: 0, shared: 0 },
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
@@ -483,7 +660,10 @@ describe('buildMapAriaLabel', () => {
             buildMapAriaLabel({
                 scopeName: 'Finance',
                 departmentCount: 0,
-                totals: getViewTotals(layout('Finance')),
+                totals: getViewTotals(
+                    getDepartmentBreakdown(finance, 'activity'),
+                    { active: finance.metrics.activeCount30d, shared: 0 },
+                ),
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
@@ -493,13 +673,14 @@ describe('buildMapAriaLabel', () => {
     });
     it('says no headcount is set, rather than nobody without an account, where none is entered in view', () => {
         const product = withServerHeadcounts([d('Product', null, null, 5, 5)]);
+        const breakdown = organizationOf(product, 'activity');
         const label = buildMapAriaLabel({
             scopeName: null,
             departmentCount: 1,
-            totals: getViewTotals(layout(null, product)),
+            totals: getViewTotals(breakdown, { active: 5, shared: 0 }),
             areDotsHidden: false,
             colourBy: 'activity',
-            breakdown: getOrganizationBreakdown(product, 'activity'),
+            breakdown,
             hasHeadcount: false,
         });
         expect(label).toContain(
@@ -512,7 +693,7 @@ describe('buildMapAriaLabel', () => {
             buildMapAriaLabel({
                 scopeName: null,
                 departmentCount: 1,
-                totals: { people: 6000, members: 10, active: 5 },
+                totals: { people: 6000, members: 10, active: 5, shared: 0 },
                 areDotsHidden: true,
                 colourBy: 'activity',
                 breakdown: [],
@@ -520,6 +701,42 @@ describe('buildMapAriaLabel', () => {
             }),
         ).toBe(
             'Map of the organization: 1 department, 6,000 people, 10 on Lightdash placed in a department, 5 active in the last 30 days. Each circle is a department sized by headcount. The List view has the same numbers as a table',
+        );
+    });
+    it('says how many people also count in another department, and that each of them has a ringed dot in each', () => {
+        const totals = { people: 36, members: 8, active: 3, shared: 2 };
+        const breakdown = [
+            { kind: 'healthy' as const, count: 3 },
+            { kind: 'atRisk' as const, count: 1 },
+            { kind: 'lost' as const, count: 4 },
+            { kind: 'noAccount' as const, count: 28 },
+        ];
+        expect(
+            buildMapAriaLabel({
+                scopeName: null,
+                departmentCount: 2,
+                totals,
+                areDotsHidden: false,
+                colourBy: 'activity',
+                breakdown,
+                hasHeadcount: true,
+            }),
+        ).toBe(
+            'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 count in another department too. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 1 at risk, 4 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
+        );
+        // Without dots there are no rings to explain
+        expect(
+            buildMapAriaLabel({
+                scopeName: 'Ops',
+                departmentCount: 2,
+                totals,
+                areDotsHidden: true,
+                colourBy: 'activity',
+                breakdown,
+                hasHeadcount: true,
+            }),
+        ).toBe(
+            'Map of Ops: 2 sub-departments, 36 people, 8 on Lightdash, 3 active in the last 30 days, 2 count in another department too. Each circle is a department sized by headcount. The List view has the same numbers as a table',
         );
     });
 });
@@ -546,6 +763,42 @@ describe('formatPct', () => {
         expect(formatPct(0, 0)).toBe('0%');
         expect(formatPct(41, 12)).toBe('41%');
         expect(formatPct(null, 12)).toBeNull();
+    });
+});
+
+describe('getMemberDepartmentLines', () => {
+    it('adds nothing for a person in one department', () => {
+        expect(
+            getMemberDepartmentLines(
+                memberFixture('ann', null, {
+                    departmentUuid: 'Stores',
+                    departmentName: 'Stores',
+                }),
+            ),
+        ).toEqual([]);
+    });
+    it('names every department a person is in, by name', () => {
+        expect(
+            getMemberDepartmentLines(
+                memberFixture('sam', null, {
+                    departmentUuid: 'Stores',
+                    departmentName: 'Stores',
+                    sharedWith: [ref('Marketing'), ref('Depots')],
+                }),
+            ),
+        ).toEqual(['In 3 departments: Depots, Marketing, Stores']);
+    });
+    it('says where a person with a primary counts', () => {
+        expect(
+            getMemberDepartmentLines(
+                memberFixture('pat', null, {
+                    departmentUuid: 'Stores',
+                    departmentName: 'Stores',
+                    sharedWith: [ref('Finance')],
+                    primaryDepartmentUuid: 'Stores',
+                }),
+            ),
+        ).toEqual(['In 2 departments: Finance, Stores', 'Counts in: Stores']);
     });
 });
 

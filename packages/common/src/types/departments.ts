@@ -45,6 +45,7 @@ export type UpdateDepartment = {
 export type SetDepartmentGroups = { groupUuids: string[] };
 export type SetDepartmentMembers = { userUuids: string[] };
 export type SetDepartmentOwners = { owners: DepartmentOwnerInput[] };
+export type SetPrimaryDepartment = { departmentUuid: string | null };
 
 export type RoleSplit = {
     viewers: number;
@@ -68,6 +69,7 @@ export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
     activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
+    sharedCount: number; // of these people, those who also count in another department
     coveragePct: number | null; // of the effective headcount, so never above 100; null only when that is 0
     activePct: number | null;
     roleSplit: RoleSplit;
@@ -83,21 +85,28 @@ export type DepartmentWithMetrics = Department & {
     directMetrics: AdoptionMetrics; // members resolved to this department itself; percentages of its residual headcount
 };
 
-export type OrganizationAdoptionSummary = {
-    organization: AdoptionMetrics;
-    departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
-    attention: { conflictCount: number; unassignedCount: number };
+// The people who count in at least one department, once each, split as the map colours them
+export type PlacedMetrics = {
+    memberCount: number;
+    activeCount30d: number;
+    roleSplit: RoleSplit;
+    activitySplit: ActivitySplit;
 };
 
-export type MembershipResolution =
-    | {
-          kind: 'assigned';
-          departmentUuid: string;
-          source: 'explicit' | 'group';
-          sourceGroupName: string | null; // set when source is group
-      }
-    | { kind: 'conflict'; departmentUuids: string[] }
-    | { kind: 'unassigned' };
+export type OrganizationAdoptionSummary = {
+    organization: AdoptionMetrics; // everyone on Lightdash, in a department or not
+    placed: PlacedMetrics;
+    departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
+    attention: { unassignedCount: number; sharedCount: number }; // shared = 2+ placements, no primary
+};
+
+export type MembershipPlacement = {
+    departmentUuid: string;
+    source: 'explicit' | 'group';
+    sourceGroupName: string | null; // set when source is group
+};
+
+export type MembershipKind = 'unassigned' | 'assigned' | 'shared';
 
 export type DepartmentMembership = {
     userUuid: string;
@@ -105,7 +114,10 @@ export type DepartmentMembership = {
     firstName: string;
     lastName: string;
     role: OrganizationMemberRole;
-    resolution: MembershipResolution;
+    kind: MembershipKind;
+    placements: MembershipPlacement[]; // most specific per branch, sorted by department uuid
+    primaryDepartmentUuid: string | null; // null when unset or not one of the placements
+    countedDepartmentUuids: string[]; // the primary alone, else every placement
 };
 
 export type DepartmentGroupLink = {
@@ -121,8 +133,9 @@ export type ResolvedMemberRow = {
     firstName: string;
     lastName: string;
     role: OrganizationMemberRole;
-    explicitDepartmentUuid: string | null;
+    explicitDepartmentUuids: string[];
     groupLinks: DepartmentGroupLink[];
+    primaryDepartmentUuid: string | null;
 };
 
 export type ApiOrganizationAdoptionSummaryResponse = {
@@ -181,6 +194,8 @@ export type DepartmentMember = {
     activity: ActivityBucket; // same bounds as activitySplit
     queries30d: number;
     dashboardViews30d: number;
+    sharedWith: DepartmentRef[]; // the person's other placements
+    primaryDepartmentUuid: string | null; // the effective primary, as on DepartmentMembership, not the stored value on ResolvedMemberRow
 };
 
 export type DepartmentDetail = {
@@ -196,4 +211,29 @@ export type DepartmentDetail = {
 export type ApiDepartmentDetailResponse = {
     status: 'ok';
     results: DepartmentDetail;
+};
+
+export type DepartmentOverlap = {
+    departmentUuid: string;
+    name: string;
+    people: number;
+    active30d: number;
+};
+
+export type DepartmentVennRegion = {
+    sets: string[]; // department uuids, 1 to 3
+    people: number;
+    active30d: number;
+};
+
+export type DepartmentOverlaps = {
+    department: DepartmentRef;
+    overlaps: DepartmentOverlap[];
+    venn: { sets: DepartmentRef[]; regions: DepartmentVennRegion[] } | null;
+    members: DepartmentMember[] | null;
+};
+
+export type ApiDepartmentOverlapsResponse = {
+    status: 'ok';
+    results: DepartmentOverlaps;
 };

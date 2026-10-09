@@ -5,6 +5,7 @@ import {
     metricsFixture,
     seededOrganization,
     withServerHeadcounts,
+    withSharedPeople,
 } from '../utils/adoptionFixtures';
 import {
     buildPackInput,
@@ -328,6 +329,7 @@ describe('getCaptionVariants', () => {
                 people: 60,
                 members: 41,
                 active: 33,
+                shared: 0,
                 headcount: 60,
                 isDirect: false,
             }),
@@ -339,6 +341,7 @@ describe('getCaptionVariants', () => {
                 people: 9,
                 members: 9,
                 active: 9,
+                shared: 0,
                 headcount: 9,
                 isDirect: false,
             })[0],
@@ -350,6 +353,7 @@ describe('getCaptionVariants', () => {
                 people: 80,
                 members: 0,
                 active: 0,
+                shared: 0,
                 headcount: 80,
                 isDirect: false,
             }),
@@ -361,6 +365,7 @@ describe('getCaptionVariants', () => {
                 people: 14,
                 members: 14,
                 active: 11,
+                shared: 0,
                 headcount: null,
                 isDirect: false,
             }),
@@ -375,6 +380,7 @@ describe('getCaptionVariants', () => {
                 people: 3000,
                 members: 412,
                 active: 180,
+                shared: 0,
                 headcount: 3000,
                 isDirect: false,
             })[0],
@@ -386,6 +392,7 @@ describe('getCaptionVariants', () => {
                 people: 80,
                 members: 50,
                 active: 12,
+                shared: 0,
                 headcount: 80,
                 isDirect: true,
             }),
@@ -398,6 +405,7 @@ describe('getCaptionVariants', () => {
                 people: 3,
                 members: 3,
                 active: 3,
+                shared: 0,
                 headcount: 3,
                 isDirect: true,
             }),
@@ -410,6 +418,7 @@ describe('getCaptionVariants', () => {
                 people: 8,
                 members: 0,
                 active: 0,
+                shared: 0,
                 headcount: 8,
                 isDirect: true,
             }),
@@ -424,6 +433,7 @@ describe('getCaptionVariants', () => {
                 people: 4,
                 members: 4,
                 active: 1,
+                shared: 0,
                 headcount: null,
                 isDirect: true,
             }),
@@ -513,6 +523,51 @@ describe('getHoverLabel', () => {
             detail: null,
             isNested: true,
         });
+    });
+    it('says how many people also count in another department, in the fuller line or under a sub-department', () => {
+        // One person in Stores and Depots, and one in Depots and Finance
+        const departments = withServerHeadcounts([
+            withSharedPeople(d('Ops', null, null, 8, 2, 0), 2, 0),
+            withSharedPeople(d('Stores', 'Ops', 20, 5, 2), 1),
+            withSharedPeople(d('Depots', 'Ops', 10, 4, 1), 2),
+            withSharedPeople(d('Finance', null, 8, 3, 1), 1),
+            d('Legal', null, 6, 2, 0),
+        ]);
+        const { circles } = build(departments);
+        const info = describeCircles(
+            circles,
+            new Map(departments.map((each) => [each.departmentUuid, each])),
+        );
+        const hoverOf = (id: string, area: Area = PANEL) => {
+            const circle = circles.find((each) => each.id === id);
+            if (!circle) throw new Error(`No circle ${id}`);
+            return getHoverLabel(circle, info, 1, area, estimateTextWidth);
+        };
+        expect(hoverOf('Ops')).toMatchObject({
+            name: 'Ops',
+            detail: '8 of 29 on Lightdash · 2 active · 2 count in another department too · 2 sub-departments',
+            isNested: false,
+        });
+        expect(hoverOf('Depots')).toMatchObject({
+            name: 'Depots · 10',
+            detail: '2 count in another department too',
+            isNested: true,
+        });
+        expect(hoverOf('Legal')).toMatchObject({
+            name: 'Legal',
+            detail: '2 of 6 on Lightdash · 0 active',
+        });
+        // Where the fuller line does not fit, the shortest numbers stay and the rest goes
+        expect(hoverOf('Ops', { width: 200, height: 560 })).toMatchObject({
+            name: 'Ops',
+            detail: '8 of 29',
+        });
+        // A name at rest keeps the shortest line, without them
+        expect(
+            getRestLabels(circles, info, 1, PANEL, estimateTextWidth).find(
+                (label) => label.id === 'Ops',
+            ),
+        ).toMatchObject({ name: 'Ops', detail: '8 of 29' });
     });
     it('leaves the people directly in a department nested in its circle unnamed', () => {
         // Supply chain's own people sit beside its sub-departments, inside it

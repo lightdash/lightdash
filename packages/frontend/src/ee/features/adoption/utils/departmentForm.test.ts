@@ -3,15 +3,19 @@ import {
     type DepartmentMembership,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { memberFixture } from './adoptionFixtures';
 import {
     buildDepartmentUpdate,
     cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
+    getAlsoIn,
     getAssignableUsers,
     getDepartmentPathLabel,
     getParentOptions,
     getResolvedMembers,
+    placementsFromDetail,
+    placementsFromMembership,
     toNullableNumber,
     validateWholeNumber,
 } from './departmentForm';
@@ -22,25 +26,37 @@ const departments = [
     { departmentUuid: 'north', parentDepartmentUuid: 'stores', name: 'North' },
     { departmentUuid: 'fin', parentDepartmentUuid: null, name: 'Finance' },
 ];
+const withDepots = [
+    ...departments,
+    { departmentUuid: 'depots', parentDepartmentUuid: 'ops', name: 'Depots' },
+    { departmentUuid: 'data', parentDepartmentUuid: null, name: 'Data' },
+];
 
+// Placements are given in uuid order, as the server sorts them
 const member = (
     userUuid: string,
-    departmentUuid: string | null,
+    placedIn: string[],
+    primaryDepartmentUuid: string | null = null,
 ): DepartmentMembership => ({
     userUuid,
     email: `${userUuid}@example.com`,
     firstName: userUuid,
     lastName: 'L',
     role: OrganizationMemberRole.VIEWER,
-    resolution:
-        departmentUuid === null
-            ? { kind: 'unassigned' }
-            : {
-                  kind: 'assigned',
-                  departmentUuid,
-                  source: 'explicit',
-                  sourceGroupName: null,
-              },
+    kind:
+        placedIn.length === 0
+            ? 'unassigned'
+            : placedIn.length === 1
+              ? 'assigned'
+              : 'shared',
+    placements: placedIn.map((departmentUuid) => ({
+        departmentUuid,
+        source: 'explicit',
+        sourceGroupName: null,
+    })),
+    primaryDepartmentUuid,
+    countedDepartmentUuids:
+        primaryDepartmentUuid === null ? placedIn : [primaryDepartmentUuid],
 });
 
 describe('owner encoding', () => {
@@ -121,27 +137,118 @@ describe('getParentOptions', () => {
 
 describe('getResolvedMembers', () => {
     const membership = [
-        member('direct', 'ops'),
-        member('deep', 'north'),
-        member('other', 'fin'),
-        member('nobody', null),
+        member('direct', ['ops']),
+        member('deep', ['north']),
+        member('other', ['fin']),
+        member('nobody', []),
+        member('shared', ['fin', 'stores']),
+        member('countsElsewhere', ['fin', 'stores'], 'fin'),
+        member('countsHere', ['fin', 'ops'], 'ops'),
     ];
+    const lines = (departmentUuid: string, people = membership) =>
+        getResolvedMembers(people, withDepots, departmentUuid).map((line) => [
+            line.member.userUuid,
+            line.via,
+        ]);
     it('labels direct members and members who come through a sub-department', () => {
-        expect(
-            getResolvedMembers(membership, departments, 'ops').map((line) => [
-                line.member.userUuid,
-                line.via,
-            ]),
-        ).toEqual([
+        expect(lines('ops')).toEqual([
             ['direct', null],
             ['deep', 'North'],
+            ['shared', 'Stores'],
+            ['countsHere', null],
+        ]);
+    });
+    it('lists people only where they count, so a chosen department elsewhere leaves them out', () => {
+        expect(lines('stores')).toEqual([
+            ['deep', 'North'],
+            ['shared', null],
+        ]);
+        expect(lines('fin').map(([userUuid]) => userUuid)).toEqual([
+            'other',
+            'shared',
+            'countsElsewhere',
+        ]);
+    });
+    it('comes through the first of their sub-departments, as the department page does', () => {
+        expect(lines('ops', [member('both', ['depots', 'stores'])])).toEqual([
+            ['both', 'Depots'],
         ]);
     });
     it('returns nobody for a department without members', () => {
-        expect(
-            getResolvedMembers(membership, departments, 'stores'),
-        ).toHaveLength(1);
+        expect(lines('data')).toEqual([]);
         expect(getResolvedMembers([], departments, 'ops')).toEqual([]);
+    });
+});
+
+describe('getAlsoIn', () => {
+    const alsoIn = (
+        departmentUuids: string[],
+        line: {
+            departmentUuid: string | null;
+            parentDepartmentUuid: string | null;
+        },
+    ) =>
+        getAlsoIn([{ userUuid: 'u1', departmentUuids }], withDepots, line).get(
+            'u1',
+        );
+    const STORES = { departmentUuid: 'stores', parentDepartmentUuid: 'ops' };
+
+    it('names the other departments a person is in, by name', () => {
+        expect(alsoIn(['data', 'fin', 'stores'], STORES)).toEqual([
+            'Data',
+            'Finance',
+        ]);
+        expect(alsoIn(['depots', 'fin'], STORES)).toEqual([
+            'Depots',
+            'Finance',
+        ]);
+    });
+    it('leaves out the departments above and below this one, which already hold it', () => {
+        expect(alsoIn(['fin', 'north'], STORES)).toEqual(['Finance']);
+        expect(alsoIn(['ops'], STORES)).toBeUndefined();
+        expect(alsoIn(['north'], STORES)).toBeUndefined();
+    });
+    it('reads the line from the chosen parent, so a new department leaves out the parent and above', () => {
+        const NEW_UNDER_STORES = {
+            departmentUuid: null,
+            parentDepartmentUuid: 'stores',
+        };
+        expect(alsoIn(['fin', 'ops'], NEW_UNDER_STORES)).toEqual(['Finance']);
+        expect(alsoIn(['north'], NEW_UNDER_STORES)).toEqual(['North']);
+        expect(
+            alsoIn(['fin', 'ops'], {
+                departmentUuid: null,
+                parentDepartmentUuid: null,
+            }),
+        ).toEqual(['Finance', 'Operations']);
+    });
+    it('leaves out people in nowhere else and departments it does not know', () => {
+        expect(alsoIn([], STORES)).toBeUndefined();
+        expect(alsoIn(['gone', 'fin'], STORES)).toEqual(['Finance']);
+    });
+});
+
+describe('placements for also in', () => {
+    it('reads every placement from the membership list', () => {
+        expect(
+            placementsFromMembership([
+                member('shared', ['fin', 'stores'], 'fin'),
+                member('nobody', []),
+            ]),
+        ).toEqual([
+            { userUuid: 'shared', departmentUuids: ['fin', 'stores'] },
+            { userUuid: 'nobody', departmentUuids: [] },
+        ]);
+    });
+    it("reads a department page's people from where they count and who they are shared with", () => {
+        expect(
+            placementsFromDetail([
+                memberFixture('shared', null, {
+                    departmentUuid: 'stores',
+                    sharedWith: [{ departmentUuid: 'fin', name: 'Finance' }],
+                }),
+            ]),
+        ).toEqual([{ userUuid: 'shared', departmentUuids: ['stores', 'fin'] }]);
     });
 });
 

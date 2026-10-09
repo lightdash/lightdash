@@ -1,9 +1,11 @@
 import {
     computeEffectiveHeadcounts,
+    getChildrenMap,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMember,
     type DepartmentWithMetrics,
+    type OrganizationAdoptionSummary,
 } from '@lightdash/common';
 
 // Test data builders shared by the adoption tests
@@ -16,6 +18,7 @@ export const metricsFixture = (
         memberCount,
         activeCount30d: 0,
         activeCount12w: 0,
+        sharedCount: 0,
         coveragePct,
         activePct: coveragePct === null ? null : 0,
         roleSplit: {
@@ -85,8 +88,8 @@ export const dept = (
     };
 };
 
-// Effective headcounts and their flags as the server works them out from the headcounts entered and the people
-// on Lightdash, so a test never describes data the server cannot send
+// Effective headcounts and their flags as the server works them out, from the headcounts entered and the people on
+// Lightdash rolled up with each person once, so a test never describes data the server cannot send
 export const withServerHeadcounts = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] => {
@@ -103,6 +106,78 @@ export const withServerHeadcounts = (
         const value = effective.get(department.departmentUuid);
         return value === undefined ? department : { ...department, ...value };
     });
+};
+
+// How many of a department's people also count in another department, rolled up and directly in it
+export const withSharedPeople = (
+    department: DepartmentWithMetrics,
+    sharedCount: number,
+    directSharedCount: number = sharedCount,
+): DepartmentWithMetrics => ({
+    ...department,
+    metrics: { ...department.metrics, sharedCount },
+    directMetrics: {
+        ...department.directMetrics,
+        sharedCount: directSharedCount,
+    },
+});
+
+// The people placed, split as metricsFixture splits people by default: viewers, active ones healthy, the rest lost
+export const placedMetricsFixture = (
+    memberCount: number,
+    activeCount30d: number,
+): OrganizationAdoptionSummary['placed'] => {
+    const { roleSplit, activitySplit } = metricsFixture(memberCount, null, {
+        activeCount30d,
+    });
+    return { memberCount, activeCount30d, roleSplit, activitySplit };
+};
+
+// The people placed in a department as the server counts them when nobody is in two top-level departments: the
+// top-level departments added up, part by part
+export const placedFixture = (
+    departments: DepartmentWithMetrics[],
+): OrganizationAdoptionSummary['placed'] => {
+    const topLevel = new Set(getChildrenMap(departments).get(null));
+    return departments
+        .filter((department) => topLevel.has(department.departmentUuid))
+        .reduce<OrganizationAdoptionSummary['placed']>(
+            (placed, { metrics }) => ({
+                memberCount: placed.memberCount + metrics.memberCount,
+                activeCount30d: placed.activeCount30d + metrics.activeCount30d,
+                roleSplit: {
+                    viewers:
+                        placed.roleSplit.viewers + metrics.roleSplit.viewers,
+                    interactiveViewers:
+                        placed.roleSplit.interactiveViewers +
+                        metrics.roleSplit.interactiveViewers,
+                    editors:
+                        placed.roleSplit.editors + metrics.roleSplit.editors,
+                    admins: placed.roleSplit.admins + metrics.roleSplit.admins,
+                },
+                activitySplit: {
+                    healthy:
+                        placed.activitySplit.healthy +
+                        metrics.activitySplit.healthy,
+                    atRisk:
+                        placed.activitySplit.atRisk +
+                        metrics.activitySplit.atRisk,
+                    lost:
+                        placed.activitySplit.lost + metrics.activitySplit.lost,
+                },
+            }),
+            {
+                memberCount: 0,
+                activeCount30d: 0,
+                roleSplit: {
+                    viewers: 0,
+                    interactiveViewers: 0,
+                    editors: 0,
+                    admins: 0,
+                },
+                activitySplit: { healthy: 0, atRisk: 0, lost: 0 },
+            },
+        );
 };
 
 export const memberFixture = (
@@ -125,6 +200,8 @@ export const memberFixture = (
         isActive30d: false,
         queries30d: 0,
         dashboardViews30d: 0,
+        sharedWith: [],
+        primaryDepartmentUuid: null,
         ...over,
     };
     return {

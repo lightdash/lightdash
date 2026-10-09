@@ -2,6 +2,7 @@ import {
     OrganizationMemberRole,
     type DepartmentDetail,
     type DepartmentMembership,
+    type DepartmentOverlaps,
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,7 +13,12 @@ import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
-import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    memberFixture,
+    metricsFixture,
+    placedMetricsFixture,
+} from '../utils/adoptionFixtures';
 import {
     getCoverageRows,
     getDepartmentBreakdown,
@@ -53,6 +59,7 @@ const { mutation, hooks } = vi.hoisted(() => ({
     hooks: {
         membership: [] as DepartmentMembership[],
         detail: undefined as DepartmentDetail | undefined,
+        overlaps: undefined as DepartmentOverlaps | undefined,
     },
 }));
 vi.mock('../../../hooks/useOrgDepartments', () => ({
@@ -62,8 +69,10 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
     useSetDepartmentOwners: mutation,
     useSetDepartmentGroups: mutation,
     useSetDepartmentMembers: mutation,
-    useDepartmentMembership: () => ({
-        data: hooks.membership,
+    useSetPrimaryDepartment: mutation,
+    // Like the real query: nothing until it is enabled
+    useDepartmentMembership: (enabled: boolean) => ({
+        data: enabled ? hooks.membership : undefined,
         isInitialLoading: false,
     }),
     useDepartmentDetail: (departmentUuid: string | undefined) => ({
@@ -73,6 +82,25 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
         error: null,
     }),
     useOrgAdoptionSummary: () => ({ data: undefined }),
+    // The overlaps as set, and for a chosen overlap the page's own people
+    useDepartmentOverlaps: (
+        departmentUuid: string | undefined,
+        withUuids: string[] = [],
+        withoutUuids: string[] = [],
+    ) => ({
+        data:
+            departmentUuid === undefined || hooks.overlaps === undefined
+                ? undefined
+                : {
+                      ...hooks.overlaps,
+                      members:
+                          withUuids.length + withoutUuids.length === 0
+                              ? null
+                              : (hooks.detail?.members ?? []),
+                  },
+        isInitialLoading: false,
+        isError: false,
+    }),
 }));
 vi.mock('../../../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
@@ -177,6 +205,7 @@ describe('typed strings render as text', () => {
     afterEach(() => {
         hooks.membership = [];
         hooks.detail = undefined;
+        hooks.overlaps = undefined;
     });
 
     it('in the list table', async () => {
@@ -202,17 +231,28 @@ describe('typed strings render as text', () => {
     });
 
     it('in the drawer and its delete confirmation', async () => {
+        const OTHER = hostile('Other');
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentDrawer
                     opened
                     onClose={vi.fn()}
-                    department={hostileDepartment}
-                    departments={[hostileDepartment, child]}
+                    department={{
+                        ...hostileDepartment,
+                        explicitMemberUuids: ['p1'],
+                    }}
+                    departments={[
+                        hostileDepartment,
+                        child,
+                        dept(OTHER, null, 50, { departmentUuid: 'other' }),
+                    ]}
                     members={[
                         memberFixture('p1', null, {
                             firstName: PERSON,
                             departmentUuid: 'hostile',
+                            sharedWith: [
+                                { departmentUuid: 'other', name: OTHER },
+                            ],
                         }),
                     ]}
                 />
@@ -222,6 +262,8 @@ describe('typed strings render as text', () => {
         expect(screen.getByLabelText(/^Name/)).toHaveValue(NAME);
         expect(screen.getByLabelText('Headcount note')).toHaveValue(NOTE);
         expectLiteral(PERSON);
+        // The assigned person's chip names the other department as text
+        expectLiteral(`also in ${OTHER}`);
         await userEvent.click(
             screen.getByRole('button', { name: 'Delete department' }),
         );
@@ -243,7 +285,10 @@ describe('typed strings render as text', () => {
                     rows={getCoverageRows([child], 'activity')}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
+                        departmentUuid: 'hostile',
                         departmentName: NAME,
+                        sharedWith: [{ departmentUuid: 'child', name: CHILD }],
+                        primaryDepartmentUuid: 'hostile',
                     })}
                     canManage
                     onDepartmentClick={vi.fn()}
@@ -258,6 +303,9 @@ describe('typed strings render as text', () => {
         expectLiteral(PERSON);
         expectLiteral(CHILD);
         expectLiteral(`Directly in ${NAME}`);
+        // The departments the person is in, and the one they count in
+        expectLiteral(`In 2 departments: ${CHILD}, ${NAME}`);
+        expectLiteral(`Counts in: ${NAME}`);
         expect(screen.getByTitle(`Directly in ${NAME} · 5`)).toHaveTextContent(
             `Directly in ${NAME} · 5`,
         );
@@ -314,8 +362,9 @@ describe('typed strings render as text', () => {
                 <AdoptionMap
                     summary={{
                         organization: metricsFixture(7, null),
+                        placed: placedMetricsFixture(7, 0),
                         departments: [hostileDepartment, child],
-                        attention: { conflictCount: 0, unassignedCount: 0 },
+                        attention: { unassignedCount: 0, sharedCount: 0 },
                     }}
                     canManage
                     onEdit={vi.fn()}
@@ -471,7 +520,104 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('in the placement modal rows and its department pickers', async () => {
+    it('in the overlaps: the diagram, its key, the list, the people filter and who else each person is in', async () => {
+        const PAGE = '11111111-2222-4333-8444-555555555555';
+        const OTHER = hostile('Other');
+        const THIRD = hostile('Third');
+        const other = { departmentUuid: 'other', name: OTHER };
+        const third = { departmentUuid: 'third', name: THIRD };
+        hooks.detail = {
+            department: { ...hostileDepartment, departmentUuid: PAGE },
+            ancestors: [],
+            children: [],
+            targetProgress: null,
+            weeklyActive: [],
+            topContent: { dashboards: [], explores: [], aiAgents: [] },
+            members: [
+                memberFixture('p1', null, {
+                    firstName: PERSON,
+                    departmentUuid: PAGE,
+                    departmentName: NAME,
+                    sharedWith: [other],
+                }),
+            ],
+        };
+        hooks.overlaps = {
+            department: { departmentUuid: PAGE, name: NAME },
+            overlaps: [
+                { ...other, people: 1, active30d: 0 },
+                { ...third, people: 1, active30d: 0 },
+            ],
+            venn: {
+                sets: [{ departmentUuid: PAGE, name: NAME }, other, third],
+                regions: [
+                    { sets: [PAGE], people: 0, active30d: 0 },
+                    { sets: ['other'], people: 4, active30d: 0 },
+                    { sets: ['third'], people: 2, active30d: 0 },
+                    { sets: [PAGE, 'other'], people: 1, active30d: 0 },
+                    { sets: [PAGE, 'third'], people: 1, active30d: 0 },
+                    { sets: ['other', 'third'], people: 0, active30d: 0 },
+                    { sets: [PAGE, 'other', 'third'], people: 0, active30d: 0 },
+                ],
+            },
+            members: null,
+        };
+        const { container } = renderWithProviders(
+            <MemoryRouter
+                initialEntries={[`/generalSettings/adoption/${PAGE}`]}
+            >
+                <Routes>
+                    <Route
+                        path="/generalSettings/adoption/:departmentUuid"
+                        element={<AdoptionDepartment />}
+                    />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        // The drawing's title and its regions' names hold the names as typed, as text
+        expect(
+            screen.getByRole('group', {
+                name: `Overlap of ${NAME}, ${OTHER} and ${THIRD}`,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: `${NAME} and ${OTHER}, 1 person`,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('img', { name: `${OTHER} only, 4 people` }),
+        ).toBeInTheDocument();
+        container
+            .querySelectorAll('svg title, svg text')
+            .forEach((node) => expect(node.children).toHaveLength(0));
+        // The key, the list and the person's other department are text
+        [NAME, OTHER, THIRD].forEach(expectLiteral);
+        expectLiteral(`Also in ${OTHER}`);
+        expectNothingInjected();
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: `${THIRD}, 1 person, 0 active`,
+            }),
+        );
+        expect(
+            screen.getByRole('button', {
+                name: `Clear filter: Also in ${THIRD}`,
+            }),
+        ).toBeInTheDocument();
+        expectLiteral(`Also in ${THIRD}`);
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: `${NAME} and ${OTHER}, 1 person`,
+            }),
+        );
+        expectLiteral(`Also in ${OTHER}, not in ${THIRD}`);
+        expectNothingInjected();
+    });
+
+    it('in the placement modal rows, chips and pickers', async () => {
         const OTHER = hostile('Other');
         const UNNAMED = hostile('Unnamed');
         hooks.membership = [
@@ -481,10 +627,21 @@ describe('typed strings render as text', () => {
                 firstName: PERSON,
                 lastName: SURNAME,
                 role: OrganizationMemberRole.VIEWER,
-                resolution: {
-                    kind: 'conflict',
-                    departmentUuids: ['hostile', 'other'],
-                },
+                kind: 'shared',
+                placements: [
+                    {
+                        departmentUuid: 'hostile',
+                        source: 'group',
+                        sourceGroupName: GROUP,
+                    },
+                    {
+                        departmentUuid: 'other',
+                        source: 'explicit',
+                        sourceGroupName: null,
+                    },
+                ],
+                primaryDepartmentUuid: null,
+                countedDepartmentUuids: ['hostile', 'other'],
             },
             {
                 userUuid: 'p2',
@@ -492,46 +649,34 @@ describe('typed strings render as text', () => {
                 firstName: '',
                 lastName: '',
                 role: OrganizationMemberRole.VIEWER,
-                resolution: { kind: 'unassigned' },
+                kind: 'unassigned',
+                placements: [],
+                primaryDepartmentUuid: null,
+                countedDepartmentUuids: [],
             },
         ];
-        renderWithProviders(
+        const modal = (tab: 'unassigned' | 'shared') => (
             <MembershipModal
                 opened
+                tab={tab}
+                onTabChange={vi.fn()}
                 onClose={vi.fn()}
                 departments={[
-                    {
-                        ...hostileDepartment,
-                        linkedGroups: [{ groupUuid: 'group', name: GROUP }],
-                    },
+                    hostileDepartment,
                     dept(OTHER, null, 50, { departmentUuid: 'other' }),
                 ]}
-            />,
+            />
         );
-
-        expectLiteral(`${PERSON} ${SURNAME}`);
-        expectLiteral(EMAIL);
-        // A person in two departments is shown each of them, with the groups linked to it
-        const candidates = screen.getByText(
-            `${NAME} through ${GROUP}`,
-        ).parentElement;
-        expect(
-            Array.from(candidates?.children ?? [], (line) => line.textContent),
-        ).toEqual([`${NAME} through ${GROUP}`, OTHER]);
-        // Each row's checkbox and select are named for the person; someone with no name, by their email
-        expect(
-            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('combobox', { name: `Department for ${UNNAMED}` }),
-        ).toBeInTheDocument();
-        // Each picker opens its own list of the departments
-        const expectDepartmentOptions = async (picker: string) => {
+        // Each picker opens its own list of the departments, named by its visible label
+        const expectDepartmentOptions = async (
+            picker: string,
+            list: string = picker,
+        ) => {
             await userEvent.click(
                 screen.getByRole('combobox', { name: picker }),
             );
             const options = within(
-                await screen.findByRole('listbox', { name: picker }),
+                await screen.findByRole('listbox', { name: list }),
             );
             expect(
                 options.getByRole('option', { name: NAME }),
@@ -541,12 +686,35 @@ describe('typed strings render as text', () => {
             ).toBeInTheDocument();
             expectNothingInjected();
         };
-        await expectDepartmentOptions(`Department for ${PERSON} ${SURNAME}`);
+
+        const { rerender } = renderWithProviders(modal('shared'));
+        expectLiteral(`${PERSON} ${SURNAME}`);
+        expectLiteral(EMAIL);
+        // A person in two departments shows each of them as a chip, as text
+        expect(
+            within(
+                screen.getByRole('list', {
+                    name: `Departments ${PERSON} ${SURNAME} is in`,
+                }),
+            )
+                .getAllByRole('listitem')
+                .map((chip) => chip.textContent),
+        ).toEqual([NAME, OTHER]);
+        // Where they count is chosen from their departments, named as typed
+        await expectDepartmentOptions(
+            `Counts in for ${PERSON} ${SURNAME}`,
+            'Counts in',
+        );
+
+        rerender(modal('unassigned'));
+        // Each row's checkbox and select are named for the person; someone with no name, by their email
+        expect(
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
+        ).toBeInTheDocument();
+        await expectDepartmentOptions(`Department for ${UNNAMED}`);
         // The picker for everyone selected offers the same departments
         await userEvent.click(
-            screen.getByRole('checkbox', {
-                name: `Select ${PERSON} ${SURNAME}`,
-            }),
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
         );
         await expectDepartmentOptions('Place selected in');
     });

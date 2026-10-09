@@ -23,7 +23,11 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { COLOUR_TRANSITION, startColourTransition } from './colourTransition';
 import styles from './DepartmentMap.module.css';
-import { type ColourBy, type PackedCircle } from './geometry';
+import {
+    getSharedDotShape,
+    type ColourBy,
+    type PackedCircle,
+} from './geometry';
 import {
     getHoverLabel,
     getRestLabels,
@@ -147,12 +151,25 @@ const CirclesLayer = memo<{
 });
 CirclesLayer.displayName = 'CirclesLayer';
 
+type DotShape = {
+    dotRadius: number;
+    ring: { radius: number; width: number } | null;
+};
+
+// The room a dot has; someone who also counts in another department keeps its edge for a ring, the dot inside.
+// The dots and their rings both read it, so the two never drift apart
+const getDotShape = (dot: MapDot): DotShape => {
+    const room = dot.kind === 'noAccount' ? dot.r * NO_ACCOUNT_SCALE : dot.r;
+    if (!dot.isShared) return { dotRadius: room, ring: null };
+    const { dotRadius, ringRadius, ringWidth } = getSharedDotShape(room);
+    return { dotRadius, ring: { radius: ringRadius, width: ringWidth } };
+};
+
 const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
     ({ dots, selectedUserUuid }) => (
         <>
             {dots.map((dot) => {
-                const outerRadius =
-                    dot.kind === 'noAccount' ? dot.r * NO_ACCOUNT_SCALE : dot.r;
+                const outerRadius = getDotShape(dot).dotRadius;
                 // A ring's stroke, or a filled dot's thinner edge, drawn inside the dot's footprint
                 const strokeWidth = OUTLINED_DOT_KINDS.has(dot.kind)
                     ? Math.min(1.6, outerRadius * 0.45)
@@ -164,6 +181,7 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
                     <circle
                         key={dot.key}
                         data-dot={dot.kind}
+                        data-shared={dot.isShared || undefined}
                         data-circle={
                             dot.member === null ? undefined : dot.circleId
                         }
@@ -189,6 +207,30 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
     ),
 );
 DotsLayer.displayName = 'DotsLayer';
+
+// The rings of people who also count in another department, under the dots and outside their layer, which the
+// colour sweep reads as one circle per dot. A loaded person's ring takes presses, so their whole room selects them
+const SharedRingsLayer = memo<{ dots: MapDot[] }>(({ dots }) => (
+    <>
+        {dots.map((dot) => {
+            const { ring } = getDotShape(dot);
+            if (ring === null) return null;
+            return (
+                <circle
+                    key={dot.key}
+                    className={styles.shared}
+                    data-ring-user={dot.member?.userUuid}
+                    data-circle={dot.member === null ? undefined : dot.circleId}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={ring.radius}
+                    strokeWidth={ring.width}
+                />
+            );
+        })}
+    </>
+));
+SharedRingsLayer.displayName = 'SharedRingsLayer';
 
 // Text keeps its size on screen, so this layer follows the zoom level but not panning
 
@@ -404,7 +446,7 @@ export const DepartmentMap: FC<Props> = ({
     const handleDotClick = (event: MouseEvent<SVGGElement>) => {
         const { target } = event;
         if (isDragEnd(event) || !(target instanceof SVGElement)) return;
-        const { user } = target.dataset;
+        const user = target.dataset.user ?? target.dataset.ringUser;
         if (user) onPersonClick(user);
     };
 
@@ -433,6 +475,9 @@ export const DepartmentMap: FC<Props> = ({
                             info={info}
                             highlightedUuid={highlightedUuid}
                         />
+                    </g>
+                    <g onClick={handleDotClick}>
+                        <SharedRingsLayer dots={dots} />
                     </g>
                     <g
                         ref={dotsRef}

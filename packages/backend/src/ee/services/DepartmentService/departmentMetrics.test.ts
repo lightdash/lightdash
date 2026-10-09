@@ -3,6 +3,7 @@ import {
     OrganizationMemberRole,
     type Department,
     type DepartmentMembership,
+    type MembershipKind,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../logging/logger';
@@ -13,25 +14,34 @@ import {
     lastNWeekStarts,
 } from './departmentMetrics';
 
+const kindOf = (placementCount: number): MembershipKind => {
+    if (placementCount === 0) return 'unassigned';
+    return placementCount === 1 ? 'assigned' : 'shared';
+};
+
+// Placed in the given departments; counted in all of them, or in the primary alone when it has one
 const member = (
     userUuid: string,
     role: OrganizationMemberRole,
-    departmentUuid: string | null = 'd',
+    departmentUuids: string[] = ['d'],
+    primaryDepartmentUuid: string | null = null,
 ): DepartmentMembership => ({
     userUuid,
     email: `${userUuid}@example.com`,
     firstName: userUuid,
     lastName: 'L',
     role,
-    resolution:
-        departmentUuid === null
-            ? { kind: 'unassigned' }
-            : {
-                  kind: 'assigned',
-                  departmentUuid,
-                  source: 'group',
-                  sourceGroupName: 'g',
-              },
+    kind: kindOf(departmentUuids.length),
+    placements: departmentUuids.map((departmentUuid) => ({
+        departmentUuid,
+        source: 'group',
+        sourceGroupName: 'g',
+    })),
+    primaryDepartmentUuid,
+    countedDepartmentUuids:
+        primaryDepartmentUuid === null
+            ? departmentUuids
+            : [primaryDepartmentUuid],
 });
 
 const department = (
@@ -91,6 +101,7 @@ describe('computeAdoptionMetrics', () => {
                 headcount: null,
                 lastActiveAt: new Map(),
                 windows: WINDOWS,
+                sharedUserUuids: new Set(),
                 weeksByUser: new Map(),
                 weekStarts,
             });
@@ -118,6 +129,7 @@ describe('computeAdoptionMetrics', () => {
                 ['day91', daysAgo(91)],
             ]),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -133,6 +145,7 @@ describe('computeAdoptionMetrics', () => {
             headcount: 4,
             lastActiveAt: activeYesterday(['a']),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'a', weekStart: '2026-10-05' },
             ]),
@@ -154,6 +167,7 @@ describe('computeAdoptionMetrics', () => {
             headcount: null,
             lastActiveAt: new Map(),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -166,6 +180,7 @@ describe('computeAdoptionMetrics', () => {
             headcount: 0,
             lastActiveAt: activeYesterday(['a']),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -185,6 +200,7 @@ describe('computeAdoptionMetrics', () => {
             headcount: null,
             lastActiveAt: new Map(),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -201,6 +217,7 @@ describe('computeAdoptionMetrics', () => {
             headcount: 1,
             lastActiveAt: activeYesterday(['a', 'zz']),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'zz', weekStart: '2026-10-05' },
             ]),
@@ -215,10 +232,26 @@ describe('computeAdoptionMetrics', () => {
             headcount: 1,
             lastActiveAt: activeYesterday(['a']),
             windows: WINDOWS,
+            sharedUserUuids: new Set(),
             weeksByUser: new Map(),
             weekStarts,
         });
         expect(m.activeCount12w).toBe(1);
+    });
+    it('counts the people who also count in another department', () => {
+        const m = computeAdoptionMetrics({
+            members: [
+                member('a', OrganizationMemberRole.VIEWER),
+                member('b', OrganizationMemberRole.VIEWER),
+            ],
+            headcount: null,
+            lastActiveAt: new Map(),
+            windows: WINDOWS,
+            sharedUserUuids: new Set(['b', 'zz']),
+            weeksByUser: new Map(),
+            weekStarts,
+        });
+        expect(m.sharedCount).toBe(1);
     });
 });
 
@@ -228,24 +261,27 @@ describe('buildAdoptionSnapshot', () => {
         department('stores', 'ops', 10),
         department('depots', 'ops', 30),
         department('finance', null, 5),
+        department('legal', null, 2),
     ];
     const membership = [
-        member('s1', OrganizationMemberRole.VIEWER, 'stores'),
-        member('s2', OrganizationMemberRole.MEMBER, 'stores'),
-        member('o1', OrganizationMemberRole.ADMIN, 'ops'),
-        member('nobody', OrganizationMemberRole.VIEWER, null),
-        {
-            ...member('clash', OrganizationMemberRole.VIEWER),
-            resolution: {
-                kind: 'conflict' as const,
-                departmentUuids: ['depots', 'finance'],
-            },
-        },
+        member('s1', OrganizationMemberRole.VIEWER, ['stores']),
+        member('s2', OrganizationMemberRole.MEMBER, ['stores']),
+        member('o1', OrganizationMemberRole.ADMIN, ['ops']),
+        member('nobody', OrganizationMemberRole.VIEWER, []),
+        // In two departments with no primary, so counted in both
+        member('shared', OrganizationMemberRole.VIEWER, ['depots', 'finance']),
+        // In two departments, counted only in the primary
+        member(
+            'chosen',
+            OrganizationMemberRole.VIEWER,
+            ['finance', 'stores'],
+            'finance',
+        ),
     ];
     const snapshot = buildAdoptionSnapshot({
         departments,
         membership,
-        lastActiveAt: activeYesterday(['s1', 'o1']),
+        lastActiveAt: activeYesterday(['s1', 'o1', 'shared']),
         windows: WINDOWS,
         weeklyActivity: [{ userUuid: 's1', weekStart: '2026-10-05' }],
         weekStarts,
@@ -254,7 +290,7 @@ describe('buildAdoptionSnapshot', () => {
         snapshot.summary.departments.map((d) => [d.departmentUuid, d]),
     );
 
-    it('rolls the activity split up once per person, and counts everyone on Lightdash once across the organization', () => {
+    it('rolls the activity split up once per person, and counts a person in two departments in each', () => {
         const split = buildAdoptionSnapshot({
             departments,
             membership,
@@ -262,7 +298,7 @@ describe('buildAdoptionSnapshot', () => {
                 ['s1', daysAgo(1)],
                 ['s2', daysAgo(45)],
                 ['o1', daysAgo(45)],
-                ['clash', daysAgo(60)],
+                ['shared', daysAgo(60)],
             ]),
             windows: WINDOWS,
             weeklyActivity: [],
@@ -275,10 +311,10 @@ describe('buildAdoptionSnapshot', () => {
             atRisk: 1,
             lost: 0,
         });
-        // Stores' two people and the one directly in Ops, each counted once
+        // Stores' two people, the one directly in Ops and the shared person in Depots, each counted once
         expect(of('ops')?.metrics.activitySplit).toEqual({
             healthy: 1,
-            atRisk: 2,
+            atRisk: 3,
             lost: 0,
         });
         expect(of('ops')?.directMetrics.activitySplit).toEqual({
@@ -286,22 +322,22 @@ describe('buildAdoptionSnapshot', () => {
             atRisk: 1,
             lost: 0,
         });
-        // A person in a conflict is placed in neither department until it is settled
+        // In two departments with no primary, counted in both; with a primary, there alone (no activity, so lost)
         expect(of('depots')?.metrics.activitySplit).toEqual({
             healthy: 0,
-            atRisk: 0,
+            atRisk: 1,
             lost: 0,
         });
         expect(of('finance')?.metrics.activitySplit).toEqual({
             healthy: 0,
-            atRisk: 0,
-            lost: 0,
+            atRisk: 1,
+            lost: 1,
         });
         // Everyone on Lightdash, placed or not: the unplaced person has no activity at all
         expect(split.summary.organization.activitySplit).toEqual({
             healthy: 1,
             atRisk: 3,
-            lost: 1,
+            lost: 2,
         });
     });
     it('rolls members and headcount up to the parent, with its own people on top of its sub-departments', () => {
@@ -310,9 +346,9 @@ describe('buildAdoptionSnapshot', () => {
         expect(ops?.effectiveHeadcount).toBe(41);
         expect(ops?.hasHeadcount).toBe(true);
         expect(ops?.headcountBelowChildren).toBe(false);
-        expect(ops?.metrics.memberCount).toBe(3);
-        expect(ops?.metrics.activeCount30d).toBe(2);
-        expect(ops?.metrics.coveragePct).toBe(7);
+        expect(ops?.metrics.memberCount).toBe(4);
+        expect(ops?.metrics.activeCount30d).toBe(3);
+        expect(ops?.metrics.coveragePct).toBe(10);
         expect(ops?.directMetrics.memberCount).toBe(1);
     });
     it("gives a department's own people percentages of the headcount it keeps for them", () => {
@@ -336,9 +372,9 @@ describe('buildAdoptionSnapshot', () => {
                 department('b', 'parent', 10),
             ],
             membership: [
-                member('p1', OrganizationMemberRole.VIEWER, 'parent'),
-                member('p2', OrganizationMemberRole.VIEWER, 'parent'),
-                member('a1', OrganizationMemberRole.VIEWER, 'a'),
+                member('p1', OrganizationMemberRole.VIEWER, ['parent']),
+                member('p2', OrganizationMemberRole.VIEWER, ['parent']),
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
             ],
             lastActiveAt: activeYesterday(['p1']),
             windows: WINDOWS,
@@ -360,7 +396,7 @@ describe('buildAdoptionSnapshot', () => {
                 department('a', 'parent', 20),
                 department('b', 'parent', 10),
             ],
-            membership: [member('a1', OrganizationMemberRole.VIEWER, 'a')],
+            membership: [member('a1', OrganizationMemberRole.VIEWER, ['a'])],
             lastActiveAt: new Map(),
             windows: WINDOWS,
             weeklyActivity: [],
@@ -377,7 +413,7 @@ describe('buildAdoptionSnapshot', () => {
         const stale = buildAdoptionSnapshot({
             departments: [department('stale', null, 2)],
             membership: ['a', 'b', 'c'].map((uuid) =>
-                member(uuid, OrganizationMemberRole.VIEWER, 'stale'),
+                member(uuid, OrganizationMemberRole.VIEWER, ['stale']),
             ),
             lastActiveAt: activeYesterday(['a', 'b', 'c']),
             windows: WINDOWS,
@@ -399,8 +435,8 @@ describe('buildAdoptionSnapshot', () => {
                 department('b', 'parent', 10),
             ],
             membership: [
-                member('p1', OrganizationMemberRole.VIEWER, 'a'),
-                member('p2', OrganizationMemberRole.VIEWER, 'b'),
+                member('p1', OrganizationMemberRole.VIEWER, ['a']),
+                member('p2', OrganizationMemberRole.VIEWER, ['b']),
             ],
             lastActiveAt: new Map(),
             windows: WINDOWS,
@@ -422,8 +458,8 @@ describe('buildAdoptionSnapshot', () => {
                 department('y', 'x', null),
             ],
             membership: [
-                member('x1', OrganizationMemberRole.VIEWER, 'x'),
-                member('y1', OrganizationMemberRole.VIEWER, 'y'),
+                member('x1', OrganizationMemberRole.VIEWER, ['x']),
+                member('y1', OrganizationMemberRole.VIEWER, ['y']),
             ],
             lastActiveAt: activeYesterday(['x1']),
             windows: WINDOWS,
@@ -438,31 +474,268 @@ describe('buildAdoptionSnapshot', () => {
         expect(y.effectiveHeadcount).toBe(1);
         expect(y.hasHeadcount).toBe(false);
     });
+    it('counts a person in two sub-departments once in the headcount of a parent with none anywhere', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, null),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, ['a', 'b']),
+            ],
+            lastActiveAt: activeYesterday(['p1']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent).toMatchObject({
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 1, coveragePct: 100, activePct: 100 },
+            directMetrics: { memberCount: 0, coveragePct: null },
+        });
+    });
+    it('does not flag a parent headcount that matches its people when its sub-departments share one', () => {
+        // Five people, three in each sub-department and one of them in both
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 5),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
+                member('a2', OrganizationMemberRole.VIEWER, ['a']),
+                member('shared', OrganizationMemberRole.VIEWER, ['a', 'b']),
+                member('b1', OrganizationMemberRole.VIEWER, ['b']),
+                member('b2', OrganizationMemberRole.VIEWER, ['b']),
+            ],
+            lastActiveAt: new Map(),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent).toMatchObject({
+            effectiveHeadcount: 5,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 5, coveragePct: 100 },
+        });
+    });
+    it('keeps for the people directly in a parent what its headcount leaves over its sub-departments, a person they share once', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 10),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('d1', OrganizationMemberRole.VIEWER, ['parent']),
+                member('shared', OrganizationMemberRole.VIEWER, ['a', 'b']),
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
+                member('b1', OrganizationMemberRole.VIEWER, ['b']),
+            ],
+            lastActiveAt: activeYesterday(['d1']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent?.effectiveHeadcount).toBe(10);
+        // The sub-departments hold 3 people, so 7 of the 10 are kept for its 1 person
+        expect(parent?.directMetrics).toMatchObject({
+            memberCount: 1,
+            coveragePct: 14,
+            activePct: 14,
+        });
+    });
     it('keeps a department with no users at zero, not missing', () => {
-        const depots = byUuid.get('depots');
-        expect(depots?.metrics.memberCount).toBe(0);
-        expect(depots?.metrics.coveragePct).toBe(0);
+        const legal = byUuid.get('legal');
+        expect(legal?.metrics.memberCount).toBe(0);
+        expect(legal?.metrics.coveragePct).toBe(0);
     });
     it('counts custom-role members (role member) as viewers', () => {
         expect(byUuid.get('stores')?.metrics.roleSplit.viewers).toBe(2);
     });
-    it('counts conflicted and unassigned users in attention and in the org total only', () => {
-        expect(snapshot.summary.attention).toEqual({
-            conflictCount: 1,
-            unassignedCount: 1,
+    it('counts a person in several departments in each of them, and once in the organization', () => {
+        expect(byUuid.get('depots')?.metrics).toMatchObject({
+            memberCount: 1,
+            activeCount30d: 1,
         });
-        expect(snapshot.summary.organization.memberCount).toBe(5);
-        expect(byUuid.get('finance')?.metrics.memberCount).toBe(0);
+        expect(byUuid.get('finance')?.metrics).toMatchObject({
+            memberCount: 2,
+            activeCount30d: 1,
+        });
+        // Everyone on Lightdash once each; placed leaves out the unassigned person
+        expect(snapshot.summary.organization.memberCount).toBe(6);
+        expect(snapshot.summary.organization.activeCount30d).toBe(3);
+        expect(snapshot.summary.organization.weeklyActive[1].activeUsers).toBe(
+            1,
+        );
+        // Split as the map colours them, the person in Depots and Finance once
+        expect(snapshot.summary.placed).toEqual({
+            memberCount: 5,
+            activeCount30d: 3,
+            roleSplit: {
+                viewers: 4,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 1,
+            },
+            activitySplit: { healthy: 3, atRisk: 0, lost: 2 },
+        });
     });
-    it('exposes direct and rolled member lists for later reads', () => {
+    it('counts an unassigned person on Lightdash but not as placed, and a shared person once in both', () => {
+        const { summary } = buildAdoptionSnapshot({
+            departments: [
+                department('sales', null, null),
+                department('marketing', null, null),
+            ],
+            membership: [
+                member('both', OrganizationMemberRole.VIEWER, [
+                    'marketing',
+                    'sales',
+                ]),
+                member('seller', OrganizationMemberRole.VIEWER, ['sales']),
+                member('nobody', OrganizationMemberRole.VIEWER, []),
+            ],
+            lastActiveAt: activeYesterday(['both', 'nobody']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        });
+        expect(summary.organization).toMatchObject({
+            memberCount: 3,
+            activeCount30d: 2,
+        });
+        expect(summary.placed).toEqual({
+            memberCount: 2,
+            activeCount30d: 1,
+            roleSplit: {
+                viewers: 2,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 0,
+            },
+            activitySplit: { healthy: 1, atRisk: 0, lost: 1 },
+        });
+    });
+    it('counts a person with a primary only in that department', () => {
+        expect(
+            snapshot.rolledMembers.get('stores')?.map((m) => m.userUuid),
+        ).toEqual(['s1', 's2']);
+        expect(
+            snapshot.rolledMembers
+                .get('finance')
+                ?.map((m) => m.userUuid)
+                .sort(),
+        ).toEqual(['chosen', 'shared']);
+    });
+    it('counts a person in two sub-departments once in their parent', () => {
+        const split = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, null),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, ['a', 'b']),
+            ],
+            lastActiveAt: activeYesterday(['p1']),
+            windows: WINDOWS,
+            weeklyActivity: [{ userUuid: 'p1', weekStart: '2026-10-05' }],
+            weekStarts,
+        });
+        const counts = new Map(
+            split.summary.departments.map((d) => [
+                d.departmentUuid,
+                d.metrics.memberCount,
+            ]),
+        );
+        expect(Object.fromEntries(counts)).toEqual({ parent: 1, a: 1, b: 1 });
+        const parent = split.summary.departments.find(
+            (d) => d.departmentUuid === 'parent',
+        );
+        expect(parent?.metrics.activeCount30d).toBe(1);
+        expect(parent?.metrics.weeklyActive[1].activeUsers).toBe(1);
+        expect(split.summary.organization.memberCount).toBe(1);
+        expect(split.summary.placed.memberCount).toBe(1);
+    });
+    it('counts the people of each department who also count in another, each once in a roll-up', () => {
+        // Shared counts in Depots and Finance; Chosen counts only in its primary, Finance
+        expect(byUuid.get('depots')?.metrics.sharedCount).toBe(1);
+        expect(byUuid.get('finance')?.metrics.sharedCount).toBe(1);
+        expect(byUuid.get('finance')?.directMetrics.sharedCount).toBe(1);
+        expect(byUuid.get('stores')?.metrics.sharedCount).toBe(0);
+        expect(byUuid.get('ops')?.metrics.sharedCount).toBe(1);
+        expect(byUuid.get('ops')?.directMetrics.sharedCount).toBe(0);
+        expect(byUuid.get('legal')?.metrics.sharedCount).toBe(0);
+        expect(snapshot.summary.organization.sharedCount).toBe(1);
+    });
+    it('counts a person in two sub-departments as shared in each of them and once in their parent', () => {
+        const { summary } = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, null),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, ['a', 'b']),
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
+            ],
+            lastActiveAt: new Map(),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        });
+        const shared = new Map(
+            summary.departments.map((d) => [
+                d.departmentUuid,
+                [d.metrics.sharedCount, d.directMetrics.sharedCount],
+            ]),
+        );
+        expect(Object.fromEntries(shared)).toEqual({
+            parent: [1, 0],
+            a: [1, 1],
+            b: [1, 1],
+        });
+        expect(summary.organization.sharedCount).toBe(1);
+    });
+    it('does not count a department missing from the tree as another department', () => {
+        const { summary } = buildAdoptionSnapshot({
+            departments: [department('a', null, null)],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, ['a', 'gone']),
+            ],
+            lastActiveAt: new Map(),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        });
+        expect(summary.departments[0].metrics).toMatchObject({
+            memberCount: 1,
+            sharedCount: 0,
+        });
+        expect(summary.organization.sharedCount).toBe(0);
+    });
+    it('reports people in no department, and people in several without a primary', () => {
+        expect(snapshot.summary.attention).toEqual({
+            unassignedCount: 1,
+            sharedCount: 1,
+        });
+    });
+    it('exposes direct and rolled member lists and the active people for later reads', () => {
         expect(
             snapshot.rolledMembers
                 .get('ops')
                 ?.map((m) => m.userUuid)
                 .sort(),
-        ).toEqual(['o1', 's1', 's2']);
+        ).toEqual(['o1', 's1', 's2', 'shared']);
         expect(
             snapshot.directMembers.get('ops')?.map((m) => m.userUuid),
         ).toEqual(['o1']);
+        expect(snapshot.activeUserUuids).toEqual(
+            new Set(['s1', 'o1', 'shared']),
+        );
     });
 });

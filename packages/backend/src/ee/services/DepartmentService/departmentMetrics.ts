@@ -1,6 +1,7 @@
 import {
     computeEffectiveHeadcounts,
     getActivityBucket,
+    getChildrenHeadcount,
     getChildrenMap,
     getDirectMembersByDepartment,
     getResidualHeadcount,
@@ -12,6 +13,7 @@ import {
     type Department,
     type DepartmentMembership,
     type OrganizationAdoptionSummary,
+    type PlacedMetrics,
     type RoleSplit,
 } from '@lightdash/common';
 import Logger from '../../../logging/logger';
@@ -23,6 +25,7 @@ export type MetricsInput = {
     // Each person's latest activity back to the at-risk bound; anyone missing has none in that time
     lastActiveAt: Map<string, Date>;
     windows: ActivityWindows;
+    sharedUserUuids: Set<string>; // counted in more than one department
     weeksByUser: Map<string, Set<string>>;
     weekStarts: string[];
 };
@@ -38,8 +41,10 @@ export type SnapshotInput = {
 
 export type AdoptionSnapshot = {
     summary: OrganizationAdoptionSummary;
+    // By department: who counts in it (direct), and in it or below it (rolled)
     directMembers: Map<string, DepartmentMembership[]>;
     rolledMembers: Map<string, DepartmentMembership[]>;
+    activeUserUuids: Set<string>; // active in the last 30 days
 };
 
 const isoDate = (d: Date): string => d.toISOString().slice(0, 10);
@@ -78,6 +83,19 @@ const pct = (num: number, headcount: number | null): number | null =>
     headcount === null || headcount <= 0
         ? null
         : Math.round((100 * num) / headcount);
+
+// The people placed are counted once each, in the parts the map colours them by
+const getPlacedMetrics = ({
+    memberCount,
+    activeCount30d,
+    roleSplit,
+    activitySplit,
+}: AdoptionMetrics): PlacedMetrics => ({
+    memberCount,
+    activeCount30d,
+    roleSplit,
+    activitySplit,
+});
 
 const warnedRoles = new Set<string>();
 
@@ -119,6 +137,7 @@ export const computeAdoptionMetrics = (
         headcount,
         lastActiveAt,
         windows,
+        sharedUserUuids,
         weeksByUser,
         weekStarts,
     } = input;
@@ -146,11 +165,15 @@ export const computeAdoptionMetrics = (
         }
     });
     const activeCount30d = activitySplit.healthy;
+    const sharedCount = members.filter((m) =>
+        sharedUserUuids.has(m.userUuid),
+    ).length;
 
     return {
         memberCount: members.length,
         activeCount30d,
         activeCount12w,
+        sharedCount,
         coveragePct: pct(members.length, headcount),
         activePct: pct(activeCount30d, headcount),
         roleSplit,
@@ -172,6 +195,28 @@ export const buildAdoptionSnapshot = (
     const weeksByUser = indexWeeklyActivity(input.weeklyActivity);
     const directMembers = getDirectMembersByDepartment(membership);
     const rolledMembers = rollUpByDepartment(departments, directMembers);
+    // Active in the last 30 days: the healthy bucket, read with the same bounds as the counts
+    const activeUserUuids = new Set(
+        [...lastActiveAt]
+            .filter(([, at]) => getActivityBucket(at, windows) === 'healthy')
+            .map(([userUuid]) => userUuid),
+    );
+    const departmentUuids = new Set(departments.map((d) => d.departmentUuid));
+    // Everyone who counts in at least one department, once each
+    const placed = membership.filter((m) =>
+        m.countedDepartmentUuids.some((uuid) => departmentUuids.has(uuid)),
+    );
+    // Counted in more than one department, so drawn in each of them
+    const sharedUserUuids = new Set(
+        membership
+            .filter(
+                (m) =>
+                    m.countedDepartmentUuids.filter((uuid) =>
+                        departmentUuids.has(uuid),
+                    ).length > 1,
+            )
+            .map((m) => m.userUuid),
+    );
     const headcounts = computeEffectiveHeadcounts(
         departments,
         new Map(
@@ -188,14 +233,16 @@ export const buildAdoptionSnapshot = (
             headcount,
             lastActiveAt,
             windows,
+            sharedUserUuids,
             weeksByUser,
             weekStarts,
         });
 
     return {
         summary: {
-            // The org row is a count baseline; there is no org-wide headcount
+            // Everyone on Lightdash, a count baseline; there is no org-wide headcount
             organization: metricsFor(membership, null),
+            placed: getPlacedMetrics(metricsFor(placed, null)),
             departments: departments.map((d) => {
                 const members = rolledMembers.get(d.departmentUuid) ?? [];
                 const direct = directMembers.get(d.departmentUuid) ?? [];
@@ -203,12 +250,17 @@ export const buildAdoptionSnapshot = (
                 const effectiveHeadcount =
                     effective?.effectiveHeadcount ??
                     Math.max(d.headcount ?? 0, members.length);
-                const childrenEffectiveHeadcount = (
-                    children.get(d.departmentUuid) ?? []
-                ).reduce(
-                    (sum, uuid) =>
-                        sum + (headcounts.get(uuid)?.effectiveHeadcount ?? 0),
-                    0,
+                // A person in several of its sub-departments counts once in their total
+                const childrenHeadcount = getChildrenHeadcount(
+                    {
+                        memberCount: members.length,
+                        directMemberCount: direct.length,
+                    },
+                    (children.get(d.departmentUuid) ?? []).map((uuid) => ({
+                        effectiveHeadcount:
+                            headcounts.get(uuid)?.effectiveHeadcount ?? 0,
+                        memberCount: rolledMembers.get(uuid)?.length ?? 0,
+                    })),
                 );
                 return {
                     ...d,
@@ -223,22 +275,25 @@ export const buildAdoptionSnapshot = (
                         direct,
                         getResidualHeadcount(
                             effectiveHeadcount,
-                            childrenEffectiveHeadcount,
+                            childrenHeadcount,
                             direct.length,
                         ),
                     ),
                 };
             }),
             attention: {
-                conflictCount: membership.filter(
-                    (m) => m.resolution.kind === 'conflict',
-                ).length,
                 unassignedCount: membership.filter(
-                    (m) => m.resolution.kind === 'unassigned',
+                    (m) => m.kind === 'unassigned',
+                ).length,
+                // Counted in each of their departments until someone picks one
+                sharedCount: membership.filter(
+                    (m) =>
+                        m.kind === 'shared' && m.primaryDepartmentUuid === null,
                 ).length,
             },
         },
         directMembers,
         rolledMembers,
+        activeUserUuids,
     };
 };

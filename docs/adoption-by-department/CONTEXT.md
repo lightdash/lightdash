@@ -19,7 +19,7 @@ A department with no parent.
 _Avoid_: root department, parent-less department
 
 **Linked group**:
-A Lightdash user group connected to a department. Everyone in the group is placed in that department unless something more specific applies. A group links to at most one department.
+A Lightdash user group connected to a department. Everyone in the group is placed in that department unless something more specific applies. A group can be linked to several departments, and everyone in it is placed in each.
 _Avoid_: mapped group, synced group, attached group
 
 **Owner**:
@@ -29,28 +29,40 @@ _Avoid_: lead, manager, admin, steward
 ### Placing people
 
 **Assigned person**:
-A person an admin placed in a department by hand. An assignment beats every linked group, and the application keeps a person to one in an organization.
+A person an admin placed in a department by hand. An assignment adds a placement beside the person's linked groups rather than overriding them, and a person can be assigned to several departments.
 _Avoid_: manual member, pinned user, override
 
-**Resolution**:
-The decision of where one person counts: in one department, in none because of a conflict, or in none because nothing applies. Computed on every read, never stored.
-_Avoid_: mapping, allocation, sync
+**Placement**:
+A department a person is in: one they are assigned to, or one a group of theirs is linked to, after most specific wins. Worked out on every read, never stored. The API sorts a person's placements by department uuid; the pages sort them by name.
+_Avoid_: resolution, mapping, allocation, sync
 
 **Most specific wins**:
-The rule for people placed through linked groups: when a person is reached through groups linked to a department and to one of its descendants, only the descendant counts.
+The rule for placements: when a person is placed in a department and in one of its descendants, by assignment or through a group, only the descendant is a placement.
 _Avoid_: lowest wins, child wins, priority
 
-**Conflict**:
-A person reached through linked groups of departments in different branches, so no single department is most specific. They count nowhere until someone with `manage:OrganizationAdoption` assigns them.
-_Avoid_: clash, overlap, duplicate
+**Shared person**:
+A person with two or more placements. With no primary department they count in each of them; with one, only there. Being in several departments is information, not an error. `kind` is `shared` in the API.
+_Avoid_: conflict, clash, duplicate, multi-department member
+
+**Primary department**:
+The one department a shared person counts in, chosen by someone with `manage:OrganizationAdoption`. The person's other placements stay visible as "also in". It is cleared when they stop being placed there, so placing them there again asks anew.
+_Avoid_: main department, home department, default department
+
+**Counts in**:
+The departments a person is counted in: their primary department alone when they have one, otherwise every placement. `countedDepartmentUuids` in the API, and "Counts in" in the placement modal.
+_Avoid_: belongs to, resolves to
 
 **Unassigned**:
-A person who is on Lightdash but reached by no assignment and no linked group. They count in no department.
+A person who is on Lightdash but has no placement. They count in no department.
 _Avoid_: unplaced, orphan, ungrouped
 
 **Member**:
-A person who resolves to a department, or to any department beneath it. A parent's members are its own people plus all its descendants'. "Direct member" means resolved to that department itself.
+A person who counts in a department, or in any department beneath it. A parent's members are its own people plus all its descendants', each person once, so a person in two of its sub-departments is one member of it. "Direct member" means counted in that department itself.
 _Avoid_: user (when the department is meant), employee, headcount
+
+**Overlap**:
+For a department, another department neither above nor below it whose members include some of its own; the overlap is the people in both. Departments above and below always hold the department's people, so they are never overlaps.
+_Avoid_: intersection (fine in code), shared department, crossover
 
 **Internal user**:
 A Lightdash-created account such as a service account. Never a member or owner and never counted.
@@ -63,19 +75,23 @@ The number of people a department should have on Lightdash, entered by an admin.
 _Avoid_: size, seats, licences, employees
 
 **Residual headcount**:
-The headcount a department with sub-departments keeps for the people directly in it: its effective headcount less its sub-departments', and never fewer than those people. The map draws it as the department's "Directly in" circle, and `directMetrics` percentages are of it.
+The headcount a department with sub-departments keeps for the people directly in it: its effective headcount less its children's total, and never fewer than those people. The map draws it as the department's "Directly in" circle, and `directMetrics` percentages are of it.
 _Avoid_: leftover, own headcount, direct headcount
 
 **Headcount note**:
 Free text saying where a headcount came from.
 _Avoid_: comment, source, description
 
+**Children's total**:
+What a department's sub-departments hold between them: their people on Lightdash, each once however many of the sub-departments a person counts in, plus each sub-department's people without an account (its effective headcount less its members). With nobody shared it is the sum of their effective headcounts. `getChildrenHeadcount` in common.
+_Avoid_: sum of children, children's headcount
+
 **Effective headcount**:
-The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, and never fewer than its sub-departments' effective headcounts plus the people on Lightdash directly in it (for a department without sub-departments, its members), so a headcount only ever adds people without an account. A department with no headcount counts its members.
+The headcount used in calculations: the department's own when set, otherwise its children's total plus the people on Lightdash directly in it, and never fewer than that (for a department without sub-departments, never fewer than its members), so a headcount only ever adds people without an account. A department with no headcount counts its members.
 _Avoid_: total headcount, rolled-up headcount, computed headcount
 
 **Headcount below children**:
-A flag raised when a department's own headcount is lower than its sub-departments' effective headcounts plus the people on Lightdash directly in it. The department counts that total instead.
+A flag raised when the headcount entered on a department with sub-departments is lower than its children's total plus the people on Lightdash directly in it. The department counts that total instead.
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
@@ -123,7 +139,7 @@ _Avoid_: popular content, favourites, what they use, what this department uses
 ### Views
 
 **Map**:
-The default index view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
+The default index view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. A person who counts in several departments has a dot in each, ringed. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
 _Avoid_: bubble chart, treemap, org chart
 
 **List**:
@@ -131,14 +147,15 @@ The index view as a table of departments with their measures.
 _Avoid_: grid, table view
 
 **Attention**:
-The counts of conflicts and unassigned people shown above the index, with a way for anyone holding `manage:OrganizationAdoption` (admins by default, custom roles can grant it) to place them.
+The counts shown above the index: unassigned people, and shared people with no primary department. Anyone holding `manage:OrganizationAdoption` (admins by default, custom roles can grant it) can place the first and choose where the second count. Only unassigned people make it a warning.
 _Avoid_: alerts, issues, to-do
 
 ## Relationships
 
-- A **department** has zero or one parent, any number of **sub-departments**, any number of **linked groups**, any number of **assigned people** and an ordered list of **owners**.
-- A **person** resolves to at most one department. An **assigned person** resolves where assigned; otherwise **most specific wins** among linked groups; reaching several branches is a **conflict**; reaching none is **unassigned**.
-- **Members** roll up the tree: a parent counts its descendants' members. **Headcount** rolls up only as a fallback when the parent has none of its own, and **effective headcount** never falls below the members.
+- A **department** has zero or one parent, any number of **sub-departments**, any number of **linked groups**, any number of **assigned people** and an ordered list of **owners**. A **linked group** can belong to several departments.
+- A **person** has zero or more **placements**: every department they are assigned to or reach through a linked group, after **most specific wins**. None is **unassigned**, two or more is a **shared person**. A person **counts in** every placement, or only in their **primary department** when one is set.
+- **Members** roll up the tree as a set: a parent counts each of its descendants' members once. **Headcount** rolls up only as a fallback when the parent has none of its own, through the **children's total**, and **effective headcount** never falls below the members.
+- An **overlap** of a department is a department outside its branch whose members it shares.
 - **Coverage** and **active percentage** are measured against **effective headcount**, so neither exceeds 100.
 
 ## Flagged ambiguities
@@ -146,3 +163,5 @@ _Avoid_: alerts, issues, to-do
 - The word "group" always means a Lightdash user group. A department is not a group, and linking a group to a department does not change the group.
 - "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. On the map, healthy is the same people as active.
 - The code and API say `unassigned`. Do not introduce "unplaced" in code, docs or copy.
+- Function and type names still say "resolve" (`resolveDepartmentMembership`, `ResolvedMemberRow`, `getResolvedMemberRows`): they work out placements and where people count. Say placement, not resolution.
+- "Shared" has two scopes. `kind: 'shared'` and the placement modal's Shared tab are everyone with two or more placements; the attention strip's count, `attention.sharedCount`, leaves out those with a primary department, as they count in one department only. A department's `sharedCount` is its people who count in another department too, so it also leaves them out.

@@ -100,6 +100,7 @@ export const getParentOptions = (
         .sort((a, b) => a.label.localeCompare(b.label));
 };
 
+// Where each person counts under the department: here, else the first sub-department, as on the department page
 export const getResolvedMembers = (
     membership: DepartmentMembership[],
     departments: NamedDepartment[],
@@ -108,13 +109,77 @@ export const getResolvedMembers = (
     const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
     const subtree = new Set(getDescendantUuids(departmentUuid, departments));
     return membership.flatMap((member): ResolvedMemberLine[] => {
-        if (member.resolution.kind !== 'assigned') return [];
-        const resolved = member.resolution.departmentUuid;
-        if (resolved === departmentUuid) return [{ member, via: null }];
-        return subtree.has(resolved)
-            ? [{ member, via: names.get(resolved) ?? '' }]
-            : [];
+        if (member.countedDepartmentUuids.includes(departmentUuid)) {
+            return [{ member, via: null }];
+        }
+        const below = member.countedDepartmentUuids.find((uuid) =>
+            subtree.has(uuid),
+        );
+        return below === undefined
+            ? []
+            : [{ member, via: names.get(below) ?? '' }];
     });
+};
+
+// Where a person is placed, read from the membership list or from a department page's people
+export type PersonPlacements = { userUuid: string; departmentUuids: string[] };
+
+export const placementsFromMembership = (
+    membership: DepartmentMembership[],
+): PersonPlacements[] =>
+    membership.map((member) => ({
+        userUuid: member.userUuid,
+        departmentUuids: member.placements.map((p) => p.departmentUuid),
+    }));
+
+export const placementsFromDetail = (
+    members: DepartmentMember[],
+): PersonPlacements[] =>
+    members.map((member) => ({
+        userUuid: member.userUuid,
+        departmentUuids: [
+            member.departmentUuid,
+            ...member.sharedWith.map((d) => d.departmentUuid),
+        ],
+    }));
+
+// The other departments each person is in, by name. A department above or below this one already holds it, so it is left out
+export const getAlsoIn = (
+    people: PersonPlacements[],
+    departments: NamedDepartment[],
+    department: {
+        departmentUuid: string | null; // null for a department not created yet
+        parentDepartmentUuid: string | null;
+    },
+): Map<string, string[]> => {
+    const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
+    const { departmentUuid, parentDepartmentUuid } = department;
+    const line = new Set([
+        ...(parentDepartmentUuid === null
+            ? []
+            : [
+                  parentDepartmentUuid,
+                  ...getAncestorUuids(
+                      parentDepartmentUuid,
+                      getParentMap(departments),
+                  ),
+              ]),
+        ...(departmentUuid === null
+            ? []
+            : [
+                  departmentUuid,
+                  ...getDescendantUuids(departmentUuid, departments),
+              ]),
+    ]);
+    const alsoIn = new Map<string, string[]>();
+    people.forEach(({ userUuid, departmentUuids }) => {
+        const elsewhere = departmentUuids
+            .filter((uuid) => !line.has(uuid))
+            .flatMap((uuid) => names.get(uuid) ?? [])
+            .sort((a, b) => a.localeCompare(b));
+        if (elsewhere.length > 0) alsoIn.set(userUuid, elsewhere);
+    });
+    return alsoIn;
 };
 
 // The department page already holds its people, so the drawer need not load everyone again

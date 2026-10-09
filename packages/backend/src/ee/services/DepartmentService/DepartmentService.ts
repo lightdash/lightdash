@@ -8,9 +8,13 @@ import {
     getAncestorUuids,
     getParentMap,
     hasControlCharacter,
+    MAX_DEPARTMENT_LIST_LENGTH,
     normalizeDepartmentName,
     NotFoundError,
     ParameterError,
+    parseOverlapList,
+    parseUuid,
+    parseUuids,
     resolveDepartmentMembership,
     truncateForMessage,
     type Account,
@@ -20,13 +24,15 @@ import {
     type DepartmentDetail,
     type DepartmentMember,
     type DepartmentMembership,
+    type DepartmentOverlaps,
     type DepartmentOwnerInput,
     type OrganizationAdoptionSummary,
+    type SetPrimaryDepartment,
     type UpdateDepartment,
 } from '@lightdash/common';
-import { validate as isUuid } from 'uuid';
 import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
+    notAnActiveMemberMessage,
     type DepartmentModel,
     type DepartmentTreeLimits,
 } from '../../../models/DepartmentModel';
@@ -42,6 +48,10 @@ import {
     lastNWeekStarts,
     type AdoptionSnapshot,
 } from './departmentMetrics';
+import {
+    computeDepartmentOverlaps,
+    getMembersInRegion,
+} from './departmentOverlaps';
 
 export const TREND_WEEKS = 12;
 const TOP_CONTENT_LIMIT = 5;
@@ -58,7 +68,6 @@ const MAX_INT4 = 2147483647;
 const NAME_MAX_LENGTH = 255;
 // A longer raw name is refused before normalising, which can make a name many times longer
 const NAME_MAX_RAW_LENGTH = NAME_MAX_LENGTH * 4;
-const MAX_LIST_LENGTH = 5000;
 const TARGET_YEAR_MIN = 1900;
 const TARGET_YEAR_MAX = 2200;
 const MAX_OWNERS = 20;
@@ -96,28 +105,6 @@ const isRealDate = (value: string): boolean => {
 const isTargetYear = (value: string): boolean => {
     const year = Number(value.slice(0, 4));
     return year >= TARGET_YEAR_MIN && year <= TARGET_YEAR_MAX;
-};
-
-// Lower case, so a uuid matches the same everywhere: Postgres compares uuids in any case, JavaScript does not
-const toUuid = (value: unknown, label: string): string => {
-    if (typeof value !== 'string' || !isUuid(value)) {
-        throw new ParameterError(
-            `${label} must be a valid UUID: ${truncateForMessage(value)}`,
-        );
-    }
-    return value.toLowerCase();
-};
-
-const toUuidList = (values: unknown, label: string): string[] => {
-    if (!Array.isArray(values)) {
-        throw new ParameterError(`${label} must be a list`);
-    }
-    if (values.length > MAX_LIST_LENGTH) {
-        throw new ParameterError(
-            `${label} can hold at most ${MAX_LIST_LENGTH} entries`,
-        );
-    }
-    return values.map((v: unknown) => toUuid(v, label));
 };
 
 export const validateDepartmentInput = (data: UpdateDepartment): void => {
@@ -189,7 +176,7 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         data.parentDepartmentUuid !== undefined &&
         data.parentDepartmentUuid !== null
     ) {
-        toUuid(data.parentDepartmentUuid, 'Parent department');
+        parseUuid(data.parentDepartmentUuid, 'Parent department');
     }
 };
 
@@ -217,9 +204,9 @@ const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
     if (!Array.isArray(owners)) {
         throw new ParameterError('Owners must be a list');
     }
-    if (owners.length > MAX_LIST_LENGTH) {
+    if (owners.length > MAX_DEPARTMENT_LIST_LENGTH) {
         throw new ParameterError(
-            `Owners can hold at most ${MAX_LIST_LENGTH} entries`,
+            `Owners can hold at most ${MAX_DEPARTMENT_LIST_LENGTH} entries`,
         );
     }
     const valid = owners.map((o): DepartmentOwnerInput => {
@@ -228,7 +215,7 @@ const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
                 `Owner type must be user or group: ${truncateForMessage(o.type)}`,
             );
         }
-        return { type: o.type, uuid: toUuid(o.uuid, 'Owner') };
+        return { type: o.type, uuid: parseUuid(o.uuid, 'Owner') };
     });
     // Counted once each, as they are stored
     if (new Set(valid.map((o) => `${o.type}:${o.uuid}`)).size > MAX_OWNERS) {
@@ -349,8 +336,10 @@ export class DepartmentService extends BaseService {
         return snapshot.summary;
     }
 
-    async getMembership(account: Account): Promise<DepartmentMembership[]> {
-        const { organizationUuid } = await this.authorize(account, 'view');
+    // Read now, not from the snapshot, which another backend process may have outdated
+    protected async resolveMembership(
+        organizationUuid: string,
+    ): Promise<DepartmentMembership[]> {
         const [departments, rows] = await Promise.all([
             this.departmentModel.listByOrganization(organizationUuid),
             this.departmentModel.getResolvedMemberRows(organizationUuid),
@@ -358,13 +347,18 @@ export class DepartmentService extends BaseService {
         return resolveDepartmentMembership(rows, departments);
     }
 
+    async getMembership(account: Account): Promise<DepartmentMembership[]> {
+        const { organizationUuid } = await this.authorize(account, 'view');
+        return this.resolveMembership(organizationUuid);
+    }
+
     protected async loadMembers(
         organizationUuid: string,
         snapshot: AdoptionSnapshot,
         departmentUuid: string,
+        members: DepartmentMembership[],
         windows: ActivityWindows,
     ): Promise<DepartmentMember[]> {
-        const members = snapshot.rolledMembers.get(departmentUuid) ?? [];
         const activity = await this.departmentAnalyticsModel.getMemberActivity(
             organizationUuid,
             members.map((m) => m.userUuid),
@@ -385,7 +379,7 @@ export class DepartmentService extends BaseService {
         rawDepartmentUuid: string,
     ): Promise<DepartmentDetail> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
         // The count and the member list share the snapshot's bounds, so they agree on who is active
         const { snapshot, windows } = await this.getSnapshot(organizationUuid);
         const all = snapshot.summary.departments;
@@ -402,6 +396,7 @@ export class DepartmentService extends BaseService {
                 organizationUuid,
                 snapshot,
                 departmentUuid,
+                snapshot.rolledMembers.get(departmentUuid) ?? [],
                 windows,
             ),
             this.departmentAnalyticsModel.getTopContent(
@@ -430,6 +425,67 @@ export class DepartmentService extends BaseService {
             weeklyActive: computeWeeklyWithOrgAverage(department, all),
             topContent,
             members,
+        };
+    }
+
+    // members: the people of the department in every with department and in no without department
+    async getOverlaps(
+        account: Account,
+        rawDepartmentUuid: string,
+        rawWithUuids?: string[],
+        rawWithoutUuids?: string[],
+    ): Promise<DepartmentOverlaps> {
+        const { organizationUuid } = await this.authorize(account, 'view');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
+        const withUuids = parseOverlapList(
+            'with',
+            rawWithUuids,
+            departmentUuid,
+        );
+        const withoutUuids = parseOverlapList(
+            'without',
+            rawWithoutUuids,
+            departmentUuid,
+        );
+        const inBoth = withUuids?.find((uuid) => withoutUuids?.includes(uuid));
+        if (inBoth !== undefined) {
+            throw new ParameterError(
+                `Department ${inBoth} cannot be in both "with" and "without"`,
+            );
+        }
+        const { snapshot, windows } = await this.getSnapshot(organizationUuid);
+        const all = snapshot.summary.departments;
+        const department = all.find((d) => d.departmentUuid === departmentUuid);
+        if (!department) {
+            throw new NotFoundError(`Department ${departmentUuid} not found`);
+        }
+        const known = new Set(all.map((d) => d.departmentUuid));
+        const unknown = [...(withUuids ?? []), ...(withoutUuids ?? [])].find(
+            (uuid) => !known.has(uuid),
+        );
+        if (unknown !== undefined) {
+            throw new ParameterError(
+                `Department ${unknown} is not in this organization`,
+            );
+        }
+        return {
+            department: { departmentUuid, name: department.name },
+            ...computeDepartmentOverlaps(snapshot, departmentUuid),
+            members:
+                withUuids === null && withoutUuids === null
+                    ? null
+                    : await this.loadMembers(
+                          organizationUuid,
+                          snapshot,
+                          departmentUuid,
+                          getMembersInRegion(
+                              snapshot,
+                              departmentUuid,
+                              withUuids ?? [],
+                              withoutUuids ?? [],
+                          ),
+                          windows,
+                      ),
         };
     }
 
@@ -463,7 +519,7 @@ export class DepartmentService extends BaseService {
             account,
             'manage',
         );
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
         validateDepartmentInput(data);
         try {
             return await this.departmentModel.update(
@@ -480,7 +536,7 @@ export class DepartmentService extends BaseService {
 
     async delete(account: Account, rawDepartmentUuid: string): Promise<void> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
         try {
             await this.departmentModel.delete(organizationUuid, departmentUuid);
         } finally {
@@ -494,8 +550,8 @@ export class DepartmentService extends BaseService {
         rawGroupUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
-        const groupUuids = toUuidList(rawGroupUuids, 'Group');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
+        const groupUuids = parseUuids(rawGroupUuids, 'Group');
         try {
             return await this.departmentModel.setGroupLinks(
                 organizationUuid,
@@ -513,8 +569,8 @@ export class DepartmentService extends BaseService {
         rawUserUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
-        const userUuids = toUuidList(rawUserUuids, 'User');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
+        const userUuids = parseUuids(rawUserUuids, 'User');
         try {
             return await this.departmentModel.setMembers(
                 organizationUuid,
@@ -532,13 +588,53 @@ export class DepartmentService extends BaseService {
         rawOwners: DepartmentOwnerInput[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const departmentUuid = parseUuid(rawDepartmentUuid, 'Department');
         const owners = toOwners(rawOwners);
         try {
             return await this.departmentModel.setOwners(
                 organizationUuid,
                 departmentUuid,
                 owners,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
+    }
+
+    // null clears it, so the person counts in every department they are in
+    async setPrimaryDepartment(
+        account: Account,
+        rawUserUuid: string,
+        data: SetPrimaryDepartment,
+    ): Promise<void> {
+        const { organizationUuid } = await this.authorize(account, 'manage');
+        const userUuid = parseUuid(rawUserUuid, 'User');
+        const departmentUuid =
+            data.departmentUuid === null
+                ? null
+                : parseUuid(data.departmentUuid, 'Department');
+        if (departmentUuid !== null) {
+            const person = (
+                await this.resolveMembership(organizationUuid)
+            ).find((m) => m.userUuid === userUuid);
+            if (!person) {
+                throw new NotFoundError(notAnActiveMemberMessage(userUuid));
+            }
+            if (
+                !person.placements.some(
+                    (p) => p.departmentUuid === departmentUuid,
+                )
+            ) {
+                throw new ParameterError(
+                    `User ${userUuid} is not in department ${departmentUuid}`,
+                );
+            }
+        }
+        try {
+            await this.departmentModel.setPrimaryDepartment(
+                organizationUuid,
+                userUuid,
+                departmentUuid,
             );
         } finally {
             this.invalidateSnapshot(organizationUuid);

@@ -32,6 +32,9 @@ const DENSE_COUNT = 150;
 const RING_WITH_CENTRE_COUNT = 7;
 // Centres are kept this multiple of a dot's diameter apart, so neighbours never touch
 const DOT_SPACING = 1.06;
+// The ring around a person who also counts in another department, and the gap inside it, at readable sizes
+const SHARED_RING_PX = 1;
+const SHARED_RING_GAP_PX = 1;
 
 export type ColourBy = 'activity' | 'role';
 
@@ -96,11 +99,20 @@ const DOT_ORDER: DotKind[] = [
 export const getDepartmentSize = (department: DepartmentWithMetrics): number =>
     department.effectiveHeadcount;
 
-export const countBucketPeople = (bucket: PeopleBucket): number =>
+// What a colouring splits: the people on Lightdash by activity and by role, over what they are counted against
+type SegmentedPeople = {
+    metrics: Pick<
+        AdoptionMetrics,
+        'memberCount' | 'activitySplit' | 'roleSplit'
+    >;
+    headcount: number | null;
+};
+
+export const countBucketPeople = (bucket: SegmentedPeople): number =>
     Math.max(bucket.headcount ?? 0, bucket.metrics.memberCount);
 
 export const getDotSegments = (
-    bucket: PeopleBucket,
+    bucket: SegmentedPeople,
     colourBy: ColourBy,
 ): DotSegment[] => {
     const { metrics } = bucket;
@@ -240,6 +252,30 @@ export const layoutDots = (count: number, circleRadius: number): DotLayout => {
         dotRadius,
         positions: sunflowerPositions(count, usable - dotRadius),
     };
+};
+
+// A person who also counts in another department: a thin ring at the edge of the room their dot has, and the dot
+// inside it, so the ring never reaches a neighbour
+export const getSharedDotShape = (
+    room: number,
+): { dotRadius: number; ringRadius: number; ringWidth: number } => {
+    const ringWidth = Math.min(SHARED_RING_PX, room * 0.2);
+    const gap = Math.min(SHARED_RING_GAP_PX, room * 0.15);
+    return {
+        dotRadius: room - ringWidth - gap,
+        ringRadius: room - ringWidth / 2,
+        ringWidth,
+    };
+};
+
+// That many places from 0 to total - 1, each in the middle of an equal share of the range
+export const spreadEvenly = (count: number, total: number): Set<number> => {
+    const picked = Math.min(Math.max(count, 0), Math.max(total, 0));
+    return new Set(
+        Array.from({ length: picked }, (_, index) =>
+            Math.floor(((index + 0.5) * total) / picked),
+        ),
+    );
 };
 
 export const buildPackInput = (

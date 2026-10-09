@@ -1,14 +1,28 @@
-import { waitFor } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderHookWithProviders } from '../../testing/testUtils';
-import { useDepartmentDetail, useUpdateDepartment } from './useOrgDepartments';
+import {
+    useDepartmentDetail,
+    useDepartmentOverlaps,
+    useSetPrimaryDepartment,
+    useUpdateDepartment,
+} from './useOrgDepartments';
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
 }));
+const showToastApiError = vi.fn();
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError, showToastSuccess: vi.fn() }),
+}));
 
 const DEPARTMENT = '11111111-2222-4333-8444-555555555555';
+const SALES = '22222222-2222-4333-8444-555555555555';
+const MARKETING = '33333333-2222-4333-8444-555555555555';
+const GROWTH = '44444444-2222-4333-8444-555555555555';
+const PERSON = '55555555-2222-4333-8444-555555555555';
 
 describe('useDepartmentDetail', () => {
     beforeEach(() => {
@@ -56,6 +70,153 @@ describe('department mutations', () => {
                     method: 'PATCH',
                 }),
             ),
+        );
+    });
+});
+
+describe('useDepartmentOverlaps', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.mocked(lightdashApi).mockResolvedValue({} as never);
+    });
+
+    const requestedUrl = async (
+        ...args: Parameters<typeof useDepartmentOverlaps>
+    ) => {
+        renderHookWithProviders(() => useDepartmentOverlaps(...args));
+        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(1));
+        return vi.mocked(lightdashApi).mock.calls[0][0];
+    };
+
+    it('requests the overlaps without a list when none is given', async () => {
+        expect(await requestedUrl(DEPARTMENT)).toEqual({
+            url: `/org/departments/${DEPARTMENT}/overlaps`,
+            method: 'GET',
+            body: undefined,
+        });
+    });
+    it('sends the departments to compare with and to leave out, comma-separated', async () => {
+        const { url } = await requestedUrl(
+            DEPARTMENT,
+            [SALES, MARKETING],
+            [GROWTH],
+        );
+        const [path, query] = url.split('?');
+        expect(path).toBe(`/org/departments/${DEPARTMENT}/overlaps`);
+        const params = new URLSearchParams(query);
+        expect(params.get('with')).toBe(`${SALES},${MARKETING}`);
+        expect(params.get('without')).toBe(GROWTH);
+    });
+    it('leaves an empty list out of the request', async () => {
+        const { url } = await requestedUrl(DEPARTMENT, [], [GROWTH]);
+        expect(url).toBe(
+            `/org/departments/${DEPARTMENT}/overlaps?without=${GROWTH}`,
+        );
+    });
+    it.each(['../../user', 'ops'])(
+        'requests nothing for %s, which is not a uuid',
+        async (departmentUuid) => {
+            const { result } = renderHookWithProviders(() =>
+                useDepartmentOverlaps(departmentUuid),
+            );
+            await new Promise((resolve) => {
+                setTimeout(resolve, 20);
+            });
+            expect(result.current.fetchStatus).toBe('idle');
+            expect(lightdashApi).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('useSetPrimaryDepartment', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.mocked(lightdashApi).mockResolvedValue(undefined as never);
+        showToastApiError.mockReset();
+    });
+
+    const MEMBERSHIP_KEY = ['org-adoption', 'membership'];
+    const SUMMARY_KEY = ['org-adoption', 'summary'];
+    // The hook beside the client it shares, with the adoption data already cached
+    const renderWithCachedAdoption = () => {
+        const rendered = renderHookWithProviders(() => ({
+            client: useQueryClient(),
+            setPrimary: useSetPrimaryDepartment(),
+        }));
+        const { client } = rendered.result.current;
+        client.setQueryData(MEMBERSHIP_KEY, []);
+        client.setQueryData(SUMMARY_KEY, {});
+        return rendered;
+    };
+    const isStale = (
+        client: ReturnType<typeof useQueryClient>,
+        key: string[],
+    ) => client.getQueryState(key)?.isInvalidated;
+
+    it('marks the adoption data stale before the save completes', async () => {
+        const { result } = renderWithCachedAdoption();
+        const { client } = result.current;
+        expect(isStale(client, MEMBERSHIP_KEY)).toBe(false);
+        await act(() =>
+            result.current.setPrimary.mutateAsync({
+                userUuid: PERSON,
+                departmentUuid: SALES,
+            }),
+        );
+        expect(isStale(client, MEMBERSHIP_KEY)).toBe(true);
+        expect(isStale(client, SUMMARY_KEY)).toBe(true);
+        expect(showToastApiError).not.toHaveBeenCalled();
+    });
+
+    it('says why a save failed and leaves the adoption data alone', async () => {
+        const failure = {
+            status: 'error',
+            error: {
+                name: 'ParameterError',
+                statusCode: 400,
+                message: `User ${PERSON} is not in department ${SALES}`,
+                data: {},
+            },
+        };
+        vi.mocked(lightdashApi).mockRejectedValue(failure);
+        const { result } = renderWithCachedAdoption();
+        result.current.setPrimary.mutate({
+            userUuid: PERSON,
+            departmentUuid: SALES,
+        });
+        await waitFor(() =>
+            expect(showToastApiError).toHaveBeenCalledWith({
+                title: 'Failed to update where this person counts',
+                apiError: failure.error,
+            }),
+        );
+        expect(isStale(result.current.client, MEMBERSHIP_KEY)).toBe(false);
+    });
+
+    it('sets the department a person counts in', async () => {
+        const { result } = renderHookWithProviders(() =>
+            useSetPrimaryDepartment(),
+        );
+        result.current.mutate({ userUuid: PERSON, departmentUuid: SALES });
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                url: `/org/departments/people/${PERSON}/primary`,
+                method: 'PUT',
+                body: JSON.stringify({ departmentUuid: SALES }),
+            }),
+        );
+    });
+    it('sends null to count a person everywhere again, and keeps any value inside the path', async () => {
+        const { result } = renderHookWithProviders(() =>
+            useSetPrimaryDepartment(),
+        );
+        result.current.mutate({ userUuid: '../../user', departmentUuid: null });
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                url: '/org/departments/people/..%2F..%2Fuser/primary',
+                method: 'PUT',
+                body: JSON.stringify({ departmentUuid: null }),
+            }),
         );
     });
 });

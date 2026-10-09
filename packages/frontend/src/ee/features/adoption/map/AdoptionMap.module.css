@@ -35,6 +35,8 @@
     --adoption-viewer: var(--mantine-color-violet-outline);
     /* People without an account: the grey of their ring and of the bars' track */
     --adoption-no-account: var(--mantine-color-ldGray-3);
+    /* The ring around the dot of a person who also counts in another department */
+    --adoption-shared-ring: var(--mantine-color-ldGray-6);
 }
 
 .body {

@@ -4,6 +4,7 @@ import {
     type AdoptionMetrics,
     type DepartmentMembership,
     type DepartmentWithMetrics,
+    type MembershipPlacement,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
@@ -18,6 +19,7 @@ const metrics = (weekly: number[]): AdoptionMetrics => ({
     memberCount: 0,
     activeCount30d: 0,
     activeCount12w: 0,
+    sharedCount: 0,
     coveragePct: null,
     activePct: null,
     roleSplit: { viewers: 0, interactiveViewers: 0, editors: 0, admins: 0 },
@@ -51,22 +53,36 @@ const department = (
     directMetrics: metrics(weekly),
 });
 
+const viaGroup = (departmentUuid: string): MembershipPlacement => ({
+    departmentUuid,
+    source: 'group',
+    sourceGroupName: 'Store staff',
+});
+
+const explicit = (departmentUuid: string): MembershipPlacement => ({
+    departmentUuid,
+    source: 'explicit',
+    sourceGroupName: null,
+});
+
+// Placements in uuid order, as resolved; counted in all of them, or in the primary alone
 const member = (
     userUuid: string,
-    departmentUuid: string,
-    source: 'explicit' | 'group' = 'group',
+    placements: MembershipPlacement[],
+    primaryDepartmentUuid: string | null = null,
 ): DepartmentMembership => ({
     userUuid,
     email: `${userUuid}@example.com`,
     firstName: userUuid,
     lastName: 'L',
     role: OrganizationMemberRole.VIEWER,
-    resolution: {
-        kind: 'assigned',
-        departmentUuid,
-        source,
-        sourceGroupName: source === 'group' ? 'Store staff' : null,
-    },
+    kind: placements.length > 1 ? 'shared' : 'assigned',
+    placements,
+    primaryDepartmentUuid,
+    countedDepartmentUuids:
+        primaryDepartmentUuid === null
+            ? placements.map((p) => p.departmentUuid)
+            : [primaryDepartmentUuid],
 });
 
 describe('computeTargetProgress', () => {
@@ -172,17 +188,38 @@ describe('computeWeeklyWithOrgAverage', () => {
 });
 
 describe('buildDepartmentMembers', () => {
+    // ops ─┬─ stores
+    //      └─ depots
+    // finance
     const departments = [
-        { departmentUuid: 'ops', name: 'Operations' },
-        { departmentUuid: 'stores', name: 'Stores' },
+        {
+            departmentUuid: 'ops',
+            parentDepartmentUuid: null,
+            name: 'Operations',
+        },
+        {
+            departmentUuid: 'stores',
+            parentDepartmentUuid: 'ops',
+            name: 'Stores',
+        },
+        {
+            departmentUuid: 'depots',
+            parentDepartmentUuid: 'ops',
+            name: 'Depots',
+        },
+        {
+            departmentUuid: 'finance',
+            parentDepartmentUuid: null,
+            name: 'Finance',
+        },
     ];
     const built = buildDepartmentMembers({
         departmentUuid: 'ops',
         members: [
-            member('recent', 'ops', 'explicit'),
-            member('never', 'stores'),
-            member('stale', 'stores'),
-            member('lapsed', 'stores'),
+            member('recent', [explicit('ops')]),
+            member('never', [viaGroup('stores')]),
+            member('stale', [viaGroup('stores')]),
+            member('lapsed', [viaGroup('stores')]),
         ],
         departments,
         activity: [
@@ -210,6 +247,17 @@ describe('buildDepartmentMembers', () => {
         ],
         windows: getActivityWindows(NOW),
     });
+    const buildFor = (
+        departmentUuid: string,
+        members: DepartmentMembership[],
+    ) =>
+        buildDepartmentMembers({
+            departmentUuid,
+            members,
+            departments,
+            activity: [],
+            windows: getActivityWindows(NOW),
+        });
 
     it('sorts no recorded activity first, then longest inactive', () => {
         expect(built.map((m) => m.userUuid)).toEqual([
@@ -240,6 +288,8 @@ describe('buildDepartmentMembers', () => {
             isActive30d: false,
             queries30d: 0,
             dashboardViews30d: 0,
+            sharedWith: [],
+            primaryDepartmentUuid: null,
         });
         expect(built[3]).toMatchObject({
             departmentName: 'Operations',
@@ -250,5 +300,70 @@ describe('buildDepartmentMembers', () => {
             isActive30d: true,
             queries30d: 9,
         });
+    });
+    it("lists a person's other departments as also in", () => {
+        const [person] = buildFor('ops', [
+            member('both', [explicit('finance'), viaGroup('stores')]),
+        ]);
+        expect(person).toMatchObject({
+            departmentUuid: 'stores',
+            departmentName: 'Stores',
+            isDirect: false,
+            source: 'group',
+            sharedWith: [{ departmentUuid: 'finance', name: 'Finance' }],
+            primaryDepartmentUuid: null,
+        });
+    });
+    it('leaves out a placement in a department missing from the tree, so it never rings a dot or prints an empty name', () => {
+        const [person] = buildFor('ops', [
+            member('gone', [explicit('deleted'), viaGroup('stores')]),
+        ]);
+        expect(person).toMatchObject({
+            departmentUuid: 'stores',
+            departmentName: 'Stores',
+            sharedWith: [],
+        });
+    });
+    it('names one sub-department for a person counted in two of them, and the other as also in', () => {
+        const split = member('split', [viaGroup('depots'), viaGroup('stores')]);
+        expect(buildFor('ops', [split])[0]).toMatchObject({
+            departmentUuid: 'depots',
+            isDirect: false,
+            sharedWith: [{ departmentUuid: 'stores', name: 'Stores' }],
+        });
+        expect(buildFor('stores', [split])[0]).toMatchObject({
+            departmentUuid: 'stores',
+            isDirect: true,
+            sharedWith: [{ departmentUuid: 'depots', name: 'Depots' }],
+        });
+    });
+    it('shows where a person with a primary counts, the rest as also in, and the primary', () => {
+        const [person] = buildFor('finance', [
+            member(
+                'chosen',
+                [explicit('finance'), viaGroup('stores')],
+                'finance',
+            ),
+        ]);
+        expect(person).toMatchObject({
+            departmentUuid: 'finance',
+            departmentName: 'Finance',
+            isDirect: true,
+            source: 'explicit',
+            sourceGroupName: null,
+            sharedWith: [{ departmentUuid: 'stores', name: 'Stores' }],
+            primaryDepartmentUuid: 'finance',
+        });
+    });
+    it('leaves out a person who does not count under the department', () => {
+        expect(
+            buildFor('ops', [
+                member(
+                    'elsewhere',
+                    [explicit('finance'), viaGroup('stores')],
+                    'finance',
+                ),
+            ]),
+        ).toEqual([]);
     });
 });

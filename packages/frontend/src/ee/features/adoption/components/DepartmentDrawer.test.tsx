@@ -32,9 +32,10 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
     useSetDepartmentOwners: () => mutation(setOwners),
     useSetDepartmentGroups: () => mutation(setGroups),
     useSetDepartmentMembers: () => mutation(setMembers),
+    // Like the real query: nothing until it is enabled
     useDepartmentMembership: (enabled: boolean) => {
         membershipEnabled(enabled);
-        return { data: membership };
+        return { data: enabled ? membership : undefined };
     },
 }));
 const person = (userUuid: string, firstName: string) => ({
@@ -44,6 +45,28 @@ const person = (userUuid: string, firstName: string) => ({
     email: `${userUuid}@example.com`,
     isActive: true,
     isPending: false,
+});
+// Someone on Lightdash placed in the departments given, counted in each
+const placedIn = (
+    userUuid: string,
+    firstName: string,
+    departmentUuids: string[],
+): DepartmentMembership => ({
+    ...person(userUuid, firstName),
+    role: OrganizationMemberRole.VIEWER,
+    kind:
+        departmentUuids.length === 0
+            ? 'unassigned'
+            : departmentUuids.length === 1
+              ? 'assigned'
+              : 'shared',
+    placements: departmentUuids.map((departmentUuid) => ({
+        departmentUuid,
+        source: 'explicit',
+        sourceGroupName: null,
+    })),
+    primaryDepartmentUuid: null,
+    countedDepartmentUuids: departmentUuids,
 });
 let users = [person('u1', 'Ann'), person('u2', 'Bob')];
 const groups = [
@@ -81,6 +104,15 @@ const clear = async (label: RegExp | string) => {
 };
 const save = () =>
     userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+// The chips a picker shows for the values chosen, as read aloud
+const chipsOf = (label: RegExp | string) =>
+    Array.from(
+        screen
+            .getByRole('combobox', { name: label })
+            .closest('.mantine-InputWrapper-root')
+            ?.querySelectorAll('.mantine-Pill-root') ?? [],
+        (chip) => chip.textContent,
+    );
 const renderEdit = (department: ReturnType<typeof dept>, onClose = vi.fn()) =>
     renderWithProviders(
         <DepartmentForm
@@ -91,9 +123,11 @@ const renderEdit = (department: ReturnType<typeof dept>, onClose = vi.fn()) =>
         />,
     );
 
-describe('DepartmentForm', () => {
+// The form's tests type into several fields, which is slow on a busy machine, so these get 20 s each
+describe('DepartmentForm', { timeout: 20_000 }, () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        membership = [];
         create.mockResolvedValue({ departmentUuid: 'new' });
         update.mockResolvedValue({ departmentUuid: 'Ops' });
     });
@@ -574,6 +608,154 @@ describe('DepartmentForm', () => {
         });
     });
 
+    describe('people in other departments', () => {
+        beforeEach(() => {
+            membershipEnabled.mockReset();
+            membership = [];
+        });
+
+        it('offers people already in another department and says so on their chip', async () => {
+            // Ann is assigned here and in Finance; her Ops assignment gave way to Stores, below it
+            membership = [
+                placedIn('u1', 'Ann', ['Finance', 'Stores']),
+                placedIn('u2', 'Bob', ['Finance']),
+            ];
+            renderEdit(
+                dept('Ops', null, 10, {
+                    headcount: 40,
+                    explicitMemberUuids: ['u1'],
+                }),
+            );
+            expect(
+                screen.getByText(
+                    'Assigning someone here keeps them in any other department they are in',
+                ),
+            ).toBeInTheDocument();
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test, also in Finance',
+            ]);
+            await pick(/^Assigned people/, 'Bob Test');
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test, also in Finance',
+                'Bob Test, also in Finance',
+            ]);
+            await save();
+            await waitFor(() => expect(setMembers).toHaveBeenCalled());
+            expect(setMembers).toHaveBeenCalledWith({
+                departmentUuid: 'Ops',
+                userUuids: ['u1', 'u2'],
+            });
+        });
+
+        it('says nothing on the chip of someone in no other department', async () => {
+            membership = [placedIn('u2', 'Bob', [])];
+            renderEdit(departments[2]);
+            await pick(/^Assigned people/, 'Bob Test');
+            expect(chipsOf(/^Assigned people/)).toEqual(['Bob Test']);
+        });
+
+        it('on a new department, loads everyone once the picker opens and names every department a chosen person is in', async () => {
+            membership = [placedIn('u2', 'Bob', ['Finance', 'Stores'])];
+            renderWithProviders(
+                <DepartmentForm
+                    department={null}
+                    departments={departments}
+                    members={null}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(membershipEnabled).toHaveBeenCalledWith(false);
+            expect(membershipEnabled).not.toHaveBeenCalledWith(true);
+            await pick(/^Assigned people/, 'Bob Test');
+            expect(membershipEnabled).toHaveBeenLastCalledWith(true);
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Bob Test, also in Finance, Stores',
+            ]);
+            // Under Stores, Bob's place in Stores is part of the new department's line
+            await pick(/^Parent department/, 'Ops / Stores');
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Bob Test, also in Finance',
+            ]);
+        });
+
+        it('on the department page, reads chips from its people and loads everyone only once the picker opens', async () => {
+            membership = [
+                placedIn('u1', 'Ann', ['Finance', 'Ops']),
+                placedIn('u2', 'Bob', ['Finance']),
+            ];
+            renderWithProviders(
+                <DepartmentForm
+                    department={dept('Ops', null, 10, {
+                        headcount: 40,
+                        explicitMemberUuids: ['u1'],
+                    })}
+                    departments={departments}
+                    members={[
+                        memberFixture('u1', null, {
+                            firstName: 'Ann',
+                            lastName: 'Test',
+                            departmentUuid: 'Ops',
+                            departmentName: 'Ops',
+                            sharedWith: [
+                                { departmentUuid: 'Finance', name: 'Finance' },
+                            ],
+                        }),
+                    ]}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(membershipEnabled).not.toHaveBeenCalledWith(true);
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test, also in Finance',
+            ]);
+            await pick(/^Assigned people/, 'Bob Test');
+            expect(membershipEnabled).toHaveBeenLastCalledWith(true);
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test, also in Finance',
+                'Bob Test, also in Finance',
+            ]);
+        });
+
+        it('on the department page, loads everyone at once when an assigned person counts elsewhere', () => {
+            // Bob is assigned here but counts in Finance, so the page's people leave him out
+            membership = [
+                placedIn('u1', 'Ann', ['Ops']),
+                {
+                    ...placedIn('u2', 'Bob', ['Finance', 'Ops']),
+                    primaryDepartmentUuid: 'Finance',
+                    countedDepartmentUuids: ['Finance'],
+                },
+            ];
+            renderWithProviders(
+                <DepartmentForm
+                    department={dept('Ops', null, 10, {
+                        headcount: 40,
+                        explicitMemberUuids: ['u1', 'u2'],
+                    })}
+                    departments={departments}
+                    members={[
+                        memberFixture('u1', null, {
+                            firstName: 'Ann',
+                            lastName: 'Test',
+                            departmentUuid: 'Ops',
+                            departmentName: 'Ops',
+                        }),
+                    ]}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(membershipEnabled).toHaveBeenLastCalledWith(true);
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test',
+                'Bob Test, also in Finance',
+            ]);
+            // The list of people is still the page's own
+            expect(
+                screen.getByText('1 person in this department'),
+            ).toBeInTheDocument();
+        });
+    });
+
     it('sends null for exactly the fields that were cleared', async () => {
         const full = dept('Ops', 'Finance', 10, {
             headcount: 40,
@@ -694,16 +876,9 @@ describe('DepartmentForm', () => {
         });
 
         it('shows the first 50 resolved people with a link to the department page for the rest', () => {
-            membership = Array.from({ length: 60 }, (_, index) => ({
-                ...person(`m${index}`, `Member${index}`),
-                role: OrganizationMemberRole.VIEWER,
-                resolution: {
-                    kind: 'assigned' as const,
-                    departmentUuid: 'Ops',
-                    source: 'explicit' as const,
-                    sourceGroupName: null,
-                },
-            }));
+            membership = Array.from({ length: 60 }, (_, index) =>
+                placedIn(`m${index}`, `Member${index}`, ['Ops']),
+            );
             renderWithProviders(
                 <MemoryRouter>
                     <DepartmentForm
