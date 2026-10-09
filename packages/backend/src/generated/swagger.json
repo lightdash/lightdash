@@ -70214,6 +70214,31 @@
                 "type": "string",
                 "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             },
+            "AiServiceAccountParent": {
+                "properties": {
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "identityUuid": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "principal",
+                    "identityUuid",
+                    "projectName",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
             "WarehouseServiceAuthMethod": {
                 "type": "string",
                 "enum": [
@@ -70295,6 +70320,34 @@
                     "uuid"
                 ],
                 "type": "object"
+            },
+            "ApiAiServiceAccountStatusResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountSlot"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "parent": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountParent"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["results", "status", "parent"],
+                "type": "object",
+                "additionalProperties": true
             },
             "ApiAiServiceAccountSlotResponse": {
                 "properties": {
@@ -70938,7 +70991,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.519.0",
+        "version": "2.520.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -114105,7 +114158,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountStatusResponse"
                                 }
                             }
                         }

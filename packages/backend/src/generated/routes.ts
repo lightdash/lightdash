@@ -71606,6 +71606,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiServiceAccountParent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                principal: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                identityUuid: { dataType: 'string', required: true },
+                projectName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                projectUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseServiceAuthMethod: {
         dataType: 'refAlias',
         type: {
@@ -71681,6 +71709,30 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiServiceAccountStatusResponse: {
+        dataType: 'refObject',
+        properties: {
+            results: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountSlot' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            parent: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountParent' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiServiceAccountSlotResponse: {

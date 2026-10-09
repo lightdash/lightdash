@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.519.0",
-  "previousVersion": "2.518.1",
-  "releaseDate": "2026-10-09T17:20:38.011Z",
+  "version": "2.520.0",
+  "previousVersion": "2.519.0",
+  "releaseDate": "2026-10-09T17:45:27.472Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261009155609_create_organization_snowflake_agent_clients.ts",
-        "edition": "core",
-        "tables": [
-          "organization_snowflake_agent_clients",
-          "organizations",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

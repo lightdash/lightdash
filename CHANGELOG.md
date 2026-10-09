@@ -1,3 +1,10 @@
+# [2.520.0](https://github.com/lightdash/lightdash/compare/2.519.0...2.520.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** preview projects use the parent project's AI service account ([#30830](https://github.com/lightdash/lightdash/issues/30830)) ([d082aca](https://github.com/lightdash/lightdash/commit/d082aca86af36e5814b00f413f0fdd0337de690f))
+
 # [2.519.0](https://github.com/lightdash/lightdash/compare/2.518.1...2.519.0) (2026-10-09)
 
 
