@@ -16,6 +16,17 @@ export const getSnowflakeAiAccount = (
     }
 };
 
+export const hasAnySnowflakeAgentOAuthSetting = (
+    config: LightdashConfig['auth']['snowflakeAi'],
+): boolean =>
+    [
+        config.clientId,
+        config.clientSecret,
+        config.authorizationEndpoint,
+        config.tokenEndpoint,
+        config.account,
+    ].some(Boolean);
+
 export const getSnowflakeAgentMissingOAuthSettings = (
     config: LightdashConfig['auth']['snowflakeAi'],
 ): string[] => {

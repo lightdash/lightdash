@@ -69,7 +69,7 @@ const SnowflakeAgentClientForm = ({
                     )}
                 {client.source === 'environment' && (
                     <Text size="sm" c="dimmed">
-                        This instance currently uses its SNOWFLAKE_AI_OAUTH_*
+                        This instance currently uses its own Snowflake OAuth
                         settings.
                     </Text>
                 )}
@@ -83,11 +83,13 @@ const SnowflakeAgentClientForm = ({
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     <TextInput
                         label="Client ID"
+                        placeholder="OAUTH_CLIENT_ID from the query above"
                         disabled={save.isLoading}
                         {...form.getInputProps('clientId')}
                     />
                     <PasswordInput
                         label="Client secret"
+                        placeholder="OAUTH_CLIENT_SECRET from the query above"
                         autoComplete="new-password"
                         aria-describedby={secretHintId}
                         disabled={save.isLoading}
@@ -132,9 +134,11 @@ const SnowflakeAgentClientForm = ({
 
 export const SnowflakeAgentClient = ({
     client,
+    hasInstanceSettings,
     onSave,
 }: {
     client: Client;
+    hasInstanceSettings: boolean;
     onSave: () => void;
 }) => {
     const [replacing, setReplacing] = useState(false);
@@ -171,10 +175,12 @@ export const SnowflakeAgentClient = ({
                     onCancel={saved ? () => setReplacing(false) : null}
                 />
             )}
-            <Text size="xs" c="dimmed">
-                Instances with SNOWFLAKE_AI_OAUTH_* variables keep working. A
-                client saved here overrides them for this organisation.
-            </Text>
+            {hasInstanceSettings && (
+                <Text size="xs" c="dimmed">
+                    This instance also has Snowflake OAuth settings. A client
+                    saved here overrides them for this organisation.
+                </Text>
+            )}
         </Stack>
     );
 };

@@ -58,6 +58,10 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
+import {
+    getSnowflakeAgentMissingOAuthSettings,
+    hasAnySnowflakeAgentOAuthSetting,
+} from '../../config/snowflakeAgentConfiguration';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { redactCredentialError } from '../../logging/redactCredentialError';
@@ -394,6 +398,9 @@ export class AiAccessService extends BaseService {
             integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
             missingSettings,
             configured: missingSettings.length === 0,
+            hasInstanceSettings: hasAnySnowflakeAgentOAuthSetting(
+                this.lightdashConfig.auth.snowflakeAi,
+            ),
             client: {
                 source: metadata ? 'organization' : (resolved?.source ?? null),
                 accountUrl: metadata?.accountUrl ?? resolved?.accessUrl ?? null,
@@ -451,29 +458,31 @@ export class AiAccessService extends BaseService {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
         const resolved =
             await this.snowflakeAgentClientResolver.resolve(organizationUuid);
-        const missingSettings =
-            await this.snowflakeAgentClientResolver.getMissingSettings(
-                organizationUuid,
-            );
-        const configured = missingSettings.length === 0;
-        const clientSourceDetail =
-            resolved?.source === 'organization'
-                ? 'Using the client saved for this organisation.'
-                : 'Using the instance SNOWFLAKE_AI_OAUTH_* settings.';
-        const missingSettingsDetail = configured
-            ? ''
-            : `Missing: ${missingSettings.join(', ')}.`;
+        const hasLicense =
+            this.lightdashConfig.license.licenseKey !== undefined;
+        const configured = resolved !== null && hasLicense;
+        const instanceConfig = this.lightdashConfig.auth.snowflakeAi;
+        const missingOAuthSettings =
+            getSnowflakeAgentMissingOAuthSettings(instanceConfig);
+        let clientDetail: string;
+        if (resolved) {
+            clientDetail =
+                resolved.source === 'organization'
+                    ? 'Using the client saved for this organisation.'
+                    : "Using this instance's Snowflake OAuth settings.";
+        } else if (hasAnySnowflakeAgentOAuthSetting(instanceConfig)) {
+            clientDetail = `This instance's Snowflake OAuth settings are incomplete. Missing instance settings: ${missingOAuthSettings.join(', ')}. Set them, or paste the client from Snowflake in step 2.`;
+        } else {
+            clientDetail =
+                'Not saved. Paste the account URL, client ID and client secret from Snowflake in step 2, then verify again.';
+        }
         const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
             {
                 id: 'oauth_client',
                 label: 'OAuth client settings',
                 required: true,
                 status: resolved ? 'passed' : 'failed',
-                detail: resolved
-                    ? [clientSourceDetail, missingSettingsDetail]
-                          .filter(Boolean)
-                          .join(' ')
-                    : missingSettingsDetail,
+                detail: `${clientDetail}${hasLicense ? '' : ' Missing: Enterprise licence.'}`,
             },
         ];
         const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
@@ -482,7 +491,7 @@ export class AiAccessService extends BaseService {
                 label: 'Authorization endpoint',
                 required: true,
                 status: 'not_checked',
-                detail: 'Set the missing OAuth client settings before checking the endpoint.',
+                detail: 'Save the OAuth client first.',
             };
         if (resolved) {
             try {
@@ -504,10 +513,10 @@ export class AiAccessService extends BaseService {
                 const endpointHint =
                     resolved.source === 'organization'
                         ? ' Check the Snowflake account URL.'
-                        : ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.';
+                        : " Check this instance's SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT setting.";
                 endpointCheck.detail =
                     endpointCheck.status === 'passed'
-                        ? `Snowflake answered (HTTP ${response.status}).`
+                        ? "Snowflake's sign-in page responded."
                         : `The authorization endpoint returned HTTP ${response.status}.${
                               [404, 405].includes(response.status)
                                   ? endpointHint
@@ -538,7 +547,7 @@ export class AiAccessService extends BaseService {
             status: hasAgentSession ? 'passed' : 'not_checked',
             detail: hasAgentSession
                 ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
-                : 'No one has connected their agent yet. Connect your own agent in My warehouse connections to confirm Snowflake marks sessions as agent sessions.',
+                : 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
         });
         return {
             checkedAt: new Date(),

@@ -300,6 +300,7 @@ export type OrganizationAgentIdentitySnowflakeSetup = {
     };
     redirectUri: string;
     integrationSql: string;
+    hasInstanceSettings: boolean;
     missingSettings: string[];
     configured: boolean;
 };

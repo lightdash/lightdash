@@ -29,6 +29,9 @@ const mocks = vi.hoisted(() => ({
     toast: vi.fn(),
     errorToast: vi.fn(),
 }));
+vi.mock('../../hooks/settings/useSettingsContext', () => ({
+    useSettingsContext: () => ({ showMyAgentConnections: true }),
+}));
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -130,6 +133,7 @@ const apiHandler = async ({
                 updatedAt: null,
             },
             configured: mocks.configured,
+            hasInstanceSettings: mocks.configured,
             missingSettings: mocks.configured
                 ? []
                 : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
@@ -220,7 +224,7 @@ describe('Organisation agent identity settings', () => {
                     label: 'Authorization endpoint',
                     required: true,
                     status: 'passed',
-                    detail: 'Snowflake answered (HTTP 400).',
+                    detail: "Snowflake's sign-in page responded.",
                 },
                 {
                     id: 'agent_session',
@@ -595,7 +599,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByText('Copy and run in Snowflake'),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('Paste what Snowflake returned'),
+            screen.getByText('Add your Snowflake account and client details'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
         expect(lightdashApi).not.toHaveBeenCalledWith(
@@ -604,7 +608,7 @@ describe('Organisation agent identity settings', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Copy integration SQL' }),
         );
-        expect(screen.getByLabelText('Step 1 done')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Step 1 done')).not.toBeInTheDocument();
         verification = {
             ...verification,
             passed: false,
@@ -613,7 +617,7 @@ describe('Organisation agent identity settings', () => {
                     ? {
                           ...check,
                           status: 'failed',
-                          detail: `Missing: ${SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar).join(', ')}.`,
+                          detail: 'Not saved. Paste the account URL, client ID and client secret from Snowflake in step 2, then verify again.',
                       }
                     : { ...check, status: 'not_checked' },
             ),
@@ -621,12 +625,11 @@ describe('Organisation agent identity settings', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Verify integration' }),
         );
-        const failure = await screen.findByText(
-            /^Missing: SNOWFLAKE_AI_OAUTH_CLIENT_ID/,
-        );
-        SNOWFLAKE_AGENT_OAUTH_SETTINGS.forEach(({ envVar }) =>
-            expect(failure).toHaveTextContent(envVar),
-        );
+        expect(
+            await screen.findByText(
+                'Not saved. Paste the account URL, client ID and client secret from Snowflake in step 2, then verify again.',
+            ),
+        ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
         verification = {
             ...verification,
@@ -734,7 +737,7 @@ describe('Organisation agent identity settings', () => {
             await screen.findByRole('button', { name: 'Turn on' }),
         ).toBeDisabled();
         expect(
-            screen.queryByText('Snowflake answered (HTTP 400).'),
+            screen.queryByText("Snowflake's sign-in page responded."),
         ).not.toBeInTheDocument();
     });
     it('cancels pending Snowflake setup when the saved option is selected again', async () => {
@@ -794,7 +797,7 @@ describe('Organisation agent identity settings', () => {
         await screen.findByRole('button', { name: 'Verify integration' });
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
         expect(
-            screen.queryByText('Snowflake answered (HTTP 400).'),
+            screen.queryByText("Snowflake's sign-in page responded."),
         ).not.toBeInTheDocument();
     });
     it('omits the setup hint for a configured integration when the rule is off', async () => {
