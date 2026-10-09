@@ -356,7 +356,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
             />
 
             <Box className={mapStyles.body}>
-                <Paper className={mapStyles.frame}>
+                <Paper className={`${mapStyles.frame} ${styles.frame}`}>
                     <Box
                         ref={ref}
                         className={styles.canvas}
