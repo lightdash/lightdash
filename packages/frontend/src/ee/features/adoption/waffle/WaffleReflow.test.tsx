@@ -8,7 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import type * as ColourTransitionModule from '../map/colourTransition';
 import mapStyles from '../map/DepartmentMap.module.css';
-import { dept, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    metricsFixture,
+    withServerHeadcounts,
+} from '../utils/adoptionFixtures';
 import { WaffleView } from './WaffleView';
 
 // The waffle as it is drawn when the constant is switched to reflow
@@ -20,8 +24,6 @@ vi.mock('../map/colourTransition', async (importOriginal) => ({
 // Twelve people: ten on Lightdash, the first four active; five admins and five viewers, spread through them
 const team: DepartmentWithMetrics = dept('Team', null, null, {
     headcount: 12,
-    effectiveHeadcount: 12,
-    hasHeadcount: true,
     metrics: metricsFixture(10, null, {
         activeCount30d: 4,
         activeCount12w: 4,
@@ -34,11 +36,12 @@ const team: DepartmentWithMetrics = dept('Team', null, null, {
     }),
 });
 
+// The departments with their effective headcounts as the server works them out
 const summaryOf = (
     departments: DepartmentWithMetrics[],
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(0, null),
-    departments,
+    departments: withServerHeadcounts(departments),
     attention: { conflictCount: 0, unassignedCount: 0 },
 });
 
@@ -48,8 +51,6 @@ const crowd = (headcount: number): DepartmentWithMetrics => {
     const admins = Math.floor(members / 2);
     return dept('Crowd', null, null, {
         headcount,
-        effectiveHeadcount: headcount,
-        hasHeadcount: true,
         metrics: metricsFixture(members, null, {
             activeCount30d: Math.floor((members * 2) / 5),
             activeCount12w: Math.floor((members * 2) / 5),
