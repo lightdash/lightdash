@@ -18,9 +18,15 @@ const MIGRATION_NAMES = [
 
 const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261008120000_add_ai_service_account_credentials',
+    '20261009223647_create_credentials_tables',
 ] as const;
 
-const LATER_TABLES = ['ai_service_account_credentials'];
+const LATER_TABLES = [
+    'ai_service_account_credentials',
+    'credentials',
+    'credential_token_state',
+    'credential_bindings',
+];
 
 const NEW_TABLES = [
     'warehouse_connections',
