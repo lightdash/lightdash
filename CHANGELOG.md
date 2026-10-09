@@ -1,3 +1,10 @@
+# [2.497.0](https://github.com/lightdash/lightdash/compare/2.496.0...2.497.0) (2026-10-09)
+
+
+### Features
+
+* **ai-agent:** skip SQL approval when the same SQL was approved earlier in the turn ([#30772](https://github.com/lightdash/lightdash/issues/30772)) ([1be204e](https://github.com/lightdash/lightdash/commit/1be204ea1d636f469a821198849fed6893e2010c))
+
 # [2.496.0](https://github.com/lightdash/lightdash/compare/2.495.3...2.496.0) (2026-10-09)
 
 
