@@ -1,14 +1,14 @@
 import {
     applyDefaultTileTargets,
-    isEmptyDashboardFilterRule,
     isFilterLockedOnTab,
+    isValuelessDashboardFilterRule,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import {
-    IconAsterisk,
+    IconCircleCheck,
     IconGripVertical,
     IconLock,
     IconLockOpen,
@@ -20,9 +20,11 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
+import { getFieldColor } from '../../../utils/fieldColors';
 import FilterConfiguration from '../FilterConfiguration';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
+import IconCircleDashedCheck from '../IconCircleDashedCheck';
 import classes from './Filter.module.css';
 import { showsComposedFilterValue } from './filterLabels';
 import { getFilterLockLabel, getFilterLockToggle } from './filterLock';
@@ -159,9 +161,13 @@ const Filter: FC<Props> = ({
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
-    const isAnyValue =
-        !!filterRule.disabled ||
-        (!filterRule.required && isEmptyDashboardFilterRule(filterRule));
+    // Same predicate as requirement checks, so a pill is never both active and unmet
+    const isActive = !isValuelessDashboardFilterRule(filterRule);
+    const statusColor = isRequirementUnmet
+        ? 'yellow.7'
+        : isActive && field
+          ? getFieldColor(field)
+          : 'dimmed';
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -216,7 +222,10 @@ const Filter: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
-                            data-filter-active={isAnyValue ? undefined : true}
+                            data-filter-active={isActive || undefined}
+                            data-requirement-unmet={
+                                isRequirementUnmet || undefined
+                            }
                             pos="relative"
                             size="xs"
                             variant={isTemporary ? 'outline' : 'default'}
@@ -225,34 +234,19 @@ const Filter: FC<Props> = ({
                                 root: triggerClassName,
                             }}
                             className={`${classes.button} ${
-                                isRequirementUnmet
-                                    ? classes.requirementUnmet
-                                    : ''
-                            } ${isOrphaned ? classes.inactiveFilter : ''}`}
+                                isOrphaned ? classes.inactiveFilter : ''
+                            }`}
                             pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                             leftSection={
                                 (isDraggable ||
                                     showRequirementIcon ||
                                     field) && (
-                                    <Group gap={2} wrap="nowrap">
+                                    <Group gap={4} wrap="nowrap">
                                         {isDraggable && (
                                             <MantineIcon
                                                 icon={IconGripVertical}
                                                 cursor="grab"
                                                 size="sm"
-                                            />
-                                        )}
-                                        {field && (
-                                            <FieldIcon
-                                                item={field}
-                                                size="sm"
-                                                color={
-                                                    isAnyValue
-                                                        ? 'ldGray.4'
-                                                        : undefined
-                                                }
-                                                className={classes.fieldIcon}
-                                                data-testid="filter-field-icon"
                                             />
                                         )}
                                         {showRequirementIcon && (
@@ -262,15 +256,26 @@ const Filter: FC<Props> = ({
                                                 disabled={!isRequirementUnmet}
                                             >
                                                 <MantineIcon
-                                                    icon={IconAsterisk}
-                                                    size="sm"
-                                                    color={
+                                                    icon={
                                                         isRequirementUnmet
-                                                            ? 'yellow.7'
-                                                            : 'ldGray.6'
+                                                            ? IconCircleDashedCheck
+                                                            : IconCircleCheck
+                                                    }
+                                                    size="sm"
+                                                    color={statusColor}
+                                                    className={
+                                                        classes.statusIcon
                                                     }
                                                 />
                                             </Tooltip>
+                                        )}
+                                        {field && (
+                                            <FieldIcon
+                                                item={field}
+                                                size="sm"
+                                                color={statusColor}
+                                                className={classes.statusIcon}
+                                            />
                                         )}
                                     </Group>
                                 )
@@ -302,6 +307,9 @@ const Filter: FC<Props> = ({
                                                         }
                                                         size="xs"
                                                         radius="xl"
+                                                        className={
+                                                            classes.pillAction
+                                                        }
                                                         aria-label={getFilterLockLabel(
                                                             isLocked,
                                                             hasTabs,
@@ -313,6 +321,14 @@ const Filter: FC<Props> = ({
                                                                 isLocked
                                                                     ? IconLock
                                                                     : IconLockOpen
+                                                            }
+                                                            color={
+                                                                isLocked
+                                                                    ? statusColor
+                                                                    : undefined
+                                                            }
+                                                            className={
+                                                                classes.statusIcon
                                                             }
                                                         />
                                                     </ActionIcon>
@@ -331,7 +347,8 @@ const Filter: FC<Props> = ({
                                             <MantineIcon
                                                 size="sm"
                                                 icon={IconLock}
-                                                color="gray"
+                                                color={statusColor}
+                                                className={classes.statusIcon}
                                             />
                                         </span>
                                     )}
@@ -340,6 +357,7 @@ const Filter: FC<Props> = ({
                                             onClick={onRemove}
                                             size="xs"
                                             radius="xl"
+                                            className={classes.pillAction}
                                         >
                                             <MantineIcon
                                                 size="sm"

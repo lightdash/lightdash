@@ -9,7 +9,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { IconAsterisk, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +18,7 @@ import {
     selectDashboardFilters,
     useDashboardSelector,
 } from '../../dashboard/store';
+import IconCircleDashedCheck from '../IconCircleDashedCheck';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
 import { useDashboardFilterField } from './useDashboardFilterField';
@@ -114,7 +115,7 @@ const RequiredFilterCard: FC<Props> = ({
             <Group justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon
-                        icon={IconAsterisk}
+                        icon={IconCircleDashedCheck}
                         size="sm"
                         color={isActive ? 'yellow.7' : 'ldGray.6'}
                     />

@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../testing/testUtils';
 import Filter from './Filter';
 
@@ -50,17 +52,27 @@ const buildRule = (
 
 const renderFilter = (filterRule: DashboardFilterRule) =>
     renderWithProviders(
-        <Filter
-            isEditMode={false}
-            isOrphaned={false}
-            field={statusField}
-            filterRule={filterRule}
-            openPopoverId={undefined}
-            onPopoverOpen={vi.fn()}
-            onPopoverClose={vi.fn()}
-            onUpdate={vi.fn()}
-            onRemove={vi.fn()}
-        />,
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({
+                dashboardFilters: {
+                    dimensions: [filterRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            })}
+        >
+            <Filter
+                isEditMode={false}
+                isOrphaned={false}
+                field={statusField}
+                filterRule={filterRule}
+                openPopoverId={undefined}
+                onPopoverOpen={vi.fn()}
+                onPopoverClose={vi.fn()}
+                onUpdate={vi.fn()}
+                onRemove={vi.fn()}
+            />
+        </DashboardStoreTestProvider>,
     );
 
 const getPill = () => screen.getByRole('button', { name: /Status/ });
@@ -74,32 +86,62 @@ describe('Filter pill active state', () => {
             activeTab: undefined,
             allFilterableFields: [statusField],
             filterableFieldsByTileUuid: {},
-            unmetFilterRequirements: [],
+            hiddenFilterableFieldIds: new Set<string>(),
         };
     });
 
-    it('marks the pill active and colours the field icon when a value is set', () => {
+    it('marks the pill active when a value is set', () => {
         renderFilter(buildRule({ values: ['completed'] }));
 
         expect(getPill()).toHaveAttribute('data-filter-active');
-        const icon = screen.getByTestId('filter-field-icon');
-        expect(icon).not.toHaveStyle({
-            color: 'var(--mantine-color-ldGray-4)',
-        });
     });
 
-    it('leaves the pill inactive with a dimmed field icon when no value is set', () => {
+    it('leaves the pill inactive when no value is set', () => {
         renderFilter(buildRule({ values: [] }));
 
         expect(getPill()).not.toHaveAttribute('data-filter-active');
-        expect(screen.getByTestId('filter-field-icon')).toHaveStyle({
-            color: 'var(--mantine-color-ldGray-4)',
-        });
     });
 
     it('treats a disabled rule as inactive even when it holds values', () => {
         renderFilter(buildRule({ values: ['completed'], disabled: true }));
 
         expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+});
+
+describe('Filter pill requirement state', () => {
+    beforeEach(() => {
+        mockDashboardContext.current = {
+            dashboard: { uuid: 'dashboard-1', filters: { dimensions: [] } },
+            dashboardTiles: [],
+            dashboardTabs: [],
+            activeTab: undefined,
+            allFilterableFields: [statusField],
+            filterableFieldsByTileUuid: {},
+            hiddenFilterableFieldIds: new Set<string>(),
+        };
+    });
+
+    it('shows an unmet required filter as unmet and never active', () => {
+        const rule = buildRule({ required: true, disabled: true, values: [] });
+        renderFilter(rule);
+
+        expect(getPill()).toHaveAttribute('data-requirement-unmet');
+        expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+
+    it('keeps an enabled required filter with no values out of the active state', () => {
+        const rule = buildRule({ required: true, values: [] });
+        renderFilter(rule);
+
+        expect(getPill()).toHaveAttribute('data-requirement-unmet');
+        expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+
+    it('shows a required filter with a value as active and met', () => {
+        renderFilter(buildRule({ required: true, values: ['completed'] }));
+
+        expect(getPill()).toHaveAttribute('data-filter-active');
+        expect(getPill()).not.toHaveAttribute('data-requirement-unmet');
     });
 });
