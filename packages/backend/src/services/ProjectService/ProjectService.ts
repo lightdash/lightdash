@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AiAccessRefusedError,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
@@ -13029,6 +13030,9 @@ export class ProjectService
                     this.logger.error('Error fetching warehouse fields', {
                         error,
                     });
+                    if (error instanceof AiAccessRefusedError) {
+                        throw error;
+                    }
                     if (error instanceof WarehouseConnectionError) {
                         throw error;
                     }

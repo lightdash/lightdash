@@ -1,6 +1,8 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AiAgentMarkerLevel,
     assertUnreachable,
     AthenaAuthenticationType,
@@ -16583,6 +16585,72 @@ describe('AI principal credential routing', () => {
             expect(acquire).not.toHaveBeenCalled();
         },
     );
+
+    test('catalog describe preserves an AI credential refusal after client acquisition', async () => {
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        const executionPlan = {
+            ...aiServiceAccountPlanMock,
+            credentials: buildAiServiceAccountCredentials(
+                athenaConnection,
+                athenaSecrets,
+            ),
+        };
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(athenaConnection);
+        const resolve = vi
+            .spyOn(configured.aiAccessService, 'resolvePlan')
+            .mockResolvedValue(executionPlan);
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        );
+        const getFields = vi.fn().mockRejectedValueOnce(refusal);
+        const disconnect = vi.fn();
+        const acquire = vi
+            .spyOn(configured.warehouseClientFactory, 'acquireUnscoped')
+            .mockResolvedValue({
+                warehouseClient: { getFields } as unknown as WarehouseClient,
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+
+        const result = configured.getWarehouseFields(
+            user,
+            projectUuid,
+            QueryExecutionContext.AI,
+            'orders',
+            'public',
+            'catalog_database',
+        );
+
+        await expect(result).rejects.toBe(refusal);
+        await expect(result).rejects.toMatchObject({
+            message: refusal.message,
+            refusal: {
+                code: 'ai_access_refused',
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                message: refusal.message,
+            },
+        });
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(acquire).toHaveBeenCalledOnce();
+        expect(acquire.mock.calls[0][1]).toMatchObject(
+            executionPlan.credentials,
+        );
+        expect(getFields).toHaveBeenCalledExactlyOnceWith(
+            'orders',
+            'public',
+            'catalog_database',
+            expect.objectContaining({
+                query_context: QueryExecutionContext.AI,
+            }),
+        );
+        expect(disconnect).toHaveBeenCalledOnce();
+    });
 
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
         const configured = getMockedProjectService(
