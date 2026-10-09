@@ -638,7 +638,7 @@ describe('FieldsAndTiles', () => {
         // Focused with its list open
         expect(fieldSearch()).toHaveFocus();
         expect(await screen.findByText('Orders')).toBeVisible();
-        expect(fieldSearch()).toHaveAttribute('aria-expanded', 'true');
+        expect(fieldSearch()).toHaveAttribute('data-expanded');
         await userEvent.keyboard('{Escape}');
         expect(fieldSearch()).not.toBeInTheDocument();
         expect(add).toHaveFocus();
