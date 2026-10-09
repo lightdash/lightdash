@@ -12,6 +12,7 @@ A SQL chart is a chart saved from raw warehouse SQL rather than from an explore.
 - SQL mode must be enabled for the agent, and the user needs the SQL chart save permission (manage custom SQL). If `createContent` reports that either is missing, stop and tell the user; do not retry.
 - The SQL must be a single read-only `SELECT` or `WITH` query. It runs on the project's primary warehouse connection.
 - Run the SQL first with `runContentQuery` (`source.type: "sql"`) to check the column names you reference in `config`, then save that exact SQL.
+- To check a saved SQL chart's rows, run `runContentQuery` with `source.type: "chart"` (or `"dashboardChart"` for its dashboard tile) and `chartType: "sql_chart"`. Saved SQL runs without a new approval.
 
 ## Approval
 

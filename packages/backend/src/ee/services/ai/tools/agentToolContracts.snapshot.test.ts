@@ -158,6 +158,8 @@ const makeAgentTools = (
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
             getSavedChart: noop,
+            getSqlChart: noop,
+            runSqlChartQuery: noop,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
             runAsyncQuery: noop,

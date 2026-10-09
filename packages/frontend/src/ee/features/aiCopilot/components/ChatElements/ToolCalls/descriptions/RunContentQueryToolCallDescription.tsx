@@ -33,10 +33,12 @@ export const RunContentQueryToolCallDescription: FC<
         );
     }
 
+    const chartLabel = source.chartType === 'sql_chart' ? 'SQL chart' : 'chart';
+
     if (source.type === 'dashboardChart') {
         return (
             <Text c="dimmed" size="xs">
-                Ran dashboard chart{' '}
+                Ran dashboard {chartLabel}{' '}
                 <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
                 from{' '}
                 <ToolCallChip mx={rem(2)}>{source.dashboardSlug}</ToolCallChip>
@@ -51,7 +53,7 @@ export const RunContentQueryToolCallDescription: FC<
 
     return (
         <Text c="dimmed" size="xs">
-            Ran saved chart{' '}
+            Ran saved {chartLabel}{' '}
             <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
             {source.limit ? (
                 <ToolCallChip mx={rem(2)}>limit {source.limit}</ToolCallChip>
