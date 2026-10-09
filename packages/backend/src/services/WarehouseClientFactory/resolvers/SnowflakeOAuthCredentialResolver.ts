@@ -21,7 +21,10 @@ import {
     type RefreshTokenRotation,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
-import { OAuthCredentialRefresher } from '../../OAuthRefresh/OAuthCredentialRefresher';
+import {
+    OAuthCredentialRefresher,
+    OAuthRefreshExchangeError,
+} from '../../OAuthRefresh/OAuthCredentialRefresher';
 import {
     OAuthCredentialRefreshSource,
     type OAuthCredentialRefreshSourceDependencies,
@@ -250,7 +253,11 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 clientOptions: {},
                 cacheable: true,
             };
-        } catch (error) {
+        } catch (caught) {
+            const error =
+                caught instanceof OAuthRefreshExchangeError
+                    ? caught.originalError
+                    : caught;
             if (error instanceof OAuthRequestTimeoutError) {
                 throw new RefreshTokenLockTimeoutError();
             }
@@ -259,7 +266,12 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
             if (owner?.kind === 'project') {
                 return this.deps.attributeSharedSignInExpiry(
                     owner.uuid,
-                    input.connection,
+                    caught instanceof OAuthRefreshExchangeError
+                        ? {
+                              ...input.connection,
+                              refreshToken: caught.refreshToken,
+                          }
+                        : input.connection,
                     mapped,
                 );
             }

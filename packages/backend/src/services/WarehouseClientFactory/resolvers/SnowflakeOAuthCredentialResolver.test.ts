@@ -301,6 +301,40 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         },
     );
 
+    test.each([true, false])(
+        'attributes grant expiry to the sent token with lock %s',
+        async (enabled) => {
+            const f = setup(enabled);
+            const input = selection();
+            f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
+                {
+                    ...credentials,
+                    refreshToken: 'rotated-refresh',
+                },
+            );
+            f.exchange.mockRejectedValue({
+                data: JSON.stringify({ message: 'invalid_grant' }),
+            });
+            const mapped = new SnowflakeTokenError(
+                'Error refreshing snowflake token: invalid_grant',
+            );
+            await expect(f.resolver.resolve(input)).rejects.toThrow(mapped);
+            expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
+                enabled ? 'rotated-refresh' : input.connection.refreshToken,
+                ...(enabled ? [OAUTH_REQUEST_TIMEOUT_MS] : []),
+            );
+            expect(
+                f.deps.attributeSharedSignInExpiry,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                enabled
+                    ? { ...input.connection, refreshToken: 'rotated-refresh' }
+                    : input.connection,
+                mapped,
+            );
+        },
+    );
+
     test('passes Lightdash errors through unchanged', async () => {
         const f = setup();
         const error = new ForbiddenError('refused');
