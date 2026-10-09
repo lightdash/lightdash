@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
     sensitiveCredentialsFieldNames,
     WarehouseTypes,
@@ -526,6 +527,212 @@ test('project deletion removes connection credentials and bindings but preserves
         NotFoundError,
     );
     expect(await f.model.findTokenState(connection.uuid)).toBeNull();
+});
+
+test.each([
+    ['another user', OpenIdIdentityIssuerType.GOOGLE, true, true],
+    ['an organization', OpenIdIdentityIssuerType.GOOGLE, false, false],
+    ['another provider', OpenIdIdentityIssuerType.SNOWFLAKE, false, true],
+] as const)(
+    'refuses an OAuth grant belonging to %s',
+    async (_label, provider, otherUser, person) => {
+        const f = await fixture();
+        const [grant] = await migrated
+            .database('user_oauth_grants')
+            .insert({
+                user_uuid: otherUser ? f.otherUserUuid : f.userUuid,
+                provider,
+                provider_subject: 'grant-subject',
+                provider_email: 'alice@example.com',
+                scopes: [],
+                encrypted_refresh_token:
+                    encryptionUtil.encrypt('refresh-token'),
+            })
+            .returning('user_oauth_grant_uuid');
+        await expect(
+            f.model.create({
+                ...f.base,
+                ownerKind: person ? 'person' : 'organization',
+                ownerUserUuid: person ? f.userUuid : null,
+                purpose: person ? 'personal_sign_in' : 'shared_login',
+                oauthGrantUuid: grant.user_oauth_grant_uuid,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            await migrated
+                .database('credentials')
+                .where('organization_uuid', f.base.organizationUuid),
+        ).toHaveLength(0);
+    },
+);
+
+test('accepts a Google OAuth grant owned by the credential owner', async () => {
+    const f = await fixture();
+    const [grant] = await migrated
+        .database('user_oauth_grants')
+        .insert({
+            user_uuid: f.userUuid,
+            provider: OpenIdIdentityIssuerType.GOOGLE,
+            provider_subject: 'alice',
+            provider_email: 'alice@example.com',
+            scopes: [],
+            encrypted_refresh_token: encryptionUtil.encrypt('refresh-token'),
+        })
+        .returning('user_oauth_grant_uuid');
+    const credential = await f.model.create({
+        ...f.base,
+        ownerKind: 'person',
+        ownerUserUuid: f.userUuid,
+        purpose: 'personal_sign_in',
+        warehouseType: WarehouseTypes.BIGQUERY,
+        authMode: 'sso',
+        identity: { client_id: null },
+        secrets: { token: 'access-token' },
+        oauthGrantUuid: grant.user_oauth_grant_uuid,
+    });
+    expect(await f.model.getMetadata(credential.uuid)).toMatchObject({
+        ownerUserUuid: f.userUuid,
+        oauthGrantUuid: grant.user_oauth_grant_uuid,
+    });
+});
+
+test.each(['purpose', 'organization', 'warehouse'] as const)(
+    'refuses an issuer with the wrong %s',
+    async (mismatch) => {
+        const f = await fixture();
+        const issuer = await f.model.create(
+            mismatch === 'purpose'
+                ? f.base
+                : {
+                      ...f.base,
+                      purpose: 'agent_oauth_client',
+                      authMode: 'oauth',
+                      identity: { clientId: 'client' },
+                      secrets: { clientSecret: 'client-secret' },
+                  },
+        );
+        const other = mismatch === 'organization' ? await fixture() : f;
+        await expect(
+            f.model.create({
+                ...other.base,
+                ownerKind: 'person',
+                ownerUserUuid: other.userUuid,
+                purpose: 'agent_sign_in',
+                warehouseType:
+                    mismatch === 'warehouse'
+                        ? WarehouseTypes.BIGQUERY
+                        : WarehouseTypes.SNOWFLAKE,
+                authMode: 'sso',
+                identity:
+                    mismatch === 'warehouse'
+                        ? { client_id: null }
+                        : { user: 'alice' },
+                secrets: { token: 'access-token' },
+                issuerCredentialUuid: issuer.uuid,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            await migrated
+                .database('credentials')
+                .where('issuer_credential_uuid', issuer.uuid),
+        ).toHaveLength(0);
+    },
+);
+
+test('accepts an agent OAuth client issuer in the same organization and warehouse', async () => {
+    const f = await fixture();
+    const issuer = await f.model.create({
+        ...f.base,
+        purpose: 'agent_oauth_client',
+        authMode: 'oauth',
+        identity: { clientId: 'client' },
+        secrets: { clientSecret: 'client-secret' },
+    });
+    const credential = await f.model.create({
+        ...f.base,
+        ownerKind: 'person',
+        ownerUserUuid: f.userUuid,
+        purpose: 'agent_sign_in',
+        authMode: 'sso',
+        secrets: { token: 'access-token' },
+        issuerCredentialUuid: issuer.uuid,
+    });
+    expect(await f.model.getMetadata(credential.uuid)).toMatchObject({
+        issuerCredentialUuid: issuer.uuid,
+    });
+});
+
+test('identity replacement clears refresh state and rejects a stale token CAS', async () => {
+    const f = await fixture();
+    const credential = await f.model.create({
+        ...f.base,
+        ownerKind: 'person',
+        ownerUserUuid: f.userUuid,
+        purpose: 'personal_sign_in',
+        authMode: 'sso',
+        secrets: { token: 'original-access' },
+    });
+    await f.model.upsertTokenState(
+        credential.uuid,
+        'original-refresh',
+        new Date('2030-01-01'),
+    );
+    await migrated
+        .database('credential_token_state')
+        .where('credential_uuid', credential.uuid)
+        .update({ updated_at: new Date('2020-01-01') });
+    const before = await f.model.findTokenState(credential.uuid);
+    expect(before).toMatchObject({
+        version: '0',
+        refreshToken: 'original-refresh',
+    });
+    await f.model.replaceIdentityAndSecrets(
+        credential.uuid,
+        { user: 'bob' },
+        { token: 'replacement-access' },
+        null,
+    );
+    expect(
+        await f.model.compareAndSwapRefreshToken(
+            credential.uuid,
+            before!.version,
+            'stale-refresh',
+            new Date('2030-01-01'),
+        ),
+    ).toBe(false);
+    const after = await f.model.findTokenState(credential.uuid);
+    expect(after).toMatchObject({
+        version: '1',
+        refreshToken: null,
+        refreshExpiresAt: null,
+    });
+    expect(after!.updatedAt.getTime()).toBeGreaterThan(
+        before!.updatedAt.getTime(),
+    );
+    expect(
+        await migrated
+            .database('credential_token_state')
+            .select('encrypted_refresh_token')
+            .where('credential_uuid', credential.uuid)
+            .first(),
+    ).toEqual({ encrypted_refresh_token: null });
+});
+
+test('secret rotation preserves refresh state for the same identity', async () => {
+    const f = await fixture();
+    const credential = await f.model.create(f.base);
+    await f.model.upsertTokenState(
+        credential.uuid,
+        'original-refresh',
+        new Date('2030-01-01'),
+    );
+    const before = await f.model.findTokenState(credential.uuid);
+    await f.model.replaceSecrets(
+        credential.uuid,
+        { password: 'rotated-password' },
+        null,
+    );
+    expect(await f.model.findTokenState(credential.uuid)).toEqual(before);
 });
 
 test('round trips the model, rotates generations, and performs atomic token CAS', async () => {

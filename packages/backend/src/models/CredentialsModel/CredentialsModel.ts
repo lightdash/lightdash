@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
     type CredentialMetadata,
     type CredentialSlot,
@@ -113,30 +114,66 @@ export class CredentialsModel {
 
     async create(input: CreateCredential): Promise<CredentialMetadata> {
         const encoded = this.codec.encodeCredential(input);
-        const [row] = await this.database('credentials')
-            .insert({
-                organization_uuid: input.organizationUuid,
-                owner_kind: input.ownerKind,
-                owner_user_uuid: input.ownerUserUuid,
-                owner_project_uuid: input.ownerProjectUuid,
-                owner_warehouse_connection_uuid:
-                    input.ownerWarehouseConnectionUuid,
-                purpose: input.purpose,
-                warehouse_type: input.warehouseType,
-                auth_mode: input.authMode,
-                subject_user_uuid: input.subjectUserUuid,
-                subject_label: input.subjectLabel,
-                issuer_credential_uuid: input.issuerCredentialUuid,
-                oauth_grant_uuid: input.oauthGrantUuid,
-                expires_at: input.expiresAt,
-                created_by_user_uuid: input.createdByUserUuid,
-                updated_by_user_uuid: input.updatedByUserUuid,
-                identity: encoded.identity,
-                encrypted_secrets: encoded.encryptedSecrets,
-                generation: randomUUID(),
-            })
-            .returning([...metadataColumns]);
-        return toMetadata(row);
+        return this.database.transaction(async (trx) => {
+            if (input.oauthGrantUuid !== null) {
+                const grant = await trx('user_oauth_grants')
+                    .select('user_uuid', 'provider')
+                    .where('user_oauth_grant_uuid', input.oauthGrantUuid)
+                    .forShare()
+                    .first();
+                if (
+                    input.ownerKind !== 'person' ||
+                    !grant ||
+                    grant.user_uuid !== input.ownerUserUuid ||
+                    grant.provider !== OpenIdIdentityIssuerType.GOOGLE
+                ) {
+                    throw new ParameterError(
+                        'OAuth grant must be a Google grant belonging to the credential owner.',
+                    );
+                }
+            }
+            if (input.issuerCredentialUuid !== null) {
+                const issuer = await trx('credentials')
+                    .select('purpose', 'organization_uuid', 'warehouse_type')
+                    .where('credential_uuid', input.issuerCredentialUuid)
+                    .forShare()
+                    .first();
+                if (
+                    !issuer ||
+                    issuer.purpose !== 'agent_oauth_client' ||
+                    issuer.organization_uuid !== input.organizationUuid ||
+                    issuer.warehouse_type !== input.warehouseType
+                ) {
+                    throw new ParameterError(
+                        'Issuer must be an agent OAuth client in the same organization and warehouse type.',
+                    );
+                }
+            }
+            const [row] = await trx('credentials')
+                .insert({
+                    organization_uuid: input.organizationUuid,
+                    owner_kind: input.ownerKind,
+                    owner_user_uuid: input.ownerUserUuid,
+                    owner_project_uuid: input.ownerProjectUuid,
+                    owner_warehouse_connection_uuid:
+                        input.ownerWarehouseConnectionUuid,
+                    purpose: input.purpose,
+                    warehouse_type: input.warehouseType,
+                    auth_mode: input.authMode,
+                    subject_user_uuid: input.subjectUserUuid,
+                    subject_label: input.subjectLabel,
+                    issuer_credential_uuid: input.issuerCredentialUuid,
+                    oauth_grant_uuid: input.oauthGrantUuid,
+                    expires_at: input.expiresAt,
+                    created_by_user_uuid: input.createdByUserUuid,
+                    updated_by_user_uuid: input.updatedByUserUuid,
+                    identity: encoded.identity,
+                    encrypted_secrets: encoded.encryptedSecrets,
+                    generation: randomUUID(),
+                })
+                .returning([...metadataColumns]);
+            return toMetadata(row);
+        });
     }
 
     async getMetadata(uuid: string): Promise<CredentialMetadata> {
@@ -242,6 +279,14 @@ export class CredentialsModel {
                     updated_by_user_uuid: updatedByUserUuid,
                 })
                 .returning([...metadataColumns]);
+            await trx('credential_token_state')
+                .where('credential_uuid', uuid)
+                .update({
+                    encrypted_refresh_token: null,
+                    refresh_expires_at: null,
+                    version: trx.raw('version + 1'),
+                    updated_at: trx.fn.now(),
+                });
             return toMetadata(updated);
         });
     }
