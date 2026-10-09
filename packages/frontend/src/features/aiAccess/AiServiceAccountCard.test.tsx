@@ -690,7 +690,7 @@ describe('AI service account card', () => {
         expect(screen.getByText(/Set by an organization admin/)).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Organization settings' }),
-        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        ).toHaveAttribute('href', '/generalSettings/agentIdentity');
         expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
         fireEvent.click(
             await screen.findByRole('button', { name: 'Test as agent' }),

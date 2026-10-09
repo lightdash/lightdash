@@ -3752,6 +3752,7 @@ describe('silent refresh routing', () => {
                                     'https://warehouse.example/authorize',
                                 tokenEndpoint:
                                     'https://warehouse.example/token',
+                                account: 'test-account',
                             },
                         },
                     },

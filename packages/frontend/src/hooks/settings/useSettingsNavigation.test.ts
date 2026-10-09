@@ -1,7 +1,7 @@
 import { Ability } from '@casl/ability';
 import { type Project } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
@@ -9,14 +9,6 @@ import { useSettingsNavigation } from './useSettingsNavigation';
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
-
-const flags = vi.hoisted(() => ({ enabled: false }));
-vi.mock('../useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flags.enabled } }),
-}));
-beforeEach(() => {
-    flags.enabled = false;
-});
 
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
@@ -287,10 +279,10 @@ describe('Agent identity settings navigation', () => {
         [true, 'update', false],
         [true, 'view', false],
     ])('flag %s with %s project permission', (enabled, action, visible) => {
-        flags.enabled = enabled;
         const { result } = renderHook(() =>
             useSettingsNavigation(
                 settingsContext({
+                    isAgentIdentityEnabled: enabled,
                     organization: {
                         organizationUuid: 'org',
                         name: 'Organization',

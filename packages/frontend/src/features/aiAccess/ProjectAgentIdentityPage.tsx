@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, WarehouseTypes, type Project } from '@lightdash/common';
+import {
+    AGENT_IDENTITY_SETTINGS_PATH,
+    FeatureFlags,
+    WarehouseTypes,
+    type Project,
+} from '@lightdash/common';
 import { Anchor, Stack, Text, Title } from '@mantine/core';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -40,7 +45,7 @@ const ProjectAgentIdentityContent = ({ project }: { project: Project }) => {
                         Set by an organization admin.{' '}
                         <Anchor
                             component={Link}
-                            to="/generalSettings/warehouseCredentials"
+                            to={AGENT_IDENTITY_SETTINGS_PATH}
                             size="sm"
                         >
                             Organization settings
