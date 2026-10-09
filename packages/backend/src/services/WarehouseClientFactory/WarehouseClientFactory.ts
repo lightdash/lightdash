@@ -943,7 +943,10 @@ export class WarehouseClientFactory {
                 ...identityOptions,
                 ...resolverOptions,
                 ...requestedClientOptions,
-                agentJobControls: !!aiPlan,
+                ...(aiPlan ||
+                credentialsWithOverrides.type === WarehouseTypes.BIGQUERY
+                    ? { agentJobControls: !!aiPlan }
+                    : {}),
             };
             const client = this.buildClient(
                 credentialsWithOverrides,

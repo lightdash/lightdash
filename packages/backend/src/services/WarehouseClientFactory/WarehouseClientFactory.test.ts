@@ -2118,8 +2118,15 @@ describe('AI service account factory scopes', () => {
                 expect.objectContaining(warehouseCredentials),
                 expect.objectContaining({
                     agentSession: queryContext === QueryExecutionContext.AI,
-                    agentJobControls: aiPlan !== null,
                 }),
+            );
+            const [, options] =
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0];
+            expect(options?.agentJobControls).toBe(
+                aiPlan !== null ||
+                    warehouseCredentials.type === WarehouseTypes.BIGQUERY
+                    ? aiPlan !== null
+                    : undefined,
             );
         },
     );
@@ -2757,7 +2764,9 @@ describe('factory cache tuple and agent probes', () => {
                 projectModel.getWarehouseClientFromCredentials,
             ).toHaveBeenCalledWith(
                 expect.anything(),
-                expect.objectContaining({ agentJobControls: false }),
+                expect.not.objectContaining({
+                    agentJobControls: expect.anything(),
+                }),
             );
         },
     );
