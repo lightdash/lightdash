@@ -426,10 +426,16 @@ describe('Organisation agent identity settings', () => {
             screen.getByRole('button', { name: 'Use the AI service account' }),
         ).toBeDisabled();
     });
-    it('allows confirmation when the affected-project read fails', async () => {
+    it('requires a successful retry before confirming after the affected-project read fails', async () => {
+        const readProjects = vi
+            .fn()
+            .mockRejectedValueOnce({ error: { message: 'Read failed' } })
+            .mockResolvedValueOnce([
+                { projectUuid: 'missing-project', name: 'Missing project' },
+            ]);
         vi.mocked(lightdashApi).mockImplementation((request) =>
             request.url.endsWith('/projects-without-ai-service-account')
-                ? Promise.reject({ error: { message: 'Read failed' } })
+                ? readProjects()
                 : apiHandler(request),
         );
         currentOverview.rules[1].source = 'marked_person';
@@ -440,9 +446,20 @@ describe('Organisation agent identity settings', () => {
                 'Could not check which projects have an AI service account.',
             ),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Use the AI service account' }),
-        ).toBeEnabled();
+        const confirm = screen.getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        expect(confirm).toBeDisabled();
+        expect(readProjects).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            '1 project has no AI service account yet: Missing project.',
+        );
+        expect(readProjects).toHaveBeenCalledTimes(2);
+        expect(confirm).toBeEnabled();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
     });
     it('keeps the modal open and prevents duplicate confirmation while saving', async () => {
         vi.mocked(lightdashApi).mockImplementation((request) =>
@@ -723,6 +740,40 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByText('Snowflake answered (HTTP 400).'),
         ).not.toBeInTheDocument();
+    });
+    it('cancels pending Snowflake setup when the saved option is selected again', async () => {
+        startUnconfigured();
+        await selectAgentSignIn();
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Set up the Snowflake agent integration',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Not saved. Finish the setup below, then select Turn on.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toHaveValue(identityLabels.marked_person.label);
+        await changeToMarkedPerson('Snowflake');
+        expect(
+            screen.queryByRole('heading', {
+                name: 'Set up the Snowflake agent integration',
+            }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/Not saved\./)).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Turn on' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(identityLabels.marked_person.helper),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
     });
     it('cancels without saving and clears verification for the next attempt', async () => {
         startUnconfigured();

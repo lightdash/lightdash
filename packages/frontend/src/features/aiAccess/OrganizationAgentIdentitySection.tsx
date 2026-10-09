@@ -74,7 +74,7 @@ const AgentIdentityRule = ({
                     allowDeselect={false}
                     disabled={save.isLoading}
                     w={340}
-                    onChange={(value) => {
+                    onOptionSubmit={(value) => {
                         const source = AGENT_IDENTITY_SOURCES[
                             rule.warehouseType
                         ].person.find((allowed) => allowed === value);

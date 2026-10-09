@@ -1,5 +1,5 @@
 import { type AiIdentitySource, type WarehouseTypes } from '@lightdash/common';
-import { Anchor, Loader, Text } from '@mantine/core';
+import { Anchor, Button, Group, Loader, Text } from '@mantine/core';
 import { Fragment } from 'react';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
@@ -32,6 +32,8 @@ const AgentIdentityRuleConfirmModal = ({
             warehouseType as keyof typeof identityWarehouseNames
         ];
     const checkingProjects = usesServiceAccount && projects.isFetching;
+    const confirmDisabled =
+        usesServiceAccount && (!projects.isSuccess || projects.isFetching);
     const missingProjects = projects.data ?? [];
 
     return (
@@ -51,10 +53,10 @@ const AgentIdentityRuleConfirmModal = ({
                     : "Use each person's credentials"
             }
             confirmLoading={saving}
-            confirmDisabled={checkingProjects}
+            confirmDisabled={confirmDisabled}
             cancelDisabled={saving}
             onConfirm={() => {
-                if (saving || checkingProjects) return;
+                if (saving || confirmDisabled) return;
                 onConfirm();
             }}
         >
@@ -67,10 +69,19 @@ const AgentIdentityRuleConfirmModal = ({
                 (checkingProjects ? (
                     <Loader size="sm" aria-label="Checking AI service accounts" />
                 ) : projects.isError ? (
-                    <Text size="sm" c="dimmed">
-                        Could not check which projects have an AI service
-                        account.
-                    </Text>
+                    <Group gap="xs">
+                        <Text size="sm" c="dimmed">
+                            Could not check which projects have an AI service
+                            account.
+                        </Text>
+                        <Button
+                            variant="default"
+                            size="xs"
+                            onClick={() => void projects.refetch()}
+                        >
+                            Retry
+                        </Button>
+                    </Group>
                 ) : missingProjects.length > 0 ? (
                     <Callout variant="warning" color="yellow">
                         {missingProjects.length}{' '}
