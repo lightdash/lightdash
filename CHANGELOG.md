@@ -1,3 +1,10 @@
+# [2.512.0](https://github.com/lightdash/lightdash/compare/2.511.0...2.512.0) (2026-10-09)
+
+
+### Features
+
+* **documents:** link saved charts and saved SQL charts from Documents ([#30758](https://github.com/lightdash/lightdash/issues/30758)) ([0a2200e](https://github.com/lightdash/lightdash/commit/0a2200ee8249cc25486b8ebbf4ef9d3a7bdeb6cc)), closes [#30751](https://github.com/lightdash/lightdash/issues/30751)
+
 # [2.511.0](https://github.com/lightdash/lightdash/compare/2.510.0...2.511.0) (2026-10-09)
 
 

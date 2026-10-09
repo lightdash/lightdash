@@ -64545,6 +64545,51 @@
             "ApiDocumentAsCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentAsCode_"
             },
+            "Pick_DocumentSummary.documentUuid-or-name-or-slug-or-spaceUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null for a personal Document, visible only to its creator and admins."
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "slug", "spaceUuid", "documentUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentLinkingChart": {
+                "$ref": "#/components/schemas/Pick_DocumentSummary.documentUuid-or-name-or-slug-or-spaceUuid_",
+                "description": "A Document whose current version links a saved chart."
+            },
+            "ApiSuccess_DocumentLinkingChart-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLinkingChart"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentsLinkingChartResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentLinkingChart-Array_"
+            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -70591,7 +70636,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.511.0",
+        "version": "2.512.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -109376,6 +109421,65 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/linking-chart": {
+            "get": {
+                "operationId": "ListDocumentsLinkingChart",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentsLinkingChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The Documents you can view whose current version links a saved chart or saved SQL chart",
+                "summary": "Documents linking a chart",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The saved chart; pass this or savedSqlUuid",
+                        "in": "query",
+                        "name": "savedChartUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The saved SQL chart; pass this or savedChartUuid",
+                        "in": "query",
+                        "name": "savedSqlUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

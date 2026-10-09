@@ -1,14 +1,30 @@
 {
   "schemaVersion": "2",
-  "version": "2.511.0",
-  "previousVersion": "2.510.0",
-  "releaseDate": "2026-10-09T15:19:18.600Z",
+  "version": "2.512.0",
+  "previousVersion": "2.511.0",
+  "releaseDate": "2026-10-09T15:26:38.053Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261008160000_add_document_version_saved_charts.ts",
+        "edition": "core",
+        "tables": [
+          "document_version_saved_charts",
+          "document_versions",
+          "saved_queries",
+          "saved_sql"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
