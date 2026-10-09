@@ -10,16 +10,17 @@ import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
 
-// One clock per request, so every read in it shares the same rolling bounds
+// One clock per request, so every read in it shares the same rolling bounds: the starts of the healthy and
+// at-risk activity buckets
 export type ActivityWindows = {
     activeSince: Date;
-    trendSince: Date;
-    // How far back a member's last activity is read
+    // How far back a person's last activity is read
     lastActiveSince: Date;
 };
 
 export type ActivitySnapshot = {
-    activeUserUuids: string[]; // active since activeSince
+    // Each person's latest activity since lastActiveSince; nobody missing from it had any
+    lastActiveAt: Map<string, Date>;
     weeklyActivity: ActivityRow[]; // chart and dashboard views only, per person per UTC week
 };
 
@@ -65,7 +66,7 @@ const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
 type Deps = { database: Knex };
 
 // The view tables have no organization column, so they are tied to it through the content viewed.
-// Queries are only kept for the instance's retention period, so they are read for the 30-day set alone.
+// Every source is read back to the at-risk bound, as getMemberActivity reads it; queries count while kept.
 // The view tables are read by the organization's member set on their (user_uuid, timestamp)
 // index: the set comes from organization_memberships, so it is the tenancy boundary, and a
 // person's activity is theirs whatever content it was on. Joining views through chart, space
@@ -98,11 +99,11 @@ const activityUnion = (
         organizationUuid,
         userUuids,
         COUNTED_QUERY_CONTEXTS,
-        windows.activeSince,
+        windows.lastActiveSince,
         userUuids,
-        windows.trendSince,
+        windows.lastActiveSince,
         userUuids,
-        windows.trendSince,
+        windows.lastActiveSince,
     ],
 });
 
@@ -136,14 +137,15 @@ export class DepartmentAnalyticsModel {
         }
     }
 
-    // One scan answers both: weekly buckets from views only, the 30-day set from views and queries
+    // One scan answers both: weekly buckets from views only, and each person's latest activity from views and
+    // queries. Weeks older than the trend's are dropped where the trend is built
     async getActivity(
         organizationUuid: string,
         userUuids: string[],
         windows: ActivityWindows,
     ): Promise<ActivitySnapshot> {
         if (userUuids.length === 0) {
-            return { activeUserUuids: [], weeklyActivity: [] };
+            return { lastActiveAt: new Map(), weeklyActivity: [] };
         }
         const union = activityUnion(organizationUuid, userUuids, windows);
         const result = await this.bounded(async (trx) =>
@@ -151,27 +153,31 @@ export class DepartmentAnalyticsModel {
                 rows: {
                     user_uuid: string;
                     week_start: string | null; // null on rows that come from queries
-                    is_active_30d: boolean;
+                    last_active_at: Date;
                 }[];
             }>(
                 `SELECT a.user_uuid,
                     CASE WHEN a.is_view
                          THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
                     END AS week_start,
-                    bool_or(a.at >= ?) AS is_active_30d
+                    MAX(a.at) AS last_active_at
              FROM (${union.sql}) a
              GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
-                [windows.activeSince, ...union.bindings],
+                union.bindings,
             ),
         );
+        const lastActiveAt = new Map<string, Date>();
+        result.rows.forEach((r) => {
+            const latest = lastActiveAt.get(r.user_uuid);
+            if (
+                latest === undefined ||
+                r.last_active_at.getTime() > latest.getTime()
+            ) {
+                lastActiveAt.set(r.user_uuid, r.last_active_at);
+            }
+        });
         return {
-            activeUserUuids: Array.from(
-                new Set(
-                    result.rows
-                        .filter((r) => r.is_active_30d)
-                        .map((r) => r.user_uuid),
-                ),
-            ),
+            lastActiveAt,
             weeklyActivity: result.rows.flatMap((r) =>
                 r.week_start === null
                     ? []
@@ -191,8 +197,8 @@ export class DepartmentAnalyticsModel {
         return this.aiTablesExist;
     }
 
-    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count.
-    // Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
+    // Same sources, organization scope and bounds as getActivity, so a person's flag and last activity match
+    // the counts. Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
     async getMemberActivity(
         organizationUuid: string,
         userUuids: string[],

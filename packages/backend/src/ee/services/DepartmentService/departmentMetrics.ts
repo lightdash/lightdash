@@ -1,10 +1,13 @@
 import {
     computeEffectiveHeadcounts,
+    getActivityBucket,
     getChildrenMap,
     getDirectMembersByDepartment,
     getResidualHeadcount,
     OrganizationMemberRole,
     rollUpByDepartment,
+    type ActivityBucketStarts,
+    type ActivitySplit,
     type AdoptionMetrics,
     type Department,
     type DepartmentMembership,
@@ -17,7 +20,9 @@ import { type ActivityRow } from '../../../models/DepartmentAnalyticsModel';
 export type MetricsInput = {
     members: DepartmentMembership[];
     headcount: number | null;
-    activeUserUuids: Set<string>; // active in the last 30 days
+    // Each person's latest activity back to the at-risk bound; anyone missing has none in that time
+    lastActiveAt: Map<string, Date>;
+    bucketStarts: ActivityBucketStarts;
     weeksByUser: Map<string, Set<string>>;
     weekStarts: string[];
 };
@@ -25,7 +30,8 @@ export type MetricsInput = {
 export type SnapshotInput = {
     departments: Department[];
     membership: DepartmentMembership[];
-    activeUserUuids: Set<string>;
+    lastActiveAt: Map<string, Date>;
+    bucketStarts: ActivityBucketStarts;
     weeklyActivity: ActivityRow[];
     weekStarts: string[];
 };
@@ -108,23 +114,38 @@ const bucket = (split: RoleSplit, role: OrganizationMemberRole): RoleSplit => {
 export const computeAdoptionMetrics = (
     input: MetricsInput,
 ): AdoptionMetrics => {
-    const { members, headcount, activeUserUuids, weeksByUser, weekStarts } =
-        input;
+    const {
+        members,
+        headcount,
+        lastActiveAt,
+        bucketStarts,
+        weeksByUser,
+        weekStarts,
+    } = input;
     const trendWeeks = new Set(weekStarts);
     const roleSplit = members.reduce<RoleSplit>(
         (split, m) => bucket(split, m.role),
         { viewers: 0, interactiveViewers: 0, editors: 0, admins: 0 },
     );
-    const isActive30d = (m: DepartmentMembership) =>
-        activeUserUuids.has(m.userUuid);
-    const activeCount30d = members.filter(isActive30d).length;
-    const activeCount12w = members.filter(
-        (m) =>
-            isActive30d(m) ||
+    // Healthy is active in the last 30 days, so the 30-day count is the healthy one and the two never differ
+    const activitySplit: ActivitySplit = { healthy: 0, atRisk: 0, lost: 0 };
+    let activeCount12w = 0;
+    members.forEach((m) => {
+        const activity = getActivityBucket(
+            lastActiveAt.get(m.userUuid) ?? null,
+            bucketStarts,
+        );
+        activitySplit[activity] += 1;
+        if (
+            activity === 'healthy' ||
             [...(weeksByUser.get(m.userUuid) ?? [])].some((w) =>
                 trendWeeks.has(w),
-            ),
-    ).length;
+            )
+        ) {
+            activeCount12w += 1;
+        }
+    });
+    const activeCount30d = activitySplit.healthy;
 
     return {
         memberCount: members.length,
@@ -133,6 +154,7 @@ export const computeAdoptionMetrics = (
         coveragePct: pct(members.length, headcount),
         activePct: pct(activeCount30d, headcount),
         roleSplit,
+        activitySplit,
         weeklyActive: weekStarts.map((weekStart) => ({
             weekStart,
             activeUsers: members.filter((m) =>
@@ -145,7 +167,8 @@ export const computeAdoptionMetrics = (
 export const buildAdoptionSnapshot = (
     input: SnapshotInput,
 ): AdoptionSnapshot => {
-    const { departments, membership, activeUserUuids, weekStarts } = input;
+    const { departments, membership, lastActiveAt, bucketStarts, weekStarts } =
+        input;
     const weeksByUser = indexWeeklyActivity(input.weeklyActivity);
     const directMembers = getDirectMembersByDepartment(membership);
     const rolledMembers = rollUpByDepartment(departments, directMembers);
@@ -163,7 +186,8 @@ export const buildAdoptionSnapshot = (
         computeAdoptionMetrics({
             members,
             headcount,
-            activeUserUuids,
+            lastActiveAt,
+            bucketStarts,
             weeksByUser,
             weekStarts,
         });

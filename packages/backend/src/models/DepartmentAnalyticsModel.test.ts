@@ -27,44 +27,51 @@ describe('DepartmentAnalyticsModel', () => {
     });
 
     const activeSince = new Date('2026-09-08T12:00:00Z');
-    const trendSince = new Date('2026-07-16T12:00:00Z');
     const lastActiveSince = new Date('2026-07-10T12:00:00Z');
-    const windows = { activeSince, trendSince, lastActiveSince };
+    const windows = { activeSince, lastActiveSince };
 
     it('returns no activity for an empty user set without querying', async () => {
         expect(await model.getActivity('org', [], windows)).toEqual({
-            activeUserUuids: [],
+            lastActiveAt: new Map(),
             weeklyActivity: [],
         });
         expect(tracker.history.all).toHaveLength(0);
     });
 
-    it('reads the weekly buckets and the 30-day active set in one query', async () => {
+    it("reads the weekly buckets and each person's latest activity in one query", async () => {
         tracker.on.any(/analytics_chart_views/).responseOnce({
             rows: [
                 {
                     user_uuid: 'u1',
                     week_start: '2026-09-28',
-                    is_active_30d: true,
+                    last_active_at: new Date('2026-09-30T10:00:00Z'),
                 },
                 {
                     user_uuid: 'u1',
                     week_start: '2026-08-03',
-                    is_active_30d: false,
+                    last_active_at: new Date('2026-08-04T10:00:00Z'),
                 },
                 {
                     user_uuid: 'u2',
                     week_start: '2026-08-03',
-                    is_active_30d: false,
+                    last_active_at: new Date('2026-08-05T10:00:00Z'),
                 },
-                // A person who only ran queries: active, but in no weekly bucket
-                { user_uuid: 'u3', week_start: null, is_active_30d: true },
+                // A person who only ran queries: in no weekly bucket, but active all the same
+                {
+                    user_uuid: 'u3',
+                    week_start: null,
+                    last_active_at: new Date('2026-10-01T10:00:00Z'),
+                },
             ],
         });
         expect(
             await model.getActivity('org', ['u1', 'u2', 'u3'], windows),
         ).toEqual({
-            activeUserUuids: ['u1', 'u3'],
+            lastActiveAt: new Map([
+                ['u1', new Date('2026-09-30T10:00:00Z')],
+                ['u2', new Date('2026-08-05T10:00:00Z')],
+                ['u3', new Date('2026-10-01T10:00:00Z')],
+            ]),
             weeklyActivity: [
                 { userUuid: 'u1', weekStart: '2026-09-28' },
                 { userUuid: 'u1', weekStart: '2026-08-03' },
@@ -74,11 +81,11 @@ describe('DepartmentAnalyticsModel', () => {
         expect(reads()).toHaveLength(1);
     });
 
-    it('builds the weekly buckets from views only and reads queries for 30 days', async () => {
+    it('builds the weekly buckets from views only and reads every source back to the at-risk bound', async () => {
         tracker.on.any(/query_history/).responseOnce({ rows: [] });
         await model.getActivity('org', ['u1', 'u2'], windows);
         const [query] = reads();
-        expect(query.sql).toMatch(/bool_or\(a\.at >= \$1\) AS is_active_30d/);
+        expect(query.sql).toMatch(/MAX\(a\.at\) AS last_active_at/);
         expect(query.sql).toMatch(
             /CASE WHEN a\.is_view\s+THEN to_char\(date_trunc\('week', a\.at\), 'YYYY-MM-DD'\)\s+END AS week_start/,
         );
@@ -86,14 +93,15 @@ describe('DepartmentAnalyticsModel', () => {
         expect(
             query.sql.match(/v\.timestamp AS at, true AS is_view/g),
         ).toHaveLength(2);
-        // The two view tables are bounded by the trend window
-        expect(query.bindings.filter((b) => b === trendSince)).toHaveLength(2);
-        // The active flag and the query history read are bounded by 30 days
-        expect(query.bindings.filter((b) => b === activeSince)).toHaveLength(2);
+        // The query history and both view tables go back 90 days, as getMemberActivity reads them
+        expect(
+            query.bindings.filter((b) => b === lastActiveSince),
+        ).toHaveLength(3);
+        expect(query.bindings).not.toContain(activeSince);
         const contexts = query.bindings.findIndex(
             (b) => Array.isArray(b) && b === COUNTED_QUERY_CONTEXTS,
         );
-        expect(query.bindings[contexts + 1]).toBe(activeSince);
+        expect(query.bindings[contexts + 1]).toBe(lastActiveSince);
     });
 
     it('limits every source of the activity read to the organization', async () => {
@@ -515,7 +523,7 @@ describe('DepartmentAnalyticsModel', () => {
             tracker.on.any(/unnest/).response({ rows: [] });
             tracker.on.any(/exploreName/).response({ rows: [] });
             tracker.on.any(/deleted_at IS NULL/).response({ rows: [] });
-            tracker.on.any(/bool_or/).response({ rows: [] });
+            tracker.on.any(/MAX\(a\.at\)/).response({ rows: [] });
             await model.getActivity('org', ['u1'], windows);
             await model.getMemberActivity(
                 'org',
@@ -566,7 +574,7 @@ describe('DepartmentAnalyticsModel', () => {
                 '42P01',
                 'relation does not exist',
             );
-            tracker.on.any(/bool_or/).simulateError(missingTable);
+            tracker.on.any(/MAX\(a\.at\)/).simulateError(missingTable);
             await expect(
                 model.getActivity('org', ['u1'], windows),
             ).rejects.toBe(missingTable);

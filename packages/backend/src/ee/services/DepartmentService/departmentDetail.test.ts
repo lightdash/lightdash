@@ -1,4 +1,5 @@
 import {
+    getActivityBucketStarts,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMembership,
@@ -20,6 +21,7 @@ const metrics = (weekly: number[]): AdoptionMetrics => ({
     coveragePct: null,
     activePct: null,
     roleSplit: { viewers: 0, interactiveViewers: 0, editors: 0, admins: 0 },
+    activitySplit: { healthy: 0, atRisk: 0, lost: 0 },
     weeklyActive: weekly.map((activeUsers, i) => ({
         weekStart: `2026-09-${String(7 * (i + 1)).padStart(2, '0')}`,
         activeUsers,
@@ -180,6 +182,7 @@ describe('buildDepartmentMembers', () => {
             member('recent', 'ops', 'explicit'),
             member('never', 'stores'),
             member('stale', 'stores'),
+            member('lapsed', 'stores'),
         ],
         departments,
         activity: [
@@ -197,15 +200,35 @@ describe('buildDepartmentMembers', () => {
                 queries30d: 0,
                 dashboardViews30d: 0,
             },
+            {
+                userUuid: 'lapsed',
+                lastActiveAt: new Date('2026-08-20T00:00:00Z'),
+                isActive30d: false,
+                queries30d: 0,
+                dashboardViews30d: 0,
+            },
         ],
+        bucketStarts: getActivityBucketStarts(NOW),
     });
 
     it('sorts no recorded activity first, then longest inactive', () => {
         expect(built.map((m) => m.userUuid)).toEqual([
             'never',
             'stale',
+            'lapsed',
             'recent',
         ]);
+    });
+    it('places each person in the activity bucket the counts use, from the same bounds', () => {
+        expect(
+            Object.fromEntries(built.map((m) => [m.userUuid, m.activity])),
+        ).toEqual({
+            never: 'lost',
+            // More than 90 days before now
+            stale: 'lost',
+            lapsed: 'atRisk',
+            recent: 'healthy',
+        });
     });
     it('labels where each person resolved and how', () => {
         expect(built[0]).toMatchObject({
@@ -218,7 +241,7 @@ describe('buildDepartmentMembers', () => {
             queries30d: 0,
             dashboardViews30d: 0,
         });
-        expect(built[2]).toMatchObject({
+        expect(built[3]).toMatchObject({
             departmentName: 'Operations',
             isDirect: true,
             source: 'explicit',

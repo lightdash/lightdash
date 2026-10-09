@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    getActivityBucketStarts,
     getAncestorUuids,
     getParentMap,
     hasControlCharacter,
@@ -13,6 +14,7 @@ import {
     resolveDepartmentMembership,
     truncateForMessage,
     type Account,
+    type ActivityBucketStarts,
     type CreateDepartment,
     type Department,
     type DepartmentDetail,
@@ -44,10 +46,7 @@ import {
     type AdoptionSnapshot,
 } from './departmentMetrics';
 
-export const ACTIVE_DAYS = 30;
 export const TREND_WEEKS = 12;
-// A member's last activity is read this far back; beyond it the page says "No recorded activity"
-export const LAST_ACTIVE_DAYS = 90;
 const TOP_CONTENT_LIMIT = 5;
 const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -84,19 +83,16 @@ type CachedSnapshot = {
     expiresAt: number;
 };
 
-const daysBefore = (now: Date, days: number): Date => {
-    const since = new Date(now);
-    since.setUTCDate(since.getUTCDate() - days);
-    return since;
+// Rolling windows measured from one instant, shared by every read in a request: the activity buckets'
+// starts, so a person's last activity is read back to the at-risk bound and no further
+export const getActivityWindows = (now: Date = new Date()): ActivityWindows => {
+    const { healthySince, atRiskSince } = getActivityBucketStarts(now);
+    return { activeSince: healthySince, lastActiveSince: atRiskSince };
 };
 
-// Rolling windows measured from one instant, shared by every read in a request
-export const getActivityWindows = (
-    now: Date = new Date(),
-): ActivityWindows => ({
-    activeSince: daysBefore(now, ACTIVE_DAYS),
-    trendSince: daysBefore(now, TREND_WEEKS * 7),
-    lastActiveSince: daysBefore(now, LAST_ACTIVE_DAYS),
+const toBucketStarts = (windows: ActivityWindows): ActivityBucketStarts => ({
+    healthySince: windows.activeSince,
+    atRiskSince: windows.lastActiveSince,
 });
 
 const isWholeNonNegative = (value: number): boolean =>
@@ -322,7 +318,8 @@ export class DepartmentService extends BaseService {
         return buildAdoptionSnapshot({
             departments,
             membership,
-            activeUserUuids: new Set(activity.activeUserUuids),
+            lastActiveAt: activity.lastActiveAt,
+            bucketStarts: toBucketStarts(windows),
             weeklyActivity: activity.weeklyActivity,
             weekStarts: lastNWeekStarts(TREND_WEEKS),
         });
@@ -394,6 +391,7 @@ export class DepartmentService extends BaseService {
             members,
             departments: snapshot.summary.departments,
             activity,
+            bucketStarts: toBucketStarts(windows),
         });
     }
 

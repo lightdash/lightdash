@@ -53,6 +53,15 @@ export type RoleSplit = {
     admins: number;
 };
 
+// Where a person on Lightdash falls by their last activity; see HEALTHY_ACTIVITY_DAYS for the bounds
+export type ActivityBucket = 'healthy' | 'atRisk' | 'lost';
+
+export type ActivitySplit = {
+    healthy: number;
+    atRisk: number;
+    lost: number;
+};
+
 export type WeeklyActivePoint = { weekStart: string; activeUsers: number };
 
 export type AdoptionMetrics = {
@@ -62,6 +71,7 @@ export type AdoptionMetrics = {
     coveragePct: number | null; // of the effective headcount, so never above 100; null only when that is 0
     activePct: number | null;
     roleSplit: RoleSplit;
+    activitySplit: ActivitySplit; // the people on Lightdash by their last activity; healthy is activeCount30d
     weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first; chart and dashboard views only
 };
 
@@ -168,6 +178,7 @@ export type DepartmentMember = {
     sourceGroupName: string | null;
     lastActiveAt: string | null; // ISO timestamp, null = no recorded activity (queries are only kept for a limited time)
     isActive30d: boolean; // same definition and bound as activeCount30d
+    activity: ActivityBucket; // same bounds as activitySplit
     queries30d: number;
     dashboardViews30d: number;
 };

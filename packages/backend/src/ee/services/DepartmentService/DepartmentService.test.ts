@@ -168,7 +168,7 @@ const buildService = (opts: {
     const departmentAnalyticsModel = {
         getActivity: vi
             .fn()
-            .mockResolvedValue({ activeUserUuids: [], weeklyActivity: [] }),
+            .mockResolvedValue({ lastActiveAt: new Map(), weeklyActivity: [] }),
         getMemberActivity: vi.fn().mockResolvedValue([]),
         getTopContent: vi.fn().mockResolvedValue(TOP_CONTENT),
     };
@@ -687,7 +687,7 @@ describe('DepartmentService.getSummary', () => {
             ],
         });
         departmentAnalyticsModel.getActivity.mockResolvedValue({
-            activeUserUuids: ['both'],
+            lastActiveAt: new Map([['both', new Date()]]),
             weeklyActivity: [],
         });
 
@@ -729,7 +729,10 @@ describe('DepartmentService.getSummary', () => {
             rows: [user('a', 'ops'), user('b', 'ops'), user('c', 'finance')],
         });
         departmentAnalyticsModel.getActivity.mockResolvedValue({
-            activeUserUuids: ['a', 'c'],
+            lastActiveAt: new Map([
+                ['a', new Date()],
+                ['c', new Date()],
+            ]),
             weeklyActivity: [],
         });
         const summary = await service.getSummary(
@@ -780,16 +783,15 @@ describe('DepartmentService analytics scoping', () => {
         expect(userUuids).toEqual(['u1', 'u2', 'u3']);
         const DAY = 24 * 60 * 60 * 1000;
         expect(
-            windows.activeSince.getTime() - windows.trendSince.getTime(),
-        ).toBe((84 - 30) * DAY);
+            windows.activeSince.getTime() - windows.lastActiveSince.getTime(),
+        ).toBe((90 - 30) * DAY);
     });
 });
 
 describe('getActivityWindows', () => {
-    it('measures 30 days, 12 weeks and 90 days back from one instant', () => {
+    it('measures the activity buckets, 30 and 90 days back, from one instant', () => {
         expect(getActivityWindows(new Date('2026-10-08T09:30:00Z'))).toEqual({
             activeSince: new Date('2026-09-08T09:30:00Z'),
-            trendSince: new Date('2026-07-16T09:30:00Z'),
             lastActiveSince: new Date('2026-07-10T09:30:00Z'),
         });
     });
@@ -1212,12 +1214,15 @@ describe('DepartmentService.getDetail', () => {
         });
         // Both reads apply one definition, so the fixture answers them consistently
         departmentAnalyticsModel.getActivity.mockResolvedValue({
-            activeUserUuids: ['a', 'c'],
+            lastActiveAt: new Map([
+                ['a', new Date()],
+                ['c', new Date()],
+            ]),
             weeklyActivity: [],
         });
         const member = (userUuid: string, isActive30d: boolean) => ({
             userUuid,
-            lastActiveAt: isActive30d ? new Date('2026-10-01T09:00:00Z') : null,
+            lastActiveAt: isActive30d ? new Date() : null,
             isActive30d,
             queries30d: 0,
             dashboardViews30d: 0,
@@ -1236,6 +1241,17 @@ describe('DepartmentService.getDetail', () => {
         expect(detail.members.filter((m) => m.isActive30d)).toHaveLength(
             detail.department.metrics.activeCount30d,
         );
+        // Each person lands in the activity bucket the split counts them in
+        expect(
+            Object.fromEntries(
+                detail.members.map((m) => [m.userUuid, m.activity]),
+            ),
+        ).toEqual({ a: 'healthy', b: 'lost' });
+        expect(detail.department.metrics.activitySplit).toEqual({
+            healthy: 1,
+            atRisk: 0,
+            lost: 1,
+        });
         // The count and the flags are bounded by the very same instant
         expect(
             departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],

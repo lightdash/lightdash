@@ -1,4 +1,5 @@
 import {
+    getActivityBucketStarts,
     OrganizationMemberRole,
     type Department,
     type DepartmentMembership,
@@ -51,6 +52,13 @@ const department = (
 });
 
 const weekStarts = ['2026-09-28', '2026-10-05'];
+const NOW = new Date('2026-10-08T09:30:00Z');
+const STARTS = getActivityBucketStarts(NOW);
+const DAY = 24 * 60 * 60 * 1000;
+const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY);
+// Each person's latest activity as getActivity reads it, a day ago, so in the last 30 days
+const activeYesterday = (userUuids: string[]) =>
+    new Map(userUuids.map((userUuid) => [userUuid, daysAgo(1)]));
 
 describe('lastNWeekStarts', () => {
     it('returns n Mondays oldest first ending with the current week', () => {
@@ -81,7 +89,8 @@ describe('computeAdoptionMetrics', () => {
                     member('c', OrganizationMemberRole.ADMIN),
                 ],
                 headcount: null,
-                activeUserUuids: new Set(),
+                lastActiveAt: new Map(),
+                bucketStarts: STARTS,
                 weeksByUser: new Map(),
                 weekStarts,
             });
@@ -96,6 +105,25 @@ describe('computeAdoptionMetrics', () => {
         expect(warn.mock.calls[0][0]).toContain('"auditor"');
         warn.mockRestore();
     });
+    it('splits the people on Lightdash into healthy, at risk and lost at the bucket bounds, healthy being the 30-day count', () => {
+        const m = computeAdoptionMetrics({
+            members: ['day30', 'day31', 'day90', 'day91', 'never'].map((u) =>
+                member(u, OrganizationMemberRole.VIEWER),
+            ),
+            headcount: 8,
+            lastActiveAt: new Map([
+                ['day30', daysAgo(30)],
+                ['day31', daysAgo(31)],
+                ['day90', daysAgo(90)],
+                ['day91', daysAgo(91)],
+            ]),
+            bucketStarts: STARTS,
+            weeksByUser: new Map(),
+            weekStarts,
+        });
+        expect(m.activitySplit).toEqual({ healthy: 1, atRisk: 2, lost: 2 });
+        expect(m.activeCount30d).toBe(1);
+    });
     it('computes coverage and active as percentages of headcount', () => {
         const m = computeAdoptionMetrics({
             members: [
@@ -103,7 +131,8 @@ describe('computeAdoptionMetrics', () => {
                 member('b', OrganizationMemberRole.EDITOR),
             ],
             headcount: 4,
-            activeUserUuids: new Set(['a']),
+            lastActiveAt: activeYesterday(['a']),
+            bucketStarts: STARTS,
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'a', weekStart: '2026-10-05' },
             ]),
@@ -123,7 +152,8 @@ describe('computeAdoptionMetrics', () => {
         const m = computeAdoptionMetrics({
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: null,
-            activeUserUuids: new Set(),
+            lastActiveAt: new Map(),
+            bucketStarts: STARTS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -134,7 +164,8 @@ describe('computeAdoptionMetrics', () => {
         const m = computeAdoptionMetrics({
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 0,
-            activeUserUuids: new Set(['a']),
+            lastActiveAt: activeYesterday(['a']),
+            bucketStarts: STARTS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -152,7 +183,8 @@ describe('computeAdoptionMetrics', () => {
                 member('f', OrganizationMemberRole.ADMIN),
             ],
             headcount: null,
-            activeUserUuids: new Set(),
+            lastActiveAt: new Map(),
+            bucketStarts: STARTS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -167,7 +199,8 @@ describe('computeAdoptionMetrics', () => {
         const m = computeAdoptionMetrics({
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 1,
-            activeUserUuids: new Set(['a', 'zz']),
+            lastActiveAt: activeYesterday(['a', 'zz']),
+            bucketStarts: STARTS,
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'zz', weekStart: '2026-10-05' },
             ]),
@@ -180,7 +213,8 @@ describe('computeAdoptionMetrics', () => {
         const m = computeAdoptionMetrics({
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 1,
-            activeUserUuids: new Set(['a']),
+            lastActiveAt: activeYesterday(['a']),
+            bucketStarts: STARTS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -211,7 +245,8 @@ describe('buildAdoptionSnapshot', () => {
     const snapshot = buildAdoptionSnapshot({
         departments,
         membership,
-        activeUserUuids: new Set(['s1', 'o1']),
+        lastActiveAt: activeYesterday(['s1', 'o1']),
+        bucketStarts: STARTS,
         weeklyActivity: [{ userUuid: 's1', weekStart: '2026-10-05' }],
         weekStarts,
     });
@@ -219,6 +254,56 @@ describe('buildAdoptionSnapshot', () => {
         snapshot.summary.departments.map((d) => [d.departmentUuid, d]),
     );
 
+    it('rolls the activity split up once per person, and counts everyone on Lightdash once across the organization', () => {
+        const split = buildAdoptionSnapshot({
+            departments,
+            membership,
+            lastActiveAt: new Map([
+                ['s1', daysAgo(1)],
+                ['s2', daysAgo(45)],
+                ['o1', daysAgo(45)],
+                ['clash', daysAgo(60)],
+            ]),
+            bucketStarts: STARTS,
+            weeklyActivity: [],
+            weekStarts,
+        });
+        const of = (uuid: string) =>
+            split.summary.departments.find((d) => d.departmentUuid === uuid);
+        expect(of('stores')?.metrics.activitySplit).toEqual({
+            healthy: 1,
+            atRisk: 1,
+            lost: 0,
+        });
+        // Stores' two people and the one directly in Ops, each counted once
+        expect(of('ops')?.metrics.activitySplit).toEqual({
+            healthy: 1,
+            atRisk: 2,
+            lost: 0,
+        });
+        expect(of('ops')?.directMetrics.activitySplit).toEqual({
+            healthy: 0,
+            atRisk: 1,
+            lost: 0,
+        });
+        // A person in a conflict is placed in neither department until it is settled
+        expect(of('depots')?.metrics.activitySplit).toEqual({
+            healthy: 0,
+            atRisk: 0,
+            lost: 0,
+        });
+        expect(of('finance')?.metrics.activitySplit).toEqual({
+            healthy: 0,
+            atRisk: 0,
+            lost: 0,
+        });
+        // Everyone on Lightdash, placed or not: the unplaced person has no activity at all
+        expect(split.summary.organization.activitySplit).toEqual({
+            healthy: 1,
+            atRisk: 3,
+            lost: 1,
+        });
+    });
     it('rolls members and headcount up to the parent, with its own people on top of its sub-departments', () => {
         const ops = byUuid.get('ops');
         // Stores 10 and Depots 30, and the 1 person directly in Ops
@@ -255,7 +340,8 @@ describe('buildAdoptionSnapshot', () => {
                 member('p2', OrganizationMemberRole.VIEWER, 'parent'),
                 member('a1', OrganizationMemberRole.VIEWER, 'a'),
             ],
-            activeUserUuids: new Set(['p1']),
+            lastActiveAt: activeYesterday(['p1']),
+            bucketStarts: STARTS,
             weeklyActivity: [],
             weekStarts,
         }).summary.departments.find((d) => d.departmentUuid === 'parent');
@@ -275,7 +361,8 @@ describe('buildAdoptionSnapshot', () => {
                 department('b', 'parent', 10),
             ],
             membership: [member('a1', OrganizationMemberRole.VIEWER, 'a')],
-            activeUserUuids: new Set(),
+            lastActiveAt: new Map(),
+            bucketStarts: STARTS,
             weeklyActivity: [],
             weekStarts,
         }).summary.departments.find((d) => d.departmentUuid === 'parent');
@@ -292,7 +379,8 @@ describe('buildAdoptionSnapshot', () => {
             membership: ['a', 'b', 'c'].map((uuid) =>
                 member(uuid, OrganizationMemberRole.VIEWER, 'stale'),
             ),
-            activeUserUuids: new Set(['a', 'b', 'c']),
+            lastActiveAt: activeYesterday(['a', 'b', 'c']),
+            bucketStarts: STARTS,
             weeklyActivity: [],
             weekStarts,
         });
@@ -314,7 +402,8 @@ describe('buildAdoptionSnapshot', () => {
                 member('p1', OrganizationMemberRole.VIEWER, 'a'),
                 member('p2', OrganizationMemberRole.VIEWER, 'b'),
             ],
-            activeUserUuids: new Set(),
+            lastActiveAt: new Map(),
+            bucketStarts: STARTS,
             weeklyActivity: [],
             weekStarts,
         });
@@ -336,7 +425,8 @@ describe('buildAdoptionSnapshot', () => {
                 member('x1', OrganizationMemberRole.VIEWER, 'x'),
                 member('y1', OrganizationMemberRole.VIEWER, 'y'),
             ],
-            activeUserUuids: new Set(['x1']),
+            lastActiveAt: activeYesterday(['x1']),
+            bucketStarts: STARTS,
             weeklyActivity: [],
             weekStarts,
         });
