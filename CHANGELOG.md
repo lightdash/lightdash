@@ -1,3 +1,10 @@
+## [2.518.1](https://github.com/lightdash/lightdash/compare/2.518.0...2.518.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** a thread keeps its model and warns when that model is deprecated ([#30829](https://github.com/lightdash/lightdash/issues/30829)) ([7fc7b0a](https://github.com/lightdash/lightdash/commit/7fc7b0a4f2bdcd995f17d088eb99ec79e79ab866))
+
 # [2.518.0](https://github.com/lightdash/lightdash/compare/2.517.0...2.518.0) (2026-10-09)
 
 
