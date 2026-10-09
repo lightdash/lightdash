@@ -200,6 +200,7 @@ export class RefreshTokenRotation {
                     }
                     throw error;
                 }
+                await trx.raw('SET LOCAL lock_timeout TO DEFAULT');
                 const current = await run.readCurrentRefreshToken(trx);
                 if (!current) throw new RefreshTokenRowMissingError();
                 const result = await run.exchange(current);

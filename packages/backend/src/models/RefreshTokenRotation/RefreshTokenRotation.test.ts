@@ -98,6 +98,7 @@ describe('RefreshTokenRotation', () => {
                 'select pg_advisory_xact_lock(hashtextextended(?, 0))',
                 ['oauth-refresh:project:row-1:'],
             ],
+            ['SET LOCAL lock_timeout TO DEFAULT'],
         ]);
         expect(run.persist).toHaveBeenCalledExactlyOnceWith({
             lockedRefreshToken: 'current-token',
@@ -303,7 +304,7 @@ describe('RefreshTokenRotation', () => {
             key: { kind: 'user', uuid: 'user-row', purpose: 'AI' },
         };
         await coordinator.run(run);
-        expect(raw).toHaveBeenLastCalledWith(
+        expect(raw).toHaveBeenCalledWith(
             'select pg_advisory_xact_lock(hashtextextended(?, 0))',
             ['oauth-refresh:user:user-row:AI'],
         );

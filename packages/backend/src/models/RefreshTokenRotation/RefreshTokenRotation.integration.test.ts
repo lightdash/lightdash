@@ -76,6 +76,56 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
         }
     });
 
+    test('saves the rotation when another transaction holds the row longer than the advisory lock wait', async () => {
+        const uuid = randomUUID();
+        await database(tableName).insert({ uuid, refresh_token: 'before' });
+        const rowHeld = deferred();
+        const releaseRow = deferred();
+        const holder = database.transaction(async (trx) => {
+            await trx(tableName).where({ uuid }).forUpdate().first();
+            rowHeld.resolve();
+            await releaseRow.promise;
+        });
+        await rowHeld.promise;
+        const rotation = new RefreshTokenRotation({
+            database,
+            inFlight: new Map(),
+        });
+        const refresh = rotation.run({
+            key: { kind: 'project', uuid, purpose: null },
+            shareKey: 'row-held',
+            readCurrentRefreshToken: async (trx) =>
+                (
+                    await trx<{ uuid: string; refresh_token: string }>(
+                        tableName,
+                    )
+                        .where({ uuid })
+                        .first()
+                )?.refresh_token ?? null,
+            exchange: async () => 'after',
+            persist: async ({ lockedRefreshToken, result, trx }) => {
+                await trx.transaction(async (savepoint) => {
+                    await savepoint(tableName)
+                        .where({ uuid, refresh_token: lockedRefreshToken })
+                        .forUpdate()
+                        .first();
+                    await savepoint(tableName)
+                        .where({ uuid, refresh_token: lockedRefreshToken })
+                        .update({ refresh_token: result });
+                });
+            },
+        });
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 6_000);
+        });
+        releaseRow.resolve();
+        await holder;
+        await refresh;
+        expect(await database(tableName).where({ uuid }).first()).toMatchObject(
+            { refresh_token: 'after' },
+        );
+    }, 20_000);
+
     test('serializes separate in-process maps and rereads the committed rotation', async () => {
         const uuid = randomUUID();
         await database(tableName).insert({ uuid, refresh_token: 'token-1' });
