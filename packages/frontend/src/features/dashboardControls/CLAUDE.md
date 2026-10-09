@@ -161,8 +161,8 @@ In `FilterConfiguration/`:
   editor closes as "Done" does. From the page, Escape never closes.
 - A mouse down never unclicks the field, and neither does changing the
   dashboard tab: the selection is kept while the editor walks the tabs. It
-  ends only by clicking the card again, the card's eye toggle, Escape,
-  selecting another field, or closing or switching the editor.
+  ends only by clicking the card again, Escape, selecting another field,
+  removing the field, or closing or switching the editor.
 
 ## Editor
 
@@ -297,14 +297,14 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   label, the fields that were waiting go too, and it leaves the bar until a
   field is picked. Closing it there drops it; "Discard changes" brings it
   back as it was opened. The editor keeps its title, not "New control".
-- Every row has an eye toggle (`ActionIcon`, `aria-pressed`) right of the name
-  and above the row's stretched click area, like the menu button. It is
-  centred on the name and ends where "Apply to" does: `.rowHeader` and
-  `.rowActions` share the side inset. It does what a click on the card does,
-  and both carry the same pressed state (`light` blue, else `subtle` gray):
-  pressed means only this field's tiles are shown. Its tooltip is "Show only these
-  tiles", or "Showing only these tiles" while pressed. Never an X: that reads
-  as "Remove field".
+- A card (`FieldRow`) is a legend: icon, name and a trash can on the first
+  line, "<table> · x of N tiles" over every tab on the second. A click
+  anywhere on it toggles the selection (the name button's `::after` covers the
+  card, `aria-pressed`). There is no eye and no menu on it.
+- The trash can ("Remove field", `aria-label` "Remove field <label>") sits
+  above the click area. It is hidden with `visibility` until the card is
+  hovered, holds focus (`:focus-within`) or is selected, and is never
+  unmounted: focus on the name shows it, so the keyboard reaches it.
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
   (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
   fields of the filter.
@@ -321,38 +321,46 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile is `available`, and it always gets a card so the mapping can be
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
-- Scope: there is no mode. A card counts every tab, and each item of its
-  "Apply to" menu names the tiles it acts on. On a dashboard with two tabs or
-  more there are two scopes, "This tab" (the dashboard's active tab, which it
-  follows) and "Every tab"; with fewer there is one and no label. Scope is
-  only which tiles are passed to the helpers (`tilesByScope` in
-  `FieldsAndTiles`: `dashboardTiles` filtered by `tabUuid`, or all of them),
-  so an action never writes a tile out of scope. `FieldRow` hands its
-  callbacks the `TileScope` literal, `'every-tab'` when there are no tabs.
-- A card (`FieldRow`) gets two `getFieldScope` results, this tab (null
-  without tabs) and every tab: of the tiles that offer the field
-  (`possible`), the ones on it (`applied`), the ones the filter is not on
-  (`unfiltered`) and the ones on another field (`replaced`, with
-  `replacedFieldIds`). A SQL column row gets the same shape from
-  `getSqlColumnScope`. The count line is "<table> · x of N tiles" over every
-  tab.
-  - The "Apply to" menu, with tabs: a label "This tab · x of N",
-    "Unfiltered tiles" (`applyFieldToUnfilteredTiles`) and "All tiles"
-    (`applyFieldToAll`), each with its tile count on the right; the same
-    under "Every tab · x of N"; a divider, "Clear from this tab" and "Clear
-    from every tab"; a divider, "Remove field". Without tabs: "Unfiltered
-    tiles", "All tiles", "Clear from tiles", "Remove field", and no label.
-  - An item that would change nothing is not rendered, never disabled:
-    "Unfiltered tiles" with none, "All tiles" when `replaced` is 0 (with
-    nothing to replace it would only repeat "Unfiltered tiles"), a clear
-    when the field is on no tile of its scope. A label shows only above an
-    item of its group, and a divider only between two sections that both
-    have one. "Remove field" is always there.
-  - "All tiles" always says what it replaces before the click, as a second
-    line inside the item: "Replaces <fields> on N tiles", repeated in its
-    `aria-label`. The `aria-label` of an apply item names the field, the
+- `useFieldTileActions()` is the one place a field's counts and actions are
+  worked out, for the card and for the bar. It returns
+  `getFieldTiles(fieldId)`, or null with no control or a placeholder: the
+  field, its labels, `isWaiting`, two `FieldScope`s and `addToUnfiltered`,
+  `switchFromOthers`, `clear` (each taking a `TileScope`) and `remove`.
+- Scope: there is no mode. On a dashboard with two tabs or more there are two
+  scopes, `'this-tab'` (the dashboard's active tab, which it follows) and
+  `'every-tab'`; with fewer there is only `'every-tab'` and `thisTabScope` is
+  null. Scope is only which tiles are passed to the helpers (`tilesByScope`:
+  `dashboardTiles` filtered by `tabUuid`, or all of them), so an action never
+  writes a tile out of scope.
+- A `FieldScope` (`getFieldScope`; `getSqlColumnScope` for a SQL column row)
+  is, of the tiles that offer the field (`possible`): the ones on it
+  (`applied`), the ones the filter is not on (`unfiltered`) and the ones on
+  another field (`replaced`, with `replacedFieldIds`). The three never
+  overlap.
+- `FieldTilesBar` is where a field's tiles are changed. It shows over the
+  tiles while a field is clicked (`highlightedFieldId`, never the hovered one,
+  so the tiles do not jump on hover) and the control is not a placeholder. A
+  waiting field can be clicked too.
+  - With tabs, line 1 is "<Field> is on x of N tiles on this tab" and the
+    buttons for the active tab; line 2, quieter, is "Every tab: x of N" and
+    the same actions as `subtle` buttons. A tab where no tile offers the
+    field reads "No tile on this tab has <Field>" with no button. Without
+    tabs there is one line, "<Field> is on x of N tiles".
+  - "Add to n unfiltered" is `applyFieldToUnfilteredTiles`. "Switch n from
+    <fields>" is `switchTilesToField`: only the tiles on another field of the
+    filter, so it never touches an unfiltered tile and the two buttons never
+    count the same one. The clear ("Clear this tab", "Clear everywhere",
+    "Clear from tiles" without tabs) is `removeFieldFromAll`.
+  - A button that would change nothing is not rendered, never disabled.
+  - It is a `region` named "Tiles filtered by <field>"; the count sentence is
+    `aria-live="polite"`; each button's `aria-label` names the field, the
     count and the scope ("on this tab", "on every tab", nothing without
     tabs).
+  - Mount: `ControlsSidebarPage` renders it, and it portals into an element
+    of its own placed right before the active tab's `.react-grid-layout`
+    (found with `usePortalTargets`, inside `[data-tab-uuid]` when the
+    dashboard has tab panels). So it scrolls with the tiles and pushes them
+    down. It is not in `ControlsBar`: the filter bar's wrapper is sticky.
   - "Remove field" and `isWaiting` are always whole-dashboard.
 - Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
@@ -504,7 +512,7 @@ Rules:
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
   count in a sidebar row, the footer status, the `.confirm` line on a tile
-  card). Tab badges do not replay: they change on every hover. The editor's
+  card). The field bar arrives with `translateY(-6px)` only. Tab badges do not replay: they change on every hover. The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo

@@ -10,7 +10,6 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    applyFieldToAll,
     getDefaultTileField,
     getFieldCount,
     getFieldScope,
@@ -24,6 +23,7 @@ import {
     removeField,
     removeFieldFromAll,
     setTileField,
+    switchTilesToField,
     toSqlColumnTarget,
     type SqlColumnsByTile,
 } from './peers';
@@ -145,20 +145,32 @@ describe('peers', () => {
         ).not.toHaveProperty('tileTargets');
     });
 
-    it('applyFieldToAll puts a peer on every chart that offers it', () => {
-        const r = applyFieldToAll(rule(), PAYMENTS, tiles, fieldsByTile);
-        expect(r.tileTargets).toEqual({ b: PAYMENTS, c: PAYMENTS });
+    it('switchTilesToField moves the tiles on another field and leaves the rest', () => {
+        const r = switchTilesToField(rule(), PAYMENTS, tiles, fieldsByTile);
+        // b was on orders; c offers payments but was not filtered
+        expect(r.tileTargets).toEqual({ b: PAYMENTS });
         expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
+        expect(getTileField(r, c, fieldsByTile)).toBeNull();
     });
 
-    it('applyFieldToAll on the target clears exclusions and peers on its charts', () => {
-        const r = applyFieldToAll(
+    it('switchTilesToField on the target takes its tiles back, never a left out one', () => {
+        const r = switchTilesToField(
             rule({ a: false, b: PAYMENTS, c: PAYMENTS }),
             ORDERS,
             tiles,
             fieldsByTile,
         );
-        expect(r.tileTargets).toEqual({ c: PAYMENTS });
+        expect(r.tileTargets).toEqual({ a: false, c: PAYMENTS });
+    });
+
+    it('switchTilesToField only touches the tiles it is given', () => {
+        const r = switchTilesToField(
+            rule({ b: PAYMENTS }),
+            ORDERS,
+            [a],
+            fieldsByTile,
+        );
+        expect(r.tileTargets).toEqual({ b: PAYMENTS });
     });
 
     it('removeFieldFromAll stops filtering the charts using the field', () => {

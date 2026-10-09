@@ -1,0 +1,44 @@
+/* Lined up with the tiles: the grid has the same side inset */
+.bar {
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+
+    margin: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-color: var(--mantine-color-blue-5);
+    animation: barEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+/* Pushes the buttons to the end of the line */
+.count {
+    margin-right: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.everyTab {
+    margin-top: var(--mantine-spacing-xs);
+    padding-top: var(--mantine-spacing-xs);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.everyTabCount {
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes barEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bar {
+        animation: none;
+    }
+}

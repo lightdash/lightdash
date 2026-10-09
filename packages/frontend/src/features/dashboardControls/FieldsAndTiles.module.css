@@ -29,7 +29,6 @@
     background-color: var(--mantine-color-blue-light);
 }
 
-/* Same inset as the actions below, so the eye ends where "Apply to" does */
 .rowHeader {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
 }
@@ -65,22 +64,23 @@
 
 /* Keyed by the count, so a changed number fades in */
 .rowCount {
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
     font-variant-numeric: tabular-nums;
     animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
 }
 
-.rowActions button,
-.rowEye {
+/* Above the card-wide click area. Hidden, never unmounted: focus on the name
+   shows it, so the keyboard reaches it */
+.rowRemove {
     position: relative;
     z-index: 1;
+    visibility: hidden;
 }
 
-.rowActions {
-    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
-}
-
-.itemCount {
-    font-variant-numeric: tabular-nums;
+.row:hover .rowRemove,
+.row:focus-within .rowRemove,
+.rowHighlighted .rowRemove {
+    visibility: visible;
 }
 
 .addFieldSelect {
