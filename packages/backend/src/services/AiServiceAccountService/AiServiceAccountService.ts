@@ -9,13 +9,10 @@ import {
     QueryExecutionContext,
     supportsAiServiceAccount,
     type Account,
-    type AgentAccessReport,
-    type AgentAccessTestRequest,
     type AiServiceAccountCredentialInput,
     type AiServiceAccountParent,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
-    type UUID,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
@@ -42,7 +39,6 @@ import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
 } from './resolveAiServiceAccountSlot';
-import { testAgentAccess } from './testAgentAccess';
 
 type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -373,28 +369,6 @@ export class AiServiceAccountService extends BaseService {
                     warehouseType: connection.type,
                 },
             }),
-        );
-    }
-
-    async testAccess(
-        account: Account,
-        projectUuid: UUID,
-        connectionUuid: UUID | null,
-        request: AgentAccessTestRequest,
-    ): Promise<AgentAccessReport> {
-        const loaded = await this.loadConnection(
-            account,
-            projectUuid,
-            connectionUuid,
-            false,
-        );
-        return testAgentAccess(
-            { account, projectUuid, request, ...loaded },
-            {
-                ...this.deps,
-                warehouseClientFactory:
-                    this.deps.projectService.warehouseClientFactory,
-            },
         );
     }
 

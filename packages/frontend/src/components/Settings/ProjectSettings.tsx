@@ -244,7 +244,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Agent identity"
-                                  description="Choose how AI agents connect to this project's warehouse and check what they can read."
+                                  description="Choose how AI agents connect to this project's warehouse."
                               >
                                   <ProjectAgentIdentityPage
                                       key={project.projectUuid}
