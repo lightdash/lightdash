@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ParameterError } from '../types/errors';
 import {
     buildBigQueryAiServiceAccountCommands,
+    buildDatabricksAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
@@ -170,5 +171,36 @@ describe('parseSnowflakeAccountUrl', () => {
         'https://abc..snowflakecomputing.com',
     ])('rejects %s', (input) => {
         expect(() => parseSnowflakeAccountUrl(input)).toThrow(ParameterError);
+    });
+});
+
+describe('Databricks service account grants', () => {
+    it('grants catalog/schema use and per-table reads with an explicit principal placeholder', () => {
+        expect(
+            buildDatabricksAiServiceAccountCommands({
+                catalog: 'analytics',
+                schema: 'public',
+            }),
+        ).toBe(
+            'GRANT USE CATALOG ON CATALOG `analytics` TO `<service-principal-application-id>`;\nGRANT USE SCHEMA ON SCHEMA `analytics`.`public` TO `<service-principal-application-id>`;\nGRANT SELECT ON TABLE `analytics`.`public`.`<table>` TO `<service-principal-application-id>`;',
+        );
+    });
+    it('uses placeholders for missing identifiers', () => {
+        expect(
+            buildDatabricksAiServiceAccountCommands({
+                catalog: null,
+                schema: null,
+            }),
+        ).toContain('`<catalog>`.`<schema>`.`<table>`');
+    });
+    it('escapes identifier delimiters without creating broad grants', () => {
+        const sql = buildDatabricksAiServiceAccountCommands({
+            catalog: 'a`b',
+            schema: 'c`d',
+        });
+        expect(sql).toContain('`a``b`.`c``d`.`<table>`');
+        expect(sql).not.toMatch(
+            /ALL PRIVILEGES|ALL TABLES|CREATE SERVICE|SECRET/,
+        );
     });
 });

@@ -8,11 +8,14 @@ import {
     ParameterError,
     QueryExecutionContext,
     supportsAiServiceAccount,
+    WarehouseTypes,
     type Account,
     type AiServiceAccountCredentialInput,
-    type AiServiceAccountParent,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
+    type ApiAiServiceAccountSaveResponse,
+    type ApiAiServiceAccountStatusResponse,
+    type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
@@ -20,7 +23,10 @@ import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { redactCredentialError } from '../../logging/redactCredentialError';
 import { logAuditEvent } from '../../logging/winston';
-import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
+import {
+    type AiServiceAccountCredentialsModel,
+    type AiServiceAccountSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -29,6 +35,7 @@ import { type ProjectService } from '../ProjectService/ProjectService';
 import {
     aiServiceAccountCredentialResolvers,
     buildAiServiceAccountCredentials,
+    resolveAiServiceAccountCredentials,
 } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromAccount,
@@ -185,11 +192,8 @@ export class AiServiceAccountService extends BaseService {
         account: Account,
         projectUuid: string,
         connectionUuid: string | null,
-    ): Promise<{
-        results: AiServiceAccountSlot | null;
-        parent: AiServiceAccountParent | null;
-    }> {
-        const { warehouseConnectionUuid, organizationUuid } =
+    ): Promise<Omit<ApiAiServiceAccountStatusResponse, 'status'>> {
+        const { warehouseConnectionUuid, organizationUuid, connection } =
             await this.loadConnection(
                 account,
                 projectUuid,
@@ -201,6 +205,17 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
+        const verification =
+            connection.type === WarehouseTypes.DATABRICKS
+                ? {
+                      verification:
+                          await this.deps.aiServiceAccountCredentialsModel.getVerification(
+                              projectUuid,
+                              warehouseConnectionUuid,
+                              results?.identityUuid ?? null,
+                          ),
+                  }
+                : {};
         const resolver = new AiServiceAccountSlotResolver(this.deps);
         const input = { projectUuid, connection: warehouseConnectionUuid };
         const inherited = await resolver
@@ -216,7 +231,8 @@ export class AiServiceAccountService extends BaseService {
                           slot: { slot: metadata.slot, secrets: null },
                       };
             });
-        if (inherited === null) return { results, parent: null };
+        if (inherited === null)
+            return { results, parent: null, ...verification };
         const parentUuid = inherited.sourceProjectUuid;
         const canView = this.createAuditedAbility(account).can(
             'view',
@@ -224,6 +240,7 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results,
+            ...verification,
             parent: {
                 projectUuid: parentUuid,
                 projectName: canView
@@ -231,8 +248,20 @@ export class AiServiceAccountService extends BaseService {
                     : null,
                 identityUuid: inherited.slot.slot.identityUuid,
                 principal:
-                    inherited.slot.secrets?.keyfileContents.client_email ??
-                    null,
+                    inherited.slot.secrets?.type === WarehouseTypes.BIGQUERY
+                        ? (inherited.slot.secrets.keyfileContents
+                              .client_email ?? null)
+                        : null,
+                ...(connection.type === WarehouseTypes.DATABRICKS
+                    ? {
+                          verification:
+                              await this.deps.aiServiceAccountCredentialsModel.getVerification(
+                                  parentUuid,
+                                  inherited.sourceConnection,
+                                  inherited.slot.slot.identityUuid,
+                              ),
+                      }
+                    : {}),
             },
         };
     }
@@ -242,7 +271,7 @@ export class AiServiceAccountService extends BaseService {
         projectUuid: string,
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput,
-    ): Promise<AiServiceAccountSlot> {
+    ): Promise<Omit<ApiAiServiceAccountSaveResponse, 'status'>> {
         const {
             connection,
             warehouseConnectionUuid,
@@ -287,11 +316,28 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
+        const verification =
+            connection.type === WarehouseTypes.DATABRICKS
+                ? await this.testConnection(
+                      account,
+                      projectUuid,
+                      {
+                          connection,
+                          warehouseConnectionUuid,
+                          organizationUuid,
+                          connectionName,
+                      },
+                      credentials,
+                  )
+                : null;
+        if (verification !== null && !verification.ok)
+            throw new ParameterError(verification.message);
         const slot = await this.deps.aiServiceAccountCredentialsModel.upsert(
             projectUuid,
             warehouseConnectionUuid,
             credentials,
             account.user.id,
+            ...(verification === null ? [] : [verification]),
         );
         this.recordChange(
             account,
@@ -321,7 +367,12 @@ export class AiServiceAccountService extends BaseService {
                 },
             }),
         );
-        return slot;
+        return {
+            results: slot,
+            ...(connection.type === WarehouseTypes.DATABRICKS
+                ? { verification }
+                : {}),
+        };
     }
 
     async delete(
@@ -378,36 +429,119 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput | null,
     ): Promise<AiServiceAccountTestResult> {
-        const {
-            connection,
-            warehouseConnectionUuid,
-            organizationUuid,
-            connectionName,
-        } = await this.loadConnection(
+        const loaded = await this.loadConnection(
             account,
             projectUuid,
             connectionUuid,
             true,
         );
-        if (input !== null && input.type !== connection.type)
+        if (input !== null && input.type !== loaded.connection.type)
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
-        let secrets =
+        const secrets =
             input === null
                 ? null
                 : mergeAiServiceAccountCredentials(
                       input,
                       await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
                           projectUuid,
-                          warehouseConnectionUuid,
+                          loaded.warehouseConnectionUuid,
                       ),
                   );
+        return this.testConnection(account, projectUuid, loaded, secrets);
+    }
+
+    private async probeConnection(
+        account: Account,
+        projectUuid: string,
+        organizationUuid: string,
+        connection: CreateWarehouseCredentials,
+        secrets: AiServiceAccountSecrets,
+        onQuery: () => void,
+    ): Promise<AiServiceAccountTestResult> {
+        const databricks = connection.type === WarehouseTypes.DATABRICKS;
+        const context = connectionContextFromAccount(account, {
+            organizationUuid,
+            queryContext: QueryExecutionContext.API,
+        });
+        const credentials = databricks
+            ? await resolveAiServiceAccountCredentials({
+                  connection,
+                  stored: secrets,
+                  owner: null,
+                  context,
+                  projectUuid,
+                  warehouseConnectionUuid: null,
+              })
+            : buildAiServiceAccountCredentials(connection, secrets);
+        const { rows } =
+            await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    agentSession: true,
+                    projectUuid,
+                    credentials,
+                    ...(databricks
+                        ? { clientOptions: { agentJobControls: true } }
+                        : {}),
+                },
+                context,
+                ({ warehouseClient }) => {
+                    onQuery();
+                    return warehouseClient.runQuery(
+                        databricks
+                            ? 'SELECT current_user() AS principal'
+                            : 'SELECT SESSION_USER() AS principal',
+                        {},
+                    );
+                },
+            );
+        const row = Object.fromEntries(
+            Object.entries(rows[0] ?? {}).map(([key, value]) => [
+                key.toLowerCase(),
+                value,
+            ]),
+        );
+        const principalValue: unknown = row.principal;
+        const principal =
+            typeof principalValue === 'string' ? principalValue : null;
+        if (databricks && !principal?.trim())
+            throw new ParameterError(
+                'The session did not return its current user.',
+            );
+        return {
+            ok: true,
+            principal,
+            observed: databricks ? { currentUser: principal } : { principal },
+            message:
+                principal === null
+                    ? 'Connection checked; principal not observed.'
+                    : 'AI service account connection checked.',
+            checkedAt: new Date(),
+        };
+    }
+
+    private async testConnection(
+        account: Account,
+        projectUuid: string,
+        loaded: Awaited<ReturnType<AiServiceAccountService['loadConnection']>>,
+        input: AiServiceAccountSecrets | null,
+    ): Promise<AiServiceAccountTestResult> {
+        const {
+            connection,
+            warehouseConnectionUuid,
+            organizationUuid,
+            connectionName,
+        } = loaded;
+        let secrets = input;
         const slot = await this.deps.aiServiceAccountCredentialsModel.getSlot(
             projectUuid,
             warehouseConnectionUuid,
         );
-        const sql = 'SELECT SESSION_USER() AS principal';
+        let sourceProjectUuid = projectUuid;
+        let sourceConnection = warehouseConnectionUuid;
         let queryStarted = false;
         let inheritedFromProjectUuid: string | null = null;
         let testedGeneration =
@@ -420,6 +554,10 @@ export class AiServiceAccountService extends BaseService {
                     this.deps,
                 ).resolve({ projectUuid, connection: warehouseConnectionUuid });
                 secrets = resolved?.slot.secrets ?? null;
+                sourceProjectUuid = resolved?.sourceProjectUuid ?? projectUuid;
+                sourceConnection = resolved
+                    ? resolved.sourceConnection
+                    : warehouseConnectionUuid;
                 testedGeneration = resolved?.slot.slot.identityUuid ?? null;
                 inheritedFromProjectUuid = resolved?.inherited
                     ? resolved.sourceProjectUuid
@@ -430,43 +568,28 @@ export class AiServiceAccountService extends BaseService {
                     'The connection has no AI service account.',
                 );
             }
-            const credentials = buildAiServiceAccountCredentials(
+            result = await this.probeConnection(
+                account,
+                projectUuid,
+                organizationUuid,
                 connection,
                 secrets,
+                () => {
+                    queryStarted = true;
+                },
             );
-            const { rows } =
-                await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
-                    {
-                        kind: 'bypass',
-                        mode: 'connection_test',
-                        agentSession: true,
-                        projectUuid,
-                        credentials,
-                    },
-                    connectionContextFromAccount(account, {
-                        organizationUuid,
-                        queryContext: QueryExecutionContext.API,
-                    }),
-                    ({ warehouseClient }) => {
-                        queryStarted = true;
-                        return warehouseClient.runQuery(sql, {});
-                    },
+            if (
+                input === null &&
+                connection.type === WarehouseTypes.DATABRICKS &&
+                testedGeneration !== null
+            ) {
+                await this.deps.aiServiceAccountCredentialsModel.updateVerification(
+                    sourceProjectUuid,
+                    sourceConnection,
+                    testedGeneration,
+                    result,
                 );
-            const row = rows[0];
-            const principalValue: unknown = row?.principal ?? row?.PRINCIPAL;
-            const principal =
-                typeof principalValue === 'string' ? principalValue : null;
-            const observed: Record<string, string | null> = { principal };
-            result = {
-                ok: true,
-                principal,
-                observed,
-                message:
-                    principal === null
-                        ? 'Connection checked; principal not observed.'
-                        : 'AI service account connection checked.',
-                checkedAt: new Date(),
-            };
+            }
         } catch (error) {
             if (error instanceof AiServiceAccountSlotResolutionError)
                 inheritedFromProjectUuid = error.inheritedFromProjectUuid;

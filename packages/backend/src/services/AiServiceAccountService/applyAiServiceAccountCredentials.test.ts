@@ -1,5 +1,6 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type CreateWarehouseCredentials,
@@ -76,7 +77,9 @@ it('removes inherited auth fields and preserves tunnel configuration', () => {
 
 it.each(
     Object.values(WarehouseTypes).filter(
-        (type) => type !== WarehouseTypes.BIGQUERY,
+        (type) =>
+            type !== WarehouseTypes.BIGQUERY &&
+            type !== WarehouseTypes.DATABRICKS,
     ),
 )('rejects unsupported %s connections', (type) => {
     expect(() =>
@@ -109,8 +112,8 @@ it('replaces a submitted key file without borrowing saved fields', () => {
         mergeAiServiceAccountCredentials(
             { ...secrets, keyfileContents: replacement },
             secrets,
-        ).keyfileContents,
-    ).toEqual(replacement);
+        ),
+    ).toMatchObject({ keyfileContents: replacement });
     expect(() =>
         mergeAiServiceAccountCredentials(
             {
@@ -206,3 +209,25 @@ it('allows routing and transport fields while dropping unrecognised connection i
         allowUserCredentials: false,
     });
 });
+
+it.each(['oauthClientId', 'oauthClientSecret'] as const)(
+    'requires a submitted Databricks %s even when saved',
+    (field) => {
+        const saved = {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            oauthClientId: 'id',
+            oauthClientSecret: 'secret',
+        } as const;
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...saved,
+                    [field]: undefined,
+                } as unknown as AiServiceAccountCredentialInput,
+                saved,
+            ),
+        ).toThrow('complete');
+        expect(mergeAiServiceAccountCredentials(saved, null)).toEqual(saved);
+    },
+);

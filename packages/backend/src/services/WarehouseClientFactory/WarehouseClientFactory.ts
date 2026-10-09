@@ -38,7 +38,10 @@ import type {
     ConnectionBinding,
     ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
-import { isBigqueryServiceAccountAuthError } from '../../utils/aiServiceAccountErrors';
+import {
+    isBigqueryServiceAccountAuthError,
+    isDatabricksServiceAccountAuthError,
+} from '../../utils/aiServiceAccountErrors';
 import {
     attributeClientErrors,
     isWarehouseTokenError,
@@ -95,6 +98,7 @@ type WarehouseClientBypassRef = {
         credentials: CreateWarehouseCredentials;
         tunnelOptions?: SshTunnelOptions;
         agentSession?: boolean;
+        clientOptions?: Pick<WarehouseClientOptions, 'agentJobControls'>;
     };
 }[WarehouseClientBypassMode];
 
@@ -618,6 +622,8 @@ export class WarehouseClientFactory {
             aiPlan,
             ref.kind === 'compile' ? 'compile' : context.purpose,
         );
+        const bypassClientOptions =
+            ref.kind === 'bypass' ? ref.clientOptions : undefined;
         const { warehouseClient, sshTunnel, tunnelConnectMs } =
             await this.acquireUnscoped(
                 ref.projectUuid,
@@ -645,7 +651,7 @@ export class WarehouseClientFactory {
                         (ref.kind === 'bypass' &&
                             ref.mode === 'test_and_compile')
                             ? { maxOpenConnections: undefined }
-                            : undefined,
+                            : bypassClientOptions,
                     wrapConstructionErrors:
                         ref.kind === 'bypass' && ref.mode === 'connection_test',
                 },
@@ -761,7 +767,10 @@ export class WarehouseClientFactory {
             };
             warehouseConnectionUuid?: string | null;
             compileGroup?: WarehouseCompileGroup;
-            clientOptions?: Pick<WarehouseClientOptions, 'maxOpenConnections'>;
+            clientOptions?: Pick<
+                WarehouseClientOptions,
+                'maxOpenConnections' | 'agentJobControls'
+            >;
         } = { cacheEnabled: true, wrapConstructionErrors: false },
     ): Promise<{
         warehouseClient: WarehouseClient;
@@ -1045,8 +1054,12 @@ export class WarehouseClientFactory {
         inheritedFromProjectUuid: string | null = null,
     ): Promise<never> {
         if (
-            credentials.type !== WarehouseTypes.BIGQUERY ||
-            !isBigqueryServiceAccountAuthError(error)
+            !(
+                (credentials.type === WarehouseTypes.BIGQUERY &&
+                    isBigqueryServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.DATABRICKS &&
+                    isDatabricksServiceAccountAuthError(error))
+            )
         )
             throw error;
         const reason = AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;

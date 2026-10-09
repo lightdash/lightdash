@@ -1,4 +1,7 @@
-import { type AiServiceAccountCredentialInput } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type AiServiceAccountCredentialInput,
+} from '@lightdash/common';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -9,6 +12,8 @@ export const mergeAiServiceAccountCredentials = (
     input: AiServiceAccountCredentialInput,
     saved: AiServiceAccountSecrets | null,
 ): AiServiceAccountSecrets => {
+    if (input.type === WarehouseTypes.DATABRICKS)
+        return parseAiServiceAccountSecrets(input);
     const previous =
         saved?.type === input.type &&
         saved.authenticationType === input.authenticationType

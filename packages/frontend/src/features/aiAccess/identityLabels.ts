@@ -21,6 +21,7 @@ export const identityLabels: Record<
 export const identityWarehouseNames = {
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
+    [WarehouseTypes.DATABRICKS]: 'Databricks',
 };
 
 export const agentIdentitySentence = (warehouseName: string) =>

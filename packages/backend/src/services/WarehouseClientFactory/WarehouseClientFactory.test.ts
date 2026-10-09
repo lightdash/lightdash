@@ -14,6 +14,8 @@ import {
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
+    WarehouseConnectionError,
+    WarehouseQueryError,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDuckdbDucklakeCredentials,
@@ -25,6 +27,7 @@ import {
 import {
     BigqueryWarehouseClient,
     checkSnowflakeAgentSessionWithToken,
+    exchangeDatabricksOAuthCredentials,
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
     warehouseClientFromCredentials,
@@ -41,6 +44,7 @@ import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
 import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { resolveAiServiceAccountCredentials } from './aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     ConnectionSurface,
@@ -72,6 +76,7 @@ const { connect, disconnect } = vi.hoisted(() => ({
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
     checkSnowflakeAgentSessionWithToken: vi.fn(),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
     SshTunnel: vi.fn().mockImplementation(function MockSshTunnel(
         this: {
             overrideCredentials: CreateWarehouseCredentials;
@@ -2043,6 +2048,198 @@ describe('AI service account factory scopes', () => {
             queryTags: { agent: 'true' },
         },
     };
+
+    test.each([401, 403])(
+        'attributes only Databricks session authentication failure %s',
+        async (status) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            const error = new WarehouseConnectionError(
+                `Received a response with a bad HTTP status code: ${status}`,
+            );
+            const databricks = {
+                type: WarehouseTypes.DATABRICKS,
+                serverHostName: 'workspace.example.com',
+                httpPath: '/sql/warehouse',
+                database: 'schema',
+                token: 'slot-token',
+            } as const;
+            aiAccessService.resolvePlan.mockResolvedValue({
+                ...slotPlan,
+                credentials: databricks,
+            });
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi.fn().mockRejectedValue(error),
+                }),
+            );
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => {
+                    if (status === 401)
+                        await expect(
+                            warehouseClient.runQuery('SELECT 1', {}),
+                        ).rejects.toMatchObject({
+                            refusal: { reason: 'ai_service_account_invalid' },
+                        });
+                    else
+                        await expect(
+                            warehouseClient.runQuery('SELECT 1', {}),
+                        ).rejects.toBe(error);
+                },
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+            ).toMatchObject(databricks);
+        },
+    );
+
+    test('attributes Databricks query authentication failure without selecting another credential source', async () => {
+        const { factory, aiAccessService, projectModel, credentialSource } =
+            buildFixture();
+        const error = new WarehouseQueryError(
+            'Received a response with a bad HTTP status code: 401',
+        );
+        const databricks = {
+            type: WarehouseTypes.DATABRICKS,
+            serverHostName: 'workspace.example.com',
+            httpPath: '/sql/warehouse',
+            database: 'schema',
+            token: 'slot-token',
+        } as const;
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...slotPlan,
+            credentials: databricks,
+        });
+        const streamQuery = vi.fn().mockRejectedValue(error);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery,
+            }),
+        );
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => {
+                    await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                        tags: {},
+                    });
+                },
+            ),
+        ).rejects.toMatchObject({
+            cause: error,
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(streamQuery).toHaveBeenCalledOnce();
+        expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledOnce();
+        expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
+        expect(credentialSource.loadBase).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledOnce();
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+        ).toMatchObject(databricks);
+    });
+
+    test('passes Databricks probe controls through a bypass without an AI plan', async () => {
+        const { factory, projectModel, aiAccessService } = buildFixture();
+        await factory.withWarehouseClient(
+            {
+                kind: 'bypass',
+                mode: 'connection_test',
+                projectUuid: 'project',
+                agentSession: true,
+                clientOptions: { agentJobControls: true },
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    serverHostName: 'workspace.example.com',
+                    httpPath: '/sql/warehouse',
+                    database: 'schema',
+                    token: 'slot-token',
+                },
+            },
+            contextFor(QueryExecutionContext.API),
+            async () => undefined,
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ token: 'slot-token' }),
+            expect.objectContaining({
+                agentJobControls: true,
+                agentSession: true,
+            }),
+        );
+        expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+    });
+
+    test('materializes fresh Databricks tokens without retaining a query client', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        const connection = {
+            type: WarehouseTypes.DATABRICKS as const,
+            serverHostName: 'workspace.example.com',
+            httpPath: '/sql/warehouse',
+            database: 'schema',
+            personalAccessToken: 'project-pat',
+        };
+        vi.mocked(exchangeDatabricksOAuthCredentials)
+            .mockReset()
+            .mockResolvedValueOnce({ accessToken: 'first-token' })
+            .mockResolvedValueOnce({ accessToken: 'second-token' });
+        aiAccessService.resolvePlan.mockImplementation(async () => ({
+            ...slotPlan,
+            credentials: await resolveAiServiceAccountCredentials({
+                connection,
+                stored: {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                    oauthClientId: 'slot-id',
+                    oauthClientSecret: 'slot-secret',
+                },
+                owner: {
+                    kind: 'aiServiceAccount',
+                    uuid: slotPlan.credentialUuid,
+                    identityUuid: slotPlan.identityUuid,
+                    sourceProjectUuid: slotPlan.sourceProjectUuid,
+                },
+                context: contextFor(QueryExecutionContext.AI),
+                projectUuid: 'project',
+                warehouseConnectionUuid: null,
+            }),
+        }));
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls.map(
+                ([creds]) => ('token' in creds ? creds.token : null),
+            ),
+        ).toEqual(['first-token', 'second-token']);
+        expect(factory.warehouseClients).toEqual({});
+    });
 
     const cacheControlCredentials: CreateWarehouseCredentials[] = [
         slotPlan.credentials,

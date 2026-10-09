@@ -5,6 +5,7 @@ import {
     WarehouseTypes,
     type AiIdentitySource,
     type AiServiceAccountSlot,
+    type AiServiceAccountTestResult,
     type AiServiceAccountParent,
     type Project,
 } from '@lightdash/common';
@@ -87,6 +88,8 @@ vi.mock('../../components/ProjectConnection/formContext', () => ({
     useForm: () => ({ values: {}, onSubmit: () => mocks.submit }),
 }));
 
+let warehouseType = WarehouseTypes.BIGQUERY;
+let verification: AiServiceAccountTestResult | null = null;
 let source: AiIdentitySource = 'marked_person';
 let slot: AiServiceAccountSlot | null = null;
 let parent: AiServiceAccountParent | null = null;
@@ -162,6 +165,8 @@ describe('AI service account card', () => {
         mocks.enabled = true;
         mocks.canManage = true;
         source = 'marked_person';
+        warehouseType = WarehouseTypes.BIGQUERY;
+        verification = null;
         slot = null;
         parent = null;
         vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
@@ -170,7 +175,7 @@ describe('AI service account card', () => {
                     requireVerifiedAgentSessions: false,
                     rules: [
                         {
-                            warehouseType: WarehouseTypes.BIGQUERY,
+                            warehouseType,
                             source,
                             projectsMissingAiServiceAccount: null,
                         },
@@ -185,11 +190,194 @@ describe('AI service account card', () => {
                     checkedAt: new Date(),
                 };
             if (method === 'GET')
-                return { status: 'ok', results: slot, parent };
-            if (method === 'PUT') slot = savedSlot;
+                return { status: 'ok', results: slot, parent, verification };
+            if (method === 'PUT') {
+                slot = savedSlot;
+                return { status: 'ok', results: slot };
+            }
             if (method === 'DELETE') slot = null;
             return slot;
         });
+    });
+    describe('Databricks', () => {
+        const databricksProject = {
+            ...project,
+            warehouseConnection: {
+                type: WarehouseTypes.DATABRICKS,
+                serverHostName: 'workspace.example.test',
+                httpPath: '/sql/warehouse',
+                catalog: 'catalog',
+                database: 'schema',
+            },
+        } as Project;
+        const recorded: AiServiceAccountTestResult = {
+            ok: true,
+            principal: 'recorded-principal',
+            observed: { currentUser: 'recorded-principal' },
+            message: 'Connection works.',
+            checkedAt: new Date('2026-10-09T12:00:00Z'),
+        };
+        beforeEach(() => {
+            warehouseType = WarehouseTypes.DATABRICKS;
+            slot = { ...savedSlot, warehouseType, method: 'oauth_m2m' };
+            verification = recorded;
+        });
+        it('shows recorded verification on the project page and replaces it with a fresh Test', async () => {
+            setup(databricksProject, false, true);
+            expect(
+                await screen.findByText('Signs in as recorded-principal'),
+            ).toBeVisible();
+            expect(
+                screen.getByText('Databricks service principal · OAuth M2M'),
+            ).toBeVisible();
+            expect(screen.getByText(/Last checked/)).toHaveTextContent(
+                'Last updated',
+            );
+            expect(
+                screen.getAllByRole('button', { name: 'Test' }),
+            ).toHaveLength(1);
+            fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+            expect(
+                await screen.findByText('Signs in as tested-principal'),
+            ).toBeVisible();
+            expect(
+                screen.queryByText('Signs in as recorded-principal'),
+            ).not.toBeInTheDocument();
+        });
+        it('does not invent a principal for an unverified slot', async () => {
+            verification = null;
+            setup(databricksProject);
+            expect(
+                await screen.findByText(
+                    'Not checked yet. Run Test to see who it signs in as.',
+                ),
+            ).toBeVisible();
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        });
+        it('marks the recorded observation as historical after a failed Test', async () => {
+            setup(databricksProject);
+            const button = await screen.findByRole('button', { name: 'Test' });
+            vi.mocked(lightdashApi).mockResolvedValueOnce({
+                ...recorded,
+                ok: false,
+                principal: null,
+                message: 'Access denied.',
+            });
+            fireEvent.click(button);
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'Access denied.',
+            );
+            expect(
+                screen.getByText('Signs in as recorded-principal'),
+            ).toBeVisible();
+            expect(
+                screen.getByText(
+                    'The principal above is from the last successful check.',
+                ),
+            ).toBeVisible();
+        });
+        it('drops a Test result after the slot generation changes', async () => {
+            const { client } = setup(databricksProject);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Test' }),
+            );
+            await screen.findByText('Signs in as tested-principal');
+            slot = { ...slot!, identityUuid: 'replacement' };
+            verification = null;
+            await client.invalidateQueries(['ai-access']);
+            expect(
+                await screen.findByText(
+                    'Not checked yet. Run Test to see who it signs in as.',
+                ),
+            ).toBeVisible();
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        });
+        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+            slot = null;
+            parent = {
+                ...parentAccount,
+                principal: null,
+                verification: recorded,
+            };
+            setup({ ...databricksProject, type: ProjectType.PREVIEW });
+            expect(
+                await screen.findByText('Signs in as recorded-principal'),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('link', { name: 'Production' }),
+            ).toHaveAttribute(
+                'href',
+                '/generalSettings/projectManagement/parent-project/agentIdentity',
+            );
+            expect(
+                screen.queryByText(/key file|different key|could not be read/),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Use a different service principal',
+                }),
+            );
+            expect(
+                await screen.findByLabelText('Client secret', { exact: false }),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Test and save' }),
+            ).toBeDisabled();
+        });
+        it('restores the parent credentials after confirmation', async () => {
+            parent = {
+                ...parentAccount,
+                principal: recorded.principal,
+                verification: recorded,
+            };
+            setup({ ...databricksProject, type: ProjectType.PREVIEW });
+            fireEvent.click(
+                await screen.findByRole('button', {
+                    name: "Use the parent's credentials",
+                }),
+            );
+            const dialog = await screen.findByRole('dialog');
+            expect(dialog).not.toHaveTextContent('key');
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'DELETE' }),
+            );
+            fireEvent.click(
+                within(dialog).getByRole('button', {
+                    name: "Use the parent's credentials",
+                }),
+            );
+            expect(
+                await screen.findByText('From parent project'),
+            ).toBeVisible();
+            expect(
+                screen.getByText('Signs in as recorded-principal'),
+            ).toBeVisible();
+        });
+        it('warns about required missing credentials and offers Add', async () => {
+            slot = null;
+            source = 'ai_service_account';
+            setup(databricksProject);
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'refused until an AI service account is added',
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'Add an AI service account',
+                }),
+            ).toBeVisible();
+        });
+        it.each(['flag', 'permission'])(
+            'hides the Databricks page with no requests for %s',
+            (reason) => {
+                mocks.enabled = reason !== 'flag';
+                mocks.canManage = reason !== 'permission';
+                setup(databricksProject, false, true);
+                expect(
+                    screen.queryByText('AI service account'),
+                ).not.toBeInTheDocument();
+                expect(lightdashApi).not.toHaveBeenCalled();
+            },
+        );
     });
     it('shows an inherited key and opens the form for a different key', async () => {
         source = 'ai_service_account';

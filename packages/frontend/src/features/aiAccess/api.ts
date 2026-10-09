@@ -11,12 +11,12 @@ import {
     type OrganizationAgentIdentityOverview,
     type OrganizationAgentIdentityRule,
     type AiServiceAccountCredentialInput,
-    type AiServiceAccountSlot,
+    type ApiAiServiceAccountSaveResponse,
     type AiServiceAccountTestRequest,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useCallback, useEffect, useId } from 'react';
 import { lightdashApi, lightdashApiResponse } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -155,22 +155,49 @@ export const useAiServiceAccount = (projectUuid: string) => {
     );
 };
 
+const useSensitiveMutationScope = () => {
+    const client = useQueryClient();
+    const id = useId();
+    const clear = useCallback(() => {
+        const cache = client.getMutationCache();
+        cache
+            .findAll({ mutationKey: [id], exact: true })
+            .forEach((mutation) => cache.remove(mutation));
+    }, [client, id]);
+    useEffect(() => clear, [clear]);
+    return { mutationKey: [id], clear };
+};
+
+export interface AiServiceAccountSaveOutcome {
+    slot: ApiAiServiceAccountSaveResponse['results'];
+    verification: AiServiceAccountTestResult | null;
+}
+
 export const useSaveAiServiceAccount = (projectUuid: string) => {
     const client = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<
-        AiServiceAccountSlot | null,
+    const sensitiveScope = useSensitiveMutationScope();
+    const mutation = useMutation<
+        AiServiceAccountSaveOutcome,
         ApiError,
         AiServiceAccountCredentialInput
     >({
-        mutationFn: (credentials) =>
-            lightdashApi<AiServiceAccountSlot | null>({
-                version: 'v2',
-                url: aiAccessUrl(projectUuid, 'service-account', null),
-                method: 'PUT',
-                body: JSON.stringify(credentials),
-                sensitive: true,
-            }),
+        mutationKey: sensitiveScope.mutationKey,
+        cacheTime: 0,
+        mutationFn: async (credentials) => {
+            const response =
+                await lightdashApiResponse<ApiAiServiceAccountSaveResponse>({
+                    version: 'v2',
+                    url: aiAccessUrl(projectUuid, 'service-account', null),
+                    method: 'PUT',
+                    body: JSON.stringify(credentials),
+                    sensitive: true,
+                });
+            return {
+                slot: response.results,
+                verification: response.verification ?? null,
+            };
+        },
         onSuccess: async () => {
             showToastSuccess({ title: 'AI service account saved.' });
             await client.invalidateQueries(['ai-access']);
@@ -181,6 +208,13 @@ export const useSaveAiServiceAccount = (projectUuid: string) => {
                 apiError: error,
             }),
     });
+    return {
+        ...mutation,
+        reset: () => {
+            mutation.reset();
+            sensitiveScope.clear();
+        },
+    };
 };
 
 export const useDeleteAiServiceAccount = (projectUuid: string) => {
@@ -207,12 +241,16 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
 };
 
 export const useTestAiServiceAccount = (projectUuid: string) => {
+    const client = useQueryClient();
     const { showToastApiError } = useToaster();
-    return useMutation<
+    const sensitiveScope = useSensitiveMutationScope();
+    const mutation = useMutation<
         AiServiceAccountTestResult,
         ApiError,
         AiServiceAccountTestRequest
     >({
+        mutationKey: sensitiveScope.mutationKey,
+        cacheTime: 0,
         mutationFn: (request) =>
             lightdashApi<AiServiceAccountTestResult>({
                 version: 'v2',
@@ -221,12 +259,23 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
                 body: JSON.stringify(request),
                 sensitive: true,
             }),
+        onSuccess: async (_result, request) => {
+            if (request.credentials === null)
+                await client.invalidateQueries(['ai-access']);
+        },
         onError: ({ error }) =>
             showToastApiError({
                 title: 'Could not test the AI service account.',
                 apiError: error,
             }),
     });
+    return {
+        ...mutation,
+        reset: () => {
+            mutation.reset();
+            sensitiveScope.clear();
+        },
+    };
 };
 
 export const useSnowflakeAgentSetup = () => {

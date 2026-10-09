@@ -148,3 +148,20 @@ export const parseSnowflakeAccountUrl = (
         tokenEndpoint: `${url.origin}/oauth/token-request`,
     };
 };
+
+export const buildDatabricksAiServiceAccountCommands = ({
+    catalog,
+    schema,
+}: {
+    catalog: string | null;
+    schema: string | null;
+}): string => {
+    const quote = (value: string): string =>
+        `\`${value.replaceAll('`', '``')}\``;
+    const catalogIdentifier = quote(catalog || '<catalog>');
+    const schemaIdentifier = `${catalogIdentifier}.${quote(schema || '<schema>')}`;
+    const principal = quote('<service-principal-application-id>');
+    return `GRANT USE CATALOG ON CATALOG ${catalogIdentifier} TO ${principal};
+GRANT USE SCHEMA ON SCHEMA ${schemaIdentifier} TO ${principal};
+GRANT SELECT ON TABLE ${schemaIdentifier}.${quote('<table>')} TO ${principal};`;
+};

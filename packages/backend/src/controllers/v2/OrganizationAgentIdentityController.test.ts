@@ -219,6 +219,7 @@ test.each(['get', 'put'])(
 test.each([
     [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
     [WarehouseTypes.BIGQUERY, 'ai_service_account'],
+    [WarehouseTypes.DATABRICKS, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {
     const { controller, rules, account, req } = setup();
     account.user.ability = new Ability<PossibleAbilities>([

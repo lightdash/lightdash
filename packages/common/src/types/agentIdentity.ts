@@ -1,5 +1,9 @@
 import { v5 as uuidv5 } from 'uuid';
-import { WarehouseTypes, type BigqueryAuthenticationType } from './projects';
+import {
+    WarehouseTypes,
+    type BigqueryAuthenticationType,
+    type DatabricksAuthenticationType,
+} from './projects';
 
 export enum AgentActorSurface {
     IN_APP_AGENT = 'in_app_agent',
@@ -86,7 +90,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
     },
     [WarehouseTypes.POSTGRES]: markedOnly,
     [WarehouseTypes.REDSHIFT]: markedOnly,
-    [WarehouseTypes.DATABRICKS]: markedOnly,
+    [WarehouseTypes.DATABRICKS]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.TRINO]: markedOnly,
     [WarehouseTypes.CLICKHOUSE]: markedOnly,
     [WarehouseTypes.ATHENA]: markedOnly,
@@ -170,11 +177,22 @@ export const getWarehouseServiceAuthMethods = (
     type: WarehouseTypes,
 ): readonly WarehouseServiceAuthMethod[] => serviceAuthMethods[type];
 
-export type AiServiceAccountCredentialInput = {
+export interface BigqueryAiServiceAccountCredentialInput {
     type: WarehouseTypes.BIGQUERY;
     authenticationType: BigqueryAuthenticationType.PRIVATE_KEY;
     keyfileContents?: { [key: string]: string };
-};
+}
+
+export interface DatabricksAiServiceAccountCredentialInput {
+    type: WarehouseTypes.DATABRICKS;
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M;
+    oauthClientId: string;
+    oauthClientSecret: string;
+}
+
+export type AiServiceAccountCredentialInput =
+    | BigqueryAiServiceAccountCredentialInput
+    | DatabricksAiServiceAccountCredentialInput;
 
 export type AiServiceAccountSlot = {
     uuid: string;
@@ -209,10 +227,16 @@ export type AiServiceAccountParent = {
     projectName: string | null;
     identityUuid: string;
     principal: string | null;
+    verification?: AiServiceAccountTestResult | null;
 };
 
 export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
     parent: AiServiceAccountParent | null;
+    verification?: AiServiceAccountTestResult | null;
+}
+
+export interface ApiAiServiceAccountSaveResponse extends ApiAiServiceAccountSlotResponse {
+    verification?: AiServiceAccountTestResult | null;
 }
 
 export type ApiAiServiceAccountSlotResponse = {

@@ -1,5 +1,6 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     NotFoundError,
     ProjectType,
     WarehouseTypes,
@@ -221,3 +222,30 @@ it('reports the parent even when an own slot exists', async () => {
         }),
     ).toMatchObject({ sourceProjectUuid: 'parent', slot: record('parent') });
 });
+
+it.each([false, true])(
+    'uses Databricks preview slot precedence with a local slot=%s',
+    async (local) => {
+        const f = setup();
+        const databricks = {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            oauthClientId: 'id',
+            oauthClientSecret: 'secret',
+        } as const;
+        f.slots.set('parent:null', {
+            ...record('parent'),
+            secrets: databricks,
+        });
+        if (local)
+            f.slots.set('preview:null', {
+                ...record('preview'),
+                secrets: databricks,
+            });
+        expect(await f.resolve()).toMatchObject({
+            sourceProjectUuid: local ? 'preview' : 'parent',
+            inherited: !local,
+            slot: { secrets: databricks },
+        });
+    },
+);

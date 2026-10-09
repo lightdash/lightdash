@@ -53,6 +53,28 @@ it.each(warehouseTypes)(
         expect(result).not.toHaveProperty('requireUserCredentials');
         expect(result).not.toHaveProperty('authenticationType');
 
+        if (type === WarehouseTypes.DATABRICKS) {
+            for (const field of [
+                'oauthClientId',
+                'oauthClientSecret',
+                'token',
+                'refreshToken',
+                'personalAccessToken',
+            ]) {
+                expect(result).not.toHaveProperty(field);
+            }
+            for (const field of [
+                'serverHostName',
+                'httpPath',
+                'catalog',
+                'database',
+                'compute',
+                'startOfWeek',
+                'dataTimezone',
+            ]) {
+                expect(result).toHaveProperty(field, connection[field]);
+            }
+        }
         if (type === WarehouseTypes.REDSHIFT) {
             expect(result).not.toHaveProperty('assumeRoleArn');
             expect(result).not.toHaveProperty('assumeRoleExternalId');

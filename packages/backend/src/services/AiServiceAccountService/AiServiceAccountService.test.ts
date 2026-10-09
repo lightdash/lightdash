@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -11,6 +12,7 @@ import {
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
@@ -20,6 +22,11 @@ import {
     type MaterializedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AiServiceAccountService } from './AiServiceAccountService';
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+}));
 
 const secrets = {
     type: WarehouseTypes.BIGQUERY,
@@ -66,6 +73,8 @@ const setup = () => {
             identityUuid: 'generation-after',
         }),
         delete: vi.fn().mockResolvedValue(undefined),
+        getVerification: vi.fn().mockResolvedValue(null),
+        updateVerification: vi.fn().mockResolvedValue(undefined),
     };
     const flag = vi.fn().mockResolvedValue({ enabled: true });
     const load = vi.fn().mockResolvedValue(connection);
@@ -169,7 +178,9 @@ describe.each(operations)('%s boundaries', (operation) => {
     });
     it.each(
         Object.values(WarehouseTypes).filter(
-            (type) => type !== WarehouseTypes.BIGQUERY,
+            (type) =>
+                type !== WarehouseTypes.BIGQUERY &&
+                type !== WarehouseTypes.DATABRICKS,
         ),
     )('rejects %s slot access', async (type) => {
         const f = setup();
@@ -649,7 +660,9 @@ describe('service account audit logging', () => {
         });
         await expect(
             f.service.upsert(f.account, 'project', null, input),
-        ).resolves.toMatchObject({ identityUuid: 'generation-after' });
+        ).resolves.toMatchObject({
+            results: { identityUuid: 'generation-after' },
+        });
         expect(f.logger.warn).toHaveBeenCalledWith(
             'Failed to write the AI service account audit event',
             {
@@ -926,3 +939,286 @@ it.each([true, false])(
         );
     },
 );
+
+const databricksSecrets = {
+    type: WarehouseTypes.DATABRICKS,
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+    oauthClientId: 'slot-client',
+    oauthClientSecret: 'slot-secret',
+} as const;
+const databricksConnection = {
+    ...databricksSecrets,
+    serverHostName: 'workspace.example.com',
+    httpPath: '/sql/preview',
+    catalog: 'catalog',
+    database: 'schema',
+    oauthClientId: 'project-client',
+    oauthClientSecret: 'project-secret',
+    token: 'project-token',
+    refreshToken: 'personal-refresh',
+    personalAccessToken: 'project-pat',
+    requireUserCredentials: true,
+};
+const databricksFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(databricksConnection);
+    f.getExtra.mockResolvedValue(databricksConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(databricksSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: databricksSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({ rows: [{ PrInCiPaL: 'principal-uuid' }] });
+    vi.mocked(exchangeDatabricksOAuthCredentials)
+        .mockReset()
+        .mockResolvedValue({ accessToken: 'slot-token' });
+    return f;
+};
+describe('Databricks identity verification', () => {
+    it('probes before saving and returns only slot metadata and the observation', async () => {
+        const f = databricksFixture();
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            databricksSecrets,
+        );
+        expect(result).toEqual({
+            results: { uuid: 'slot', identityUuid: 'generation-after' },
+            verification: {
+                ok: true,
+                principal: 'principal-uuid',
+                observed: { currentUser: 'principal-uuid' },
+                message: 'AI service account connection checked.',
+                checkedAt: expect.any(Date),
+            },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user() AS principal',
+            {},
+        );
+        expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+            credentials: {
+                ...databricksSecrets,
+                token: 'slot-token',
+                requireUserCredentials: false,
+            },
+        });
+        expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            null,
+            databricksSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.runQuery.mock.invocationCallOrder[0]).toBeLessThan(
+            f.model.upsert.mock.invocationCallOrder[0],
+        );
+        for (const value of [
+            'slot-secret',
+            'slot-client',
+            'slot-token',
+            'project-token',
+            'personal-refresh',
+        ]) {
+            expect(JSON.stringify(result)).not.toContain(value);
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                value,
+            );
+        }
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each(['exchange', 'query', 'missing principal', 'blank principal'])(
+        'does not replace a slot after %s failure',
+        async (failure) => {
+            const f = databricksFixture();
+            if (failure === 'exchange')
+                vi.mocked(exchangeDatabricksOAuthCredentials).mockRejectedValue(
+                    new Error('slot-secret'),
+                );
+            if (failure === 'query')
+                f.runQuery.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'missing principal')
+                f.runQuery.mockResolvedValue({ rows: [{}] });
+            if (failure === 'blank principal')
+                f.runQuery.mockResolvedValue({ rows: [{ principal: '  ' }] });
+            await expect(
+                f.service.upsert(f.account, 'project', null, databricksSecrets),
+            ).rejects.toThrow('Could not');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'writes saved Test to the source generation, inherited=%s',
+        async (preview) => {
+            const f = databricksFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            const source = preview ? 'parent' : 'project';
+            expect(result).toMatchObject({
+                ok: true,
+                observed: { currentUser: 'principal-uuid' },
+            });
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                source,
+                null,
+                `${source}-generation`,
+                result,
+            );
+            expect(
+                exchangeDatabricksOAuthCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'workspace.example.com',
+                'slot-client',
+                'slot-secret',
+            );
+            expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+                projectUuid: 'project',
+                credentials: { httpPath: '/sql/preview' },
+            });
+        },
+    );
+    it('does not persist an unsaved or failed Test', async () => {
+        const f = databricksFixture();
+        await f.service.test(f.account, 'project', null, databricksSecrets);
+        f.runQuery.mockRejectedValue(new Error('slot-secret'));
+        expect(
+            await f.service.test(f.account, 'project', null, null),
+        ).toMatchObject({ ok: false, principal: null });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([null, 'original', 'extra'])(
+        'allows preview writes and normalizes connection %s',
+        async (connectionUuid) => {
+            const f = databricksFixture(true);
+            if (connectionUuid === 'original')
+                f.getConnection.mockResolvedValue({
+                    isOriginal: true,
+                    name: 'Original',
+                });
+            await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                databricksSecrets,
+            );
+            await f.service.delete(f.account, 'project', connectionUuid);
+            expect(f.model.upsert).toHaveBeenCalledWith(
+                'project',
+                connectionUuid === 'extra' ? 'extra' : null,
+                databricksSecrets,
+                f.account.user.id,
+                expect.objectContaining({ ok: true }),
+            );
+            expect(f.model.delete).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid === 'extra' ? 'extra' : null,
+            );
+        },
+    );
+    it.each(['get', 'getStatus', 'upsert', 'delete', 'test'] as const)(
+        'flag off stops %s before secrets, observations, or tokens',
+        async (operation) => {
+            const f = databricksFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    databricksSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.load).not.toHaveBeenCalled();
+            for (const mock of Object.values(f.model))
+                expect(mock).not.toHaveBeenCalled();
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'returns generation-bound status observations, parent view=%s',
+        async (canView) => {
+            const f = databricksFixture(true);
+            f.account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Project',
+                    conditions: { projectUuid: 'project' },
+                },
+                ...(canView
+                    ? [
+                          {
+                              action: 'view' as const,
+                              subject: 'Project' as const,
+                              conditions: { projectUuid: 'parent' },
+                          },
+                      ]
+                    : []),
+            ]);
+            const verification = {
+                ok: true,
+                principal: 'principal-uuid',
+                observed: { currentUser: 'principal-uuid' },
+                message: 'checked',
+                checkedAt: new Date(),
+            };
+            f.model.getVerification.mockResolvedValue(verification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status).toMatchObject({
+                verification,
+                parent: {
+                    projectUuid: 'parent',
+                    projectName: canView ? 'Parent project' : null,
+                    identityUuid: 'parent-generation',
+                    principal: null,
+                    verification,
+                },
+            });
+            expect(f.model.getVerification).toHaveBeenNthCalledWith(
+                1,
+                'project',
+                null,
+                'generation-before',
+            );
+            expect(f.model.getVerification).toHaveBeenNthCalledWith(
+                2,
+                'parent',
+                null,
+                'parent-generation',
+            );
+            expect(JSON.stringify(status)).not.toContain('slot-secret');
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        },
+    );
+    it('keeps BigQuery save responses unchanged and does not probe', async () => {
+        const f = setup();
+        expect(
+            await f.service.upsert(f.account, 'project', null, input),
+        ).toEqual({
+            results: { uuid: 'slot', identityUuid: 'generation-after' },
+        });
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.model.getVerification).not.toHaveBeenCalled();
+    });
+});
