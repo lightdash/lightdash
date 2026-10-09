@@ -15,7 +15,6 @@
     --controls-duration-arrive: 0.28s;
 
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-    border-color: var(--mantine-color-blue-5);
     animation: barEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
 }

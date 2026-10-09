@@ -324,14 +324,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - `useFieldTileActions()` is the one place a field's counts and actions are
   worked out, for the card and for the bar. It returns
   `getFieldTiles(fieldId)`, or null with no control or a placeholder: the
-  field, its labels, `isWaiting`, two `FieldScope`s and `addToUnfiltered`,
-  `switchFromOthers`, `clear` (each taking a `TileScope`) and `remove`.
-- Scope: there is no mode. On a dashboard with two tabs or more there are two
-  scopes, `'this-tab'` (the dashboard's active tab, which it follows) and
-  `'every-tab'`; with fewer there is only `'every-tab'` and `thisTabScope` is
-  null. Scope is only which tiles are passed to the helpers (`tilesByScope`:
-  `dashboardTiles` filtered by `tabUuid`, or all of them), so an action never
-  writes a tile out of scope.
+  field, its labels, `isWaiting`, two `FieldScope`s (`thisTabScope`,
+  `everyTabScope`), `replacedLabels` for the scope in view,
+  `otherTabsUnfiltered`, and `addToUnfiltered`, `switchFromOthers`, `clear`
+  (each taking a `TileScope`) and `remove`.
+- Scope: there is no mode. On a dashboard with two tabs or more the scopes
+  are `'this-tab'` (the dashboard's active tab, which it follows),
+  `'other-tabs'` (every tile off that tab) and `'every-tab'`; with fewer
+  there is only `'every-tab'`, `thisTabScope` is null and `'other-tabs'` is
+  empty. Scope is only which tiles are passed to the helpers
+  (`tilesByScope`), so an action never writes a tile out of scope. The card
+  counts `everyTabScope`; the bar acts on the scope in view.
 - A `FieldScope` (`getFieldScope`; `getSqlColumnScope` for a SQL column row)
   is, of the tiles that offer the field (`possible`): the ones on it
   (`applied`), the ones the filter is not on (`unfiltered`) and the ones on
@@ -341,21 +344,30 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   selection bar, shown while a field is clicked (`highlightedFieldId`, never
   the hovered one) and the control is not a placeholder. A waiting field can
   be clicked too.
-  - One line that wraps when narrow: the field's icon and name, then one
-    group per scope behind a vertical `Divider`. A group is a dimmed scope
-    label ("This tab", "Every tab"; "Tiles" alone without tabs), the count
-    "x of N", then its actions. Where no tile offers the field the count
-    reads "no tile has it" and the group has no action.
-  - Actions are the same in every group, `compact-xs`: "Filter n more"
-    (`applyFieldToUnfilteredTiles`), "Switch n from <fields>"
-    (`switchTilesToField`: only the tiles on another field of the filter, so
-    the two never count the same tile) and a subtle gray "Clear"
-    (`removeFieldFromAll`).
+  - One line that wraps when narrow: the field's icon and name, a vertical
+    `Divider`, then the tab in view (every tile on a dashboard without
+    tabs): "on **x of N** tiles on this tab" ("on x of N tiles" without
+    tabs) and its actions. There is nothing about every tab: no count,
+    switch or clear for it.
+  - Where no tile of the scope offers the field the count reads "No tile on
+    this tab has it" ("No tile has it" without tabs) and there is no action.
+  - Actions, size `xs`: the filled main button when the scope has unfiltered
+    tiles (`applyFieldToUnfilteredTiles`), labelled "Filter all n" when the
+    field is on no tile there and nothing is on another field, else "Filter
+    the other n"; "Switch n from <fields>" (`default`, `switchTilesToField`:
+    only the tiles on another field of the filter, so the two never count
+    the same tile); a subtle gray "Clear" (`removeFieldFromAll`).
+  - With tabs, after a second `Divider`: a subtle "+ m on other tabs" when
+    `otherTabsUnfiltered` is above 0. It is `addToUnfiltered('other-tabs')`:
+    it fills the unfiltered tiles of the tabs that are not active and never
+    this tab's. It shows on a tab with no tile for the field too.
   - A button that would change nothing is not rendered, never disabled.
-  - It is a `region` named "Tiles filtered by <field>"; each group's label
-    and count sit in one `aria-live="polite"` element; each button's
-    `aria-label` names the field, the count and the scope ("on this tab",
-    "on every tab", nothing without tabs).
+  - It is a `region` named "Tiles filtered by <field>"; the count sentence
+    is the `aria-live="polite"` element; each button's `aria-label` names
+    the field, the count and the scope ("on this tab", "on other tabs",
+    nothing without tabs).
+  - Surface: a `Paper` with no border (`withBorder={false}` over the theme
+    default), the `xl` shadow and the body background.
   - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
     `.react-grid-layout` with `usePortalTargets`, inserts an element of its
     own right after that grid and portals into it, so it moves no tile. The

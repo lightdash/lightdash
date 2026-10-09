@@ -29,8 +29,9 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const SQL_COLUMN_LABEL = 'SQL column';
 
-// Which tiles an action is over; 'every-tab' on a dashboard without tabs
-export type TileScope = 'this-tab' | 'every-tab';
+// Which tiles an action is over. Without tabs there is only 'every-tab';
+// 'other-tabs' is every tab but the active one
+export type TileScope = 'this-tab' | 'other-tabs' | 'every-tab';
 
 export type FieldTiles = {
     field: DashboardFilterableField | null;
@@ -40,11 +41,13 @@ export type FieldTiles = {
     isWaiting: boolean;
     // Counted over the tiles of the active tab; null on a dashboard without tabs
     thisTabScope: FieldScope | null;
-    // Names of the fields a switch would take off their tiles on this tab
-    thisTabReplacedLabels: string[];
     // Counted over every tile
     everyTabScope: FieldScope;
-    everyTabReplacedLabels: string[];
+    // Names of the fields a switch would take off their tiles on this tab, or
+    // on every tile without tabs
+    replacedLabels: string[];
+    // Unfiltered tiles the field fits on the tabs that are not active
+    otherTabsUnfiltered: number;
     addToUnfiltered: (tileScope: TileScope) => void;
     switchFromOthers: (tileScope: TileScope) => void;
     clear: (tileScope: TileScope) => void;
@@ -176,10 +179,19 @@ export const useFieldTileActions = ():
         [tiles, scopeTabUuid],
     );
 
+    const otherTabsTiles = useMemo(
+        () =>
+            scopeTabUuid === undefined
+                ? []
+                : tiles.filter((tile) => tile.tabUuid !== scopeTabUuid),
+        [tiles, scopeTabUuid],
+    );
+
     if (editingRule === null || isPlaceholder) return null;
 
     const tilesByScope: Record<TileScope, DashboardTile[]> = {
         'this-tab': thisTabTiles ?? tiles,
+        'other-tabs': otherTabsTiles,
         'every-tab': tiles,
     };
     const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
@@ -204,10 +216,6 @@ export const useFieldTileActions = ():
                 fieldsByTile,
                 sqlColumnsByTile,
             );
-        const getReplacedLabels = (scope: FieldScope) =>
-            scope.replacedFieldIds.map(
-                (replacedId) => getField(replacedId)?.label ?? replacedId,
-            );
         const thisTabScope =
             thisTabTiles === null ? null : getScope(thisTabTiles);
         const everyTabScope = getScope(tiles);
@@ -221,10 +229,13 @@ export const useFieldTileActions = ():
                 : (field?.tableLabel ?? target?.tableName ?? ''),
             isWaiting,
             thisTabScope,
-            thisTabReplacedLabels:
-                thisTabScope === null ? [] : getReplacedLabels(thisTabScope),
             everyTabScope,
-            everyTabReplacedLabels: getReplacedLabels(everyTabScope),
+            replacedLabels: (
+                thisTabScope ?? everyTabScope
+            ).replacedFieldIds.map(
+                (replacedId) => getField(replacedId)?.label ?? replacedId,
+            ),
+            otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
             addToUnfiltered: (tileScope) => {
                 if (isSqlColumn) {
                     updateFilter(
