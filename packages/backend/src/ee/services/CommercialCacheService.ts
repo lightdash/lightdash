@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -10,6 +11,7 @@ import type {
 import { type CacheHitCacheResult } from '../../services/CacheService/types';
 
 type CacheServiceDependencies = {
+    lightdashConfig: LightdashConfig;
     queryHistoryModel: QueryHistoryModel;
     projectModel: ProjectModel;
     storageClient: S3ResultsFileStorageClient;
@@ -21,6 +23,8 @@ type CacheServiceDependencies = {
 const DEFAULT_CACHE_EXPIRY_BUFFER_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 export class CommercialCacheService implements ICacheService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly queryHistoryModel: QueryHistoryModel;
 
     private readonly projectModel: ProjectModel;
@@ -30,11 +34,13 @@ export class CommercialCacheService implements ICacheService {
     storageClient: S3ResultsFileStorageClient;
 
     constructor({
+        lightdashConfig,
         queryHistoryModel,
         projectModel,
         storageClient,
         featureFlagModel,
     }: CacheServiceDependencies) {
+        this.lightdashConfig = lightdashConfig;
         this.queryHistoryModel = queryHistoryModel;
         this.projectModel = projectModel;
         this.storageClient = storageClient;
@@ -68,6 +74,11 @@ export class CommercialCacheService implements ICacheService {
             this.queryHistoryModel.findMostRecentByCacheKey(
                 cacheKey,
                 projectUuid,
+                {
+                    excludeAgentProduced:
+                        this.lightdashConfig?.ai
+                            ?.agentResultIdentityCheckEnabled !== false,
+                },
             ),
             this.projectModel.getEffectiveResultsCacheTtlSeconds(projectUuid),
         ]);

@@ -1,3 +1,4 @@
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CommercialCacheService } from './CommercialCacheService';
 
 const makeService = (
@@ -8,6 +9,7 @@ const makeService = (
         .fn()
         .mockResolvedValue(effectiveTtlSeconds);
     const service = new CommercialCacheService({
+        lightdashConfig: lightdashConfigMock,
         queryHistoryModel: {
             findMostRecentByCacheKey: vi.fn().mockResolvedValue({
                 cacheKey: 'cache-key',
@@ -39,6 +41,48 @@ describe('CommercialCacheService', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+    });
+
+    it('reads agent result exclusion config at lookup time', async () => {
+        const lightdashConfig = {
+            ...lightdashConfigMock,
+            ai: {
+                ...lightdashConfigMock.ai,
+                agentResultIdentityCheckEnabled: true,
+            },
+        };
+        const findMostRecentByCacheKey = vi.fn().mockResolvedValue(undefined);
+        const service = new CommercialCacheService({
+            lightdashConfig,
+            queryHistoryModel: { findMostRecentByCacheKey } as never,
+            projectModel: {
+                getEffectiveResultsCacheTtlSeconds: vi
+                    .fn()
+                    .mockResolvedValue(3600),
+            } as never,
+            storageClient: {} as never,
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as never,
+        });
+        await service.findCachedResultsFile('project', 'cache', {
+            userUuid: 'user',
+        });
+        expect(findMostRecentByCacheKey).toHaveBeenLastCalledWith(
+            'cache',
+            'project',
+            { excludeAgentProduced: true },
+        );
+        lightdashConfig.ai.agentResultIdentityCheckEnabled = false;
+        await service.findCachedResultsFile('project', 'cache', {
+            userUuid: 'user',
+        });
+        expect(findMostRecentByCacheKey).toHaveBeenLastCalledWith(
+            'cache',
+            'project',
+            { excludeAgentProduced: false },
+        );
+        expect(findMostRecentByCacheKey).toHaveBeenCalledTimes(2);
     });
 
     it('does not treat retained results as fresh after the cache window', async () => {

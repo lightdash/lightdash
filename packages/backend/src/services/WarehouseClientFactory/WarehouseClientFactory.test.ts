@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusalReason,
     AiAgentMarkerLevel,
     applyWarehouseLocation,
     AthenaAuthenticationType,
@@ -9,15 +10,19 @@ import {
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
+    SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDuckdbDucklakeCredentials,
     type CreatePostgresCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
+    checkSnowflakeAgentSessionWithToken,
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
     warehouseClientFromCredentials,
@@ -29,7 +34,9 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
+import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { UserService } from '../UserService';
 import {
     connectionContextFromUser,
     ConnectionSurface,
@@ -57,6 +64,7 @@ const { connect, disconnect } = vi.hoisted(() => ({
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    checkSnowflakeAgentSessionWithToken: vi.fn(),
     SshTunnel: vi.fn().mockImplementation(function MockSshTunnel(
         this: {
             overrideCredentials: CreateWarehouseCredentials;
@@ -2524,4 +2532,231 @@ describe('factory cache tuple and agent probes', () => {
         expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
         expect(factory.warehouseClients).toEqual({});
     });
+});
+
+describe('agent client cache lifetime', () => {
+    test('a released warm client survives an hour but a fresh binding checks its plan again', async () => {
+        vi.useFakeTimers();
+        try {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(plan);
+            const first = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            vi.advanceTimersByTime(60 * 60 * 1000);
+            const second = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(second).toBe(first);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledTimes(2);
+            expect(disconnect).toHaveBeenCalledTimes(2);
+            aiAccessService.resolvePlan.mockRejectedValue(
+                new Error('identity removed'),
+            );
+            const query = vi.fn(async () => {});
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    query,
+                ),
+            ).rejects.toThrow('identity removed');
+            expect(query).not.toHaveBeenCalled();
+            expect(Object.values(factory.warehouseClients)).toContain(first);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test('a new identity generation uses a new cache slot even with identical credentials', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(plan);
+        const first = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...plan,
+            identityUuid: 'next-generation',
+        });
+        const second = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        expect(second).not.toBe(first);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(2);
+    });
+
+    test('changed secrets under the same generation replace a client through credential equality', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(plan);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => {},
+        );
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...plan,
+            credentials: { ...credentials, password: 'replacement' },
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(1);
+    });
+});
+
+describe('Snowflake revocation with a warm agent client', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    test.each([
+        ['disconnect', AiAccessRefusalReason.NEEDS_SIGN_IN],
+        ['refresh', AiAccessRefusalReason.SIGN_IN_EXPIRED],
+        ['probe', AiAccessRefusalReason.PRINCIPAL_FAILED],
+    ] as const)(
+        'refuses the next binding after %s without running its callback',
+        async (failure, reason) => {
+            const {
+                factory,
+                aiAccessService: resolver,
+                credentialSource,
+                base,
+                projectModel,
+            } = buildFixture();
+            const connection: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'person',
+                password: 'test',
+                database: 'test',
+                warehouse: 'test',
+                schema: 'public',
+            };
+            const model = {
+                findAiCredentialWithSecrets: vi
+                    .fn<
+                        () => Promise<
+                            UserWarehouseCredentialsWithSecrets | undefined
+                        >
+                    >()
+                    .mockResolvedValue({
+                        uuid: 'agent-credential',
+                        expiresAt: null,
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            authenticationType: SnowflakeAuthenticationType.SSO,
+                            user: 'person',
+                            refreshToken: 'refresh-token',
+                        },
+                    }),
+                rotateRefreshToken: vi.fn(),
+            };
+            const config = {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    snowflakeAi: {
+                        ...lightdashConfigMock.auth.snowflakeAi,
+                        clientId: 'client',
+                        clientSecret: 'secret',
+                        authorizationEndpoint:
+                            'https://snowflake.example.test/authorize',
+                        tokenEndpoint: 'https://snowflake.example.test/token',
+                    },
+                },
+            };
+            const provider = new SnowflakeAiCredentialProvider({
+                lightdashConfig: config,
+                userWarehouseCredentialsModel: model,
+            } as unknown as ConstructorParameters<
+                typeof SnowflakeAiCredentialProvider
+            >[0]);
+            const aiAccessService = new AiAccessService({
+                lightdashConfig: config,
+                analytics: { track: vi.fn() },
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                },
+                organizationAgentIdentityRulesModel: {
+                    get: vi.fn(async () => ({ source: 'agent_sign_in' })),
+                },
+                userModel: {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'person@example.test',
+                    })),
+                },
+                providerRegistry: () => provider,
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+            resolver.resolvePlan.mockImplementation(
+                aiAccessService.resolvePlan.bind(aiAccessService),
+            );
+            credentialSource.loadBase.mockResolvedValue({
+                ...base,
+                credentials: connection,
+            });
+            const refresh = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValue({
+                    accessToken: 'access-token',
+                    refreshToken: 'refresh-token',
+                });
+            vi.mocked(checkSnowflakeAgentSessionWithToken).mockResolvedValue({
+                agentActivated: true,
+                currentRole: 'role',
+                activeRestrictedSessionScopes: 'scope',
+            });
+            const first = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            const second = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(second).toBe(first);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            if (failure === 'disconnect')
+                model.findAiCredentialWithSecrets.mockResolvedValue(undefined);
+            else if (failure === 'refresh')
+                refresh.mockRejectedValue({ data: 'invalid_grant' });
+            else
+                vi.mocked(
+                    checkSnowflakeAgentSessionWithToken,
+                ).mockRejectedValue(new Error('invalid access token'));
+            const query = vi.fn();
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    query,
+                ),
+            ).rejects.toMatchObject({ refusal: { reason } });
+            expect(query).not.toHaveBeenCalled();
+            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(3);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+        },
+    );
 });

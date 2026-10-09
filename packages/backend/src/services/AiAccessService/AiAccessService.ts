@@ -1056,22 +1056,35 @@ export class AiAccessService extends BaseService {
             );
         const nodes = new Map<
             string,
-            { queryHistory: QueryHistory; sources: string[] }
+            {
+                queryHistory: QueryHistory;
+                sources: string[];
+                isDuckdbExecution: boolean;
+            }
         >();
         const visited = new Set(
             uniqueRoots.map((root) => root.queryHistory.queryUuid),
         );
         if (visited.size > maxNodes) throw refuse();
         const rootLevel = await Promise.all(
-            uniqueRoots.map(async ({ queryHistory: root }) => ({
-                queryHistory: root,
-                execution:
-                    root.duckdbExecutionReferences === undefined
-                        ? await this.queryHistoryModel.getDuckdbExecution(
-                              root.queryUuid,
-                          )
-                        : { references: root.duckdbExecutionReferences ?? {} },
-            })),
+            uniqueRoots.map(async ({ queryHistory: root }) => {
+                if (root.duckdbExecutionReferences === undefined) {
+                    return {
+                        queryHistory: root,
+                        execution:
+                            await this.queryHistoryModel.getDuckdbExecution(
+                                root.queryUuid,
+                            ),
+                    };
+                }
+                return {
+                    queryHistory: root,
+                    execution:
+                        root.duckdbExecutionReferences === null
+                            ? null
+                            : { references: root.duckdbExecutionReferences },
+                };
+            }),
         );
         const readLevel = async (
             level: typeof rootLevel,
@@ -1091,6 +1104,7 @@ export class AiAccessService extends BaseService {
                 nodes.set(node.queryHistory.queryUuid, {
                     queryHistory: node.queryHistory,
                     sources,
+                    isDuckdbExecution: node.execution !== null,
                 });
                 for (const uuid of sources) {
                     if (!visited.has(uuid)) {
@@ -1153,7 +1167,7 @@ export class AiAccessService extends BaseService {
             Promise<AiExecutionPlan>
         >();
         await [...nodes.values()].reduce(
-            async (previous, { queryHistory: node }) => {
+            async (previous, { queryHistory: node, isDuckdbExecution }) => {
                 await previous;
                 const uuid = node.queryUuid;
                 if (
@@ -1199,8 +1213,11 @@ export class AiAccessService extends BaseService {
                 const generation = getAiExecutionCredentialUuid(plan);
                 if (
                     node.status === QueryHistoryStatus.READY &&
-                    generation !== null &&
-                    node.requestParameters?.aiSignInCredentialUuid !==
+                    ((!isDuckdbExecution &&
+                        this.lightdashConfig?.ai
+                            ?.agentResultIdentityCheckEnabled !== false) ||
+                        generation !== null) &&
+                    (node.requestParameters?.aiSignInCredentialUuid ?? null) !==
                         generation
                 ) {
                     this.trackQueryRefusal(

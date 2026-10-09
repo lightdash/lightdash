@@ -21,6 +21,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getAiExecutionCredentialUuid,
     getFilterRulesFromGroup,
     isMergeMetricSource,
     MergeJoinType,
@@ -69,6 +70,8 @@ import {
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import ExecutionContext from 'node-execution-context';
 import { Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -85,6 +88,7 @@ import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorag
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { CommercialCacheService } from '../../ee/services/CommercialCacheService';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentDraftModel } from '../../models/ContentDraftModel';
@@ -4379,6 +4383,162 @@ describe('AsyncQueryService', () => {
         },
     );
 
+    test('does not reuse agent results published under a queued marked-person cache key', async () => {
+        const config = {
+            ...lightdashConfigMock,
+            results: { ...lightdashConfigMock.results, cacheEnabled: true },
+        };
+        const service = getMockedAsyncQueryService(config);
+        vi.spyOn(
+            service as AnyType,
+            'getWarehouseCredentialsWithConnection',
+        ).mockResolvedValue({
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: markedPersonPlanMock,
+        });
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(
+            service as AnyType,
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock());
+        const dispatch = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+        const request = {
+            account: sessionAccount,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+        };
+        await service.executeAsyncMetricQuery(request);
+        expect(dispatch).toHaveBeenCalledOnce();
+        const [executionArgs] = dispatch.mock.calls[0];
+        const preparedHistory = vi.mocked(service.queryHistoryModel.create).mock
+            .calls[0][1];
+        expect(preparedHistory.cacheKey).toBe(executionArgs.cacheKey);
+        expect(
+            preparedHistory.requestParameters?.aiSignInCredentialUuid,
+        ).toBeUndefined();
+        dispatch.mockRestore();
+
+        Object.assign(service, { aiAccessService: { recordQuery: vi.fn() } });
+        vi.spyOn(
+            service.warehouseClientFactory,
+            'resolveWarehouseCredentials',
+        ).mockResolvedValue({
+            credentialKind: WarehouseCredentialKind.SHARED,
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: aiExecutionPlanMock,
+        });
+        const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+        vi.spyOn(
+            service.warehouseClientFactory,
+            'acquireUnscoped',
+        ).mockResolvedValue({
+            warehouseClient: {
+                ...warehouseClientMock,
+                executeAsyncQuery: execute,
+            },
+            sshTunnel: mockSshTunnel,
+            tunnelConnectMs: 0,
+        });
+        const markErrored = vi
+            .spyOn(service as AnyType, 'markAsyncQueryErrored')
+            .mockResolvedValue(undefined);
+        await service.runAsyncWarehouseQuery(executionArgs);
+        expect(execute).toHaveBeenCalledOnce();
+        expect(markErrored).not.toHaveBeenCalled();
+        expect(
+            service.queryHistoryModel.recordAiSignInCredential,
+        ).toHaveBeenCalledExactlyOnceWith(
+            executionArgs.queryUuid,
+            projectUuid,
+            sessionAccount.user.id,
+            aiExecutionPlanMock.identityUuid,
+        );
+        const credentialUuid = vi.mocked(
+            service.queryHistoryModel.recordAiSignInCredential,
+        ).mock.calls[0][3];
+        const now = new Date();
+        const storedResult = {
+            cache_key: executionArgs.cacheKey,
+            results_file_name: 'agent.jsonl',
+            results_created_at: now,
+            results_updated_at: now,
+            results_expires_at: new Date(now.getTime() + 86400000),
+            total_row_count: 1,
+            columns: { value: { type: 'number' } },
+            request_parameters: {
+                ...preparedHistory.requestParameters,
+                aiSignInCredentialUuid: credentialUuid,
+            },
+        };
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on
+            .select('query_history')
+            .response(({ sql }) =>
+                sql.includes(
+                    "request_parameters->>'aiSignInCredentialUuid' is null",
+                ) &&
+                storedResult.request_parameters.aiSignInCredentialUuid != null
+                    ? undefined
+                    : storedResult,
+            );
+        const queryHistoryModel = new QueryHistoryModel({ database });
+        Object.assign(service, {
+            cacheService: new CommercialCacheService({
+                lightdashConfig: config,
+                queryHistoryModel,
+                projectModel: {
+                    getEffectiveResultsCacheTtlSeconds: vi
+                        .fn()
+                        .mockResolvedValue(86400),
+                } as never,
+                featureFlagModel: service.featureFlagModel,
+                storageClient: {} as never,
+            }),
+        });
+        try {
+            const findCache = vi.spyOn(service, 'findResultsCache');
+            const nextExecution = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            const result = await service.executeAsyncMetricQuery(request);
+            expect(findCache).toHaveBeenCalledWith(
+                projectUuid,
+                executionArgs.cacheKey,
+                sessionAccount,
+                false,
+            );
+            expect(result.cacheMetadata.cacheHit).toBe(false);
+            expect(nextExecution).toHaveBeenCalledOnce();
+            expect(tracker.history.select).toHaveLength(1);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
     describe('executeAsyncMetricQuery', () => {
         test.each(['anyAttributes', 'requiredAttributes'] as const)(
             'authorizes %s with effective attribute overrides before compiling',
@@ -5239,6 +5399,100 @@ describe('AsyncQueryService', () => {
             ).toEqual(['query.refused', 'agent_identity.expired']);
         });
     });
+
+    test.each([false, true])(
+        'refuses retained agent results after switching to marked person with bypass flag=%s',
+        async (enabled) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const rules = {
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ source: 'ai_service_account' }),
+            };
+            const connection =
+                aiServiceAccountPlanMock.credentials as CreateBigqueryCredentials;
+            const aiAccessService = new AiAccessService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: { track: vi.fn() },
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                },
+                organizationAgentIdentityRulesModel: rules,
+                aiServiceAccountCredentialsModel: {
+                    getSecrets: vi.fn(async () => ({
+                        slot: {
+                            uuid: aiServiceAccountPlanMock.credentialUuid,
+                            identityUuid: aiServiceAccountPlanMock.identityUuid,
+                        },
+                        secrets: {
+                            type: WarehouseTypes.BIGQUERY,
+                            keyfileContents: connection.keyfileContents,
+                            authenticationType:
+                                BigqueryAuthenticationType.PRIVATE_KEY,
+                        },
+                    })),
+                },
+                projectModel: {
+                    getSummary: vi.fn(async () => projectSummary),
+                    getWarehouseCredentialsForBinding: vi.fn(
+                        async () => connection,
+                    ),
+                },
+                userModel: {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'person@example.test',
+                    })),
+                },
+                queryHistoryModel: service.queryHistoryModel,
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+            Object.assign(service, { aiAccessService });
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled,
+            });
+            const plan = await aiAccessService.resolvePlan({
+                evaluation: { kind: 'query', surface: QuerySurface.APP },
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                warehouseConnectionUuid: null,
+                connection,
+                context: QueryExecutionContext.AI,
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isServiceAccount: false,
+            });
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+                queryUuid: 'retained-agent-query',
+                context: QueryExecutionContext.AI,
+                status: QueryHistoryStatus.READY,
+                requestParameters: {
+                    aiSignInCredentialUuid: getAiExecutionCredentialUuid(plan),
+                },
+                metricQuery: metricQueryMock,
+                fields: {},
+                resultsFileName: 'agent-results',
+            } as QueryHistory);
+            const read = () =>
+                service.getRawAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'retained-agent-query',
+                });
+            await expect(read()).resolves.toMatchObject({ rows: [{}] });
+            vi.mocked(
+                service.resultsStorageClient.getDownloadStream,
+            ).mockClear();
+            rules.get.mockResolvedValue({ source: 'marked_person' });
+            await expect(read()).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            expect(
+                service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     test.each([false, true])(
         'AI raw reads check current access with bypass flag=%s',
