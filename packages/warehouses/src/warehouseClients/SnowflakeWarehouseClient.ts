@@ -809,7 +809,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private interactiveConnectionPromise?: Promise<Connection>;
 
     private readonly agentJobControls: boolean;
-    private readonly disableCachedResults: boolean;
 
     private readonly privateKey: string | undefined;
 
@@ -822,7 +821,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         options?: {
             agentSession?: boolean;
             agentJobControls?: boolean;
-            disableCachedResults?: boolean;
             logger?: {
                 info: (
                     message: string,
@@ -838,7 +836,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
         this.logger = options?.logger;
         this.agentJobControls = options?.agentJobControls ?? false;
-        this.disableCachedResults = options?.disableCachedResults ?? false;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -981,19 +978,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 );
             }
         }
-        if (
-            this.disableCachedResults &&
-            !this.credentials.requireAgentSession
-        ) {
-            try {
-                await disableSnowflakeCachedResult(connection);
-            } catch {
-                await this.destroyRejectedAgentConnection(connection);
-                throw new WarehouseConnectionError(
-                    'Could not disable cached results for the AI service account session.',
-                );
-            }
-        }
         return connection;
     }
 
@@ -1102,7 +1086,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
-            if (this.disableCachedResults) error.cause = e;
+            if (this.agentJobControls) error.cause = e;
             throw error;
         }
         return connection;

@@ -69,12 +69,14 @@ const AiServiceAccountParentPrincipal = ({
 
 const VerifiedAiServiceAccountDetails = ({
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     observation,
     warehouseType,
 }: {
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
@@ -87,7 +89,17 @@ const VerifiedAiServiceAccountDetails = ({
                     ? 'Snowflake key pair'
                     : 'Databricks service principal · OAuth M2M'}
             </Text>
-            {testedPrincipal ? (
+            {!(slot ? credentialsReadable : parent?.credentialsReadable) ? (
+                <Alert color="red" role="alert">
+                    {warehouseType === WarehouseTypes.SNOWFLAKE
+                        ? slot
+                            ? 'The AI service account cannot be read. Use a different key.'
+                            : 'The parent AI service account cannot be read. Use a different key.'
+                        : slot
+                          ? 'The AI service account cannot be read. Replace the credentials.'
+                          : 'The parent AI service account cannot be read. Use different credentials.'}
+                </Alert>
+            ) : testedPrincipal ? (
                 <Text size="sm" role="status">
                     Signs in as {testedPrincipal}
                 </Text>
@@ -130,12 +142,14 @@ const VerifiedAiServiceAccountDetails = ({
 
 const AiServiceAccountDetails = ({
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     warehouseType,
     observation,
 }: {
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     warehouseType: AiServiceAccountConnection['type'];
@@ -148,6 +162,7 @@ const AiServiceAccountDetails = ({
                 <VerifiedAiServiceAccountDetails
                     warehouseType={warehouseType}
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -275,6 +290,7 @@ const AiServiceAccountTestFeedback = ({
 const AiServiceAccountSummary = ({
     projectUuid,
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     observation,
@@ -284,6 +300,7 @@ const AiServiceAccountSummary = ({
 }: {
     projectUuid: string;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
@@ -305,6 +322,7 @@ const AiServiceAccountSummary = ({
             <Group justify="space-between">
                 <AiServiceAccountDetails
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -412,6 +430,7 @@ const AiServiceAccountSummary = ({
 const AiServiceAccountSettingsContent = ({
     projectUuid,
     slot,
+    credentialsReadable,
     parent,
     rule,
     testedPrincipal,
@@ -422,6 +441,7 @@ const AiServiceAccountSettingsContent = ({
 }: {
     projectUuid: string;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
@@ -452,6 +472,7 @@ const AiServiceAccountSettingsContent = ({
                 <AiServiceAccountSummary
                     projectUuid={projectUuid}
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -539,6 +560,7 @@ const AiServiceAccountSettingsBody = ({
     projectUuid,
     connection,
     slot,
+    credentialsReadable,
     parent,
     rule,
     verification,
@@ -547,6 +569,7 @@ const AiServiceAccountSettingsBody = ({
     connection: AiServiceAccountConnection;
     verification: AiServiceAccountTestResult | null;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
 }) => {
@@ -575,6 +598,7 @@ const AiServiceAccountSettingsBody = ({
                 }
                 projectUuid={projectUuid}
                 slot={slot}
+                credentialsReadable={credentialsReadable}
                 parent={parent}
                 rule={rule}
                 testedPrincipal={principal}
@@ -641,6 +665,7 @@ const AiServiceAccountSettings = ({
             connection={connection}
             verification={status.data.verification ?? null}
             slot={status.data.results}
+            credentialsReadable={status.data.credentialsReadable}
             parent={status.data.parent}
             rule={rule}
         />

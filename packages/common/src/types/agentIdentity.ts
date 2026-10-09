@@ -238,16 +238,18 @@ export type AiServiceAccountTestResult = {
     checkedAt: Date;
 };
 
-export type AiServiceAccountParent = {
+export interface AiServiceAccountParent {
+    credentialsReadable: boolean;
     projectUuid: string;
     projectName: string | null;
     identityUuid: string;
     principal: string | null;
     verification?: AiServiceAccountTestResult | null;
-};
+}
 
 export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
     parent: AiServiceAccountParent | null;
+    credentialsReadable: boolean;
     verification?: AiServiceAccountTestResult | null;
 }
 

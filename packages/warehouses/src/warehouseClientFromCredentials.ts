@@ -28,7 +28,6 @@ export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
     AthenaWarehouseClientOptions & {
         agentSession?: boolean;
-        disableCachedResults?: boolean;
         agentJobControls?: boolean;
     };
 

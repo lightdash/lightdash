@@ -3957,13 +3957,13 @@ describe('Snowflake AI service account factory integration', () => {
             for (const [, options] of f.projectModel
                 .getWarehouseClientFromCredentials.mock.calls)
                 expect(options).toMatchObject({
-                    disableCachedResults: true,
+                    agentJobControls: true,
                     agentSession: true,
                 });
             expect(f.credentialSource.finish).not.toHaveBeenCalled();
         },
     );
-    test('slot probes never cache and preserve their controls on derived clients', async () => {
+    test('slot probes never cache and do not enable query plan controls', async () => {
         const f = buildFixture();
         const slotPlan = await makePlan();
         await Promise.all(
@@ -3975,7 +3975,6 @@ describe('Snowflake AI service account factory integration', () => {
                         projectUuid: 'project-uuid',
                         credentials: slotPlan.credentials,
                         agentSession: true,
-                        clientOptions: { disableCachedResults: true },
                     },
                     contextFor(),
                     async ({ deriveClient }) => {
@@ -3990,7 +3989,7 @@ describe('Snowflake AI service account factory integration', () => {
         ).toHaveBeenCalledTimes(4);
         for (const [, options] of f.projectModel
             .getWarehouseClientFromCredentials.mock.calls)
-            expect(options).toMatchObject({ disableCachedResults: true });
+            expect(options?.agentJobControls).toBeUndefined();
     });
     test('normal clients do not acquire the slot cache control', async () => {
         const f = buildFixture();
@@ -4013,7 +4012,7 @@ describe('Snowflake AI service account factory integration', () => {
         );
         expect(
             f.projectModel.getWarehouseClientFromCredentials.mock.calls[0][1]
-                ?.disableCachedResults,
+                ?.agentJobControls,
         ).toBeUndefined();
     });
     test.each([

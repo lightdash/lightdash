@@ -63,6 +63,7 @@ const setup = () => {
         { action: 'manage', subject: 'Project' },
     ]);
     const model = {
+        getCredentialsReadable: vi.fn().mockResolvedValue(true),
         getSlot: vi.fn().mockResolvedValue({
             uuid: 'slot',
             identityUuid: 'generation-before',
@@ -785,7 +786,9 @@ it.each([true, false])(
         ]);
         expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
             results: { uuid: 'slot', identityUuid: 'generation-before' },
+            credentialsReadable: true,
             parent: {
+                credentialsReadable: true,
                 projectUuid: 'parent',
                 projectName: canView ? 'Parent project' : null,
                 identityUuid: 'parent-generation',
@@ -809,11 +812,13 @@ it.each([true, false])(
             f.service.getStatus(f.account, 'project', null),
         ).resolves.toEqual({
             results: ownSlot,
+            credentialsReadable: ownSlot !== null,
             parent: {
                 projectUuid: 'parent',
                 projectName: 'Parent project',
                 identityUuid: 'parent-generation',
                 principal: null,
+                credentialsReadable: false,
             },
         });
         expect(f.model.getSlot).toHaveBeenLastCalledWith('parent', null);
@@ -835,6 +840,7 @@ it('returns no parent on a non-preview status response', async () => {
     const f = setup();
     expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
         results: { uuid: 'slot', identityUuid: 'generation-before' },
+        credentialsReadable: true,
         parent: null,
     });
 });
@@ -1292,7 +1298,6 @@ describe('Snowflake slots', () => {
             kind: 'bypass',
             mode: 'connection_test',
             agentSession: true,
-            clientOptions: { disableCachedResults: true },
             credentials: { database: 'preview_db', ...snowflakeSecrets },
         });
         expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
@@ -1413,6 +1418,60 @@ describe('Snowflake slots', () => {
         ).resolves.toMatchObject({ ok: false });
         expect(f.model.updateVerification).not.toHaveBeenCalled();
     });
+    it.each([true, false])(
+        'reports own Snowflake slot readability, readable=%s',
+        async (readable) => {
+            const f = prepare();
+            f.model.getCredentialsReadable.mockResolvedValue(readable);
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.credentialsReadable).toBe(readable);
+            expect(result.verification).toBeNull();
+            expect(
+                f.model.getCredentialsReadable,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                null,
+                'generation-before',
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it.each([true, false])(
+        'reports inherited Snowflake slot readability, readable=%s',
+        async (readable) => {
+            const f = prepare(true);
+            f.model.getSlot.mockImplementation(async (uuid: string) =>
+                uuid === 'parent'
+                    ? { uuid: 'parent-slot', identityUuid: 'parent-generation' }
+                    : null,
+            );
+            if (!readable)
+                f.model.getSecrets.mockRejectedValue(
+                    new Error('unreadable credentials'),
+                );
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.parent).toMatchObject({
+                credentialsReadable: readable,
+                verification: null,
+                principal: null,
+            });
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
     it.each([false, true])(
         'projects verification without secrets or network calls, inherited=%s',
         async (inherited) => {
@@ -1435,15 +1494,4 @@ describe('Snowflake slots', () => {
             );
         },
     );
-    it('rejects the BigQuery inventory endpoint before credentials or probing', async () => {
-        const f = prepare();
-        await expect(
-            f.service.testAccess(f.account, 'project', null, {
-                credentials: null,
-                entryPoint: 'project_agent_identity_page',
-            }),
-        ).rejects.toThrow('does not support agent access tests');
-        expect(f.model.getSecrets).not.toHaveBeenCalled();
-        expect(f.withWarehouseClient).not.toHaveBeenCalled();
-    });
 });

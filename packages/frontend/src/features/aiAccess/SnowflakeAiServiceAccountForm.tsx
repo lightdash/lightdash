@@ -93,7 +93,7 @@ export const SnowflakeAiServiceAccountForm = ({
             role: (value) => (value.trim() ? null : 'Enter a role.'),
             warehouse: (value) => (value.trim() ? null : 'Enter a warehouse.'),
             privateKey: (value) =>
-                /^-----BEGIN (PRIVATE KEY|ENCRYPTED PRIVATE KEY|RSA PRIVATE KEY)-----\s+[A-Za-z0-9+/=\s]+\s+-----END \1-----$/.test(
+                /^-----BEGIN (PRIVATE KEY|ENCRYPTED PRIVATE KEY|RSA PRIVATE KEY)-----\s+\S[\s\S]*?\s+-----END \1-----$/.test(
                     value.trim(),
                 )
                     ? null

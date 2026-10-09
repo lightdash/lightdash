@@ -95,11 +95,13 @@ vi.mock('../../components/ProjectConnection/formContext', () => ({
 }));
 
 let warehouseType = WarehouseTypes.BIGQUERY;
+let credentialsReadable = true;
 let verification: AiServiceAccountTestResult | null = null;
 let source: AiIdentitySource = 'marked_person';
 let slot: AiServiceAccountSlot | null = null;
 let parent: AiServiceAccountParent | null = null;
 const parentAccount = {
+    credentialsReadable: true,
     projectUuid: 'parent-project',
     projectName: 'Production',
     identityUuid: 'parent-generation',
@@ -184,6 +186,7 @@ describe('AI service account card', () => {
         source = 'marked_person';
         warehouseType = WarehouseTypes.BIGQUERY;
         verification = null;
+        credentialsReadable = true;
         slot = null;
         parent = null;
         vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
@@ -209,7 +212,13 @@ describe('AI service account card', () => {
                           checkedAt: new Date(),
                       };
             if (method === 'GET')
-                return { status: 'ok', results: slot, parent, verification };
+                return {
+                    status: 'ok',
+                    results: slot,
+                    parent,
+                    verification,
+                    credentialsReadable,
+                };
             if (method === 'PUT') {
                 slot = savedSlot;
                 return { status: 'ok', results: slot, verification };
@@ -1231,6 +1240,45 @@ describe('AI service account card', () => {
             },
         );
         it.each(['own', 'inherited'])(
+            'shows repair guidance for an unreadable %s slot',
+            async (owner) => {
+                if (owner === 'own') {
+                    saved();
+                    credentialsReadable = false;
+                } else {
+                    parent = {
+                        ...parentAccount,
+                        principal: null,
+                        verification: null,
+                        credentialsReadable: false,
+                    };
+                }
+                setup(snowflakeProject);
+                expect(await screen.findByRole('alert')).toHaveTextContent(
+                    owner === 'own'
+                        ? 'The AI service account cannot be read. Use a different key.'
+                        : 'The parent AI service account cannot be read. Use a different key.',
+                );
+                expect(
+                    screen.queryByText(
+                        'Not checked yet. Run Test to see who it signs in as.',
+                    ),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(/Signs in as/),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', {
+                        name:
+                            owner === 'own' ? 'Replace' : 'Use a different key',
+                    }),
+                ).toBeEnabled();
+                expect(lightdashApi).not.toHaveBeenCalledWith(
+                    expect.objectContaining({ method: 'POST' }),
+                );
+            },
+        );
+        it.each(['own', 'inherited'])(
             'shows neutral guidance for an %s slot with no observation and alerts on Test failure',
             async (owner) => {
                 if (owner === 'own') {
@@ -1266,7 +1314,7 @@ describe('AI service account card', () => {
                     ...snowflakeVerification,
                     ok: false,
                     principal: null,
-                    observed: null,
+                    observed: {},
                     message: 'Sign-in failed.',
                 });
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));

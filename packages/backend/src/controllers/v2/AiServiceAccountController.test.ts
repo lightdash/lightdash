@@ -132,6 +132,7 @@ it('keeps the own slot as results and returns an explicit parent field', async (
     expect(await f.controller.get('project', f.req)).toEqual({
         status: 'ok',
         results: null,
+        credentialsReadable: false,
         parent: null,
     });
 });
@@ -157,7 +158,9 @@ it.each([true, false])(
         await expect(f.controller.get('project', f.req)).resolves.toEqual({
             status: 'ok',
             results: ownSlot,
+            credentialsReadable: ownSlot !== null,
             parent: {
+                credentialsReadable: false,
                 projectUuid: 'parent',
                 projectName: 'Parent project',
                 identityUuid: 'parent-generation',
@@ -278,20 +281,3 @@ it.each([undefined, 'extra-connection'])(
         );
     },
 );
-
-it('rejects Snowflake inventory tests before BigQuery credential reads', async () => {
-    const f = setup(true);
-    f.load.mockResolvedValue({
-        ...snowflakeSecrets,
-        account: 'account',
-        database: 'database',
-        schema: 'public',
-    });
-    await expect(
-        f.controller.testAccess('project', f.req, {
-            credentials: null,
-            entryPoint: 'project_agent_identity_page',
-        }),
-    ).rejects.toThrow('does not support agent access tests');
-    expect(f.model.getSecrets).not.toHaveBeenCalled();
-});

@@ -251,6 +251,24 @@ export class AiServiceAccountCredentialsModel {
         return this.decryptPayload(row).secrets;
     }
 
+    async getCredentialsReadable(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        expectedIdentityUuid: string | null,
+    ): Promise<boolean> {
+        if (expectedIdentityUuid === null) return false;
+        const row = await this.query(projectUuid, warehouseConnectionUuid)
+            .where('identity_uuid', expectedIdentityUuid)
+            .first();
+        if (!row) return false;
+        try {
+            this.decrypt(row);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     async getVerification(
         projectUuid: string,
         warehouseConnectionUuid: string | null,

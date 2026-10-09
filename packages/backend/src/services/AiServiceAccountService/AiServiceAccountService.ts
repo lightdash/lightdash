@@ -205,6 +205,14 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
+        const credentialsReadable =
+            connection.type !== WarehouseTypes.BIGQUERY
+                ? await this.deps.aiServiceAccountCredentialsModel.getCredentialsReadable(
+                      projectUuid,
+                      warehouseConnectionUuid,
+                      results?.identityUuid ?? null,
+                  )
+                : results !== null;
         const verification =
             (connection.type === WarehouseTypes.DATABRICKS ||
                 connection.type === WarehouseTypes.SNOWFLAKE)
@@ -233,7 +241,12 @@ export class AiServiceAccountService extends BaseService {
                       };
             });
         if (inherited === null)
-            return { results, parent: null, ...verification };
+            return {
+                results,
+                parent: null,
+                credentialsReadable,
+                ...verification,
+            };
         const parentUuid = inherited.sourceProjectUuid;
         const canView = this.createAuditedAbility(account).can(
             'view',
@@ -241,8 +254,10 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results,
+            credentialsReadable,
             ...verification,
             parent: {
+                credentialsReadable: inherited.slot.secrets !== null,
                 projectUuid: parentUuid,
                 projectName: canView
                     ? (await this.deps.projectModel.getSummary(parentUuid)).name
@@ -488,11 +503,9 @@ export class AiServiceAccountService extends BaseService {
                     agentSession: true,
                     projectUuid,
                     credentials,
-                    ...(databricks
+                    ...(databricks || snowflake
                         ? { clientOptions: { agentJobControls: true } }
-                        : snowflake
-                          ? { clientOptions: { disableCachedResults: true } }
-                          : {}),
+                        : {}),
                 },
                 context,
                 ({ warehouseClient }) => {

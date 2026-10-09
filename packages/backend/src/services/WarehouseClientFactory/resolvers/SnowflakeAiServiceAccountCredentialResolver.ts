@@ -7,7 +7,6 @@ import {
     type CreateWarehouseCredentials,
     type SshTunnelConfiguration,
 } from '@lightdash/common';
-import pick from 'lodash/pick';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -19,6 +18,7 @@ import type {
     CredentialSelection,
     ValidatedCredential,
 } from '../CredentialResolver';
+import { pickRoutingFields } from './aiServiceAccountRoutingFields';
 
 type Selection = CredentialSelection<
     CreateSnowflakeCredentials,
@@ -44,27 +44,7 @@ export class SnowflakeAiServiceAccountCredentialResolver implements CredentialRe
                 'The AI service account must match the connection warehouse type.',
             );
         return {
-            ...pick(connection, [
-                'account',
-                'database',
-                'schema',
-                'override',
-                'queryTag',
-                'accessUrl',
-                'threads',
-                'clientSessionKeepAlive',
-                'startOfWeek',
-                'dataTimezone',
-                'quotedIdentifiersIgnoreCase',
-                'disableTimestampConversion',
-                'timeoutSeconds',
-                'useSshTunnel',
-                'sshTunnelHost',
-                'sshTunnelPort',
-                'sshTunnelUser',
-                'sshTunnelPublicKey',
-                'sshTunnelPrivateKey',
-            ] as const),
+            ...pickRoutingFields(WarehouseTypes.SNOWFLAKE, connection),
             ...credentials,
             authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
             requireUserCredentials: false,
@@ -113,7 +93,7 @@ export class SnowflakeAiServiceAccountCredentialResolver implements CredentialRe
                 input.connection,
                 input.stored,
             ),
-            clientOptions: { disableCachedResults: true },
+            clientOptions: {},
             cacheable: input.owner !== null,
         };
     }

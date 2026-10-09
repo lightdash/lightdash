@@ -87,7 +87,10 @@ describe('AI service account status', () => {
         const status = {
             status: 'ok' as const,
             results: null,
+            credentialsReadable: false,
             parent: {
+                credentialsReadable: true,
+                identityUuid: 'generation',
                 projectUuid: 'parent',
                 projectName: null,
                 principal: 'agent@example.test',

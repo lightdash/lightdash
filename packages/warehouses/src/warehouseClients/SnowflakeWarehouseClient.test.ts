@@ -21,6 +21,7 @@ import {
     isSnowflakeAgentActivatedValue,
     mapFieldType,
     mapSnowflakeDiagnosticError,
+    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     SnowflakeDiagnosticError,
     SnowflakeWarehouseClient,
 } from './SnowflakeWarehouseClient';
@@ -1585,7 +1586,7 @@ describe('AI service account sessions', () => {
                 privateKey: 'slot-key',
                 role: 'SLOT_ROLE',
             },
-            { disableCachedResults: true, agentSession: true },
+            { agentJobControls: true, agentSession: true },
         );
         await client.runQuery('SELECT 1', {});
         await client.runQuery('SELECT 2', {});
@@ -1630,10 +1631,10 @@ describe('AI service account sessions', () => {
             complete(new Error('ALTER failed')),
         );
         const client = new SnowflakeWarehouseClient(credentials, {
-            disableCachedResults: true,
+            agentJobControls: true,
         });
         await expect(client.runQuery('SELECT 1', {})).rejects.toThrow(
-            'Could not disable cached results',
+            SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
         );
         expect(connection.destroy).toHaveBeenCalledOnce();
         expect(executeMock).toHaveBeenCalledOnce();
@@ -1641,7 +1642,7 @@ describe('AI service account sessions', () => {
             'USE_CACHED_RESULT',
         );
     });
-    it('preserves structured sign-in causes only for slot-controlled sessions', async () => {
+    it('preserves structured sign-in causes only for agent-controlled sessions', async () => {
         const cause = Object.assign(new Error('JWT token is invalid'), {
             code: '390144',
         });
@@ -1652,7 +1653,7 @@ describe('AI service account sessions', () => {
         });
         vi.mocked(createConnection).mockReturnValueOnce(connection);
         const client = new SnowflakeWarehouseClient(credentials, {
-            disableCachedResults: true,
+            agentJobControls: true,
         });
         await expect(client.runQuery('SELECT 1', {})).rejects.toMatchObject({
             name: 'WarehouseConnectionError',
@@ -1682,7 +1683,7 @@ describe('AI service account sessions', () => {
                 privateKey: encrypted,
                 privateKeyPass: passphrase,
             },
-            { disableCachedResults: true },
+            { agentJobControls: true },
         );
         await client.runQuery('SELECT 1', {});
         expect(vi.mocked(createConnection).mock.calls[0][0]).toMatchObject({
@@ -1702,7 +1703,7 @@ describe('AI service account sessions', () => {
                 queryTag:
                     '{"agent":"false","ai_principal":"spoof","agent_surface":"spoof"}',
             },
-            { disableCachedResults: true },
+            { agentJobControls: true },
         );
         await client.runQuery('SELECT 1', {
             agent: 'true',

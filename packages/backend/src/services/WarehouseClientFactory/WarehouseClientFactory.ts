@@ -99,9 +99,7 @@ type WarehouseClientBypassRef = {
         credentials: CreateWarehouseCredentials;
         tunnelOptions?: SshTunnelOptions;
         agentSession?: boolean;
-        clientOptions?: Mode extends 'connection_test'
-            ? Pick<WarehouseClientOptions, 'agentJobControls' | 'disableCachedResults'>
-            : Pick<WarehouseClientOptions, 'agentJobControls'>;
+        clientOptions?: Pick<WarehouseClientOptions, 'agentJobControls'>;
     };
 }[WarehouseClientBypassMode];
 
@@ -647,10 +645,7 @@ export class WarehouseClientFactory {
                             ref.kind === 'resolved' &&
                             ref.cachePolicy === 'disabled'
                         ),
-                    resolverOptions:
-                        ref.kind === 'bypass' && ref.mode === 'connection_test'
-                            ? ref.clientOptions
-                            : materialization?.clientOptions,
+                    resolverOptions: materialization?.clientOptions,
                     cacheKeyIdentity: materialization?.cacheKeyIdentity,
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,

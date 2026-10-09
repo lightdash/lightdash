@@ -401,6 +401,62 @@ describe('Snowflake credential payloads', () => {
             await model.getVerification('project', null, 'generation'),
         ).toEqual(snowflakeVerification);
     });
+    it.each([true, false])(
+        'reports readability without an observation, readable=%s',
+        async (readable) => {
+            decrypt.mockReturnValue(
+                readable ? JSON.stringify(snowflakeSecrets) : 'bad payload',
+            );
+            tracker.on
+                .select('ai_service_account_credentials')
+                .response([snowRow]);
+            expect(
+                await model.getCredentialsReadable(
+                    'project',
+                    null,
+                    'generation',
+                ),
+            ).toBe(readable);
+            expect(
+                await model.getVerification('project', null, 'generation'),
+            ).toBeNull();
+            expect(tracker.history.select[0].sql).toContain(
+                '"identity_uuid" =',
+            );
+            expect(tracker.history.select[0].bindings).toContain('generation');
+        },
+    );
+    it('reports absent or replaced credentials as unreadable', async () => {
+        expect(await model.getCredentialsReadable('project', null, null)).toBe(
+            false,
+        );
+        expect(tracker.history.select).toHaveLength(0);
+        tracker.on.select('ai_service_account_credentials').response([]);
+        expect(
+            await model.getCredentialsReadable(
+                'project',
+                null,
+                'old-generation',
+            ),
+        ).toBe(false);
+        expect(decrypt).not.toHaveBeenCalled();
+    });
+    it('reports inconsistent credential metadata as unreadable', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([{ ...snowRow, authentication_method: 'oauth_m2m' }]);
+        expect(
+            await model.getCredentialsReadable('project', null, 'generation'),
+        ).toBe(false);
+    });
+    it('propagates database errors while checking readability', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .simulateError('database unavailable');
+        await expect(
+            model.getCredentialsReadable('project', null, 'generation'),
+        ).rejects.toThrow('database unavailable');
+    });
     it('reads a Snowflake payload without an observation', async () => {
         decrypt.mockReturnValue(JSON.stringify(snowflakeSecrets));
         tracker.on.select('ai_service_account_credentials').response([snowRow]);

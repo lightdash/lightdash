@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { generateKeyPairSync } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi, lightdashApiResponse } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -130,6 +131,54 @@ describe('Snowflake AI service account form', () => {
         );
         expect(save()).toBeDisabled();
         expect(lightdashApi).not.toHaveBeenCalled();
+    });
+    it('accepts an encrypted PKCS#1 PEM with traditional headers and sends the key unchanged', async () => {
+        const { privateKey } = generateKeyPairSync('rsa', {
+            modulusLength: 2048,
+        });
+        const encryptedPem = privateKey
+            .export({
+                format: 'pem',
+                type: 'pkcs1',
+                cipher: 'aes-256-cbc',
+                passphrase: 'passphrase',
+            })
+            .toString();
+        expect(encryptedPem).toContain('BEGIN RSA PRIVATE KEY');
+        expect(encryptedPem).toContain('Proc-Type: 4,ENCRYPTED');
+        expect(encryptedPem).toContain('DEK-Info:');
+        setup();
+        fill();
+        change('Private key', encryptedPem);
+        change('Passphrase (optional)', 'passphrase');
+        expect(save()).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+        fireEvent.click(save());
+        await waitFor(() =>
+            expect(lightdashApiResponse).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    body: JSON.stringify({
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType:
+                            SnowflakeAuthenticationType.PRIVATE_KEY,
+                        user: 'submitted_user',
+                        privateKey: encryptedPem,
+                        privateKeyPass: 'passphrase',
+                        role: 'submitted_role',
+                        warehouse: 'warehouse',
+                    }),
+                }),
+            ),
+        );
+    });
+    it.each([
+        '-----BEGIN PRIVATE KEY-----\n   \n-----END PRIVATE KEY-----',
+        '-----BEGIN PRIVATE KEY-----\nYWJj\n-----END RSA PRIVATE KEY-----',
+    ])('rejects empty or mismatched PEM envelopes: %s', (invalid) => {
+        setup();
+        fill();
+        change('Private key', invalid);
+        expect(save()).toBeDisabled();
     });
     it('saves without a prior Test and returns the server observation', async () => {
         const { onSaved, onClose } = setup();

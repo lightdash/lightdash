@@ -78,13 +78,10 @@ it.each([true, false])(
                 account: 'connection_account',
                 database: 'connection_database',
                 schema: 'connection_schema',
-                queryTag: 'custom',
                 override,
                 requireUserCredentials: false,
-                sshTunnelHost: 'tunnel',
-                sshTunnelPrivateKey: 'tunnel-key',
             },
-            clientOptions: { disableCachedResults: true },
+            clientOptions: {},
             cacheable: true,
         });
     },
@@ -110,9 +107,7 @@ it.each([
         'ai_service_account',
     );
     expect(result).toMatchObject(snowflakeSecrets);
-    expect(result[credentialResolution]?.clientOptions).toEqual({
-        disableCachedResults: true,
-    });
+    expect(result[credentialResolution]?.clientOptions).toEqual({});
     expect(result[credentialResolution]?.cacheKeyIdentity).toEqual([
         'ai-service-account-v1',
         WarehouseTypes.SNOWFLAKE,
