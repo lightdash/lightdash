@@ -154,7 +154,8 @@ const transportFixture = () => {
             mode,
         );
     registry.registerTransport(
-        (c) => c.type === WarehouseTypes.REDSHIFT && c.useSshTunnel === true,
+        (c): c is CreateRedshiftCredentials =>
+            c.type === WarehouseTypes.REDSHIFT && c.useSshTunnel === true,
         transport,
     );
     return { registry, selection, mode, transport, legacy, registerMode };
