@@ -2224,6 +2224,7 @@ export class ProjectService
         credentials: CreateWarehouseCredentials,
         userUuid: string,
         source: RefreshTokenRotationSource,
+        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<CreateWarehouseCredentials> {
         const owner = ProjectService.getCredentialOwner(source);
         return this.warehouseClientFactory.materializeCredentials(
@@ -2239,6 +2240,7 @@ export class ProjectService
                     userUuid,
                     source,
                 ),
+            refreshSource,
         );
     }
 
@@ -2321,6 +2323,10 @@ export class ProjectService
                 userCredHost && projectHost && userCredHost !== projectHost;
 
             if (userWarehouseCredentials && !hostMismatch) {
+                const refreshSource = {
+                    credentials: userWarehouseCredentials.credentials,
+                    fallback: credentials,
+                };
                 credentials = mergePersonalWarehouseCredentials(
                     credentials,
                     userWarehouseCredentials,
@@ -2335,6 +2341,7 @@ export class ProjectService
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
                     },
+                    refreshSource,
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
@@ -2806,6 +2813,7 @@ export class ProjectService
             };
         }
         let userWarehouseCredentialsUuid: string | undefined;
+        let refreshSource: CredentialSelection<CreateWarehouseCredentials>['refreshSource'];
 
         if (base.kind === 'original' && !organizationWarehouseCredentialsUuid) {
             credentials = await this.repairStalePreviewSsoCredentials(
@@ -2842,6 +2850,10 @@ export class ProjectService
                             'Please authenticate to access Databricks for this workspace',
                         );
                     }
+                    refreshSource = {
+                        credentials: userCredentials.credentials,
+                        fallback: credentials,
+                    };
                     credentials = {
                         ...credentials,
                         refreshToken: userCredentials.credentials.refreshToken,
@@ -2864,6 +2876,7 @@ export class ProjectService
                 credentials,
                 person.userUuid,
                 source,
+                refreshSource,
             )),
             userWarehouseCredentialsUuid,
         };
@@ -3247,6 +3260,10 @@ export class ProjectService
                 userCredHost && projectHost && userCredHost !== projectHost;
 
             if (userWarehouseCredentials && !hostMismatch) {
+                const refreshSource = {
+                    credentials: userWarehouseCredentials.credentials,
+                    fallback: credentials,
+                };
                 credentials = mergePersonalWarehouseCredentials(
                     credentials,
                     userWarehouseCredentials,
@@ -3265,6 +3282,7 @@ export class ProjectService
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
                     },
+                    refreshSource,
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
@@ -7074,6 +7092,7 @@ export class ProjectService
                       }
                     : { kind: 'project', uuid: projectUuid };
             let selected = warehouseConnection;
+            let refreshSource: CredentialSelection<CreateWarehouseCredentials>['refreshSource'];
             if (
                 selected.authenticationType ===
                     DatabricksAuthenticationType.OAUTH_U2M &&
@@ -7091,6 +7110,10 @@ export class ProjectService
                         DatabricksAuthenticationType.OAUTH_U2M &&
                     userCreds.credentials.refreshToken
                 ) {
+                    refreshSource = {
+                        credentials: userCreds.credentials,
+                        fallback: selected,
+                    };
                     selected = {
                         ...selected,
                         refreshToken: userCreds.credentials.refreshToken,
@@ -7117,6 +7140,7 @@ export class ProjectService
                         {
                             connection: selected,
                             stored: selected,
+                            refreshSource,
                             owner,
                             context: connectionContextFromUser(user, {
                                 organizationUuid: project.organizationUuid,

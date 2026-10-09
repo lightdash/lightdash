@@ -10,7 +10,10 @@ import * as warehouses from '@lightdash/warehouses';
 import * as deadline from '../../auth/databricksOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
-import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
+import {
+    RefreshTokenRotation,
+    RefreshTokenSourceChangedError,
+} from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import {
     connectionContextFromUser,
     WarehouseCredentialKind,
@@ -21,6 +24,10 @@ import {
     type PreparedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
 import type { CredentialResolverRegistry } from '../WarehouseClientFactory/CredentialResolverRegistry';
+import type {
+    WarehouseCredentialBase,
+    WarehouseCredentialResolutionContext,
+} from '../WarehouseClientFactory/WarehouseCredentialSource';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields } from './ProjectService.mock';
 
@@ -95,6 +102,14 @@ const setup = (
             userUuid: string,
             organizationUuid: string,
         ) => Promise<{ warehouseConnection: MaterializedCredentials }>;
+        finishSingleRouteCredentials: (
+            base: Extract<WarehouseCredentialBase, { kind: 'original' }>,
+            context: WarehouseCredentialResolutionContext,
+        ) => Promise<MaterializedCredentials>;
+        finishCompileCredentials: (
+            base: Exclude<WarehouseCredentialBase, { kind: 'final' }>,
+            context: WarehouseCredentialResolutionContext,
+        ) => Promise<MaterializedCredentials>;
         prepareLegacyCompileCredentials: (
             input: typeof project,
             user: typeof actor,
@@ -431,3 +446,138 @@ test('M2M legacy compile with client credentials stays unlocked', async () => {
     );
     expect(f.run).not.toHaveBeenCalled();
 });
+
+describe.each(['query', 'compile', 'legacy compile'] as const)(
+    '%s sparse personal U2M credentials',
+    (entry) => {
+        const resolve = (f: ReturnType<typeof setup>) =>
+            entry === 'legacy compile'
+                ? f.probe.prepareLegacyCompileCredentials(f.project, actor)
+                : f.probe[
+                      entry === 'compile'
+                          ? 'finishCompileCredentials'
+                          : 'finishSingleRouteCredentials'
+                  ](
+                      {
+                          kind: 'original',
+                          projectUuid: 'project',
+                          organizationUuid: 'org',
+                          organizationWarehouseCredentialsUuid: null,
+                          warehouseConnectionUuid: null,
+                          connectionRoute: null,
+                          credentials: {
+                              ...f.project.warehouseConnection,
+                              requireUserCredentials: true,
+                          },
+                      },
+                      connectionContextFromUser(actor, {
+                          organizationUuid: 'org',
+                          queryContext: null,
+                      }),
+                  );
+
+        test.each(
+            [true, false].flatMap((enabled) =>
+                ['host', 'client', 'both'].map((missing) => ({
+                    enabled,
+                    missing,
+                })),
+            ),
+        )(
+            'inherits missing $missing with lock $enabled',
+            async ({ enabled, missing }) => {
+                const f = setup(enabled);
+                f.project.warehouseConnection.refreshToken = undefined;
+                const personal = {
+                    uuid: 'user-row',
+                    credentials: {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        refreshToken: 'person-refresh',
+                        ...(missing === 'client'
+                            ? { serverHostName: credentials.serverHostName }
+                            : {}),
+                        ...(missing === 'host'
+                            ? { oauthClientId: 'person-client' }
+                            : {}),
+                    },
+                };
+                f.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
+                    personal,
+                );
+                f.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                    personal,
+                );
+                const result = await resolve(f);
+                expect(result).toMatchObject({
+                    token: 'fresh-access',
+                    refreshToken: 'rotated-refresh',
+                });
+                expect(
+                    enabled ? f.lockedExchange : f.exchange,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    credentials.serverHostName,
+                    missing === 'host' ? 'person-client' : 'cli-client',
+                    'person-refresh',
+                    undefined,
+                );
+                expect(
+                    f.userWarehouseCredentialsModel.rotateRefreshToken,
+                ).toHaveBeenCalledTimes(
+                    enabled || entry !== 'legacy compile' ? 1 : 0,
+                );
+                expect(
+                    f.projectModel.rotateRefreshToken,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each(['host', 'client', 'mode'] as const)(
+            'rejects a real personal %s replacement',
+            async (field) => {
+                const f = setup(true);
+                f.project.warehouseConnection.refreshToken = undefined;
+                const personal = {
+                    uuid: 'user-row',
+                    credentials: {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        refreshToken: 'person-refresh',
+                    },
+                };
+                f.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
+                    personal,
+                );
+                f.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                    {
+                        ...personal,
+                        credentials: {
+                            ...personal.credentials,
+                            ...(field === 'host'
+                                ? { serverHostName: 'replacement.example.com' }
+                                : {}),
+                            ...(field === 'client'
+                                ? { oauthClientId: 'replacement-client' }
+                                : {}),
+                            ...(field === 'mode'
+                                ? {
+                                      authenticationType:
+                                          DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                                  }
+                                : {}),
+                        },
+                    },
+                );
+                await expect(resolve(f)).rejects.toBeInstanceOf(
+                    RefreshTokenSourceChangedError,
+                );
+                expect(f.lockedExchange).not.toHaveBeenCalled();
+                expect(
+                    f.userWarehouseCredentialsModel.rotateRefreshToken,
+                ).not.toHaveBeenCalled();
+            },
+        );
+    },
+);

@@ -862,3 +862,90 @@ describe('Databricks client selection and save', () => {
         expect(f.run).not.toHaveBeenCalled();
     });
 });
+
+test.each([1, 2])(
+    'attributes the attempted reread token for %s caller(s) of a failed flight',
+    async (callers) => {
+        const f = setup(true);
+        const stored = {
+            ...f.input.connection,
+            refreshToken: 'current-refresh',
+        };
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
+            stored,
+        );
+        const attributed = new DatabricksTokenError(
+            'The shared sign-in must reconnect',
+        );
+        f.deps.attributeSharedSignInExpiry.mockImplementation(
+            async (_uuid, connection, error) => {
+                if (connection.refreshToken === stored.refreshToken)
+                    throw attributed;
+                throw error;
+            },
+        );
+        const pending =
+            deferred<
+                Awaited<
+                    ReturnType<typeof warehouses.refreshDatabricksOAuthToken>
+                >
+            >();
+        f.lockedExchange.mockReturnValue(pending.promise);
+        const requests = [f.resolver.resolve(f.input)];
+        await vi.waitFor(() => expect(f.lockedExchange).toHaveBeenCalledOnce());
+        if (callers === 2) {
+            requests.push(
+                f.resolver.resolve({
+                    ...f.input,
+                    connection: {
+                        ...f.input.connection,
+                        refreshToken: 'another-selected-refresh',
+                    },
+                }),
+            );
+            await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
+        }
+        const outcomes = Promise.allSettled(requests);
+        pending.reject(new Error('invalid_grant'));
+        expect(await outcomes).toEqual(
+            Array.from({ length: callers }, () => ({
+                status: 'rejected',
+                reason: attributed,
+            })),
+        );
+        expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
+            credentials.serverHostName,
+            'config-client',
+            'current-refresh',
+            'config-secret',
+        );
+        expect(f.deps.attributeSharedSignInExpiry).toHaveBeenCalledTimes(
+            callers,
+        );
+        expect(f.deps.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    },
+);
+
+test('rejects removal of a personal client when it changes the effective client', async () => {
+    const f = setup(true);
+    const personal = { ...credentials, oauthClientId: 'person-client' };
+    f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+        { credentials },
+    );
+    await expect(
+        f.resolver.resolve({
+            ...f.input,
+            connection: personal,
+            owner: {
+                kind: 'user',
+                uuid: 'user-row',
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            },
+            refreshSource: {
+                credentials: personal,
+                fallback: f.input.connection,
+            },
+        }),
+    ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+    expect(f.lockedExchange).not.toHaveBeenCalled();
+});

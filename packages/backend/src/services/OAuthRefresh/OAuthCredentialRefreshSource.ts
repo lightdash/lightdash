@@ -29,7 +29,7 @@ export type OAuthRefreshSourceCredentials =
     | UserWarehouseCredentialsWithSecrets['credentials'];
 type OAuthRefreshSelection<C> = Pick<
     CredentialSelection<C>,
-    'connection' | 'context' | 'projectUuid'
+    'connection' | 'context' | 'projectUuid' | 'refreshSource'
 >;
 
 export type OAuthCredentialRefreshSourceDependencies = {
@@ -64,7 +64,11 @@ export class OAuthCredentialRefreshSource<
             isCredential: (
                 credentials: OAuthRefreshSourceCredentials,
             ) => credentials is C;
-            matchesIdentity?: (current: C, selected: C) => boolean;
+            matchesIdentity?: (
+                current: C,
+                selected: C,
+                source: CredentialSelection<C>['refreshSource'],
+            ) => boolean;
         },
     ) {}
 
@@ -151,7 +155,11 @@ export class OAuthCredentialRefreshSource<
             if (!this.policy.isCredential(credentials)) return null;
             if (
                 this.policy.matchesIdentity &&
-                !this.policy.matchesIdentity(credentials, input.connection)
+                !this.policy.matchesIdentity(
+                    credentials,
+                    input.connection,
+                    input.refreshSource,
+                )
             ) {
                 throw new RefreshTokenSourceChangedError();
             }
