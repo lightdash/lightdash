@@ -445,7 +445,7 @@ export const buildMapAriaLabel = ({
                 : SPOKEN_KINDS[kind](count),
         )
         .join(', ')}`;
-    const dots = `each dot is a person, coloured by ${colouring}${totals.shared > 0 ? '. A person in several departments has a ringed dot in each' : ''}`;
+    const dots = `each dot is a person, coloured by ${colouring}${totals.shared > 0 ? '. A person who counts in several departments has a ringed dot in each' : ''}`;
     const encoding = areDotsHidden
         ? 'Each circle is a department sized by headcount'
         : `Each circle is a department sized by headcount and ${dots}`;

@@ -314,6 +314,16 @@ describe('buildDepartmentMembers', () => {
             primaryDepartmentUuid: null,
         });
     });
+    it('leaves out a placement in a department missing from the tree, so it never rings a dot or prints an empty name', () => {
+        const [person] = buildFor('ops', [
+            member('gone', [explicit('deleted'), viaGroup('stores')]),
+        ]);
+        expect(person).toMatchObject({
+            departmentUuid: 'stores',
+            departmentName: 'Stores',
+            sharedWith: [],
+        });
+    });
     it('names one sub-department for a person counted in two of them, and the other as also in', () => {
         const split = member('split', [viaGroup('depots'), viaGroup('stores')]);
         expect(buildFor('ops', [split])[0]).toMatchObject({

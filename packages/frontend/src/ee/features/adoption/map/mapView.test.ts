@@ -722,7 +722,7 @@ describe('buildMapAriaLabel', () => {
                 hasHeadcount: true,
             }),
         ).toBe(
-            'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 1 at risk, 4 lost, 28 with no account. A person in several departments has a ringed dot in each. The List view has the same numbers as a table',
+            'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 1 at risk, 4 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
         );
         // Without dots there are no rings to explain
         expect(

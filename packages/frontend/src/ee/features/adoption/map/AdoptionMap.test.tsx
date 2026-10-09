@@ -1930,7 +1930,7 @@ describe('AdoptionMap', () => {
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('img', {
-                    name: 'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 0 at risk, 5 lost, 28 with no account. A person in several departments has a ringed dot in each. The List view has the same numbers as a table',
+                    name: 'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 0 at risk, 5 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
                 }),
             ).toBeInTheDocument();
             expect(
@@ -1938,8 +1938,21 @@ describe('AdoptionMap', () => {
                     name: 'Depots, 3 of 10 on Lightdash, 1 active in the last 30 days, 2 also in another department',
                 }),
             ).toBeInTheDocument();
-            // Coloured by role too: the departments add up to 9 viewers, the people placed are 8
+            // Coloured by role too, the panel and the legend alike: the departments add up to 9 viewers, the people placed are 8
             fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(
+                within(details())
+                    .getAllByText(
+                        /^(Admin|Editor|Interactive viewer|Viewer|No account) [\d,]+$/,
+                    )
+                    .map((node) => node.textContent),
+            ).toEqual([
+                'Admin 0',
+                'Editor 0',
+                'Interactive viewer 0',
+                'Viewer 8',
+                'No account 28',
+            ]);
             expect(legendCounts()).toEqual([
                 { label: 'Admin', count: 0 },
                 { label: 'Editor', count: 0 },
@@ -1959,40 +1972,37 @@ describe('AdoptionMap', () => {
                 [...drawn(container, `[data-user="${userUuid}"]`)].map((dot) =>
                     dot.getAttribute('data-circle'),
                 );
-            expect(circleOf('sam')).toHaveLength(2);
-            expect(circleOf('sam')).toEqual(
-                expect.arrayContaining(['Depots', 'Stores']),
-            );
+            const sorted = (values: (string | null)[]) =>
+                [...values].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
+            expect(sorted(circleOf('sam'))).toEqual(['Depots', 'Stores']);
             expect(circleOf('fay')).toEqual(['Depots']);
             expect(circleOf('pat')).toEqual(['Stores']);
             expect(
-                [...drawn(container, '[data-dot][data-shared]')].map((dot) =>
-                    dot.getAttribute('data-user'),
+                sorted(
+                    [...drawn(container, '[data-dot][data-shared]')].map(
+                        (dot) => dot.getAttribute('data-user'),
+                    ),
                 ),
-            ).toEqual(expect.arrayContaining(['sam', 'sam', 'fay']));
-            expect(drawn(container, '[data-dot][data-shared]')).toHaveLength(3);
+            ).toEqual(['fay', 'sam', 'sam']);
             // Sam is one of Depots' 3 people, so the grey rings stay Ops' 23 without an account
             expect(drawn(container, '[data-dot="noAccount"]')).toHaveLength(23);
             expect(drawn(container, '[data-dot]')).toHaveLength(30);
             expect(
-                within(screen.getByRole('list', { name: 'People on the map' }))
-                    .getAllByRole('button')
-                    .map((button) => button.textContent),
-            ).toEqual(
-                expect.arrayContaining([
-                    'Sue Stone',
-                    'Stan Stone',
-                    'Sam Shared',
-                    'Pat Primary',
-                    'Dan Depot',
-                    'Fay Field',
-                ]),
-            );
-            expect(
-                within(
-                    screen.getByRole('list', { name: 'People on the map' }),
-                ).getAllByRole('button'),
-            ).toHaveLength(6);
+                sorted(
+                    within(
+                        screen.getByRole('list', { name: 'People on the map' }),
+                    )
+                        .getAllByRole('button')
+                        .map((button) => button.textContent),
+                ),
+            ).toEqual([
+                'Dan Depot',
+                'Fay Field',
+                'Pat Primary',
+                'Sam Shared',
+                'Stan Stone',
+                'Sue Stone',
+            ]);
             expect(
                 screen.getByRole('img', {
                     name: /^Map of Ops: 2 sub-departments, 29 people, 6 on Lightdash, 2 active in the last 30 days, 2 also in another department\./,

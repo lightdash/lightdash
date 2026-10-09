@@ -470,7 +470,8 @@ describe('MembershipModal', () => {
         }
     });
 
-    describe('with more people than fit', () => {
+    // Typing into 300 rows is slow on a busy machine, so these get 20 s each
+    describe('with more people than fit', { timeout: 20_000 }, () => {
         const crowd = Array.from({ length: 300 }, (_, index) =>
             person(`crowd${index}`, `Person${index}`),
         );

@@ -124,9 +124,12 @@ export const buildDepartmentMembers = (input: {
                 ),
                 queries30d: row?.queries30d ?? 0,
                 dashboardViews30d: row?.dashboardViews30d ?? 0,
+                // Only departments of the tree, as the counts read them, so a placement outside it never shows
                 sharedWith: member.placements
                     .filter(
-                        (p) => p.departmentUuid !== placement.departmentUuid,
+                        (p) =>
+                            p.departmentUuid !== placement.departmentUuid &&
+                            names.has(p.departmentUuid),
                     )
                     .map((p) => ({
                         departmentUuid: p.departmentUuid,
