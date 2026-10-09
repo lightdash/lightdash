@@ -1,3 +1,16 @@
+# [2.496.0](https://github.com/lightdash/lightdash/compare/2.495.3...2.496.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **content-as-code:** accept SQL charts in the chart-as-code schema ([#30739](https://github.com/lightdash/lightdash/issues/30739)) ([62c7f4d](https://github.com/lightdash/lightdash/commit/62c7f4dd2c8a213b58f757da0476cf38fab7f828))
+
+
+### Features
+
+* **ai-agent:** create and read SQL charts from the agent ([#30699](https://github.com/lightdash/lightdash/issues/30699)) ([672b021](https://github.com/lightdash/lightdash/commit/672b021f23fc8b6c76bbd3fba3cc64621c847e3d))
+* **ai-agent:** edit SQL charts from the agent with SQL re-approval ([#30700](https://github.com/lightdash/lightdash/issues/30700)) ([3ac3bc0](https://github.com/lightdash/lightdash/commit/3ac3bc0c2dcb1f416dfe077eb574cd5f7c2876f8))
+
 ## [2.495.3](https://github.com/lightdash/lightdash/compare/2.495.2...2.495.3) (2026-10-09)
 
 
