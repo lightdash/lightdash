@@ -44,7 +44,7 @@ export type AiCreditHold = {
     releasedAt: Date | null;
 };
 
-// Without an entitlement, usage is reported by UTC calendar month.
+// Without a contract, usage is reported by UTC calendar month.
 export const getCalendarMonthPeriod = (at: Date): AiCreditPeriod => {
     const year = at.getUTCFullYear();
     const month = at.getUTCMonth();
