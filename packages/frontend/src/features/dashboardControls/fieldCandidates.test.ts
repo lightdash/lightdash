@@ -10,7 +10,6 @@ import { describe, expect, it } from 'vitest';
 import {
     getCandidateOptions,
     getFieldCandidates,
-    getGrainKey,
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
@@ -47,6 +46,8 @@ const customerStatus = dimension('status', 'Status', {
 });
 const createdDay = grain('created_day', 'Created day', TimeFrames.DAY);
 const createdMonth = grain('created_month', 'Created month', TimeFrames.MONTH);
+const createdWeek = grain('created_week', 'Created week', TimeFrames.WEEK);
+const created = dimension('created', 'Created', { type: DimensionType.DATE });
 const shipped = dimension('shipped', 'Shipped', { type: DimensionType.DATE });
 const all = [
     status,
@@ -59,14 +60,6 @@ const all = [
 ];
 const ids = (fields: DashboardFilterableField[]) =>
     fields.map((field) => `${field.table}_${field.name}`);
-
-describe('getGrainKey', () => {
-    it('is shared by every grain of a time dimension', () => {
-        expect(getGrainKey(createdDay)).toBe('orders.created');
-        expect(getGrainKey(createdMonth)).toBe('orders.created');
-        expect(getGrainKey(status)).toBe('orders.status');
-    });
-});
 
 describe('getFieldCandidates', () => {
     it('keeps the fields of the type that the filter does not have', () => {
@@ -94,35 +87,37 @@ describe('getTileFieldCandidateIds', () => {
                 [status, region, amount, customerStatus],
                 ['orders_status'],
                 status,
-                all,
             ),
         ).toEqual(['customers_status', 'orders_region']);
     });
 
-    it('folds the grains of a date into the day grain', () => {
+    it('lists every grain of a date, base field first, then in time frame order', () => {
         expect(
             getTileFieldCandidateIds(
-                [createdMonth, createdDay, shipped],
+                [shipped, createdMonth, createdDay, created, createdWeek],
                 ['orders_shipped'],
                 createdDay,
-                all,
             ),
-        ).toEqual(['orders_created_day']);
+        ).toEqual([
+            'orders_created',
+            'orders_created_day',
+            'orders_created_week',
+            'orders_created_month',
+        ]);
     });
 
-    it('offers no other grain of a date the filter already has', () => {
+    it('offers another grain of a date the filter already has', () => {
         expect(
             getTileFieldCandidateIds(
-                [createdDay, shipped],
+                [createdDay, createdMonth, shipped],
                 ['orders_created_month'],
                 createdMonth,
-                all,
             ),
-        ).toEqual(['orders_shipped']);
+        ).toEqual(['orders_created_day', 'orders_shipped']);
     });
 
     it('lists nothing for a tile with no fields', () => {
-        expect(getTileFieldCandidateIds([], [], status, all)).toEqual([]);
+        expect(getTileFieldCandidateIds([], [], status)).toEqual([]);
     });
 });
 
@@ -171,9 +166,9 @@ describe('metrics on a tile', () => {
     const profit = metric('profit', 'Profit');
 
     it('are not offered to a filter on a dimension', () => {
-        expect(
-            getTileFieldCandidateIds([amount, revenue], [], amount, [amount]),
-        ).toEqual(['orders_amount']);
+        expect(getTileFieldCandidateIds([amount, revenue], [], amount)).toEqual(
+            ['orders_amount'],
+        );
     });
 
     it('are what a filter on a metric is offered', () => {
@@ -182,7 +177,6 @@ describe('metrics on a tile', () => {
                 [amount, revenue, profit],
                 ['orders_revenue'],
                 revenue,
-                [revenue],
             ),
         ).toEqual(['orders_profit']);
     });
@@ -196,6 +190,16 @@ describe('metrics on a tile', () => {
             'orders_status',
         ]);
     });
+
+    it('start a control from any grain of a date', () => {
+        expect(
+            getTileStarterFieldIds([status, createdMonth, createdDay], false),
+        ).toEqual([
+            'orders_created_day',
+            'orders_created_month',
+            'orders_status',
+        ]);
+    });
 });
 
 describe('getCandidateOptions', () => {
@@ -203,16 +207,17 @@ describe('getCandidateOptions', () => {
         all.map((field) => [`${field.table}_${field.name}`, field]),
     );
 
-    it('labels a candidate like the filter fields, a date by its base name', () => {
+    it('labels a candidate by its own label, a grain included', () => {
         expect(
             getCandidateOptions(
-                ['orders_region', 'orders_created_day'],
+                ['orders_region', 'orders_created_day', 'orders_created_month'],
                 ['Status'],
                 fieldsMap,
             ),
         ).toEqual([
             { value: 'orders_region', label: 'Region' },
-            { value: 'orders_created_day', label: 'Created' },
+            { value: 'orders_created_day', label: 'Created day' },
+            { value: 'orders_created_month', label: 'Created month' },
         ]);
     });
 

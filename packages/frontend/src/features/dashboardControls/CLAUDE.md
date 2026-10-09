@@ -303,8 +303,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   is passed as a plain list with no label. The second group of a filter control is every other field the
   tile offers that the filter could take
   (`fieldCandidates.ts`, the rule "Add a field" in the sidebar uses: same
-  kind, not already a row, one grain per date; grains folded to one entry,
-  the table label added where two entries read the same). Choosing one is the
+  kind, not already a row; the table label added where two entries read the
+  same). Every time grain is an entry under its own label, as in the shipped
+  field selects: another grain of a date the filter is on is offered. Entries
+  are sorted by table, then by base date or field name, the grains of one
+  date together in `sortTimeFrames` order with the base field first. Choosing one is the
   same write as any other choice, `setTileField` for this tile only, and by
   the model that is what adds the field to the filter. SQL chart tiles have no
   second group. The dropdown is searchable when the second group has entries
@@ -313,8 +316,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   A tile is reachable when it offers a filterable field; SQL chart tiles are
   not. A reachable tile is `available` with "Not filtered" and an empty
   select ("Select a field"); none is `mapped` or `other`. The list is the
-  tile's fields of every kind (`getTileStarterFieldIds`: grains folded,
-  sorted and labelled like the candidates), as one plain list.
+  tile's fields of every kind (`getTileStarterFieldIds`: every grain an
+  entry, sorted and labelled like the candidates), as one plain list.
   `TileOverlays` builds these per tile
   in one `useMemo` keyed on the dashboard, and names the select "New control
   on <tile>", so typing the label re-renders no card.

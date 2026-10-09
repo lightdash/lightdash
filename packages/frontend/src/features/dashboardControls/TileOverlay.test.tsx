@@ -89,6 +89,19 @@ const customerStatusField: FilterableDimension = {
     tableLabel: 'Customers',
 };
 
+const dateGrain = (
+    interval: TimeFrames,
+    label: string,
+): FilterableDimension => ({
+    ...dimension(`created_${interval.toLowerCase()}`, label),
+    type: DimensionType.DATE,
+    timeInterval: interval,
+    timeIntervalBaseDimensionName: 'created',
+});
+const createdDay = dateGrain(TimeFrames.DAY, 'Created day');
+const createdWeek = dateGrain(TimeFrames.WEEK, 'Created week');
+const createdMonth = dateGrain(TimeFrames.MONTH, 'Created month');
+
 const tile = (
     uuid: string,
     tabUuid: string,
@@ -643,6 +656,83 @@ describe('TileOverlays', () => {
             });
         });
 
+        describe('on a date with time grains', () => {
+            beforeEach(() => {
+                mockDashboardContext.current = {
+                    ...mockDashboardContext.current,
+                    dashboardTiles: [both, statusOnly],
+                    allFilterableFieldsMap: {
+                        orders_status: statusField,
+                        orders_created_day: createdDay,
+                        orders_created_week: createdWeek,
+                        orders_created_month: createdMonth,
+                    },
+                    filterableFieldsByTileUuid: {
+                        [both.uuid]: [
+                            createdMonth,
+                            statusField,
+                            createdWeek,
+                            createdDay,
+                        ],
+                        [statusOnly.uuid]: [statusField],
+                    },
+                };
+                setSidebar({
+                    editingRule: rule({
+                        target: {
+                            fieldId: 'orders_created_day',
+                            tableName: 'orders',
+                        },
+                    }),
+                });
+            });
+
+            it('names the tile by the grain it is filtered by', () => {
+                renderWithProviders(<TileOverlays />);
+
+                expect(select(both.uuid)).toHaveTextContent('Created day');
+                expect(select(both.uuid)).toHaveAccessibleName(
+                    'Created day on Title tile-both',
+                );
+            });
+
+            it('lists each other grain of the date the filter is on', async () => {
+                renderWithProviders(<TileOverlays />);
+
+                await userEvent.click(select(both.uuid));
+
+                expect(allOptions()).toEqual([
+                    'Created day',
+                    'Created week',
+                    'Created month',
+                ]);
+                expect(groupOptions()).toEqual([
+                    'Created week',
+                    'Created month',
+                ]);
+            });
+
+            it('writes the chosen grain to this tile', async () => {
+                renderWithProviders(<TileOverlays />);
+
+                await userEvent.click(select(both.uuid));
+                await userEvent.click(
+                    screen.getByRole('option', {
+                        name: 'Created month',
+                        hidden: true,
+                    }),
+                );
+
+                expect(updateFilter).toHaveBeenCalledTimes(1);
+                expect(updateFilter.mock.calls[0][0].tileTargets).toEqual({
+                    [both.uuid]: {
+                        fieldId: 'orders_created_month',
+                        tableName: 'orders',
+                    },
+                });
+            });
+        });
+
         it('lists a field that joined the filter in the first group of the other tiles', async () => {
             const third = tile('tile-third', 'tab-1');
             const element = document.createElement('div');
@@ -953,17 +1043,6 @@ describe('TileOverlays', () => {
     describe('a new control with no field yet', () => {
         const placeholder = (label?: string) =>
             rule({ label, target: { fieldId: '', tableName: '' } });
-        const dateGrain = (
-            interval: TimeFrames,
-            label: string,
-        ): FilterableDimension => ({
-            ...dimension(`created_${interval.toLowerCase()}`, label),
-            type: DimensionType.DATE,
-            timeInterval: interval,
-            timeIntervalBaseDimensionName: 'created',
-        });
-        const createdDay = dateGrain(TimeFrames.DAY, 'Created day');
-        const createdMonth = dateGrain(TimeFrames.MONTH, 'Created month');
         const newRenders = (tileUuid: string) =>
             renderCounts.current[`New control on Title ${tileUuid}`] ?? 0;
         const allOptions = () =>
@@ -1056,14 +1135,15 @@ describe('TileOverlays', () => {
             expect(overlay(sql.uuid)).toBeEmptyDOMElement();
         });
 
-        it('lists the fields of every kind with one entry per date, as one plain list', async () => {
+        it('lists the fields of every kind, each grain of a date included, as one plain list', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
 
             expect(allOptions()).toEqual([
                 'Amount',
-                'Created',
+                'Created day',
+                'Created month',
                 'Region',
                 'Status',
             ]);
@@ -1108,15 +1188,15 @@ describe('TileOverlays', () => {
             expect(allOptions()).toEqual(['Customers Status', 'Orders Status']);
         });
 
-        it('starts the filter from the chosen field on this tile, with the grain the sidebar would pick', async () => {
+        it('starts the filter from the chosen grain on this tile', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
-            await choose('Created');
+            await choose('Created month');
 
             expect(addFirstFieldOnTile).toHaveBeenCalledTimes(1);
             expect(addFirstFieldOnTile).toHaveBeenCalledWith(
-                createdDay,
+                createdMonth,
                 both.uuid,
             );
             expect(updateFilter).not.toHaveBeenCalled();

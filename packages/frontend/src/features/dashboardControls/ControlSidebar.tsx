@@ -3,7 +3,6 @@ import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
-import { getFieldDisplayLabel } from './fieldGrains';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import {
     getFilterFields,
@@ -48,10 +47,6 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             {removeArmed ? 'Click again to remove' : 'Remove filter'}
         </Menu.Item>
     );
-    const allFilterableFields = useDashboardContext(
-        (c) => c.allFilterableFields,
-    );
-
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
@@ -104,9 +99,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
 
     // A dimension or a metric, as the shipped bar resolves it
     const field = useFilterRuleField(filterRule);
-    const fieldLabel = field
-        ? getFieldDisplayLabel(field, allFilterableFields ?? [])
-        : null;
+    const fieldLabel = field?.label ?? null;
     const hasLabel = label.draft.trim() !== '';
     // What the bar shows for a filter with no label: its field's name, or
     // the column's for a SQL column filter

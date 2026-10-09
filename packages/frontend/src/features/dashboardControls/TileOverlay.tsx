@@ -23,7 +23,6 @@ import {
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
-import { getFieldDisplayLabel } from './fieldGrains';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
@@ -63,12 +62,8 @@ type FieldsMap = Record<string, DashboardFilterableField>;
 // The fields a new control can start from, by tile
 const NO_STARTERS_BY_TILE: Record<string, string[]> = {};
 
-const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string => {
-    const field = fieldsMap[fieldId];
-    return field
-        ? getFieldDisplayLabel(field, Object.values(fieldsMap))
-        : fieldId;
-};
+const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
+    fieldsMap[fieldId]?.label ?? fieldId;
 
 const getTileTitle = (tile: DashboardTile): string => {
     if (tile.properties.title) return tile.properties.title;
@@ -425,7 +420,6 @@ export const TileOverlays: FC = () => {
     const candidatesByTile = useMemo(() => {
         if (targetField === undefined) return {};
         const takenFieldIds = takenKey === '' ? [] : takenKey.split('\n');
-        const knownFields = Object.values(fieldsMap);
         return Object.fromEntries(
             tiles
                 .filter(
@@ -437,18 +431,10 @@ export const TileOverlays: FC = () => {
                         fieldsByTile?.[tile.uuid] ?? [],
                         takenFieldIds,
                         targetField,
-                        knownFields,
                     ),
                 ]),
         );
-    }, [
-        takenKey,
-        targetField,
-        tiles,
-        fieldsByTile,
-        fieldsMap,
-        sqlColumnsByTile,
-    ]);
+    }, [takenKey, targetField, tiles, fieldsByTile, sqlColumnsByTile]);
 
     // Keyed on the dashboard, not the placeholder: typing its label hands
     // every tile the lists it already had
