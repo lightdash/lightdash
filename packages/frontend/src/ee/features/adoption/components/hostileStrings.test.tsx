@@ -12,6 +12,7 @@ import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
+import { DotSwatch } from '../map/MapLegend';
 import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import {
     getCoverageRows,
@@ -242,6 +243,7 @@ describe('typed strings render as text', () => {
                         departmentName: NAME,
                     })}
                     canManage
+                    keySwatch={DotSwatch}
                     onDepartmentClick={vi.fn()}
                     onClearMember={vi.fn()}
                     onEdit={vi.fn()}

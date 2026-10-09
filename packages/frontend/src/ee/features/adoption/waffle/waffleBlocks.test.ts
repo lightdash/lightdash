@@ -165,8 +165,22 @@ describe('buildWaffleBlocks', () => {
 
 describe('waffle wording', () => {
     it('writes the counts line with thousands separators', () => {
-        expect(formatCounts(834, 1900, 495)).toBe('834 of 1,900 · 495 active');
-        expect(formatCounts(14, null, 10)).toBe('14 on Lightdash · 10 active');
+        expect(formatCounts(834, 1900, 495, true)).toBe(
+            '834 of 1,900 · 495 active',
+        );
+        expect(formatCounts(834, 1900, 495, false)).toBe(
+            '834 of 1,900 · 495 active',
+        );
+    });
+
+    it('asks for a headcount in the counts line where none is set, as the panel does', () => {
+        // To people who can add one, and in words to everyone else
+        expect(formatCounts(14, null, 10, true)).toBe(
+            '14 on Lightdash · Add headcount',
+        );
+        expect(formatCounts(14, null, 10, false)).toBe(
+            '14 on Lightdash · No headcount',
+        );
     });
 
     it('labels a part with its name and how many of its headcount are on Lightdash', () => {
@@ -188,8 +202,9 @@ describe('waffle wording', () => {
         expect(describeCounts('Sales', 420, 760, 252)).toBe(
             'Sales, 420 of 760 on Lightdash, 252 active',
         );
+        // Ending as the map's description does where no headcount is set
         expect(describeCounts('Product', 1, null, 1)).toBe(
-            'Product, 1 on Lightdash, 1 active',
+            'Product, 1 on Lightdash, 1 active, no headcount set',
         );
     });
 });

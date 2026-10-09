@@ -1,5 +1,6 @@
 import { getChildrenMap, type DepartmentWithMetrics } from '@lightdash/common';
 import { countBucketPeople, type PeopleBucket } from '../map/geometry';
+import { getMissingHeadcountWord } from '../utils/departmentRows';
 import { formatCount } from '../utils/format';
 import { getDirectHeadcount } from '../utils/headcount';
 
@@ -123,13 +124,15 @@ const formatPeople = (members: number, headcount: number | null): string =>
         ? `${formatCount(members)} on Lightdash`
         : `${formatCount(members)} of ${formatCount(headcount)}`;
 
-// A block's counts line, and the second line of every tooltip: "834 of 1,900 · 495 active"
+// A block's counts line, and the second line of every tooltip: "834 of 1,900 · 495 active". Without a headcount
+// anywhere in the department it asks for one instead, as the panel does: "14 on Lightdash · Add headcount"
 export const formatCounts = (
     members: number,
     headcount: number | null,
     active: number,
+    canManage: boolean,
 ): string =>
-    `${formatPeople(members, headcount)} · ${formatCount(active)} active`;
+    `${formatPeople(members, headcount)} · ${headcount === null ? getMissingHeadcountWord(canManage) : `${formatCount(active)} active`}`;
 
 // A part's label: "Sales · 420 of 760"
 export const formatPartLabel = (
@@ -137,11 +140,14 @@ export const formatPartLabel = (
 ): string =>
     `${part.name} · ${formatPeople(part.people.metrics.memberCount, part.people.headcount)}`;
 
-// What a screen reader hears for a block or a part: "Sales, 420 of 760 on Lightdash, 252 active"
+// What a screen reader hears for a block or a part: "Sales, 420 of 760 on Lightdash, 252 active", ending
+// "no headcount set" as the map's descriptions do where there is none
 export const describeCounts = (
     name: string,
     members: number,
     headcount: number | null,
     active: number,
 ): string =>
-    `${name}, ${formatPeople(members, headcount)}${headcount === null ? '' : ' on Lightdash'}, ${formatCount(active)} active`;
+    headcount === null
+        ? `${name}, ${formatPeople(members, headcount)}, ${formatCount(active)} active, no headcount set`
+        : `${name}, ${formatPeople(members, headcount)} on Lightdash, ${formatCount(active)} active`;

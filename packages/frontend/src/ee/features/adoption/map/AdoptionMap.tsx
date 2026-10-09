@@ -33,7 +33,7 @@ import {
 } from './geometry';
 import { MapInspector } from './MapInspector';
 import { estimateTextWidth, layoutMap, type TextMeasurer } from './mapLayout';
-import { MapLegend } from './MapLegend';
+import { DotSwatch, MapLegend } from './MapLegend';
 import {
     buildDots,
     buildMapAriaLabel,
@@ -358,6 +358,7 @@ export const AdoptionMap: FC<Props> = ({
                     rows={rows}
                     member={selectedMember}
                     canManage={canManage}
+                    keySwatch={DotSwatch}
                     onDepartmentClick={focusOn}
                     onClearMember={() => setSelectedUserUuid(null)}
                     onEdit={onEdit}

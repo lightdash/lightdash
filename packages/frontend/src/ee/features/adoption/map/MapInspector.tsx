@@ -28,7 +28,6 @@ import {
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
 import { type DotKind } from './geometry';
-import { DotSwatch } from './MapLegend';
 import { formatMemberActivity, formatPct } from './mapView';
 
 type Props = {
@@ -42,6 +41,8 @@ type Props = {
     rows: CoverageRow[];
     member: DepartmentMember | null;
     canManage: boolean;
+    // The key beside each part of the bar: the view's own mark for those people, a dot on the map
+    keySwatch: FC<{ kind: DotKind }>;
     onDepartmentClick: (departmentUuid: string) => void;
     onClearMember: () => void;
     onEdit: (department: DepartmentWithMetrics) => void;
@@ -49,7 +50,7 @@ type Props = {
 
 type Part = keyof PeopleBreakdown;
 
-// Each part is keyed with the dot the map draws for those people
+// Each part is keyed with the mark the view draws for those people: the map's dots or the waffle's squares
 const LEGEND: { part: Part; dot: DotKind; label: string }[] = [
     { part: 'active', dot: 'active', label: 'Active' },
     {
@@ -129,7 +130,8 @@ const RowEnd: FC<{
 const BreakdownLegend: FC<{
     breakdown: PeopleBreakdown;
     hasHeadcount: boolean;
-}> = ({ breakdown, hasHeadcount }) => (
+    keySwatch: FC<{ kind: DotKind }>;
+}> = ({ breakdown, hasHeadcount, keySwatch: KeySwatch }) => (
     <ul className={styles.legend}>
         {LEGEND.map(({ part, dot, label }) =>
             part === 'noAccount' && !hasHeadcount ? (
@@ -140,7 +142,7 @@ const BreakdownLegend: FC<{
                 </li>
             ) : (
                 <li key={part} className={styles.legendItem}>
-                    <DotSwatch kind={dot} />
+                    <KeySwatch kind={dot} />
                     <Text fz="xs" className={styles.count}>
                         {`${label} ${formatCount(breakdown[part])}`}
                     </Text>
@@ -157,6 +159,7 @@ export const MapInspector: FC<Props> = ({
     rows,
     member,
     canManage,
+    keySwatch,
     onDepartmentClick,
     onClearMember,
     onEdit,
@@ -203,6 +206,7 @@ export const MapInspector: FC<Props> = ({
                     <BreakdownLegend
                         breakdown={breakdown}
                         hasHeadcount={hasHeadcount}
+                        keySwatch={keySwatch}
                     />
                 </Stack>
                 {member !== null && (
