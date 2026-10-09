@@ -1,7 +1,6 @@
 import { Box, Transition } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useEffect, useRef, type FC } from 'react';
-import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import {
@@ -35,19 +34,9 @@ import {
     shouldRenderAiAgentsLauncherContent,
 } from './launcherVisibility';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
+import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useLauncherDock } from './useLauncherDock';
 import { useLauncherPanelSize } from './useLauncherPanelSize';
-
-// Routes opt out of the launcher by setting `handle: { hideAILauncher: true }`
-// on their RouteObject; the flag is inherited by all child routes.
-const useIsLauncherHidden = () => {
-    const matches = useMatches();
-    return matches.some(
-        (m) =>
-            (m.handle as { hideAILauncher?: boolean } | undefined)
-                ?.hideAILauncher,
-    );
-};
 
 export const AiAgentsLauncher: FC = () => {
     const isMobile = useMediaQuery('(max-width: 768px)');

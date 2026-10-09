@@ -376,6 +376,9 @@ describe('AiDataAppPreviewPanel element picker', () => {
             startStreaming({
                 threadUuid: THREAD_UUID,
                 messageUuid: 'active-message',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         const steerRequest = nock('http://test.lightdash')
