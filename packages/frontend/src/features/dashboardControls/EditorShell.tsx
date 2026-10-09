@@ -127,7 +127,7 @@ export const EditorShell: FC<Props> = ({
                             rightSection={
                                 tab.count !== undefined ? (
                                     <Tooltip
-                                        label={`${tab.count} ${tab.count === 1 ? 'item' : 'items'}`}
+                                        label={`${tab.count} ${tab.count === 1 ? 'field' : 'fields'}`}
                                     >
                                         <Text fz="xs" c="dimmed" span>
                                             ({tab.count})

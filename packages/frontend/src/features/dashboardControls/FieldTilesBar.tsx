@@ -83,6 +83,16 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     // Ends the count and each `aria-label`
     const scopeSuffix = hasTabs ? ' on this tab' : '';
     const replacedNames = joinLabels(replacedLabels);
+    // Beside a "Replace" button the count alone would be unclear
+    const mainLabel =
+        replaced > 0
+            ? `Filter ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}`
+            : applied > 0
+              ? `Filter the other ${unfiltered}`
+              : `Filter all ${unfiltered}`;
+    // Starts with the words on the button
+    const mainName = `${mainLabel}${replaced > 0 ? '' : ` ${pluralizeTiles(unfiltered)}`}${scopeSuffix} by ${label}`;
+    const replaceLabel = `Replace ${replacedNames} on ${replaced} ${pluralizeTiles(replaced)}`;
 
     return (
         <Paper
@@ -107,8 +117,8 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                     {possible === 0 ? (
                         <Text fz="sm" c="dimmed" aria-live="polite">
                             {hasTabs
-                                ? 'No tile on this tab has it'
-                                : 'No tile has it'}
+                                ? 'No tile on this tab has this field'
+                                : 'No tile has this field'}
                         </Text>
                     ) : (
                         <Text fz="sm" aria-live="polite">
@@ -123,22 +133,20 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         <Button
                             size="xs"
                             variant="filled"
-                            aria-label={`Filter the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)} by ${label}${scopeSuffix}`}
+                            aria-label={mainName}
                             onClick={() => addToUnfiltered(tileScope)}
                         >
-                            {applied === 0 && replaced === 0
-                                ? `Filter all ${unfiltered}`
-                                : `Filter the other ${unfiltered}`}
+                            {mainLabel}
                         </Button>
                     )}
                     {replaced > 0 && (
                         <Button
                             size="xs"
                             variant="default"
-                            aria-label={`Switch ${replaced} ${pluralizeTiles(replaced)} from ${replacedNames} to ${label}${scopeSuffix}`}
+                            aria-label={`${replaceLabel} with ${label}${scopeSuffix}`}
                             onClick={() => switchFromOthers(tileScope)}
                         >
-                            {`Switch ${replaced} from ${replacedNames}`}
+                            {replaceLabel}
                         </Button>
                     )}
                     {applied > 0 && (
@@ -163,10 +171,10 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         <Button
                             size="xs"
                             variant="subtle"
-                            aria-label={`Filter the ${otherTabsUnfiltered} unfiltered ${pluralizeTiles(otherTabsUnfiltered)} on other tabs by ${label}`}
+                            aria-label={`Filter ${otherTabsUnfiltered} on other tabs by ${label}`}
                             onClick={() => addToUnfiltered('other-tabs')}
                         >
-                            {`+ ${otherTabsUnfiltered} on other tabs`}
+                            {`Filter ${otherTabsUnfiltered} on other tabs`}
                         </Button>
                     </>
                 )}

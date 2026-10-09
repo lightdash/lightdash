@@ -139,17 +139,15 @@ describe('ControlSidebar', () => {
     it('summarises the reach of a filter over every tile', () => {
         setSidebar({});
         const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByText('1 field · reaches 2 of 3 tiles'),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('No mapping yet')).not.toBeInTheDocument();
+        expect(screen.getByText('Filters 2 of 3 tiles')).toBeInTheDocument();
+        expect(screen.queryByText('No field yet')).not.toBeInTheDocument();
 
         setSidebar({
             editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
         });
         rerender(<ControlSidebar />);
         expect(
-            screen.getByText('2 fields · reaches 1 of 3 tiles'),
+            screen.getByText('2 fields · filters 1 of 3 tiles'),
         ).toBeInTheDocument();
     });
 
@@ -160,9 +158,7 @@ describe('ControlSidebar', () => {
         };
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByText('1 field · reaches 1 of 1 tile'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Filters 1 of 1 tile')).toBeInTheDocument();
     });
 
     it('adds the tabs the filter reaches when the dashboard has several', () => {
@@ -174,7 +170,7 @@ describe('ControlSidebar', () => {
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
         expect(
-            screen.getByText('1 field · reaches 2 of 3 tiles on 1 of 2 tabs'),
+            screen.getByText('Filters 2 of 3 tiles on 1 of 2 tabs'),
         ).toBeInTheDocument();
     });
 
@@ -186,9 +182,7 @@ describe('ControlSidebar', () => {
         };
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByText('1 field · reaches 2 of 3 tiles'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Filters 2 of 3 tiles')).toBeInTheDocument();
     });
 
     it('renders nothing when no control is being edited', () => {
@@ -206,16 +200,18 @@ describe('ControlSidebar', () => {
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByText('New control')).toBeInTheDocument();
-        expect(screen.getByText('No mapping yet')).toBeInTheDocument();
-        expect(screen.getByLabelText(/^Label/)).toBeInTheDocument();
+        expect(screen.getByText('New filter')).toBeInTheDocument();
+        expect(screen.getByText('No field yet')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Filter label/)).toBeInTheDocument();
         expect(
-            screen.getByText('Add a field to keep this control'),
+            screen.getByText('Select a field to keep this filter'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Discard control' }),
+            screen.getByRole('button', { name: 'Discard filter' }),
         ).toBeInTheDocument();
-        fireEvent.keyDown(screen.getByLabelText(/^Label/), { key: 'Enter' });
+        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
+            key: 'Enter',
+        });
         expect(close).not.toHaveBeenCalled();
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
@@ -233,10 +229,12 @@ describe('ControlSidebar', () => {
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.queryByText('New control')).not.toBeInTheDocument();
-        expect(screen.getByLabelText(/^Label/)).toHaveValue('Order status');
+        expect(screen.queryByText('New filter')).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/^Filter label/)).toHaveValue(
+            'Order status',
+        );
         expect(
-            screen.getByText('Add a field to keep this control'),
+            screen.getByText('Select a field to keep this filter'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Discard changes' }),
@@ -254,7 +252,7 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         const settings = screen.getByRole('tab', { name: 'Settings' });
-        expect(settings).toHaveAttribute('title', 'Pick a field first');
+        expect(settings).toHaveAttribute('title', 'Select a field first');
         expect(settings).toBeDisabled();
         expect(
             screen.getByRole('tab', { name: /^Fields and tiles/ }),
@@ -294,9 +292,7 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(
-            screen.getByText(
-                'No default value chosen, so the default stays off',
-            ),
+            screen.getByText('No default value set, so the default stays off'),
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
@@ -379,7 +375,7 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Revenue' }),
             ).toBeInTheDocument();
             expect(
-                screen.getByText('1 field · reaches 1 of 3 tiles'),
+                screen.getByText('Filters 1 of 3 tiles'),
             ).toBeInTheDocument();
         });
 
@@ -478,9 +474,7 @@ describe('ControlSidebar', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(close).toHaveBeenCalledTimes(2);
 
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Discard control' }),
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'Discard filter' }));
         expect(discard).toHaveBeenCalledTimes(1);
     });
 

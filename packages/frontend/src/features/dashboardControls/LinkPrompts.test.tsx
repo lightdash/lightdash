@@ -156,7 +156,7 @@ const select = (tileUuid: string, filterLabel = 'Status') =>
         selector: 'input',
     });
 const linkButton = (tileUuid: string) =>
-    card(tileUuid).getByRole('button', { name: 'Link' });
+    card(tileUuid).getByRole('button', { name: 'Apply' });
 
 describe('LinkPrompts', () => {
     beforeEach(() => {
@@ -180,7 +180,7 @@ describe('LinkPrompts', () => {
         renderWithProviders(<LinkPrompts />);
 
         expect(
-            card(added.uuid).getByText('A filter could reach this tile'),
+            card(added.uuid).getByText('This tile can use a filter'),
         ).toBeVisible();
         expect(card(added.uuid).getByText('Status')).toBeVisible();
         expect(select(added.uuid)).toHaveValue('Method');
@@ -205,7 +205,7 @@ describe('LinkPrompts', () => {
         expect(select(added.uuid)).toHaveValue('');
         expect(select(added.uuid)).toHaveAttribute(
             'placeholder',
-            'Pick a field',
+            'Select a field',
         );
         expect(linkButton(added.uuid)).toBeDisabled();
 
@@ -232,7 +232,7 @@ describe('LinkPrompts', () => {
         renderWithProviders(<LinkPrompts />);
 
         expect(
-            card(added.uuid).getByText('Filters that could reach this tile'),
+            card(added.uuid).getByText('This tile can use these filters'),
         ).toBeVisible();
         expect(select(added.uuid, 'Status')).toHaveValue('Method');
         expect(select(added.uuid, 'Second')).toHaveValue('Method');

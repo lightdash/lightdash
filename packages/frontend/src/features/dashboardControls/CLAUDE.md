@@ -169,11 +169,11 @@ In `FilterConfiguration/`:
 - `EditorShell` is the one chrome for the sidebar: title, subtitle, More actions
   menu, a Close X, an `aboveTabs` slot for the label, a tab strip (shown when
   there is more than one tab), body and a footer. The X and "Done" both call
-  `close`; the quiet discard action ("Discard control" for a new one, "Discard
+  `close`; the quiet discard action ("Discard filter" for a new one, "Discard
   changes" once an existing one has changed) calls `discard`. The footer status
   says what closing would drop. Add chrome there.
 - `ControlSidebar` edits the control from `useControlsSidebar`. A placeholder is
-  titled "New control" and cannot be kept until it has a field. Any other
+  titled "New filter" and cannot be kept until it has a field. Any other
   control is titled by its label, or by its field's name while it has none.
 - The label is a local draft (`useLabelDraft`): the title follows the draft,
   and the control gets it after 300ms without typing, on blur, on Enter and
@@ -205,7 +205,7 @@ In `FilterConfiguration/`:
   dimensions, plus metrics under `FeatureFlags.MetricDashboardFilters`.
   - A placeholder shows it inline. When no tile has fields it shows the
     shipped "Select a column to filter" select instead (`SqlColumnSelect`).
-  - "Add a field" mounts it open (`defaultOpened`) and focuses it
+  - "Add another field" mounts it open (`defaultOpened`) and focuses it
     (`AddFieldSearch`) with the fields of exactly the target's type
     (`getFieldCandidates`, the shipped `matchFieldByType`) that are not rows
     yet and that some tile offers: metrics for a metric filter, dimensions
@@ -225,17 +225,17 @@ In `FilterConfiguration/`:
 ## Settings
 
 - `FilterSettings` renders two cards: "Default value" (`FilterValueSettings`)
-  and "Viewer controls" (`ViewerControls`).
+  and "Viewer access" (`ViewerControls`).
 - This layer only exposes what a dashboard can already save: the operator,
   `singleValue`, `disabled` and the rule's values as the default, `required`
   and `requiredGroupId`, and `lockedTabUuids` (the dashboard uuid is the key
   when there are no tabs).
-- Settings is disabled for a placeholder ("Pick a field first"). The tab id
+- Settings is disabled for a placeholder ("Select a field first"). The tab id
   stays `settings`.
 - `FilterValueSettings` renders the shipped settings form
   (`dashboardFilters/FilterConfiguration/FilterSettings.tsx`) in edit mode,
   with `hideLabel` and `hideRequiredCard`. It adds two lines of its own under
-  it: the hint while the default has no value, and the "Not set" note while
+  it: the hint while the default has no value, and the "No default" note while
   the default is off. Operator, value input and default switch are the
   shipped form's; change them there.
 - There is no Apply: every edit the form emits is written at once, through
@@ -268,7 +268,7 @@ In `FilterConfiguration/`:
     that would reach that state is disabled with the shipped message as its
     tooltip: "Required" on a locked filter, each lock switch on a required
     one. Switching either off is always allowed.
-  - "Edit rule →" shows for a filter that shares a rule, when
+  - "Edit rule" shows for a filter that shares a rule, when
     `useFilterBarPopovers()` is there. It closes the editor, then opens the
     bar's "Filter rules", whose button is hidden while the editor is open.
 - Nothing blocks closing. While `isDefaultValueIncomplete(rule)` a hint says
@@ -286,17 +286,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A tile uses exactly one field of the filter, and a field belongs to a filter
   only through a tile mapping (`getFilterFields`).
 - A field on no tile cannot be saved, so it *waits*: `waitingFieldIds` in the
-  provider lists fields added with "Add a field" when every tile they fit
+  provider lists fields added with "Add another field" when every tile they fit
   already had one, and fields that lost their last tile. They show at
   "0 of N tiles", every tile card that could take them offers them, and they
-  are gone when the sidebar closes. "Add a field" offers any field of the
+  are gone when the sidebar closes. "Add another field" offers any field of the
   filter's kind that some tile offers, and clicks the new field only when it
   landed on a tile.
 - "Remove field" is never refused. On a filter's only field it calls
   `removeLastField()`: the control stays open on "pick a field" with its
   label, the fields that were waiting go too, and it leaves the bar until a
   field is picked. Closing it there drops it; "Discard changes" brings it
-  back as it was opened. The editor keeps its title, not "New control".
+  back as it was opened. The editor keeps its title, not "New filter".
 - A card (`FieldRow`) is a legend: icon, name and a trash can on the first
   line, "<table> · x of N tiles" over every tab on the second. A click
   anywhere on it toggles the selection (the name button's `::after` covers the
@@ -353,22 +353,27 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     tabs) and its actions. There is nothing about every tab: no count,
     switch or clear for it.
   - Where no tile of the scope offers the field the count reads "No tile on
-    this tab has it" ("No tile has it" without tabs) and there is no action.
+    this tab has this field" ("No tile has this field" without tabs) and
+    there is no action.
   - Actions, size `xs`: the filled main button when the scope has unfiltered
-    tiles (`applyFieldToUnfilteredTiles`), labelled "Filter all n" when the
-    field is on no tile there and nothing is on another field, else "Filter
-    the other n"; "Switch n from <fields>" (`default`, `switchTilesToField`:
-    only the tiles on another field of the filter, so the two never count
-    the same tile); a subtle gray "Clear" (`removeFieldFromAll`).
-  - With tabs, after a second `Divider`: a subtle "+ m on other tabs" when
-    `otherTabsUnfiltered` is above 0. It is `addToUnfiltered('other-tabs')`:
-    it fills the unfiltered tiles of the tabs that are not active and never
-    this tab's. It shows on a tab with no tile for the field too.
+    tiles (`applyFieldToUnfilteredTiles`). Its label is "Filter n unfiltered
+    tile(s)" when a tile of the scope is on another field, else "Filter the
+    other n" when the field is on a tile there, else "Filter all n".
+    "Replace <fields> on n tile(s)" (`default`, `switchTilesToField`: only
+    the tiles on another field of the filter, so the two never count the
+    same tile); a subtle gray "Clear" (`removeFieldFromAll`).
+  - With tabs, after a second `Divider`: a subtle "Filter m on other tabs"
+    when `otherTabsUnfiltered` is above 0. It is
+    `addToUnfiltered('other-tabs')`: it fills the unfiltered tiles of the
+    tabs that are not active and never this tab's. It shows on a tab with no
+    tile for the field too.
   - A button that would change nothing is not rendered, never disabled.
   - It is a `region` named "Tiles filtered by <field>"; the count sentence
-    is the `aria-live="polite"` element; each button's `aria-label` names
-    the field, the count and the scope ("on this tab", "on other tabs",
-    nothing without tabs).
+    is the `aria-live="polite"` element. A button's `aria-label` starts with
+    the words on the button, then adds the scope and the field: "Filter all
+    3 tiles on this tab by <field>", "Replace <fields> on 2 tiles with
+    <field> on this tab", "Filter 4 on other tabs by <field>" (no "on this
+    tab" without tabs). "Clear" is named "Clear <field> from this tab".
   - Surface: a `Paper` with no border (`withBorder={false}` over the theme
     default), the `xl` shadow and the body background.
   - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
@@ -441,7 +446,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   when two groups have entries: Mantine labels a lone group too, so one group
   is passed as a plain list with no label. The second group of a filter control is every other field the
   tile offers that the filter could take
-  (`fieldCandidates.ts`, the rule "Add a field" in the sidebar uses: same
+  (`fieldCandidates.ts`, the rule "Add another field" in the sidebar uses: same
   kind, not already a row; the table label added where two entries read the
   same). Every time grain is an entry under its own label, as in the shipped
   field selects: another grain of a date the filter is on is offered. Entries
@@ -458,7 +463,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile's fields of every kind (`getTileStarterFieldIds`: every grain an
   entry, sorted and labelled like the candidates), as one plain list.
   `TileOverlays` builds these per tile
-  in one `useMemo` keyed on the dashboard, and names the select "New control
+  in one `useMemo` keyed on the dashboard, and names the select "New filter
   on <tile>", so typing the label re-renders no card.
 - A tile is reachable when it offers one of the filter's fields or a field it
   could add; the second kind shows the empty select and is `available`. A data
@@ -470,7 +475,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - The select has no "Not filtered" entry; the line above it says that. A tile
   the control leaves alone has an empty select with a placeholder ("Select a
   field", "Select a column" on a SQL chart tile). A chosen value has a clear
-  button ("Leave this tile out") that reports `null`: `tileTargets[tileUuid] = false`.
+  button ("Stop filtering this tile") that reports `null`: `tileTargets[tileUuid] = false`.
   The clear button works on the stand-in button without mounting the `Select`,
   and it is a named tab stop, since it is the only way to clear.
 - Follow-up on a tile card: right after a tile is changed from its card, that

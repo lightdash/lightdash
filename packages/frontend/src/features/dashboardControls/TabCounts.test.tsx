@@ -147,7 +147,9 @@ describe('TabCounts', () => {
 
         await userEvent.hover(screen.getByText('2 of 3'));
         expect(
-            await screen.findByText('2 of 3 tiles on this tab use this filter'),
+            await screen.findByText(
+                '2 of 3 tiles on this tab are filtered by this filter',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -227,7 +229,9 @@ describe('TabCounts', () => {
 
         await userEvent.hover(screen.getByText('1 of 1'));
         expect(
-            await screen.findByText('1 of 1 tiles on this tab use Region'),
+            await screen.findByText(
+                '1 of 1 tile on this tab is filtered by Region',
+            ),
         ).toBeInTheDocument();
     });
 

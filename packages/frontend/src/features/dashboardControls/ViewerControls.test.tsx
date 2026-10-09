@@ -105,7 +105,9 @@ describe('ViewerControls', () => {
         it('summarises a filter no tab locks', () => {
             renderControls(makeRule('a'));
             expect(
-                screen.getByText('Viewers can change it on every tab'),
+                screen.getByText(
+                    'Not locked: viewers can change it on every tab',
+                ),
             ).toBeInTheDocument();
         });
 
@@ -127,7 +129,7 @@ describe('ViewerControls', () => {
             const onChange = renderControls(
                 makeRule('a', { lockedTabUuids: ['t2'] }),
             );
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             fireEvent.click(screen.getByRole('switch', { name: 'Finance' }));
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: ['t2', 't3'] }),
@@ -138,7 +140,7 @@ describe('ViewerControls', () => {
             const onChange = renderControls(
                 makeRule('a', { lockedTabUuids: ['t2'] }),
             );
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             fireEvent.click(screen.getByRole('switch', { name: 'Details' }));
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: undefined }),
@@ -147,7 +149,7 @@ describe('ViewerControls', () => {
 
         it('reveals the per-tab list on request', () => {
             renderControls(makeRule('a'));
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             expect(
                 screen.queryByRole('switch', { name: 'Overview' }),
             ).not.toBeInTheDocument();
@@ -163,7 +165,7 @@ describe('ViewerControls', () => {
             const onChange = renderControls(
                 makeRule('a', { lockedTabUuids: ['t2'] }),
             );
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             fireEvent.click(
                 screen.getByRole('switch', { name: /Lock on every tab/ }),
             );
@@ -176,9 +178,9 @@ describe('ViewerControls', () => {
             setContext([]);
             const onChange = renderControls(makeRule('a'));
             expect(
-                screen.getByText('Viewers can change it'),
+                screen.getByText('Not locked: viewers can change it'),
             ).toBeInTheDocument();
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             expect(
                 screen.queryByRole('button', { name: 'Set per tab' }),
             ).not.toBeInTheDocument();
@@ -191,7 +193,7 @@ describe('ViewerControls', () => {
 
         it('cannot lock a required filter that has no value', async () => {
             const onChange = renderControls(makeRule('a', { required: true }));
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             const everyTab = screen.getByRole('switch', {
                 name: /Lock on every tab/,
             });
@@ -218,7 +220,7 @@ describe('ViewerControls', () => {
                     values: ['x'],
                 }),
             );
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             expect(
                 screen.getByRole('switch', { name: /Lock on every tab/ }),
             ).toBeEnabled();
@@ -228,7 +230,7 @@ describe('ViewerControls', () => {
             const onChange = renderControls(
                 makeRule('a', { required: true, lockedTabUuids: ['t2'] }),
             );
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             expect(
                 screen.getByRole('switch', { name: 'Finance' }),
             ).toBeDisabled();
@@ -242,10 +244,10 @@ describe('ViewerControls', () => {
 
         it('notes what a lock still does', () => {
             renderControls(makeRule('a', { lockedTabUuids: ['t1'] }));
-            openRow(/Viewers/);
+            openRow(/^Lock/);
             expect(
                 screen.getByText(
-                    'Still filters the tiles. URL and embed values are ignored.',
+                    'A locked filter still filters the tiles. Values from the URL or an embed are ignored.',
                 ),
             ).toBeInTheDocument();
         });
@@ -449,9 +451,7 @@ describe('ViewerControls', () => {
             const onEditRules = vi.fn();
             renderControls(a, onEditRules);
             openRow(/Required/);
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Edit rule →' }),
-            );
+            fireEvent.click(screen.getByRole('button', { name: 'Edit rule' }));
             expect(onEditRules).toHaveBeenCalledTimes(1);
         });
 
@@ -469,7 +469,7 @@ describe('ViewerControls', () => {
             );
             openRow(/Required/);
             expect(
-                screen.queryByRole('button', { name: 'Edit rule →' }),
+                screen.queryByRole('button', { name: 'Edit rule' }),
             ).not.toBeInTheDocument();
             unmount();
 
@@ -478,7 +478,7 @@ describe('ViewerControls', () => {
             renderControls(a, null);
             openRow(/Required/);
             expect(
-                screen.queryByRole('button', { name: 'Edit rule →' }),
+                screen.queryByRole('button', { name: 'Edit rule' }),
             ).not.toBeInTheDocument();
         });
 
