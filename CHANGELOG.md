@@ -1,3 +1,10 @@
+## [2.502.1](https://github.com/lightdash/lightdash/compare/2.502.0...2.502.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** single border on agent error notice ([#30797](https://github.com/lightdash/lightdash/issues/30797)) ([dcf0289](https://github.com/lightdash/lightdash/commit/dcf028937a54b462ed55c2eec3b9eb64d0d69243))
+
 # [2.502.0](https://github.com/lightdash/lightdash/compare/2.501.1...2.502.0) (2026-10-09)
 
 
