@@ -7,8 +7,6 @@ import {
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
-    getSameTurnSqlApprovalProgressId,
-    isSqlApprovalToolCall,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
@@ -110,9 +108,9 @@ import {
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import {
-    getComposerQueryNodes,
-    isWarehouseSqlNode,
-} from './ToolCalls/utils/composerQueryNodes';
+    getPendingApprovalIds,
+    requiresSqlApproval,
+} from './ToolCalls/utils/sqlApprovalPending';
 import {
     appendToolCallToActivityGroup,
     canAppendToolCallToActivityGroup,
@@ -129,35 +127,6 @@ type ToolGroup = ToolCallActivityGroup & {
 };
 type TextSegment = { kind: 'text'; text: string; idx: number };
 type StreamSegment = TextSegment | ToolGroup;
-
-// Composer gates only when it has warehouse SQL nodes; runSql always; content
-// tools only when they save new SQL.
-const requiresSqlApproval = (toolName: string, toolArgs: unknown): boolean =>
-    toolName === 'runComposerQueries'
-        ? getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode)
-        : isSqlApprovalToolCall(toolName, toolArgs);
-
-// Complete args, no result, no decision, and not skipped by the server for
-// SQL approved earlier in the turn: the tool is waiting on the user.
-const getPendingApprovalIds = (
-    parts: StreamPart[],
-    decidedToolCallIds: string[],
-    stepProgressMessages: StepProgressMessage[],
-): string[] => {
-    const progressIds = new Set(
-        stepProgressMessages.map((message) => message.progressId),
-    );
-    return parts.flatMap((part) =>
-        part.type !== 'text' &&
-        !part.toolResult &&
-        part.isArgsPartial !== true &&
-        !decidedToolCallIds.includes(part.toolCallId) &&
-        !progressIds.has(getSameTurnSqlApprovalProgressId(part.toolCallId)) &&
-        requiresSqlApproval(part.toolName, part.toolArgs)
-            ? [part.toolCallId]
-            : [],
-    );
-};
 
 const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
     const segments: StreamSegment[] = [];
@@ -659,11 +628,7 @@ const AssistantBubbleContent: FC<{
                             display: s.display,
                         }));
                     const pendingApprovalIds = streamingState
-                        ? getPendingApprovalIds(
-                              streamingState.parts,
-                              streamingState.decidedToolCallIds,
-                              streamingState.stepProgressMessages,
-                          )
+                        ? getPendingApprovalIds(streamingState)
                         : [];
                     const textSegments = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'text' }> =>

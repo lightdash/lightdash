@@ -353,7 +353,15 @@ export function useAiAgentThreadStreamMutation() {
             > | null = null;
 
             try {
-                dispatch(startStreaming({ threadUuid, messageUuid }));
+                dispatch(
+                    startStreaming({
+                        threadUuid,
+                        messageUuid,
+                        projectUuid,
+                        agentUuid,
+                        autoApproveSql,
+                    }),
+                );
 
                 const response = await getAgentThreadReadableStream(
                     projectUuid,

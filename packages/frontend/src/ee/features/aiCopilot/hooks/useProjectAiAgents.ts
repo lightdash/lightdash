@@ -65,6 +65,7 @@ import {
     type AiAgentToolCallHandler,
     type AiAgentToolResultHandler,
 } from '../types';
+import { requestSqlApprovalNotificationPermission } from '../utils/sqlApprovalNotification';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
@@ -137,6 +138,11 @@ export const useProjectAiAgents = ({
     });
 };
 
+export const getProjectAiAgentQueryKey = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+) => [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid] as const;
+
 export const useProjectAiAgent = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
@@ -146,7 +152,7 @@ export const useProjectAiAgent = (
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
-        queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
+        queryKey: getProjectAiAgentQueryKey(projectUuid, agentUuid),
         queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
         onError: (error) => {
             if (isAiAgentAuthorizationError(error.error)) {
@@ -1207,6 +1213,11 @@ export const useCreateAgentThreadMutation = (
             skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(projectUuid, agentUuid, data),
+        onMutate: ({ skipAgentResponse }) => {
+            if (!isEmbed && !skipAgentResponse) {
+                requestSqlApprovalNotificationPermission();
+            }
+        },
         onSuccess: async (thread, variables) => {
             const { agentUuid } = variables;
             // Invalidate both user-specific and all-users thread queries
@@ -1422,6 +1433,9 @@ export const useCreateAgentThreadMessageMutation = (
                   )
                 : Promise.reject(),
         onMutate: (data) => {
+            if (!isEmbed && !data.skipAgentResponse && !data.autoApproveSql) {
+                requestSqlApprovalNotificationPermission();
+            }
             // Temporary uuid for optimistic messages
             const messageUuid = nanoid();
 
