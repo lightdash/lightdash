@@ -8,7 +8,10 @@ import {
     type UUID,
 } from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
-import { type ChartSavedAction } from '../../features/embed/events/types';
+import {
+    type ChartSavedAction,
+    type DispatchEmbedEvent,
+} from '../../features/embed/events/types';
 
 export const EMBED_KEY = 'lightdash-embed';
 
@@ -69,6 +72,9 @@ export interface EmbedContext {
     // Called after a chart is created or updated from an embedded Explore. The
     // dashboard builder uses this to update its chart editor state.
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    // Sends an embed event to the SDK host's onEvent, or as a DOM/postMessage event
+    dispatchEmbedEvent: DispatchEmbedEvent;
+    isEmbedEventReady: boolean;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
     // The saved chart whose persisted custom SQL seeded this Explore. This is

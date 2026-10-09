@@ -14,6 +14,7 @@ import AppHeaderActions from './AppHeaderActions';
 
 vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
+    useParams: () => ({}),
 }));
 vi.mock('../hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: vi.fn(),

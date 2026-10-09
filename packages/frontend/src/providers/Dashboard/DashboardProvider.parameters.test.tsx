@@ -9,10 +9,7 @@ const mocks = vi.hoisted(() => ({
     embedMode: undefined as string | undefined,
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({ mode: mocks.embedMode }),
-}));
-vi.mock('../../ee/features/embed/hooks/useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({ dispatchEmbedEvent: vi.fn() }),
+    default: () => ({ mode: mocks.embedMode, dispatchEmbedEvent: vi.fn() }),
 }));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({ data: undefined }),

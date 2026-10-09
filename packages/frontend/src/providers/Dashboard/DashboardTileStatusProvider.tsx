@@ -17,7 +17,6 @@ import React, {
 } from 'react';
 import { useLocation } from 'react-router';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
-import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     auditResponseToTileStatuses,
@@ -104,8 +103,7 @@ const DashboardTileStatusProvider: React.FC<
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const { embedToken } = useEmbed();
-    const { dispatchEmbedEvent, isEmbedEventReady } = useEmbedEventEmitter();
+    const { embedToken, dispatchEmbedEvent, isEmbedEventReady } = useEmbed();
 
     const visibleEmbedTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];

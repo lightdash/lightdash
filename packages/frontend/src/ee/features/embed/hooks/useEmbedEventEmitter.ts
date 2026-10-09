@@ -1,49 +1,63 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type Exact } from 'type-fest';
 import useHealth from '../../../../hooks/health/useHealth';
+import { type EmbedMode } from '../../../providers/Embed/types';
 import { LightdashUiEvent } from '../events/LightdashUiEvent';
 import type {
-    LightdashEventPayload,
-    LightdashEventType,
+    DispatchEmbedEvent,
+    LightdashEvent,
+    LightdashEventHandler,
 } from '../events/types';
 
 /**
- * Hook to manage the embed event emitter system.
- * Initializes the event emitter when health data is available and provides
- * a function to dispatch events.
- *
- * @returns Object with dispatch function to emit events
+ * Creates the embed's single event dispatcher. Owned by EmbedProvider.
+ * SDK embeds deliver to the host's onEvent callback; direct embeds dispatch
+ * DOM/postMessage events once the emitter is initialized from the health config.
  */
-export const useEmbedEventEmitter = () => {
+export const useCreateEmbedEventEmitter = (
+    mode: EmbedMode,
+    onEvent: LightdashEventHandler | undefined,
+) => {
     const { data: health } = useHealth();
+    const onEventRef = useRef(onEvent);
+    onEventRef.current = onEvent;
     const eventEmitter = useRef<LightdashUiEvent | null>(null);
-    const [isEmbedEventReady, setIsEmbedEventReady] = useState(false);
+    const [isEmitterReady, setIsEmitterReady] = useState(false);
+    const eventsConfig =
+        mode === 'direct' ? health?.embedding?.events : undefined;
 
     useEffect(() => {
-        if (health?.embedding?.events) {
+        if (eventsConfig) {
             eventEmitter.current = new LightdashUiEvent(
-                health.embedding.events,
+                eventsConfig,
                 LightdashUiEvent.getTargetOriginFromUrl(),
             );
-            setIsEmbedEventReady(true);
+            setIsEmitterReady(true);
         } else {
             eventEmitter.current = null;
-            setIsEmbedEventReady(false);
+            setIsEmitterReady(false);
         }
-    }, [health?.embedding?.events]);
+    }, [eventsConfig]);
 
-    const dispatchEmbedEvent = useCallback(
-        <T extends Exact<LightdashEventPayload, T>>(
-            eventType: LightdashEventType,
-            payload?: T,
-        ) => {
+    const dispatchEmbedEvent = useCallback<DispatchEmbedEvent>(
+        (eventType, payload) => {
+            if (mode === 'sdk') {
+                if (!onEventRef.current) return false;
+                onEventRef.current({
+                    type: eventType,
+                    payload,
+                } as LightdashEvent);
+                return true;
+            }
+
             if (!eventEmitter.current) return false;
-
             eventEmitter.current.dispatch(eventType, payload);
             return true;
         },
-        [],
+        [mode],
     );
+
+    const isEmbedEventReady =
+        mode === 'sdk' ? onEvent !== undefined : isEmitterReady;
 
     return useMemo(
         () => ({ dispatchEmbedEvent, isEmbedEventReady }),
