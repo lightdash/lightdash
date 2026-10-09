@@ -266,8 +266,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 onOptionSubmit={handleOptionSubmit}
                 withinPortal={false}
             >
-                {/* Props given to the target are spread on the input */}
-                <Combobox.Target aria-expanded={isOpen}>
+                <Combobox.Target>
                     <InputBase
                         radius="md"
                         size="xs"
