@@ -1,4 +1,10 @@
-/* Everything in the waffle is placed from its layout, in pixels from the drawing's top-left corner */
+/* As tall as the waffle's content; everything in it is placed from its layout, in pixels from its top-left corner */
+.canvas {
+    position: relative;
+    height: var(--waffle-height);
+    overflow: hidden;
+}
+
 .board {
     position: absolute;
     inset: 0;

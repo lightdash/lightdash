@@ -122,6 +122,18 @@ export const groupSquares = (
     ];
 };
 
+// Reflow glides every person's square at once, which stalls the page with more squares than this in view
+export const REFLOW_SQUARE_LIMIT = 2000;
+
+// The transition a change of colouring uses: the constant's, but a sweep where a reflow would move too many squares
+export const chooseTransition = (
+    preferred: ColourTransition,
+    squareCount: number,
+): ColourTransition =>
+    preferred === 'reflow' && squareCount > REFLOW_SQUARE_LIMIT
+        ? 'sweep'
+        : preferred;
+
 // The order a part's squares are drawn in, with each element's key. A reflow keeps each person's element and moves
 // it; otherwise each place keeps its element and only its colour changes
 export const getDrawnSquares = (
