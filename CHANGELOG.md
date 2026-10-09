@@ -1,3 +1,16 @@
+# [2.510.0](https://github.com/lightdash/lightdash/compare/2.509.0...2.510.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **apps:** allow form submit events in app preview iframe with CSP form-action none ([#30806](https://github.com/lightdash/lightdash/issues/30806)) ([fd526da](https://github.com/lightdash/lightdash/commit/fd526da34b12c787a29df3747644ebf7eeb0beb6))
+* **learn:** follow the renamed docs heading in the content as code lessons ([#30817](https://github.com/lightdash/lightdash/issues/30817)) ([50bd76e](https://github.com/lightdash/lightdash/commit/50bd76e6fafecaeb6ba13a38cd13bbd89c7db063))
+
+
+### Features
+
+* **documents:** open Document SQL charts in SQL Runner ([#30751](https://github.com/lightdash/lightdash/issues/30751)) ([abaf147](https://github.com/lightdash/lightdash/commit/abaf147bbe803d704337be307c14777920f946eb)), closes [#30744](https://github.com/lightdash/lightdash/issues/30744) [#30758](https://github.com/lightdash/lightdash/issues/30758) [#30744](https://github.com/lightdash/lightdash/issues/30744) [#30758](https://github.com/lightdash/lightdash/issues/30758) [#30783](https://github.com/lightdash/lightdash/issues/30783)
+
 # [2.509.0](https://github.com/lightdash/lightdash/compare/2.508.0...2.509.0) (2026-10-09)
 
 
